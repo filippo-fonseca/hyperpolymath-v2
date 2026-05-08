@@ -206,13 +206,113 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| SET-01 | Phase 1 | Pending |
+| SET-02 | Phase 4 | Pending |
+| SET-03 | Phase 6 | Pending |
+| SET-04 | Phase 4 | Pending |
+| AREA-01 | Phase 2 | Pending |
+| AREA-02 | Phase 2 | Pending |
+| AREA-03 | Phase 2 | Pending |
+| AREA-04 | Phase 2 | Pending |
+| AREA-05 | Phase 2 | Pending |
+| PROJ-01 | Phase 2 | Pending |
+| PROJ-02 | Phase 2 | Pending |
+| PROJ-03 | Phase 2 | Pending |
+| PROJ-04 | Phase 2 | Pending |
+| PROJ-05 | Phase 2 | Pending |
+| PROJ-06 | Phase 2 | Pending |
+| PROJ-07 | Phase 2 | Pending |
+| TASK-01 | Phase 2 | Pending |
+| TASK-02 | Phase 2 | Pending |
+| TASK-03 | Phase 2 | Pending |
+| TASK-04 | Phase 2 | Pending |
+| TASK-05 | Phase 2 | Pending |
+| TASK-06 | Phase 2 | Pending |
+| TASK-07 | Phase 2 | Pending |
+| TASK-08 | Phase 2 | Pending |
+| CAPT-01 | Phase 2 | Pending |
+| CAPT-02 | Phase 2 | Pending |
+| CAPT-03 | Phase 2 | Pending |
+| CAPT-04 | Phase 2 | Pending |
+| CAPT-05 | Phase 2 | Pending |
+| CAPT-06 | Phase 2 | Pending |
+| CAPT-07 | Phase 2 | Pending |
+| CAPT-08 | Phase 2 | Pending |
+| RT-01 | Phase 3 | Pending |
+| RT-02 | Phase 3 | Pending |
+| RT-03 | Phase 3 | Pending |
+| RT-04 | Phase 3 | Pending |
+| RT-05 | Phase 3 | Pending |
+| CAL-01 | Phase 4 | Pending |
+| CAL-02 | Phase 4 | Pending |
+| CAL-03 | Phase 4 | Pending |
+| CAL-04 | Phase 4 | Pending |
+| CAL-05 | Phase 4 | Pending |
+| CAL-06 | Phase 4 | Pending |
+| CAL-07 | Phase 4 | Pending |
+| CAL-08 | Phase 4 | Pending |
+| CAL-09 | Phase 4 | Pending |
+| KIWI-01 | Phase 5 | Pending |
+| KIWI-02 | Phase 5 | Pending |
+| KIWI-03 | Phase 5 | Pending |
+| KIWI-04 | Phase 5 | Pending |
+| KIWI-05 | Phase 5 | Pending |
+| KIWI-06 | Phase 5 | Pending |
+| KIWI-07 | Phase 5 | Pending |
+| KIWI-08 | Phase 5 | Pending |
+| KIWI-09 | Phase 5 | Pending |
+| KIWI-10 | Phase 5 | Pending |
+| KIWI-11 | Phase 5 | Pending |
+| KIWI-12 | Phase 5 | Pending |
+| KIWI-13 | Phase 5 | Pending |
+| KIWI-14 | Phase 5 | Pending |
+| KIWI-15 | Phase 5 | Pending |
+| KIWI-16 | Phase 5 | Pending |
+| KIWI-17 | Phase 5 | Pending |
+| AES-01 | Phase 6 | Pending |
+| AES-02 | Phase 6 | Pending |
+| AES-03 | Phase 6 | Pending |
+| AES-04 | Phase 6 | Pending |
+| AES-05 | Phase 6 | Pending |
+| AES-06 | Phase 6 | Pending |
+| AES-07 | Phase 6 | Pending |
+| RES-01 | Phase 6 | Pending |
+| RES-02 | Phase 6 | Pending |
+| RES-03 | Phase 6 | Pending |
+| RES-04 | Phase 6 | Pending |
+| RES-05 | Phase 5 | Pending |
+| RES-06 | Phase 6 | Pending |
+| RES-07 | Phase 6 | Pending |
+| TEST-01 | Phase 5 | Pending |
+| TEST-02 | Phase 5 | Pending |
+| TEST-03 | Phase 5 | Pending |
+| TEST-04 | Phase 1 | Pending |
+| TEST-05 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 79 total (across 12 categories)
-- Mapped to phases: pending roadmap
-- Unmapped: pending roadmap
+- v1 requirements: 93 total (across 13 categories — note: brief cited 79 but the file enumerates 93; all enumerated requirements are mapped)
+- Mapped to phases: 93 / 93 (100%)
+- Unmapped: 0
+
+**Per-phase counts:**
+- Phase 1 (Foundations): 13 requirements
+- Phase 2 (Manual CRUD): 28 requirements
+- Phase 3 (Realtime): 5 requirements
+- Phase 4 (Calendar): 11 requirements
+- Phase 5 (Kiwi): 22 requirements
+- Phase 6 (Polish): 14 requirements
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-07 after initial definition*
+*Last updated: 2026-05-07 after roadmap creation (traceability populated)*
