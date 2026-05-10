@@ -1,0 +1,37 @@
+resources/
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+.turbo/
+next-env.d.ts
+
+# Build outputs
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# Env files (NEVER commit — D-08, FOUND-05, Pitfall 11)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Testing
+coverage/
+.vitest-cache/
