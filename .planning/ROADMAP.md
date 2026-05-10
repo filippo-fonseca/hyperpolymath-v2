@@ -12,7 +12,7 @@ Hyperpolymath v2 ships in six dependency-shaped phases. Foundations come first b
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundations** - Bootable Next.js + Supabase app with Google OAuth, RLS-enforced schema, encrypted secrets, and a green test harness
+- [x] **Phase 1: Foundations** - Bootable Next.js + Supabase app with Google OAuth, RLS-enforced schema, encrypted secrets, and a green test harness (completed 2026-05-10)
 - [ ] **Phase 2: Manual CRUD** - Areas, Projects, Tasks, and Captures fully usable via UI without Kiwi (sidebar tree, kanban+list, hashtag feed, project detail)
 - [ ] **Phase 3: Realtime Layer** - Cross-device live updates via TanStack Query + Supabase Realtime, with leak-proof subscriptions and visibility-change recovery
 - [ ] **Phase 4: Google Calendar** - Full bi-directional gcal CRUD with encrypted token storage, transparent refresh, day/week views, and DST-correct time handling
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 - [x] 01-01-PLAN.md — Wave 1: Repo + tooling + cloud setup (FOUND-01, FOUND-02, FOUND-04, FOUND-05, FOUND-06)
 - [x] 01-02-PLAN.md — Wave 2: Drizzle schema + migrations + RLS policies + RLS integration test (FOUND-03, AUTH-05, TEST-04)
-- [ ] 01-03-PLAN.md — Wave 3: Google OAuth + (app) route group + onboarding + /today + settings (AUTH-01, AUTH-02, AUTH-03, AUTH-04, SET-01)
+- [x] 01-03-PLAN.md — Wave 3: Google OAuth + (app) route group + onboarding + /today + settings (AUTH-01, AUTH-02, AUTH-03, AUTH-04, SET-01)
 
 ### Phase 2: Manual CRUD
 **Goal**: Every primitive (Areas, Projects, Tasks, Captures) is fully usable through the UI without Kiwi — by the end of this phase the app delivers value as a manual life-OS, and every mutation path Kiwi will later use is proven
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations | 2/3 | In Progress|  |
+| 1. Foundations | 3/3 | Complete   | 2026-05-10 |
 | 2. Manual CRUD | 0/TBD | Not started | - |
 | 3. Realtime Layer | 0/TBD | Not started | - |
 | 4. Google Calendar | 0/TBD | Not started | - |
