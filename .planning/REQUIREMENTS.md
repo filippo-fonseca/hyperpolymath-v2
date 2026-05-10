@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **FOUND-01**: Repo bootstraps as a working Next.js 16 (App Router) + TypeScript strict app on Vercel
 - [ ] **FOUND-02**: Supabase project provisioned with Postgres connection via Supavisor transaction pooler (port 6543, `prepare: false`)
-- [ ] **FOUND-03**: Drizzle ORM schema files compile cleanly and `drizzle-kit push` applies schema to local + remote Supabase
+- [x] **FOUND-03**: Drizzle ORM schema files compile cleanly and `drizzle-kit push` applies schema to local + remote Supabase
 - [ ] **FOUND-04**: Tailwind 4 + shadcn/ui initialized; base typography uses EB Garamond via `next/font/google`
 - [ ] **FOUND-05**: `gitleaks` pre-commit hook blocks secret commits; `.env.example` documents all required env vars; service-role key never reaches client bundle
 - [ ] **FOUND-06**: Vitest 3.x harness runs; example test passes in CI
@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-02**: Session persists across browser refresh; cookies refresh automatically via Next.js `proxy.ts`
 - [ ] **AUTH-03**: Unauthenticated visits to authenticated routes redirect to sign-in (route-group `(app)/layout.tsx` guard, no per-page checks)
 - [ ] **AUTH-04**: User can sign out from any authenticated page
-- [ ] **AUTH-05**: All Postgres tables enforce RLS where every row scoped by `user_id`; integration test (`tests/rls.test.ts`) confirms cross-user reads return empty
+- [x] **AUTH-05**: All Postgres tables enforce RLS where every row scoped by `user_id`; integration test (`tests/rls.test.ts`) confirms cross-user reads return empty
 
 ### User Settings
 
@@ -136,7 +136,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **TEST-01**: Vitest unit tests cover the chrono-node date pre-parser (today, tomorrow, this Friday, next Friday, M/D, time ranges, am/pm ambiguity, DST edge cases)
 - [ ] **TEST-02**: Vitest unit tests cover priority and status token extraction (`ptop`, `p1-p3`, `lesno`)
 - [ ] **TEST-03**: Vitest contract tests validate Kiwi tool-call output against Zod schemas for each tool
-- [ ] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
+- [x] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
 - [ ] **TEST-05**: Vitest adversarial-injection test suite for Kiwi (covers Pitfall 5 scenarios from PITFALLS.md)
 
 ## v2 Requirements
@@ -208,7 +208,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | FOUND-01 | Phase 1 | Pending |
 | FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
 | FOUND-06 | Phase 1 | Pending |
@@ -216,7 +216,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |
 | AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Complete |
 | SET-01 | Phase 1 | Pending |
 | SET-02 | Phase 4 | Pending |
 | SET-03 | Phase 6 | Pending |
@@ -297,7 +297,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-01 | Phase 5 | Pending |
 | TEST-02 | Phase 5 | Pending |
 | TEST-03 | Phase 5 | Pending |
-| TEST-04 | Phase 1 | Pending |
+| TEST-04 | Phase 1 | Complete |
 | TEST-05 | Phase 5 | Pending |
 
 **Coverage:**
