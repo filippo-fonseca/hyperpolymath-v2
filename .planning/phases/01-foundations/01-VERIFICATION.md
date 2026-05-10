@@ -1,8 +1,9 @@
 ---
 phase: 01-foundations
 verified: 2026-05-07T00:00:00Z
-status: gaps_found
-score: 5/6 must-haves verified
+status: passed
+score: 6/6 must-haves verified
+gap_closure: ".env.example expanded with Google OAuth env vars + local/prod sections in commit 6b824d4 (2026-05-10) — verifier-flagged gap resolved post-verify"
 gaps:
   - truth: "gitleaks pre-commit hook blocks secret commits; service-role key never reaches client bundle — and .env.example documents all required env vars"
     status: partial
