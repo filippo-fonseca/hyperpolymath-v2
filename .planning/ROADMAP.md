@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. `gitleaks` pre-commit hook blocks any attempt to commit a secret; the service-role key is referenced only in server code and never reaches the client bundle
   6. User can set their graduation year on a settings page; the value persists and is readable by future Class-creation flows
 **Plans**: 3 plans
-- [ ] 01-01-PLAN.md — Wave 1: Repo + tooling + cloud setup (FOUND-01, FOUND-02, FOUND-04, FOUND-05, FOUND-06)
+- [x] 01-01-PLAN.md — Wave 1: Repo + tooling + cloud setup (FOUND-01, FOUND-02, FOUND-04, FOUND-05, FOUND-06)
 - [ ] 01-02-PLAN.md — Wave 2: Drizzle schema + migrations + RLS policies + RLS integration test (FOUND-03, AUTH-05, TEST-04)
 - [ ] 01-03-PLAN.md — Wave 3: Google OAuth + (app) route group + onboarding + /today + settings (AUTH-01, AUTH-02, AUTH-03, AUTH-04, SET-01)
 
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations | 0/TBD | Not started | - |
+| 1. Foundations | 1/3 | In Progress|  |
 | 2. Manual CRUD | 0/TBD | Not started | - |
 | 3. Realtime Layer | 0/TBD | Not started | - |
 | 4. Google Calendar | 0/TBD | Not started | - |
