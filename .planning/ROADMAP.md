@@ -32,7 +32,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. An integration test (`tests/rls.test.ts`) runs against a real client session and confirms a second user's rows are invisible (cross-user reads return empty)
   5. `gitleaks` pre-commit hook blocks any attempt to commit a secret; the service-role key is referenced only in server code and never reaches the client bundle
   6. User can set their graduation year on a settings page; the value persists and is readable by future Class-creation flows
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 01-01-PLAN.md — Wave 1: Repo + tooling + cloud setup (FOUND-01, FOUND-02, FOUND-04, FOUND-05, FOUND-06)
+- [ ] 01-02-PLAN.md — Wave 2: Drizzle schema + migrations + RLS policies + RLS integration test (FOUND-03, AUTH-05, TEST-04)
+- [ ] 01-03-PLAN.md — Wave 3: Google OAuth + (app) route group + onboarding + /today + settings (AUTH-01, AUTH-02, AUTH-03, AUTH-04, SET-01)
 
 ### Phase 2: Manual CRUD
 **Goal**: Every primitive (Areas, Projects, Tasks, Captures) is fully usable through the UI without Kiwi — by the end of this phase the app delivers value as a manual life-OS, and every mutation path Kiwi will later use is proven
