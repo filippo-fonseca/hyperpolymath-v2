@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Block any commit containing detectable secrets — PITFALLS Pitfall 11
+gitleaks protect --staged --redact --verbose --config=.gitleaks.toml

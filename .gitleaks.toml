@@ -1,0 +1,23 @@
+# gitleaks config for hyperpolymath-v2
+# Extends default rules; adds project-specific allowlist for .env.example placeholders.
+title = "Hyperpolymath gitleaks config"
+
+[extend]
+# Use built-in default rules
+useDefault = true
+
+[allowlist]
+description = "Allow placeholder values in documentation and examples"
+paths = [
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''(?i)README\.md$''',
+  '''CLAUDE\.md$''',
+  '''\.planning/''',
+  '''resources/''',
+]
+regexes = [
+  '''YOUR-PROJECT-REF''',
+  '''YOUR-PASSWORD''',
+  '''eyJ\.\.\.''',
+]
