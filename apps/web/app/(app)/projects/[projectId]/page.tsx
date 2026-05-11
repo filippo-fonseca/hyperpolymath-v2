@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { projects, tasksProjects, capturesProjects } from "@/lib/db/schema";
+import { projects, capturesProjects } from "@/lib/db/schema";
+import { getTasksForProject } from "@/lib/db/queries/tasks";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { ProjectDetailColumns } from "@/components/projects/ProjectDetailColumns";
 
@@ -32,27 +33,21 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   if (!project) notFound();
 
-  // Count linked tasks (junction — tasks_projects)
-  const [{ taskCount }] = await db
-    .select({ taskCount: sql<number>`COUNT(*)::int` })
-    .from(tasksProjects)
-    .where(
-      and(
-        eq(tasksProjects.projectId, projectId),
-        eq(tasksProjects.userId, user.id),
+  // TASK-08: Fetch actual tasks for the Tasks column (Plan 03 wires this)
+  const [tasksForProject, captureCountResult] = await Promise.all([
+    getTasksForProject(user.id, projectId),
+    db
+      .select({ captureCount: sql<number>`COUNT(*)::int` })
+      .from(capturesProjects)
+      .where(
+        and(
+          eq(capturesProjects.projectId, projectId),
+          eq(capturesProjects.userId, user.id),
+        ),
       ),
-    );
+  ]);
 
-  // Count linked captures (junction — captures_projects)
-  const [{ captureCount }] = await db
-    .select({ captureCount: sql<number>`COUNT(*)::int` })
-    .from(capturesProjects)
-    .where(
-      and(
-        eq(capturesProjects.projectId, projectId),
-        eq(capturesProjects.userId, user.id),
-      ),
-    );
+  const { captureCount } = captureCountResult[0]!;
 
   // Normalize semesterTerm to the typed union expected by ProjectHeader
   const semesterTerm = project.semesterTerm as
@@ -84,8 +79,8 @@ export default async function ProjectDetailPage({ params }: Props) {
       <div className="px-8 py-6">
         <ProjectDetailColumns
           projectId={projectId}
-          taskCount={taskCount}
-          captureCount={captureCount}
+          tasks={tasksForProject}
+          captures={[]}
         />
       </div>
     </div>
