@@ -89,7 +89,27 @@ export function CaptureComposer({
     if (!editor) return { content: "", hashtagNames: [] };
     const json = editor.getJSON();
     const tagSet = new Set<string>();
+    // Preserve first-seen casing when we extract `#word` from plain text
+    // (the server lowercases via upsertHashtag for canonical CAPT-08 storage).
+    const tagCasing = new Map<string, string>();
     let content = "";
+
+    // Permissive plain-text hashtag extraction: matches `#word` patterns within
+    // text nodes. The TipTap Mention extension only creates a `mention` node when
+    // the user actively engages the suggestion popover — but most users type
+    // `#idea` and keep typing, leaving plain text. We extract those too so the
+    // hashtag flow doesn't silently fail. Server-side `createCapture` dedupes
+    // case-insensitively and `upsertHashtag` is race-safe (Pitfall 9).
+    const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+    function extractFromText(text: string): void {
+      for (const m of text.matchAll(HASHTAG_RE)) {
+        const raw = m[1];
+        if (!raw) continue;
+        const lower = raw.toLowerCase();
+        if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
+        tagSet.add(tagCasing.get(lower) ?? raw);
+      }
+    }
 
     function walk(node: unknown): void {
       if (!node || typeof node !== "object") return;
@@ -99,10 +119,17 @@ export function CaptureComposer({
         attrs?: { label?: string };
         content?: unknown[];
       };
-      if (n.type === "text" && typeof n.text === "string") content += n.text;
+      if (n.type === "text" && typeof n.text === "string") {
+        content += n.text;
+        extractFromText(n.text);
+      }
       if (n.type === "mention" && typeof n.attrs?.label === "string") {
-        tagSet.add(n.attrs.label);
-        content += `#${n.attrs.label}`;
+        // Mention nodes always win casing — they were explicitly committed via popover
+        const label = n.attrs.label;
+        const lower = label.toLowerCase();
+        tagCasing.set(lower, label);
+        tagSet.add(label);
+        content += `#${label}`;
       }
       if (n.type === "paragraph" || n.type === "doc") {
         (n.content ?? []).forEach(walk);
@@ -110,7 +137,11 @@ export function CaptureComposer({
       }
     }
     walk(json);
-    return { content: content.trim(), hashtagNames: Array.from(tagSet) };
+
+    // Final pass: rebuild tagSet from tagCasing so mention-node casing wins on collision
+    const finalTags = Array.from(tagCasing.values());
+    void tagSet; // keep eslint happy; tagSet was used as an accumulator
+    return { content: content.trim(), hashtagNames: finalTags };
   }
 
   const handleSubmit = useCallback(() => {
