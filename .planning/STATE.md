@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01 (Wave 1 foundation) — ready for Wave 2 (Plans 03-02 + 03-03)
-last_updated: "2026-05-11T19:20:48.303Z"
+stopped_at: Completed 03-03-PLAN.md (Tasks 1+2 autonomous; Task 3 smoke-test checkpoint deferred to wave-3 human verification)
+last_updated: "2026-05-11T19:34:29.708Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 03 (realtime-layer) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-11
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundations P02 | 530349min | 2 tasks | 10 files |
 | Phase 02 P04 | Multi-session (walkthrough-driven) | 4 tasks | 18 files |
 | Phase 03 P01 | 180min | 4 tasks | 9 files |
+| Phase 03-realtime-layer P03 | 12min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03-realtime P01]: useTableSubscription uses a module-level Map<`${table}::${userId}`, { channel, refcount }> singleton — two component mounts of the same (table, userId) share one Supabase RealtimeChannel (RT-01 / D-08)
 - [Phase 03]: [Phase 03-realtime P01]: single visibilitychange listener lives at QueryProvider; calls notifyVisible(invalidate) walking the refcounted active-table registry — duplicate mounts do not cause duplicate invalidations (RT-03 / D-11)
 - [Phase 03]: [Phase 03-realtime P01]: Realtime payload handlers invalidate only — setQueryData forbidden under apps/web/lib/realtime/ (enforced by grep in plan acceptance) (RT-04 / D-09 / CLAUDE.md Critical Pattern 3)
+- [Phase 03-realtime-layer]: useTableSubscription extended with alsoInvalidate ReadonlyArray for cross-key fanout (D-10 unlocked) — singleton dedupe holds, extra keys accrue across mounts
+- [Phase 03-realtime-layer]: Captures domain uses inline optimistic reducer in CapturesClient (file-disjoint from 03-02's shared module) — same algebra, preserves parallel-wave disjointness
+- [Phase 03-realtime-layer]: Auth-gated read Server Actions (getCapturesForCurrentUser, getHashtagsForUserAction) use getClaims() per CLAUDE.md Critical Pattern 1; throw on unauthenticated so TanStack Query surfaces the error
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T19:20:48.301Z
-Stopped at: Completed 03-01 (Wave 1 foundation) — ready for Wave 2 (Plans 03-02 + 03-03)
+Last session: 2026-05-11T19:34:29.705Z
+Stopped at: Completed 03-03-PLAN.md (Tasks 1+2 autonomous; Task 3 smoke-test checkpoint deferred to wave-3 human verification)
 Resume file: None

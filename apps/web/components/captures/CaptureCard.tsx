@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal } from "lucide-react";
@@ -38,6 +37,15 @@ interface Props {
    */
   onOpen?: () => void;
   /**
+   * Phase 3 — optimistic delete callback. When the card is rendered inside
+   * CapturesClient (via CapturesFeed), this is wired to
+   * `addOptimistic({ type: "delete", id })` so the row disappears instantly.
+   * When undefined (e.g. project detail Captures column), delete still fires
+   * the Server Action; the Realtime echo + TanStack Query invalidation will
+   * remove the row on the next refetch.
+   */
+  onOptimisticDelete?: (id: string) => void;
+  /**
    * Signed-in user's avatar URL (from Supabase Auth `user_metadata.avatar_url`).
    * Rendered Twitter-style on the leading edge of the card in non-compact mode
    * — single-user life-OS, so the avatar is always "you". Compact mode (project
@@ -52,6 +60,15 @@ interface Props {
 /**
  * Capture feed card (UI-SPEC §Capture Cards).
  *
+ * Phase 3 changes:
+ * - Optimistic delete via `onOptimisticDelete` — the row disappears instantly
+ *   when the user confirms. The Server Action then persists; on rejection
+ *   useOptimistic auto-reverts (row reappears) + toast.error fires (D-03).
+ * - No manual page refresh after delete — Realtime + TanStack Query own cross-window
+ *   propagation now (D-12). The motion exit animation still plays via local
+ *   `removed` state for visual continuity.
+ *
+ * UI:
  * - bg card, border 1px, rounded-lg (flat — no shadow)
  * - Hover: ⋯ menu reveals top-right (Open / Delete) + entire card body is clickable
  * - Click body → opens CaptureDetailPanel (Notion-style Sheet, owned by parent)
@@ -65,28 +82,34 @@ export function CaptureCard({
   capture,
   compact = false,
   onOpen,
+  onOptimisticDelete,
   userAvatarUrl,
   userInitials,
 }: Props) {
   const showAvatar = !compact;
-  const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [removed, setRemoved] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function handleDelete() {
+    // Optimistic delete first — instant feedback. If the server rejects,
+    // useOptimistic auto-reverts on transition completion.
+    onOptimisticDelete?.(capture.id);
+    setConfirmOpen(false);
+    setRemoved(true);
     startTransition(async () => {
       const r = await deleteCapture(capture.id);
       if (!r.success) {
         toast.error(r.error);
+        // Local "removed" still played the exit animation; if the server
+        // rejects, the row will come back via useOptimistic auto-revert +
+        // Realtime echo. We reset local `removed` so the card mounts again
+        // when CapturesClient re-renders with the canonical row.
+        setRemoved(false);
         return;
       }
-      setRemoved(true);
-      setConfirmOpen(false);
-      // Toast after the local fade so it feels intentional
+      // Toast after the local fade so it feels intentional.
       toast("Capture deleted.");
-      // Slight delay before refreshing so the AnimatePresence exit can play
-      setTimeout(() => router.refresh(), 220);
     });
   }
 

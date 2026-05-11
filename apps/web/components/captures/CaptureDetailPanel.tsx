@@ -7,7 +7,6 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { X } from "lucide-react";
@@ -63,6 +62,21 @@ interface Props {
   projects: ProjectMultiSelectOption[];
   open: boolean;
   onClose: () => void;
+  /**
+   * Phase 3 — optimistic update callback. When wired (CapturesClient mounts
+   * the panel), edits are reflected in the feed instantly via
+   * `addOptimistic({ type: "update", id, patch })`. Server reject → silent
+   * revert via useOptimistic + toast.error (D-03).
+   */
+  onOptimisticUpdate?: (
+    id: string,
+    patch: Partial<CaptureWithLinks>,
+  ) => void;
+  /**
+   * Phase 3 — optimistic delete callback. Same shape as the one threaded
+   * through CapturesFeed → CaptureCard.
+   */
+  onOptimisticDelete?: (id: string) => void;
   /**
    * Signed-in user's Google profile avatar URL (from Supabase Auth metadata).
    * Rendered slightly larger (h-10 w-10) alongside the panel header — mirrors
@@ -157,10 +171,11 @@ export function CaptureDetailPanel({
   projects,
   open,
   onClose,
+  onOptimisticUpdate,
+  onOptimisticDelete,
   userAvatarUrl,
   userInitials,
 }: Props) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // Discard-confirm dialog. `pendingDiscardAction` records what to do *after*
@@ -332,6 +347,34 @@ export function CaptureDetailPanel({
       toast.error("Capture cannot be empty.");
       return;
     }
+    // Phase 3 — optimistic update first. Build an optimistic patch that
+    // mirrors what the server will store; the Realtime echo + TanStack Query
+    // refetch reconciles the join rows (hashtags + projects) to the canonical
+    // shape on the next pass.
+    const optimisticHashtags = hashtagNames.map((name) => {
+      const lower = name.toLowerCase();
+      const known = capture.hashtags.find((h) => h.name === lower);
+      return (
+        known ?? {
+          id: `pending-${name}`,
+          name: lower,
+          displayName: name,
+        }
+      );
+    });
+    const optimisticProjects = form.projectIds
+      .map((id) => {
+        const p = projects.find((proj) => proj.id === id);
+        return p ? { id: p.id, name: p.name } : null;
+      })
+      .filter((p): p is { id: string; name: string } => p !== null);
+    onOptimisticUpdate?.(capture.id, {
+      content,
+      hashtags: optimisticHashtags,
+      projects: optimisticProjects,
+      updatedAt: new Date(),
+    });
+
     const r = await updateCapture({
       id: capture.id,
       content,
@@ -340,12 +383,13 @@ export function CaptureDetailPanel({
     });
     if (!r.success) {
       toast.error(r.error);
+      // useOptimistic auto-reverts when the transition completes.
       return;
     }
     toast("Capture updated.");
     setInitialForm({ content, hashtagNames, projectIds: form.projectIds });
-    router.refresh();
-  }, [capture, parseEditor, form.projectIds, router]);
+    // No manual cache busting — Realtime echo + invalidation handles it (D-12).
+  }, [capture, parseEditor, form.projectIds, onOptimisticUpdate, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -420,17 +464,18 @@ export function CaptureDetailPanel({
 
   async function handleDelete() {
     if (!capture) return;
+    // Phase 3 — optimistic delete first; row vanishes from the feed instantly.
+    onOptimisticDelete?.(capture.id);
     const r = await deleteCapture(capture.id);
     if (!r.success) {
       toast.error(r.error);
+      // useOptimistic auto-reverts; the row reappears on the feed.
       return;
     }
     toast("Capture deleted.");
     setShowDeleteConfirm(false);
     onClose();
-    startTransition(() => {
-      router.refresh();
-    });
+    // No manual cache busting — Realtime echo + invalidation handles it (D-12).
   }
 
   return (
