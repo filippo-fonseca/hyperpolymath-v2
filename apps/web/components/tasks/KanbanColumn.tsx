@@ -80,6 +80,7 @@ export function KanbanColumn({
         )}
       >
         <SortableContext
+          id={`kanban-column-${status}`}
           items={tasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
         >

@@ -140,6 +140,7 @@ export function KanbanBoard({ tasks, onTaskClick, onCreateTask }: Props) {
 
   return (
     <DndContext
+      id="tasks-kanban"
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}

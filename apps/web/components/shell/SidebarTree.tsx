@@ -205,6 +205,7 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
 
   return (
     <DndContext
+      id="sidebar-tree"
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
@@ -212,6 +213,7 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
       onDragCancel={() => setActiveDragId(null)}
     >
       <SortableContext
+        id="sidebar-areas"
         items={allAreaIds}
         strategy={verticalListSortingStrategy}
       >
@@ -385,6 +387,7 @@ function SortableAreaRow({
       {/* Project list */}
       {!collapsed && (
         <SortableContext
+          id={`sidebar-projects-${area.id}`}
           items={projectIds}
           strategy={verticalListSortingStrategy}
         >

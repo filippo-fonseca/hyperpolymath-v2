@@ -89,12 +89,14 @@ export function TaskList({ tasks, onTaskClick }: Props) {
 
   return (
     <DndContext
+      id="tasks-list"
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <SortableContext
+        id="tasks-list-sortable"
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
