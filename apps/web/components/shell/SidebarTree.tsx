@@ -4,12 +4,16 @@ import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
+  defaultDropAnimationSideEffects,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
+  type DropAnimation,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -25,6 +29,12 @@ import { reorderAreas } from "@/app/actions/areas";
 import { AreaActionsMenu } from "@/components/areas/AreaContextMenu";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { cn } from "@/lib/utils";
+
+const dropAnimation: DropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: { active: { opacity: "0.4" } },
+  }),
+};
 
 interface Props {
   areas: SidebarArea[];
@@ -42,6 +52,7 @@ export function SidebarTree({ areas, collapsed }: Props) {
         .filter((a): a is SidebarArea => Boolean(a)),
   );
   const [pendingDragId, setPendingDragId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -52,7 +63,12 @@ export function SidebarTree({ areas, collapsed }: Props) {
     }),
   );
 
+  function handleDragStart(e: DragStartEvent) {
+    setActiveDragId(String(e.active.id));
+  }
+
   function handleDragEnd(e: DragEndEvent) {
+    setActiveDragId(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const oldIndex = optimisticAreas.findIndex((a) => a.id === active.id);
@@ -62,18 +78,14 @@ export function SidebarTree({ areas, collapsed }: Props) {
     const orderedIds = next.map((a) => a.id);
     setPendingDragId(String(active.id));
     startTransition(async () => {
-      // Apply optimistic order — view updates immediately, no snap-back.
       applyOptimisticOrder(orderedIds);
       const result = await reorderAreas({ orderedIds });
       setPendingDragId(null);
       if (!result.success) {
-        // useOptimistic auto-reverts to `areas` (props) when transition ends
-        // without persisted state — no manual rollback needed.
         toast.error(result.error);
         return;
       }
       toast("Areas reordered.");
-      // router.refresh() updates `areas` prop → optimistic merges with new state.
       router.refresh();
     });
   }
@@ -86,11 +98,17 @@ export function SidebarTree({ areas, collapsed }: Props) {
     );
   }
 
+  const activeArea = activeDragId
+    ? optimisticAreas.find((a) => a.id === activeDragId)
+    : null;
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveDragId(null)}
     >
       <SortableContext
         items={optimisticAreas.map((a) => a.id)}
@@ -107,6 +125,25 @@ export function SidebarTree({ areas, collapsed }: Props) {
           ))}
         </ul>
       </SortableContext>
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeArea ? (
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2 py-1",
+              "text-[13px] font-sans text-foreground select-none",
+              "bg-secondary shadow-lg ring-1 ring-ring cursor-grabbing",
+            )}
+            style={{ width: collapsed ? 48 : 244 }}
+          >
+            <span className="text-base leading-none shrink-0">
+              {activeArea.emoji ?? "·"}
+            </span>
+            {!collapsed && (
+              <span className="truncate flex-1 min-w-0">{activeArea.name}</span>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
@@ -141,7 +178,9 @@ function SortableAreaRow({
       style={style}
       className={cn(
         "flex flex-col",
-        isDragging && "opacity-90 z-10 relative",
+        // Hide the source row while DragOverlay renders the floating copy —
+        // this lets other rows shift up/down to show the drop zone.
+        isDragging && "opacity-0",
       )}
     >
       {/* The row IS the drag handle. Pointer events on the menu button stop
@@ -158,7 +197,6 @@ function SortableAreaRow({
           "text-[13px] font-sans text-foreground select-none",
           "hover:bg-secondary cursor-grab active:cursor-grabbing",
           "transition-colors",
-          isDragging && "bg-secondary shadow-md ring-1 ring-ring cursor-grabbing",
           isPending && "opacity-50",
           area.archivedAt && "opacity-50 italic line-through",
         )}
