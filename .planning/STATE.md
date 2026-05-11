@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 3 context gathered
-last_updated: "2026-05-11T17:50:42.894Z"
+status: executing
+stopped_at: Completed 03-01 (Wave 1 foundation) — ready for Wave 2 (Plans 03-02 + 03-03)
+last_updated: "2026-05-11T19:20:48.303Z"
 last_activity: 2026-05-11
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 8
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into Kiwi → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 02 — manual-crud
+**Current focus:** Phase 03 — realtime-layer
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 03 (realtime-layer) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-05-11
 
 Progress: [░░░░░░░░░░] 0%
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-foundations P02 | 530349min | 2 tasks | 10 files |
 | Phase 02 P04 | Multi-session (walkthrough-driven) | 4 tasks | 18 files |
+| Phase 03 P01 | 180min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - Roadmap: RES-05 (`kiwi_events` table) ships in Phase 5 with Kiwi (telemetry from first call); other RES requirements ship in Phase 6.
 - [Phase 01-foundations]: drizzle.config.ts uses lib/db/*.ts glob so drizzle-kit picks up pgEnum declarations from enums.ts and emits CREATE TYPE in generated SQL
 - [Phase 01-foundations]: supabase/migrations/0000_init_schema.sql strips --> statement-breakpoint markers from drizzle output for Supabase CLI compatibility
+- [Phase 03]: [Phase 03-realtime P01]: useTableSubscription uses a module-level Map<`${table}::${userId}`, { channel, refcount }> singleton — two component mounts of the same (table, userId) share one Supabase RealtimeChannel (RT-01 / D-08)
+- [Phase 03]: [Phase 03-realtime P01]: single visibilitychange listener lives at QueryProvider; calls notifyVisible(invalidate) walking the refcounted active-table registry — duplicate mounts do not cause duplicate invalidations (RT-03 / D-11)
+- [Phase 03]: [Phase 03-realtime P01]: Realtime payload handlers invalidate only — setQueryData forbidden under apps/web/lib/realtime/ (enforced by grep in plan acceptance) (RT-04 / D-09 / CLAUDE.md Critical Pattern 3)
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T17:50:42.887Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-realtime-layer/03-CONTEXT.md
+Last session: 2026-05-11T19:20:48.301Z
+Stopped at: Completed 03-01 (Wave 1 foundation) — ready for Wave 2 (Plans 03-02 + 03-03)
+Resume file: None

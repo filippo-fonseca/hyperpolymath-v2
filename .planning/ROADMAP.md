@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. DevTools Network → WS shows exactly one Supabase websocket per tab regardless of navigation history (no leaked subscriptions)
   5. TanStack Query caches all reads; Realtime events fire `invalidateQueries` rather than merging payloads manually, and hashtag counts update live as Captures are tagged or untagged
 **Plans**: 4 plans
-- [ ] 03-01-PLAN.md — Wave 1: TanStack Query install + QueryProvider mount + useTableSubscription singleton + visibilitychange listener (RT-01, RT-03, RT-04)
+- [x] 03-01-PLAN.md — Wave 1: TanStack Query install + QueryProvider mount + useTableSubscription singleton + visibilitychange listener (RT-01, RT-03, RT-04)
 - [ ] 03-02-PLAN.md — Wave 2: Areas + Projects + Tasks domain migration to useQuery + useOptimistic + Realtime; Server Actions accept caller UUIDs; revalidatePath removed (RT-02, RT-04, RT-05)
 - [ ] 03-03-PLAN.md — Wave 2: Captures + Hashtags domain migration with captures_hashtags join-table subscription + alsoInvalidate fanout for live hashtag counts; Cmd+K composer parity (RT-02, RT-04, RT-05)
 - [ ] 03-04-PLAN.md — Wave 3: Verification — RLS-aware Realtime integration test + echo dedupe end-to-end + visibility recovery + comprehensive two-window smoke test across all 5 success criteria (RT-01..RT-05)

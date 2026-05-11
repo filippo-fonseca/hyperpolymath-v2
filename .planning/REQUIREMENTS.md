@@ -73,10 +73,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Realtime
 
-- [ ] **RT-01**: A `useTableSubscription<T>(table, userId)` hook subscribes to Supabase Realtime postgres_changes filtered by `user_id`, with mandatory cleanup on unmount and singleton dedupe across mounts
+- [x] **RT-01**: A `useTableSubscription<T>(table, userId)` hook subscribes to Supabase Realtime postgres_changes filtered by `user_id`, with mandatory cleanup on unmount and singleton dedupe across mounts
 - [ ] **RT-02**: Tasks, Captures, Areas, Projects, and Hashtag count tables all subscribe; UI updates live when data changes (verifiable via two-browser-window smoke test)
-- [ ] **RT-03**: On `visibilitychange → 'visible'`, all active subscriptions trigger a refetch (recovers events lost while tab was backgrounded)
-- [ ] **RT-04**: TanStack Query 5.x caches reads; Realtime events fire `queryClient.invalidateQueries()` rather than merging payloads manually
+- [x] **RT-03**: On `visibilitychange → 'visible'`, all active subscriptions trigger a refetch (recovers events lost while tab was backgrounded)
+- [x] **RT-04**: TanStack Query 5.x caches reads; Realtime events fire `queryClient.invalidateQueries()` rather than merging payloads manually
 - [ ] **RT-05**: Optimistic updates use client-generated UUIDs and ID-based dedupe to avoid echo conflicts with Realtime broadcasts
 
 ### Google Calendar
@@ -249,10 +249,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAPT-06 | Phase 2 | Complete |
 | CAPT-07 | Phase 2 | Complete |
 | CAPT-08 | Phase 2 | Complete |
-| RT-01 | Phase 3 | Pending |
+| RT-01 | Phase 3 | Complete |
 | RT-02 | Phase 3 | Pending |
-| RT-03 | Phase 3 | Pending |
-| RT-04 | Phase 3 | Pending |
+| RT-03 | Phase 3 | Complete |
+| RT-04 | Phase 3 | Complete |
 | RT-05 | Phase 3 | Pending |
 | CAL-01 | Phase 4 | Pending |
 | CAL-02 | Phase 4 | Pending |
