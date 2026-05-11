@@ -3,6 +3,7 @@ import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
 import { Toaster } from "sonner";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 export default async function AppLayout({
   children,
@@ -20,7 +21,7 @@ export default async function AppLayout({
   ]);
 
   return (
-    <>
+    <NuqsAdapter>
       <AppShell activeAreas={activeAreas} allAreas={allAreas} graduationYear={user.graduationYear}>
         {children}
       </AppShell>
@@ -28,6 +29,6 @@ export default async function AppLayout({
       <CommandMenu />
       {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
       <Toaster position="bottom-right" duration={4000} />
-    </>
+    </NuqsAdapter>
   );
 }
