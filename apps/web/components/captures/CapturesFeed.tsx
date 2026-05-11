@@ -11,6 +11,11 @@ interface Props {
   isSearchActive: boolean;
   onClearHashtag: () => void;
   onClearSearch: () => void;
+  /**
+   * Clicking a card opens the canonical detail panel (Notion-style Sheet).
+   * Owned by CapturesClient — feed just forwards the click.
+   */
+  onSelectCapture: (capture: CaptureWithLinks) => void;
 }
 
 /**
@@ -27,6 +32,7 @@ export function CapturesFeed({
   isSearchActive,
   onClearHashtag,
   onClearSearch,
+  onSelectCapture,
 }: Props) {
   if (captures.length === 0) {
     if (isSearchActive) {
@@ -61,7 +67,11 @@ export function CapturesFeed({
     <div className="flex flex-col gap-3">
       <AnimatePresence initial={false}>
         {captures.map((c) => (
-          <CaptureCard key={c.id} capture={c} />
+          <CaptureCard
+            key={c.id}
+            capture={c}
+            onOpen={() => onSelectCapture(c)}
+          />
         ))}
       </AnimatePresence>
     </div>

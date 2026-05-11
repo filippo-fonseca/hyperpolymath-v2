@@ -8,7 +8,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,49 +24,37 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { HashtagChip } from "./HashtagChip";
-import { deleteCapture, updateCapture } from "@/app/actions/captures";
+import { deleteCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 
 interface Props {
   capture: CaptureWithLinks;
   compact?: boolean;
+  /**
+   * Click on the card body opens the canonical CaptureDetailPanel.
+   * In `compact` mode (project detail Captures column) the panel is owned by
+   * a different surface — pass `onOpen` if you want the click to do anything.
+   */
+  onOpen?: () => void;
 }
 
 /**
  * Capture feed card (UI-SPEC §Capture Cards).
  *
  * - bg card, border 1px, rounded-lg (flat — no shadow)
- * - Hover: ⋯ menu reveals top-right (Edit / Delete)
- * - Edit: body becomes Textarea + Save/Cancel
+ * - Hover: ⋯ menu reveals top-right (Open / Delete) + entire card body is clickable
+ * - Click body → opens CaptureDetailPanel (Notion-style Sheet, owned by parent)
+ * - Inline edit removed — the detail panel is the canonical edit surface,
+ *   so content + hashtags + project links all stay in one consistent place.
  * - Delete: confirm dialog with exact UI-SPEC copy ("Delete this capture?" / "This can't be undone." / "Delete capture" / "Never mind")
  * - On delete success: motion fade-out + height collapse, then toast "Capture deleted."
- * - compact: smaller padding, no project chips, no inline edit (used by project detail Captures column)
+ * - compact: smaller padding, no project chips (used by project detail Captures column)
  */
-export function CaptureCard({ capture, compact = false }: Props) {
+export function CaptureCard({ capture, compact = false, onOpen }: Props) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(capture.content);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [removed, setRemoved] = useState(false);
   const [pending, startTransition] = useTransition();
-
-  function handleSave() {
-    const next = editValue.trim();
-    if (!next) {
-      toast.error("Capture cannot be empty.");
-      return;
-    }
-    startTransition(async () => {
-      const r = await updateCapture({ id: capture.id, content: next });
-      if (!r.success) {
-        toast.error(r.error);
-        return;
-      }
-      toast("Capture updated.");
-      setEditing(false);
-      router.refresh();
-    });
-  }
 
   function handleDelete() {
     startTransition(async () => {
@@ -85,6 +72,15 @@ export function CaptureCard({ capture, compact = false }: Props) {
     });
   }
 
+  // Keyboard activation parity: Enter / Space on a focused card opens detail
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!onOpen) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpen();
+    }
+  }
+
   return (
     <AnimatePresence initial={false}>
       {!removed && (
@@ -95,83 +91,61 @@ export function CaptureCard({ capture, compact = false }: Props) {
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           className={cn(
-            "group relative border border-border rounded-lg bg-card",
+            "group relative border border-border rounded-lg bg-card transition-colors",
             compact ? "p-2" : "p-4",
+            onOpen && "cursor-pointer hover:bg-card/80",
           )}
+          {...(onOpen
+            ? {
+                role: "button",
+                tabIndex: 0,
+                "aria-label": "Open capture",
+                onClick: onOpen,
+                onKeyDown: handleKeyDown,
+              }
+            : {})}
         >
-          {/* ⋯ hover-reveal action menu */}
-          {!editing && (
-            <div
-              className={cn(
-                "absolute top-2 right-2 opacity-0 transition-opacity",
-                "group-hover:opacity-100 data-[state=open]:opacity-100",
-              )}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    aria-label="Capture actions"
-                  >
-                    <MoreHorizontal size={14} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="font-sans text-[13px]">
-                  {!compact && (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setEditing(true);
-                        setEditValue(capture.content);
-                      }}
-                    >
-                      Edit
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={() => setConfirmOpen(true)}
-                  >
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          {editing ? (
-            <div className="flex flex-col gap-2">
-              <Textarea
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="font-serif text-base min-h-[80px] resize-none"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2">
+          {/* ⋯ hover-reveal action menu — stops propagation so clicks here don't open the panel */}
+          <div
+            className={cn(
+              "absolute top-2 right-2 opacity-0 transition-opacity",
+              "group-hover:opacity-100 data-[state=open]:opacity-100",
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setEditing(false)}
-                  disabled={pending}
+                  className="h-6 w-6 p-0"
+                  aria-label="Capture actions"
                 >
-                  Cancel
+                  <MoreHorizontal size={14} />
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={pending}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="font-sans text-[13px]"
+              >
+                {onOpen && (
+                  <DropdownMenuItem onSelect={() => onOpen()}>
+                    Open
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => setConfirmOpen(true)}
                 >
-                  Save
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <CaptureBody capture={capture} compact={compact} />
-          )}
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <CaptureBody capture={capture} compact={compact} />
         </motion.div>
       )}
 

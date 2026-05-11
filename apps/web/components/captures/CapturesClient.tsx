@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { CaptureComposer } from "./CaptureComposer";
 import { CapturesFeed } from "./CapturesFeed";
+import { CaptureDetailPanel } from "./CaptureDetailPanel";
 import { HashtagSidebar } from "./HashtagSidebar";
 import { CaptureSearch } from "./CaptureSearch";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -26,6 +27,12 @@ interface Props {
  * - active hashtag (URL ?tag=<id>) narrows the feed client-side
  * - search results (server-side tsvector match) narrow further
  * - both apply together (CAPT-06 "search + hashtag combine")
+ *
+ * Detail panel: a single CaptureDetailPanel instance lives at this level.
+ * Clicking any feed card sets `selectedCapture` → panel opens. The panel is
+ * the canonical edit surface for captures (content + hashtags + project
+ * links + timestamps in one place — addresses user feedback that project
+ * links could not be edited after capture creation).
  */
 export function CapturesClient({
   initialCaptures,
@@ -34,6 +41,9 @@ export function CapturesClient({
 }: Props) {
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(
+    null,
+  );
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(
     null,
   );
 
@@ -50,6 +60,28 @@ export function CapturesClient({
     }
     return result;
   }, [initialCaptures, activeTagId, searchResultIds]);
+
+  // Pull the freshest version of the selected capture from initialCaptures —
+  // after router.refresh() following an edit, this reflects updates.
+  const selectedCapture = useMemo(
+    () =>
+      selectedCaptureId
+        ? (initialCaptures.find((c) => c.id === selectedCaptureId) ?? null)
+        : null,
+    [initialCaptures, selectedCaptureId],
+  );
+
+  // Hashtag source for the detail panel's TipTap mention popover —
+  // strip the count field (panel only needs id/name/displayName).
+  const hashtagSuggestions = useMemo(
+    () =>
+      hashtags.map((h) => ({
+        id: h.id,
+        name: h.name,
+        displayName: h.displayName,
+      })),
+    [hashtags],
+  );
 
   const handleSearchResults = useCallback((ids: string[] | null) => {
     setSearchResultIds(ids);
@@ -74,11 +106,7 @@ export function CapturesClient({
         />
         <div className="sticky top-0 z-10">
           <CaptureComposer
-            hashtags={hashtags.map((h) => ({
-              id: h.id,
-              name: h.name,
-              displayName: h.displayName,
-            }))}
+            hashtags={hashtagSuggestions}
             projects={projects}
           />
         </div>
@@ -89,9 +117,18 @@ export function CapturesClient({
             isSearchActive={searchResultIds !== null}
             onClearHashtag={() => setActiveTagId(null)}
             onClearSearch={() => handleSearchResults(null)}
+            onSelectCapture={(c) => setSelectedCaptureId(c.id)}
           />
         </div>
       </div>
+
+      <CaptureDetailPanel
+        capture={selectedCapture}
+        hashtags={hashtagSuggestions}
+        projects={projects}
+        open={selectedCapture !== null}
+        onClose={() => setSelectedCaptureId(null)}
+      />
     </div>
   );
 }
