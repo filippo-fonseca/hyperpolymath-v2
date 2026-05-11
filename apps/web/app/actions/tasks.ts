@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { tasks, tasksProjects, projects } from "@/lib/db/schema";
@@ -11,6 +10,10 @@ type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+/**
+ * Resolve current user via getClaims (CLAUDE.md Critical Pattern 1).
+ * NEVER getSession() — it doesn't validate the JWT.
+ */
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -27,7 +30,12 @@ const StatusEnum = z.enum([
   "lesno",
 ]);
 
+/**
+ * RT-05: Server respects caller-supplied UUID so client useOptimistic + Realtime
+ * echo can dedupe by id.
+ */
 const CreateTaskSchema = z.object({
+  id: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(500),
   notes: z.string().trim().max(10000).nullable().optional(),
   priority: PriorityEnum.default("P3"),
@@ -64,6 +72,7 @@ export async function createTask(
     const [row] = await tx
       .insert(tasks)
       .values({
+        ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         title: parsed.data.title,
         notes: parsed.data.notes ?? null,
@@ -104,8 +113,6 @@ export async function createTask(
     return row!.id;
   });
 
-  revalidatePath("/tasks");
-  revalidatePath("/projects/[projectId]", "page");
   return { success: true, data: { id: result } };
 }
 
@@ -179,8 +186,6 @@ export async function updateTask(
     }
   });
 
-  revalidatePath("/tasks");
-  revalidatePath("/projects/[projectId]", "page");
   return { success: true, data: null };
 }
 
@@ -227,7 +232,6 @@ export async function updateTaskStatus(
     })
     .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)));
 
-  revalidatePath("/tasks");
   return {
     success: true,
     data: { becameLesno: parsed.data.newStatus === "lesno" },
@@ -242,8 +246,6 @@ export async function deleteTask(id: string): Promise<ActionResult<null>> {
   await db
     .delete(tasks)
     .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
-  revalidatePath("/tasks");
-  revalidatePath("/projects/[projectId]", "page");
   return { success: true, data: null };
 }
 
@@ -281,7 +283,6 @@ export async function reorderTasks(
         );
     }
   });
-  revalidatePath("/tasks");
   return { success: true, data: null };
 }
 
@@ -337,8 +338,23 @@ export async function linkTaskToProjects(
       }
     }
   });
-  revalidatePath("/tasks");
-  revalidatePath("/projects/[projectId]", "page");
   return { success: true, data: null };
 }
 
+/**
+ * Auth-gated SELECT for the signed-in user's tasks (with linked projects).
+ * queryFn target for useQuery({ queryKey: tableKey("tasks", userId) }) in
+ * TasksClient.tsx. Returns the same TaskWithProjects shape as the SSR initial
+ * fetch (getAllTasksForUser) so React-Query refetches stay shape-compatible.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims (NOT getSession) — validates JWT.
+ */
+export async function getTasksForCurrentUser(): Promise<
+  import("@/lib/db/queries/tasks").TaskWithProjects[]
+> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const { getAllTasksForUser } = await import("@/lib/db/queries/tasks");
+  return getAllTasksForUser(data.claims.sub);
+}

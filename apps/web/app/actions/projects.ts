@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { and, eq, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
@@ -11,6 +10,10 @@ type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+/**
+ * Resolve current user via getClaims (CLAUDE.md Critical Pattern 1).
+ * NEVER getSession() — it doesn't validate the JWT.
+ */
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -23,9 +26,13 @@ const SemesterEnum = z.enum(["fall", "spring", "summer"]);
 /**
  * PROJ-01 + PROJ-05: create supports basic AND class fields.
  * Class CHECK constraint enforced by Postgres (course_code required when is_class=true).
+ *
+ * RT-05: Server respects caller-supplied UUID so client useOptimistic + Realtime
+ * echo can dedupe by id.
  */
 const CreateProjectSchema = z
   .object({
+    id: z.string().uuid().optional(),
     areaId: z.string().uuid(),
     name: z.string().trim().min(1).max(100),
     description: z.string().trim().max(2000).nullable().optional(),
@@ -102,6 +109,7 @@ export async function createProject(
     const [row] = await db
       .insert(projects)
       .values({
+        ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         areaId: parsed.data.areaId,
         name: parsed.data.name,
@@ -123,8 +131,7 @@ export async function createProject(
       })
       .returning({ id: projects.id });
 
-    revalidatePath("/", "layout");
-    return { success: true, data: { id: row.id } };
+    return { success: true, data: { id: row!.id } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
     return { success: false, error: msg };
@@ -193,7 +200,6 @@ export async function updateProject(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .set(updates as any)
       .where(and(eq(projects.id, id), eq(projects.userId, userId)));
-    revalidatePath("/", "layout");
     return { success: true, data: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Database error";
@@ -211,7 +217,6 @@ export async function archiveProject(id: string): Promise<ActionResult<null>> {
     .update(projects)
     .set({ archivedAt: sql`now()` })
     .where(and(eq(projects.id, id), eq(projects.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -227,7 +232,6 @@ export async function unarchiveProject(
     .update(projects)
     .set({ archivedAt: null })
     .where(and(eq(projects.id, id), eq(projects.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -244,7 +248,6 @@ export async function deleteProject(id: string): Promise<ActionResult<null>> {
   await db
     .delete(projects)
     .where(and(eq(projects.id, id), eq(projects.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -284,7 +287,6 @@ export async function reorderProjects(
         );
     }
   });
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -338,6 +340,24 @@ export async function moveProjectToArea(
         eq(projects.userId, userId),
       ),
     );
-  revalidatePath("/", "layout");
   return { success: true, data: null };
+}
+
+/**
+ * Auth-gated SELECT for the signed-in user's projects. queryFn target for
+ * useQuery({ queryKey: tableKey("projects", userId) }) — used by Sidebar's
+ * SidebarTree AND by the project detail page (B1 canonical detail-page pattern).
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims (NOT getSession) — validates JWT.
+ */
+export type ProjectRow = typeof projects.$inferSelect;
+
+export async function getProjectsForCurrentUser(): Promise<ProjectRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  return db
+    .select()
+    .from(projects)
+    .where(eq(projects.userId, data.claims.sub));
 }

@@ -1,8 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { eq, and, isNull, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { eq, and, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
@@ -11,6 +10,10 @@ type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+/**
+ * Resolve current user via getClaims (CLAUDE.md Critical Pattern 1).
+ * NEVER getSession() — it doesn't validate the JWT.
+ */
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const { data: claimsData, error } = await supabase.auth.getClaims();
@@ -18,7 +21,13 @@ async function getUserId(): Promise<string | null> {
   return claimsData.claims.sub;
 }
 
+/**
+ * RT-05: Server respects caller-supplied UUID so client useOptimistic +
+ * Realtime echo can dedupe by id (Realtime payload arrives with same UUID =
+ * no-op in the reducer).
+ */
 const CreateAreaSchema = z.object({
+  id: z.string().uuid().optional(),
   name: z.string().trim().min(1, "Name is required").max(100),
   emoji: z.string().trim().max(8).optional().nullable(),
 });
@@ -44,6 +53,7 @@ export async function createArea(
   const [row] = await db
     .insert(areas)
     .values({
+      ...(parsed.data.id ? { id: parsed.data.id } : {}),
       userId,
       name: parsed.data.name,
       emoji: parsed.data.emoji ?? null,
@@ -51,8 +61,9 @@ export async function createArea(
     })
     .returning({ id: areas.id });
 
-  revalidatePath("/", "layout");
-  return { success: true, data: { id: row.id } };
+  // No revalidatePath: Realtime echoes drive cache invalidation across all
+  // open clients via useTableSubscription (D-09 / RT-04).
+  return { success: true, data: { id: row!.id } };
 }
 
 const UpdateAreaSchema = z.object({
@@ -81,7 +92,6 @@ export async function updateArea(input: unknown): Promise<ActionResult<null>> {
     .update(areas)
     .set(updates)
     .where(and(eq(areas.id, parsed.data.id), eq(areas.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -94,7 +104,6 @@ export async function archiveArea(id: string): Promise<ActionResult<null>> {
     .update(areas)
     .set({ archivedAt: sql`now()` })
     .where(and(eq(areas.id, id), eq(areas.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -107,7 +116,6 @@ export async function unarchiveArea(id: string): Promise<ActionResult<null>> {
     .update(areas)
     .set({ archivedAt: null })
     .where(and(eq(areas.id, id), eq(areas.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -137,7 +145,6 @@ export async function deleteArea(id: string): Promise<ActionResult<null>> {
   await db
     .delete(areas)
     .where(and(eq(areas.id, id), eq(areas.userId, userId)));
-  revalidatePath("/", "layout");
   return { success: true, data: null };
 }
 
@@ -174,6 +181,23 @@ export async function reorderAreas(
         );
     }
   });
-  revalidatePath("/", "layout");
   return { success: true, data: null };
+}
+
+/**
+ * Auth-gated SELECT for the signed-in user's areas (with nested projects).
+ * queryFn target for useQuery({ queryKey: tableKey("areas", userId) }) in
+ * Sidebar.tsx. Returns the SidebarArea[] shape used by the SSR layout so
+ * React-Query refetches stay shape-compatible.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims (NOT getSession) — validates JWT.
+ */
+export async function getAreasForCurrentUser(): Promise<
+  import("@/lib/db/queries/sidebar").SidebarArea[]
+> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const { getSidebarTree } = await import("@/lib/db/queries/sidebar");
+  return getSidebarTree(data.claims.sub, false);
 }

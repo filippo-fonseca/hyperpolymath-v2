@@ -50,7 +50,8 @@ describe("RT-05 — server actions respect caller-supplied UUID + use getClaims 
   });
 
   it("createArea uses caller-supplied id when valid", async () => {
-    const callerId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    // Valid v4 UUID (version nibble '4', variant nibble in [89abAB])
+    const callerId = "12345678-1234-4567-89ab-1234567890ab";
     await createArea({ id: callerId, name: "Yale" });
     const valuesArg = valuesSpy.mock.calls.at(-1)?.[0];
     expect(valuesArg?.id).toBe(callerId);
