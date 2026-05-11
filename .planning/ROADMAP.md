@@ -65,7 +65,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Optimistic updates with client-generated UUIDs do not duplicate when the Realtime echo arrives (ID-based dedupe)
   4. DevTools Network → WS shows exactly one Supabase websocket per tab regardless of navigation history (no leaked subscriptions)
   5. TanStack Query caches all reads; Realtime events fire `invalidateQueries` rather than merging payloads manually, and hashtag counts update live as Captures are tagged or untagged
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 03-01-PLAN.md — Wave 1: TanStack Query install + QueryProvider mount + useTableSubscription singleton + visibilitychange listener (RT-01, RT-03, RT-04)
+- [ ] 03-02-PLAN.md — Wave 2: Areas + Projects + Tasks domain migration to useQuery + useOptimistic + Realtime; Server Actions accept caller UUIDs; revalidatePath removed (RT-02, RT-04, RT-05)
+- [ ] 03-03-PLAN.md — Wave 2: Captures + Hashtags domain migration with captures_hashtags join-table subscription + alsoInvalidate fanout for live hashtag counts; Cmd+K composer parity (RT-02, RT-04, RT-05)
+- [ ] 03-04-PLAN.md — Wave 3: Verification — RLS-aware Realtime integration test + echo dedupe end-to-end + visibility recovery + comprehensive two-window smoke test across all 5 success criteria (RT-01..RT-05)
+**Wave structure**: Plan 01 (Wave 1, foundation — checkpoint) → Plans 02 + 03 (Wave 2, parallelizable but each carries its own checkpoint smoke test) → Plan 04 (Wave 3, verification + comprehensive smoke)
 
 ### Phase 4: Google Calendar
 **Goal**: Full bi-directional Google Calendar CRUD with encrypted token storage, transparent refresh, day/week grid views, multi-calendar selection, and DST-correct time handling — calendar must work standalone before Kiwi composes `create_event` from one sentence
@@ -119,7 +124,26 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Foundations | 3/3 | Complete    | 2026-05-10 |
 | 2. Manual CRUD | 3/4 | In Progress|  |
-| 3. Realtime Layer | 0/TBD | Not started | - |
+| 3. Realtime Layer | 0/4 | Not started | - |
 | 4. Google Calendar | 0/TBD | Not started | - |
 | 5. Kiwi | 0/TBD | Not started | - |
 | 6. Polish | 0/TBD | Not started | - |
+
+## Backlog
+
+Unsequenced ideas captured during execution. Promote to active milestone via `/gsd:review-backlog`.
+
+### Phase 999.1: Captures — auto-detect URLs & emails as clickable property chips (BACKLOG)
+
+**Goal:** When a Quick Capture's content contains a URL or email address, surface it as a clickable property chip at the top of `CaptureDetailPanel` (under the timestamps section). Link icon for URLs, mail icon for emails. Body text still renders the raw string; the chip is the one-click affordance.
+
+**Why:** User notation captured 2026-05-11 during Phase 3 plan-phase walkthrough — "easy addition" that makes captures more functional without needing Kiwi.
+
+**Likely fit:** Phase 6 polish window, or a captures-domain follow-up after Phase 5 (Kiwi).
+
+**Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
+
+**Plans:** 0 plans
+
+- [ ] TBD (promote with `/gsd:review-backlog` when ready)
+
