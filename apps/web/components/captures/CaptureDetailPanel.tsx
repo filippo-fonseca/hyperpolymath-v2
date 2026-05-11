@@ -1,0 +1,476 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { format, formatDistanceToNow } from "date-fns";
+import { X } from "lucide-react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Mention from "@tiptap/extension-mention";
+
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  ProjectMultiSelect,
+  type ProjectMultiSelectOption,
+} from "@/components/shared/ProjectMultiSelect";
+import { createHashtagSuggestion } from "./tiptap-suggestions";
+import { deleteCapture, updateCapture } from "@/app/actions/captures";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { cn } from "@/lib/utils";
+
+interface HashtagSource {
+  id: string;
+  name: string;
+  displayName: string;
+}
+
+interface Props {
+  capture: CaptureWithLinks | null;
+  hashtags: HashtagSource[];
+  projects: ProjectMultiSelectOption[];
+  open: boolean;
+  onClose: () => void;
+}
+
+interface FormState {
+  content: string;
+  hashtagNames: string[];
+  projectIds: string[];
+}
+
+function captureToFormState(c: CaptureWithLinks): FormState {
+  return {
+    content: c.content,
+    // Preserve first-seen casing from the loaded capture
+    hashtagNames: c.hashtags.map((h) => h.displayName),
+    projectIds: c.projects.map((p) => p.id),
+  };
+}
+
+/**
+ * Build a TipTap doc JSON from a stored capture's plain content + hashtags.
+ *
+ * Captures are stored as plain text in `content` (with literal `#word`
+ * substrings). The TipTap editor wants a structured doc with `mention` nodes
+ * for chips. We split the content on `#word` boundaries — for each match that
+ * corresponds to a known hashtag on this capture, we emit a mention node;
+ * otherwise plain text. This matches the read path that CaptureCard uses for
+ * inline chip rendering.
+ */
+function contentToTipTapDoc(
+  content: string,
+  knownHashtags: { name: string; displayName: string }[],
+) {
+  const lookup = new Map(knownHashtags.map((h) => [h.name, h.displayName]));
+  // Split paragraphs first (preserve newlines as paragraph boundaries)
+  const paragraphs = content.split(/\n+/);
+  return {
+    type: "doc",
+    content: paragraphs.map((para) => {
+      const inline: Array<
+        | { type: "text"; text: string }
+        | { type: "mention"; attrs: { id: string; label: string } }
+      > = [];
+      const parts = para.split(/(\s+)/);
+      for (const part of parts) {
+        const m = /^#([\p{L}\p{N}_]+)$/u.exec(part);
+        if (m && m[1]) {
+          const lower = m[1].toLowerCase();
+          if (lookup.has(lower)) {
+            const display = lookup.get(lower) ?? m[1];
+            inline.push({
+              type: "mention",
+              attrs: { id: display, label: display },
+            });
+            continue;
+          }
+        }
+        if (part) inline.push({ type: "text", text: part });
+      }
+      return inline.length === 0
+        ? { type: "paragraph" }
+        : { type: "paragraph", content: inline };
+    }),
+  };
+}
+
+/**
+ * Notion-style detail panel for editing a capture.
+ *
+ * Mirrors TaskDetailPanel's shadcn Sheet pattern but wider (560px) since
+ * captures are freeform — content + hashtag chips + project links + timestamps
+ * all live inline. Reuses the same TipTap editor + Mention extension as the
+ * composer (single source of truth for chip rendering + extraction).
+ *
+ * - Content edits via TipTap (chips render inline; `#word` plain text is
+ *   permissively parsed on save — matches CaptureComposer.parseEditor)
+ * - Hashtags edited implicitly via the editor (no separate input)
+ * - Project links edited via ProjectMultiSelect
+ * - Save: Cmd+Enter or "Save changes" button
+ * - Delete: footer button with confirm dialog (same copy as inline delete)
+ * - Close: Esc, click outside, or × button
+ */
+export function CaptureDetailPanel({
+  capture,
+  hashtags,
+  projects,
+  open,
+  onClose,
+}: Props) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const [form, setForm] = useState<FormState>({
+    content: "",
+    hashtagNames: [],
+    projectIds: [],
+  });
+  const [initialForm, setInitialForm] = useState<FormState>(form);
+
+  // Build initial TipTap doc from the loaded capture (rebuilt on capture change)
+  const initialDoc = useMemo(() => {
+    if (!capture) return { type: "doc", content: [{ type: "paragraph" }] };
+    return contentToTipTapDoc(capture.content, capture.hashtags);
+  }, [capture]);
+
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      extensions: [
+        StarterKit.configure({
+          heading: false,
+          codeBlock: false,
+          bulletList: false,
+          orderedList: false,
+          blockquote: false,
+          horizontalRule: false,
+          strike: false,
+          code: false,
+        }),
+        Mention.configure({
+          HTMLAttributes: { class: "hashtag-chip-inline" },
+          renderHTML({ options, node }) {
+            return [
+              "span",
+              { ...options.HTMLAttributes, "data-hashtag": node.attrs.label },
+              `#${node.attrs.label}`,
+            ];
+          },
+          suggestion: createHashtagSuggestion(() => hashtags),
+        }),
+      ],
+      editorProps: {
+        attributes: {
+          class:
+            "capture-detail-editor focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto p-4 font-serif text-base",
+        },
+      },
+      content: initialDoc,
+    },
+    // Recreate the editor when the capture identity changes so its content
+    // reflects the freshly-loaded doc (otherwise reusing the same editor
+    // instance shows stale content).
+    [capture?.id, hashtags],
+  );
+
+  // Sync form state when capture changes
+  useEffect(() => {
+    if (capture) {
+      const f = captureToFormState(capture);
+      setForm(f);
+      setInitialForm(f);
+    }
+  }, [capture?.id]);
+
+  // Permissive parse — mirrors CaptureComposer.parseEditor exactly so detail
+  // edits get the same hashtag extraction behavior (plain `#word` text counts).
+  const parseEditor = useCallback((): {
+    content: string;
+    hashtagNames: string[];
+  } => {
+    if (!editor) return { content: "", hashtagNames: [] };
+    const json = editor.getJSON();
+    const tagCasing = new Map<string, string>();
+    let content = "";
+    const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+
+    function extractFromText(text: string): void {
+      for (const m of text.matchAll(HASHTAG_RE)) {
+        const raw = m[1];
+        if (!raw) continue;
+        const lower = raw.toLowerCase();
+        if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
+      }
+    }
+
+    function walk(node: unknown): void {
+      if (!node || typeof node !== "object") return;
+      const n = node as {
+        type?: string;
+        text?: string;
+        attrs?: { label?: string };
+        content?: unknown[];
+      };
+      if (n.type === "text" && typeof n.text === "string") {
+        content += n.text;
+        extractFromText(n.text);
+      }
+      if (n.type === "mention" && typeof n.attrs?.label === "string") {
+        const label = n.attrs.label;
+        const lower = label.toLowerCase();
+        tagCasing.set(lower, label);
+        content += `#${label}`;
+      }
+      if (n.type === "paragraph" || n.type === "doc") {
+        (n.content ?? []).forEach(walk);
+        if (n.type === "paragraph") content += "\n";
+      }
+    }
+    walk(json);
+    return {
+      content: content.trim(),
+      hashtagNames: Array.from(tagCasing.values()),
+    };
+  }, [editor]);
+
+  // Dirty check — content from editor, projects from form state.
+  const editorContent = editor ? parseEditor() : null;
+  const dirty = !!capture && !!editorContent && (
+    editorContent.content !== initialForm.content ||
+    JSON.stringify([...editorContent.hashtagNames].sort()) !==
+      JSON.stringify([...initialForm.hashtagNames].sort()) ||
+    JSON.stringify([...form.projectIds].sort()) !==
+      JSON.stringify([...initialForm.projectIds].sort())
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!capture) return;
+    const { content, hashtagNames } = parseEditor();
+    if (!content) {
+      toast.error("Capture cannot be empty.");
+      return;
+    }
+    const r = await updateCapture({
+      id: capture.id,
+      content,
+      hashtagNames,
+      projectIds: form.projectIds,
+    });
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    toast("Capture updated.");
+    setInitialForm({ content, hashtagNames, projectIds: form.projectIds });
+    router.refresh();
+  }, [capture, parseEditor, form.projectIds, router]);
+
+  // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!open) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (dirty) startTransition(() => void handleSave());
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, dirty, handleSave]);
+
+  async function handleDelete() {
+    if (!capture) return;
+    const r = await deleteCapture(capture.id);
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    toast("Capture deleted.");
+    setShowDeleteConfirm(false);
+    onClose();
+    startTransition(() => {
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-[560px] p-0 flex flex-col"
+          showCloseButton={false}
+        >
+          {capture && (
+            <>
+              {/* Header — minimal, journal-paper feel */}
+              <SheetHeader className="px-6 pt-6 pb-3 border-b border-border">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 flex flex-col gap-1">
+                    <SheetTitle className="font-serif text-[20px] font-semibold leading-tight text-foreground p-0 m-0">
+                      Capture
+                    </SheetTitle>
+                    <p className="font-sans text-[13px] text-muted-foreground">
+                      {formatDistanceToNow(capture.createdAt, {
+                        addSuffix: true,
+                      })}
+                      <span aria-hidden> · </span>
+                      <span title={format(capture.createdAt, "PPpp")}>
+                        {format(capture.createdAt, "PP")}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Close detail panel"
+                    className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0 mt-1"
+                  >
+                    <X size={16} className="text-muted-foreground" />
+                  </button>
+                </div>
+              </SheetHeader>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 py-5">
+                {/* Content editor — generous whitespace, journal-paper aesthetic */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    Content
+                  </h3>
+                  <div className="border border-border rounded-lg bg-card">
+                    <EditorContent editor={editor} />
+                  </div>
+                  <p className="font-sans text-[13px] text-muted-foreground italic">
+                    Type # to add a hashtag. Plain #words are picked up too.
+                  </p>
+                </section>
+
+                {/* Project links */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    Linked projects
+                  </h3>
+                  <ProjectMultiSelect
+                    value={form.projectIds}
+                    onChange={(ids) =>
+                      setForm((prev) => ({ ...prev, projectIds: ids }))
+                    }
+                    projects={projects}
+                    placeholder="Link to projects"
+                  />
+                </section>
+
+                {/* Metadata */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    Timestamps
+                  </h3>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px]">
+                    <dt className="text-muted-foreground">Created</dt>
+                    <dd className="text-foreground">
+                      {format(capture.createdAt, "PPpp")}
+                    </dd>
+                    <dt className="text-muted-foreground">Updated</dt>
+                    <dd className="text-foreground">
+                      {format(capture.updatedAt, "PPpp")}
+                    </dd>
+                  </dl>
+                </section>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isPending}
+                >
+                  Delete capture
+                </Button>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "font-sans text-[13px] text-muted-foreground transition-opacity",
+                      dirty ? "opacity-100" : "opacity-0",
+                    )}
+                    aria-hidden={!dirty}
+                  >
+                    Cmd+Enter to save
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="font-sans text-[13px]"
+                    onClick={() => startTransition(() => void handleSave())}
+                    disabled={!dirty || isPending}
+                  >
+                    Save changes
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirm dialog — UI-SPEC exact copy */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl font-semibold">
+              Delete this capture?
+            </DialogTitle>
+            <DialogDescription className="font-serif text-base">
+              This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="font-sans text-[13px]"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Never mind
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="font-sans text-[13px]"
+              onClick={() => startTransition(() => void handleDelete())}
+              disabled={isPending}
+            >
+              Delete capture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
