@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useOptimistic, useState } from "react";
 import { useQueryState, parseAsString } from "nuqs";
+import { useQuery } from "@tanstack/react-query";
 import { CaptureComposer } from "./CaptureComposer";
 import { CapturesFeed } from "./CapturesFeed";
 import { CaptureDetailPanel } from "./CaptureDetailPanel";
@@ -9,10 +10,19 @@ import { HashtagSidebar } from "./HashtagSidebar";
 import { CaptureSearch } from "./CaptureSearch";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { getCapturesForCurrentUser } from "@/app/actions/captures";
+import {
+  getHashtagsForUserAction,
+  type HashtagWithCount,
+} from "@/app/actions/hashtags";
 
 interface Props {
+  /** Signed-in user id — required for tableKey-scoped queries + Realtime filters. */
+  userId: string;
   initialCaptures: CaptureWithLinks[];
-  hashtags: { id: string; name: string; displayName: string; count: number }[];
+  hashtags: HashtagWithCount[];
   projects: ProjectMultiSelectOption[];
   /**
    * Total captures owned by the user (no filter applied). Drives the "All"
@@ -32,24 +42,89 @@ interface Props {
 }
 
 /**
- * /captures client orchestrator.
+ * Phase 3 optimistic action shape over the captures feed.
  *
- * Layout per UI-SPEC §Hashtag Sidebar + D-09 sticky composer:
- * - left: 200px hashtag sidebar
- * - right: search bar (top), sticky composer, then the feed
+ * Inline here (rather than imported from a shared module) so this plan stays
+ * file-disjoint from Plan 03-02's `lib/realtime/optimistic-reducer.ts` — same
+ * algebra, file-disjoint. RT-05 echo dedupe: an "insert" whose id already
+ * exists in state is a no-op.
+ */
+type CaptureOptimisticAction =
+  | { type: "insert"; row: CaptureWithLinks }
+  | { type: "update"; id: string; patch: Partial<CaptureWithLinks> }
+  | { type: "delete"; id: string };
+
+function captureOptimisticReducer(
+  state: CaptureWithLinks[],
+  action: CaptureOptimisticAction,
+): CaptureWithLinks[] {
+  switch (action.type) {
+    case "insert": {
+      // RT-05 echo dedupe — if a row with the same id already exists, ignore.
+      // This is the linchpin of optimistic + Realtime echo correctness: the
+      // Server Action persists the caller-supplied UUID, Realtime echoes it
+      // back, and TanStack Query refetches; the refetched row carries the
+      // same id so this reducer's idempotency keeps the feed consistent.
+      if (state.some((r) => r.id === action.row.id)) return state;
+      return [action.row, ...state];
+    }
+    case "update":
+      return state.map((r) =>
+        r.id === action.id ? { ...r, ...action.patch } : r,
+      );
+    case "delete":
+      return state.filter((r) => r.id !== action.id);
+    default:
+      return state;
+  }
+}
+
+/**
+ * /captures client orchestrator — Phase 3 Realtime + TanStack Query + useOptimistic.
  *
- * Filter composition:
- * - active hashtag (URL ?tag=<id>) narrows the feed client-side
- * - search results (server-side tsvector match) narrow further
+ * Data plane:
+ * - `useQuery({ queryKey: [...tableKey("captures", userId), activeTagId], initialData })`
+ *   owns the captures feed. SSR provides initialData (no flash), TanStack Query owns
+ *   all subsequent state. `getCapturesForCurrentUser({ tag })` is the queryFn —
+ *   re-runs when `?tag=` changes or when the captures key prefix is invalidated.
+ * - `useQuery({ queryKey: tableKey("hashtags", userId), initialData })` owns the
+ *   hashtag sidebar list (with counts). HashtagSidebar reads `liveHashtags`.
+ *
+ * Realtime plane:
+ * - Four subscriptions on this surface:
+ *   1. captures        → invalidates ["captures", userId]
+ *   2. captures_hashtags → invalidates ["captures_hashtags", userId] AND fans
+ *      out to ["hashtags", userId] + ["captures", userId] so the sidebar count
+ *      AND the feed-card chip lists update live as captures are tagged/untagged
+ *      (D-10 — the critical live-count requirement).
+ *   3. captures_projects → invalidates ["captures_projects", userId] AND fans
+ *      out to ["captures", userId] so feed-card project chips update live.
+ *   4. hashtags        → invalidates ["hashtags", userId] so newly-auto-created
+ *      hashtag rows (from CAPT-08) show up in the sidebar.
+ *
+ * Optimistic plane:
+ * - `useOptimistic(captures, captureOptimisticReducer)` provides instant feed
+ *   updates for composer inserts. The composer generates `crypto.randomUUID()`
+ *   BEFORE calling the Server Action, passes the same UUID to addOptimistic
+ *   AND to createCapture. The Realtime echo arrives with that same UUID; the
+ *   reducer's `insert` dedupe makes the echo a no-op.
+ * - Per D-02: no opacity dim, no spinner, no pending pill on the optimistic row.
+ * - Per D-03: server rejection → silent revert (useOptimistic auto-reverts when
+ *   the transition completes) + toast.error.
+ * - Per D-05: no toast/badge on cross-device invalidation — the UI just updates.
+ *
+ * Filter composition (preserved from Phase 2):
+ * - active hashtag (URL ?tag=<id>) narrows the feed server-side via queryFn
+ * - search results (server-side tsvector match) narrow further client-side
  * - both apply together (CAPT-06 "search + hashtag combine")
  *
  * Detail panel: a single CaptureDetailPanel instance lives at this level.
- * Clicking any feed card sets `selectedCapture` → panel opens. The panel is
- * the canonical edit surface for captures (content + hashtags + project
- * links + timestamps in one place — addresses user feedback that project
- * links could not be edited after capture creation).
+ * Clicking any feed card sets `selectedCaptureId` → panel opens. The panel is
+ * the canonical edit surface for captures (content + hashtags + project links
+ * + timestamps in one place).
  */
 export function CapturesClient({
+  userId,
   initialCaptures,
   hashtags,
   projects,
@@ -65,8 +140,65 @@ export function CapturesClient({
     null,
   );
 
+  // -- Data plane ---------------------------------------------------------
+  // queryFn closes over `activeTagId` so the query refetches when the nuqs
+  // ?tag= URL state changes. The queryKey embeds `activeTagId` so each tag
+  // filter is its own cached slice but ALL slices share the `["captures",
+  // userId]` prefix — invalidateQueries on the prefix fans out to every slice.
+  const capturesQuery = useQuery({
+    queryKey: [...tableKey("captures", userId), activeTagId ?? null] as const,
+    queryFn: () =>
+      getCapturesForCurrentUser({ tag: activeTagId ?? undefined }),
+    initialData:
+      activeTagId === null || activeTagId === undefined
+        ? initialCaptures
+        : undefined,
+  });
+
+  const liveCaptures = capturesQuery.data ?? initialCaptures;
+
+  const hashtagsQuery = useQuery({
+    queryKey: tableKey("hashtags", userId),
+    queryFn: () => getHashtagsForUserAction({ withCounts: true }),
+    initialData: hashtags,
+  });
+  const liveHashtags = hashtagsQuery.data ?? hashtags;
+
+  // -- Realtime plane -----------------------------------------------------
+  useTableSubscription("captures", userId);
+
+  // D-10 — captures_hashtags join changes drive hashtag count refresh AND
+  // feed-card chip refresh. Without this fanout, tagging a capture in window A
+  // would not update the hashtag sidebar count in window B.
+  useTableSubscription("captures_hashtags", userId, {
+    alsoInvalidate: [
+      tableKey("hashtags", userId),
+      tableKey("captures", userId),
+    ],
+  });
+
+  // captures_projects join changes drive feed-card project chip refresh.
+  useTableSubscription("captures_projects", userId, {
+    alsoInvalidate: [tableKey("captures", userId)],
+  });
+
+  // hashtags subscription — picks up newly-auto-created tags so they appear
+  // in the sidebar even before a capture references them via the join.
+  useTableSubscription("hashtags", userId);
+
+  // -- Optimistic plane ---------------------------------------------------
+  const [optimisticCaptures, addOptimistic] = useOptimistic(
+    liveCaptures,
+    captureOptimisticReducer,
+  );
+
+  // -- Composition --------------------------------------------------------
   const filtered = useMemo(() => {
-    let result = initialCaptures;
+    let result = optimisticCaptures;
+    // activeTagId is already handled server-side by the queryFn. The
+    // additional client-side filter below is a defensive narrowing for the
+    // window between an optimistic insert (which doesn't go through
+    // server-side filtering) and the Realtime echo.
     if (activeTagId) {
       result = result.filter((c) =>
         c.hashtags.some((h) => h.id === activeTagId),
@@ -77,39 +209,55 @@ export function CapturesClient({
       result = result.filter((c) => allowed.has(c.id));
     }
     return result;
-  }, [initialCaptures, activeTagId, searchResultIds]);
+  }, [optimisticCaptures, activeTagId, searchResultIds]);
 
-  // Pull the freshest version of the selected capture from initialCaptures —
-  // after router.refresh() following an edit, this reflects updates.
+  // Selected capture is pulled from the optimistic+live feed so detail panel
+  // edits reflect the freshest data on every invalidation.
   const selectedCapture = useMemo(
     () =>
       selectedCaptureId
-        ? (initialCaptures.find((c) => c.id === selectedCaptureId) ?? null)
+        ? (optimisticCaptures.find((c) => c.id === selectedCaptureId) ?? null)
         : null,
-    [initialCaptures, selectedCaptureId],
+    [optimisticCaptures, selectedCaptureId],
   );
 
   // Hashtag source for the detail panel's TipTap mention popover —
   // strip the count field (panel only needs id/name/displayName).
   const hashtagSuggestions = useMemo(
     () =>
-      hashtags.map((h) => ({
+      liveHashtags.map((h) => ({
         id: h.id,
         name: h.name,
         displayName: h.displayName,
       })),
-    [hashtags],
+    [liveHashtags],
   );
 
   const handleSearchResults = useCallback((ids: string[] | null) => {
     setSearchResultIds(ids);
   }, []);
 
+  // Optimistic-action callbacks passed down to the surfaces that mutate.
+  // These wrap `addOptimistic` so consumers don't see the reducer shape.
+  const handleOptimisticInsert = useCallback(
+    (row: CaptureWithLinks) => addOptimistic({ type: "insert", row }),
+    [addOptimistic],
+  );
+  const handleOptimisticUpdate = useCallback(
+    (id: string, patch: Partial<CaptureWithLinks>) =>
+      addOptimistic({ type: "update", id, patch }),
+    [addOptimistic],
+  );
+  const handleOptimisticDelete = useCallback(
+    (id: string) => addOptimistic({ type: "delete", id }),
+    [addOptimistic],
+  );
+
   return (
     <div className="flex h-full min-h-0">
       <aside className="w-[200px] border-r border-border p-4 overflow-y-auto shrink-0">
         <HashtagSidebar
-          hashtags={hashtags}
+          hashtags={liveHashtags}
           activeHashtagId={activeTagId}
           totalCount={totalCount}
           onSelect={setActiveTagId}
@@ -122,8 +270,10 @@ export function CapturesClient({
         />
         <div className="sticky top-0 z-10">
           <CaptureComposer
+            userId={userId}
             hashtags={hashtagSuggestions}
             projects={projects}
+            onOptimisticInsert={handleOptimisticInsert}
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -134,6 +284,7 @@ export function CapturesClient({
             onClearHashtag={() => setActiveTagId(null)}
             onClearSearch={() => handleSearchResults(null)}
             onSelectCapture={(c) => setSelectedCaptureId(c.id)}
+            onOptimisticDelete={handleOptimisticDelete}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
           />
@@ -146,6 +297,8 @@ export function CapturesClient({
         projects={projects}
         open={selectedCapture !== null}
         onClose={() => setSelectedCaptureId(null)}
+        onOptimisticUpdate={handleOptimisticUpdate}
+        onOptimisticDelete={handleOptimisticDelete}
         userAvatarUrl={userAvatarUrl}
         userInitials={userInitials}
       />

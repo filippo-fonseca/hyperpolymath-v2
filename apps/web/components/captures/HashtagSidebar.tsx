@@ -25,6 +25,15 @@ interface Props {
 /**
  * Hashtag sidebar per UI-SPEC §Hashtag Sidebar (Captures Page).
  *
+ * Phase 3 live-count contract (D-10):
+ * - The `hashtags` prop is the data returned by the `useQuery({ queryKey:
+ *   tableKey("hashtags", userId) })` mounted in CapturesClient. CapturesClient
+ *   also mounts `useTableSubscription("captures_hashtags", userId, {
+ *   alsoInvalidate: [tableKey("hashtags", userId), ...] })` so that when a
+ *   capture is tagged/untagged in another window, this sidebar's counts
+ *   refetch and re-render automatically.
+ * - No state of our own — pure render off the prop.
+ *
  * Layout (top → bottom):
  *   1. "All" row — clears the `?tag=` filter; active when no tag is selected.
  *      Sits above the "Hashtags" heading because it is a filter-clear, not a

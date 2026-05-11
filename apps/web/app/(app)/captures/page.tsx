@@ -51,6 +51,7 @@ export default async function CapturesPage({ searchParams }: Props) {
 
   return (
     <CapturesClient
+      userId={user.id}
       initialCaptures={capturesList}
       hashtags={hashtags}
       projects={projectsForComposer}

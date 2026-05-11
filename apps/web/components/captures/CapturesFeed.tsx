@@ -17,6 +17,12 @@ interface Props {
    */
   onSelectCapture: (capture: CaptureWithLinks) => void;
   /**
+   * Phase 3 — optimistic delete callback forwarded to each card. Wired by
+   * CapturesClient to addOptimistic({ type: "delete", id }) so card-level
+   * delete is instant.
+   */
+  onOptimisticDelete?: (id: string) => void;
+  /**
    * Signed-in user's avatar URL + fallback initial. Forwarded to each card so
    * the Twitter-style avatar | content rhythm renders consistently across the
    * feed. Compact mode (project detail Captures column) does NOT receive this.
@@ -40,6 +46,7 @@ export function CapturesFeed({
   onClearHashtag,
   onClearSearch,
   onSelectCapture,
+  onOptimisticDelete,
   userAvatarUrl,
   userInitials,
 }: Props) {
@@ -80,6 +87,7 @@ export function CapturesFeed({
             key={c.id}
             capture={c}
             onOpen={() => onSelectCapture(c)}
+            onOptimisticDelete={onOptimisticDelete}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
           />
