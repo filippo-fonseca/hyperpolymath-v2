@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -19,6 +18,7 @@ import { updateTaskStatus, reorderTasks } from "@/app/actions/tasks";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCard } from "./TaskCard";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { TasksOptimisticDispatch } from "./TasksClient";
 
 type Status =
   | "not started"
@@ -40,13 +40,17 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
+  addOptimistic: TasksOptimisticDispatch;
 }
 
-export function KanbanBoard({ tasks, onTaskClick, onCreateTask }: Props) {
+export function KanbanBoard({
+  tasks,
+  onTaskClick,
+  onCreateTask,
+  addOptimistic,
+}: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const router = useRouter();
 
   const sensors = useSensors(
     // activationConstraint distance: 8 — prevents accidental drag on click
@@ -97,43 +101,53 @@ export function KanbanBoard({ tasks, onTaskClick, onCreateTask }: Props) {
       targetStatus = overTask.status;
     }
 
-    setPendingTaskId(taskId);
-
     if (targetStatus !== draggedTask.status) {
-      // Cross-column drop: update status server-side, then refresh
+      // Cross-column drop — optimistic status flip (D-02: no opacity, instant)
       startTransition(async () => {
-        const r = await updateTaskStatus({ id: taskId, newStatus: targetStatus });
-        setPendingTaskId(null);
+        addOptimistic({
+          type: "update",
+          id: taskId,
+          patch: { status: targetStatus },
+        });
+        const r = await updateTaskStatus({
+          id: taskId,
+          newStatus: targetStatus,
+        });
         if (!r.success) {
+          // D-03: silent revert (useOptimistic auto-reverts on transition close
+          // without a commit), surface error only.
           toast.error(r.error);
           return;
         }
         if (r.data.becameLesno) {
           toast("Lesno."); // UI-SPEC special toast literal — exact match required
         }
-        router.refresh();
+        // Realtime echo invalidates ['tasks', userId] → refetch with the canonical row.
       });
     } else {
-      // Same-column reorder
+      // Same-column reorder — optimistic + server reorderTasks
       const colTasks = tasksByStatus[targetStatus];
       const oldIndex = colTasks.findIndex((t) => t.id === taskId);
       const newIndex = colTasks.findIndex((t) => t.id === overId);
-      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
-        setPendingTaskId(null);
-        return;
-      }
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
       const newCol = arrayMove(colTasks, oldIndex, newIndex);
+      const newColIds = newCol.map((t) => t.id);
+      // Full ordered ids list passed to reducer — its "reorder" branch keeps
+      // any non-listed rows at the tail (other columns).
+      const fullOrderedIds = [
+        ...newColIds,
+        ...tasks.filter((t) => !newColIds.includes(t.id)).map((t) => t.id),
+      ];
       startTransition(async () => {
+        addOptimistic({ type: "reorder", ids: fullOrderedIds });
         const r = await reorderTasks({
           status: targetStatus,
-          orderedIds: newCol.map((t) => t.id),
+          orderedIds: newColIds,
         });
-        setPendingTaskId(null);
         if (!r.success) {
           toast.error(r.error);
           return;
         }
-        router.refresh();
       });
     }
   }
@@ -155,7 +169,7 @@ export function KanbanBoard({ tasks, onTaskClick, onCreateTask }: Props) {
             onTaskClick={onTaskClick}
             onCreateTask={onCreateTask}
             activeId={activeId}
-            pendingTaskId={pendingTaskId}
+            pendingTaskId={null}
           />
         ))}
       </div>

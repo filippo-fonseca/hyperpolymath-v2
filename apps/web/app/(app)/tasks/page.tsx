@@ -21,6 +21,9 @@ interface Props {
  * Per D-18 + Pitfall 3 (research): SSR fetches initial tasks + projects in parallel,
  * derives initialFilters from searchParams so nuqs hydration on client matches SSR.
  * No hydration mismatch possible: server and client start from the same URL state.
+ *
+ * Phase 3 (Plan 03-02): userId threaded down so TasksClient can mount
+ * useQuery({ queryKey: tableKey("tasks", userId) }) + useTableSubscription.
  */
 export default async function TasksPage({ searchParams }: Props) {
   const sp = await searchParams;
@@ -50,6 +53,7 @@ export default async function TasksPage({ searchParams }: Props) {
 
   return (
     <TasksClient
+      userId={user.id}
       initialTasks={tasks}
       projects={projectRows}
       initialFilters={initialFilters}

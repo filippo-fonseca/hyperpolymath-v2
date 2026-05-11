@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useTransition, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import {
@@ -41,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { updateTask, deleteTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { TasksOptimisticDispatch } from "./TasksClient";
 import { cn } from "@/lib/utils";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
@@ -63,6 +63,7 @@ interface Props {
   projects: ProjectOption[];
   open: boolean;
   onClose: () => void;
+  addOptimistic: TasksOptimisticDispatch;
 }
 
 interface FormState {
@@ -96,8 +97,13 @@ function isDirty(a: FormState, b: FormState): boolean {
   );
 }
 
-export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
-  const router = useRouter();
+export function TaskDetailPanel({
+  task,
+  projects,
+  open,
+  onClose,
+  addOptimistic,
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
@@ -129,16 +135,33 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
 
   const handleSave = useCallback(async () => {
     if (!task) return;
-    const r = await updateTask({
-      id: task.id,
+    const patch = {
       title: form.title.trim() || task.title,
       notes: form.notes || null,
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+    };
+    // D-04: optimistic update first (D-02 instant) — project links also flow
+    // through to optimistic state via the patch
+    const projectChips = projects
+      .filter((p) => form.projectIds.includes(p.id))
+      .map((p) => ({ id: p.id, name: p.name }));
+    addOptimistic({
+      type: "update",
+      id: task.id,
+      patch: {
+        ...patch,
+        projects: projectChips,
+      },
+    });
+    const r = await updateTask({
+      id: task.id,
+      ...patch,
       projectIds: form.projectIds,
     });
     if (!r.success) {
+      // D-03: silent revert + toast.error
       toast.error(r.error);
       return;
     }
@@ -146,8 +169,8 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
       toast("Lesno.");
     }
     setInitialForm(form);
-    router.refresh();
-  }, [task, form, router]);
+    // Realtime echo invalidates ['tasks', userId] → refetch → cache settles.
+  }, [task, form, projects, addOptimistic]);
 
   // Cmd+Enter to save
   useEffect(() => {
@@ -206,17 +229,18 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
 
   async function handleDelete() {
     if (!task) return;
+    // D-04: optimistic delete first — UI flips instantly
+    addOptimistic({ type: "delete", id: task.id });
     const r = await deleteTask(task.id);
     if (!r.success) {
+      // D-03: silent revert + toast.error
       toast.error(r.error);
       return;
     }
     toast("Task deleted.");
     setShowDeleteConfirm(false);
     onClose();
-    startTransition(() => {
-      router.refresh();
-    });
+    // Realtime DELETE echo invalidates → refetch → cache aligns.
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -381,10 +405,7 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
         </SheetContent>
       </Sheet>
 
-      {/* Discard-unsaved-changes confirm — fires on close (Esc / outside / ×)
-          or on Cancel button click while dirty. Matches the CaptureDetailPanel
-          pattern. z-[60] AlertDialog overlay/content keeps it above the
-          Sheet (z-50). */}
+      {/* Discard-unsaved-changes confirm */}
       <AlertDialog
         open={pendingDiscardAction !== null}
         onOpenChange={(v) => {
@@ -414,7 +435,7 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete confirm dialog — UI-SPEC exact copy */}
+      {/* Delete confirm dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>

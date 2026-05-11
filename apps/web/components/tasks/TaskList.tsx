@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -25,16 +24,17 @@ import { TaskListRow } from "./TaskListRow";
 import { PriorityChip } from "./PriorityChip";
 import { cn } from "@/lib/utils";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { TasksOptimisticDispatch } from "./TasksClient";
 
 interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string | null) => void;
+  addOptimistic: TasksOptimisticDispatch;
 }
 
-export function TaskList({ tasks, onTaskClick }: Props) {
+export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const router = useRouter();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -74,14 +74,17 @@ export function TaskList({ tasks, onTaskClick }: Props) {
     }
 
     startTransition(async () => {
+      // Optimistic: apply the new order across all tasks
+      addOptimistic({ type: "reorder", ids: newOrder.map((t) => t.id) });
       for (const [status, orderedIds] of byStatus) {
         const r = await reorderTasks({ status, orderedIds });
         if (!r.success) {
+          // D-03: silent revert (useOptimistic auto-reverts) + toast.error
           toast.error(r.error);
           return;
         }
       }
-      router.refresh();
+      // Realtime echo invalidates ['tasks', userId] and refetches canonical order.
     });
   }
 
@@ -122,7 +125,12 @@ export function TaskList({ tasks, onTaskClick }: Props) {
           </div>
 
           {tasks.map((task) => (
-            <TaskListRow key={task.id} task={task} onRowClick={onTaskClick} />
+            <TaskListRow
+              key={task.id}
+              task={task}
+              onRowClick={onTaskClick}
+              addOptimistic={addOptimistic}
+            />
           ))}
         </div>
       </SortableContext>

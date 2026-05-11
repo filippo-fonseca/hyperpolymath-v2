@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   useQueryState,
   useQueryStates,
@@ -17,7 +18,16 @@ import {
   isBefore,
 } from "date-fns";
 import { toast } from "sonner";
-import { createTask } from "@/app/actions/tasks";
+import {
+  createTask,
+  getTasksForCurrentUser,
+} from "@/app/actions/tasks";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import {
+  optimisticReducer,
+  type OptimisticAction,
+} from "@/lib/realtime/optimistic-reducer";
 import { KanbanBoard } from "./KanbanBoard";
 import { TaskList } from "./TaskList";
 import { TaskFilters } from "./TaskFilters";
@@ -33,8 +43,14 @@ type TaskStatus =
   | "lesno";
 
 interface Props {
+  userId: string;
   initialTasks: TaskWithProjects[];
-  projects: { id: string; name: string; isClass: boolean; courseCode: string | null }[];
+  projects: {
+    id: string;
+    name: string;
+    isClass: boolean;
+    courseCode: string | null;
+  }[];
   initialFilters: {
     priority: string[];
     status: string[];
@@ -43,9 +59,55 @@ interface Props {
   };
 }
 
-export function TasksClient({ initialTasks: tasks, projects, initialFilters }: Props) {
+export type TasksOptimisticDispatch = (
+  action: OptimisticAction<TaskWithProjects>,
+) => void;
+
+/**
+ * /tasks orchestrator — Phase 3 realtime + useOptimistic.
+ *
+ * Pattern (D-04 / D-06 / D-09):
+ *   1. `useQuery({ queryKey: tableKey("tasks", userId), initialData })` —
+ *      TanStack Query owns the canonical tasks cache, hydrated from SSR.
+ *   2. `useTableSubscription("tasks", userId)` + `useTableSubscription("tasks_projects", userId)`
+ *      — Realtime echoes invalidate the cache → refetch via queryFn.
+ *   3. `useOptimistic(tasks, optimisticReducer)` — instant local feedback for
+ *      writes. The Realtime echo carries the same caller-supplied UUID, so
+ *      the reducer's "insert" no-ops on echo (RT-05 dedupe).
+ *
+ * D-02: no opacity dim / spinner / pending chrome on optimistic surfaces.
+ * D-05: no toast/badge on Realtime invalidation (silent cross-device sync).
+ * D-03: server rejection → toast.error + silent revert (useOptimistic reverts
+ *       automatically when the transition closes without committing real state).
+ */
+export function TasksClient({
+  userId,
+  initialTasks,
+  projects,
+  initialFilters,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+
+  // ── Canonical cache (D-06 hybrid SSR + TanStack Query) ───────────────────
+  const { data: tasks = initialTasks } = useQuery({
+    queryKey: tableKey("tasks", userId),
+    queryFn: getTasksForCurrentUser,
+    initialData: initialTasks,
+  });
+
+  // ── Realtime subscriptions (RT-01 singleton; D-08) ───────────────────────
+  // tasks: primary table
+  // tasks_projects: junction — flipping a task's project links from anywhere
+  // also refreshes /tasks since project chips render in cards
+  useTableSubscription("tasks", userId);
+  useTableSubscription("tasks_projects", userId);
+
+  // ── Optimistic overlay (D-04 React 19) ───────────────────────────────────
+  const [optimisticTasks, addOptimistic] = useOptimistic(
+    tasks,
+    optimisticReducer<TaskWithProjects>,
+  );
 
   // View toggle — URL ?view= + localStorage fallback (UI-SPEC D-05)
   const [view, setView] = useQueryState(
@@ -57,7 +119,6 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
 
   // Read the SAME 4 filter dimensions TaskFilters writes — single source of truth via URL.
-  // initialFilters (from server searchParams) hydrates SSR; nuqs on client keeps in sync.
   const [filters] = useQueryStates(
     {
       priority: parseAsArrayOf(parseAsString).withDefault(
@@ -89,20 +150,17 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
   }, [view]);
 
   // Blocker 3: CONCRETE filter predicate — date-fns helpers, no stub
+  // Filters the OPTIMISTIC tasks so local optimistic inserts/updates flow
+  // through immediately.
   const filtered = useMemo(() => {
-    return tasks.filter((t) => {
-      // Priority filter (multi-select)
+    return optimisticTasks.filter((t) => {
       if (
         filters.priority.length > 0 &&
         !filters.priority.includes(t.priority)
       )
         return false;
-
-      // Status filter (multi-select)
       if (filters.status.length > 0 && !filters.status.includes(t.status))
         return false;
-
-      // Project filter (multi-select; task matches if ANY of its projects is in filter)
       if (filters.project.length > 0) {
         const taskProjectIds = t.projects.map((p) => p.id);
         const hasMatch = taskProjectIds.some((pid) =>
@@ -110,8 +168,6 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
         );
         if (!hasMatch) return false;
       }
-
-      // Due filter (multi-select; task matches if its due-state is in ANY selected window)
       if (filters.due.length > 0) {
         const today = startOfDay(new Date());
         const due = t.dueDate ? startOfDay(new Date(t.dueDate)) : null;
@@ -134,11 +190,10 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
         });
         if (!matched) return false;
       }
-
       return true;
     });
   }, [
-    tasks,
+    optimisticTasks,
     filters.priority,
     filters.status,
     filters.due,
@@ -149,19 +204,45 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
     title: string;
     status: TaskStatus;
   }) {
-    const r = await createTask({ ...input, projectIds: [] });
-    if (!r.success) {
-      toast.error(r.error);
-      return;
-    }
-    toast("Task added.");
-    startTransition(() => {
-      router.refresh();
+    // RT-05: client-generated UUID flows through to the server so the
+    // Realtime echo arrives with the same id (no-op in the reducer).
+    const newId = crypto.randomUUID();
+    startTransition(async () => {
+      // Optimistic insert FIRST — UI flips instantly
+      addOptimistic({
+        type: "insert",
+        row: {
+          id: newId,
+          title: input.title,
+          notes: null,
+          priority: "P3",
+          status: input.status,
+          dueDate: null,
+          kanbanPosition: 0,
+          completedAt: null,
+          createdAt: new Date(),
+          projects: [],
+        },
+      });
+      const r = await createTask({
+        id: newId,
+        title: input.title,
+        status: input.status,
+        projectIds: [],
+      });
+      if (!r.success) {
+        // D-03: silent revert + toast.error
+        toast.error(r.error);
+        return;
+      }
+      toast("Task added.");
+      // Realtime echo will arrive with the same id → invalidate → refetch.
+      // useOptimistic state syncs back to the canonical refetched row.
     });
   }
 
   const openTask = openTaskId
-    ? tasks.find((t) => t.id === openTaskId) ?? null
+    ? optimisticTasks.find((t) => t.id === openTaskId) ?? null
     : null;
 
   const hasActiveFilters =
@@ -187,7 +268,6 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
 
       {/* Content area */}
       {filtered.length === 0 && hasActiveFilters ? (
-        // Empty state when filters are active but no results
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <h2 className="font-serif text-[28px] font-semibold text-foreground">
             Nothing matches.
@@ -200,8 +280,6 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
             size="sm"
             className="font-sans text-[13px] mt-4"
             onClick={() => {
-              // useQueryStates is read-only here; TaskFilters handles clearing
-              // navigate to clear filters via URL
               router.push("/tasks");
             }}
           >
@@ -209,12 +287,17 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
           </Button>
         </div>
       ) : view === "list" ? (
-        <TaskList tasks={filtered} onTaskClick={setOpenTaskId} />
+        <TaskList
+          tasks={filtered}
+          onTaskClick={setOpenTaskId}
+          addOptimistic={addOptimistic}
+        />
       ) : (
         <KanbanBoard
           tasks={filtered}
           onTaskClick={setOpenTaskId}
           onCreateTask={handleCreateTask}
+          addOptimistic={addOptimistic}
         />
       )}
 
@@ -224,6 +307,7 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
         projects={projects}
         open={!!openTask}
         onClose={() => setOpenTaskId(null)}
+        addOptimistic={addOptimistic}
       />
     </div>
   );

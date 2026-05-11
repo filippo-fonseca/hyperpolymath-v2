@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
 import { updateTask, updateTaskStatus } from "@/app/actions/tasks";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { TasksOptimisticDispatch } from "./TasksClient";
 
 type Status =
   | "not started"
@@ -35,14 +35,14 @@ const STATUS_LABELS: Record<Status, string> = {
 interface Props {
   task: TaskWithProjects;
   onRowClick: (id: string) => void;
+  addOptimistic: TasksOptimisticDispatch;
 }
 
-export function TaskListRow({ task, onRowClick }: Props) {
+export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   const {
     attributes,
@@ -78,9 +78,13 @@ export function TaskListRow({ task, onRowClick }: Props) {
     setIsEditingTitle(false);
     if (trimmed && trimmed !== task.title) {
       startTransition(async () => {
+        // Optimistic title update — D-02 instant
+        addOptimistic({ type: "update", id: task.id, patch: { title: trimmed } });
         const r = await updateTask({ id: task.id, title: trimmed });
-        if (!r.success) toast.error(r.error);
-        else router.refresh();
+        if (!r.success) {
+          // D-03: silent revert + toast.error
+          toast.error(r.error);
+        }
       });
     }
   }
@@ -97,12 +101,17 @@ export function TaskListRow({ task, onRowClick }: Props) {
     e.stopPropagation();
     const newStatus: Status = isLesno ? "not started" : "lesno";
     startTransition(async () => {
+      addOptimistic({
+        type: "update",
+        id: task.id,
+        patch: { status: newStatus },
+      });
       const r = await updateTaskStatus({ id: task.id, newStatus });
-      if (!r.success) toast.error(r.error);
-      else {
-        if (r.data.becameLesno) toast("Lesno.");
-        router.refresh();
+      if (!r.success) {
+        toast.error(r.error);
+        return;
       }
+      if (r.data.becameLesno) toast("Lesno.");
     });
   }
 
@@ -114,7 +123,7 @@ export function TaskListRow({ task, onRowClick }: Props) {
         "flex items-center gap-2 h-10 px-2 rounded",
         "hover:bg-secondary/40 transition-colors group",
         isDragging && "opacity-0",
-        isPending && "opacity-50",
+        // D-02: no opacity dim on pending — keep UI feeling instant
       )}
     >
       {/* Drag handle */}
