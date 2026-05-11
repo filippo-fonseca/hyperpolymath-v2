@@ -1,14 +1,26 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { captures } from "@/lib/db/schema";
+import {
+  captures,
+  capturesHashtags,
+  capturesProjects,
+  hashtags,
+  projects,
+} from "@/lib/db/schema";
+
+export interface CaptureWithLinks {
+  id: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  hashtags: { id: string; displayName: string; name: string }[];
+  projects: { id: string; name: string }[];
+}
 
 /**
  * Smoke test for tsvector search: confirms the content_search column + GIN index work.
  * Returns top 10 ranked captures matching the query for the given user.
  * Used in Task 1a verification AND production by Task 1b's searchCaptures Server Action.
- *
- * Note: Task 1b extends this file with getCapturesForUser + getCapturesForProject helpers
- * (and the CaptureWithLinks interface) — keeping Task 1a's commit scoped to migration-only.
  */
 export async function searchCapturesByContent(
   userId: string,
@@ -40,4 +52,148 @@ export async function searchCapturesByContent(
     )
     .limit(10);
   return rows;
+}
+
+/**
+ * Reverse-chronological feed for /captures (CAPT-04).
+ * @param hashtagId - optional filter by linked hashtag (CAPT-05 sidebar click)
+ * @param ids - optional explicit ID set (search results)
+ * @param limit - default 100
+ */
+export async function getCapturesForUser(
+  userId: string,
+  opts: { hashtagId?: string; ids?: string[]; limit?: number } = {},
+): Promise<CaptureWithLinks[]> {
+  const limit = opts.limit ?? 100;
+
+  let captureRows: Array<{
+    id: string;
+    content: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+
+  if (opts.ids !== undefined) {
+    if (opts.ids.length === 0) return [];
+    captureRows = await db
+      .select({
+        id: captures.id,
+        content: captures.content,
+        createdAt: captures.createdAt,
+        updatedAt: captures.updatedAt,
+      })
+      .from(captures)
+      .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
+      .orderBy(desc(captures.createdAt))
+      .limit(limit);
+  } else if (opts.hashtagId) {
+    captureRows = await db
+      .select({
+        id: captures.id,
+        content: captures.content,
+        createdAt: captures.createdAt,
+        updatedAt: captures.updatedAt,
+      })
+      .from(captures)
+      .innerJoin(
+        capturesHashtags,
+        and(
+          eq(capturesHashtags.captureId, captures.id),
+          eq(capturesHashtags.hashtagId, opts.hashtagId),
+          eq(capturesHashtags.userId, userId),
+        ),
+      )
+      .where(eq(captures.userId, userId))
+      .orderBy(desc(captures.createdAt))
+      .limit(limit);
+  } else {
+    captureRows = await db
+      .select({
+        id: captures.id,
+        content: captures.content,
+        createdAt: captures.createdAt,
+        updatedAt: captures.updatedAt,
+      })
+      .from(captures)
+      .where(eq(captures.userId, userId))
+      .orderBy(desc(captures.createdAt))
+      .limit(limit);
+  }
+
+  if (captureRows.length === 0) return [];
+  const captureIds = captureRows.map((c) => c.id);
+
+  const tagLinks = await db
+    .select({
+      captureId: capturesHashtags.captureId,
+      id: hashtags.id,
+      name: hashtags.name,
+      displayName: hashtags.displayName,
+    })
+    .from(capturesHashtags)
+    .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
+    .where(
+      and(
+        eq(capturesHashtags.userId, userId),
+        inArray(capturesHashtags.captureId, captureIds),
+      ),
+    );
+
+  const projLinks = await db
+    .select({
+      captureId: capturesProjects.captureId,
+      id: projects.id,
+      name: projects.name,
+    })
+    .from(capturesProjects)
+    .innerJoin(projects, eq(projects.id, capturesProjects.projectId))
+    .where(
+      and(
+        eq(capturesProjects.userId, userId),
+        inArray(capturesProjects.captureId, captureIds),
+      ),
+    );
+
+  const tagsByCapture = new Map<string, CaptureWithLinks["hashtags"]>();
+  for (const t of tagLinks) {
+    const list = tagsByCapture.get(t.captureId) ?? [];
+    list.push({ id: t.id, name: t.name, displayName: t.displayName });
+    tagsByCapture.set(t.captureId, list);
+  }
+  const projsByCapture = new Map<string, CaptureWithLinks["projects"]>();
+  for (const p of projLinks) {
+    const list = projsByCapture.get(p.captureId) ?? [];
+    list.push({ id: p.id, name: p.name });
+    projsByCapture.set(p.captureId, list);
+  }
+
+  return captureRows.map((c) => ({
+    ...c,
+    hashtags: tagsByCapture.get(c.id) ?? [],
+    projects: projsByCapture.get(c.id) ?? [],
+  }));
+}
+
+/**
+ * Captures linked to a project (CAPT-07).
+ */
+export async function getCapturesForProject(
+  userId: string,
+  projectId: string,
+): Promise<CaptureWithLinks[]> {
+  const rows = await db
+    .select({ id: captures.id })
+    .from(capturesProjects)
+    .innerJoin(captures, eq(captures.id, capturesProjects.captureId))
+    .where(
+      and(
+        eq(capturesProjects.userId, userId),
+        eq(capturesProjects.projectId, projectId),
+      ),
+    )
+    .orderBy(desc(captures.createdAt))
+    .limit(100);
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+  return getCapturesForUser(userId, { ids });
 }
