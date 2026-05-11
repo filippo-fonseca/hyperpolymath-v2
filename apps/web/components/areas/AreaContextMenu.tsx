@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,14 +32,22 @@ interface Props {
   areaId: string;
   areaName: string;
   isArchived: boolean;
-  children: React.ReactNode;
+  /** External "open" trigger from a right-click on the row. Optional. */
+  rightClickOpen?: boolean;
+  onRightClickClose?: () => void;
 }
 
-export function AreaContextMenu({
+/**
+ * Notion-style row actions menu. Renders a hover-revealed `⋯` button as the
+ * trigger. Also responds to a parent-controlled `rightClickOpen` boolean to
+ * support right-click-as-shortcut from the row itself.
+ */
+export function AreaActionsMenu({
   areaId,
   areaName,
   isArchived,
-  children,
+  rightClickOpen,
+  onRightClickClose,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -49,13 +58,15 @@ export function AreaContextMenu({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
 
-  function handleContextMenu(e: React.MouseEvent) {
-    e.preventDefault();
-    setOpen(true);
-  }
+  // Sync external (right-click) open with internal state
+  const effectiveOpen = open || !!rightClickOpen;
+  const setEffectiveOpen = (next: boolean) => {
+    setOpen(next);
+    if (!next && rightClickOpen) onRightClickClose?.();
+  };
 
   function handleArchive() {
-    setOpen(false);
+    setEffectiveOpen(false);
     startTransition(async () => {
       const result = await archiveArea(areaId);
       if (!result.success) {
@@ -83,7 +94,7 @@ export function AreaContextMenu({
   }
 
   function handleUnarchive() {
-    setOpen(false);
+    setEffectiveOpen(false);
     startTransition(async () => {
       const result = await unarchiveArea(areaId);
       if (!result.success) {
@@ -126,16 +137,30 @@ export function AreaContextMenu({
 
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu open={effectiveOpen} onOpenChange={setEffectiveOpen}>
         <DropdownMenuTrigger asChild>
-          <div onContextMenu={handleContextMenu} className="w-full">
-            {children}
-          </div>
+          <button
+            type="button"
+            aria-label="Area options"
+            // Stop the pointer event from reaching the @dnd-kit listeners on
+            // the parent row — clicking ⋯ should open the menu, not start drag.
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className={[
+              "flex items-center justify-center h-5 w-5 rounded",
+              "text-muted-foreground hover:bg-accent hover:text-foreground",
+              "opacity-0 group-hover/area:opacity-100",
+              "data-[state=open]:opacity-100 transition-opacity",
+              "focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring outline-none",
+            ].join(" ")}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem
             onSelect={() => {
-              setOpen(false);
+              setEffectiveOpen(false);
               setRenameName(areaName);
               setRenameDialogOpen(true);
             }}
@@ -155,7 +180,7 @@ export function AreaContextMenu({
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onSelect={() => {
-              setOpen(false);
+              setEffectiveOpen(false);
               setDeleteDialogOpen(true);
             }}
           >
@@ -164,7 +189,6 @@ export function AreaContextMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -192,7 +216,6 @@ export function AreaContextMenu({
         </DialogContent>
       </Dialog>
 
-      {/* Rename dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toast } from "sonner";
 import { reorderAreas } from "@/app/actions/areas";
-import { AreaContextMenu } from "@/components/areas/AreaContextMenu";
+import { AreaActionsMenu } from "@/components/areas/AreaContextMenu";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ export function SidebarTree({ areas, collapsed }: Props) {
   const router = useRouter();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -51,17 +51,16 @@ export function SidebarTree({ areas, collapsed }: Props) {
     const newIndex = areas.findIndex((a) => a.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
     const next = arrayMove(areas, oldIndex, newIndex);
-    // Blocker 5 Option A: NO setAreas() local mutation. Persist then refresh.
     setPendingDragId(String(active.id));
     startTransition(async () => {
       const result = await reorderAreas({ orderedIds: next.map((a) => a.id) });
       setPendingDragId(null);
       if (!result.success) {
         toast.error(result.error);
-        return; // UI stays in pre-drag order (no local mutation to roll back)
+        return;
       }
       toast("Areas reordered.");
-      router.refresh(); // Re-fetch Server Component data
+      router.refresh();
     });
   }
 
@@ -115,6 +114,7 @@ function SortableAreaRow({
     transition,
     isDragging,
   } = useSortable({ id: area.id });
+  const [rightClickOpen, setRightClickOpen] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -125,30 +125,47 @@ function SortableAreaRow({
     <li
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       className={cn(
-        isDragging && "opacity-90 shadow-sm ring-1 ring-ring",
-        isPending && "opacity-50",
+        "flex flex-col",
+        isDragging && "opacity-90 z-10 relative",
       )}
     >
-      <AreaContextMenu
-        areaId={area.id}
-        areaName={area.name}
-        isArchived={!!area.archivedAt}
+      {/* The row IS the drag handle. Pointer events on the menu button stop
+          propagation so click ⋯ doesn't start a drag. */}
+      <div
+        {...attributes}
+        {...listeners}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setRightClickOpen(true);
+        }}
+        className={cn(
+          "group/area relative flex items-center gap-2 rounded-md px-2 py-1",
+          "text-[13px] font-sans text-foreground select-none",
+          "hover:bg-secondary cursor-grab active:cursor-grabbing",
+          "transition-colors",
+          isDragging && "bg-secondary shadow-md ring-1 ring-ring cursor-grabbing",
+          isPending && "opacity-50",
+          area.archivedAt && "opacity-50 italic line-through",
+        )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-2 rounded-md px-2 py-1 text-[13px] font-sans hover:bg-secondary cursor-pointer select-none",
-            area.archivedAt && "opacity-50 italic line-through",
-          )}
-        >
-          <span className="text-base leading-none">{area.emoji ?? "·"}</span>
-          {!collapsed && (
-            <span className="truncate text-foreground">{area.name}</span>
-          )}
-        </div>
-      </AreaContextMenu>
+        <span className="text-base leading-none shrink-0">
+          {area.emoji ?? "·"}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="truncate flex-1 min-w-0">{area.name}</span>
+            <AreaActionsMenu
+              areaId={area.id}
+              areaName={area.name}
+              isArchived={!!area.archivedAt}
+              rightClickOpen={rightClickOpen}
+              onRightClickClose={() => setRightClickOpen(false)}
+            />
+          </>
+        )}
+      </div>
+
       {!collapsed && area.projects.length > 0 && (
         <ul className="flex flex-col gap-0.5 pl-6 mt-0.5">
           {area.projects.map((p) => (
@@ -156,7 +173,9 @@ function SortableAreaRow({
               <Link
                 href={`/projects/${p.id}`}
                 className={cn(
-                  "flex items-center gap-1.5 text-[13px] font-sans text-muted-foreground py-1 hover:bg-secondary hover:text-foreground rounded-md px-2 truncate",
+                  "flex items-center gap-1.5 rounded-md px-2 py-1 truncate",
+                  "text-[13px] font-sans text-muted-foreground",
+                  "hover:bg-secondary hover:text-foreground transition-colors",
                   p.archivedAt && "opacity-50 italic line-through",
                 )}
               >
