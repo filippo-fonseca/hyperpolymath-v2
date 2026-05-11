@@ -14,9 +14,10 @@ import type { SidebarArea } from "@/lib/db/queries/sidebar";
 interface Props {
   initialActiveAreas: SidebarArea[];
   initialAllAreas: SidebarArea[];
+  graduationYear?: number | null;
 }
 
-export function Sidebar({ initialActiveAreas, initialAllAreas }: Props) {
+export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }: Props) {
   // Hydration safety (Pitfall 16): Read localStorage inside useEffect, NOT during render.
   // Initial render uses defaults; flicker on first paint is masked by the 200ms collapse animation.
   const [collapsed, setCollapsed] = useState(false);
@@ -130,7 +131,7 @@ export function Sidebar({ initialActiveAreas, initialAllAreas }: Props) {
             </div>
           )}
 
-          <SidebarTree areas={areas} collapsed={collapsed} />
+          <SidebarTree areas={areas} collapsed={collapsed} graduationYear={graduationYear} />
         </div>
       </div>
 

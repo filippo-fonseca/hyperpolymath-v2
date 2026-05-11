@@ -21,7 +21,7 @@ export default async function AppLayout({
 
   return (
     <>
-      <AppShell activeAreas={activeAreas} allAreas={allAreas}>
+      <AppShell activeAreas={activeAreas} allAreas={allAreas} graduationYear={user.graduationYear}>
         {children}
       </AppShell>
       {/* Global Cmd+K command menu — stub composer in Phase 2; Phase 5 Kiwi replaces content */}
