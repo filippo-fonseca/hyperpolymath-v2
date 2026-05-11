@@ -106,6 +106,7 @@ export const tasks = pgTable(
     priority: priorityEnum("priority").notNull().default("P3"),
     status: taskStatusEnum("status").notNull().default("not started"),
     dueDate: date("due_date"),
+    kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

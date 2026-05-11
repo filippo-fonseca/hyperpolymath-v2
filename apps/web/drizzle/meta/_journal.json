@@ -15,6 +15,13 @@
       "when": 1778467843498,
       "tag": "0001_flat_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778502945798,
+      "tag": "0002_friendly_grandmaster",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "tasks" ADD COLUMN "kanban_position" integer DEFAULT 0 NOT NULL;
