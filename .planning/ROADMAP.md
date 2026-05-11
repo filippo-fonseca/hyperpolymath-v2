@@ -48,7 +48,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can create, edit, and delete Quick Captures with freeform text, `#hashtag` autocomplete (auto-creating new tags, lowercase-normalized for storage with first-seen casing displayed), and zero-or-more linked Projects; Captures render in a reverse-chronological feed with a hashtag-filterable sidebar showing counts
   5. User can full-text search Captures via Postgres `tsvector`/`pg_trgm` and find matches by content
 **Plans**: 4 plans
-- [ ] 02-01-PLAN.md — Wave 1: AppShell + Sidebar + Areas CRUD + projects.order_index migration + base shadcn primitives + sonner/cmdk wiring (AREA-01..05)
+- [x] 02-01-PLAN.md — Wave 1: AppShell + Sidebar + Areas CRUD + projects.order_index migration + base shadcn primitives + sonner/cmdk wiring (AREA-01..05)
 - [ ] 02-02-PLAN.md — Wave 2: Projects CRUD + Notion-style /projects/[id] detail page + Lucide icon picker (150) + 16-swatch banner picker + class metadata (PROJ-01..07)
 - [ ] 02-03-PLAN.md — Wave 3: Tasks domain — kanban + list + view toggle + @dnd-kit cross-column drag + Linear-style detail panel + nuqs filter chip pills + Lesno toast (TASK-01..08)
 - [ ] 02-04-PLAN.md — Wave 4: Captures domain — TipTap chip composer + #hashtag autocomplete + project multi-select + reverse-chrono feed + 200px hashtag sidebar + tsvector/pg_trgm search + Cmd+K modal mounts same composer via CommandMenuContent slot (CAPT-01..08)
@@ -118,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations | 3/3 | Complete    | 2026-05-10 |
-| 2. Manual CRUD | 0/4 | Planned    |  |
+| 2. Manual CRUD | 1/4 | In Progress|  |
 | 3. Realtime Layer | 0/TBD | Not started | - |
 | 4. Google Calendar | 0/TBD | Not started | - |
 | 5. Kiwi | 0/TBD | Not started | - |
