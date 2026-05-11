@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { parseBanner } from "@/lib/utils/banner";
 import { DynamicIcon } from "./DynamicIcon";
@@ -9,6 +8,7 @@ import { BannerPicker } from "./BannerPicker";
 import { ProjectEditClassDialog } from "./ProjectEditClassDialog";
 import { updateProject } from "@/app/actions/projects";
 import { cn } from "@/lib/utils";
+import type { ProjectOptimisticDispatch } from "./ProjectDetailClient";
 
 interface ProjectData {
   id: string;
@@ -29,6 +29,7 @@ interface ProjectData {
 interface Props {
   project: ProjectData;
   graduationYear: number | null;
+  addOptimisticProject: ProjectOptimisticDispatch;
 }
 
 /**
@@ -41,7 +42,6 @@ function formatTerm(term: string): string {
 /**
  * Builds the class metadata inline line per D-16 / UI-SPEC §Project Detail Page:
  *   PHIL 277 · Prof. Lloyd · Fall 2026 · A-
- * Only fields with values are rendered; separator is " · ".
  */
 function buildClassMeta(project: ProjectData): string {
   const parts: string[] = [];
@@ -59,19 +59,19 @@ function buildClassMeta(project: ProjectData): string {
 }
 
 /**
- * ProjectHeader — per UI-SPEC §Project Detail Page:
- * - Banner: 120px tall, full-width, style.background = parseBanner(bannerUrl)
- * - "Change cover" button overlay top-right on hover
- * - Icon (32px) + project name (EB Garamond 28px/600) editable inline on click
- * - Class metadata line (EB Garamond 16px italic) — only fields with values, separator " · "
- * - "Edit class" button (ghost, small) when isClass=true → opens ProjectEditClassDialog
+ * ProjectHeader — Phase 3:
+ * - Receives the canonical project shape from ProjectDetailClient's useQuery+select.
+ * - All optimistic edits (icon, banner, name) dispatch through addOptimisticProject
+ *   so the same useOptimistic state that ProjectDetailClient owns updates instantly.
+ * - No router.refresh — Realtime echo invalidates `['projects', userId]` and
+ *   the parent's `select` projection re-derives this project's data automatically.
  */
-export function ProjectHeader({ project, graduationYear }: Props) {
-  const router = useRouter();
+export function ProjectHeader({
+  project,
+  graduationYear,
+  addOptimisticProject,
+}: Props) {
   const [, startTransition] = useTransition();
-
-  // Banner state
-  const [bannerUrl, setBannerUrl] = useState(project.bannerUrl);
 
   // Inline name edit
   const [isEditingName, setIsEditingName] = useState(false);
@@ -81,22 +81,23 @@ export function ProjectHeader({ project, graduationYear }: Props) {
   // Edit class dialog
   const [editClassOpen, setEditClassOpen] = useState(false);
 
-  // Live project state for metadata display (updated after Edit class save)
-  const [projectData, setProjectData] = useState(project);
-
   function handleBannerChange(newBanner: string | null) {
-    setBannerUrl(newBanner);
+    // D-04: optimistic banner update
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch: { bannerUrl: newBanner },
+    });
     startTransition(async () => {
       const result = await updateProject({
         id: project.id,
         bannerUrl: newBanner,
       });
       if (!result.success) {
+        // D-03: silent revert + toast.error
         toast.error(result.error);
-        setBannerUrl(project.bannerUrl); // revert on error
-        return;
       }
-      router.refresh();
+      // Realtime echo on ['projects', userId] settles the canonical state.
     });
   }
 
@@ -108,31 +109,38 @@ export function ProjectHeader({ project, graduationYear }: Props) {
   function handleNameCommit() {
     const trimmed = nameValue.trim();
     setIsEditingName(false);
-    if (!trimmed || trimmed === projectData.name) {
-      setNameValue(projectData.name);
+    if (!trimmed || trimmed === project.name) {
+      setNameValue(project.name);
       return;
     }
-    setProjectData((prev) => ({ ...prev, name: trimmed }));
+    // D-04: optimistic name update — header re-renders instantly via the
+    // parent's useOptimistic state
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch: { name: trimmed },
+    });
     startTransition(async () => {
       const result = await updateProject({ id: project.id, name: trimmed });
       if (!result.success) {
         toast.error(result.error);
-        setNameValue(projectData.name);
-        setProjectData((prev) => ({ ...prev, name: projectData.name }));
+        setNameValue(project.name);
         return;
       }
-      router.refresh();
+      // Realtime echo: ['projects', userId] → refetch → select picks the
+      // canonical name → header settles. Same key drives the sidebar so the
+      // rename propagates everywhere automatically.
     });
   }
 
-  const classMeta = projectData.isClass ? buildClassMeta(projectData) : "";
+  const classMeta = project.isClass ? buildClassMeta(project) : "";
 
   return (
     <>
       {/* Banner — 120px tall, full-width, "Change cover" button group on hover */}
       <div
         className="group/banner-area relative w-full"
-        style={{ height: "120px", background: parseBanner(bannerUrl) }}
+        style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
       >
         {/* "Change cover" — wraps BannerPicker popover trigger */}
         <div
@@ -141,7 +149,7 @@ export function ProjectHeader({ project, graduationYear }: Props) {
             "opacity-0 group-hover/banner-area:opacity-100 focus-within:opacity-100 transition-opacity",
           )}
         >
-          <BannerPicker value={bannerUrl} onChange={handleBannerChange} />
+          <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
         </div>
       </div>
 
@@ -150,7 +158,11 @@ export function ProjectHeader({ project, graduationYear }: Props) {
         <div className="flex items-start gap-3">
           {/* Icon */}
           <div className="mt-1 shrink-0">
-            <DynamicIcon name={projectData.icon} size={32} className="text-foreground" />
+            <DynamicIcon
+              name={project.icon}
+              size={32}
+              className="text-foreground"
+            />
           </div>
 
           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -165,7 +177,7 @@ export function ProjectHeader({ project, graduationYear }: Props) {
                   if (e.key === "Enter") handleNameCommit();
                   if (e.key === "Escape") {
                     setIsEditingName(false);
-                    setNameValue(projectData.name);
+                    setNameValue(project.name);
                   }
                 }}
                 className={cn(
@@ -183,19 +195,19 @@ export function ProjectHeader({ project, graduationYear }: Props) {
                   "text-foreground cursor-text hover:opacity-80 transition-opacity",
                 )}
               >
-                {projectData.name}
+                {project.name}
               </h1>
             )}
 
             {/* Class metadata inline line — EB Garamond 16px italic */}
-            {projectData.isClass && classMeta && (
+            {project.isClass && classMeta && (
               <p className="font-serif text-base italic text-muted-foreground leading-snug">
                 {classMeta}
               </p>
             )}
 
             {/* "Edit class" button — ghost, small, only when isClass */}
-            {projectData.isClass && (
+            {project.isClass && (
               <button
                 type="button"
                 onClick={() => setEditClassOpen(true)}
@@ -213,18 +225,15 @@ export function ProjectHeader({ project, graduationYear }: Props) {
         </div>
       </div>
 
-      {/* Edit class dialog */}
+      {/* Edit class dialog — Realtime echo handles the post-save refresh
+          (no manual router.refresh needed; the dialog dispatches optimistic
+          updates through addOptimisticProject directly). */}
       <ProjectEditClassDialog
         open={editClassOpen}
-        onOpenChange={(open) => {
-          setEditClassOpen(open);
-          if (!open) {
-            // Re-fetch to reflect any changes (router.refresh() handled by the dialog)
-            router.refresh();
-          }
-        }}
-        project={projectData}
+        onOpenChange={setEditClassOpen}
+        project={project}
         graduationYear={graduationYear}
+        addOptimisticProject={addOptimisticProject}
       />
     </>
   );

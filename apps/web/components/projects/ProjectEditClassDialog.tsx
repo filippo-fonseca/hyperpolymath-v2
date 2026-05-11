@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateProject } from "@/app/actions/projects";
+import type { ProjectOptimisticDispatch } from "./ProjectDetailClient";
 
 interface Props {
   open: boolean;
@@ -38,6 +38,8 @@ interface Props {
     semesterYear: number | null;
   };
   graduationYear: number | null;
+  /** Phase 3 optimistic dispatcher — passes through to optimistic class metadata update. */
+  addOptimisticProject: ProjectOptimisticDispatch;
 }
 
 interface FormValues {
@@ -60,21 +62,29 @@ function getSemesterYears(graduationYear: number | null): number[] {
     for (let y = start; y <= end; y++) years.push(y);
     return years;
   }
-  return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+  return [
+    currentYear - 2,
+    currentYear - 1,
+    currentYear,
+    currentYear + 1,
+    currentYear + 2,
+  ];
 }
 
 /**
  * Edit class metadata dialog — per D-16 / UI-SPEC §"Class metadata: inline header + Edit class button".
- * Opens from ProjectHeader "Edit class" button.
- * Saves via updateProject Server Action.
+ * Saves via updateProject Server Action with optimistic dispatch.
+ *
+ * Phase 3: no router.refresh — Realtime echo invalidates `['projects', userId]`
+ * and the ProjectDetailClient's `select` re-renders the header live.
  */
 export function ProjectEditClassDialog({
   open,
   onOpenChange,
   project,
   graduationYear,
+  addOptimisticProject,
 }: Props) {
-  const router = useRouter();
   const [, startTransition] = useTransition();
   const semesterYears = getSemesterYears(graduationYear);
 
@@ -103,45 +113,52 @@ export function ProjectEditClassDialog({
   }
 
   async function onSubmit(values: FormValues) {
-    startTransition(async () => {
-      const result = await updateProject({
-        id: project.id,
-        isClass: true,
-        courseCode: values.courseCode.trim() || null,
-        courseTitle: values.courseTitle.trim() || null,
-        instructor: values.instructor.trim() || null,
-        semesterTerm: (values.semesterTerm || null) as
-          | "fall"
-          | "spring"
-          | "summer"
-          | null,
-        semesterYear: values.semesterYear
-          ? parseInt(values.semesterYear, 10)
-          : null,
-        grade: values.grade.trim() || null,
-        credits: values.credits ? parseInt(values.credits, 10) : null,
-        distributionals:
-          values.distributionals.trim()
-            ? values.distributionals
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .slice(0, 10)
-            : null,
-      });
+    const patch = {
+      isClass: true as const,
+      courseCode: values.courseCode.trim() || null,
+      courseTitle: values.courseTitle.trim() || null,
+      instructor: values.instructor.trim() || null,
+      semesterTerm: (values.semesterTerm || null) as
+        | "fall"
+        | "spring"
+        | "summer"
+        | null,
+      semesterYear: values.semesterYear
+        ? parseInt(values.semesterYear, 10)
+        : null,
+      grade: values.grade.trim() || null,
+      credits: values.credits ? parseInt(values.credits, 10) : null,
+      distributionals: values.distributionals.trim()
+        ? values.distributionals
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .slice(0, 10)
+        : null,
+    };
 
+    // D-04: optimistic class metadata update — header chip updates instantly
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch,
+    });
+
+    startTransition(async () => {
+      const result = await updateProject({ id: project.id, ...patch });
       if (!result.success) {
+        // D-03: silent revert + toast.error
         toast.error(result.error);
         return;
       }
       toast("Class metadata updated.");
       handleClose();
-      router.refresh();
+      // Realtime echo settles the canonical state.
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : handleClose())}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl font-semibold">

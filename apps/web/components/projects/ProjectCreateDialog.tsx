@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
@@ -86,6 +86,9 @@ export function ProjectCreateDialog({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const semesterYears = getSemesterYears(graduationYear);
+  // RT-05: client generates UUID so the Realtime echo arrives with the same id
+  // when the new project lands in the sidebar tree (the SidebarTree's projects
+  // useOptimistic dedupes).
 
   const {
     register,
@@ -123,7 +126,9 @@ export function ProjectCreateDialog({
   }
 
   async function onSubmit(values: FormValues) {
+    const newId = crypto.randomUUID();
     const payload = {
+      id: newId,
       areaId: values.areaId,
       name: values.name.trim(),
       description: values.description.trim() || null,

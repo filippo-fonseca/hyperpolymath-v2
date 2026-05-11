@@ -58,6 +58,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SidebarArea, SidebarProject } from "@/lib/db/queries/sidebar";
+import type { AreaOptimisticDispatch } from "./Sidebar";
 import { cn } from "@/lib/utils";
 
 // ID prefix used to distinguish project drags from area drags in the unified DndContext
@@ -70,37 +71,44 @@ const dropAnimation: DropAnimation = {
 };
 
 interface Props {
+  userId: string;
   areas: SidebarArea[];
   collapsed: boolean;
   graduationYear?: number | null;
+  addOptimisticArea: AreaOptimisticDispatch;
 }
 
 /**
- * SidebarTree — extended from Plan 02-01 to support:
- * - Project drag reorder within area (useOptimistic + DragOverlay, same pattern as area drag)
- * - Project drag across areas (drop project on different area → moveProjectToArea)
- * - Project context menu (rename / archive / delete)
- * - "+ New Project" trigger per area (opens ProjectCreateDialog)
- * - Active project highlighting via usePathname
+ * SidebarTree — Phase 3 migration of the manual drag/drop + context-menu tree.
  *
- * WHY per-area SortableContext inside top-level DndContext:
- * dnd-kit best practice for tree with reorderable children + items movable across parents.
- * Each SortableContext provides reorder semantics within its area;
- * the outer DndContext handles cross-area drop via useDroppable on area rows.
+ * Optimistic ownership split (M3):
+ * - Areas useOptimistic lives in Sidebar.tsx (parent) and is passed in as
+ *   `addOptimisticArea` because AreaCreateDialog is a sibling that also mutates.
+ * - Projects useOptimistic lives HERE because all project mutations originate
+ *   from this tree (drag reorder, drag across area via menu, rename/archive).
+ *
+ * Realtime subscriptions for both `areas` and `projects` are owned by
+ * Sidebar.tsx — refcounted singleton means re-mounting here is a no-op.
  */
-export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
-  const [optimisticAreas, applyOptimisticOrder] = useOptimistic(
+export function SidebarTree({
+  userId,
+  areas,
+  collapsed,
+  graduationYear,
+  addOptimisticArea,
+}: Props) {
+  void userId; // currently consumed by the parent Sidebar; reserved for future per-tree subs
+
+  // Project-level optimistic order applied across all areas. Reducer accepts
+  // a partial id list (e.g. reorder one area's projects only) and keeps the
+  // rest at the tail — see optimistic-reducer.ts.
+  const [optimisticAreas, applyProjectReorder] = useOptimistic(
     areas,
-    (current: SidebarArea[], orderedIds: string[]) =>
-      orderedIds
-        .map((id) => current.find((a) => a.id === id))
-        .filter((a): a is SidebarArea => Boolean(a)),
+    (current: SidebarArea[], next: SidebarArea[]) => next,
   );
-  const [pendingDragId, setPendingDragId] = useState<string | null>(null);
-  // activeDragId can be area ID or "project:<uuid>"
+
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const router = useRouter();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -123,29 +131,28 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
     const isDraggingProject = activeIdStr.startsWith(PROJECT_PREFIX);
 
     if (!isDraggingProject) {
-      // Area drag — reorder areas
+      // Area drag — reorder areas (uses Sidebar's areas useOptimistic via prop)
       const oldIndex = optimisticAreas.findIndex((a) => a.id === activeIdStr);
       const newIndex = optimisticAreas.findIndex((a) => a.id === overIdStr);
       if (oldIndex < 0 || newIndex < 0) return;
       const next = arrayMove(optimisticAreas, oldIndex, newIndex);
       const orderedIds = next.map((a) => a.id);
-      setPendingDragId(activeIdStr);
       startTransition(async () => {
-        applyOptimisticOrder(orderedIds);
+        // D-04: optimistic reorder via Sidebar's dispatcher
+        addOptimisticArea({ type: "reorder", ids: orderedIds });
         const result = await reorderAreas({ orderedIds });
-        setPendingDragId(null);
         if (!result.success) {
+          // D-03: silent revert + toast.error
           toast.error(result.error);
           return;
         }
-        router.refresh();
+        // Realtime echo invalidates ['areas', userId] → refetch.
       });
       return;
     }
 
     // Project drag — reorder within source area only.
-    // Cross-area moves happen via the ⋯ menu "Move to area..." submenu
-    // (rare, brittle as drag; explicit menu is the better UX).
+    // Cross-area moves happen via the ⋯ menu "Move to area..." submenu.
     const projectId = activeIdStr.slice(PROJECT_PREFIX.length);
     if (!overIdStr.startsWith(PROJECT_PREFIX)) return;
     const targetProjectId = overIdStr.slice(PROJECT_PREFIX.length);
@@ -157,7 +164,6 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
       a.projects.some((p) => p.id === targetProjectId),
     );
     if (!sourceArea || !targetArea) return;
-    // Ignore drops onto a project in a different area — use the menu instead.
     if (sourceArea.id !== targetArea.id) return;
 
     const oldIndex = sourceArea.projects.findIndex((p) => p.id === projectId);
@@ -165,9 +171,19 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
       (p) => p.id === targetProjectId,
     );
     if (oldIndex < 0 || newIndex < 0) return;
-    const reorderedProjects = arrayMove(sourceArea.projects, oldIndex, newIndex);
+    const reorderedProjects = arrayMove(
+      sourceArea.projects,
+      oldIndex,
+      newIndex,
+    );
     const orderedIds = reorderedProjects.map((p) => p.id);
+
+    // D-04: optimistic project reorder — splice the new array into the area
+    const nextAreas = optimisticAreas.map((a) =>
+      a.id === sourceArea.id ? { ...a, projects: reorderedProjects } : a,
+    );
     startTransition(async () => {
+      applyProjectReorder(nextAreas);
       const result = await reorderProjects({
         areaId: sourceArea.id,
         orderedIds,
@@ -176,7 +192,7 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
         toast.error(result.error);
         return;
       }
-      router.refresh();
+      // Realtime echo invalidates ['projects', userId] → refetch.
     });
   }
 
@@ -194,13 +210,16 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
     ? activeDragId!.slice(PROJECT_PREFIX.length)
     : null;
   const activeProject = activeDragProjectId
-    ? optimisticAreas.flatMap((a) => a.projects).find((p) => p.id === activeDragProjectId)
+    ? optimisticAreas
+        .flatMap((a) => a.projects)
+        .find((p) => p.id === activeDragProjectId)
     : null;
-  const activeArea = !activeDragIsProject && activeDragId
-    ? optimisticAreas.find((a) => a.id === activeDragId)
-    : null;
+  const activeArea =
+    !activeDragIsProject && activeDragId
+      ? optimisticAreas.find((a) => a.id === activeDragId)
+      : null;
 
-  // All project IDs for the outer SortableContext (areas use their own IDs)
+  // All area IDs for the outer SortableContext
   const allAreaIds = optimisticAreas.map((a) => a.id);
 
   return (
@@ -224,8 +243,8 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
               area={area}
               allAreas={optimisticAreas}
               collapsed={collapsed}
-              isPending={pendingDragId === area.id}
               graduationYear={graduationYear ?? null}
+              addOptimisticArea={addOptimisticArea}
             />
           ))}
         </ul>
@@ -262,7 +281,9 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
               <span className="text-muted-foreground/60">·</span>
             )}
             {!collapsed && (
-              <span className="truncate flex-1 min-w-0">{activeProject.name}</span>
+              <span className="truncate flex-1 min-w-0">
+                {activeProject.name}
+              </span>
             )}
           </div>
         ) : null}
@@ -277,14 +298,14 @@ function SortableAreaRow({
   area,
   allAreas,
   collapsed,
-  isPending,
   graduationYear,
+  addOptimisticArea,
 }: {
   area: SidebarArea;
   allAreas: SidebarArea[];
   collapsed: boolean;
-  isPending: boolean;
   graduationYear: number | null;
+  addOptimisticArea: AreaOptimisticDispatch;
 }) {
   const {
     attributes,
@@ -297,7 +318,6 @@ function SortableAreaRow({
 
   const [rightClickOpen, setRightClickOpen] = useState(false);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
-  const router = useRouter();
 
   // Lazy import to avoid circular deps — areas prop passed in from outside
   const [ProjectCreateDialogComponent, setProjectCreateDialogComponent] =
@@ -328,10 +348,7 @@ function SortableAreaRow({
     <li
       ref={setSortableRef}
       style={style}
-      className={cn(
-        "flex flex-col",
-        isDragging && "opacity-0",
-      )}
+      className={cn("flex flex-col", isDragging && "opacity-0")}
     >
       {/* Area row */}
       <div
@@ -345,7 +362,7 @@ function SortableAreaRow({
           "group/area relative flex items-center gap-2 rounded-md px-2 py-1",
           "text-[13px] font-sans text-foreground select-none",
           "hover:bg-secondary cursor-grab active:cursor-grabbing transition-colors",
-          isPending && "opacity-50",
+          // D-02: no opacity dim on pending — UI stays instant
           area.archivedAt && "opacity-50 italic line-through",
         )}
       >
@@ -379,6 +396,7 @@ function SortableAreaRow({
               isArchived={!!area.archivedAt}
               rightClickOpen={rightClickOpen}
               onRightClickClose={() => setRightClickOpen(false)}
+              addOptimisticArea={addOptimisticArea}
             />
           </>
         )}
@@ -398,7 +416,6 @@ function SortableAreaRow({
                 project={project}
                 areaId={area.id}
                 allAreas={allAreas}
-                onRefresh={() => router.refresh()}
               />
             ))}
           </ul>
@@ -425,12 +442,10 @@ function SortableProjectRow({
   project,
   areaId,
   allAreas,
-  onRefresh,
 }: {
   project: SidebarProject;
   areaId: string;
   allAreas: SidebarArea[];
-  onRefresh: () => void;
 }) {
   const {
     attributes,
@@ -454,10 +469,7 @@ function SortableProjectRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "group/project relative",
-        isDragging && "opacity-0",
-      )}
+      className={cn("group/project relative", isDragging && "opacity-0")}
     >
       <div
         {...attributes}
@@ -499,7 +511,6 @@ function SortableProjectRow({
           allAreas={allAreas}
           rightClickOpen={rightClickOpen}
           onRightClickClose={() => setRightClickOpen(false)}
-          onRefresh={onRefresh}
         />
       </div>
     </li>
@@ -514,14 +525,12 @@ function ProjectActionsMenu({
   allAreas,
   rightClickOpen,
   onRightClickClose,
-  onRefresh,
 }: {
   project: SidebarProject;
   areaId: string;
   allAreas: SidebarArea[];
   rightClickOpen: boolean;
   onRightClickClose: () => void;
-  onRefresh: () => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -552,7 +561,7 @@ function ProjectActionsMenu({
       const targetName =
         allAreas.find((a) => a.id === newAreaId)?.name ?? "another area";
       toast(`Moved to ${targetName}.`);
-      onRefresh();
+      // Realtime echo invalidates ['projects', userId] → refetch.
     });
   }
 
@@ -578,15 +587,12 @@ function ProjectActionsMenu({
               const undoResult = await unarchiveProject(project.id);
               if (!undoResult.success) {
                 toast.error(undoResult.error);
-              } else {
-                onRefresh();
               }
             });
           },
         },
         duration: 4000,
       });
-      onRefresh();
     });
   }
 
@@ -596,9 +602,7 @@ function ProjectActionsMenu({
       const result = await unarchiveProject(project.id);
       if (!result.success) {
         toast.error(result.error);
-        return;
       }
-      onRefresh();
     });
   }
 
@@ -614,12 +618,9 @@ function ProjectActionsMenu({
     toast("Project deleted.");
     setDeleteDialogOpen(false);
     // If currently viewing this project's detail page, route to /today —
-    // otherwise just refresh in place. router.push refreshes Server Component
-    // data automatically so onRefresh isn't needed in that branch.
+    // otherwise rely on Realtime echo to refresh the sidebar in place.
     if (pathname === `/projects/${project.id}`) {
       router.push("/today");
-    } else {
-      onRefresh();
     }
   }
 
@@ -639,7 +640,9 @@ function ProjectActionsMenu({
       return;
     }
     setRenameDialogOpen(false);
-    onRefresh();
+    // Realtime echo on ['projects', userId] propagates the rename to every
+    // surface using the canonical collection key — including the project
+    // detail page (B1 canonical detail-page pattern via select).
   }
 
   return (

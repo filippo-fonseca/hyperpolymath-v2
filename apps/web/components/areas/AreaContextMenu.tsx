@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import {
@@ -27,6 +26,7 @@ import {
   deleteArea,
   updateArea,
 } from "@/app/actions/areas";
+import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
 
 interface Props {
   areaId: string;
@@ -35,6 +35,12 @@ interface Props {
   /** External "open" trigger from a right-click on the row. Optional. */
   rightClickOpen?: boolean;
   onRightClickClose?: () => void;
+  /**
+   * Phase 3 optimistic dispatcher provided by Sidebar (M3 owner). Each menu
+   * action dispatches against the same useOptimistic state Sidebar owns, so
+   * AreaCreateDialog and SidebarTree all see the same instant-feedback rows.
+   */
+  addOptimisticArea: AreaOptimisticDispatch;
 }
 
 /**
@@ -48,8 +54,8 @@ export function AreaActionsMenu({
   isArchived,
   rightClickOpen,
   onRightClickClose,
+  addOptimisticArea,
 }: Props) {
-  const router = useRouter();
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -68,8 +74,12 @@ export function AreaActionsMenu({
   function handleArchive() {
     setEffectiveOpen(false);
     startTransition(async () => {
+      // D-04: optimistic delete (active list excludes archived; the canonical
+      // refetch via Realtime echo will reconcile if "Show archived" is toggled).
+      addOptimisticArea({ type: "delete", id: areaId });
       const result = await archiveArea(areaId);
       if (!result.success) {
+        // D-03: silent revert + toast.error
         toast.error(result.error);
         return;
       }
@@ -81,58 +91,63 @@ export function AreaActionsMenu({
               const undoResult = await unarchiveArea(areaId);
               if (!undoResult.success) {
                 toast.error(undoResult.error);
-              } else {
-                router.refresh();
               }
+              // Realtime echo will restore the row; no manual refresh needed.
             });
           },
         },
         duration: 4000,
       });
-      router.refresh();
     });
   }
 
   function handleUnarchive() {
     setEffectiveOpen(false);
     startTransition(async () => {
+      // Unarchive: from archived state back into active list. We don't have
+      // the full SidebarArea row to optimistically insert into the active list
+      // (it's only in initialAllAreas). Skip optimism here — Realtime echo
+      // handles the refresh within ~1s. Rare path; acceptable tradeoff.
       const result = await unarchiveArea(areaId);
       if (!result.success) {
         toast.error(result.error);
-        return;
       }
-      router.refresh();
     });
   }
 
   async function handleDelete() {
     setIsDeleting(true);
+    // D-04: optimistic delete first — UI flips instantly
+    addOptimisticArea({ type: "delete", id: areaId });
     const result = await deleteArea(areaId);
     setIsDeleting(false);
     if (!result.success) {
+      // D-03: silent revert + toast.error
       toast.error(result.error);
       setDeleteDialogOpen(false);
       return;
     }
     toast("Area deleted.");
     setDeleteDialogOpen(false);
-    router.refresh();
+    // Realtime DELETE echo invalidates → refetch → cache aligns.
   }
 
   async function handleRename() {
-    if (!renameName.trim() || renameName.trim() === areaName) {
+    const trimmed = renameName.trim();
+    if (!trimmed || trimmed === areaName) {
       setRenameDialogOpen(false);
       return;
     }
     setIsRenaming(true);
-    const result = await updateArea({ id: areaId, name: renameName.trim() });
+    // D-04: optimistic rename — header updates instantly
+    addOptimisticArea({ type: "update", id: areaId, patch: { name: trimmed } });
+    const result = await updateArea({ id: areaId, name: trimmed });
     setIsRenaming(false);
     if (!result.success) {
       toast.error(result.error);
       return;
     }
     setRenameDialogOpen(false);
-    router.refresh();
   }
 
   return (

@@ -1,25 +1,61 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useOptimistic, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "./Wordmark";
 import { PersistentNav } from "./PersistentNav";
 import { SidebarTree } from "./SidebarTree";
 import { AreaCreateDialog } from "@/components/areas/AreaCreateDialog";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import {
+  optimisticReducer,
+  type OptimisticAction,
+} from "@/lib/realtime/optimistic-reducer";
+import { getAreasForCurrentUser } from "@/app/actions/areas";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
+  userId: string;
   initialActiveAreas: SidebarArea[];
   initialAllAreas: SidebarArea[];
   graduationYear?: number | null;
 }
 
-export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }: Props) {
+export type AreaOptimisticDispatch = (
+  action: OptimisticAction<SidebarArea>,
+) => void;
+
+/**
+ * Sidebar — M3 owner of the areas useOptimistic state.
+ *
+ * AreaCreateDialog and SidebarTree are SIBLINGS of this component. Both consume
+ * (and SidebarTree, via context menu, also mutates) the same `areas` list.
+ * Per the plan's M3 decision, we lift `useQuery` + `useOptimistic` here and
+ * pass `addOptimisticArea` down to both — no React context needed for the
+ * direct-child fan-out.
+ *
+ * Realtime subscriptions for both `areas` and `projects` live here too —
+ * SidebarTree mutates projects (drag reorder, context-menu rename/archive),
+ * so subscribing at the shared parent guarantees one channel per (table, userId)
+ * regardless of how many sub-rows mount.
+ */
+export function Sidebar({
+  userId,
+  initialActiveAreas,
+  initialAllAreas,
+  graduationYear,
+}: Props) {
   // Hydration safety (Pitfall 16): Read localStorage inside useEffect, NOT during render.
-  // Initial render uses defaults; flicker on first paint is masked by the 200ms collapse animation.
   const [collapsed, setCollapsed] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -44,7 +80,27 @@ export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }:
     localStorage.setItem("sidebar-show-archived", String(next));
   }
 
-  const areas = showArchived ? initialAllAreas : initialActiveAreas;
+  // Singleton channels for both tables — sidebar is the canonical mount point.
+  // SidebarTree children also mount these (refcounted), keeping the count at 1
+  // per (table, userId) regardless of UI re-renders.
+  useTableSubscription("areas", userId);
+  useTableSubscription("projects", userId);
+
+  // Active-areas list is the canonical optimistic source (the hot path —
+  // create, rename, reorder all happen here). When `showArchived` is toggled,
+  // we display from `initialAllAreas` (not optimized; rare path).
+  const { data: activeAreas = initialActiveAreas } = useQuery({
+    queryKey: tableKey("areas", userId),
+    queryFn: getAreasForCurrentUser,
+    initialData: initialActiveAreas,
+  });
+
+  const [optimisticAreas, addOptimisticArea] = useOptimistic(
+    activeAreas,
+    optimisticReducer<SidebarArea>,
+  );
+
+  const areas = showArchived ? initialAllAreas : optimisticAreas;
 
   return (
     <aside
@@ -96,7 +152,11 @@ export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }:
               <span className="text-[11px] font-sans uppercase tracking-widest text-muted-foreground select-none">
                 Areas
               </span>
-              <AreaCreateDialog>
+              <AreaCreateDialog
+                userId={userId}
+                addOptimisticArea={addOptimisticArea}
+                currentAreaCount={activeAreas.length}
+              >
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -111,7 +171,11 @@ export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }:
 
           {collapsed && (
             <div className="flex justify-center py-1">
-              <AreaCreateDialog>
+              <AreaCreateDialog
+                userId={userId}
+                addOptimisticArea={addOptimisticArea}
+                currentAreaCount={activeAreas.length}
+              >
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -131,7 +195,13 @@ export function Sidebar({ initialActiveAreas, initialAllAreas, graduationYear }:
             </div>
           )}
 
-          <SidebarTree areas={areas} collapsed={collapsed} graduationYear={graduationYear} />
+          <SidebarTree
+            userId={userId}
+            areas={areas}
+            collapsed={collapsed}
+            graduationYear={graduationYear}
+            addOptimisticArea={addOptimisticArea}
+          />
         </div>
       </div>
 

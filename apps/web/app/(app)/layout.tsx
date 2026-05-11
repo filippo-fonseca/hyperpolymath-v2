@@ -43,6 +43,7 @@ export default async function AppLayout({
     <NuqsAdapter>
       <QueryProvider>
         <AppShell
+          userId={user.id}
           activeAreas={activeAreas}
           allAreas={allAreas}
           graduationYear={user.graduationYear}

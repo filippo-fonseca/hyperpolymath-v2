@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,13 +14,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createArea } from "@/app/actions/areas";
+import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
   children: React.ReactNode;
+  userId: string;
+  addOptimisticArea: AreaOptimisticDispatch;
+  /**
+   * Length of the current active-areas list — used to assign a reasonable
+   * orderIndex on the optimistic row (the server's authoritative value will
+   * arrive via the Realtime echo refetch).
+   */
+  currentAreaCount: number;
 }
 
-export function AreaCreateDialog({ children }: Props) {
-  const router = useRouter();
+export function AreaCreateDialog({
+  children,
+  userId,
+  addOptimisticArea,
+  currentAreaCount,
+}: Props) {
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -47,22 +60,53 @@ export function AreaCreateDialog({ children }: Props) {
     setIsSubmitting(true);
     setError(null);
 
+    // RT-05: client-generates the UUID BEFORE the Server Action call so the
+    // optimistic row id and the persisted row id match — Realtime echo dedupes.
+    const newId = crypto.randomUUID();
+    const trimmedName = name.trim();
+    const trimmedEmoji = emoji.trim() || null;
+
     startTransition(async () => {
+      // D-04: optimistic insert FIRST — sidebar flashes the new area immediately.
+      addOptimisticArea({
+        type: "insert",
+        row: {
+          id: newId,
+          name: trimmedName,
+          emoji: trimmedEmoji,
+          orderIndex: currentAreaCount,
+          archivedAt: null,
+          projects: [],
+        } satisfies SidebarArea,
+      });
+
+      // Close the dialog optimistically — D-02 instant.
+      setOpen(false);
+      setName("");
+      setEmoji("");
+
       const result = await createArea({
-        name: name.trim(),
-        emoji: emoji.trim() || null,
+        id: newId,
+        name: trimmedName,
+        emoji: trimmedEmoji,
       });
       setIsSubmitting(false);
       if (!result.success) {
+        // D-03: silent revert (useOptimistic auto-reverts) + toast.error
+        toast.error(result.error);
+        // Reopen so the user can correct
+        setOpen(true);
+        setName(trimmedName);
+        setEmoji(emoji.trim());
         setError(result.error);
         return;
       }
       toast("Area created.");
-      setOpen(false);
-      setName("");
-      setEmoji("");
-      router.refresh();
+      // Realtime echo invalidates ['areas', userId] → refetch → cache settles
+      // with the canonical row carrying the same id (RT-05 dedupe → no-op).
     });
+    // Intentionally not gating on userId here — server action enforces auth.
+    void userId;
   }
 
   return (
