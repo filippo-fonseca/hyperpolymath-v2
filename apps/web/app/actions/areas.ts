@@ -61,8 +61,8 @@ export async function createArea(
     })
     .returning({ id: areas.id });
 
-  // No revalidatePath: Realtime echoes drive cache invalidation across all
-  // open clients via useTableSubscription (D-09 / RT-04).
+  // Cache invalidation is driven by Realtime echoes across all open clients
+  // via useTableSubscription (D-09 / RT-04) — no Server Component path-revalidation.
   return { success: true, data: { id: row!.id } };
 }
 
