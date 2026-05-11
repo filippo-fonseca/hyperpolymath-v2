@@ -165,12 +165,73 @@ export function CaptureDetailPanel({
     projectIds: [],
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
+  // Mirror of the editor's current parsed state. TipTap's editor instance
+  // updates internally on every keystroke but does NOT trigger a re-render of
+  // this React component — so the dirty check (which reads the editor) used
+  // to be stale until something else (e.g. project link change) forced a
+  // re-render. We mirror parsed content into React state via `onUpdate` so
+  // any keystroke or hashtag insertion immediately re-evaluates `dirty`.
+  const [editorState, setEditorState] = useState<{
+    content: string;
+    hashtagNames: string[];
+  }>({ content: "", hashtagNames: [] });
 
   // Build initial TipTap doc from the loaded capture (rebuilt on capture change)
   const initialDoc = useMemo(() => {
     if (!capture) return { type: "doc", content: [{ type: "paragraph" }] };
     return contentToTipTapDoc(capture.content, capture.hashtags);
   }, [capture]);
+
+  // Permissive parse of an arbitrary TipTap JSON doc. Pulled out of the
+  // closure-captured `parseEditor` so `onUpdate` (which receives a fresh
+  // editor instance) can use the same extraction logic without depending on
+  // the closed-over `editor` ref.
+  const parseEditorJSON = useCallback(
+    (json: unknown): { content: string; hashtagNames: string[] } => {
+      const tagCasing = new Map<string, string>();
+      let content = "";
+      const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+
+      function extractFromText(text: string): void {
+        for (const m of text.matchAll(HASHTAG_RE)) {
+          const raw = m[1];
+          if (!raw) continue;
+          const lower = raw.toLowerCase();
+          if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
+        }
+      }
+
+      function walk(node: unknown): void {
+        if (!node || typeof node !== "object") return;
+        const n = node as {
+          type?: string;
+          text?: string;
+          attrs?: { label?: string };
+          content?: unknown[];
+        };
+        if (n.type === "text" && typeof n.text === "string") {
+          content += n.text;
+          extractFromText(n.text);
+        }
+        if (n.type === "mention" && typeof n.attrs?.label === "string") {
+          const label = n.attrs.label;
+          const lower = label.toLowerCase();
+          tagCasing.set(lower, label);
+          content += `#${label}`;
+        }
+        if (n.type === "paragraph" || n.type === "doc") {
+          (n.content ?? []).forEach(walk);
+          if (n.type === "paragraph") content += "\n";
+        }
+      }
+      walk(json);
+      return {
+        content: content.trim(),
+        hashtagNames: Array.from(tagCasing.values()),
+      };
+    },
+    [],
+  );
 
   const editor = useEditor(
     {
@@ -205,6 +266,14 @@ export function CaptureDetailPanel({
         },
       },
       content: initialDoc,
+      // Mirror parsed editor state into React on every doc change. Without
+      // this, `dirty` only re-evaluated when other React state (e.g. project
+      // links) changed, so text-only / hashtag-only edits never enabled Save.
+      // Fires for user input AND `editor.commands.setContent(...)` — which is
+      // what we want for `resetToInitial` to also clear the dirty flag.
+      onUpdate({ editor: e }) {
+        setEditorState(parseEditorJSON(e.getJSON()));
+      },
     },
     // Recreate the editor when the capture identity changes so its content
     // reflects the freshly-loaded doc (otherwise reusing the same editor
@@ -212,75 +281,38 @@ export function CaptureDetailPanel({
     [capture?.id, hashtags],
   );
 
-  // Sync form state when capture changes
+  // Sync form state when capture changes. `onUpdate` doesn't fire on initial
+  // editor creation, so seed `editorState` from the canonical capture content
+  // here to keep the dirty comparison anchored to the loaded doc.
   useEffect(() => {
     if (capture) {
       const f = captureToFormState(capture);
       setForm(f);
       setInitialForm(f);
+      setEditorState({ content: f.content, hashtagNames: f.hashtagNames });
     }
   }, [capture?.id]);
 
-  // Permissive parse — mirrors CaptureComposer.parseEditor exactly so detail
-  // edits get the same hashtag extraction behavior (plain `#word` text counts).
+  // Permissive parse — wraps `parseEditorJSON` for the imperative save path.
+  // Mirrors CaptureComposer.parseEditor exactly so detail edits get the same
+  // hashtag extraction behavior (plain `#word` text counts).
   const parseEditor = useCallback((): {
     content: string;
     hashtagNames: string[];
   } => {
     if (!editor) return { content: "", hashtagNames: [] };
-    const json = editor.getJSON();
-    const tagCasing = new Map<string, string>();
-    let content = "";
-    const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+    return parseEditorJSON(editor.getJSON());
+  }, [editor, parseEditorJSON]);
 
-    function extractFromText(text: string): void {
-      for (const m of text.matchAll(HASHTAG_RE)) {
-        const raw = m[1];
-        if (!raw) continue;
-        const lower = raw.toLowerCase();
-        if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
-      }
-    }
-
-    function walk(node: unknown): void {
-      if (!node || typeof node !== "object") return;
-      const n = node as {
-        type?: string;
-        text?: string;
-        attrs?: { label?: string };
-        content?: unknown[];
-      };
-      if (n.type === "text" && typeof n.text === "string") {
-        content += n.text;
-        extractFromText(n.text);
-      }
-      if (n.type === "mention" && typeof n.attrs?.label === "string") {
-        const label = n.attrs.label;
-        const lower = label.toLowerCase();
-        tagCasing.set(lower, label);
-        content += `#${label}`;
-      }
-      if (n.type === "paragraph" || n.type === "doc") {
-        (n.content ?? []).forEach(walk);
-        if (n.type === "paragraph") content += "\n";
-      }
-    }
-    walk(json);
-    return {
-      content: content.trim(),
-      hashtagNames: Array.from(tagCasing.values()),
-    };
-  }, [editor]);
-
-  // Dirty check — content from editor, projects from form state.
-  const editorContent = editor ? parseEditor() : null;
-  const dirty = !!capture && !!editorContent && (
-    editorContent.content !== initialForm.content ||
-    JSON.stringify([...editorContent.hashtagNames].sort()) !==
-      JSON.stringify([...initialForm.hashtagNames].sort()) ||
-    JSON.stringify([...form.projectIds].sort()) !==
-      JSON.stringify([...initialForm.projectIds].sort())
-  );
+  // Dirty check — content/hashtags from `editorState` (kept in sync by
+  // `onUpdate`), projects from `form` state.
+  const dirty =
+    !!capture &&
+    (editorState.content !== initialForm.content ||
+      JSON.stringify([...editorState.hashtagNames].sort()) !==
+        JSON.stringify([...initialForm.hashtagNames].sort()) ||
+      JSON.stringify([...form.projectIds].sort()) !==
+        JSON.stringify([...initialForm.projectIds].sort()));
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
