@@ -76,6 +76,8 @@ export const projects = pgTable(
     semesterTerm: semesterTermEnum("semester_term"),
     semesterYear: integer("semester_year"),
 
+    orderIndex: integer("order_index").notNull().default(0),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

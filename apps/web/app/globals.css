@@ -1,9 +1,49 @@
 @import "tailwindcss";
 
 @theme {
-  --font-serif: var(--font-eb-garamond), Georgia, serif;
+  --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+  --color-background: hsl(42 18% 97%);
+  --color-foreground: hsl(30 8% 16%);
+  --color-card: hsl(40 14% 93%);
+  --color-card-foreground: hsl(30 8% 16%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(30 8% 16%);
+  --color-primary: hsl(30 8% 16%);
+  --color-primary-foreground: hsl(42 18% 97%);
+  --color-secondary: hsl(40 10% 90%);
+  --color-secondary-foreground: hsl(30 8% 16%);
+  --color-muted: hsl(40 10% 90%);
+  --color-muted-foreground: hsl(30 5% 45%);
+  --color-accent: hsl(38 72% 52%);
+  --color-accent-foreground: hsl(30 8% 16%);
+  --color-destructive: hsl(4 72% 42%);
+  --color-destructive-foreground: hsl(42 18% 97%);
+  --color-border: hsl(38 12% 85%);
+  --color-input: hsl(38 10% 88%);
+  --color-ring: hsl(38 72% 52%);
+  --radius: 0.5rem;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 body {
   font-family: var(--font-serif);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Dark theme token declarations — Phase 6 activates via .dark class on html */
+.dark {
+  --color-background: hsl(30 8% 10%);
+  --color-card: hsl(30 7% 13%);
+  --color-border: hsl(30 6% 20%);
+  --color-foreground: hsl(38 15% 92%);
+  --color-muted-foreground: hsl(30 8% 58%);
+  --color-accent: hsl(38 65% 58%);
 }

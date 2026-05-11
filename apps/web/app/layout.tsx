@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EB_Garamond } from "next/font/google";
+import { EB_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 
 const ebGaramond = EB_Garamond({
@@ -10,6 +10,13 @@ const ebGaramond = EB_Garamond({
   display: "swap",
 });
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Hyperpolymath",
   description: "I brought back the Renaissance.",
@@ -17,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={ebGaramond.variable}>
+    <html lang="en" className={`${ebGaramond.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );
