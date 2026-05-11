@@ -14,7 +14,6 @@ import {
   type DragEndEvent,
   type DragStartEvent,
   type DropAnimation,
-  useDroppable,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -43,6 +42,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -141,81 +143,41 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
       return;
     }
 
-    // Project drag — determine target
+    // Project drag — reorder within source area only.
+    // Cross-area moves happen via the ⋯ menu "Move to area..." submenu
+    // (rare, brittle as drag; explicit menu is the better UX).
     const projectId = activeIdStr.slice(PROJECT_PREFIX.length);
-    const overIsProject = overIdStr.startsWith(PROJECT_PREFIX);
-    const overIsArea = !overIsProject;
+    if (!overIdStr.startsWith(PROJECT_PREFIX)) return;
+    const targetProjectId = overIdStr.slice(PROJECT_PREFIX.length);
 
-    // Find source area of the dragged project
-    let sourceArea: SidebarArea | undefined;
-    for (const area of optimisticAreas) {
-      if (area.projects.some((p) => p.id === projectId)) {
-        sourceArea = area;
-        break;
-      }
-    }
-    if (!sourceArea) return;
+    const sourceArea = optimisticAreas.find((a) =>
+      a.projects.some((p) => p.id === projectId),
+    );
+    const targetArea = optimisticAreas.find((a) =>
+      a.projects.some((p) => p.id === targetProjectId),
+    );
+    if (!sourceArea || !targetArea) return;
+    // Ignore drops onto a project in a different area — use the menu instead.
+    if (sourceArea.id !== targetArea.id) return;
 
-    if (overIsProject) {
-      const targetProjectId = overIdStr.slice(PROJECT_PREFIX.length);
-      // Find target area
-      let targetArea: SidebarArea | undefined;
-      for (const area of optimisticAreas) {
-        if (area.projects.some((p) => p.id === targetProjectId)) {
-          targetArea = area;
-          break;
-        }
-      }
-      if (!targetArea) return;
-
-      if (sourceArea.id === targetArea.id) {
-        // Reorder within area
-        const oldIndex = sourceArea.projects.findIndex((p) => p.id === projectId);
-        const newIndex = sourceArea.projects.findIndex((p) => p.id === targetProjectId);
-        if (oldIndex < 0 || newIndex < 0) return;
-        const reorderedProjects = arrayMove(sourceArea.projects, oldIndex, newIndex);
-        const orderedIds = reorderedProjects.map((p) => p.id);
-        startTransition(async () => {
-          const result = await reorderProjects({
-            areaId: sourceArea.id,
-            orderedIds,
-          });
-          if (!result.success) {
-            toast.error(result.error);
-            return;
-          }
-          router.refresh();
-        });
-      } else {
-        // Cross-area move: dropped onto a project in a different area
-        startTransition(async () => {
-          const result = await moveProjectToArea({
-            projectId,
-            newAreaId: targetArea.id,
-          });
-          if (!result.success) {
-            toast.error(result.error);
-            return;
-          }
-          router.refresh();
-        });
-      }
-    } else if (overIsArea) {
-      // Dropped onto an area header directly
-      const targetAreaId = overIdStr;
-      if (sourceArea.id === targetAreaId) return; // same area, no-op
-      startTransition(async () => {
-        const result = await moveProjectToArea({
-          projectId,
-          newAreaId: targetAreaId,
-        });
-        if (!result.success) {
-          toast.error(result.error);
-          return;
-        }
-        router.refresh();
+    const oldIndex = sourceArea.projects.findIndex((p) => p.id === projectId);
+    const newIndex = sourceArea.projects.findIndex(
+      (p) => p.id === targetProjectId,
+    );
+    if (oldIndex < 0 || newIndex < 0) return;
+    const reorderedProjects = arrayMove(sourceArea.projects, oldIndex, newIndex);
+    const orderedIds = reorderedProjects.map((p) => p.id);
+    startTransition(async () => {
+      const result = await reorderProjects({
+        areaId: sourceArea.id,
+        orderedIds,
       });
-    }
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      router.refresh();
+    });
   }
 
   if (optimisticAreas.length === 0) {
@@ -258,9 +220,9 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
             <SortableAreaRow
               key={area.id}
               area={area}
+              allAreas={optimisticAreas}
               collapsed={collapsed}
               isPending={pendingDragId === area.id}
-              activeDragId={activeDragId}
               graduationYear={graduationYear ?? null}
             />
           ))}
@@ -311,15 +273,15 @@ export function SidebarTree({ areas, collapsed, graduationYear }: Props) {
 
 function SortableAreaRow({
   area,
+  allAreas,
   collapsed,
   isPending,
-  activeDragId,
   graduationYear,
 }: {
   area: SidebarArea;
+  allAreas: SidebarArea[];
   collapsed: boolean;
   isPending: boolean;
-  activeDragId: string | null;
   graduationYear: number | null;
 }) {
   const {
@@ -330,13 +292,6 @@ function SortableAreaRow({
     transition,
     isDragging,
   } = useSortable({ id: area.id });
-
-  // Make ONLY the area header (not the whole li with projects) the droppable
-  // zone for cross-area project drops. Sharing the ref with the <li> caused
-  // closestCenter to often pick a sibling project instead of the area header.
-  const { setNodeRef: setHeaderDroppableRef, isOver } = useDroppable({
-    id: area.id,
-  });
 
   const [rightClickOpen, setRightClickOpen] = useState(false);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
@@ -360,9 +315,6 @@ function SortableAreaRow({
     setProjectCreateOpen(true);
   }
 
-  const isDraggingAProject =
-    activeDragId !== null && activeDragId.startsWith(PROJECT_PREFIX);
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -379,9 +331,8 @@ function SortableAreaRow({
         isDragging && "opacity-0",
       )}
     >
-      {/* Area row — ALSO the droppable target for cross-area project drops */}
+      {/* Area row */}
       <div
-        ref={setHeaderDroppableRef}
         {...attributes}
         {...listeners}
         onContextMenu={(e) => {
@@ -394,8 +345,6 @@ function SortableAreaRow({
           "hover:bg-secondary cursor-grab active:cursor-grabbing transition-colors",
           isPending && "opacity-50",
           area.archivedAt && "opacity-50 italic line-through",
-          // Visual drop-zone affordance when dragging a project over this area
-          isDraggingAProject && isOver && "bg-accent/15 ring-1 ring-accent/40",
         )}
       >
         <span className="text-base leading-none shrink-0">
@@ -445,6 +394,7 @@ function SortableAreaRow({
                 key={project.id}
                 project={project}
                 areaId={area.id}
+                allAreas={allAreas}
                 onRefresh={() => router.refresh()}
               />
             ))}
@@ -471,10 +421,12 @@ function SortableAreaRow({
 function SortableProjectRow({
   project,
   areaId,
+  allAreas,
   onRefresh,
 }: {
   project: SidebarProject;
   areaId: string;
+  allAreas: SidebarArea[];
   onRefresh: () => void;
 }) {
   const {
@@ -541,6 +493,7 @@ function SortableProjectRow({
         <ProjectActionsMenu
           project={project}
           areaId={areaId}
+          allAreas={allAreas}
           rightClickOpen={rightClickOpen}
           onRightClickClose={() => setRightClickOpen(false)}
           onRefresh={onRefresh}
@@ -554,13 +507,15 @@ function SortableProjectRow({
 
 function ProjectActionsMenu({
   project,
-  areaId: _areaId,
+  areaId,
+  allAreas,
   rightClickOpen,
   onRightClickClose,
   onRefresh,
 }: {
   project: SidebarProject;
   areaId: string;
+  allAreas: SidebarArea[];
   rightClickOpen: boolean;
   onRightClickClose: () => void;
   onRefresh: () => void;
@@ -574,6 +529,29 @@ function ProjectActionsMenu({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [, startTransition] = useTransition();
+
+  // Other areas the project could be moved to (exclude current + archived)
+  const otherAreas = allAreas.filter(
+    (a) => a.id !== areaId && !a.archivedAt,
+  );
+
+  function handleMoveToArea(newAreaId: string) {
+    setEffectiveOpen(false);
+    startTransition(async () => {
+      const result = await moveProjectToArea({
+        projectId: project.id,
+        newAreaId,
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      const targetName =
+        allAreas.find((a) => a.id === newAreaId)?.name ?? "another area";
+      toast(`Moved to ${targetName}.`);
+      onRefresh();
+    });
+  }
 
   const effectiveOpen = open || !!rightClickOpen;
   const setEffectiveOpen = (next: boolean) => {
@@ -681,7 +659,7 @@ function ProjectActionsMenu({
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem
             onSelect={() => {
               setEffectiveOpen(false);
@@ -691,6 +669,24 @@ function ProjectActionsMenu({
           >
             Rename
           </DropdownMenuItem>
+          {otherAreas.length > 0 && !project.archivedAt && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Move to area</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-52 max-h-72 overflow-y-auto">
+                {otherAreas.map((target) => (
+                  <DropdownMenuItem
+                    key={target.id}
+                    onSelect={() => handleMoveToArea(target.id)}
+                  >
+                    <span className="text-base leading-none">
+                      {target.emoji ?? "·"}
+                    </span>
+                    <span className="truncate">{target.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           {project.archivedAt ? (
             <DropdownMenuItem onSelect={handleUnarchive}>
               Unarchive
