@@ -19,6 +19,22 @@ type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+/**
+ * Public type for the hashtag-with-count rows returned by `getHashtagsForUser`
+ * and `getHashtagsForUserAction`. Used by the HashtagSidebar consumer and the
+ * captures client query.
+ */
+export type HashtagWithCount = {
+  id: string;
+  name: string;
+  displayName: string;
+  count: number;
+};
+
+/**
+ * CLAUDE.md Critical Pattern 1: validate the user via getClaims() — never
+ * getSession() in server code.
+ */
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -64,11 +80,12 @@ export async function upsertHashtag(
 /**
  * For sidebar: returns all hashtags for user with capture count, sorted DESC by count.
  * CAPT-05: sidebar lists hashtags with counts.
+ *
+ * Kept as the existing `ActionResult`-wrapped surface used by the
+ * /captures Server Component initial load.
  */
 export async function getHashtagsForUser(): Promise<
-  ActionResult<
-    { id: string; name: string; displayName: string; count: number }[]
-  >
+  ActionResult<HashtagWithCount[]>
 > {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
@@ -93,4 +110,61 @@ export async function getHashtagsForUser(): Promise<
     .orderBy(desc(sql`COUNT(${capturesHashtags.captureId})`));
 
   return { success: true, data: rows };
+}
+
+/**
+ * Auth-gated SELECT for the signed-in user's hashtags. queryFn target for
+ * `useQuery({ queryKey: tableKey("hashtags", userId) })` driving the
+ * HashtagSidebar live-count behavior (D-10).
+ *
+ * Throws on unauthenticated callers so TanStack Query surfaces the error
+ * (caller wraps the action in a useQuery; throw → query enters error state).
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims (NOT getSession).
+ *
+ * @param options.withCounts - When true (default for sidebar), returns rows
+ *   with each hashtag's current capture count. When false, count is set to 0
+ *   for callers that only need the hashtag list (e.g. composer suggestions).
+ */
+export async function getHashtagsForUserAction(
+  options: { withCounts?: boolean } = {},
+): Promise<HashtagWithCount[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const userId = data.claims.sub;
+
+  if (options.withCounts) {
+    // LEFT JOIN captures_hashtags to count usages; preserve sidebar ordering
+    // (DESC by count) so a live-invalidated refetch matches the initial sort.
+    return db
+      .select({
+        id: hashtags.id,
+        name: hashtags.name,
+        displayName: hashtags.displayName,
+        count: sql<number>`COUNT(${capturesHashtags.captureId})::int`,
+      })
+      .from(hashtags)
+      .leftJoin(
+        capturesHashtags,
+        and(
+          eq(capturesHashtags.hashtagId, hashtags.id),
+          eq(capturesHashtags.userId, userId),
+        ),
+      )
+      .where(eq(hashtags.userId, userId))
+      .groupBy(hashtags.id, hashtags.name, hashtags.displayName)
+      .orderBy(desc(sql`COUNT(${capturesHashtags.captureId})`));
+  }
+
+  return db
+    .select({
+      id: hashtags.id,
+      name: hashtags.name,
+      displayName: hashtags.displayName,
+      count: sql<number>`0::int`,
+    })
+    .from(hashtags)
+    .where(eq(hashtags.userId, userId))
+    .orderBy(hashtags.name);
 }

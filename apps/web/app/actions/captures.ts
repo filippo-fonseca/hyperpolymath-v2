@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import {
@@ -12,11 +11,21 @@ import {
   projects,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "./hashtags";
+import {
+  getCapturesForUser,
+  type CaptureWithLinks,
+} from "@/lib/db/queries/captures";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+/**
+ * CLAUDE.md Critical Pattern 1: validate the user via getClaims() — never
+ * getSession() in server code. getClaims validates the JWT signature against
+ * Supabase's published public keys; getSession reads cookies without
+ * revalidation and is spoofable.
+ */
 async function getUserId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -25,6 +34,9 @@ async function getUserId(): Promise<string | null> {
 }
 
 const CreateCaptureSchema = z.object({
+  // RT-05 dedupe: caller may supply a client-generated UUID so the Realtime
+  // echo carrying the same id is a no-op for the optimistic reducer.
+  id: z.string().uuid().optional(),
   content: z.string().trim().min(1).max(20000),
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
@@ -45,7 +57,13 @@ export async function createCapture(
   const result = await db.transaction(async (tx) => {
     const [cap] = await tx
       .insert(captures)
-      .values({ userId, content: parsed.data.content })
+      .values({
+        // RT-05: respect caller-supplied id when present so the optimistic
+        // row + the Realtime echo share the same primary key.
+        ...(parsed.data.id ? { id: parsed.data.id } : {}),
+        userId,
+        content: parsed.data.content,
+      })
       .returning({ id: captures.id });
 
     // Upsert each hashtag (atomic, race-safe per Pitfall 9 — passing tx per Warning 10)
@@ -105,8 +123,8 @@ export async function createCapture(
     return cap.id;
   });
 
-  revalidatePath("/captures");
-  revalidatePath("/projects/[projectId]", "page");
+  // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
+  // TanStack Query invalidation own cross-window propagation now.
   return { success: true, data: { id: result } };
 }
 
@@ -205,8 +223,7 @@ export async function updateCapture(
     }
   });
 
-  revalidatePath("/captures");
-  revalidatePath("/projects/[projectId]", "page");
+  // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }
 
@@ -220,8 +237,7 @@ export async function deleteCapture(
   await db
     .delete(captures)
     .where(and(eq(captures.id, id), eq(captures.userId, userId)));
-  revalidatePath("/captures");
-  revalidatePath("/projects/[projectId]", "page");
+  // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }
 
@@ -296,4 +312,23 @@ export async function searchCaptures(
     )
     .limit(50);
   return { success: true, data: rows.map((r) => r.id) };
+}
+
+/**
+ * Auth-gated SELECT for the signed-in user's captures (with hashtag + project
+ * joins inlined). queryFn target for `useQuery({ queryKey: tableKey("captures",
+ * userId) })` in CapturesClient.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims, NOT getSession.
+ *
+ * @param options.tag - Optional hashtag ID to filter the feed (nuqs `?tag=`
+ *   URL state on /captures).
+ */
+export async function getCapturesForCurrentUser(
+  options: { tag?: string } = {},
+): Promise<CaptureWithLinks[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
 }

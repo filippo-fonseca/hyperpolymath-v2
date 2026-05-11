@@ -98,4 +98,69 @@ describe("useTableSubscription singleton (RT-01 / D-08)", () => {
     );
     expect(channelFactory).not.toHaveBeenCalled();
   });
+
+  it("alsoInvalidate fans invalidation out to extra keys (D-10)", () => {
+    // Use a dedicated QueryClient so we can spy on invalidateQueries without
+    // hitting the shared `wrap()` factory's instance.
+    const qc = new QueryClient();
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+    const customWrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: qc }, children);
+
+    renderHook(
+      () =>
+        useTableSubscription("captures_hashtags", "uid-a", {
+          alsoInvalidate: [
+            ["hashtags", "uid-a"],
+            ["captures", "uid-a"],
+          ],
+        }),
+      { wrapper: customWrapper },
+    );
+
+    // M1: onMock was mockClear'd in beforeEach, so .at(-1) is THIS test's
+    // handler (the most recent registration), not a stale one from a prior test.
+    const onCalls = (onMock as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls;
+    const handler = onCalls.at(-1)?.[2] as (payload: unknown) => void;
+    expect(handler).toBeTypeOf("function");
+    handler({});
+
+    // Primary + 2 extra keys = 3 invalidations
+    expect(invalidateSpy).toHaveBeenCalledTimes(3);
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["captures_hashtags", "uid-a"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["hashtags", "uid-a"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["captures", "uid-a"],
+    });
+  });
+
+  it("alsoInvalidate from a later mount accrues to the singleton entry", () => {
+    const wrapper = wrap();
+    renderHook(
+      () =>
+        useTableSubscription("captures_hashtags", "uid-a", {
+          alsoInvalidate: [["hashtags", "uid-a"]],
+        }),
+      { wrapper },
+    );
+    renderHook(
+      () =>
+        useTableSubscription("captures_hashtags", "uid-a", {
+          alsoInvalidate: [["captures", "uid-a"]],
+        }),
+      { wrapper },
+    );
+    // Singleton still: one channel
+    expect(channelFactory).toHaveBeenCalledTimes(1);
+    const entry = __getChannelMapForTests().get("captures_hashtags::uid-a");
+    expect(entry?.refcount).toBe(2);
+    // Both extra keys accrued on the single entry
+    expect(entry?.extraKeys).toContain(JSON.stringify(["hashtags", "uid-a"]));
+    expect(entry?.extraKeys).toContain(JSON.stringify(["captures", "uid-a"]));
+  });
 });

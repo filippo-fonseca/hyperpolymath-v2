@@ -10,6 +10,15 @@ import { registerActiveTable, unregisterActiveTable } from "./visibility";
 type Entry = {
   channel: RealtimeChannel;
   refcount: number;
+  /**
+   * Cross-key fanout — serialized JSON of each [string, string] query key that
+   * should ALSO be invalidated when this channel fires. Accrued across mounts:
+   * if two consumers mount the same (table, userId) with different
+   * `alsoInvalidate` arrays, the entry's extraKeys is the union, and the union
+   * is applied on every fire. Cleared implicitly when refcount→0 deletes the
+   * entry (D-10).
+   */
+  extraKeys: Set<string>;
 };
 
 /**
@@ -34,18 +43,36 @@ function makeKey(table: RealtimeTable, userId: string): string {
  *
  * D-08: singleton channel — multiple component mounts share one channel.
  * D-09: invalidate only — never merge payloads (Critical Pattern 3).
+ * D-10: optional `alsoInvalidate` — cross-key fanout for join tables (e.g.
+ *       subscribing to `captures_hashtags` ALSO invalidates the `["hashtags",
+ *       userId]` and `["captures", userId]` queries so hashtag counts and
+ *       feed-card chip lists update live as the join changes).
  * D-11: registers with visibility coordinator so backgrounded tabs recover.
  *
  * @param table - Realtime-enabled Postgres table name (must be in RealtimeTable union)
  * @param userId - The signed-in user's id; filters RLS-aware broadcasts to this user
  * @param options.enabled - If false, hook is a no-op. Useful for guarded mounts.
+ * @param options.alsoInvalidate - Extra query keys to invalidate on every fire.
+ *   The singleton accrues keys across mounts: if multiple consumers mount the
+ *   same (table, userId) with different alsoInvalidate arrays, the union is
+ *   applied. Stale keys are released implicitly when refcount→0 deletes the
+ *   entry on the last unmount.
  */
 export function useTableSubscription(
   table: RealtimeTable,
   userId: string,
-  options: { enabled?: boolean } = {},
+  options: {
+    enabled?: boolean;
+    alsoInvalidate?: ReadonlyArray<readonly [string, string]>;
+  } = {},
 ): void {
   const enabled = options.enabled ?? true;
+  const extraKeysJson = (options.alsoInvalidate ?? []).map((k) =>
+    JSON.stringify(k),
+  );
+  // Stable dep — a single string that captures the set of extra keys for this
+  // mount. Avoids array-identity churn re-running the effect every render.
+  const extraKeysDep = extraKeysJson.join("|");
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -61,7 +88,11 @@ export function useTableSubscription(
     const existing = channels.get(key);
     if (existing) {
       existing.refcount += 1;
+      // Accrue this mount's extra keys onto the shared entry (D-10 fanout
+      // union across consumers).
+      for (const k of extraKeysJson) existing.extraKeys.add(k);
     } else {
+      const extraKeys = new Set<string>(extraKeysJson);
       const supabase = createClient();
       const channel = supabase
         .channel(`rt:${table}:${userId}`)
@@ -79,10 +110,23 @@ export function useTableSubscription(
             void queryClient.invalidateQueries({
               queryKey: tableKey(table, userId),
             });
+            // D-10 fanout — invalidate every extra key registered on this
+            // singleton entry. Read live from `channels.get(key)` so any later
+            // mounts that accrued additional keys are honored too.
+            const entry = channels.get(key);
+            if (entry) {
+              for (const serialized of entry.extraKeys) {
+                const parsed = JSON.parse(serialized) as readonly [
+                  string,
+                  string,
+                ];
+                void queryClient.invalidateQueries({ queryKey: parsed });
+              }
+            }
           },
         )
         .subscribe();
-      channels.set(key, { channel, refcount: 1 });
+      channels.set(key, { channel, refcount: 1, extraKeys });
     }
 
     return () => {
@@ -94,17 +138,26 @@ export function useTableSubscription(
         void entry.channel.unsubscribe();
         channels.delete(key);
       }
+      // NOTE: We do NOT remove this mount's contribution to `extraKeys` on
+      // partial unmount. The remaining consumers may still want the fanout,
+      // and over-removing risks dropping a key that another consumer still
+      // depends on. Cleanup happens implicitly when refcount→0 deletes the
+      // entry above.
     };
-  }, [table, userId, enabled, queryClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, userId, enabled, queryClient, extraKeysDep]);
 }
 
 /** Test-only — inspect module state. */
 export function __getChannelMapForTests(): ReadonlyMap<
   string,
-  { refcount: number }
+  { refcount: number; extraKeys: ReadonlyArray<string> }
 > {
   return new Map(
-    Array.from(channels.entries()).map(([k, v]) => [k, { refcount: v.refcount }]),
+    Array.from(channels.entries()).map(([k, v]) => [
+      k,
+      { refcount: v.refcount, extraKeys: Array.from(v.extraKeys) },
+    ]),
   );
 }
 
