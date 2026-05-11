@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: new-york / neutral base color / css-variables
 created: 2026-05-07
+revised: 2026-05-07
 ---
 
 # Phase 2 — UI Design Contract
@@ -72,24 +73,31 @@ Exceptions:
 
 ### Scale
 
+Exactly 4 sizes. No other sizes appear anywhere in Phase 2 — component specs reference only these four.
+
 | Role | Font | Size | Weight | Line Height | Letter Spacing | Usage |
 |------|------|------|--------|-------------|----------------|-------|
 | Display | EB Garamond | 28px (1.75rem) | 600 (semibold) | 1.2 | -0.02em | Page titles, empty state headings |
-| Heading | EB Garamond | 20px (1.25rem) | 600 (semibold) | 1.3 | -0.01em | Section headers, panel titles, kanban column headers |
-| Body | EB Garamond | 16px (1rem) | 400 (regular) | 1.6 | 0em | Task titles, capture text, project descriptions |
-| Label | Inter / system-ui | 13px (0.8125rem) | 500 (medium) | 1.4 | 0.01em | Metadata labels, filter chip text, badge text, sidebar nav |
-| Caption | Inter / system-ui | 12px (0.75rem) | 400 (regular) | 1.4 | 0.01em | Timestamps ("2h ago"), counts, auxiliary metadata |
+| Heading | EB Garamond | 20px (1.25rem) | 600 (semibold) | 1.3 | -0.01em | Section headers, panel titles |
+| Body | EB Garamond | 16px (1rem) | 400 (regular) | 1.6 | 0em | Task titles, capture text, project descriptions, Cmd+K header |
+| Label | Inter / system-ui | 13px (0.8125rem) | 400 (regular) | 1.4 | 0.01em | Metadata, timestamps, counts, sidebar nav, filter chips, badges, column headers, icon names, project links, class metadata line, hashtag chip text, kanban column counts, capture card project link |
+
+**Exactly 2 weights used across all of Phase 2:**
+- **400 (regular)** — all body text, all label/metadata text, captions, placeholder text
+- **600 (semibold)** — Display, Heading roles only; active/selected state labels use accent color (`#D4A027`), NOT a heavier weight
 
 **Rules:**
 - EB Garamond for all content-bearing text (task titles, capture bodies, project names, area names, headings)
 - Inter/system-ui for dense UI chrome (sidebar nav labels, filter chips, buttons, badges, form labels, metadata)
 - Never use more than 4 sizes on any single page
-- Bold weight (700+) is reserved for emphasis within body text only — not for buttons or nav
-- Italic variant of EB Garamond: use for class metadata display line (`PHIL 277 · Prof. Lloyd · Fall 2026 · A-`)
+- No 500 medium weight anywhere — eliminated from the scale
+- No bold (700+) anywhere — 600 semibold is the maximum weight used
+- Italic variant of EB Garamond at 16px/400: use for class metadata display line (`PHIL 277 · Prof. Lloyd · Fall 2026 · A-`) and Cmd+K header
+- Active-state differentiation (active hashtag in sidebar, active nav item): use accent color `#D4A027` — not weight change
 
 ### Wordmark
 
-The "Hyperpolymath" wordmark renders in EB Garamond at 16px, weight 500, letter-spacing -0.03em, in the sidebar header. No special treatment beyond that — the restraint IS the brand.
+The "Hyperpolymath" wordmark renders in EB Garamond at 16px, weight 400, letter-spacing -0.03em, in the sidebar header. No special treatment beyond that — the restraint IS the brand.
 
 ---
 
@@ -128,7 +136,7 @@ The ochre accent (`#D4A027`) is used ONLY for:
 4. Priority `P∞` chip/badge
 5. "Lesno" status checkmark animation (completion moment)
 6. Hyperlinks within capture body text
-7. Selected hashtag chip in sidebar filter
+7. Selected hashtag chip in sidebar filter (color change — no weight change)
 8. Skeleton loading shimmer tint
 
 The accent is NOT used for: general buttons (use `--primary` dark), hover backgrounds (use tinted `--muted`), borders, backgrounds of cards.
@@ -191,10 +199,25 @@ Declare these CSS variables now so Phase 6 doesn't create conflicts:
 | Loading | spinner icon replaces leading icon, text unchanged, disabled state |
 
 Button variants in use:
-- `default`: dark filled — primary actions (Save, Create, Add)
-- `outline`: bordered — secondary actions (Cancel, Edit)
+- `default`: dark filled — primary actions (Save changes, Create, Add)
+- `outline`: bordered — secondary actions (Edit, Never mind)
 - `ghost`: no border/bg — icon-only actions (⋯ menu trigger, collapse toggles)
 - `destructive`: red — Delete buttons in confirm dialogs only
+
+### Icon-Only Action Accessibility
+
+**Rule:** Every icon-only interactive element (no visible label) carries an `aria-label` matching its tooltip text. Tooltips appear on hover with a 300ms delay via the shadcn/ui `Tooltip` primitive.
+
+| Element | aria-label |
+|---------|-----------|
+| Sidebar collapse chevron | "Collapse sidebar" / "Expand sidebar" (toggles with state) |
+| Capture card `⋯` menu trigger | "Capture options" |
+| Detail panel `×` close button | "Close detail panel" |
+| Filter chip X remove icon | "Remove filter" |
+| Banner color picker swatches | "[Color name] banner" (e.g., "Warm Linen banner") |
+| Lucide icon picker swatches | "[Icon name] icon" (e.g., "BookOpen icon") |
+
+All `aria-label` values must be sentence-case, no trailing punctuation, descriptive of the action or identity.
 
 ### Input / Textarea
 
@@ -237,10 +260,10 @@ No `shadow-xl` or `shadow-2xl` — the journal aesthetic rejects heavy shadows.
 
 | State | Visual |
 |-------|--------|
-| Default area | font-sans 13px/500, text `--foreground`, py-1 px-2 |
-| Default project | font-sans 13px/400, text `--muted-foreground`, pl-6 py-0.5 |
+| Default area | font-sans 13px/400, text `--foreground`, py-1 px-2 |
+| Default project | font-sans 13px/400, text `--muted-foreground`, pl-6 py-1 |
 | Hover (any item) | bg `--secondary`, rounded-md |
-| Active/selected | bg `--secondary`, left border 2px `--accent`, text `--foreground` |
+| Active/selected | bg `--secondary`, left border 2px `--accent`, text `--foreground`, weight stays 400 |
 | Archived | opacity-50, italic, line-through on name |
 | Dragging | shadow-sm, opacity-90, ring `--ring` 1px |
 | Calendar (disabled) | opacity-40, cursor-not-allowed, tooltip on hover |
@@ -250,8 +273,8 @@ No `shadow-xl` or `shadow-2xl` — the journal aesthetic rejects heavy shadows.
 | State | Visual |
 |-------|--------|
 | Inactive (+ Filter button) | outline variant button, font-sans 13px |
-| Active chip | bg `--primary`, text `--primary-foreground`, rounded-full, px-3 py-0.5, font-sans 12px |
-| Remove × | inline svg at 12px, ml-1, hover:opacity-70 |
+| Active chip | bg `--primary`, text `--primary-foreground`, rounded-full, px-3 py-1, font-sans 13px |
+| Remove × | inline svg at 13px, ml-1, hover:opacity-70, aria-label="Remove filter" |
 | Priority chip | background matches priority color map above |
 | Status chip | background matches status color map above |
 
@@ -259,8 +282,8 @@ No `shadow-xl` or `shadow-2xl` — the journal aesthetic rejects heavy shadows.
 
 | State | Visual |
 |-------|--------|
-| Rendered chip | bg hsl(38, 40%, 88%), text `--foreground`, rounded-md, px-2 py-0.5, font-sans 12px/500 |
-| Selected in sidebar | bg `--accent`, text `--accent-foreground` |
+| Rendered chip | bg hsl(38, 40%, 88%), text `--foreground`, rounded-md, px-2 py-1, font-sans 13px/400 |
+| Selected in sidebar | bg `--accent`, text `--accent-foreground`, weight stays 400 |
 | Autocomplete dropdown item | font-sans 13px, hover:bg `--secondary` |
 | New tag (not yet saved) | bg hsl(215, 40%, 90%), text hsl(215, 60%, 30%), italic label "(new)" |
 
@@ -312,19 +335,19 @@ No `shadow-xl` or `shadow-2xl` — the journal aesthetic rejects heavy shadows.
 ```
 
 Column header spec:
-- Text: UPPERCASE, font-sans 11px/600, letter-spacing 0.08em, text `--muted-foreground`
-- Count badge: font-sans 12px, bg `--secondary`, px-2 rounded-full, inline after column name
+- Text: UPPERCASE, font-sans 13px/400, letter-spacing 0.08em, text `--muted-foreground`
+- Count badge: font-sans 13px/400, bg `--secondary`, px-2 rounded-full, inline after column name
 - No color bar on column headers — status color is applied to chips on the card only
 - Column min-width: 280px, max-width: 320px, gap between columns: 16px
 - Column header is sticky at top during scroll within the column
-- "+ Add task" at bottom of each column: ghost button, font-sans 13px, text `--muted-foreground`, hover:text `--foreground`
+- "+ Add task" at bottom of each column: ghost button, font-sans 13px/400, text `--muted-foreground`, hover:text `--foreground`
 
 Kanban task card spec:
 - Padding: 12px (3 on Tailwind scale)
 - Title: EB Garamond 16px/400, text `--foreground`
-- Priority chip: top-left, 12px font
-- Due date: font-sans 12px, text `--muted-foreground`, overdue → `--destructive`
-- Project link: font-sans 11px, truncated at 1 line, text `--muted-foreground`
+- Priority chip: top-left, font-sans 13px
+- Due date: font-sans 13px/400, text `--muted-foreground`, overdue → `--destructive`
+- Project link: font-sans 13px/400, truncated at 1 line, text `--muted-foreground`
 - Bottom row: priority + due date on same line, with spacer
 
 ### Task List View
@@ -342,7 +365,7 @@ Kanban task card spec:
 - Entry animation: slide-in from right, 200ms, ease-out (Motion)
 - Exit animation: slide-out to right, 150ms, ease-in (Motion)
 - Backdrop: none — panel overlays main content (Linear-style, no dimming)
-- Header: task title (EB Garamond 20px editable), status badge, close [×] button
+- Header: task title (EB Garamond 20px/600 editable), status badge, close [×] button (aria-label: "Close detail panel")
 - Body sections (with `--border` dividers):
   1. Status selector (Select component)
   2. Priority selector (Select component)
@@ -361,7 +384,7 @@ Kanban task card spec:
 - Height: auto-grows from 48px min to 160px max (multiline)
 - Border: 1px `--border`, rounded-lg
 - Background: `--card`
-- Placeholder text: `"What's on your mind? Use #tags to organize."` (EB Garamond italic, `--muted-foreground`)
+- Placeholder text: `"What's on your mind? Use #tags to organize."` (EB Garamond italic 16px, `--muted-foreground`)
 - Chip rendering: when `#word` is typed and confirmed (tab/space/enter), the `#word` transforms into a rendered chip inline — bg hsl(38, 40%, 88%), rounded-md, no deletion until ×
 - Project link selector: appears on second line when `@` or `$` is typed (Phase 5 expands this)
 - Submit button: "Capture" (primary button, right side), keyboard shortcut Cmd+Enter
@@ -376,7 +399,7 @@ Kanban task card spec:
 - Border-radius: 16px
 - Shadow: `shadow-lg`
 - In Phase 2: opens capture composer only (same component as page composer)
-- Header: `"Capture a thought"`, EB Garamond 16px italic
+- Header: `"Capture a thought"`, EB Garamond 16px italic/400
 - Input field matches composer spec above
 - Dismiss: Esc or click outside
 
@@ -388,8 +411,8 @@ Page layout:
 │                                                           [Edit]      │
 └──────────────────────────────────────────────────────────────────────┘
 ┌─ Header ──────────────────────────────────────────────────────────────┐
-│ [icon 32px]  Project Name (EB Garamond 28px)                          │
-│ PHIL 277 · Prof. Lloyd · Fall 2026 · A-  (EB Garamond 14px italic)   │
+│ [icon 32px]  Project Name (EB Garamond 28px/600)                      │
+│ PHIL 277 · Prof. Lloyd · Fall 2026 · A-  (EB Garamond 16px italic)   │
 └──────────────────────────────────────────────────────────────────────┘
 ┌─ Tasks Column (flex-1) ──┐  ┌─ Captures Column (flex-1) ─────────────┐
 │ Tasks (N)                │  │ Captures (N)                            │
@@ -403,7 +426,7 @@ Page layout:
 - Column gap: 32px (xl)
 - Below 960px: stack vertically (Tasks on top, Captures below) — CSS `@container` or responsive flex-col
 - Both columns use ScrollArea if content overflows viewport
-- Class metadata line: renders only fields with values, separator is ` · ` (middle dot + spaces), EB Garamond 14px italic, text `--muted-foreground`
+- Class metadata line: renders only fields with values, separator is ` · ` (middle dot + spaces), EB Garamond 16px italic/400, text `--muted-foreground`
 
 ### Icon Picker (D-13)
 
@@ -435,11 +458,11 @@ Target, Flag, Rocket, TrendingUp, BarChart2, LineChart, PieChart, Briefcase, Fol
 **Misc / Meta**
 Sparkles, Wand2, Crown, Diamond, Gem, Shield, Lock, Key, Search, Filter, SlidersHorizontal, Bell, BellRing, Inbox, Send
 
-Display: icon name below each icon in font-sans 10px/caption. Hover: bg `--secondary` rounded. Selected: bg `--accent/20`, border `--accent`. Search debounced 150ms, filters by icon name substring.
+Display: icon name below each icon in font-sans 13px/400 (`--muted-foreground`). Hover: bg `--secondary` rounded. Selected: bg `--accent/20`, border `--accent`. Each swatch carries `aria-label="[IconName] icon"`. Search debounced 150ms, filters by icon name substring.
 
 ### Banner Picker (D-14)
 
-16 options: 8 solid colors + 8 gradients. Grid: 4 per row, 2 rows = 8 visible, scroll for 16. Each swatch is 64px × 40px, rounded-md.
+16 options: 8 solid colors + 8 gradients. Grid: 4 per row, 2 rows = 8 visible, scroll for 16. Each swatch is 64px × 40px, rounded-md. Each swatch carries `aria-label="[Color name] banner"`.
 
 **Solid colors (8) — muted earth tones:**
 1. `hsl(42, 18%, 97%)` — Parchment (near-white, default)
@@ -468,8 +491,8 @@ Selected swatch: ring-2 `--ring`, ring-offset-1.
 ### Hashtag Sidebar (Captures Page)
 
 - Width: 200px, fixed on left of captures feed
-- Each hashtag: `#name` in font-sans 13px, count in font-sans 12px `--muted-foreground`
-- Active: text `--accent`, bg `--secondary`, bold weight
+- Each hashtag: `#name` in font-sans 13px/400, count in font-sans 13px/400 `--muted-foreground`
+- Active: text `--accent`, bg `--secondary`, weight stays 400 (accent color signals selection — not weight)
 - Counts sorted descending by default
 - Orphan tags (count = 0): hidden from default view, shown with opacity-40 under "Show all" toggle
 
@@ -511,20 +534,26 @@ Brand voice: Genz-Renaissance — confident, literate, unapologetic, first-perso
 
 ### Primary CTAs
 
-| Action | CTA Label |
-|--------|-----------|
-| Create area | "New Area" |
-| Create project | "New Project" |
-| Create task | "Add Task" |
-| Create capture | "Capture" |
-| Save changes | "Save" |
-| Delete (confirm dialog) | "Delete" (destructive) |
-| Archive | "Archive" |
-| Cancel | "Cancel" |
-| Edit class metadata | "Edit class" |
-| Change banner | "Change cover" |
-| Add filter | "+ Filter" |
-| Toggle view | "List" / "Kanban" (current state shown) |
+| Action | CTA Label | Notes |
+|--------|-----------|-------|
+| Create area | "New Area" | |
+| Create project | "New Project" | |
+| Create task | "Add Task" | |
+| Create capture | "Capture" | |
+| Save changes | "Save changes" | Primary button in all edit contexts |
+| Delete (confirm dialog) | "Delete" (destructive) | |
+| Archive | "Archive" | |
+| Dismiss modal — unsaved edits present | "Discard changes" | outline variant; used when form is dirty |
+| Dismiss modal — no edits made | "Never mind" | outline variant; used when form is clean or for general dismissal |
+| Edit class metadata | "Edit class" | |
+| Change banner | "Change cover" | |
+| Add filter | "+ Filter" | |
+| Toggle view | "List" / "Kanban" (current state shown) | |
+
+**"Cancel" is not used as a CTA label anywhere in Phase 2.** Context-specific dismissal labels replace it:
+- Modal with unsaved edits: "Discard changes"
+- Modal with no edits / general pop-up dismissal: "Never mind"
+- Filter/action cancellation: "Never mind" or "Clear"
 
 ### Empty States
 
@@ -552,14 +581,14 @@ Brand voice: Genz-Renaissance — confident, literate, unapologetic, first-perso
 
 ### Destructive Confirmation Dialogs
 
-| Action | Dialog Heading | Dialog Body | Confirm Button |
-|--------|---------------|-------------|----------------|
-| Delete Area | "Delete this area?" | "This will permanently remove the area. Projects inside it will block deletion — archive or move them first." | "Delete area" (destructive) |
-| Delete Project | "Delete this project?" | "This removes the project permanently. Tasks and captures linked to it will stay — they just lose the project link." | "Delete project" (destructive) |
-| Delete Task | "Delete this task?" | "This can't be undone." | "Delete task" (destructive) |
-| Delete Capture | "Delete this capture?" | "This can't be undone." | "Delete capture" (destructive) |
-| Archive Area | No dialog — toast with Undo | — | — |
-| Archive Project | No dialog — toast with Undo | — | — |
+| Action | Dialog Heading | Dialog Body | Confirm Button | Dismiss Button |
+|--------|---------------|-------------|----------------|----------------|
+| Delete Area | "Delete this area?" | "This will permanently remove the area. Projects inside it will block deletion — archive or move them first." | "Delete area" (destructive) | "Never mind" |
+| Delete Project | "Delete this project?" | "This removes the project permanently. Tasks and captures linked to it will stay — they just lose the project link." | "Delete project" (destructive) | "Never mind" |
+| Delete Task | "Delete this task?" | "This can't be undone." | "Delete task" (destructive) | "Never mind" |
+| Delete Capture | "Delete this capture?" | "This can't be undone." | "Delete capture" (destructive) | "Never mind" |
+| Archive Area | No dialog — toast with Undo | — | — | — |
+| Archive Project | No dialog — toast with Undo | — | — | — |
 
 ### Toast Notifications
 
@@ -669,22 +698,24 @@ The executor should install and implement shadcn components in this order:
 
 ## Phase 2 Surfaces Summary
 
-| Surface | Key Visual Decisions |
-|---------|---------------------|
-| AppShell sidebar | 260px / 64px, warm card bg, EB Garamond wordmark, Inter nav labels |
-| Persistent nav | Today / All Tasks / Captures / Calendar(disabled), ghost items with active accent bar |
-| Sidebar tree | Area emoji + name, project icon + name, indent 24px, chevron expand/collapse |
-| All Tasks — kanban | 5 columns, uppercase sans headers, compact cards, priority+due bottom row |
-| All Tasks — list | Flat rows h-40px, inline-first edit, dnd sort handle |
-| Right-side detail panel | 420px slide-in, EB Garamond title, organized field sections |
-| Top filter toolbar | Chip pills, URL-param driven, removable × on active chips |
-| Captures feed | Sticky composer, flat cards, hover reveals ⋯ menu |
-| Hashtag sidebar | 200px, sorted by count, active = accent color |
-| Cmd+K modal | 640px, blur backdrop, centered, composer-focused |
-| Project detail | 120px banner, icon+title header, two-column Tasks+Captures |
-| Class metadata line | Inline EB Garamond italic, separator dots, below project title |
-| Icon picker | 6-col grid, Lucide icons, search input, categorized |
-| Banner picker | 4-col grid, 16 swatches, warm earth + Renaissance gradients |
+| Surface | Primary Visual Anchor | Key Visual Decisions |
+|---------|-----------------------|---------------------|
+| AppShell sidebar | Wordmark "Hyperpolymath" in EB Garamond | 260px / 64px, warm card bg, EB Garamond wordmark, Inter nav labels |
+| Persistent nav | Active nav item with accent left bar | Today / All Tasks / Captures / Calendar(disabled), ghost items with active accent bar |
+| Sidebar tree | Area emoji + name hierarchy | Area emoji + name, project icon + name, indent 24px, chevron expand/collapse |
+| All Tasks — kanban view | The kanban board | 5 columns, uppercase sans headers, compact cards, priority+due bottom row |
+| All Tasks — list view | The task list | Flat rows h-40px, inline-first edit, dnd sort handle |
+| Right-side detail panel | Task title (EB Garamond 20px) | 420px slide-in, EB Garamond title, organized field sections |
+| Top filter toolbar | Active filter chips | Chip pills, URL-param driven, removable × on active chips |
+| Captures page | Composer at top of feed | Sticky composer, flat cards, hover reveals ⋯ menu |
+| Hashtag sidebar | Hashtag count list | 200px, sorted by count, active = accent color |
+| Cmd+K modal | Capture composer input | 640px, blur backdrop, centered, composer-focused |
+| Project detail | Project title + icon header | 120px banner, icon+title header, two-column Tasks+Captures |
+| Class metadata line | EB Garamond italic metadata line | Inline EB Garamond italic, separator dots, below project title |
+| Icon picker | Search input + icon grid | 6-col grid, Lucide icons, search input, categorized |
+| Banner picker | 16-swatch grid | 4-col grid, 16 swatches, warm earth + Renaissance gradients |
+| Today page (Phase 1 stub) | Wordmark centered | Minimal stub — wordmark is focal point until Phase 4 |
+| Settings page | Graduation year input | Single prominent input — graduation year is focal point |
 
 ---
 
@@ -703,4 +734,5 @@ The executor should install and implement shadcn components in this order:
 
 *Phase: 02-manual-crud*
 *UI-SPEC authored: 2026-05-07*
+*UI-SPEC revised: 2026-05-07 — checker revision: fix 1.A, 1.B, 2.A, 2.B, 4.A, 4.B, 5.A*
 *Sources: CONTEXT.md (D-01–D-20), PROJECT.md, STACK.md, FEATURES.md, idea_for_polymathy.md, HYPERPOLYMATH_V2_HANDOFF.md, components.json, globals.css, app/layout.tsx*
