@@ -14,18 +14,22 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+**Hierarchy & Data Model** *(validated in Phase 2: manual-crud)*
+- [x] User can create, edit, archive, and delete **Areas** (top-level life sectors)
+- [x] User can create, edit, archive, and delete **Projects**, each linked to one Area, with optional start/end dates (end nullable for indefinite projects)
+- [x] User can mark a Project as a **Class** (`isClass`) and add academic metadata: course title, course code, instructor, grade (nullable), semester (constrained to range derived from user's graduation year in settings)
+- [x] User can create, edit, complete, and delete **Tasks** with priority (`P∞ | P1 | P2 | P3`), due date, status (`not started | up next | in progress | almost done | lesno`), and zero-or-more linked Projects
+- [x] User can create, edit, and delete **Quick Captures** — freeform text entries with zero-or-more linked Projects and zero-or-more `#hashtags` (auto-created if new); default is no tag
+
+**Navigation & Tabs** *(validated in Phase 2: manual-crud, except Calendar tab — stubbed)*
+- [x] Pull-up sidebar shows a tree-based hierarchy: Areas → active Projects (branches/leaves)
+- [x] Clicking a Project opens a Notion-style breadcrumb page showing project details (icon, banner, metadata) + linked tasks + linked captures
+- [x] Dedicated tabs for: All Tasks (kanban + list views), Quick Captures (with hashtag-filterable view) — Calendar tab placeholder pending Phase 4
+- [x] All built tabs support full manual CRUD
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
-
-**Hierarchy & Data Model**
-- [ ] User can create, edit, archive, and delete **Areas** (top-level life sectors: Yale College, ICBL, Running, Lifting, Relationship, Ocura, Family, Misc, etc.)
-- [ ] User can create, edit, archive, and delete **Projects**, each linked to one Area, with optional start/end dates (end nullable for indefinite projects)
-- [ ] User can mark a Project as a **Class** (`isClass`) and add academic metadata: course title, course code, instructor, grade (nullable), semester (constrained to range derived from user's graduation year in settings)
-- [ ] User can create, edit, complete, and delete **Tasks** with priority (`P∞ | P1 | P2 | P3`), due date, status (`not started | up next | in progress | almost done | lesno`), and zero-or-more linked Projects
-- [ ] User can create, edit, and delete **Quick Captures** — freeform text entries with zero-or-more linked Projects and zero-or-more `#hashtags` (auto-created if new); default is no tag
 
 **Kiwi (the engine)**
 - [ ] Kiwi is invoked from the app homescreen as a centralized terminal-style chat interface (Warp-inspired, journal-paper-styled)
@@ -45,12 +49,8 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 - [ ] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
 - [ ] Kiwi can create calendar events (e.g., "dinner with anna 8pm saturday")
 
-**Navigation & Tabs**
+**Navigation & Tabs** *(remainder)*
 - [ ] Homescreen is the Kiwi interaction surface
-- [ ] Pull-up sidebar shows a tree-based hierarchy: Areas → active Projects (branches/leaves)
-- [ ] Clicking a Project opens a Notion-style breadcrumb page showing project details (icon, banner, metadata) + linked tasks + linked captures
-- [ ] Dedicated tabs for: All Tasks (kanban + list views), Quick Captures (with hashtag-filterable view), Calendar
-- [ ] All tabs support full manual CRUD
 
 **Auth & User Settings**
 - [ ] Google OAuth via Supabase Auth (single-user app architecturally, but every row scoped to `userId` for future multi-user readiness)
@@ -140,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 after initialization*
+*Last updated: 2026-05-11 after Phase 2 (manual-crud) completion — Areas/Projects/Tasks/Captures CRUD, sidebar tree, Notion-style project detail page, kanban+list tasks, captures with TipTap composer + hashtag autocomplete all validated end-to-end.*
