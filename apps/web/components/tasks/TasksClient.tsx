@@ -208,16 +208,6 @@ export function TasksClient({ initialTasks: tasks, projects, initialFilters }: P
             Clear filters
           </Button>
         </div>
-      ) : tasks.length === 0 ? (
-        // Empty state when no tasks exist at all
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <h2 className="font-serif text-[28px] font-semibold text-foreground">
-            {"Nothing to do? Then you're free."}
-          </h2>
-          <p className="font-serif text-base text-muted-foreground mt-2">
-            Add a task, or capture a thought and let Kiwi sort it later.
-          </p>
-        </div>
       ) : view === "list" ? (
         <TaskList tasks={filtered} onTaskClick={setOpenTaskId} />
       ) : (
