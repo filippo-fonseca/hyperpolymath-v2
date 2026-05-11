@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
 import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RelativeTime } from "@/components/shared/RelativeTime";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -239,9 +239,7 @@ function CaptureBody({
             <span aria-hidden>·</span>
           </>
         )}
-        <span>
-          {formatDistanceToNow(capture.createdAt, { addSuffix: true })}
-        </span>
+        <RelativeTime date={capture.createdAt} />
       </div>
     </div>
   );

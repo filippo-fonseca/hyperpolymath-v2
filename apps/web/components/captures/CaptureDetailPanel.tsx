@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { X } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -44,6 +44,7 @@ import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
+import { RelativeTime } from "@/components/shared/RelativeTime";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -407,9 +408,7 @@ export function CaptureDetailPanel({
                       Capture
                     </SheetTitle>
                     <p className="font-sans text-[13px] text-muted-foreground">
-                      {formatDistanceToNow(capture.createdAt, {
-                        addSuffix: true,
-                      })}
+                      <RelativeTime date={capture.createdAt} />
                       <span aria-hidden> · </span>
                       <span title={format(capture.createdAt, "PPpp")}>
                         {format(capture.createdAt, "PP")}
