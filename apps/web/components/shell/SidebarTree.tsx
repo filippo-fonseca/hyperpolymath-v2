@@ -331,14 +331,12 @@ function SortableAreaRow({
     isDragging,
   } = useSortable({ id: area.id });
 
-  // Also make this area a droppable zone for cross-area project drops
-  const { setNodeRef: setDroppableRef, isOver } = useDroppable({ id: area.id });
-
-  // Combine refs
-  const setNodeRef = (el: HTMLLIElement | null) => {
-    setSortableRef(el);
-    setDroppableRef(el);
-  };
+  // Make ONLY the area header (not the whole li with projects) the droppable
+  // zone for cross-area project drops. Sharing the ref with the <li> caused
+  // closestCenter to often pick a sibling project instead of the area header.
+  const { setNodeRef: setHeaderDroppableRef, isOver } = useDroppable({
+    id: area.id,
+  });
 
   const [rightClickOpen, setRightClickOpen] = useState(false);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
@@ -374,15 +372,16 @@ function SortableAreaRow({
 
   return (
     <li
-      ref={setNodeRef}
+      ref={setSortableRef}
       style={style}
       className={cn(
         "flex flex-col",
         isDragging && "opacity-0",
       )}
     >
-      {/* Area row */}
+      {/* Area row — ALSO the droppable target for cross-area project drops */}
       <div
+        ref={setHeaderDroppableRef}
         {...attributes}
         {...listeners}
         onContextMenu={(e) => {
@@ -396,7 +395,7 @@ function SortableAreaRow({
           isPending && "opacity-50",
           area.archivedAt && "opacity-50 italic line-through",
           // Visual drop-zone affordance when dragging a project over this area
-          isDraggingAProject && isOver && "bg-accent/10",
+          isDraggingAProject && isOver && "bg-accent/15 ring-1 ring-accent/40",
         )}
       >
         <span className="text-base leading-none shrink-0">
@@ -566,6 +565,8 @@ function ProjectActionsMenu({
   onRightClickClose: () => void;
   onRefresh: () => void;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -631,7 +632,14 @@ function ProjectActionsMenu({
     }
     toast("Project deleted.");
     setDeleteDialogOpen(false);
-    onRefresh();
+    // If currently viewing this project's detail page, route to /today —
+    // otherwise just refresh in place. router.push refreshes Server Component
+    // data automatically so onRefresh isn't needed in that branch.
+    if (pathname === `/projects/${project.id}`) {
+      router.push("/today");
+    } else {
+      onRefresh();
+    }
   }
 
   async function handleRename() {
