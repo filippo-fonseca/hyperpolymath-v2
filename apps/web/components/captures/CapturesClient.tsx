@@ -14,6 +14,12 @@ interface Props {
   initialCaptures: CaptureWithLinks[];
   hashtags: { id: string; name: string; displayName: string; count: number }[];
   projects: ProjectMultiSelectOption[];
+  /**
+   * Total captures owned by the user (no filter applied). Drives the "All"
+   * row count in the hashtag sidebar — the primary affordance for clearing
+   * an active `?tag=` filter.
+   */
+  totalCount: number;
 }
 
 /**
@@ -38,6 +44,7 @@ export function CapturesClient({
   initialCaptures,
   hashtags,
   projects,
+  totalCount,
 }: Props) {
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(
@@ -90,12 +97,10 @@ export function CapturesClient({
   return (
     <div className="flex h-full min-h-0">
       <aside className="w-[200px] border-r border-border p-4 overflow-y-auto shrink-0">
-        <h3 className="font-sans text-[13px] uppercase tracking-wider text-muted-foreground mb-2">
-          Hashtags
-        </h3>
         <HashtagSidebar
           hashtags={hashtags}
           activeHashtagId={activeTagId}
+          totalCount={totalCount}
           onSelect={setActiveTagId}
         />
       </aside>

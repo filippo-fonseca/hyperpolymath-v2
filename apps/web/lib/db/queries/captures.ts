@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -172,6 +172,23 @@ export async function getCapturesForUser(
     hashtags: tagsByCapture.get(c.id) ?? [],
     projects: projsByCapture.get(c.id) ?? [],
   }));
+}
+
+/**
+ * Total captures owned by the user (no filter applied). Used to populate
+ * the "All" row count at the top of the hashtag sidebar, which is the
+ * primary affordance for clearing an active `?tag=` filter.
+ *
+ * Counts captures directly (not summed from per-hashtag counts) — that
+ * approach would double-count captures with multiple hashtags AND miss
+ * captures with zero hashtags.
+ */
+export async function getCaptureCountForUser(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(captures)
+    .where(eq(captures.userId, userId));
+  return row?.value ?? 0;
 }
 
 /**

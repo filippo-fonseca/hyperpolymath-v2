@@ -2,7 +2,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
-import { getCapturesForUser } from "@/lib/db/queries/captures";
+import {
+  getCaptureCountForUser,
+  getCapturesForUser,
+} from "@/lib/db/queries/captures";
 import { getHashtagsForUser } from "@/app/actions/hashtags";
 import { CapturesClient } from "@/components/captures/CapturesClient";
 
@@ -22,8 +25,8 @@ export default async function CapturesPage({ searchParams }: Props) {
   const sp = await searchParams;
   const user = await requireOnboarded();
 
-  const [capturesList, hashtagsResult, projectsForComposer] = await Promise.all(
-    [
+  const [capturesList, hashtagsResult, projectsForComposer, totalCount] =
+    await Promise.all([
       getCapturesForUser(user.id, { hashtagId: sp.tag }),
       getHashtagsForUser(),
       db
@@ -34,11 +37,9 @@ export default async function CapturesPage({ searchParams }: Props) {
           courseCode: projects.courseCode,
         })
         .from(projects)
-        .where(
-          and(eq(projects.userId, user.id), isNull(projects.archivedAt)),
-        ),
-    ],
-  );
+        .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+      getCaptureCountForUser(user.id),
+    ]);
 
   const hashtags = hashtagsResult.success ? hashtagsResult.data : [];
 
@@ -47,6 +48,7 @@ export default async function CapturesPage({ searchParams }: Props) {
       initialCaptures={capturesList}
       hashtags={hashtags}
       projects={projectsForComposer}
+      totalCount={totalCount}
     />
   );
 }
