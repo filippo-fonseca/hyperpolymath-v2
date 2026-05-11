@@ -1,8 +1,11 @@
 import { createRoot, type Root } from "react-dom/client";
-import { createElement } from "react";
+import { createElement, createRef, type RefObject } from "react";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import type { MentionNodeAttrs } from "@tiptap/extension-mention";
-import { HashtagSuggestionList } from "./HashtagSuggestionList";
+import {
+  HashtagSuggestionList,
+  type HashtagSuggestionListHandle,
+} from "./HashtagSuggestionList";
 
 /**
  * A suggestion item shown in the popover. Must remain assignable to
@@ -34,7 +37,10 @@ interface HashtagSource {
  *   sliced to 8, then appends a final "Create #<query> (new)" sentinel if there is
  *   no exact-match (CAPT-08 normalization happens server-side)
  * - render(): mounts a React popover (HashtagSuggestionList) at the cursor's
- *   clientRect. onKeyDown forwards arrow/enter/escape to the list via imperative ref
+ *   clientRect. The list owns its own `selectedIndex` state — arrow/Enter
+ *   keystrokes from the editor are forwarded into the component via an
+ *   imperative ref handle (`HashtagSuggestionListHandle.onKeyDown`). This is
+ *   the canonical TipTap mention-list pattern.
  * - command(): inserts the selected mention as a TipTap node. For "new" sentinels,
  *   uses the typed query as the label (so the server-side upsertHashtag canonicalizes)
  */
@@ -83,9 +89,12 @@ export function createHashtagSuggestion(
     render: () => {
       let container: HTMLDivElement | null = null;
       let root: Root | null = null;
-      let highlightedIndex = 0;
-      let currentItems: HashtagOption[] = [];
-      let currentCommand: ((opts: HashtagOption) => void) | null = null;
+      // Ref into the mounted HashtagSuggestionList so `onKeyDown` (called
+      // synchronously by ProseMirror's native keydown handler) can forward
+      // arrow / Enter / Escape keystrokes into the component's owned state.
+      // createRef returns a stable ref object that survives every re-render.
+      const listRef: RefObject<HashtagSuggestionListHandle | null> =
+        createRef<HashtagSuggestionListHandle>();
 
       function position(rect: DOMRect | null) {
         if (!container || !rect) return;
@@ -95,16 +104,16 @@ export function createHashtagSuggestion(
         container.style.zIndex = "9999";
       }
 
-      function rerender() {
+      function render(
+        items: HashtagOption[],
+        command: (item: HashtagOption) => void,
+      ) {
         if (!root) return;
         root.render(
           createElement(HashtagSuggestionList, {
-            items: currentItems,
-            highlightedIndex,
-            onSelect: (i: number) => {
-              const item = currentItems[i];
-              if (item && currentCommand) currentCommand(item);
-            },
+            ref: listRef,
+            items,
+            command,
           }),
         );
       }
@@ -115,51 +124,25 @@ export function createHashtagSuggestion(
           container = document.createElement("div");
           document.body.appendChild(container);
           root = createRoot(container);
-          highlightedIndex = 0;
-          currentItems = props.items;
-          currentCommand = props.command;
           position(props.clientRect());
-          rerender();
+          render(props.items, props.command);
         },
 
         onUpdate: (props) => {
-          currentItems = props.items;
-          currentCommand = props.command;
-          highlightedIndex = Math.min(
-            highlightedIndex,
-            Math.max(0, currentItems.length - 1),
-          );
           if (props.clientRect) position(props.clientRect());
-          rerender();
+          render(props.items, props.command);
         },
 
+        // Forward all keystrokes the popover cares about into the React
+        // component via imperative ref. Returning `true` here means "we
+        // handled it" — ProseMirror calls event.preventDefault() and skips
+        // its own caret-moving / newline-inserting behavior.
+        //
+        // Returning `false` (e.g. for Escape) lets the suggestion plugin's
+        // own handler run, which dispatches the exit transaction.
         onKeyDown: (props) => {
-          if (props.event.key === "ArrowUp") {
-            highlightedIndex =
-              (highlightedIndex - 1 + currentItems.length) %
-              Math.max(1, currentItems.length);
-            rerender();
-            return true;
-          }
-          if (props.event.key === "ArrowDown") {
-            highlightedIndex =
-              (highlightedIndex + 1) % Math.max(1, currentItems.length);
-            rerender();
-            return true;
-          }
-          if (props.event.key === "Enter") {
-            const item = currentItems[highlightedIndex];
-            if (item && currentCommand) {
-              currentCommand(item);
-              return true;
-            }
-            return false;
-          }
-          if (props.event.key === "Escape") {
-            // Closing handled by suggestion plugin itself; signal we did not handle
-            return false;
-          }
-          return false;
+          if (!listRef.current) return false;
+          return listRef.current.onKeyDown({ event: props.event });
         },
 
         onExit: () => {
