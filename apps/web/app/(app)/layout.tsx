@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -40,20 +41,22 @@ export default async function AppLayout({
 
   return (
     <NuqsAdapter>
-      <AppShell
-        activeAreas={activeAreas}
-        allAreas={allAreas}
-        graduationYear={user.graduationYear}
-      >
-        {children}
-      </AppShell>
-      {/* Global Cmd+K command menu — Phase 5 will swap CommandMenuContent for the Kiwi UI */}
-      <CommandMenu
-        hashtags={hashtagsForComposer}
-        projects={projectsForComposer}
-      />
-      {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
-      <Toaster position="bottom-right" duration={4000} />
+      <QueryProvider>
+        <AppShell
+          activeAreas={activeAreas}
+          allAreas={allAreas}
+          graduationYear={user.graduationYear}
+        >
+          {children}
+        </AppShell>
+        {/* Global Cmd+K command menu — Phase 5 will swap CommandMenuContent for the Kiwi UI */}
+        <CommandMenu
+          hashtags={hashtagsForComposer}
+          projects={projectsForComposer}
+        />
+        {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
+        <Toaster position="bottom-right" duration={4000} />
+      </QueryProvider>
     </NuqsAdapter>
   );
 }
