@@ -19,6 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -90,6 +100,12 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
+  // user attempts to close (Esc, click outside, ×) or hits Cancel while
+  // dirty, queue the action and show the AlertDialog.
+  const [pendingDiscardAction, setPendingDiscardAction] = useState<
+    "close" | "cancel" | null
+  >(null);
   const [form, setForm] = useState<FormState>({
     title: "",
     status: "not started",
@@ -146,6 +162,48 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, dirty, handleSave]);
 
+  // beforeunload guard — fires the browser's native "Leave site?" prompt
+  // when the panel has unsaved changes and the user refreshes/closes-tab.
+  useEffect(() => {
+    if (!open || !dirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [open, dirty]);
+
+  // Intercept Sheet close attempts (Esc, click outside, × button). When
+  // dirty, surface the confirm dialog instead of closing immediately.
+  const handleSheetOpenChange = useCallback(
+    (next: boolean) => {
+      if (next) return;
+      if (dirty) {
+        setPendingDiscardAction("close");
+        return;
+      }
+      onClose();
+    },
+    [dirty, onClose],
+  );
+
+  // Cancel button: confirm when dirty, otherwise just close.
+  const handleCancelClick = useCallback(() => {
+    if (dirty) {
+      setPendingDiscardAction("cancel");
+      return;
+    }
+    onClose();
+  }, [dirty, onClose]);
+
+  // Confirmed discard: reset form to initial, then close the panel.
+  const handleConfirmDiscard = useCallback(() => {
+    setPendingDiscardAction(null);
+    setForm(initialForm);
+    onClose();
+  }, [initialForm, onClose]);
+
   async function handleDelete() {
     if (!task) return;
     const r = await deleteTask(task.id);
@@ -167,7 +225,7 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
 
   return (
     <>
-      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
         <SheetContent
           side="right"
@@ -194,7 +252,7 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
                   </SheetTitle>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
                     className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0 mt-1"
                   >
@@ -296,20 +354,17 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
                   Delete task
                 </Button>
                 <div className="flex items-center gap-2">
-                  {dirty && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="font-sans text-[13px]"
-                      onClick={() => {
-                        setForm(initialForm);
-                      }}
-                      disabled={isPending}
-                    >
-                      Discard changes
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="font-sans text-[13px]"
+                    onClick={handleCancelClick}
+                    disabled={!dirty || isPending}
+                    title={dirty ? "Discard unsaved changes" : undefined}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -325,6 +380,39 @@ export function TaskDetailPanel({ task, projects, open, onClose }: Props) {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Discard-unsaved-changes confirm — fires on close (Esc / outside / ×)
+          or on Cancel button click while dirty. Matches the CaptureDetailPanel
+          pattern. z-[60] AlertDialog overlay/content keeps it above the
+          Sheet (z-50). */}
+      <AlertDialog
+        open={pendingDiscardAction !== null}
+        onOpenChange={(v) => {
+          if (!v) setPendingDiscardAction(null);
+        }}
+      >
+        <AlertDialogContent className="font-serif">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif text-[20px]">
+              Discard changes?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-serif text-base">
+              Your edits to this task will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-sans text-[13px]">
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="font-sans text-[13px]"
+              onClick={handleConfirmDiscard}
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm dialog — UI-SPEC exact copy */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
