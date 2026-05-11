@@ -15,6 +15,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -62,6 +63,14 @@ interface Props {
   projects: ProjectMultiSelectOption[];
   open: boolean;
   onClose: () => void;
+  /**
+   * Signed-in user's Google profile avatar URL (from Supabase Auth metadata).
+   * Rendered slightly larger (h-10 w-10) alongside the panel header — mirrors
+   * the Twitter-style rhythm on feed cards for visual continuity.
+   */
+  userAvatarUrl?: string | null;
+  /** Single-char fallback for `<AvatarFallback>` when no avatar URL is set. */
+  userInitials?: string;
 }
 
 interface FormState {
@@ -148,6 +157,8 @@ export function CaptureDetailPanel({
   projects,
   open,
   onClose,
+  userAvatarUrl,
+  userInitials,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -432,10 +443,23 @@ export function CaptureDetailPanel({
         >
           {capture && (
             <>
-              {/* Header — minimal, journal-paper feel */}
+              {/* Header — minimal, journal-paper feel. Avatar mirrors the Twitter-
+                  style rhythm of the feed cards for visual continuity across surfaces. */}
               <SheetHeader className="px-6 pt-6 pb-3 border-b border-border">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 flex flex-col gap-1">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-10 w-10 flex-shrink-0 mt-0.5">
+                    {userAvatarUrl ? (
+                      <AvatarImage
+                        src={userAvatarUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : null}
+                    <AvatarFallback className="font-sans text-[13px] text-muted-foreground">
+                      {userInitials ?? "·"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <SheetTitle className="font-serif text-[20px] font-semibold leading-tight text-foreground p-0 m-0">
                       Capture
                     </SheetTitle>

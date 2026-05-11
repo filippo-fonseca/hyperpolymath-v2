@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal } from "lucide-react";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RelativeTime } from "@/components/shared/RelativeTime";
 import {
@@ -36,6 +37,16 @@ interface Props {
    * a different surface — pass `onOpen` if you want the click to do anything.
    */
   onOpen?: () => void;
+  /**
+   * Signed-in user's avatar URL (from Supabase Auth `user_metadata.avatar_url`).
+   * Rendered Twitter-style on the leading edge of the card in non-compact mode
+   * — single-user life-OS, so the avatar is always "you". Compact mode (project
+   * detail Captures column) does NOT render the avatar to keep the inline list
+   * uncluttered.
+   */
+  userAvatarUrl?: string | null;
+  /** Single-char fallback for `<AvatarFallback>` when no avatar URL is set. */
+  userInitials?: string;
 }
 
 /**
@@ -50,7 +61,14 @@ interface Props {
  * - On delete success: motion fade-out + height collapse, then toast "Capture deleted."
  * - compact: smaller padding, no project chips (used by project detail Captures column)
  */
-export function CaptureCard({ capture, compact = false, onOpen }: Props) {
+export function CaptureCard({
+  capture,
+  compact = false,
+  onOpen,
+  userAvatarUrl,
+  userInitials,
+}: Props) {
+  const showAvatar = !compact;
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [removed, setRemoved] = useState(false);
@@ -145,7 +163,30 @@ export function CaptureCard({ capture, compact = false, onOpen }: Props) {
             </DropdownMenu>
           </div>
 
-          <CaptureBody capture={capture} compact={compact} />
+          {showAvatar ? (
+            <div className="flex gap-3">
+              {/* Twitter-style avatar column — single-user life-OS, this is always "you".
+                  No ring/border (journal-paper aesthetic), fallback initial sits on
+                  the existing AvatarFallback bg-muted token. */}
+              <Avatar className="h-9 w-9 flex-shrink-0">
+                {userAvatarUrl ? (
+                  <AvatarImage
+                    src={userAvatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <AvatarFallback className="font-sans text-[13px] text-muted-foreground">
+                  {userInitials ?? "·"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <CaptureBody capture={capture} compact={compact} />
+              </div>
+            </div>
+          ) : (
+            <CaptureBody capture={capture} compact={compact} />
+          )}
         </motion.div>
       )}
 

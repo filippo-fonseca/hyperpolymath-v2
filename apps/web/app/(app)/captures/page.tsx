@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { requireOnboarded } from "@/lib/auth/get-user";
+import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import {
@@ -25,21 +25,27 @@ export default async function CapturesPage({ searchParams }: Props) {
   const sp = await searchParams;
   const user = await requireOnboarded();
 
-  const [capturesList, hashtagsResult, projectsForComposer, totalCount] =
-    await Promise.all([
-      getCapturesForUser(user.id, { hashtagId: sp.tag }),
-      getHashtagsForUser(),
-      db
-        .select({
-          id: projects.id,
-          name: projects.name,
-          isClass: projects.isClass,
-          courseCode: projects.courseCode,
-        })
-        .from(projects)
-        .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
-      getCaptureCountForUser(user.id),
-    ]);
+  const [
+    capturesList,
+    hashtagsResult,
+    projectsForComposer,
+    totalCount,
+    authAvatar,
+  ] = await Promise.all([
+    getCapturesForUser(user.id, { hashtagId: sp.tag }),
+    getHashtagsForUser(),
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        isClass: projects.isClass,
+        courseCode: projects.courseCode,
+      })
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+    getCaptureCountForUser(user.id),
+    getAuthAvatar(),
+  ]);
 
   const hashtags = hashtagsResult.success ? hashtagsResult.data : [];
 
@@ -49,6 +55,8 @@ export default async function CapturesPage({ searchParams }: Props) {
       hashtags={hashtags}
       projects={projectsForComposer}
       totalCount={totalCount}
+      userAvatarUrl={authAvatar.avatarUrl}
+      userInitials={authAvatar.initials}
     />
   );
 }

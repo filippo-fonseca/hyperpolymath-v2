@@ -16,6 +16,13 @@ interface Props {
    * Owned by CapturesClient — feed just forwards the click.
    */
   onSelectCapture: (capture: CaptureWithLinks) => void;
+  /**
+   * Signed-in user's avatar URL + fallback initial. Forwarded to each card so
+   * the Twitter-style avatar | content rhythm renders consistently across the
+   * feed. Compact mode (project detail Captures column) does NOT receive this.
+   */
+  userAvatarUrl: string | null;
+  userInitials: string;
 }
 
 /**
@@ -33,6 +40,8 @@ export function CapturesFeed({
   onClearHashtag,
   onClearSearch,
   onSelectCapture,
+  userAvatarUrl,
+  userInitials,
 }: Props) {
   if (captures.length === 0) {
     if (isSearchActive) {
@@ -71,6 +80,8 @@ export function CapturesFeed({
             key={c.id}
             capture={c}
             onOpen={() => onSelectCapture(c)}
+            userAvatarUrl={userAvatarUrl}
+            userInitials={userInitials}
           />
         ))}
       </AnimatePresence>

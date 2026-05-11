@@ -20,6 +20,15 @@ interface Props {
    * an active `?tag=` filter.
    */
   totalCount: number;
+  /**
+   * Signed-in user's Google profile avatar URL (from Supabase Auth metadata).
+   * Rendered Twitter-style at the leading edge of each non-compact CaptureCard
+   * and in the detail panel header. Pre-fetched in the page loader so cards
+   * don't re-resolve per row.
+   */
+  userAvatarUrl: string | null;
+  /** Single-char fallback for `<AvatarFallback>` when no avatar URL is set. */
+  userInitials: string;
 }
 
 /**
@@ -45,6 +54,8 @@ export function CapturesClient({
   hashtags,
   projects,
   totalCount,
+  userAvatarUrl,
+  userInitials,
 }: Props) {
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(
@@ -123,6 +134,8 @@ export function CapturesClient({
             onClearHashtag={() => setActiveTagId(null)}
             onClearSearch={() => handleSearchResults(null)}
             onSelectCapture={(c) => setSelectedCaptureId(c.id)}
+            userAvatarUrl={userAvatarUrl}
+            userInitials={userInitials}
           />
         </div>
       </div>
@@ -133,6 +146,8 @@ export function CapturesClient({
         projects={projects}
         open={selectedCapture !== null}
         onClose={() => setSelectedCaptureId(null)}
+        userAvatarUrl={userAvatarUrl}
+        userInitials={userInitials}
       />
     </div>
   );
