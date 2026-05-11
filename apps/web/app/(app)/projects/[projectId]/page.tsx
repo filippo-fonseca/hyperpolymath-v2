@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { projects, capturesProjects } from "@/lib/db/schema";
+import { projects } from "@/lib/db/schema";
 import { getTasksForProject } from "@/lib/db/queries/tasks";
+import { getCapturesForProject } from "@/lib/db/queries/captures";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { ProjectDetailColumns } from "@/components/projects/ProjectDetailColumns";
 
@@ -15,9 +16,9 @@ interface Props {
  * /projects/[projectId] — Notion-style project detail page.
  *
  * Per D-15 + D-16 + D-18 (Server Component shell + Client island):
- * - Server Component fetches project + count queries
+ * - Server Component fetches project + task list + capture list in parallel
  * - ProjectHeader is a Client Component island (inline name edit, banner change, class edit modal)
- * - ProjectDetailColumns is a stub (Plans 03 + 04 wire real task/capture lists)
+ * - ProjectDetailColumns renders TasksColumn (TASK-08 — Plan 03) + CapturesColumn (CAPT-07 — Plan 04)
  *
  * Per Next.js 16: params is Promise<...> — must await.
  */
@@ -33,21 +34,11 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   if (!project) notFound();
 
-  // TASK-08: Fetch actual tasks for the Tasks column (Plan 03 wires this)
-  const [tasksForProject, captureCountResult] = await Promise.all([
+  // TASK-08 + CAPT-07: parallel fetch of tasks + captures for this project
+  const [tasksForProject, capturesForProject] = await Promise.all([
     getTasksForProject(user.id, projectId),
-    db
-      .select({ captureCount: sql<number>`COUNT(*)::int` })
-      .from(capturesProjects)
-      .where(
-        and(
-          eq(capturesProjects.projectId, projectId),
-          eq(capturesProjects.userId, user.id),
-        ),
-      ),
+    getCapturesForProject(user.id, projectId),
   ]);
-
-  const { captureCount } = captureCountResult[0]!;
 
   // Normalize semesterTerm to the typed union expected by ProjectHeader
   const semesterTerm = project.semesterTerm as
@@ -80,7 +71,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         <ProjectDetailColumns
           projectId={projectId}
           tasks={tasksForProject}
-          captures={[]}
+          captures={capturesForProject}
         />
       </div>
     </div>

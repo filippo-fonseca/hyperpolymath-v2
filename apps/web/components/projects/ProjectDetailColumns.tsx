@@ -3,13 +3,15 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { PriorityChip } from "@/components/tasks/PriorityChip";
+import { CaptureCard } from "@/components/captures/CaptureCard";
 import { cn } from "@/lib/utils";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 
 interface Props {
   projectId: string;
   tasks: TaskWithProjects[]; // TASK-08: real tasks from getTasksForProject
-  captures: unknown[]; // Plan 04 will type and populate this
+  captures: CaptureWithLinks[]; // CAPT-07: real captures from getCapturesForProject
 }
 
 /**
@@ -61,8 +63,10 @@ export function ProjectDetailColumns({
           {captures.length === 0 ? (
             <CapturesEmptyState />
           ) : (
-            <div className="text-[13px] text-muted-foreground">
-              {/* Plan 04 renders captures list here */}
+            <div className="flex flex-col gap-2">
+              {captures.map((c) => (
+                <CaptureCard key={c.id} capture={c} compact />
+              ))}
             </div>
           )}
         </ScrollArea>

@@ -1,5 +1,9 @@
+import { and, eq, isNull } from "drizzle-orm";
 import { getUserOrRedirect } from "@/lib/auth/get-user";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
+import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
+import { db } from "@/lib/db";
+import { projects } from "@/lib/db/schema";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
 import { Toaster } from "sonner";
@@ -14,19 +18,40 @@ export default async function AppLayout({
   // Per-page calls to requireOnboarded() handle the onboarding redirect downstream.
   const user = await getUserOrRedirect();
 
-  // Fetch sidebar data server-side — two passes: active areas + all areas (for "Show archived")
-  const [activeAreas, allAreas] = await Promise.all([
-    getSidebarTree(user.id, false),
-    getSidebarTree(user.id, true),
-  ]);
+  // Fetch sidebar + composer data server-side in parallel.
+  // hashtags + projects feed the Cmd+K composer (single-source-of-truth per D-09).
+  const [activeAreas, allAreas, hashtagsForComposer, projectsForComposer] =
+    await Promise.all([
+      getSidebarTree(user.id, false),
+      getSidebarTree(user.id, true),
+      getHashtagSuggestions(user.id),
+      db
+        .select({
+          id: projects.id,
+          name: projects.name,
+          isClass: projects.isClass,
+          courseCode: projects.courseCode,
+        })
+        .from(projects)
+        .where(
+          and(eq(projects.userId, user.id), isNull(projects.archivedAt)),
+        ),
+    ]);
 
   return (
     <NuqsAdapter>
-      <AppShell activeAreas={activeAreas} allAreas={allAreas} graduationYear={user.graduationYear}>
+      <AppShell
+        activeAreas={activeAreas}
+        allAreas={allAreas}
+        graduationYear={user.graduationYear}
+      >
         {children}
       </AppShell>
-      {/* Global Cmd+K command menu — stub composer in Phase 2; Phase 5 Kiwi replaces content */}
-      <CommandMenu />
+      {/* Global Cmd+K command menu — Phase 5 will swap CommandMenuContent for the Kiwi UI */}
+      <CommandMenu
+        hashtags={hashtagsForComposer}
+        projects={projectsForComposer}
+      />
       {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
       <Toaster position="bottom-right" duration={4000} />
     </NuqsAdapter>
