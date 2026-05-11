@@ -11,9 +11,18 @@ import {
   index,
   uniqueIndex,
   jsonb,
+  customType,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
+
+// tsvector type for Postgres full-text search (used on captures.content_search).
+// Pattern 7 from 02-RESEARCH.md.
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 
 // users — mirrors auth.users for app-side metadata. Trigger (migration 0002) keeps in sync.
 export const users = pgTable("users", {
@@ -127,8 +136,19 @@ export const captures = pgTable(
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
+    // Drizzle 0.36 does not reliably emit GENERATED ALWAYS AS clauses for customType, so the
+    // migration is hand-written (see drizzle/0003_captures_search.sql and
+    // supabase/migrations/0005_captures_search.sql). Listing the column here gives type-safe
+    // query access (sql template references compile, no runtime cast needed).
+    contentSearch: tsvector("content_search").generatedAlwaysAs(
+      (): SQL => sql`to_tsvector('english', content)`,
+    ),
   },
-  (t) => [index("captures_user_created_desc_idx").on(t.userId, sql`created_at DESC`)],
+  (t) => [
+    index("captures_user_created_desc_idx").on(t.userId, sql`created_at DESC`),
+    index("captures_content_search_gin_idx").using("gin", t.contentSearch),
+  ],
 );
 
 export const hashtags = pgTable(

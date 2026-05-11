@@ -1,0 +1,2 @@
+ALTER TABLE "captures" ADD COLUMN "content_search" "tsvector" GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "captures_content_search_gin_idx" ON "captures" USING gin ("content_search");
