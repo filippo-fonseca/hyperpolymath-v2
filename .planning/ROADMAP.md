@@ -51,7 +51,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 02-01-PLAN.md — Wave 1: AppShell + Sidebar + Areas CRUD + projects.order_index migration + base shadcn primitives + sonner/cmdk wiring (AREA-01..05)
 - [x] 02-02-PLAN.md — Wave 2: Projects CRUD + Notion-style /projects/[id] detail page + Lucide icon picker (150) + 16-swatch banner picker + class metadata (PROJ-01..07)
 - [x] 02-03-PLAN.md — Wave 3: Tasks domain — kanban + list + view toggle + @dnd-kit cross-column drag + Linear-style detail panel + nuqs filter chip pills + Lesno toast (TASK-01..08)
-- [ ] 02-04-PLAN.md — Wave 4: Captures domain — TipTap chip composer + #hashtag autocomplete + project multi-select + reverse-chrono feed + 200px hashtag sidebar + tsvector/pg_trgm search + Cmd+K modal mounts same composer via CommandMenuContent slot (CAPT-01..08)
+- [x] 02-04-PLAN.md — Wave 4: Captures domain — TipTap chip composer + #hashtag autocomplete + project multi-select + reverse-chrono feed + 200px hashtag sidebar + tsvector/pg_trgm search + Cmd+K modal mounts same composer via CommandMenuContent slot (CAPT-01..08)
 **UI hint**: yes
 **Wave structure**: Plan 01 (Wave 1) → Plan 02 (Wave 2) → Plan 03 (Wave 3) → Plan 04 (Wave 4). Plans 03 and 04 share `ProjectDetailColumns.tsx`, `projects/[projectId]/page.tsx`, and `(app)/layout.tsx`, so they run sequentially (Plan 04 reads from Plan 03's post-state, not from Plan 02's stub) — corrected from earlier 'parallel' annotation.
 

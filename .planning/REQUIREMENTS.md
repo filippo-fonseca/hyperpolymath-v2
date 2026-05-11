@@ -62,14 +62,14 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Quick Captures
 
-- [ ] **CAPT-01**: User can create a Quick Capture with freeform text content, zero-or-more `#hashtags` (auto-created if new), and zero-or-more linked Project IDs
-- [ ] **CAPT-02**: User can edit a Capture's text and tags
-- [ ] **CAPT-03**: User can delete a Capture
-- [ ] **CAPT-04**: Captures page renders a reverse-chronological feed
-- [ ] **CAPT-05**: Hashtag sidebar lists all hashtags with counts; clicking a hashtag filters the feed
-- [ ] **CAPT-06**: Captures support full-text search via Postgres `tsvector` / `pg_trgm`
-- [ ] **CAPT-07**: A Project's detail page shows all Captures linked to that Project
-- [ ] **CAPT-08**: Hashtags are normalized to lowercase for storage; first-seen casing displayed in UI
+- [x] **CAPT-01**: User can create a Quick Capture with freeform text content, zero-or-more `#hashtags` (auto-created if new), and zero-or-more linked Project IDs
+- [x] **CAPT-02**: User can edit a Capture's text and tags
+- [x] **CAPT-03**: User can delete a Capture
+- [x] **CAPT-04**: Captures page renders a reverse-chronological feed
+- [x] **CAPT-05**: Hashtag sidebar lists all hashtags with counts; clicking a hashtag filters the feed
+- [x] **CAPT-06**: Captures support full-text search via Postgres `tsvector` / `pg_trgm`
+- [x] **CAPT-07**: A Project's detail page shows all Captures linked to that Project
+- [x] **CAPT-08**: Hashtags are normalized to lowercase for storage; first-seen casing displayed in UI
 
 ### Realtime
 
@@ -241,14 +241,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TASK-06 | Phase 2 | Pending |
 | TASK-07 | Phase 2 | Pending |
 | TASK-08 | Phase 2 | Pending |
-| CAPT-01 | Phase 2 | Pending |
-| CAPT-02 | Phase 2 | Pending |
-| CAPT-03 | Phase 2 | Pending |
-| CAPT-04 | Phase 2 | Pending |
-| CAPT-05 | Phase 2 | Pending |
-| CAPT-06 | Phase 2 | Pending |
-| CAPT-07 | Phase 2 | Pending |
-| CAPT-08 | Phase 2 | Pending |
+| CAPT-01 | Phase 2 | Complete |
+| CAPT-02 | Phase 2 | Complete |
+| CAPT-03 | Phase 2 | Complete |
+| CAPT-04 | Phase 2 | Complete |
+| CAPT-05 | Phase 2 | Complete |
+| CAPT-06 | Phase 2 | Complete |
+| CAPT-07 | Phase 2 | Complete |
+| CAPT-08 | Phase 2 | Complete |
 | RT-01 | Phase 3 | Pending |
 | RT-02 | Phase 3 | Pending |
 | RT-03 | Phase 3 | Pending |
