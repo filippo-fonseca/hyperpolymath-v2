@@ -29,6 +29,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   ProjectMultiSelect,
@@ -141,6 +151,12 @@ export function CaptureDetailPanel({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Discard-confirm dialog. `pendingDiscardAction` records what to do *after*
+  // the user confirms discard: "close" (Sheet close attempt) or "cancel"
+  // (Cancel button click while dirty).
+  const [pendingDiscardAction, setPendingDiscardAction] = useState<
+    "close" | "cancel" | null
+  >(null);
 
   const [form, setForm] = useState<FormState>({
     content: "",
@@ -300,6 +316,64 @@ export function CaptureDetailPanel({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, dirty, handleSave]);
 
+  // beforeunload guard — show native browser "Leave site?" prompt when the
+  // panel has unsaved changes and the user tries to refresh/close-tab.
+  // Only wired when the panel is open AND dirty.
+  useEffect(() => {
+    if (!open || !dirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      // Required for some browsers (Chrome/Edge) to actually show the prompt
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [open, dirty]);
+
+  // Reset the editor + form state back to the initial capture (used when
+  // discarding edits via Cancel button or via the close-confirm dialog).
+  const resetToInitial = useCallback(() => {
+    if (!capture) return;
+    setForm(initialForm);
+    if (editor) {
+      editor.commands.setContent(contentToTipTapDoc(initialForm.content, capture.hashtags));
+    }
+  }, [capture, editor, initialForm]);
+
+  // Intercept Sheet close attempts (Esc, click outside, × button). If the
+  // panel is dirty, open the discard-confirm dialog instead of closing.
+  const handleSheetOpenChange = useCallback(
+    (next: boolean) => {
+      if (next) return; // opening — no-op (panel is opened by parent state)
+      if (dirty) {
+        setPendingDiscardAction("close");
+        return;
+      }
+      onClose();
+    },
+    [dirty, onClose],
+  );
+
+  // Cancel button click: if dirty → confirm discard; if clean → just close.
+  const handleCancelClick = useCallback(() => {
+    if (dirty) {
+      setPendingDiscardAction("cancel");
+      return;
+    }
+    onClose();
+  }, [dirty, onClose]);
+
+  // Confirm discard: reset edits, then perform the pending action.
+  const handleConfirmDiscard = useCallback(() => {
+    const action = pendingDiscardAction;
+    setPendingDiscardAction(null);
+    resetToInitial();
+    if (action === "close" || action === "cancel") {
+      // Both end in the panel closing — Cancel was always going to close too.
+      onClose();
+    }
+  }, [pendingDiscardAction, resetToInitial, onClose]);
+
   async function handleDelete() {
     if (!capture) return;
     const r = await deleteCapture(capture.id);
@@ -317,7 +391,7 @@ export function CaptureDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-[560px] p-0 flex flex-col"
@@ -344,7 +418,7 @@ export function CaptureDetailPanel({
                   </div>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
                     className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0 mt-1"
                   >
@@ -425,6 +499,17 @@ export function CaptureDetailPanel({
                   </span>
                   <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="font-sans text-[13px]"
+                    onClick={handleCancelClick}
+                    disabled={!dirty || isPending}
+                    title={dirty ? "Discard unsaved changes" : undefined}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
                     size="sm"
                     className="font-sans text-[13px]"
                     onClick={() => startTransition(() => void handleSave())}
@@ -438,6 +523,40 @@ export function CaptureDetailPanel({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Discard-unsaved-changes confirm — fires on close (Esc / outside / ×)
+          or on Cancel button click while dirty. Rendered outside the Sheet
+          portal stacking; z-[60] in the AlertDialog overlay keeps it above
+          the Sheet (z-50) so Esc-to-close on the AlertDialog doesn't bubble
+          into the Sheet. */}
+      <AlertDialog
+        open={pendingDiscardAction !== null}
+        onOpenChange={(v) => {
+          if (!v) setPendingDiscardAction(null);
+        }}
+      >
+        <AlertDialogContent className="font-serif">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif text-[20px]">
+              Discard changes?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-serif text-base">
+              Your edits to this capture will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-sans text-[13px]">
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="font-sans text-[13px]"
+              onClick={handleConfirmDiscard}
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm dialog — UI-SPEC exact copy */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
