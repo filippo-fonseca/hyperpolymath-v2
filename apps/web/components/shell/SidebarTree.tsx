@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -32,7 +32,15 @@ interface Props {
 }
 
 export function SidebarTree({ areas, collapsed }: Props) {
-  // Blocker 5 Option A: NO local areas state — read from props (Server Component data).
+  // React 19 useOptimistic — drop-time visual reorder; auto-reverts to props
+  // on error (action returns without success) or when router.refresh() lands.
+  const [optimisticAreas, applyOptimisticOrder] = useOptimistic(
+    areas,
+    (current: SidebarArea[], orderedIds: string[]) =>
+      orderedIds
+        .map((id) => current.find((a) => a.id === id))
+        .filter((a): a is SidebarArea => Boolean(a)),
+  );
   const [pendingDragId, setPendingDragId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -47,24 +55,30 @@ export function SidebarTree({ areas, collapsed }: Props) {
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = areas.findIndex((a) => a.id === active.id);
-    const newIndex = areas.findIndex((a) => a.id === over.id);
+    const oldIndex = optimisticAreas.findIndex((a) => a.id === active.id);
+    const newIndex = optimisticAreas.findIndex((a) => a.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const next = arrayMove(areas, oldIndex, newIndex);
+    const next = arrayMove(optimisticAreas, oldIndex, newIndex);
+    const orderedIds = next.map((a) => a.id);
     setPendingDragId(String(active.id));
     startTransition(async () => {
-      const result = await reorderAreas({ orderedIds: next.map((a) => a.id) });
+      // Apply optimistic order — view updates immediately, no snap-back.
+      applyOptimisticOrder(orderedIds);
+      const result = await reorderAreas({ orderedIds });
       setPendingDragId(null);
       if (!result.success) {
+        // useOptimistic auto-reverts to `areas` (props) when transition ends
+        // without persisted state — no manual rollback needed.
         toast.error(result.error);
         return;
       }
       toast("Areas reordered.");
+      // router.refresh() updates `areas` prop → optimistic merges with new state.
       router.refresh();
     });
   }
 
-  if (areas.length === 0) {
+  if (optimisticAreas.length === 0) {
     return (
       <div className="px-4 py-2 text-[13px] font-sans text-muted-foreground">
         No areas yet.
@@ -79,11 +93,11 @@ export function SidebarTree({ areas, collapsed }: Props) {
       onDragEnd={handleDragEnd}
     >
       <SortableContext
-        items={areas.map((a) => a.id)}
+        items={optimisticAreas.map((a) => a.id)}
         strategy={verticalListSortingStrategy}
       >
         <ul className="flex flex-col gap-0.5 px-2">
-          {areas.map((area) => (
+          {optimisticAreas.map((area) => (
             <SortableAreaRow
               key={area.id}
               area={area}
