@@ -57,6 +57,7 @@ Areas, Projects (incl. Classes), Tasks, and Quick Captures fully usable through 
 - Loading skeleton designs (within journal-paper aesthetic)
 - Empty state copy (Genz-Renaissance brand voice — lean on the wordmark + a one-liner like "Nothing to capture yet — what's on your mind?")
 - Optimistic update strategy in Phase 2 (if any) — full RT optimism lands in Phase 3
+  - **Decision (Blocker 5 fix, revision pass):** Phase 2 uses **Option A — NO local optimism**. KanbanBoard.handleDragEnd, SidebarTree.handleDragEnd, and CaptureComposer all run the Server Action first, then `router.refresh()` on success (re-fetches Server Component data). On error: toast.error and the UI stays in the pre-action state automatically (since we never mutated locally). A small `isPending`/`pendingDragId` provides loading feedback (e.g., dragged card dims to opacity-50 during the transaction). **Phase 3 Realtime introduces full optimism via `useOptimistic` + Realtime echo dedupe** — that's where the rollback complexity earns its keep.
 - Toast positioning + duration
 
 </decisions>

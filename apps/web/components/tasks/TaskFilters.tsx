@@ -55,7 +55,7 @@ export function TaskFilters({ projects }: Props) {
     setFilters({ priority: filters.priority.filter((x) => x !== p) });
   }
 
-  // STATUS handlers (Blocker 3: concrete handlers, NOT "// analogous" stubs)
+  // STATUS handlers (Blocker 3: concrete, explicit handlers for each dimension)
   function addStatusFilter(s: string) {
     if (!filters.status.includes(s))
       setFilters({ status: [...filters.status, s] });
