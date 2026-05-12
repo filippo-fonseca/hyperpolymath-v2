@@ -69,7 +69,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 03-01-PLAN.md — Wave 1: TanStack Query install + QueryProvider mount + useTableSubscription singleton + visibilitychange listener (RT-01, RT-03, RT-04)
 - [x] 03-02-PLAN.md — Wave 2: Areas + Projects + Tasks domain migration to useQuery + useOptimistic + Realtime; Server Actions accept caller UUIDs; revalidatePath removed (RT-02, RT-04, RT-05)
 - [x] 03-03-PLAN.md — Wave 2: Captures + Hashtags domain migration with captures_hashtags join-table subscription + alsoInvalidate fanout for live hashtag counts; Cmd+K composer parity (RT-02, RT-04, RT-05)
-- [ ] 03-04-PLAN.md — Wave 3: Verification — RLS-aware Realtime integration test + echo dedupe end-to-end + visibility recovery + comprehensive two-window smoke test across all 5 success criteria (RT-01..RT-05)
+- [x] 03-04-PLAN.md — Wave 3: Verification — RLS-aware Realtime integration test + echo dedupe end-to-end + visibility recovery + comprehensive two-window smoke test across all 5 success criteria (RT-01..RT-05)
 **Wave structure**: Plan 01 (Wave 1, foundation — checkpoint) → Plans 02 + 03 (Wave 2, parallelizable but each carries its own checkpoint smoke test) → Plan 04 (Wave 3, verification + comprehensive smoke)
 
 ### Phase 4: Google Calendar
