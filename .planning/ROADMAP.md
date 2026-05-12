@@ -147,3 +147,25 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
+### Phase 999.2: Kiwi — JARVIS-esque ambient assistant (BACKLOG)
+
+**Goal:** Push Kiwi past pure text-in-action-out toward a JARVIS-style ambient assistant. **Needs scoping discussion before planning** — surface area is broad. Likely dimensions to pick from:
+
+- Voice in / voice out (speech-to-text on input, TTS streaming of responses)
+- Always-listening / wake-word mode (vs. press-to-talk only)
+- Proactive briefings ("good morning — 3 overdue, dinner with Anna 8pm, Calc midterm Thursday")
+- Anticipatory nudges ("you usually create captures at this time — want to start a session?")
+- Personality / voice — dry, formal address, Renaissance-academic register (matches journal-paper aesthetic)
+- Context awareness — current page, recent activity, calendar density
+- Multi-turn conversation memory (currently scoped session-only in PROJECT.md — would need a deliberate exception)
+
+**Why:** User notation captured 2026-05-12 during Phase 3 Wave 3 smoke walkthrough. Vague-by-design — park the vibe, scope when promoting.
+
+**Likely fit:** Post-Phase 5 (after Kiwi v1 ships) as a Kiwi 1.5 / 2.0 milestone. Some pieces (voice in/out, proactive briefings) could be standalone phases.
+
+**Requirements:** TBD — multiple new KIWI-* entries (define when promoting)
+
+**Plans:** 0 plans
+
+- [ ] TBD (run `/gsd:discuss-phase 999.2` to scope before promoting)
+
