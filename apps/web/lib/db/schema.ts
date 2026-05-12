@@ -24,6 +24,16 @@ const tsvector = customType<{ data: string }>({
   },
 });
 
+// bytea type for Postgres binary columns (used on users.gcal_*_token_encrypted).
+// Phase 4 Plan 04-01 (D-05): app-level AES-256-GCM ciphertext is stored as bytea —
+// `iv (12B) || tag (16B) || ciphertext`. Drizzle ships `bytea` as a `Buffer` on the
+// postgres-js driver (driverData == data == Buffer).
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
 // users — mirrors auth.users for app-side metadata. Trigger (migration 0002) keeps in sync.
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().notNull(), // references auth.users(id) — ref added in raw SQL migration
@@ -31,9 +41,19 @@ export const users = pgTable("users", {
   graduationYear: integer("graduation_year"), // nullable until onboarding completes (D-11)
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }), // null = needs onboarding (D-11)
   // Reserved for Phase 4 (gcal). Columns ship now per CONTEXT.md "out of scope".
+  // NOTE: Plain text columns deprecated in Plan 04-01 (D-05 revised to app-level
+  // AES-256-GCM). Plan 04-04 will DROP these after the encrypted columns are live.
+  // DO NOT touch them in Plan 04-01 — Plan 04-01's migration 0007 is additive only.
   gcalRefreshToken: text("gcal_refresh_token"),
   gcalAccessToken: text("gcal_access_token"),
   gcalTokenExpiresAt: timestamp("gcal_token_expires_at", { withTimezone: true }),
+  // Phase 4 Plan 04-01 (D-05 app-level AES-256-GCM, D-08 timezone, D-09 default
+  // calendar, D-10 multi-calendar visibility). See migration 0007.
+  gcalRefreshTokenEncrypted: bytea("gcal_refresh_token_encrypted"),
+  gcalAccessTokenEncrypted: bytea("gcal_access_token_encrypted"),
+  gcalDefaultCalendarId: text("gcal_default_calendar_id"),
+  gcalVisibleCalendarIds: text("gcal_visible_calendar_ids").array(),
+  timezone: text("timezone"), // IANA, e.g., "America/New_York" (D-08)
   // Reserved for Phase 6 (theme).
   theme: text("theme").default("light"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

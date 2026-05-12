@@ -21,9 +21,13 @@
  */
 
 import { google } from "googleapis";
-import type { OAuth2Client } from "google-auth-library";
 
-export function createOAuth2Client(): OAuth2Client {
+// Use the constructor's InstanceType directly — `google-auth-library` is a
+// transitive dep we don't list in package.json (importing its types would
+// require adding it as a direct dep just for a type alias).
+export type GcalOAuth2Client = InstanceType<typeof google.auth.OAuth2>;
+
+export function createOAuth2Client(): GcalOAuth2Client {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,

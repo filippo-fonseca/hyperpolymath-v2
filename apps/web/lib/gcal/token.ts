@@ -58,6 +58,18 @@ export { GcalNotConnectedError, GcalTokenRefreshError, GcalTokenRevokedError };
 const REFRESH_LEEWAY_MS = 60 * 1000; // refresh if access token expires within 60s
 
 /**
+ * Shape of the payload Google's OAuth2 client emits on the 'tokens' event.
+ * Declared locally to avoid pulling `google-auth-library` types as a direct
+ * dependency (it's transitive via `googleapis`).
+ */
+interface TokensEventPayload {
+  access_token?: string | null;
+  refresh_token?: string | null;
+  expiry_date?: number | null;
+  // Other fields (token_type, scope, etc.) are present at runtime but unused here.
+}
+
+/**
  * Determines whether the OAuth refresh attempt failed with `invalid_grant`,
  * which is Google's signal that the refresh_token is no longer valid (the user
  * revoked access, the password changed, etc.). googleapis surfaces this as a
@@ -119,7 +131,7 @@ export async function getValidGcalToken(userId: string): Promise<calendar_v3.Cal
   // 3. Subscribe to the 'tokens' event BEFORE any refresh attempt so the
   //    new tokens get persisted. Use a void-floating async to avoid blocking
   //    the request thread on the DB write.
-  oauth2Client.on("tokens", (newTokens) => {
+  oauth2Client.on("tokens", (newTokens: TokensEventPayload) => {
     void persistRefreshedTokens(userId, newTokens, refreshToken);
   });
 
@@ -170,11 +182,7 @@ export async function getValidGcalToken(userId: string): Promise<calendar_v3.Cal
  */
 async function persistRefreshedTokens(
   userId: string,
-  newTokens: {
-    access_token?: string | null;
-    refresh_token?: string | null;
-    expiry_date?: number | null;
-  },
+  newTokens: TokensEventPayload,
   fallbackRefreshToken: string,
 ): Promise<void> {
   const access = newTokens.access_token;
