@@ -83,7 +83,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can select among their Google Calendars via a multi-calendar dropdown and set a default Google Calendar that Kiwi will use for ambiguous event creation
   5. Events that span the spring-forward (March 8 2026) and fall-back (November 1 2026) DST boundaries display at the correct local wall-clock time; an automated test pins this behavior
   6. Expired access tokens are refreshed transparently before any Google API call via `getValidGcalToken()`; users do not see auth errors mid-session unless their refresh token itself is revoked
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 04-01-PLAN.md — Wave 1: Schema migration (encrypted token bytea + timezone + multi-cal cols) + lib/gcal/ helpers (client, encryption, token, datetime, events, calendars) + Vitest DST + encryption + token-refresh fixtures (CAL-02, CAL-08)
+- [ ] 04-02-PLAN.md — Wave 2: OAuth /api/gcal/{auth,callback} routes + disconnect Server Action + Settings GcalConnectionRow + state CSRF + prompt=consent (CAL-01, CAL-09, SET-02)
+- [ ] 04-03-PLAN.md — Wave 3: /calendar page + react-big-calendar grid (day/week, Monday-start) + EventDetailPanel (read-only) + DisconnectBanner + EmptyState + sidebar nav unblock + hybrid SSR + useQuery refetchOnWindowFocus (CAL-03, CAL-07, CAL-08)
+- [ ] 04-04-PLAN.md — Wave 4: Event mutations (create/update/delete + drag-move/resize) with optimistic non-UUID swap + multi-cal filter chips + Settings (default/visible/timezone) + Cmd+K New event + cutover migration 0008 drops plain gcal_* columns (CAL-04, CAL-05, CAL-06, SET-04)
+**Wave structure**: Plan 01 (Wave 1, foundation — checkpoint for env vars) → Plan 02 (Wave 2, OAuth) → Plan 03 (Wave 3, read-only grid) → Plan 04 (Wave 4, mutations + cutover). Sequential — grid depends on schema+OAuth+token helpers; mutations depend on grid.
 
 ### Phase 5: Kiwi
 **Goal**: The payoff — `packages/kiwi-core` (pure TypeScript, zero React/Next deps) implements the deterministic date pre-parser, strict-tool-use agent with Anthropic prompt caching, and server-side action executor; the Kiwi Console UI ships streaming responses, `$project`/`#hashtag` chips, intent-badged action receipts, manual mode toggle, and one-tap "convert to task" recovery
@@ -125,7 +130,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Foundations | 3/3 | Complete    | 2026-05-10 |
 | 2. Manual CRUD | 3/4 | In Progress|  |
 | 3. Realtime Layer | 0/4 | Not started | - |
-| 4. Google Calendar | 0/TBD | Not started | - |
+| 4. Google Calendar | 0/4 | Not started | - |
 | 5. Kiwi | 0/TBD | Not started | - |
 | 6. Polish | 0/TBD | Not started | - |
 
