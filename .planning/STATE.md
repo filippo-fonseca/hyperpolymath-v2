@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 4 context gathered
-last_updated: "2026-05-12T14:47:17.744Z"
+status: executing
+stopped_at: "Completed 04-01-PLAN.md (foundation: lib/gcal/ scaffold + migration 0007 + 19 tests green)"
+last_updated: "2026-05-12T23:57:40.350Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 15
+  completed_plans: 12
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into Kiwi → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 03 — realtime-layer
+**Current focus:** Phase 04 — google-calendar
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 04 (google-calendar) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-05-12
 
 Progress: [░░░░░░░░░░] 0%
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P01 | 180min | 4 tasks | 9 files |
 | Phase 03-realtime-layer P03 | 12min | 2 tasks | 12 files |
 | Phase 03-realtime-layer P02 | 23min | 3 tasks | 23 files |
+| Phase 04 P04-01 | 165min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 03-realtime-layer]: Plan 03-02 — RT-05 echo dedupe: client generates crypto.randomUUID() before Server Action; schemas accept z.string().uuid().optional(); insert spreads ...(parsed.data.id ? { id: parsed.data.id } : {}); optimistic reducer 'insert' no-ops on echo by id match.
 - [Phase 03-realtime-layer]: Plan 03-02 — B1 canonical detail-page pattern: ProjectDetailClient uses tableKey('projects', userId) + select(rows => rows.find(...)) so the same Realtime invalidation drives both sidebar and detail page header.
 - [Phase 03-realtime-layer]: Plan 03-02 — M3 ownership split: Sidebar owns areas useOptimistic + useQuery so AreaCreateDialog and SidebarTree (siblings) both dispatch through one prop, no React context for 1-level fan-out.
+- [Phase 04]: [Phase 04 P01]: D-05 revised — token encryption uses app-level AES-256-GCM via node:crypto (12B IV + 16B tag + ciphertext bytea), NOT pgcrypto. Vault requires service_role bypassing RLS; pgcrypto requires per-call key plumbing. AES-GCM keeps key in env var, decryption co-located with getValidGcalToken.
+- [Phase 04]: [Phase 04 P01]: Additive-only migration 0007 — Phase 1 plain gcal_* columns retained alongside new encrypted bytea columns; drop deferred to migration 0008 in Plan 04-04 cutover (canonical additive-then-drop pattern for sensitive-column reshape).
+- [Phase 04]: [Phase 04 P01]: lib/gcal/ is the single boundary between domain code and googleapis SDK — domain code imports from @/lib/gcal/* only. client/events/calendars/token are the only files allowed to import googleapis directly.
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-12T14:47:17.735Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-google-calendar/04-CONTEXT.md
+Last session: 2026-05-12T23:57:40.347Z
+Stopped at: Completed 04-01-PLAN.md (foundation: lib/gcal/ scaffold + migration 0007 + 19 tests green)
+Resume file: None
