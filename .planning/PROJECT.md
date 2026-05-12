@@ -140,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-11 after Phase 2 (manual-crud) completion — Areas/Projects/Tasks/Captures CRUD, sidebar tree, Notion-style project detail page, kanban+list tasks, captures with TipTap composer + hashtag autocomplete all validated end-to-end.*
+*Last updated: 2026-05-12 after Phase 3 (realtime-layer) completion — TanStack Query + Supabase Realtime + `useOptimistic` shipped across all 4 primary domains. Cross-device live updates verified end-to-end via two-window smoke; one Supabase websocket per tab (no leaks); hashtag counts update live via `captures_hashtags` join-table subscription with `alsoInvalidate` fanout; visibility recovery via single listener at `QueryProvider`; ID-based echo dedupe prevents optimistic flicker; silent rollback + toast.error on failure. Critical regression caught and fixed: `supabase_realtime` Postgres publication was empty before migration `0006_realtime_publication.sql` — Realtime broadcasts would have been silent in prod.*
