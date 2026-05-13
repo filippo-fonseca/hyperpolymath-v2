@@ -141,3 +141,26 @@ body {
   0%, 100% { opacity: 0.85; }
   50% { opacity: 1; }
 }
+
+/* ─── Plan 04-04 polish — drag-selection preview rectangle ──────────────────
+   While the user is drag-selecting an empty time range on the grid (BEFORE
+   the Sheet opens), react-big-calendar emits a `.rbc-slot-selection` div
+   inside the day column. The library's default styling is a barely-visible
+   light gray — invisible against our journal-paper background. We restyle
+   it to match the post-drag outlined-placeholder aesthetic: dashed ochre
+   border + semi-transparent ochre fill, so the drag preview reads as
+   "where the event will land" continuously through the gesture → Sheet → save.
+   The accent ochre (--color-accent, hsl 38 72% 52%) is the right token here
+   because at drag-start we don't yet know the user's chosen calendar color;
+   the colored dashed placeholder takes over the instant the Sheet opens. */
+.rbc-slot-selection {
+  background-color: hsl(38 72% 52% / 0.18);
+  border: 2px dashed hsl(38 72% 52% / 0.75);
+  border-radius: 0.25rem;
+  color: hsl(30 8% 16%);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-style: italic;
+  padding: 0.125rem 0.375rem;
+  z-index: 10;
+}
