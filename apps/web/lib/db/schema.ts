@@ -40,12 +40,11 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   graduationYear: integer("graduation_year"), // nullable until onboarding completes (D-11)
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }), // null = needs onboarding (D-11)
-  // Reserved for Phase 4 (gcal). Columns ship now per CONTEXT.md "out of scope".
-  // NOTE: Plain text columns deprecated in Plan 04-01 (D-05 revised to app-level
-  // AES-256-GCM). Plan 04-04 will DROP these after the encrypted columns are live.
-  // DO NOT touch them in Plan 04-01 — Plan 04-01's migration 0007 is additive only.
-  gcalRefreshToken: text("gcal_refresh_token"),
-  gcalAccessToken: text("gcal_access_token"),
+  // Phase 4 Plan 04-04 cutover: Phase 1 placeholder plain-text columns
+  // (gcal_refresh_token, gcal_access_token) were DROPPED by migration 0008
+  // after the encrypted columns below became the sole source of truth.
+  // Only gcal_token_expires_at remains as plain timestamptz (non-sensitive
+  // metadata; see RESEARCH §Pattern 3 footnote).
   gcalTokenExpiresAt: timestamp("gcal_token_expires_at", { withTimezone: true }),
   // Phase 4 Plan 04-01 (D-05 app-level AES-256-GCM, D-08 timezone, D-09 default
   // calendar, D-10 multi-calendar visibility). See migration 0007.

@@ -36,6 +36,13 @@
       "when": 1778629483387,
       "tag": "0004_users_gcal_encrypt_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778633038223,
+      "tag": "0005_users_drop_plain_gcal_columns",
+      "breakpoints": true
     }
   ]
 }
