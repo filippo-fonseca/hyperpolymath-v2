@@ -82,3 +82,44 @@ body {
   font-size: 13px;
   margin: 0 1px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Phase 4 Plan 04-03 — react-big-calendar theme overrides.
+ *
+ * RBC ships its own CSS with fixed class names (no Tailwind utility hooks).
+ * We override the few selectors that fight our journal aesthetic. DO NOT
+ * touch `.rbc-event { background-color: ... }` — the inline style set by
+ * CalendarGrid.eventPropGetter MUST win for per-event gcal color (D-03 /
+ * Pitfall 8). Per-event color via inline style beats class-based bg.
+ * --------------------------------------------------------------------------- */
+.rbc-toolbar {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem 0.5rem;
+  font-size: 0.875rem;
+}
+.rbc-toolbar button {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+.rbc-time-content,
+.rbc-month-view {
+  font-size: 0.75rem;
+}
+.rbc-event {
+  border-radius: 0.125rem;
+  font-family: var(--font-sans);
+}
+.rbc-today {
+  /* Subtle accent wash on the "today" column — journal-paper restraint. */
+  background-color: hsl(38 72% 52% / 0.08);
+}
+.rbc-time-header,
+.rbc-header,
+.rbc-time-content,
+.rbc-time-gutter,
+.rbc-timeslot-group,
+.rbc-day-bg,
+.rbc-time-slot {
+  border-color: var(--color-border);
+}
