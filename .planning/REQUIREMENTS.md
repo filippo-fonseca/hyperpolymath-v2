@@ -81,7 +81,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Google Calendar
 
-- [x] **CAL-01**: User can connect Google Calendar via OAuth (`/api/gcal/auth` → consent → `/api/gcal/callback`); refresh tokens stored encrypted via `pgcrypto` in `users` table
+- [x] **CAL-01**: User can connect Google Calendar via OAuth (`/api/gcal/auth` → consent → `/api/gcal/callback`); refresh tokens stored encrypted via app-level AES-256-GCM (`node:crypto`) in `users` table (revised from pgcrypto in D-05 — Supabase Vault requires service_role; node:crypto keeps key in env var only)
 - [x] **CAL-02**: `getValidGcalToken()` helper transparently refreshes expired access tokens before any Google API call
 - [x] **CAL-03**: Calendar tab renders day and week views (month view is stretch); events displayed in user's IANA timezone
 - [x] **CAL-04**: User can create a Calendar event from the Calendar tab (title, calendar selection, start/end time, optional description); creation hits Google Calendar API
