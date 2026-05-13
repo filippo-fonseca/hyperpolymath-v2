@@ -78,6 +78,19 @@ export interface GcalEvent {
   description: string | null;
   recurringEventId: string | null;
   htmlLink: string;
+  /**
+   * Conflict-detection UX (Plan 04-04 polish):
+   * `isPlaceholder` marks an in-flight create OR an edit-draft preview that
+   * hasn't been persisted yet. The grid renders these with a dashed border +
+   * semi-transparent fill so the user can see how the in-progress event
+   * conflicts with other events on the same day while the Sheet is open.
+   *
+   * `isDraftEditing` marks the *original* canonical row of an event currently
+   * being edited in the Sheet — the grid dims it (50% opacity) so the
+   * paired draft placeholder reads as the "proposed new position."
+   */
+  isPlaceholder?: boolean;
+  isDraftEditing?: boolean;
 }
 
 interface Props {
@@ -137,14 +150,47 @@ export function CalendarGrid({
       onSelectEvent={(event) => onSelectEvent(event as GcalEvent)}
       onEventDrop={onEventDrop}
       onEventResize={onEventResize}
-      eventPropGetter={(event) => ({
+      eventPropGetter={(event) => {
+        const e = event as GcalEvent;
+        // Conflict-detection UX (Plan 04-04 polish):
+        // - Placeholders (in-flight create OR edit-draft proposed position)
+        //   render with a dashed outline + semi-transparent fill so users can
+        //   see how the unsaved event lines up against existing events.
+        // - The original row of an event being edited dims to 50% opacity so
+        //   the eye reads the dashed twin as "where it's going."
         // Inline style beats `.rbc-event` default blue (Pitfall 8).
-        style: {
-          backgroundColor: (event as GcalEvent).colorHex,
-          borderColor: (event as GcalEvent).colorHex,
-          color: "white",
-        },
-      })}
+        if (e.isPlaceholder) {
+          return {
+            className: "rbc-event-placeholder",
+            style: {
+              // 28% alpha — readable against the journal background, clearly
+              // distinct from solid canonical events.
+              backgroundColor: `${e.colorHex}47`,
+              borderColor: e.colorHex,
+              borderStyle: "dashed",
+              borderWidth: "2px",
+              color: e.colorHex,
+            },
+          };
+        }
+        if (e.isDraftEditing) {
+          return {
+            style: {
+              backgroundColor: e.colorHex,
+              borderColor: e.colorHex,
+              color: "white",
+              opacity: 0.45,
+            },
+          };
+        }
+        return {
+          style: {
+            backgroundColor: e.colorHex,
+            borderColor: e.colorHex,
+            color: "white",
+          },
+        };
+      }}
       step={30}
       timeslots={2}
       components={{ event: EventCard as never }}

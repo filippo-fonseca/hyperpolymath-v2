@@ -123,3 +123,21 @@ body {
 .rbc-time-slot {
   border-color: var(--color-border);
 }
+
+/* ─── Plan 04-04 polish — outlined placeholder for in-flight create/edit ──
+   Renders the in-progress event with a dashed border + semi-transparent fill
+   so the user can see conflicts with existing events while the Sheet is open.
+   Per-event color + dashed border come from CalendarGrid.eventPropGetter
+   inline style; this class layers a subtle pulse on top so the placeholder
+   reads as "live, not saved." */
+.rbc-event.rbc-event-placeholder {
+  box-shadow: none;
+  /* Suppress the default rbc selection ring — the dashed border is the cue. */
+  outline: none;
+  font-style: italic;
+  animation: rbc-event-placeholder-pulse 1.8s ease-in-out infinite;
+}
+@keyframes rbc-event-placeholder-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}

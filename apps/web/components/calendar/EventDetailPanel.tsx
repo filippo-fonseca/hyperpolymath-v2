@@ -128,6 +128,24 @@ interface Props {
   ) => Promise<{ success: boolean }>;
   /** Edit-mode delete — undefined in create mode. */
   onDelete?: () => Promise<{ success: boolean }>;
+  /**
+   * Conflict-detection polish (Plan 04-04): in edit mode, the parent renders
+   * a dashed "proposed-new-position" placeholder on the grid alongside the
+   * dimmed original. We push live form values up via this callback so the
+   * parent can keep the placeholder in sync with what the user is typing.
+   *
+   * Receives `null` when the panel isn't in edit mode (or when the live
+   * form values match the saved event — i.e. nothing to preview).
+   */
+  onDraftChange?: (
+    draft: {
+      title: string;
+      calendarId: string;
+      start: Date;
+      end: Date;
+      allDay: boolean;
+    } | null,
+  ) => void;
 }
 
 function toDateTimeLocalValue(d: Date): string {
@@ -173,6 +191,7 @@ export function EventDetailPanel({
   defaultCalendarId,
   onSave,
   onDelete,
+  onDraftChange,
 }: Props) {
   const open = state.mode !== "closed";
   const [pendingDiscard, setPendingDiscard] = useState<
@@ -356,6 +375,41 @@ export function EventDetailPanel({
   // Watch allDay to drive input type swap (date vs datetime-local). When
   // toggled on, strip the time portion of the start/end to a date string.
   const watchedAllDay = watch("allDay");
+
+  /**
+   * Edit-mode draft preview wiring (Plan 04-04 polish):
+   * Subscribe to live form values via `watch(cb)` and push them up to the
+   * parent so the grid can render a dashed "proposed-new-position" placeholder
+   * while the user is editing. We only emit when:
+   *   - we're in edit mode (create-mode placeholder is already covered by
+   *     the optimistic-insert path in handleCreate);
+   *   - the parsed values are valid Dates (skip while the user is mid-type
+   *     and the datetime-local string is half-formed).
+   * On unmount / mode change / panel close, the parent clears the draft via
+   * its own `panelState.mode !== "edit"` effect.
+   */
+  useEffect(() => {
+    if (!onDraftChange) return;
+    if (state.mode !== "edit") {
+      onDraftChange(null);
+      return;
+    }
+    const sub = watch((value) => {
+      if (!value.start || !value.end || !value.calendarId) return;
+      const start = dateTimeLocalToTZDate(value.start, userTimezone);
+      const end = dateTimeLocalToTZDate(value.end, userTimezone);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+      if (end <= start) return; // Same guard as the Zod refine.
+      onDraftChange({
+        title: (value.title ?? "").trim() || "(untitled)",
+        calendarId: value.calendarId,
+        start,
+        end,
+        allDay: Boolean(value.allDay),
+      });
+    });
+    return () => sub.unsubscribe();
+  }, [state.mode, onDraftChange, watch, userTimezone]);
 
   return (
     <>

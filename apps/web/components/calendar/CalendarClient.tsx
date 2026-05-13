@@ -143,6 +143,32 @@ export function CalendarClient({
   const [calsParam] = useQueryState("cals");
   const [panelState, setPanelState] = useState<PanelState>({ mode: "closed" });
 
+  /**
+   * Edit-mode draft preview (Plan 04-04 polish — conflict-detection UX).
+   *
+   * While the user has the EventDetailPanel open in edit mode and is
+   * tweaking start/end/title/calendar, the form values diverge from the
+   * canonical saved event. The Sheet pushes those live values up via
+   * `onDraftChange`; we render a SECOND outlined placeholder at the
+   * proposed-new-position AND dim the original to 50% opacity. The pairing
+   * communicates "here's where it'll move" without rewriting RBC's renderer.
+   *
+   * Cleared on panel close or successful save (parent useEffect below).
+   */
+  const [editDraft, setEditDraft] = useState<{
+    title: string;
+    calendarId: string;
+    start: Date;
+    end: Date;
+    allDay: boolean;
+  } | null>(null);
+
+  // Drop the draft whenever the panel leaves edit mode — close/save/cancel
+  // all transition away from `edit`, so this single effect covers them.
+  useEffect(() => {
+    if (panelState.mode !== "edit") setEditDraft(null);
+  }, [panelState.mode]);
+
   // `useOptimistic` is keyed by the useQuery cache (rawEvents below). When
   // the query refetches a canonical event list after a successful mutation,
   // the optimistic state resets to match — no manual reconciliation.
@@ -275,6 +301,49 @@ export function CalendarClient({
 
   const [, startTransition] = useTransition();
 
+  // Derived event list passed to the grid.
+  //   - In edit mode with a live draft: append a dashed placeholder at the
+  //     proposed position AND flag the original event as `isDraftEditing`
+  //     (the grid dims it via eventPropGetter).
+  //   - In create mode: optimisticEvents already carries the `isPlaceholder`
+  //     row from handleCreate's optimistic insert — nothing to layer on top.
+  //   - Otherwise: pass through.
+  // We don't dispatch the draft through useOptimistic because the draft is a
+  // pure presentational layer over the saved canonical row — it never gets
+  // persisted, and folding it into the reducer would risk it surviving the
+  // panel close path.
+  const displayEvents = useMemo<GcalEvent[]>(() => {
+    if (panelState.mode !== "edit" || !editDraft) {
+      return optimisticEvents as GcalEvent[];
+    }
+    const editingId = panelState.event.id;
+    const out: GcalEvent[] = [];
+    for (const e of optimisticEvents) {
+      if (e.id === editingId) {
+        out.push({ ...e, isDraftEditing: true });
+      } else {
+        out.push(e);
+      }
+    }
+    out.push({
+      id: `__edit-draft__:${editingId}`,
+      calendarId: editDraft.calendarId,
+      title: editDraft.title || panelState.event.title,
+      start: new TZDate(editDraft.start, effectiveTz),
+      end: new TZDate(editDraft.end, effectiveTz),
+      allDay: editDraft.allDay,
+      colorHex:
+        colorByCalendar[editDraft.calendarId] ??
+        panelState.event.colorHex ??
+        "#4285F4",
+      description: null,
+      recurringEventId: null,
+      htmlLink: "",
+      isPlaceholder: true,
+    });
+    return out;
+  }, [optimisticEvents, panelState, editDraft, effectiveTz, colorByCalendar]);
+
   /**
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
    * Locating the swap behind a named function makes it grep-robust and
@@ -314,6 +383,10 @@ export function CalendarClient({
         description: form.description,
         recurringEventId: null,
         htmlLink: "",
+        // Conflict-detection polish — outlined-placeholder render until the
+        // canonical row arrives from gcal. swapPlaceholderForCanonical drops
+        // this flag because the canonical dto-mapped row doesn't set it.
+        isPlaceholder: true,
       };
 
       startTransition(() => {
@@ -500,7 +573,7 @@ export function CalendarClient({
       </div>
       <div className="flex-1 min-h-0">
         <CalendarGrid
-          events={optimisticEvents}
+          events={displayEvents}
           view={view}
           date={date}
           onNavigate={setDate}
@@ -546,6 +619,7 @@ export function CalendarClient({
         onDelete={
           panelState.mode === "edit" ? handlePanelDelete : undefined
         }
+        onDraftChange={setEditDraft}
       />
     </div>
   );
