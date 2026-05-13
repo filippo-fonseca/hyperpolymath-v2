@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 04-01-PLAN.md (foundation: lib/gcal/ scaffold + migration 0007 + 19 tests green)"
-last_updated: "2026-05-12T23:57:40.350Z"
-last_activity: 2026-05-12
+stopped_at: Completed 04-02-PLAN.md (OAuth flow + Settings UI + Pitfall 6 ordering test + browser smoke approved)
+last_updated: "2026-05-13T00:10:56.570Z"
+last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 04 (google-calendar) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
-Last activity: 2026-05-12
+Last activity: 2026-05-13
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-realtime-layer P03 | 12min | 2 tasks | 12 files |
 | Phase 03-realtime-layer P02 | 23min | 3 tasks | 23 files |
 | Phase 04 P04-01 | 165min | 2 tasks | 18 files |
+| Phase 04 P02 | 90min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,12 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04 P01]: D-05 revised — token encryption uses app-level AES-256-GCM via node:crypto (12B IV + 16B tag + ciphertext bytea), NOT pgcrypto. Vault requires service_role bypassing RLS; pgcrypto requires per-call key plumbing. AES-GCM keeps key in env var, decryption co-located with getValidGcalToken.
 - [Phase 04]: [Phase 04 P01]: Additive-only migration 0007 — Phase 1 plain gcal_* columns retained alongside new encrypted bytea columns; drop deferred to migration 0008 in Plan 04-04 cutover (canonical additive-then-drop pattern for sensitive-column reshape).
 - [Phase 04]: [Phase 04 P01]: lib/gcal/ is the single boundary between domain code and googleapis SDK — domain code imports from @/lib/gcal/* only. client/events/calendars/token are the only files allowed to import googleapis directly.
+- [Phase 04]: [Phase 04 P02]: OAuth state CSRF via httpOnly cookie + 32-byte hex nonce (10-min TTL, sameSite=lax); cookie deleted in callback regardless of outcome (Pitfall 2)
+- [Phase 04]: [Phase 04 P02]: access_type=offline AND prompt=consent both passed to generateAuthUrl — without prompt=consent, reconnect-after-disconnect silently omits refresh_token (Pitfall 1, verified live in browser smoke Test D)
+- [Phase 04]: [Phase 04 P02]: disconnectGcal clears DB columns BEFORE oauth2Client.revokeToken (Pitfall 6); ordering enforced by gcal-disconnect.test.ts via invocationCallOrder, not by grep
+- [Phase 04]: [Phase 04 P02]: First-connect auto-default to primary calendar happens inside callback (calendarList.list + second db.update in try/catch, non-fatal) — D-09 satisfied at connect time, no Plan 04-04 follow-up needed (m-01 fix)
+- [Phase 04]: [Phase 04 P02]: OAuth callback redirects to /calendar?gcal=connected (NOT /settings); GcalConnectionRow handles only error/cancel toasts (denied, invalid_state, no_refresh_token); success toast lives in CalendarClient ships in Plan 04-03 (m-03 fix)
+- [Phase 04]: [Phase 04 P02]: disconnectGcal preserves gcal_default_calendar_id + gcal_visible_calendar_ids — same-account reconnect is the common case (D-09/D-10); clearing only happens on different-account detection in Plan 04-04
 
 ### Pending Todos
 
@@ -95,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-12T23:57:40.347Z
-Stopped at: Completed 04-01-PLAN.md (foundation: lib/gcal/ scaffold + migration 0007 + 19 tests green)
+Last session: 2026-05-13T00:10:44.966Z
+Stopped at: Completed 04-02-PLAN.md (OAuth flow + Settings UI + Pitfall 6 ordering test + browser smoke approved)
 Resume file: None
