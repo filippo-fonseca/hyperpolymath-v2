@@ -83,11 +83,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **CAL-01**: User can connect Google Calendar via OAuth (`/api/gcal/auth` → consent → `/api/gcal/callback`); refresh tokens stored encrypted via `pgcrypto` in `users` table
 - [x] **CAL-02**: `getValidGcalToken()` helper transparently refreshes expired access tokens before any Google API call
-- [ ] **CAL-03**: Calendar tab renders day and week views (month view is stretch); events displayed in user's IANA timezone
+- [x] **CAL-03**: Calendar tab renders day and week views (month view is stretch); events displayed in user's IANA timezone
 - [ ] **CAL-04**: User can create a Calendar event from the Calendar tab (title, calendar selection, start/end time, optional description); creation hits Google Calendar API
 - [ ] **CAL-05**: User can edit and delete events from the Calendar tab; changes propagate to Google Calendar
 - [ ] **CAL-06**: User can select among their Google Calendars (multi-calendar dropdown); preference is per-event, default is the user-set default calendar
-- [ ] **CAL-07**: On Calendar tab page load, fresh events are fetched from Google Calendar (no Postgres mirror; gcal is source of truth)
+- [x] **CAL-07**: On Calendar tab page load, fresh events are fetched from Google Calendar (no Postgres mirror; gcal is source of truth)
 - [x] **CAL-08**: Calendar handles DST transitions correctly; spring-forward and fall-back test cases pass
 - [x] **CAL-09**: User can disconnect Google Calendar (revokes tokens, clears stored tokens)
 
@@ -256,11 +256,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RT-05 | Phase 3 | Complete |
 | CAL-01 | Phase 4 | Complete |
 | CAL-02 | Phase 4 | Complete |
-| CAL-03 | Phase 4 | Pending |
+| CAL-03 | Phase 4 | Complete |
 | CAL-04 | Phase 4 | Pending |
 | CAL-05 | Phase 4 | Pending |
 | CAL-06 | Phase 4 | Pending |
-| CAL-07 | Phase 4 | Pending |
+| CAL-07 | Phase 4 | Complete |
 | CAL-08 | Phase 4 | Complete |
 | CAL-09 | Phase 4 | Complete |
 | KIWI-01 | Phase 5 | Pending |

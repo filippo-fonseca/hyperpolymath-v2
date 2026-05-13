@@ -86,7 +86,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 - [x] 04-01-PLAN.md — Wave 1: Schema migration (encrypted token bytea + timezone + multi-cal cols) + lib/gcal/ helpers (client, encryption, token, datetime, events, calendars) + Vitest DST + encryption + token-refresh fixtures (CAL-02, CAL-08)
 - [x] 04-02-PLAN.md — Wave 2: OAuth /api/gcal/{auth,callback} routes + disconnect Server Action + Settings GcalConnectionRow + state CSRF + prompt=consent (CAL-01, CAL-09, SET-02)
-- [ ] 04-03-PLAN.md — Wave 3: /calendar page + react-big-calendar grid (day/week, Monday-start) + EventDetailPanel (read-only) + DisconnectBanner + EmptyState + sidebar nav unblock + hybrid SSR + useQuery refetchOnWindowFocus (CAL-03, CAL-07, CAL-08)
+- [x] 04-03-PLAN.md — Wave 3: /calendar page + react-big-calendar grid (day/week, Monday-start) + EventDetailPanel (read-only) + DisconnectBanner + EmptyState + sidebar nav unblock + hybrid SSR + useQuery refetchOnWindowFocus (CAL-03, CAL-07, CAL-08)
 - [ ] 04-04-PLAN.md — Wave 4: Event mutations (create/update/delete + drag-move/resize) with optimistic non-UUID swap + multi-cal filter chips + Settings (default/visible/timezone) + Cmd+K New event + cutover migration 0008 drops plain gcal_* columns (CAL-04, CAL-05, CAL-06, SET-04)
 **Wave structure**: Plan 01 (Wave 1, foundation — checkpoint for env vars) → Plan 02 (Wave 2, OAuth) → Plan 03 (Wave 3, read-only grid) → Plan 04 (Wave 4, mutations + cutover). Sequential — grid depends on schema+OAuth+token helpers; mutations depend on grid.
 
