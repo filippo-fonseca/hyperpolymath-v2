@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-05-13T00:33:36.473Z"
+status: verifying
+stopped_at: Completed 04-04-PLAN.md — Phase 04 complete
+last_updated: "2026-05-13T01:31:24.559Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 14
-  percent: 0
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 ## Current Position
 
-Phase: 04 (google-calendar) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Phase: 04 (google-calendar) — COMPLETE
+Plan: 4 of 4 — Complete
+Status: Phase complete — ready for verification (`/gsd:verify-phase 04`)
 Last activity: 2026-05-13
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04 P04-01 | 165min | 2 tasks | 18 files |
 | Phase 04 P02 | 90min | 3 tasks | 8 files |
 | Phase 04 P04-03 | ~140min | 3 tasks | 16 files |
+| Phase 04 P04-04 | ~210min | 4 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,13 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04 P03]: TZDate wrapping in CalendarClient (not eventToDTO mapper) — DTO emits raw ISO strings preserving SSR-serializability; new TZDate(new Date(iso), effectiveTz) at the React layer where tz is resolved (CAL-08 / Pitfall 3)
 - [Phase 04]: [Phase 04 P03]: useGcalConnectionStatus hook with single shared cache key ['gcal-connection-status'] (60s staleTime + refetchOnWindowFocus) consumed by PersistentNav badge (M-04) and available to any client component — replaces server-prop-drilling; immediate-update via queryClient.invalidateQueries from disconnectGcal optional (60s ceiling otherwise)
 - [Phase 04]: [Phase 04 P03]: Travel-drift detect (M-01/Pitfall 5) surfaces 12s sonner toast with 'Use {detected}' action — does NOT auto-update tz (VPN/airport-wifi false-positive defense); sessionStorage:gcal:tz-drift-dismissed:{saved}:{detected} prevents re-prompt within session
+- [Phase 04]: [Phase 04 P04]: Reused Phase 3's optimisticReducer<T extends { id: string }> verbatim — Phase 4's wiring differs (placeholder→canonical swap via delete+insert, NOT UUID dedupe on echo) but the reducer algebra is unchanged. gcal-events-reducer.test.ts covers the gcal-shaped-ID (26-char base32-like) handling explicitly.
+- [Phase 04]: [Phase 04 P04]: swapPlaceholderForCanonical(placeholderId, dto) named helper inside CalendarClient — M-02 fix. Dispatches delete(placeholderId) + insert(canonicalEvent) inside one startTransition (atomic React commit, invisible swap), then invalidates ['calendar-events', userId]. Helper isolates the Pitfall 7 dance for grep-robust acceptance + testability.
+- [Phase 04]: [Phase 04 P04]: Cross-calendar event move via events.move-then-events.patch ordering — gcal's events.update does NOT support changing calendars. Sheet save detects form.calendarId !== state.event.calendarId → events.move({ calendarId, eventId, destination: newCalendarId }) FIRST (retains eventId across calendars per gcal docs) → events.patch on destination for field changes. Drag-move never changes calendarId.
+- [Phase 04]: [Phase 04 P04]: Drag-resize auto-saves on drop-end without opening Sheet (D-01 resolved per planner_directive 6). Sheet stays canonical for create + click-edit + delete only. Failure: optimistic revert + toast.error.
+- [Phase 04]: [Phase 04 P04]: Cmd+K "New event" via /calendar?create=now deep-link (NOT event-bus) — parity with Plan 02-04's Cmd+K capture pattern. CalendarClient useEffect consumes the param, opens panel pre-filled at next round half-hour with users.gcal_default_calendar_id, then router.replace('/calendar') strips param.
+- [Phase 04]: [Phase 04 P04]: Migration 0008 HARD-gated on psql precondition (m-07 fix) — `SELECT count(*) FROM users WHERE gcal_refresh_token IS NOT NULL OR gcal_access_token IS NOT NULL` must return 0 before supabase migration up runs. Non-zero aborts with remediation message. gcal_token_expires_at NOT dropped (kept as plain timestamptz per RESEARCH §Pattern 3 footnote). Cutover complete: encrypted bytea columns are now sole source of truth.
+- [Phase 04]: [Phase 04 P04]: Three placeholder polish iterations (commits 1e409ac, 7f503a1, 9867e34) preserve canonical-swap dance — (a) post-drag outlined placeholder until events.patch echoes canonical, (b) outlined drag-selection rectangle on grid via rbc selectable+onSelecting, (c) live form-state preview from Sheet to grid via temporary id:'form-preview' (NOT in optimistic state — pure visual layer).
 
 ### Pending Todos
 
@@ -107,6 +115,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T00:33:24.628Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-05-13T01:31:24.559Z
+Stopped at: Completed 04-04-PLAN.md — Phase 04 complete (15/15 plans, 4/4 phases this milestone; next: /gsd:verify-phase 04)
 Resume file: None
