@@ -43,11 +43,11 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 - [ ] Conversation memory is session-only (matches v1 — fresh context per session)
 - [ ] MVP scope: Kiwi creates (C in CRUD). Read/Update/Delete via Kiwi is post-MVP — handled manually in tabs
 
-**Calendar**
-- [ ] User connects Google Calendar via OAuth
-- [ ] Full bi-directional CRUD: create/edit/delete on app pushes to Google Calendar; loading the page reflects external Google Calendar changes (no background polling — sync on page load)
-- [ ] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
-- [ ] Kiwi can create calendar events (e.g., "dinner with anna 8pm saturday")
+**Calendar** *(validated in Phase 4: google-calendar; Kiwi event-creation pending Phase 5)*
+- [x] User connects Google Calendar via OAuth
+- [x] Full bi-directional CRUD: create/edit/delete on app pushes to Google Calendar; loading the page reflects external Google Calendar changes (no background polling — sync on page load + refetch-on-focus)
+- [x] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
+- [ ] Kiwi can create calendar events (e.g., "dinner with anna 8pm saturday") *(pending Phase 5 Kiwi)*
 
 **Navigation & Tabs** *(remainder)*
 - [ ] Homescreen is the Kiwi interaction surface
@@ -140,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-12 after Phase 3 (realtime-layer) completion — TanStack Query + Supabase Realtime + `useOptimistic` shipped across all 4 primary domains. Cross-device live updates verified end-to-end via two-window smoke; one Supabase websocket per tab (no leaks); hashtag counts update live via `captures_hashtags` join-table subscription with `alsoInvalidate` fanout; visibility recovery via single listener at `QueryProvider`; ID-based echo dedupe prevents optimistic flicker; silent rollback + toast.error on failure. Critical regression caught and fixed: `supabase_realtime` Postgres publication was empty before migration `0006_realtime_publication.sql` — Realtime broadcasts would have been silent in prod.*
+*Last updated: 2026-05-13 after Phase 4 (google-calendar) completion — Full bi-directional gcal CRUD shipped end-to-end. Google Calendar-familiar grid (`react-big-calendar@1.19` + `withDragAndDrop`, day + week views, Monday start), event create/edit/delete via 560px Sheet panel with optimistic UI + non-UUID canonical-ID swap, drag-move + drag-resize auto-save, multi-calendar filter chips via nuqs `?cals=`, Settings page additions (default calendar picker, visible calendars checkbox list, timezone override), persistent disconnect banner + Settings nav badge on token revoke, transparent token refresh via `getValidGcalToken` with typed `GcalTokenRevokedError` detection, DST-correct rendering via `@date-fns/tz` 1.4.1 (Mar 8 + Nov 1 2026 fixtures pinned). Encryption layer revised from CONTEXT.md's pgcrypto to app-level AES-256-GCM via `node:crypto` (Supabase Vault rejected — requires service_role); cutover migration discipline: 0007 additive → 0008 dropped plaintext columns after hard-gated psql precondition. Three placeholder polish iterations ensure user sees outlined preview throughout drag → Sheet → save flow for conflict detection. 79/79 tests across 19 files.*
