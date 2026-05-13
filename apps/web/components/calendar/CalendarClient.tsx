@@ -241,6 +241,7 @@ export function CalendarClient({
           view={view}
           date={date}
           onNavigate={setDate}
+          onView={setView}
           userTimezone={effectiveTz}
           onSelectSlot={(range) =>
             setPanelState({

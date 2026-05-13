@@ -86,6 +86,7 @@ interface Props {
   date: Date;
   userTimezone: string;
   onNavigate: (date: Date) => void;
+  onView: (view: "day" | "week") => void;
   onSelectSlot: (range: { start: Date; end: Date; allDay: boolean }) => void;
   onSelectEvent: (event: GcalEvent) => void;
   onEventDrop: NonNullable<withDragAndDropProps<GcalEvent>["onEventDrop"]>;
@@ -97,6 +98,7 @@ export function CalendarGrid({
   view,
   date,
   onNavigate,
+  onView,
   onSelectSlot,
   onSelectEvent,
   onEventDrop,
@@ -108,9 +110,15 @@ export function CalendarGrid({
       events={events}
       defaultView={Views.WEEK}
       view={view}
-      onView={() => {
-        /* parent owns view state — drives via props */
-      }}
+      // RBC's `view` prop is controlled by the parent (CalendarClient).
+      // We MUST forward RBC's internal view-change signal back up — the
+      // built-in toolbar (rendered by RBC alongside our custom DayWeekToggle)
+      // calls this when its Day/Week buttons are clicked. A no-op here makes
+      // the built-in buttons dead and breaks Day-view switching for users
+      // who click the RBC toolbar instead of (or in addition to) the custom
+      // toggle. Cast: RBC's View union is broader than our 'day' | 'week',
+      // but `views={[WEEK, DAY]}` constrains the runtime values it can emit.
+      onView={(v) => onView(v as "day" | "week")}
       views={[Views.WEEK, Views.DAY]}
       date={date}
       onNavigate={onNavigate}
