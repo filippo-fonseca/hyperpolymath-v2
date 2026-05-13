@@ -144,18 +144,20 @@ export function CalendarClient({
   const [panelState, setPanelState] = useState<PanelState>({ mode: "closed" });
 
   /**
-   * Edit-mode draft preview (Plan 04-04 polish — conflict-detection UX).
+   * Live form-state preview (Plan 04-04 polish — conflict-detection UX).
    *
-   * While the user has the EventDetailPanel open in edit mode and is
-   * tweaking start/end/title/calendar, the form values diverge from the
-   * canonical saved event. The Sheet pushes those live values up via
-   * `onDraftChange`; we render a SECOND outlined placeholder at the
-   * proposed-new-position AND dim the original to 50% opacity. The pairing
-   * communicates "here's where it'll move" without rewriting RBC's renderer.
+   * Fires in BOTH edit and create modes. While the EventDetailPanel is open:
+   *  - Edit mode: form values diverge from the canonical saved event. We
+   *    render a SECOND outlined placeholder at the proposed-new-position AND
+   *    dim the original to 50% opacity ("here's where it'll move").
+   *  - Create mode: there is no canonical row to compare against. We render
+   *    a single outlined placeholder that tracks the live form state so the
+   *    drag-on-grid preview persists THROUGH the Sheet form interaction (and
+   *    slides live as the user tweaks start/end/calendar).
    *
-   * Cleared on panel close or successful save (parent useEffect below).
+   * Cleared whenever the panel transitions to `closed` (close/save/cancel).
    */
-  const [editDraft, setEditDraft] = useState<{
+  const [formDraft, setFormDraft] = useState<{
     title: string;
     calendarId: string;
     start: Date;
@@ -163,10 +165,9 @@ export function CalendarClient({
     allDay: boolean;
   } | null>(null);
 
-  // Drop the draft whenever the panel leaves edit mode — close/save/cancel
-  // all transition away from `edit`, so this single effect covers them.
+  // Drop the draft whenever the panel closes — covers cancel, save, and × close.
   useEffect(() => {
-    if (panelState.mode !== "edit") setEditDraft(null);
+    if (panelState.mode === "closed") setFormDraft(null);
   }, [panelState.mode]);
 
   // `useOptimistic` is keyed by the useQuery cache (rawEvents below). When
@@ -305,44 +306,70 @@ export function CalendarClient({
   //   - In edit mode with a live draft: append a dashed placeholder at the
   //     proposed position AND flag the original event as `isDraftEditing`
   //     (the grid dims it via eventPropGetter).
-  //   - In create mode: optimisticEvents already carries the `isPlaceholder`
-  //     row from handleCreate's optimistic insert — nothing to layer on top.
+  //   - In create mode with a live draft: append a dashed synthetic preview
+  //     at the form's current position. This keeps the drag-on-grid preview
+  //     visible THROUGH Sheet interaction (the rbc `.rbc-slot-selection`
+  //     rectangle disappears once selection ends, so without this the grid
+  //     would be empty at the new event's position until Save). The synthetic
+  //     row vanishes when the panel closes (Cancel) or is replaced by the
+  //     handleCreate optimistic insert (Save).
   //   - Otherwise: pass through.
   // We don't dispatch the draft through useOptimistic because the draft is a
-  // pure presentational layer over the saved canonical row — it never gets
-  // persisted, and folding it into the reducer would risk it surviving the
-  // panel close path.
+  // pure presentational layer — it never gets persisted, and folding it into
+  // the reducer would risk it surviving the panel close path.
   const displayEvents = useMemo<GcalEvent[]>(() => {
-    if (panelState.mode !== "edit" || !editDraft) {
-      return optimisticEvents as GcalEvent[];
-    }
-    const editingId = panelState.event.id;
-    const out: GcalEvent[] = [];
-    for (const e of optimisticEvents) {
-      if (e.id === editingId) {
-        out.push({ ...e, isDraftEditing: true });
-      } else {
-        out.push(e);
+    if (panelState.mode === "edit" && formDraft) {
+      const editingId = panelState.event.id;
+      const out: GcalEvent[] = [];
+      for (const e of optimisticEvents) {
+        if (e.id === editingId) {
+          out.push({ ...e, isDraftEditing: true });
+        } else {
+          out.push(e);
+        }
       }
+      out.push({
+        id: `__edit-draft__:${editingId}`,
+        calendarId: formDraft.calendarId,
+        title: formDraft.title || panelState.event.title,
+        start: new TZDate(formDraft.start, effectiveTz),
+        end: new TZDate(formDraft.end, effectiveTz),
+        allDay: formDraft.allDay,
+        colorHex:
+          colorByCalendar[formDraft.calendarId] ??
+          panelState.event.colorHex ??
+          "#4285F4",
+        description: null,
+        recurringEventId: null,
+        htmlLink: "",
+        isPlaceholder: true,
+      });
+      return out;
     }
-    out.push({
-      id: `__edit-draft__:${editingId}`,
-      calendarId: editDraft.calendarId,
-      title: editDraft.title || panelState.event.title,
-      start: new TZDate(editDraft.start, effectiveTz),
-      end: new TZDate(editDraft.end, effectiveTz),
-      allDay: editDraft.allDay,
-      colorHex:
-        colorByCalendar[editDraft.calendarId] ??
-        panelState.event.colorHex ??
-        "#4285F4",
-      description: null,
-      recurringEventId: null,
-      htmlLink: "",
-      isPlaceholder: true,
-    });
-    return out;
-  }, [optimisticEvents, panelState, editDraft, effectiveTz, colorByCalendar]);
+    if (panelState.mode === "create" && formDraft) {
+      // Synthetic create-preview row — bridges the gap between drag-end (rbc
+      // selection rectangle disappears) and Save (handleCreate dispatches the
+      // optimistic insert). Sentinel id avoids any collision with real or
+      // optimistic-placeholder events.
+      return [
+        ...(optimisticEvents as GcalEvent[]),
+        {
+          id: "__create-preview__",
+          calendarId: formDraft.calendarId,
+          title: formDraft.title || "New event",
+          start: new TZDate(formDraft.start, effectiveTz),
+          end: new TZDate(formDraft.end, effectiveTz),
+          allDay: formDraft.allDay,
+          colorHex: colorByCalendar[formDraft.calendarId] ?? "#4285F4",
+          description: null,
+          recurringEventId: null,
+          htmlLink: "",
+          isPlaceholder: true,
+        },
+      ];
+    }
+    return optimisticEvents as GcalEvent[];
+  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar]);
 
   /**
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
@@ -619,7 +646,7 @@ export function CalendarClient({
         onDelete={
           panelState.mode === "edit" ? handlePanelDelete : undefined
         }
-        onDraftChange={setEditDraft}
+        onDraftChange={setFormDraft}
       />
     </div>
   );

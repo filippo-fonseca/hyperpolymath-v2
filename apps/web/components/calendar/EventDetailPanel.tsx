@@ -129,13 +129,17 @@ interface Props {
   /** Edit-mode delete — undefined in create mode. */
   onDelete?: () => Promise<{ success: boolean }>;
   /**
-   * Conflict-detection polish (Plan 04-04): in edit mode, the parent renders
-   * a dashed "proposed-new-position" placeholder on the grid alongside the
-   * dimmed original. We push live form values up via this callback so the
-   * parent can keep the placeholder in sync with what the user is typing.
+   * Live form-state polish (Plan 04-04): the parent renders a dashed
+   * placeholder on the grid that tracks the form's current values.
+   *  - Edit mode: pairs with the dimmed original to communicate
+   *    "proposed-new-position."
+   *  - Create mode: bridges the visual gap between drag-end (rbc's
+   *    `.rbc-slot-selection` rectangle disappears) and Save (the optimistic
+   *    insert takes over). Without this, the grid is empty at the new
+   *    event's position while the Sheet is open.
    *
-   * Receives `null` when the panel isn't in edit mode (or when the live
-   * form values match the saved event — i.e. nothing to preview).
+   * Receives `null` when the panel closes or the parsed values are invalid
+   * (mid-type half-formed datetime-local string, end <= start, etc.).
    */
   onDraftChange?: (
     draft: {
@@ -276,6 +280,12 @@ export function EventDetailPanel({
   const onValidSubmit = useCallback(
     async (data: EventFormValues) => {
       setSubmitting(true);
+      // Clear the live-form-state preview the moment we begin saving — the
+      // parent's optimistic-insert path takes over from here and we don't
+      // want the synthetic `__create-preview__` row (or edit-mode draft twin)
+      // double-rendering alongside the real optimistic placeholder during the
+      // network round-trip.
+      if (onDraftChange) onDraftChange(null);
       try {
         const result: EventFormResult = {
           title: data.title.trim(),
@@ -303,7 +313,7 @@ export function EventDetailPanel({
         setSubmitting(false);
       }
     },
-    [state, userTimezone, onSave, onClose],
+    [state, userTimezone, onSave, onClose, onDraftChange],
   );
 
   // Cmd+Enter to save (mirrors CaptureDetailPanel convention).
@@ -377,29 +387,42 @@ export function EventDetailPanel({
   const watchedAllDay = watch("allDay");
 
   /**
-   * Edit-mode draft preview wiring (Plan 04-04 polish):
-   * Subscribe to live form values via `watch(cb)` and push them up to the
-   * parent so the grid can render a dashed "proposed-new-position" placeholder
-   * while the user is editing. We only emit when:
-   *   - we're in edit mode (create-mode placeholder is already covered by
-   *     the optimistic-insert path in handleCreate);
-   *   - the parsed values are valid Dates (skip while the user is mid-type
-   *     and the datetime-local string is half-formed).
-   * On unmount / mode change / panel close, the parent clears the draft via
-   * its own `panelState.mode !== "edit"` effect.
+   * Live form-state draft wiring (Plan 04-04 polish):
+   * Subscribe to form values and push them up so the parent grid can render a
+   * dashed placeholder that tracks what's in the form. Fires in BOTH edit and
+   * create modes:
+   *   - Edit mode: pairs with the dimmed original (CalendarClient flags the
+   *     canonical row `isDraftEditing` and appends a `__edit-draft__:<id>`
+   *     placeholder twin).
+   *   - Create mode: the dragged-slot rectangle from rbc's
+   *     `.rbc-slot-selection` vanishes once selection ends, so without this
+   *     callback the grid would be empty at the new event's position while
+   *     the Sheet is open. Emitting the form state keeps a synthetic
+   *     `__create-preview__` placeholder pinned to the form's start/end /
+   *     calendar / title until Save (optimistic insert takes over) or Cancel
+   *     (parent clears the draft on panel close).
+   * Skipped while values are invalid (mid-type half-formed datetime-local,
+   * end <= start) — matches the Zod refine so the placeholder never shows
+   * "impossible" geometry.
    */
   useEffect(() => {
     if (!onDraftChange) return;
-    if (state.mode !== "edit") {
+    if (state.mode !== "edit" && state.mode !== "create") {
       onDraftChange(null);
       return;
     }
-    const sub = watch((value) => {
-      if (!value.start || !value.end || !value.calendarId) return;
+    // Push current values once on open — `watch(cb)` only fires on subsequent
+    // changes, so without this initial emit, the create-mode placeholder
+    // wouldn't appear until the user touched a field.
+    const emit = (value: Partial<EventFormValues>) => {
+      if (!value.start || !value.end || !value.calendarId) {
+        onDraftChange(null);
+        return;
+      }
       const start = dateTimeLocalToTZDate(value.start, userTimezone);
       const end = dateTimeLocalToTZDate(value.end, userTimezone);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-      if (end <= start) return; // Same guard as the Zod refine.
+      if (end <= start) return;
       onDraftChange({
         title: (value.title ?? "").trim() || "(untitled)",
         calendarId: value.calendarId,
@@ -407,9 +430,15 @@ export function EventDetailPanel({
         end,
         allDay: Boolean(value.allDay),
       });
-    });
+    };
+    emit(watch());
+    const sub = watch((value) => emit(value));
     return () => sub.unsubscribe();
-  }, [state.mode, onDraftChange, watch, userTimezone]);
+    // Depend on `state` identity (not just `state.mode`) so back-to-back
+    // create→create transitions (Cmd+K then drag-create another slot) re-emit
+    // the initial draft with fresh values. The `seededKeyRef` reset in the
+    // effect above runs first thanks to its identical dep on `state`.
+  }, [state, onDraftChange, watch, userTimezone]);
 
   return (
     <>
