@@ -3,9 +3,18 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { Card } from "@/components/ui/card";
 import { SettingsForm } from "@/components/settings-form";
 import { SignOutButton } from "@/components/sign-out-button";
+import { getGcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
+import { GcalConnectionRow } from "@/components/settings/GcalConnectionRow";
+
+// /settings reads connection status that can change mid-session (after
+// the OAuth callback returns OR after a Disconnect Server Action runs).
+// `force-dynamic` opts out of Next's full-route cache so each visit
+// re-runs `getGcalConnectionStatus` against the live DB.
+export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireOnboarded();
+  const gcalStatus = await getGcalConnectionStatus(user.id);
 
   return (
     <main className="min-h-screen px-6 py-12">
@@ -23,6 +32,16 @@ export default async function SettingsPage() {
         <Card className="p-6 space-y-4">
           <h2 className="text-lg font-medium">Graduation year</h2>
           <SettingsForm currentYear={user.graduationYear ?? new Date().getFullYear() + 4} />
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-lg font-medium">Integrations</h2>
+          {/*
+            Plan 04-04 will add DefaultCalendarPicker,
+            VisibleCalendarsCheckboxList, and TimezoneOverrideRow below
+            this row. Leave space.
+          */}
+          <GcalConnectionRow status={gcalStatus} />
         </Card>
 
         <Card className="p-6 space-y-4">
