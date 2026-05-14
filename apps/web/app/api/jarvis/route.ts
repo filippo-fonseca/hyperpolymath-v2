@@ -130,13 +130,24 @@ export async function POST(req: NextRequest) {
   //    /task | /capture | /event → force the matching create_* tool
   //    /ask                       → forbid all tools (text-only meta-question)
   //    /help                      → no override (client renders help locally)
+  //    (none + bare meta-question) → treat as /ask automatically
   //    (none)                     → auto-infer
-  const toolChoice =
-    body.slashCommand === "ask"
-      ? ({ type: "none" as const })
-      : body.slashCommand && body.slashCommand !== "help"
-        ? ({ type: "tool" as const, name: `create_${body.slashCommand}` })
-        : ({ type: "auto" as const });
+  //
+  // Bare meta-question detection: covers the common forms the user is likely
+  // to type without the slash. Conservative — declarative captures like
+  // "what a day" or "when did you say" don't match. If a sentence matches
+  // any of these patterns, we route through the same forbidden-tool path as
+  // an explicit /ask so the model emits prose deterministically.
+  const META_QUESTION_RE =
+    /^(what\s+(?:did|do|does|are|is|was|were|have|will)|did\s+(?:i|we|you)|do\s+(?:i|we|you)|have\s+(?:i|we|you)|show\s+me|tell\s+me|list\s+|summari[sz]e|recap|how\s+many|how\s+much)\b/i;
+  const bareMetaQuestion =
+    !body.slashCommand && META_QUESTION_RE.test(body.input.trim());
+  const askMode = body.slashCommand === "ask" || bareMetaQuestion;
+  const toolChoice = askMode
+    ? ({ type: "none" as const })
+    : body.slashCommand && body.slashCommand !== "help"
+      ? ({ type: "tool" as const, name: `create_${body.slashCommand}` })
+      : ({ type: "auto" as const });
 
   // 6. Build user message — append pre-parsed dates + linked-references hints
   let userContent = body.input;
@@ -149,8 +160,8 @@ export async function POST(req: NextRequest) {
   if (body.parsedPriority) {
     userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
   }
-  if (body.slashCommand === "ask") {
-    userContent += `\n\n[META-QUESTION MODE (/ask): answer in 1-3 sentences using the visible conversation history. Tool calls are forbidden this turn (tool_choice=none). Prose IS the response and IS rendered.]`;
+  if (askMode) {
+    userContent += `\n\n[META-QUESTION MODE${body.slashCommand === "ask" ? " (/ask)" : ""}: this turn answers a question; do NOT call any tool. Reply with 1-3 plain English sentences using the visible conversation history. The "OUTPUT FORMAT: emit tool calls only" rule does NOT apply this turn. Your prose IS the response and WILL render to the user.]`;
   }
   if (
     (body.linkedProjectIds?.length ?? 0) > 0 ||
@@ -178,6 +189,7 @@ export async function POST(req: NextRequest) {
   // 8. Build SSE stream
   const encoder = new TextEncoder();
   const actionTypes: string[] = [];
+  let anyTextEmitted = false;
   const executor = createServerExecutor();
   const ctx = {
     userId,
@@ -337,9 +349,9 @@ export async function POST(req: NextRequest) {
 
       anthStream.on("text", (delta: unknown) => {
         if (firstTokenAt === null) firstTokenAt = Date.now() - startTime;
-        controller.enqueue(
-          encoder.encode(sse("text", { delta: String(delta) })),
-        );
+        const s = String(delta);
+        if (s.trim().length > 0) anyTextEmitted = true;
+        controller.enqueue(encoder.encode(sse("text", { delta: s })));
       });
 
       try {
@@ -348,6 +360,21 @@ export async function POST(req: NextRequest) {
         // finalMessage() resolves as soon as Anthropic finishes sending — but
         // our executors (DB inserts, gcal calls) may still be running.
         await Promise.allSettled(pendingActions);
+
+        // Empty-response fallback: if the model emitted neither text nor any
+        // successful action, synthesize a short prose reply so the user
+        // doesn't see the thinking-word vanish into silence. Most commonly
+        // hit on /ask + bare meta-question paths where the model's policy
+        // gets confused.
+        if (!anyTextEmitted && actionTypes.length === 0) {
+          const fallback = askMode
+            ? "I'm afraid I haven't enough context to answer that, sir."
+            : "I didn't quite catch that, sir — try rephrasing as a thing to file, or use /ask to query history.";
+          controller.enqueue(
+            encoder.encode(sse("text", { delta: fallback })),
+          );
+        }
+
         controller.enqueue(
           encoder.encode(sse("done", { usage: final.usage })),
         );
