@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ScrollbackTurn } from "./jarvis-types";
+import type { ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { ThinkingWord } from "./ThinkingWord";
 
@@ -15,13 +15,23 @@ import { ThinkingWord } from "./ThinkingWord";
  *
  * Auto-scroll on new turn (Claude's discretion to disable on user scroll-up
  * in a future polish pass — out of scope for Plan 05-03).
+ *
+ * Plan 05-04: forwards an `onUndoAction(turnId, action)` callback down to
+ * every receipt so JarvisConsole owns the optimistic scrollback update + the
+ * server round-trip.
  */
 
 interface Props {
   turns: ScrollbackTurn[];
+  /**
+   * Plan 05-04 — fired when a user clicks Undo within the 5s window on a
+   * receipt. JarvisConsole owns scrollback state, so the optimistic flip
+   * happens there.
+   */
+  onUndoAction?: (turnId: string, action: ScrollbackAction) => void;
 }
 
-export function JarvisScrollback({ turns }: Props) {
+export function JarvisScrollback({ turns, onUndoAction }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,6 +78,11 @@ export function JarvisScrollback({ turns }: Props) {
                 <JarvisReceipt
                   key={a.toolUseId || `${turn.id}-action-${i}`}
                   action={a}
+                  onUndo={
+                    onUndoAction
+                      ? () => onUndoAction(turn.id, a)
+                      : undefined
+                  }
                 />
               ))}
               {turn.status === "error" ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertCircle,
@@ -9,14 +10,23 @@ import {
   ListTodo,
 } from "lucide-react";
 import type { ScrollbackAction } from "./jarvis-types";
+import { useUndoCountdown } from "./use-undo-countdown";
 import { cn } from "@/lib/utils";
 
 /**
  * Intent-badged action receipt (D-09 / JARVIS-09).
  *
- * Plan 05-03 ships the shell — title + badge + resolved fields. Plan 05-04
- * will wire `countdown` + `onUndo` (the 5s sonner undo flow). The receipt
- * never gates rendering on those props — they're optional.
+ * Plan 05-03 shipped the shell — title + badge + resolved fields.
+ * Plan 05-04 wires the 5s undo countdown (D-03 / D-04).
+ *
+ * Undo lifecycle:
+ *   - On mount of a successful, not-yet-undone receipt, start a 5s countdown.
+ *   - Render "Undo (N)" while countdown > 0.
+ *   - Click Undo → call `onUndo()` + locally hide the button immediately.
+ *   - Countdown reaches 0 → hide the Undo button (receipt body stays).
+ *
+ * The receipt never gates rendering on the Undo state — only the button is
+ * conditional. Once an action arrives, the receipt is visible.
  */
 
 const INTENT_META = {
@@ -39,15 +49,24 @@ const INTENT_META = {
 
 interface Props {
   action: ScrollbackAction;
-  countdown?: number | null;
+  /**
+   * Plan 05-04: fired when the user clicks Undo within the 5s window.
+   * Parent (JarvisConsole) handles the optimistic scrollback update + the
+   * server round-trip. When undefined, the Undo button is not rendered.
+   */
   onUndo?: () => void;
 }
 
-export function JarvisReceipt({ action, countdown, onUndo }: Props) {
+export function JarvisReceipt({ action, onUndo }: Props) {
   const meta = INTENT_META[action.name];
+  const ok = action.result.ok;
+  const undone = action.undone === true;
+  // Receipt is eligible for undo iff: action succeeded, has not been undone,
+  // and the parent wired the onUndo callback.
+  const undoEligible = ok && !undone && typeof onUndo === "function";
+
   if (!meta) return null;
   const Icon = meta.icon;
-  const ok = action.result.ok;
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})
     : null;
@@ -125,14 +144,8 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
             <AlertCircle className="h-3.5 w-3.5 text-red-600" />
           )}
         </span>
-        {ok && onUndo && countdown !== null && countdown !== undefined ? (
-          <button
-            type="button"
-            onClick={onUndo}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Undo ({countdown})
-          </button>
+        {undoEligible ? (
+          <UndoButton onUndo={onUndo as () => void} />
         ) : null}
       </div>
 
@@ -180,5 +193,44 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
         </div>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * Internal Undo button — owns the countdown lifecycle.
+ *
+ * Lives in its own component so the useUndoCountdown hook only mounts when
+ * the parent considers this receipt undo-eligible (the parent's conditional
+ * render unmounts → effects clean up automatically).
+ *
+ * Three states:
+ *   1. countdown > 0           → render "Undo (N)" button, clickable
+ *   2. user clicks Undo        → call onUndo + locally hide (cancel countdown)
+ *   3. countdown reaches 0     → hide via expired state (receipt body stays)
+ */
+function UndoButton({ onUndo }: { onUndo: () => void }) {
+  const [expired, setExpired] = useState(false);
+  const [clicked, setClicked] = useState(false);
+
+  const handleExpire = useCallback(() => {
+    setExpired(true);
+  }, []);
+
+  const { seconds, cancel } = useUndoCountdown(5, handleExpire);
+
+  if (expired || clicked) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        cancel();
+        setClicked(true);
+        onUndo();
+      }}
+      className="text-muted-foreground hover:text-foreground"
+    >
+      Undo ({seconds})
+    </button>
   );
 }

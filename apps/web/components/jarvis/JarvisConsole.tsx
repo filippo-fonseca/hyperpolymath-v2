@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   streamJarvis,
   type JarvisRequest,
@@ -8,6 +9,10 @@ import {
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackTurn } from "./jarvis-types";
+import {
+  undoJarvisAction,
+  type UndoTarget,
+} from "@/app/actions/jarvis";
 
 /**
  * JARVIS Console (D-01) — top-level orchestrator.
@@ -189,9 +194,85 @@ export function JarvisConsole({
     [buildHistory],
   );
 
+  // Plan 05-04 — Undo handler (D-03 / D-04).
+  //
+  // Owns:
+  //   1. Optimistic scrollback flip: action.undone = true immediately so the
+  //      receipt's local "expired/clicked" state is the only thing holding
+  //      the Undo button visible.
+  //   2. Server round-trip via undoJarvisAction. On failure, revert + toast.
+  //   3. Resolves the UndoTarget shape from the action's intent + result id.
+  //
+  // The receipt has already cancelled its countdown before this fires (it
+  // calls onUndo synchronously after cancel()), so no race on the 5s window.
+  const handleUndoAction = useCallback(
+    async (turnId: string, action: ScrollbackAction) => {
+      if (!action.result.ok) return; // belt-and-suspenders; the receipt won't render Undo for !ok
+      const id = (action.result as { id: string }).id;
+
+      // Build the UndoTarget per action.name. For events we also need the
+      // calendarId, which the receipt payload carries on its receipt object
+      // (createEventForJarvis returns { calendarId } per Plan 05-02's GcalEventDTO).
+      let target: UndoTarget;
+      if (action.name === "create_task") {
+        target = { kind: "task", id };
+      } else if (action.name === "create_capture") {
+        target = { kind: "capture", id };
+      } else if (action.name === "create_event") {
+        const receipt = (action.result as { receipt?: Record<string, unknown> })
+          .receipt ?? {};
+        const calendarId = typeof receipt.calendar_id === "string"
+          ? receipt.calendar_id
+          : typeof receipt.calendarId === "string"
+            ? receipt.calendarId
+            : "primary";
+        target = { kind: "event", id, calendarId };
+      } else {
+        return;
+      }
+
+      // Optimistic — flip undone immediately so the receipt UI snaps.
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId && t.kind === "assistant"
+            ? {
+                ...t,
+                actions: t.actions.map((a) =>
+                  a.toolUseId === action.toolUseId ? { ...a, undone: true } : a,
+                ),
+              }
+            : t,
+        ),
+      );
+
+      const result = await undoJarvisAction(target);
+      if (!result.ok) {
+        toast.error(`Couldn't undo: ${result.error}`);
+        // Revert the optimistic flag.
+        setTurns((prev) =>
+          prev.map((t) =>
+            t.id === turnId && t.kind === "assistant"
+              ? {
+                  ...t,
+                  actions: t.actions.map((a) =>
+                    a.toolUseId === action.toolUseId
+                      ? { ...a, undone: false }
+                      : a,
+                  ),
+                }
+              : t,
+          ),
+        );
+      } else {
+        toast.success("Undone");
+      }
+    },
+    [],
+  );
+
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
-      <JarvisScrollback turns={turns} />
+      <JarvisScrollback turns={turns} onUndoAction={handleUndoAction} />
       <div className="border-t bg-card px-6 py-3">
         <JarvisInput
           userTimezone={userTimezone}
