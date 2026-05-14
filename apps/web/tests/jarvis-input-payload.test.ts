@@ -1,0 +1,220 @@
+/**
+ * Pure payload-builder tests. The JarvisInput component now funnels every
+ * submission through `buildJarvisInputPayload`, so these tests exercise the
+ * same code path the live composer takes — including the FIRST-SUBMIT path
+ * that previously dropped the priority hint (B-priority-first-send).
+ *
+ * TipTap-in-jsdom is fragile (timing-dependent, hard to drive keystrokes),
+ * so the component-level smoke test only verifies mount + affordances.
+ * Anything parser-related lives here.
+ */
+
+import { describe, expect, it } from "vitest";
+import { buildJarvisInputPayload } from "@/components/jarvis/jarvis-input-payload";
+
+const TZ = "America/New_York";
+
+describe("buildJarvisInputPayload — priority gate (regression for first-submit bug)", () => {
+  it("typing 'buy goat tomorrow p1' on first submit yields parsedPriority='P1'", () => {
+    const payload = buildJarvisInputPayload(
+      "buy goat tomorrow p1",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload).not.toBeNull();
+    expect(payload!.parsedPriority).toBe("P1");
+    expect(payload!.input).toBe("buy goat tomorrow p1");
+    expect(payload!.parsedDates.length).toBe(1);
+    expect(payload!.parsedDates[0]?.text).toBe("tomorrow");
+  });
+
+  it("typing 'buy boat tomorrow p2' yields parsedPriority='P2'", () => {
+    const payload = buildJarvisInputPayload(
+      "buy boat tomorrow p2",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.parsedPriority).toBe("P2");
+  });
+
+  it("typing 'ptop urgent thing' yields parsedPriority='P∞'", () => {
+    const payload = buildJarvisInputPayload(
+      "ptop urgent thing",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.parsedPriority).toBe("P∞");
+  });
+
+  it("no priority token → parsedPriority is null (server lets model default)", () => {
+    const payload = buildJarvisInputPayload(
+      "buy flowers tomorrow",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.parsedPriority).toBeNull();
+  });
+
+  it("8pm in a time phrase does NOT false-match as priority", () => {
+    const payload = buildJarvisInputPayload(
+      "dinner anna 8pm sat",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.parsedPriority).toBeNull();
+  });
+
+  it("priority adjacent to a date phrase still surfaces", () => {
+    const payload = buildJarvisInputPayload(
+      "surprise for anna 5/16 p1",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.parsedPriority).toBe("P1");
+  });
+});
+
+describe("buildJarvisInputPayload — slash commands (Bug 2 + Bug 3)", () => {
+  it("'/task buy flowers' parses slashCommand='task' + body strips prefix", () => {
+    const payload = buildJarvisInputPayload(
+      "/task buy flowers",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.slashCommand).toBe("task");
+    expect(payload!.input).toBe("buy flowers");
+  });
+
+  it("'/ask what did I file?' parses slashCommand='ask'", () => {
+    const payload = buildJarvisInputPayload(
+      "/ask what did I file?",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.slashCommand).toBe("ask");
+    expect(payload!.input).toBe("what did I file?");
+  });
+
+  it("'/help' (no body) drops slashCommand (local-only)", () => {
+    const payload = buildJarvisInputPayload("/help", null, TZ, null);
+    expect(payload!.slashCommand).toBeNull();
+  });
+
+  it("slashCommandOverride='task' with body 'buy flowers' (pinned via click)", () => {
+    // Simulates: user typed `/`, clicked /task from popover (pinned),
+    // editor stripped the prefix, user typed body, pressed Enter.
+    const payload = buildJarvisInputPayload(
+      "buy flowers",
+      null,
+      TZ,
+      "task",
+    );
+    expect(payload!.slashCommand).toBe("task");
+    expect(payload!.input).toBe("buy flowers");
+  });
+
+  it("override + body with priority + date — all three preserved", () => {
+    // First submit after page reload with a pinned slash command — the
+    // priority must still surface even on the very first call.
+    const payload = buildJarvisInputPayload(
+      "buy goat tomorrow p1",
+      null,
+      TZ,
+      "task",
+    );
+    expect(payload!.slashCommand).toBe("task");
+    expect(payload!.parsedPriority).toBe("P1");
+    expect(payload!.input).toBe("buy goat tomorrow p1");
+    expect(payload!.parsedDates.length).toBe(1);
+  });
+
+  it("override='ask' wins over auto-detect", () => {
+    // Edge case: user typed `/ask foo`, then pinned `task` via popover.
+    // The pinned override beats the auto-detector.
+    const payload = buildJarvisInputPayload(
+      "/ask foo",
+      null,
+      TZ,
+      "task",
+    );
+    expect(payload!.slashCommand).toBe("task");
+  });
+});
+
+describe("buildJarvisInputPayload — mentions + hashtags", () => {
+  it("extracts hashtag from editor JSON mention node", () => {
+    const json = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "random thought " },
+            { type: "mention", attrs: { id: "idea", label: "idea" } },
+          ],
+        },
+      ],
+    };
+    const payload = buildJarvisInputPayload(
+      "random thought #idea",
+      json,
+      TZ,
+      null,
+    );
+    expect(payload!.hashtags).toEqual(["idea"]);
+  });
+
+  it("extracts project ID from editor JSON projectMention node", () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const json = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "projectMention",
+              attrs: { id: projectId, label: "running" },
+            },
+            { type: "text", text: " deadline" },
+          ],
+        },
+      ],
+    };
+    const payload = buildJarvisInputPayload(
+      "running deadline",
+      json,
+      TZ,
+      null,
+    );
+    expect(payload!.projectIds).toEqual([projectId]);
+  });
+
+  it("permissive #hashtag regex catches typed-but-not-popped hashtags", () => {
+    const payload = buildJarvisInputPayload(
+      "random thought #journal",
+      null,
+      TZ,
+      null,
+    );
+    expect(payload!.hashtags).toEqual(["journal"]);
+  });
+});
+
+describe("buildJarvisInputPayload — empty input", () => {
+  it("returns null for empty string", () => {
+    expect(buildJarvisInputPayload("", null, TZ, null)).toBeNull();
+  });
+
+  it("returns null for whitespace only", () => {
+    expect(buildJarvisInputPayload("   \n  ", null, TZ, null)).toBeNull();
+  });
+});
