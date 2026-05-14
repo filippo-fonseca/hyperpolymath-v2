@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { HashtagChip } from "./HashtagChip";
 import { deleteCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 
 interface Props {
   capture: CaptureWithLinks;
@@ -55,6 +57,15 @@ interface Props {
   userAvatarUrl?: string | null;
   /** Single-char fallback for `<AvatarFallback>` when no avatar URL is set. */
   userInitials?: string;
+  /**
+   * Plan 05-04 (JARVIS-13 / D-14) — Projects available for the Convert-to-task
+   * dialog's ProjectMultiSelect. Only consumed when the capture's
+   * `createdVia === "jarvis"` and the user opens the ⋯ menu's "Convert to
+   * task" item. Pass an empty array to disable the affordance (the menu item
+   * still renders for jarvis-created captures; the dialog just has no
+   * pickable projects).
+   */
+  availableProjects?: ProjectMultiSelectOption[];
 }
 
 /**
@@ -85,11 +96,18 @@ export function CaptureCard({
   onOptimisticDelete,
   userAvatarUrl,
   userInitials,
+  availableProjects = [],
 }: Props) {
   const showAvatar = !compact;
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const [removed, setRemoved] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // D-14 / JARVIS-13: "Convert to task" affordance is shown ONLY when this
+  // capture was created via JARVIS. Manual captures (composer / detail panel
+  // save) keep createdVia=null and don't get the menu item.
+  const isJarvisCreated = capture.createdVia === "jarvis";
 
   function handleDelete() {
     // Optimistic delete first — instant feedback. If the server rejects,
@@ -176,6 +194,12 @@ export function CaptureCard({
                     Open
                   </DropdownMenuItem>
                 )}
+                {isJarvisCreated && (
+                  // D-14 / JARVIS-13 — only render this item for createdVia === "jarvis"
+                  <DropdownMenuItem onSelect={() => setConvertOpen(true)}>
+                    Convert to task
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setConfirmOpen(true)}
@@ -212,6 +236,21 @@ export function CaptureCard({
           )}
         </motion.div>
       )}
+
+      {/* JARVIS-13 / D-14 — Convert capture-to-task dialog, mounted only for
+          createdVia === "jarvis" captures (the menu item that opens it is
+          itself gated, so the dialog mount-condition is a clean two-layer
+          guard). */}
+      {isJarvisCreated && convertOpen ? (
+        <ConvertCaptureToTaskDialog
+          open={convertOpen}
+          onOpenChange={setConvertOpen}
+          capture={{ id: capture.id, content: capture.content }}
+          existingProjectIds={capture.projects.map((p) => p.id)}
+          availableProjects={availableProjects}
+          onOptimisticDelete={onOptimisticDelete}
+        />
+      ) : null}
 
       {/* Confirm dialog — UI-SPEC exact copy */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

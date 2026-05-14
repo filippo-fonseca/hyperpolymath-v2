@@ -4,6 +4,7 @@ import { AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CaptureCard } from "./CaptureCard";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 
 interface Props {
   captures: CaptureWithLinks[];
@@ -29,6 +30,12 @@ interface Props {
    */
   userAvatarUrl: string | null;
   userInitials: string;
+  /**
+   * Plan 05-04 (JARVIS-13 / D-14) — project options for the Convert-to-task
+   * dialog. Forwarded to each card; the dialog only mounts when the capture's
+   * createdVia === "jarvis".
+   */
+  availableProjects: ProjectMultiSelectOption[];
 }
 
 /**
@@ -49,6 +56,7 @@ export function CapturesFeed({
   onOptimisticDelete,
   userAvatarUrl,
   userInitials,
+  availableProjects,
 }: Props) {
   if (captures.length === 0) {
     if (isSearchActive) {
@@ -90,6 +98,7 @@ export function CapturesFeed({
             onOptimisticDelete={onOptimisticDelete}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
+            availableProjects={availableProjects}
           />
         ))}
       </AnimatePresence>

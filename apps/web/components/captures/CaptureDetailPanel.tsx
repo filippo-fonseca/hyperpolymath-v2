@@ -49,6 +49,7 @@ import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
+import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 
 interface HashtagSource {
   id: string;
@@ -178,6 +179,9 @@ export function CaptureDetailPanel({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Plan 05-04 (JARVIS-13 / D-14) — Convert-to-task dialog mount state.
+  const [showConvert, setShowConvert] = useState(false);
+  const isJarvisCreated = capture?.createdVia === "jarvis";
   // Discard-confirm dialog. `pendingDiscardAction` records what to do *after*
   // the user confirms discard: "close" (Sheet close attempt) or "cancel"
   // (Cancel button click while dirty).
@@ -577,16 +581,31 @@ export function CaptureDetailPanel({
 
               {/* Footer */}
               <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={isPending}
-                >
-                  Delete capture
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isPending}
+                  >
+                    Delete capture
+                  </Button>
+                  {isJarvisCreated && (
+                    // D-14 / JARVIS-13 — only render for createdVia === "jarvis"
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="font-sans text-[13px]"
+                      onClick={() => setShowConvert(true)}
+                      disabled={isPending}
+                    >
+                      Convert to task
+                    </Button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
@@ -657,6 +676,33 @@ export function CaptureDetailPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* JARVIS-13 / D-14 — Convert-to-task dialog (gated on createdVia === "jarvis") */}
+      {capture && isJarvisCreated && showConvert ? (
+        <ConvertCaptureToTaskDialog
+          open={showConvert}
+          onOpenChange={(o) => {
+            setShowConvert(o);
+            // On successful submit the dialog closes itself + the capture is
+            // deleted server-side. Close the detail panel too — once the
+            // capture is gone, the panel has no canonical row to render.
+            if (!o) {
+              // Re-evaluate via parent: if the capture id is no longer present
+              // in the feed (post-Realtime echo), `selectedCapture` becomes
+              // null and `open` flips to false. Until then, the panel still
+              // renders the stale row briefly. We force-close here for snap.
+              // (Non-destructive: if the convert failed and the dialog stayed
+              // open, this branch never runs because onOpenChange(false)
+              // doesn't fire.)
+              onClose();
+            }
+          }}
+          capture={{ id: capture.id, content: capture.content }}
+          existingProjectIds={capture.projects.map((p) => p.id)}
+          availableProjects={projects}
+          onOptimisticDelete={onOptimisticDelete}
+        />
+      ) : null}
 
       {/* Delete confirm dialog — UI-SPEC exact copy */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

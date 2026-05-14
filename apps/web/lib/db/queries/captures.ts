@@ -13,6 +13,14 @@ export interface CaptureWithLinks {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * D-14 / JARVIS-13 (Plan 05-02 + Plan 05-04): "jarvis" for captures created
+   * by the JARVIS executor; null for manual captures from the /captures
+   * composer (or any historical row before Plan 05-02 shipped migration 0010).
+   * Drives the "Convert to task" affordance gating in CaptureCard +
+   * CaptureDetailPanel.
+   */
+  createdVia: string | null;
   hashtags: { id: string; displayName: string; name: string }[];
   projects: { id: string; name: string }[];
 }
@@ -71,6 +79,7 @@ export async function getCapturesForUser(
     content: string;
     createdAt: Date;
     updatedAt: Date;
+    createdVia: string | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -81,6 +90,8 @@ export async function getCapturesForUser(
         content: captures.content,
         createdAt: captures.createdAt,
         updatedAt: captures.updatedAt,
+        // D-14 surface — needed for "Convert to task" affordance gating.
+        createdVia: captures.createdVia,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -93,6 +104,7 @@ export async function getCapturesForUser(
         content: captures.content,
         createdAt: captures.createdAt,
         updatedAt: captures.updatedAt,
+        createdVia: captures.createdVia,
       })
       .from(captures)
       .innerJoin(
@@ -113,6 +125,7 @@ export async function getCapturesForUser(
         content: captures.content,
         createdAt: captures.createdAt,
         updatedAt: captures.updatedAt,
+        createdVia: captures.createdVia,
       })
       .from(captures)
       .where(eq(captures.userId, userId))

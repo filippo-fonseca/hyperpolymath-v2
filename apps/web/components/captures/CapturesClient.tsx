@@ -287,6 +287,7 @@ export function CapturesClient({
             onOptimisticDelete={handleOptimisticDelete}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
+            availableProjects={projects}
           />
         </div>
       </div>

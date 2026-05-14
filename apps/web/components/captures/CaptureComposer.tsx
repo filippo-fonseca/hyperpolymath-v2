@@ -190,6 +190,10 @@ export function CaptureComposer({
       content,
       createdAt: now,
       updatedAt: now,
+      // D-14 surface — composer captures are manual (no JARVIS round-trip),
+      // so createdVia stays null. JARVIS-created captures only originate
+      // from the /api/jarvis executor (Plan 05-02).
+      createdVia: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
