@@ -26,7 +26,7 @@ JARVIS — the agent that delivers v2's core promise: **type one sentence into t
   - 5s undo toast (immediate revert)
   - JARVIS-13 "Convert to task" affordance on captures (longer-term misroute recovery)
   - Capture-first principle (JARVIS-06, JARVIS-17) — ambiguous routes default to Captures (low blast radius)
-- **D-04: Undo semantics per action type.** Task undo = soft delete (matches Phase 2 task delete). Capture undo = soft delete. Event undo = call `events.delete()` against gcal (since gcal is source of truth). Undo is best-effort for events — if the user's Google Calendar synced to another client in the 5s window, the canonical state on gcal wins.
+- **D-04: Undo semantics per action type.** Task undo = **hard delete** (matches Phase 2 task delete pattern — `tasks` table has no `deleted_at` column; see `apps/web/app/actions/tasks.ts:247`). Capture undo = **hard delete** (matches the same pattern — `captures` table has no `deleted_at` column). Event undo = call `events.delete()` against gcal (since gcal is source of truth). Undo is best-effort for events — if the user's Google Calendar synced to another client in the 5s window, the canonical state on gcal wins. **Reconciliation note (B5 from checker iteration 1):** previous CONTEXT wording said "soft delete"; that was incorrect against the Phase 2 schema. Plans 05-04 implement hard delete consistently with Phase 2.
 
 ### Conversation History Visualization
 
@@ -67,7 +67,7 @@ JARVIS — the agent that delivers v2's core promise: **type one sentence into t
 
 ### Capture-First Recoverability
 
-- **D-14: JARVIS-13 "Convert to task" affordance** on JARVIS-created captures. Existing CaptureCard / CaptureDetailPanel gets a "Convert to task" button in the ⋯ menu (or footer of detail panel). On click: prompt for title/priority/projects defaults pre-filled from the capture content; create task; soft-delete capture. Tracks `captures.created_via = 'jarvis'` (new boolean column on `captures` table, additive migration).
+- **D-14: JARVIS-13 "Convert to task" affordance** on JARVIS-created captures. Existing CaptureCard / CaptureDetailPanel gets a "Convert to task" button in the ⋯ menu (or footer of detail panel). On click: prompt for title/priority/projects defaults pre-filled from the capture content; create task; hard-delete capture (B5: matches Phase 2 pattern — captures table has no `deleted_at` column). Tracks `captures.created_via = 'jarvis'` (new boolean column on `captures` table, additive migration).
 
 ### Adversarial Prompt Injection
 
@@ -119,7 +119,7 @@ JARVIS — the agent that delivers v2's core promise: **type one sentence into t
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Project conventions
-- `CLAUDE.md` — Anthropic SDK 0.94+, Claude Sonnet 4.6, strict tool use beta header, prompt caching `cache_control`, Zod 4 `.toJSONSchema()`, "What NOT to use" excludes Vercel AI SDK + raw fetch.
+- `CLAUDE.md` — Anthropic SDK 0.96+ (revised from CLAUDE.md's 0.94 per Plan 05-01 research finding — checker iteration 1 reconciliation), Claude Sonnet 4.6, strict tool use via per-tool `strict: true` (the `structured-outputs-2025-11-13` beta header is DEPRECATED — do not use), prompt caching `cache_control`, Zod 4 `.toJSONSchema()`, "What NOT to use" excludes Vercel AI SDK + raw fetch.
 - `.planning/PROJECT.md` — Single-user app, journal-paper + Warp terminal hybrid, "Be goated. Well." quality bar.
 
 ### Requirements
