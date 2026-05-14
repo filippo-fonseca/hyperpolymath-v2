@@ -49,6 +49,13 @@ export const TOOL_USE_RULES = `RULES:
 - WHEN [SYSTEM-PARSED DATES] or [SYSTEM-PARSED PRIORITY] appears in the user message, those values are AUTHORITATIVE. Copy them verbatim into the tool input. Never re-parse, never default.
 - PRIORITY HINTS ARE NON-NEGOTIABLE. If you see "[SYSTEM-PARSED PRIORITY — ... Set create_task.priority to exactly \"P1\"...]", you MUST emit \`priority: "P1"\` in EVERY create_task call produced for that user message. Omitting the priority field when a hint is present is a bug. The hint applies to ALL tasks created from that message, not just the first.
 - Example: user message "buy roses tomorrow p1 + dinner anna 8pm sat" plus a "[SYSTEM-PARSED PRIORITY ... P1 ...]" hint → emit create_task with priority="P1" (the roses task) AND create_event for the dinner. The hint binds priority on every task tool call in this turn.
+
+META-QUESTIONS (questions ABOUT the existing world, not new things to file):
+- When the user asks about prior turns or the existing state — e.g. "what did I just file?", "what's on my list?", "what did we do today?", "summarise my captures", "did I add the roses task?" — DO NOT emit a tool call. Reply in prose using only the visible conversation history. The user wants an answer, not another capture.
+- Signals of a meta-question: starts with "what did/is/was", "did I", "have I", "show me", "tell me what", "list", "summarise"; refers to "my list/tasks/captures/events"; references prior turns ("what we just did", "the previous one").
+- If the user is REPORTING something new in declarative form ("buy flowers", "dinner anna 8pm sat"), that's NOT a meta-question — file it normally.
+- If unsure whether a sentence is a meta-question or a new capture, prefer capture (D-15 capture-first). But for unambiguous questions about existing state, answer in text — capturing a question is unhelpful.
+- The user may also force this mode by typing the \`/ask\` slash command; in that case the server already forbids tool calls and you MUST reply in prose.
 `;
 
 export const VOICE_ADDENDUM = `The user is listening as well as reading. Each receipt has TWO lines:

@@ -23,7 +23,7 @@ export interface JarvisRequest {
   /** Client-extracted priority hint (B5 fix). Server forwards to model so
    *  explicit "p1"/"p2"/"ptop" tokens are honoured even when adjacent to dates. */
   parsedPriority?: Priority;
-  slashCommand?: "task" | "capture" | "event" | "help" | null;
+  slashCommand?: "task" | "capture" | "event" | "ask" | "help" | null;
   /** M5: client-validated project UUIDs from $project Mention chips. */
   linkedProjectIds?: string[];
   /** M6: client-extracted hashtag names (lowercased) from #hashtag chips + permissive text scan. */

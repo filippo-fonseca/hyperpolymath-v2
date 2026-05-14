@@ -19,6 +19,7 @@ const COMMANDS = [
   { key: "task", label: "/task", description: "Force task creation" },
   { key: "capture", label: "/capture", description: "Force capture creation" },
   { key: "event", label: "/event", description: "Force calendar event" },
+  { key: "ask", label: "/ask", description: "Ask JARVIS a question (no action)" },
   { key: "help", label: "/help", description: "Show command list" },
 ] as const;
 

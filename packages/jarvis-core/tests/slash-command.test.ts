@@ -29,6 +29,17 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("/help")).toEqual({ command: "help", body: "" });
   });
 
+  it("/ask what did I file today (meta-question escape hatch)", () => {
+    expect(parseSlashCommand("/ask what did I file today")).toEqual({
+      command: "ask",
+      body: "what did I file today",
+    });
+  });
+
+  it("/ask (no body)", () => {
+    expect(parseSlashCommand("/ask")).toEqual({ command: "ask", body: "" });
+  });
+
   it("plain text returns null (auto-infer path)", () => {
     expect(parseSlashCommand("buy flowers")).toBeNull();
   });

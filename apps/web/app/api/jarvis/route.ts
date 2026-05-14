@@ -75,7 +75,7 @@ interface JarvisRequestBody {
     allDay?: boolean;
   }>;
   parsedPriority?: "P∞" | "P1" | "P2" | "P3";
-  slashCommand?: "task" | "capture" | "event" | "help" | null;
+  slashCommand?: "task" | "capture" | "event" | "ask" | "help" | null;
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
 }
@@ -127,10 +127,16 @@ export async function POST(req: NextRequest) {
   const tools = buildToolDefinitions({ voiceActive });
 
   // 5. Slash-command forcing via tool_choice
+  //    /task | /capture | /event → force the matching create_* tool
+  //    /ask                       → forbid all tools (text-only meta-question)
+  //    /help                      → no override (client renders help locally)
+  //    (none)                     → auto-infer
   const toolChoice =
-    body.slashCommand && body.slashCommand !== "help"
-      ? ({ type: "tool" as const, name: `create_${body.slashCommand}` })
-      : ({ type: "auto" as const });
+    body.slashCommand === "ask"
+      ? ({ type: "none" as const })
+      : body.slashCommand && body.slashCommand !== "help"
+        ? ({ type: "tool" as const, name: `create_${body.slashCommand}` })
+        : ({ type: "auto" as const });
 
   // 6. Build user message — append pre-parsed dates + linked-references hints
   let userContent = body.input;

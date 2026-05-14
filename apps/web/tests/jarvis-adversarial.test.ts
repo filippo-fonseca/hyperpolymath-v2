@@ -465,6 +465,79 @@ describe("JARVIS adversarial corpus (TEST-05 / JARVIS-14 / D-15)", () => {
 // Tool-fabrication — model emits a tool name that doesn't exist on the server
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Meta-question routing — the model SHOULD answer in text when the user
+// asks about prior turns, not file the question as a capture.
+// ---------------------------------------------------------------------------
+
+describe("meta-question routing (text-only reply when history has context)", () => {
+  it("/ask explicitly forces tool_choice: none — no capture is created", async () => {
+    // With slashCommand: "ask" the route forbids tools (`tool_choice: none`),
+    // so even a misbehaving model cannot create_capture this turn — verified
+    // structurally by checking captured tool_choice + zero action events.
+    let captured: { tool_choice?: { type: string } } | undefined;
+    anthropicStreamMock.mockImplementation((params: unknown) => {
+      captured = params as { tool_choice?: { type: string } };
+      return buildAnthropicStream([
+        { type: "text", text: "You filed two captures today, sir." },
+      ]);
+    });
+
+    const res = await POST(
+      buildRequest({
+        input: "what did I just file?",
+        history: [
+          { role: "user", content: "random thought about goats" },
+          { role: "assistant", content: "Captured." },
+        ],
+        slashCommand: "ask",
+      }) as never,
+    );
+    const events = await readSseEvents(res);
+
+    expect(captured?.tool_choice).toEqual({ type: "none" });
+    const actions = events.filter((e) => e.event === "action");
+    expect(actions).toHaveLength(0);
+    expect(executorCreateCaptureMock).not.toHaveBeenCalled();
+    expect(executorCreateTaskMock).not.toHaveBeenCalled();
+
+    const texts = events.filter((e) => e.event === "text");
+    expect(texts.length).toBeGreaterThan(0);
+  });
+
+  it("bare meta-question with history — well-behaved model replies in text (no tool call)", async () => {
+    // The model decides; this fixture pins the desired behaviour. The system
+    // prompt directs the model toward text replies for meta-questions; this
+    // test ensures the route handles a tool-free response without crashing.
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream([
+        { type: "text", text: "Two captures: goats, then flowers." },
+      ]),
+    );
+    const res = await POST(
+      buildRequest({
+        input: "what did I just file?",
+        history: [
+          { role: "user", content: "random thought about goats" },
+          { role: "assistant", content: "Captured." },
+          { role: "user", content: "buy flowers" },
+          { role: "assistant", content: "Noted." },
+        ],
+      }) as never,
+    );
+    const events = await readSseEvents(res);
+
+    // No action events — text-only reply.
+    const actions = events.filter((e) => e.event === "action");
+    expect(actions).toHaveLength(0);
+
+    // Text deltas accumulate.
+    const texts = events.filter((e) => e.event === "text");
+    expect(texts.length).toBeGreaterThan(0);
+    expect(executorCreateCaptureMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("tool-fabrication (structural TOOL_VALIDATORS defense)", () => {
   const FABRICATED_NAMES = [
     "delete_task",

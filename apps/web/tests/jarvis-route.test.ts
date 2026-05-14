@@ -541,6 +541,80 @@ describe("POST /api/jarvis — AbortController", () => {
   });
 });
 
+describe("POST /api/jarvis — slash commands", () => {
+  it("/ask forces tool_choice: { type: 'none' } so the model replies in text only", async () => {
+    let captured:
+      | {
+          tool_choice?: { type: string; name?: string };
+        }
+      | undefined;
+    anthropicStreamMock.mockImplementation((params: unknown) => {
+      captured = params as { tool_choice?: { type: string; name?: string } };
+      return buildAnthropicStream({
+        blocks: [{ type: "text", text: "You filed two captures today, sir." }],
+      });
+    });
+
+    const res = await POST(
+      buildRequest({
+        input: "what did I just file?",
+        history: [
+          { role: "user", content: "buy flowers" },
+          { role: "assistant", content: "Noted." },
+        ],
+        slashCommand: "ask",
+      }) as never,
+    );
+    const events = await readSseEvents(res);
+
+    expect(captured?.tool_choice).toEqual({ type: "none" });
+
+    // No action events when ask is forced — text-only reply.
+    const actions = events.filter((e) => e.event === "action");
+    expect(actions).toHaveLength(0);
+
+    // Text deltas land instead.
+    const texts = events.filter((e) => e.event === "text");
+    expect(texts.length).toBeGreaterThan(0);
+  });
+
+  it("/task forces tool_choice: { type: 'tool', name: 'create_task' }", async () => {
+    let captured:
+      | { tool_choice?: { type: string; name?: string } }
+      | undefined;
+    anthropicStreamMock.mockImplementation((params: unknown) => {
+      captured = params as { tool_choice?: { type: string; name?: string } };
+      return buildAnthropicStream({ blocks: [] });
+    });
+    executorCreateTaskMock.mockResolvedValue({ ok: true, id: "t", receipt: {} });
+
+    const res = await POST(
+      buildRequest({
+        input: "buy flowers",
+        history: [],
+        slashCommand: "task",
+      }) as never,
+    );
+    await readSseEvents(res);
+    expect(captured?.tool_choice).toEqual({ type: "tool", name: "create_task" });
+  });
+
+  it("no slashCommand → tool_choice: { type: 'auto' }", async () => {
+    let captured:
+      | { tool_choice?: { type: string; name?: string } }
+      | undefined;
+    anthropicStreamMock.mockImplementation((params: unknown) => {
+      captured = params as { tool_choice?: { type: string; name?: string } };
+      return buildAnthropicStream({ blocks: [] });
+    });
+    const res = await POST(
+      buildRequest({ input: "buy flowers", history: [] }) as never,
+    );
+    await readSseEvents(res);
+    expect(captured?.tool_choice).toEqual({ type: "auto" });
+  });
+});
+
 describe("POST /api/jarvis — voice forward-compat", () => {
   it("X-Voice-Active header propagates to telemetry voiceActive", async () => {
     executorCreateTaskMock.mockResolvedValue({ ok: true, id: "t", receipt: {} });
