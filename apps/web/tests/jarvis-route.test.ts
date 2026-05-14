@@ -387,7 +387,9 @@ describe("POST /api/jarvis — streaming", () => {
             name: "create_task",
             input: {
               title: "Sabotage",
-              project_ids: ["cccccccc-cccc-4ccc-cccc-cccccccccccc"],
+              // Valid v4 UUID format: third block [1-8]xxx (version), fourth
+              // block [89ab]xxx (variant). cccc... would fail variant byte.
+              project_ids: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
             },
           },
         ],
@@ -484,7 +486,8 @@ describe("POST /api/jarvis — telemetry", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(logJarvisEventMock).toHaveBeenCalledTimes(1);
-    const call = logJarvisEventMock.mock.calls[0][0] as {
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as {
       userId: string;
       promptText: string;
       actionTypes: string[];
@@ -505,12 +508,23 @@ describe("POST /api/jarvis — AbortController", () => {
     anthropicStreamMock.mockImplementation(
       (_params: unknown, opts: { signal?: AbortSignal }) => {
         capturedSignal = opts?.signal;
-        return buildAnthropicStream({
-          blocks: [
-            // Hanging stream — we never resolve until aborted
-          ],
-          abortSignal: opts?.signal,
-        });
+        const handlers: Record<string, Array<(arg: unknown) => void>> = {};
+        return {
+          on(event: string, cb: (arg: unknown) => void) {
+            handlers[event] = handlers[event] ?? [];
+            handlers[event].push(cb);
+            return this;
+          },
+          // Hanging stream — finalMessage resolves only on abort.
+          finalMessage: () =>
+            new Promise((_resolve, reject) => {
+              opts?.signal?.addEventListener("abort", () => {
+                const err = new Error("aborted");
+                (err as { name: string }).name = "AbortError";
+                reject(err);
+              });
+            }),
+        };
       },
     );
 
@@ -518,8 +532,8 @@ describe("POST /api/jarvis — AbortController", () => {
     const reqPromise = POST(
       buildRequest({ input: "hi", history: [] }, { abort }) as never,
     );
-    // Trigger abort mid-flight
-    setTimeout(() => abort.abort(), 5);
+    // Trigger abort mid-flight after the stream has been wired up.
+    setTimeout(() => abort.abort(), 10);
     const res = await reqPromise;
     await readSseEvents(res);
     expect(capturedSignal).toBeDefined();
@@ -547,7 +561,8 @@ describe("POST /api/jarvis — voice forward-compat", () => {
     await readSseEvents(res);
     await new Promise((r) => setTimeout(r, 0));
 
-    const call = logJarvisEventMock.mock.calls[0][0] as { voiceActive: boolean };
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as { voiceActive: boolean };
     expect(call.voiceActive).toBe(true);
   });
 });
