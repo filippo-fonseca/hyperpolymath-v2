@@ -93,7 +93,10 @@ export const HashtagSuggestionList = forwardRef<
           downHandler();
           return true;
         }
-        if (event.key === "Enter") {
+        // Enter AND Tab both select — Tab is the canonical "accept
+        // autocomplete" key (parity with slash + project popovers, and
+        // most code editors / shell completions).
+        if (event.key === "Enter" || event.key === "Tab") {
           enterHandler();
           return true;
         }

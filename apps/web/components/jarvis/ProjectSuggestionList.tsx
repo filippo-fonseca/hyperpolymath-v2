@@ -61,7 +61,9 @@ export const ProjectSuggestionList = forwardRef<
           setSelectedIndex((p) => (p + 1) % items.length);
           return true;
         }
-        if (event.key === "Enter") {
+        // Enter AND Tab both select — Tab is the canonical "accept
+        // autocomplete" key (parity with hashtag + slash popovers).
+        if (event.key === "Enter" || event.key === "Tab") {
           setSelectedIndex((current) => {
             selectItem(current);
             return current;
