@@ -153,6 +153,10 @@ export const captures = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     content: text("content").notNull(),
+    // D-14 (Phase 5 Plan 05-02): additive column tagging origin of the
+    // capture. JARVIS-created captures write 'jarvis'; manual captures stay
+    // NULL. Plan 05-04 keys the "Convert to task" affordance off this.
+    createdVia: text("created_via"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
@@ -246,4 +250,34 @@ export const kiwiEvents = pgTable(
     metadata: jsonb("metadata"), // free-form for future fields without migrations
   },
   (t) => [index("kiwi_events_user_turn_idx").on(t.userId, sql`turn_at DESC`)],
+);
+
+// jarvis_events — Phase 5 Plan 05-02 (RES-05). One row per JARVIS turn.
+// Mirrors the kiwi_events shell but with the canonical JARVIS column set:
+// usage tokens (input/output/cache_read/cache_creation), first-token latency,
+// voice_active boolean (Phase 7 forward-compat), slash_command_mode, and the
+// pre_parsed_dates jsonb the client computed via chrono-node.
+// RLS: owner-only SELECT + INSERT (migration 0009). No UPDATE/DELETE policies.
+export const jarvisEvents = pgTable(
+  "jarvis_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    promptText: text("prompt_text").notNull(),
+    preParsedDates: jsonb("pre_parsed_dates"),
+    slashCommandMode: text("slash_command_mode"),
+    voiceActive: boolean("voice_active").notNull().default(false),
+    actionTypes: text("action_types").array(),
+    cacheReadInputTokens: integer("cache_read_input_tokens"),
+    cacheCreationInputTokens: integer("cache_creation_input_tokens"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    latencyMs: integer("latency_ms"),
+    firstTokenMs: integer("first_token_ms"),
+    error: text("error"),
+  },
+  (t) => [index("jarvis_events_user_created_idx").on(t.userId, sql`created_at DESC`)],
 );
