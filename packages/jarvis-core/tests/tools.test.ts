@@ -20,7 +20,7 @@ describe("zCreateTask", () => {
         priority: "P1",
         status: "up next",
         due: "2026-05-15T00:00:00.000Z",
-        project_ids: ["00000000-0000-0000-0000-000000000001"],
+        project_ids: ["123e4567-e89b-42d3-a456-426614174000"],
       }).success,
     ).toBe(true);
   });
@@ -57,7 +57,7 @@ describe("zCreateCapture", () => {
       zCreateCapture.safeParse({
         content: "x",
         hashtags: ["idea"],
-        project_ids: ["00000000-0000-0000-0000-000000000001"],
+        project_ids: ["123e4567-e89b-42d3-a456-426614174000"],
       }).success,
     ).toBe(true);
   });

@@ -16,6 +16,14 @@ export {
   type SlashCommand,
 } from "./parsers";
 
+export {
+  buildToolDefinitions,
+  type JarvisToolDefinition,
+  zCreateCapture,
+  zCreateEvent,
+  zCreateTask,
+} from "./tools";
+
 export type {
   ActionType,
   CreateCaptureAction,
