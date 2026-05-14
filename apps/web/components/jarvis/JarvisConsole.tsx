@@ -50,16 +50,41 @@ export function JarvisConsole({
   const abortRef = useRef<AbortController | null>(null);
 
   // Session memory (D-06) — derive from visible scrollback at submit time.
+  //
+  // Assistant turns must include a textual summary of the actions that
+  // landed on that turn (filed task/capture/event). Without this, the model
+  // sees an empty assistant turn and re-attempts the same tool calls on the
+  // next turn because nothing in history signals completion.
   const buildHistory = useCallback(
     (current: ScrollbackTurn[]): Array<{ role: "user" | "assistant"; content: string }> => {
       return current
         .slice(-HISTORY_TURN_LIMIT)
-        .map((t) => ({
-          role: (t.kind === "user" ? "user" : "assistant") as
-            | "user"
-            | "assistant",
-          content: t.kind === "user" ? t.text : t.textDelta,
-        }))
+        .map((t) => {
+          if (t.kind === "user") {
+            return { role: "user" as const, content: t.text };
+          }
+          const parts: string[] = [];
+          if (t.textDelta) parts.push(t.textDelta);
+          for (const a of t.actions) {
+            if (!a.result.ok) continue;
+            const r = (a.result as { receipt?: Record<string, unknown> })
+              .receipt ?? {};
+            if (a.name === "create_task") {
+              const title = String(r.title ?? "");
+              const pri = String(r.priority ?? "P3");
+              const due = r.due ? ` due ${r.due}` : "";
+              parts.push(`Filed TASK "${title}" (${pri}${due}).`);
+            } else if (a.name === "create_capture") {
+              const content = String(r.content ?? "").slice(0, 80);
+              parts.push(`Filed CAPTURE "${content}".`);
+            } else if (a.name === "create_event") {
+              const title = String(r.title ?? "");
+              const start = r.start ? ` ${r.start}` : "";
+              parts.push(`Filed EVENT "${title}"${start}.`);
+            }
+          }
+          return { role: "assistant" as const, content: parts.join(" ") };
+        })
         .filter((m) => m.content.length > 0);
     },
     [],

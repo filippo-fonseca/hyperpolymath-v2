@@ -149,6 +149,9 @@ export async function POST(req: NextRequest) {
   if (body.parsedPriority) {
     userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
   }
+  if (body.slashCommand === "ask") {
+    userContent += `\n\n[META-QUESTION MODE (/ask): answer in 1-3 sentences using the visible conversation history. Tool calls are forbidden this turn (tool_choice=none). Prose IS the response and IS rendered.]`;
+  }
   if (
     (body.linkedProjectIds?.length ?? 0) > 0 ||
     (body.linkedHashtags?.length ?? 0) > 0
@@ -263,8 +266,19 @@ export async function POST(req: NextRequest) {
             actionTypes.push(b.name as string);
             let result;
             if (b.name === "create_task") {
+              // Deterministic priority override — when the user typed an
+              // explicit priority token, bind the value here rather than
+              // relying on the model honoring the soft directive. Eliminates
+              // the "first send defaults to P3" class of bugs entirely.
+              const taskData = {
+                ...(parsed.data as Parameters<typeof executor.createTask>[0]),
+              };
+              if (body.parsedPriority) {
+                (taskData as { priority?: string }).priority =
+                  body.parsedPriority;
+              }
               result = await executor.createTask(
-                parsed.data as Parameters<typeof executor.createTask>[0],
+                taskData as Parameters<typeof executor.createTask>[0],
                 ctx,
               );
             } else if (b.name === "create_capture") {
