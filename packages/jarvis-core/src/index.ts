@@ -1,13 +1,20 @@
 // @hyperpolymath/jarvis-core — public barrel.
 //
 // Tasks 2-4 of Plan 05-01 incrementally add the parser/tool/prompt exports.
-// Task 1 ships types and the executor interface only.
 
 export type {
   ActionExecutor,
   ExecutionContext,
   ExecutorResult,
 } from "./executor/interface";
+
+export {
+  parseDates,
+  parsePriority,
+  parseSlashCommand,
+  type ParsedSlashCommand,
+  type SlashCommand,
+} from "./parsers";
 
 export type {
   ActionType,

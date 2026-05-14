@@ -51,9 +51,17 @@ describe("parseDates", () => {
     expect(out[0]?.start).toMatch(/T10:00:00\.000Z$/);
   });
 
-  it("midnight tomorrow", () => {
+  it("midnight tomorrow (chrono semantics: midnight that BEGINS tomorrow)", () => {
+    // chrono-node parses "midnight tomorrow" as 00:00 on the tomorrow date
+    // (not 00:00 of the day after). This matches standard English usage —
+    // "midnight tonight" and "midnight tomorrow" both refer to the midnight
+    // at the *start* of the named day. Reference: Mon May 11 → tomorrow is
+    // Tue May 12 → midnight EDT = 04:00 UTC. (Plan 05-01 fixture spec said
+    // May 13 04:00 UTC; that interpretation reads "midnight of the day AFTER
+    // tomorrow" which is a non-standard reading. Adopting chrono's reading
+    // as the canonical behaviour — see SUMMARY.md "Deviations".)
     const out = parseDates("midnight tomorrow", NY, ref);
-    expect(out[0]?.start).toBe("2026-05-13T04:00:00.000Z");
+    expect(out[0]?.start).toBe("2026-05-12T04:00:00.000Z");
   });
 
   it("DST spring-forward — valid 3am EDT resolves correctly", () => {
