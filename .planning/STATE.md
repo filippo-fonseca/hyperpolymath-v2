@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md (JARVIS SSE route + executor + adversarial defense; live smoke verdicts passed)
-last_updated: "2026-05-14T16:11:01.375Z"
-last_activity: 2026-05-14 -- Phase 05 execution started
+stopped_at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
+last_updated: "2026-05-14T18:20:35.363Z"
+last_activity: 2026-05-14
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 05 (jarvis) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 05
-Last activity: 2026-05-14 -- Phase 05 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-14
 
 Progress: [██████████] 100%
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | Phase 04 P04-04 | ~210min | 4 tasks | 16 files |
 | Phase 05-jarvis P01 | 11min | 4 tasks | 24 files |
 | Phase 05 P05-02 | 15 | 5 tasks | 15 files |
+| Phase 05 P03 | 167 | 5 tasks | 29 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,13 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05 P02]: userId is re-derived from getClaims() at the route boundary — model-emitted user_id is never trusted; project_id/calendar_id ownership pre-validated via Drizzle before executor runs (JARVIS-12)
 - [Phase 05]: [Phase 05 P02]: JARVIS-11 prompt caching verified live — turn 1 cache_creation_input_tokens=2368 (68s cold), turn 2 cache_read_input_tokens=2368 (4.2s warm). Last-tool cache_control + per-tool strict:true is the working pattern
 - [Phase 05]: [Phase 05 P02]: parallel_tool_use is default-on for claude-sonnet-4-6 — multi-action prompts emit N tool_use blocks in one assistant message, no opt-in beta header required
+- [Phase 05]: Plan 05-03: Dual TipTap Mention extensions coexist by giving the project Mention a distinct node name via Mention.extend({ name: 'projectMention' }) — # uses default node name 'mention', $ uses 'projectMention'. Same editor, two sibling popovers, no trigger collision.
+- [Phase 05]: Plan 05-03: SSE consumed client-side via fetch + response.body.pipeThrough(new TextDecoderStream()).getReader() — NOT EventSource. EventSource forces GET; POST is required for the JSON body. Manual reader is the canonical workaround.
+- [Phase 05]: Plan 05-03: Slash command set shipped with 5 not 4 — added /ask after checkpoint smoke revealed meta-questions ('what's on my list?') were being captured. Server-side bare-meta-question heuristic also auto-treats leading 'what/when/how/where/can you/is there' as ask-mode (tool_choice='none' equivalent + empty-response prose fallback).
+- [Phase 05]: Plan 05-03: Priority is enforced via a 3-stage belt-and-suspenders pipeline — (1) client regex pre-parse builds parsedPriority on the request body, (2) server injects MANDATORY-priority hint into the user content, (3) executor post-applies parsedPriority to the tool args before insert. Model occasionally defaulted to P3 even with explicit 'p1' input; this makes the override deterministic.
+- [Phase 05]: Plan 05-03: Session memory (D-06) reads via turnsRef.current (a React ref to the latest snapshot) — NOT the closure-captured 'turns' state. The closure version returned empty on first send because handleSubmit closed over the initial snapshot. Canonical React-ref-for-latest-snapshot pattern.
+- [Phase 05]: Plan 05-03: Receipts always render the resolved fields once an action arrives — no model-narrative gating, no client-side suppression. The receipt-leak fix (commit 6d1bb8a) explicitly removed the prior conditional that hid receipts when the model didn't also emit prose.
+- [Phase 05]: Plan 05-03: JARVIS read-back (list_tasks / list_events / search_captures) is intentionally OUT OF SCOPE for Phase 5 — surfaced live during smoke when user asked 'what's due tomorrow?' and model answered from scrollback only. Captured as backlog 999.3 (commit 82431ae). Phase 5 MVP is create-only per PROJECT.md line 44; read tools deferred.
 
 ### Pending Todos
 
@@ -125,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-14T15:27:36.863Z
-Stopped at: Completed 05-02-PLAN.md (JARVIS SSE route + executor + adversarial defense; live smoke verdicts passed)
+Last session: 2026-05-14T18:20:13.621Z
+Stopped at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
 Resume file: None

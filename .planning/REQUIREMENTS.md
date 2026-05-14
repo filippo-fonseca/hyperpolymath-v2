@@ -93,15 +93,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### JARVIS (the agent)
 
-- [ ] **JARVIS-01**: JARVIS Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
-- [ ] **JARVIS-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
+- [x] **JARVIS-01**: JARVIS Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
+- [x] **JARVIS-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
 - [x] **JARVIS-03**: JARVIS parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
 - [x] **JARVIS-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
 - [x] **JARVIS-05**: JARVIS handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
 - [x] **JARVIS-06**: When input is ambiguous and no destructive action is implied, JARVIS defaults to creating a Capture (capture-first principle)
 - [x] **JARVIS-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
-- [ ] **JARVIS-08**: JARVIS response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
-- [ ] **JARVIS-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
+- [x] **JARVIS-08**: JARVIS response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
+- [x] **JARVIS-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
 - [x] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
 - [x] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
 - [x] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
@@ -280,15 +280,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-07 | Phase 4 | Complete |
 | CAL-08 | Phase 4 | Complete |
 | CAL-09 | Phase 4 | Complete |
-| JARVIS-01 | Phase 5 | Pending |
-| JARVIS-02 | Phase 5 | Pending |
+| JARVIS-01 | Phase 5 | Complete |
+| JARVIS-02 | Phase 5 | Complete |
 | JARVIS-03 | Phase 5 | Complete |
 | JARVIS-04 | Phase 5 | Complete |
 | JARVIS-05 | Phase 5 | Complete |
 | JARVIS-06 | Phase 5 | Complete |
 | JARVIS-07 | Phase 5 | Complete |
-| JARVIS-08 | Phase 5 | Pending |
-| JARVIS-09 | Phase 5 | Pending |
+| JARVIS-08 | Phase 5 | Complete |
+| JARVIS-09 | Phase 5 | Complete |
 | JARVIS-10 | Phase 5 | Complete |
 | JARVIS-11 | Phase 5 | Complete |
 | JARVIS-12 | Phase 5 | Complete |
