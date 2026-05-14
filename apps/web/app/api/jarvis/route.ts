@@ -135,10 +135,13 @@ export async function POST(req: NextRequest) {
   // 6. Build user message — append pre-parsed dates + linked-references hints
   let userContent = body.input;
   if (body.parsedDates && body.parsedDates.length > 0) {
-    userContent += `\n\n[Pre-parsed dates (use these ISO values, do not re-parse): ${JSON.stringify(body.parsedDates)}]`;
+    // MANDATORY hint: model MUST copy these ISO strings verbatim into due/start/end.
+    // For entries with allDay=true, the user did NOT specify a time — the
+    // task's due is date-only (do not invent a time-of-day).
+    userContent += `\n\n[SYSTEM-PARSED DATES — MANDATORY: copy these ISO strings verbatim into the relevant tool field (due/start/end). Do NOT call new Date() or re-parse. If allDay=true the user gave no time-of-day; use the start value as-is. ${JSON.stringify(body.parsedDates)}]`;
   }
   if (body.parsedPriority) {
-    userContent += `\n\n[Pre-parsed priority (the user typed an explicit priority token — use this exact value for create_task.priority): ${body.parsedPriority}]`;
+    userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
   }
   if (
     (body.linkedProjectIds?.length ?? 0) > 0 ||

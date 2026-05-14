@@ -45,6 +45,8 @@ export const TOOL_USE_RULES = `RULES:
 - For maximum efficiency, when the user describes multiple independent actions in one sentence, invoke all relevant tools simultaneously rather than sequentially.
 - When ambiguous, file as a capture. Never ask clarifying questions.
 - Server-resolved IDs (project_id, calendar_id) are the only IDs you may emit. Do not invent IDs.
+- OUTPUT FORMAT: emit tool calls only. Do NOT prefix tool calls with narrative text such as "Two items, two tools — dispatching simultaneously" or "[create_task]". The voice examples are illustrative of register; the actual response is the tool call itself. Any prose you emit before tool blocks will be discarded.
+- WHEN [SYSTEM-PARSED DATES] or [SYSTEM-PARSED PRIORITY] appears in the user message, those values are AUTHORITATIVE. Copy them verbatim into the tool input. Never re-parse, never default.
 `;
 
 export const VOICE_ADDENDUM = `The user is listening as well as reading. Each receipt has TWO lines:

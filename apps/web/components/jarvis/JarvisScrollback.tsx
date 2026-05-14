@@ -47,16 +47,19 @@ export function JarvisScrollback({ turns }: Props) {
             </div>
           ) : (
             <div className="ml-3">
-              {turn.textDelta ? (
-                <div className="font-serif italic text-sm text-muted-foreground mb-1">
-                  {turn.textDelta}
-                </div>
-              ) : null}
+              {/* D-16: suppress assistant narrative text — render tool-use
+                  receipts only. The model occasionally narrates ("Two items,
+                  two tools — dispatching simultaneously") before tool blocks;
+                  that voice is forbidden by personality but we enforce it
+                  client-side as defense-in-depth. */}
               {turn.status === "streaming" && turn.actions.length === 0 ? (
                 <ThinkingWord active />
               ) : null}
-              {turn.actions.map((a) => (
-                <JarvisReceipt key={a.toolUseId} action={a} />
+              {turn.actions.map((a, i) => (
+                <JarvisReceipt
+                  key={a.toolUseId || `${turn.id}-action-${i}`}
+                  action={a}
+                />
               ))}
               {turn.status === "error" ? (
                 <div className="text-xs text-red-600 font-mono">
