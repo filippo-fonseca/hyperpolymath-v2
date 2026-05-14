@@ -58,9 +58,11 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
   /**
    * Format a date for receipt display (B6 fix — Plan 05-03 hotfix).
    *
-   * Heuristic: an ISO string where the wall-clock components are 00:00 or
-   * 12:00 with zero seconds is treated as date-only (chrono's allDay default
-   * when no time was specified). Everything else keeps a short time.
+   * The server now attaches an authoritative `allDay` boolean to the receipt
+   * payload (derived from chrono's `hourKnown` flag at parse time). When
+   * present we trust it; otherwise we fall back to the (fragile, but
+   * harmless) midnight/noon heuristic so legacy callsites still degrade
+   * sanely.
    *
    * `allDay=true`  → "May 16" (no time)
    * `allDay=false` → "May 16, 8:00 PM"
@@ -71,14 +73,15 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
 
-    // Detect "midnight or noon, no seconds" → treat as all-day if caller
-    // didn't tell us explicitly. This catches the common case where a task
-    // gets a due date but no time (chrono returns 12:00 UTC default).
-    const m = d.getMinutes();
-    const s = d.getSeconds();
-    const h = d.getHours();
-    const inferredAllDay =
-      allDay ?? (s === 0 && m === 0 && (h === 0 || h === 12));
+    let inferredAllDay: boolean;
+    if (typeof allDay === "boolean") {
+      inferredAllDay = allDay;
+    } else {
+      const m = d.getMinutes();
+      const s = d.getSeconds();
+      const h = d.getHours();
+      inferredAllDay = s === 0 && m === 0 && (h === 0 || h === 12);
+    }
 
     const now = new Date();
     const sameDay =
@@ -140,7 +143,9 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
               <div className="font-serif">{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-muted-foreground">
                 {String(receipt.priority ?? "P3")}
-                {receipt.due ? ` · due ${fmtDate(receipt.due)}` : ""}
+                {receipt.due
+                  ? ` · due ${fmtDate(receipt.due, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}`
+                  : ""}
                 {Array.isArray(receipt.project_ids) &&
                 receipt.project_ids.length
                   ? ` · ${receipt.project_ids.length} project${receipt.project_ids.length > 1 ? "s" : ""}`
@@ -162,7 +167,9 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
             <>
               <div className="font-serif">{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-muted-foreground">
-                {fmtDate(receipt.start)} → {fmtDate(receipt.end)}
+                {fmtDate(receipt.start, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
+                {" → "}
+                {fmtDate(receipt.end, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
               </div>
             </>
           ) : null}

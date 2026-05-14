@@ -176,6 +176,29 @@ export async function POST(req: NextRequest) {
     defaultCalendarId: userRow?.defaultCalendarId ?? null,
   };
 
+  // Track all async executor work spawned from contentBlock events so we can
+  // await it BEFORE closing the stream. The Anthropic SDK fires events
+  // synchronously and does NOT await async listener returns — without this
+  // explicit barrier, finalMessage() resolves before slower executors finish,
+  // dropping their SSE "action" emits on the floor (race observed for
+  // multi-tool messages and any executor that throws).
+  const pendingActions: Promise<void>[] = [];
+
+  // Build a quick lookup from chrono-parsed dates so the server can attach an
+  // authoritative allDay flag to each receipt's `due`/`start`/`end` ISO. The
+  // receipt component then renders date-only vs date+time deterministically
+  // (no fragile midnight/noon heuristic).
+  const parsedDateAllDayByIso = new Map<string, boolean>();
+  for (const pd of body.parsedDates ?? []) {
+    if (pd.allDay === true) {
+      parsedDateAllDayByIso.set(pd.start, true);
+      if (pd.end) parsedDateAllDayByIso.set(pd.end, true);
+    }
+  }
+  function isAllDayIso(iso: unknown): boolean {
+    return typeof iso === "string" && parsedDateAllDayByIso.get(iso) === true;
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
       const anth = getAnthropicClient();
@@ -194,7 +217,7 @@ export async function POST(req: NextRequest) {
         { signal: upstream.signal },
       );
 
-      anthStream.on("contentBlock", async (block: unknown) => {
+      anthStream.on("contentBlock", (block: unknown) => {
         if (firstTokenAt === null) firstTokenAt = Date.now() - startTime;
         const b = block as {
           type: string;
@@ -204,55 +227,92 @@ export async function POST(req: NextRequest) {
         };
         if (b.type !== "tool_use") return;
 
-        const validator = TOOL_VALIDATORS[b.name as ToolName];
-        if (!validator) {
-          // Fabricated tool name — defense against any model misbehavior.
-          // (Strict tool use should prevent this, but server re-checks anyway.)
-          controller.enqueue(
-            encoder.encode(
-              sse("error", { message: `Unknown tool: ${b.name ?? "?"}` }),
-            ),
-          );
-          return;
-        }
-        const parsed = validator.safeParse(b.input);
-        if (!parsed.success) {
-          controller.enqueue(
-            encoder.encode(
-              sse("error", {
-                message: `Tool validation failed: ${parsed.error.message}`,
-              }),
-            ),
-          );
-          return;
-        }
+        // CRITICAL: wrap the async executor work in a tracked promise. The
+        // Anthropic SDK fires `contentBlock` synchronously and ignores the
+        // returned promise — without this barrier the second tool_use's
+        // executor result lands AFTER controller.close() and is lost.
+        const work = (async () => {
+          try {
+            const validator = TOOL_VALIDATORS[b.name as ToolName];
+            if (!validator) {
+              controller.enqueue(
+                encoder.encode(
+                  sse("error", { message: `Unknown tool: ${b.name ?? "?"}` }),
+                ),
+              );
+              return;
+            }
+            const parsed = validator.safeParse(b.input);
+            if (!parsed.success) {
+              controller.enqueue(
+                encoder.encode(
+                  sse("error", {
+                    message: `Tool validation failed: ${parsed.error.message}`,
+                  }),
+                ),
+              );
+              return;
+            }
 
-        actionTypes.push(b.name as string);
-        let result;
-        if (b.name === "create_task") {
-          result = await executor.createTask(
-            parsed.data as Parameters<typeof executor.createTask>[0],
-            ctx,
-          );
-        } else if (b.name === "create_capture") {
-          result = await executor.createCapture(
-            parsed.data as Parameters<typeof executor.createCapture>[0],
-            ctx,
-          );
-        } else if (b.name === "create_event") {
-          result = await executor.createEvent(
-            parsed.data as Parameters<typeof executor.createEvent>[0],
-            ctx,
-          );
-        } else {
-          return;
-        }
+            actionTypes.push(b.name as string);
+            let result;
+            if (b.name === "create_task") {
+              result = await executor.createTask(
+                parsed.data as Parameters<typeof executor.createTask>[0],
+                ctx,
+              );
+            } else if (b.name === "create_capture") {
+              result = await executor.createCapture(
+                parsed.data as Parameters<typeof executor.createCapture>[0],
+                ctx,
+              );
+            } else if (b.name === "create_event") {
+              result = await executor.createEvent(
+                parsed.data as Parameters<typeof executor.createEvent>[0],
+                ctx,
+              );
+            } else {
+              return;
+            }
 
-        controller.enqueue(
-          encoder.encode(
-            sse("action", { toolUseId: b.id, name: b.name, result }),
-          ),
-        );
+            // Attach authoritative allDay flag to the receipt so the client
+            // never has to guess from wall-clock midnight/noon heuristics.
+            if (
+              result &&
+              (result as { ok?: boolean }).ok === true &&
+              (result as { receipt?: Record<string, unknown> }).receipt
+            ) {
+              const r = (result as { receipt: Record<string, unknown> })
+                .receipt;
+              if (b.name === "create_task" && typeof r.due === "string") {
+                r.allDay = isAllDayIso(r.due);
+              } else if (b.name === "create_event") {
+                if (typeof r.start === "string") {
+                  r.allDay = isAllDayIso(r.start);
+                }
+              }
+            }
+
+            controller.enqueue(
+              encoder.encode(
+                sse("action", { toolUseId: b.id, name: b.name, result }),
+              ),
+            );
+          } catch (err) {
+            // Defense-in-depth: never let an executor throw silently lose
+            // the receipt — surface an SSE error so the UI can react.
+            const message =
+              err instanceof Error ? err.message : String(err);
+            controller.enqueue(
+              encoder.encode(
+                sse("error", {
+                  message: `Executor failed for ${b.name ?? "?"}: ${message}`,
+                }),
+              ),
+            );
+          }
+        })();
+        pendingActions.push(work);
       });
 
       anthStream.on("text", (delta: unknown) => {
@@ -264,6 +324,10 @@ export async function POST(req: NextRequest) {
 
       try {
         const final = await anthStream.finalMessage();
+        // Drain all in-flight executor work BEFORE closing the SSE stream.
+        // finalMessage() resolves as soon as Anthropic finishes sending — but
+        // our executors (DB inserts, gcal calls) may still be running.
+        await Promise.allSettled(pendingActions);
         controller.enqueue(
           encoder.encode(sse("done", { usage: final.usage })),
         );
