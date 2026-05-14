@@ -55,11 +55,54 @@ export function JarvisReceipt({ action, countdown, onUndo }: Props) {
     ? (action.result as { error: string }).error
     : null;
 
-  function fmtDate(iso: unknown): string {
+  /**
+   * Format a date for receipt display (B6 fix — Plan 05-03 hotfix).
+   *
+   * Heuristic: an ISO string where the wall-clock components are 00:00 or
+   * 12:00 with zero seconds is treated as date-only (chrono's allDay default
+   * when no time was specified). Everything else keeps a short time.
+   *
+   * `allDay=true`  → "May 16" (no time)
+   * `allDay=false` → "May 16, 8:00 PM"
+   * relative same-day → "today" / "tomorrow"
+   */
+  function fmtDate(iso: unknown, allDay?: boolean): string {
     if (typeof iso !== "string") return String(iso ?? "");
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString();
+
+    // Detect "midnight or noon, no seconds" → treat as all-day if caller
+    // didn't tell us explicitly. This catches the common case where a task
+    // gets a due date but no time (chrono returns 12:00 UTC default).
+    const m = d.getMinutes();
+    const s = d.getSeconds();
+    const h = d.getHours();
+    const inferredAllDay =
+      allDay ?? (s === 0 && m === 0 && (h === 0 || h === 12));
+
+    const now = new Date();
+    const sameDay =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow =
+      d.getFullYear() === tomorrow.getFullYear() &&
+      d.getMonth() === tomorrow.getMonth() &&
+      d.getDate() === tomorrow.getDate();
+
+    if (inferredAllDay) {
+      if (sameDay) return "today";
+      if (isTomorrow) return "tomorrow";
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+    return d.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   }
 
   return (

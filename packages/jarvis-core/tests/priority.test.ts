@@ -41,4 +41,16 @@ describe("parsePriority", () => {
   it("word-boundary respected — 'pope' must not match", () => {
     expect(parsePriority("pope said hello")).toBe("P3");
   });
+
+  it("recognises 'p1' immediately after a date phrase (B5 hotfix)", () => {
+    expect(parsePriority("surprise for anna 5/16 p1")).toBe("P1");
+  });
+
+  it("recognises 'p2' before an SMS-style date abbreviation", () => {
+    expect(parsePriority("buy anna flowers p2 tmrw")).toBe("P2");
+  });
+
+  it("recognises 'p2' after an M/D date", () => {
+    expect(parsePriority("buy anna flowers p2 5/15")).toBe("P2");
+  });
 });

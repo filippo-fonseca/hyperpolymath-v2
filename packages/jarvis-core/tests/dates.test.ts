@@ -87,4 +87,20 @@ describe("parseDates", () => {
   it("no date phrase returns empty", () => {
     expect(parseDates("buy flowers", NY, ref)).toEqual([]);
   });
+
+  it("'tmrw' abbreviation maps to tomorrow (B5 hotfix)", () => {
+    const out = parseDates("buy anna flowers p2 tmrw", NY, ref);
+    expect(out[0]?.start).toMatch(/^2026-05-12/);
+    expect(out[0]?.allDay).toBe(true);
+  });
+
+  it("'tmw' abbreviation maps to tomorrow", () => {
+    const out = parseDates("call mom tmw", NY, ref);
+    expect(out[0]?.start).toMatch(/^2026-05-12/);
+  });
+
+  it("'tmrrw' abbreviation maps to tomorrow", () => {
+    const out = parseDates("ship tmrrw", NY, ref);
+    expect(out[0]?.start).toMatch(/^2026-05-12/);
+  });
 });

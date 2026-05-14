@@ -13,8 +13,10 @@ import {
 } from "./SlashCommandPopover";
 import {
   parseDates,
+  parsePriority,
   parseSlashCommand,
   type ParsedDate,
+  type Priority,
 } from "@hyperpolymath/jarvis-core";
 
 /**
@@ -54,6 +56,7 @@ interface HashtagSource {
 export interface JarvisInputPayload {
   input: string;
   parsedDates: ParsedDate[];
+  parsedPriority: Priority | null;
   slashCommand: SlashCommandKey | null;
   hashtags: string[];
   projectIds: string[];
@@ -264,9 +267,19 @@ export function JarvisInput({
     // Client-side chrono pre-parse (D-10)
     const parsedDates = parseDates(inputText, userTimezone);
 
+    // Client-side priority pre-parse — surface explicit "p1"/"p2"/"ptop" tokens
+    // to the server so the model honours them even when adjacent to a date
+    // phrase (e.g. "surprise for anna 5/16 p1"). parsePriority returns "P3"
+    // by default; we only forward when a token was actually present.
+    const PRIORITY_TOKEN_RE = /\b(ptop|p0|p1|p2|p3)\b/i;
+    const parsedPriority: Priority | null = PRIORITY_TOKEN_RE.test(inputText)
+      ? parsePriority(inputText)
+      : null;
+
     return {
       input: inputText,
       parsedDates,
+      parsedPriority,
       slashCommand: slashCommandForServer,
       hashtags,
       projectIds,

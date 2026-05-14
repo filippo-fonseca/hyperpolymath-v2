@@ -99,6 +99,7 @@ export function JarvisConsole({
         input: payload.input,
         history,
         parsedDates: payload.parsedDates,
+        parsedPriority: payload.parsedPriority ?? undefined,
         slashCommand: payload.slashCommand,
         linkedProjectIds: payload.projectIds, // M5
         linkedHashtags: payload.hashtags, // M6

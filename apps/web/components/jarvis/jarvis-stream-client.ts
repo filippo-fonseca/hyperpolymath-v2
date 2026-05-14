@@ -14,12 +14,15 @@
  *     can return partial bytes; we buffer until `\n\n`).
  */
 
-import type { ParsedDate } from "@hyperpolymath/jarvis-core";
+import type { ParsedDate, Priority } from "@hyperpolymath/jarvis-core";
 
 export interface JarvisRequest {
   input: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
   parsedDates?: ParsedDate[];
+  /** Client-extracted priority hint (B5 fix). Server forwards to model so
+   *  explicit "p1"/"p2"/"ptop" tokens are honoured even when adjacent to dates. */
+  parsedPriority?: Priority;
   slashCommand?: "task" | "capture" | "event" | "help" | null;
   /** M5: client-validated project UUIDs from $project Mention chips. */
   linkedProjectIds?: string[];

@@ -37,6 +37,25 @@ function resolveWallClock(
   return { year, month, day, hour, minute, hourKnown };
 }
 
+// chrono-node v2 does not natively recognise common SMS-style abbreviations
+// ("tmrw", "tmw", "tmrrw" → tomorrow; "tnt" → tonight). We normalise the
+// input before handing it to chrono so users can type the way they text.
+const ABBREVIATION_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\btmrrw\b/gi, "tomorrow"],
+  [/\btmrw\b/gi, "tomorrow"],
+  [/\btmw\b/gi, "tomorrow"],
+  [/\btmr\b/gi, "tomorrow"],
+  [/\btnt\b/gi, "tonight"],
+];
+
+function normaliseAbbreviations(text: string): string {
+  let out = text;
+  for (const [re, replacement] of ABBREVIATION_REPLACEMENTS) {
+    out = out.replace(re, replacement);
+  }
+  return out;
+}
+
 export function parseDates(
   text: string,
   ianaTz: string,
@@ -45,7 +64,8 @@ export function parseDates(
   // Reference instant interpreted in the user's zone so "tomorrow" is
   // anchored to their local "today".
   const refInTz = new TZDate(refDate, ianaTz);
-  const results = chrono.parse(text, refInTz, { forwardDate: true });
+  const normalised = normaliseAbbreviations(text);
+  const results = chrono.parse(normalised, refInTz, { forwardDate: true });
 
   return results.map((r) => {
     const startFallback = {

@@ -74,6 +74,7 @@ interface JarvisRequestBody {
     end?: string;
     allDay?: boolean;
   }>;
+  parsedPriority?: "P∞" | "P1" | "P2" | "P3";
   slashCommand?: "task" | "capture" | "event" | "help" | null;
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
@@ -135,6 +136,9 @@ export async function POST(req: NextRequest) {
   let userContent = body.input;
   if (body.parsedDates && body.parsedDates.length > 0) {
     userContent += `\n\n[Pre-parsed dates (use these ISO values, do not re-parse): ${JSON.stringify(body.parsedDates)}]`;
+  }
+  if (body.parsedPriority) {
+    userContent += `\n\n[Pre-parsed priority (the user typed an explicit priority token — use this exact value for create_task.priority): ${body.parsedPriority}]`;
   }
   if (
     (body.linkedProjectIds?.length ?? 0) > 0 ||
