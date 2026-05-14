@@ -49,6 +49,13 @@ export function JarvisConsole({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Always points at the latest turns state. The previous snapshot-via-
+  // updater-callback pattern leaked an empty array on the first follow-up
+  // turn because React 18+ doesn't guarantee the functional updater fires
+  // synchronously before the next line runs.
+  const turnsRef = useRef<ScrollbackTurn[]>(turns);
+  turnsRef.current = turns;
+
   // Session memory (D-06) — derive from visible scrollback at submit time.
   //
   // Assistant turns must include a textual summary of the actions that
@@ -108,13 +115,10 @@ export function JarvisConsole({
         status: "streaming",
       };
 
-      let snapshot: ScrollbackTurn[] = [];
-      setTurns((prev) => {
-        snapshot = prev;
-        return [...prev, userTurn, assistantTurn];
-      });
-
-      const history = buildHistory(snapshot);
+      // Read prior turns from the ref BEFORE adding new ones so history
+      // reflects what's already on screen (and on the model's side).
+      const history = buildHistory(turnsRef.current);
+      setTurns((prev) => [...prev, userTurn, assistantTurn]);
 
       setStreaming(true);
       const ac = new AbortController();
