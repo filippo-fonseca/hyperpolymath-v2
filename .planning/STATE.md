@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-13T01:43:45.371Z"
-last_activity: 2026-05-13
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-05-14T14:11:02.282Z"
+last_activity: 2026-05-14
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 19
+  completed_plans: 16
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 04 — google-calendar
+**Current focus:** Phase 05 — jarvis
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Phase complete — ready for verification (`/gsd:verify-phase 04`)
-Last activity: 2026-05-13
+Phase: 05 (jarvis) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-14
 
 Progress: [██████████] 100%
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 04 P02 | 90min | 3 tasks | 8 files |
 | Phase 04 P04-03 | ~140min | 3 tasks | 16 files |
 | Phase 04 P04-04 | ~210min | 4 tasks | 16 files |
+| Phase 05-jarvis P01 | 11min | 4 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,11 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04 P04]: Cmd+K "New event" via /calendar?create=now deep-link (NOT event-bus) — parity with Plan 02-04's Cmd+K capture pattern. CalendarClient useEffect consumes the param, opens panel pre-filled at next round half-hour with users.gcal_default_calendar_id, then router.replace('/calendar') strips param.
 - [Phase 04]: [Phase 04 P04]: Migration 0008 HARD-gated on psql precondition (m-07 fix) — `SELECT count(*) FROM users WHERE gcal_refresh_token IS NOT NULL OR gcal_access_token IS NOT NULL` must return 0 before supabase migration up runs. Non-zero aborts with remediation message. gcal_token_expires_at NOT dropped (kept as plain timestamptz per RESEARCH §Pattern 3 footnote). Cutover complete: encrypted bytea columns are now sole source of truth.
 - [Phase 04]: [Phase 04 P04]: Three placeholder polish iterations (commits 1e409ac, 7f503a1, 9867e34) preserve canonical-swap dance — (a) post-drag outlined placeholder until events.patch echoes canonical, (b) outlined drag-selection rectangle on grid via rbc selectable+onSelecting, (c) live form-state preview from Sheet to grid via temporary id:'form-preview' (NOT in optimistic state — pure visual layer).
+- [Phase 05-jarvis]: Plan 05-01: TZ=UTC pinned in packages/jarvis-core/vitest.config.ts so chrono-node's internal Date math is host-tz-agnostic — Mar 8 NY DST gap drops candidates; IANA-aware reinterpretation handled by TZDate at our layer
+- [Phase 05-jarvis]: Plan 05-01: per-tool strict: true everywhere, no structured-outputs beta header — Anthropic GA-ed structured outputs per research §1.5
+- [Phase 05-jarvis]: Plan 05-01: zCreate*For({ voiceActive }) factory pattern — single source of truth Zod schema gains voice_summary field at runtime; Phase 5 always voiceActive=false, Phase 7 flips it on
+- [Phase 05-jarvis]: Plan 05-01: TaskStatus literals use SPACES matching DB enum — 'not started'/'up next'/'in progress'/'almost done'/'lesno' (NOT underscores); HANDOFF preserves 'P∞' and 'lesno'
+- [Phase 05-jarvis]: Plan 05-01: 'midnight tomorrow' adopts chrono's reading (00:00 of tomorrow date, not day after) — matches standard English; plan fixture revised
 
 ### Pending Todos
 
@@ -115,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T01:43:45.366Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-jarvis/05-CONTEXT.md
+Last session: 2026-05-14T14:10:48.810Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

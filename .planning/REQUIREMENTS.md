@@ -96,19 +96,19 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **JARVIS-01**: JARVIS Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
 - [ ] **JARVIS-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
 - [ ] **JARVIS-03**: JARVIS parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
-- [ ] **JARVIS-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
-- [ ] **JARVIS-05**: JARVIS handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
+- [x] **JARVIS-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
+- [x] **JARVIS-05**: JARVIS handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
 - [ ] **JARVIS-06**: When input is ambiguous and no destructive action is implied, JARVIS defaults to creating a Capture (capture-first principle)
-- [ ] **JARVIS-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
+- [x] **JARVIS-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
 - [ ] **JARVIS-08**: JARVIS response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
 - [ ] **JARVIS-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
-- [ ] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
+- [x] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
 - [ ] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
 - [ ] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
 - [ ] **JARVIS-13**: Captures created via JARVIS display a one-tap "Convert to task" affordance to recover from misroutes
 - [ ] **JARVIS-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause JARVIS to emit destructive actions in subsequent turns
 - [ ] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
-- [ ] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
+- [x] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
 - [ ] **JARVIS-17**: When JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
 
 ### JARVIS Voice + Ambient (Phase 7)
@@ -150,9 +150,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Tests
 
-- [ ] **TEST-01**: Vitest unit tests cover the chrono-node date pre-parser (today, tomorrow, this Friday, next Friday, M/D, time ranges, am/pm ambiguity, DST edge cases)
-- [ ] **TEST-02**: Vitest unit tests cover priority and status token extraction (`ptop`, `p1-p3`, `lesno`)
-- [ ] **TEST-03**: Vitest contract tests validate JARVIS tool-call output against Zod schemas for each tool
+- [x] **TEST-01**: Vitest unit tests cover the chrono-node date pre-parser (today, tomorrow, this Friday, next Friday, M/D, time ranges, am/pm ambiguity, DST edge cases)
+- [x] **TEST-02**: Vitest unit tests cover priority and status token extraction (`ptop`, `p1-p3`, `lesno`)
+- [x] **TEST-03**: Vitest contract tests validate JARVIS tool-call output against Zod schemas for each tool
 - [x] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
 - [ ] **TEST-05**: Vitest adversarial-injection test suite for JARVIS (covers Pitfall 5 scenarios from PITFALLS.md)
 
@@ -283,19 +283,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JARVIS-01 | Phase 5 | Pending |
 | JARVIS-02 | Phase 5 | Pending |
 | JARVIS-03 | Phase 5 | Pending |
-| JARVIS-04 | Phase 5 | Pending |
-| JARVIS-05 | Phase 5 | Pending |
+| JARVIS-04 | Phase 5 | Complete |
+| JARVIS-05 | Phase 5 | Complete |
 | JARVIS-06 | Phase 5 | Pending |
-| JARVIS-07 | Phase 5 | Pending |
+| JARVIS-07 | Phase 5 | Complete |
 | JARVIS-08 | Phase 5 | Pending |
 | JARVIS-09 | Phase 5 | Pending |
-| JARVIS-10 | Phase 5 | Pending |
+| JARVIS-10 | Phase 5 | Complete |
 | JARVIS-11 | Phase 5 | Pending |
 | JARVIS-12 | Phase 5 | Pending |
 | JARVIS-13 | Phase 5 | Pending |
 | JARVIS-14 | Phase 5 | Pending |
 | JARVIS-15 | Phase 5 | Pending |
-| JARVIS-16 | Phase 5 | Pending |
+| JARVIS-16 | Phase 5 | Complete |
 | JARVIS-17 | Phase 5 | Pending |
 | VOICE-01 | Phase 7 | Pending |
 | VOICE-02 | Phase 7 | Pending |
@@ -325,9 +325,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RES-05 | Phase 5 | Pending |
 | RES-06 | Phase 6 | Pending |
 | RES-07 | Phase 6 | Pending |
-| TEST-01 | Phase 5 | Pending |
-| TEST-02 | Phase 5 | Pending |
-| TEST-03 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Complete |
+| TEST-02 | Phase 5 | Complete |
+| TEST-03 | Phase 5 | Complete |
 | TEST-04 | Phase 1 | Complete |
 | TEST-05 | Phase 5 | Pending |
 
