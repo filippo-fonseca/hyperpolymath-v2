@@ -95,21 +95,21 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **JARVIS-01**: JARVIS Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
 - [ ] **JARVIS-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
-- [ ] **JARVIS-03**: JARVIS parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
+- [x] **JARVIS-03**: JARVIS parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
 - [x] **JARVIS-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
 - [x] **JARVIS-05**: JARVIS handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
-- [ ] **JARVIS-06**: When input is ambiguous and no destructive action is implied, JARVIS defaults to creating a Capture (capture-first principle)
+- [x] **JARVIS-06**: When input is ambiguous and no destructive action is implied, JARVIS defaults to creating a Capture (capture-first principle)
 - [x] **JARVIS-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
 - [ ] **JARVIS-08**: JARVIS response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
 - [ ] **JARVIS-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
 - [x] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
-- [ ] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
-- [ ] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
+- [x] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
+- [x] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
 - [ ] **JARVIS-13**: Captures created via JARVIS display a one-tap "Convert to task" affordance to recover from misroutes
-- [ ] **JARVIS-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause JARVIS to emit destructive actions in subsequent turns
-- [ ] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
+- [x] **JARVIS-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause JARVIS to emit destructive actions in subsequent turns
+- [x] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
 - [x] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
-- [ ] **JARVIS-17**: When JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
+- [x] **JARVIS-17**: When JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
 
 ### JARVIS Voice + Ambient (Phase 7)
 
@@ -144,7 +144,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **RES-02**: Toast notifications for action success / error states; non-destructive actions include "Undo" within 5 seconds
 - [ ] **RES-03**: Empty states for every list view (Tasks, Captures, Areas, Projects, Calendar) with brand-voice copy
 - [ ] **RES-04**: `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity check
-- [ ] **RES-05**: `jarvis_events` Postgres table logs each JARVIS turn (action types emitted, latency, cache hit rate, error if any)
+- [x] **RES-05**: `jarvis_events` Postgres table logs each JARVIS turn (action types emitted, latency, cache hit rate, error if any)
 - [ ] **RES-06**: `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate
 - [ ] **RES-07**: Sentry (or equivalent) wired to capture client + server unhandled errors
 
@@ -154,7 +154,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TEST-02**: Vitest unit tests cover priority and status token extraction (`ptop`, `p1-p3`, `lesno`)
 - [x] **TEST-03**: Vitest contract tests validate JARVIS tool-call output against Zod schemas for each tool
 - [x] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
-- [ ] **TEST-05**: Vitest adversarial-injection test suite for JARVIS (covers Pitfall 5 scenarios from PITFALLS.md)
+- [x] **TEST-05**: Vitest adversarial-injection test suite for JARVIS (covers Pitfall 5 scenarios from PITFALLS.md)
 
 ## v2 Requirements
 
@@ -282,21 +282,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-09 | Phase 4 | Complete |
 | JARVIS-01 | Phase 5 | Pending |
 | JARVIS-02 | Phase 5 | Pending |
-| JARVIS-03 | Phase 5 | Pending |
+| JARVIS-03 | Phase 5 | Complete |
 | JARVIS-04 | Phase 5 | Complete |
 | JARVIS-05 | Phase 5 | Complete |
-| JARVIS-06 | Phase 5 | Pending |
+| JARVIS-06 | Phase 5 | Complete |
 | JARVIS-07 | Phase 5 | Complete |
 | JARVIS-08 | Phase 5 | Pending |
 | JARVIS-09 | Phase 5 | Pending |
 | JARVIS-10 | Phase 5 | Complete |
-| JARVIS-11 | Phase 5 | Pending |
-| JARVIS-12 | Phase 5 | Pending |
+| JARVIS-11 | Phase 5 | Complete |
+| JARVIS-12 | Phase 5 | Complete |
 | JARVIS-13 | Phase 5 | Pending |
-| JARVIS-14 | Phase 5 | Pending |
-| JARVIS-15 | Phase 5 | Pending |
+| JARVIS-14 | Phase 5 | Complete |
+| JARVIS-15 | Phase 5 | Complete |
 | JARVIS-16 | Phase 5 | Complete |
-| JARVIS-17 | Phase 5 | Pending |
+| JARVIS-17 | Phase 5 | Complete |
 | VOICE-01 | Phase 7 | Pending |
 | VOICE-02 | Phase 7 | Pending |
 | VOICE-03 | Phase 7 | Pending |
@@ -322,14 +322,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RES-02 | Phase 6 | Pending |
 | RES-03 | Phase 6 | Pending |
 | RES-04 | Phase 6 | Pending |
-| RES-05 | Phase 5 | Pending |
+| RES-05 | Phase 5 | Complete |
 | RES-06 | Phase 6 | Pending |
 | RES-07 | Phase 6 | Pending |
 | TEST-01 | Phase 5 | Complete |
 | TEST-02 | Phase 5 | Complete |
 | TEST-03 | Phase 5 | Complete |
 | TEST-04 | Phase 1 | Complete |
-| TEST-05 | Phase 5 | Pending |
+| TEST-05 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 93 total (across 13 categories — note: brief cited 79 but the file enumerates 93; all enumerated requirements are mapped)

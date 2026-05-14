@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Awaiting human-verify checkpoint at 05-02-PLAN.md Task 5 (SSE smoke + cache-hit verification)
-last_updated: "2026-05-14T14:31:39.870Z"
+stopped_at: Completed 05-02-PLAN.md (JARVIS SSE route + executor + adversarial defense; live smoke verdicts passed)
+last_updated: "2026-05-14T15:27:45.047Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 05 (jarvis) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-14
 
@@ -62,6 +62,7 @@ Progress: [██████████] 100%
 | Phase 04 P04-03 | ~140min | 3 tasks | 16 files |
 | Phase 04 P04-04 | ~210min | 4 tasks | 16 files |
 | Phase 05-jarvis P01 | 11min | 4 tasks | 24 files |
+| Phase 05 P05-02 | 15 | 5 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 05-jarvis]: Plan 05-01: zCreate*For({ voiceActive }) factory pattern — single source of truth Zod schema gains voice_summary field at runtime; Phase 5 always voiceActive=false, Phase 7 flips it on
 - [Phase 05-jarvis]: Plan 05-01: TaskStatus literals use SPACES matching DB enum — 'not started'/'up next'/'in progress'/'almost done'/'lesno' (NOT underscores); HANDOFF preserves 'P∞' and 'lesno'
 - [Phase 05-jarvis]: Plan 05-01: 'midnight tomorrow' adopts chrono's reading (00:00 of tomorrow date, not day after) — matches standard English; plan fixture revised
+- [Phase 05]: [Phase 05 P02]: userId is re-derived from getClaims() at the route boundary — model-emitted user_id is never trusted; project_id/calendar_id ownership pre-validated via Drizzle before executor runs (JARVIS-12)
+- [Phase 05]: [Phase 05 P02]: JARVIS-11 prompt caching verified live — turn 1 cache_creation_input_tokens=2368 (68s cold), turn 2 cache_read_input_tokens=2368 (4.2s warm). Last-tool cache_control + per-tool strict:true is the working pattern
+- [Phase 05]: [Phase 05 P02]: parallel_tool_use is default-on for claude-sonnet-4-6 — multi-action prompts emit N tool_use blocks in one assistant message, no opt-in beta header required
 
 ### Pending Todos
 
@@ -121,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-14T14:31:39.866Z
-Stopped at: Awaiting human-verify checkpoint at 05-02-PLAN.md Task 5 (SSE smoke + cache-hit verification)
+Last session: 2026-05-14T15:27:36.863Z
+Stopped at: Completed 05-02-PLAN.md (JARVIS SSE route + executor + adversarial defense; live smoke verdicts passed)
 Resume file: None
