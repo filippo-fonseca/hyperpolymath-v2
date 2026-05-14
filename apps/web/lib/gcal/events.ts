@@ -21,6 +21,7 @@
  */
 
 import type { calendar_v3 } from "googleapis";
+import { getValidGcalToken } from "./token";
 
 export async function listEvents(
   cal: calendar_v3.Calendar,
@@ -54,4 +55,66 @@ export async function deleteEvent(
   eventId: string,
 ) {
   return cal.events.delete({ calendarId, eventId });
+}
+
+// ---------------------------------------------------------------------------
+// Higher-level helper for the JARVIS executor (Phase 5 Plan 05-02).
+//
+// The thin wrappers above require a caller-constructed `calendar_v3.Calendar`,
+// which is fine for /api/gcal/* routes that already hold one. The JARVIS
+// executor lives one layer up and would otherwise need to duplicate the
+// "build OAuth2 client → setCredentials → calendar() → insert" dance for
+// every action. This helper owns that lifecycle so the executor can stay
+// focused on validation + result mapping.
+//
+// SECURITY: `userId` is the caller-controlled value — at the route handler
+// boundary it is always re-derived from `getClaims()` (JARVIS-12). This
+// helper never reads userId from googleapis input.
+// ---------------------------------------------------------------------------
+
+export interface JarvisEventInput {
+  calendarId: string;
+  title: string;
+  description?: string;
+  start: Date;
+  end: Date;
+}
+
+export interface GcalEventDTO {
+  id: string;
+  calendarId: string;
+  title: string;
+  description?: string | null;
+  /** ISO 8601 (timeZone aware). */
+  start: string;
+  end: string;
+  htmlLink?: string | null;
+}
+
+export async function createEventForJarvis(
+  userId: string,
+  input: JarvisEventInput,
+): Promise<GcalEventDTO> {
+  // `getValidGcalToken` returns an already-authenticated calendar_v3.Calendar.
+  // Throws GcalNotConnectedError / GcalTokenRevokedError on auth failure —
+  // the JARVIS executor catches and maps to ExecutorResult.kind="revoked".
+  const cal = await getValidGcalToken(userId);
+
+  const { data } = await insertEvent(cal, input.calendarId, {
+    summary: input.title,
+    description: input.description ?? undefined,
+    start: { dateTime: input.start.toISOString() },
+    end: { dateTime: input.end.toISOString() },
+  });
+
+  if (!data.id) throw new Error("gcal returned no event id");
+  return {
+    id: data.id,
+    calendarId: input.calendarId,
+    title: data.summary ?? input.title,
+    description: data.description ?? null,
+    start: data.start?.dateTime ?? input.start.toISOString(),
+    end: data.end?.dateTime ?? input.end.toISOString(),
+    htmlLink: data.htmlLink ?? null,
+  };
 }

@@ -22,21 +22,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Error classes (typed) -------------------------------------------------
+//
+// Hoisted via vi.hoisted so the vi.mock factory below can reference them
+// safely (factories run before top-level class declarations).
 
-class FakeRevokedError extends Error {
-  readonly kind = "gcal_token_revoked" as const;
-  constructor() {
-    super("revoked");
-    this.name = "GcalTokenRevokedError";
+const { FakeRevokedError, FakeNotConnectedError } = vi.hoisted(() => {
+  class FakeRevokedError extends Error {
+    readonly kind = "gcal_token_revoked" as const;
+    constructor() {
+      super("revoked");
+      this.name = "GcalTokenRevokedError";
+    }
   }
-}
-class FakeNotConnectedError extends Error {
-  readonly kind = "gcal_not_connected" as const;
-  constructor() {
-    super("not connected");
-    this.name = "GcalNotConnectedError";
+  class FakeNotConnectedError extends Error {
+    readonly kind = "gcal_not_connected" as const;
+    constructor() {
+      super("not connected");
+      this.name = "GcalNotConnectedError";
+    }
   }
-}
+  return { FakeRevokedError, FakeNotConnectedError };
+});
 
 vi.mock("@/lib/gcal/token", () => ({
   GcalTokenRevokedError: FakeRevokedError,
@@ -48,45 +54,30 @@ vi.mock("@/lib/gcal/token", () => ({
 // We expose the underlying spies on the mocked module so tests can:
 //   - Stub the SELECT chain return values (project ownership, user calendars)
 //   - Inspect captured INSERT/transaction calls
+//
+// vi.mock factories are hoisted above all imports — use vi.hoisted so the
+// shared state object is initialized BEFORE the factory runs.
 
-const dbState: {
-  selectReturns: unknown[][];
-  insertCalls: Array<{ table: unknown; values: unknown }>;
-  txnInsertCalls: Array<{ table: unknown; values: unknown }>;
-  txnDeleteCalls: Array<{ table: unknown; where: unknown }>;
-} = {
-  selectReturns: [],
-  insertCalls: [],
-  txnInsertCalls: [],
-  txnDeleteCalls: [],
-};
-
-function makeSelectChain(returnRows: unknown[]) {
-  const chain: Record<string, unknown> = {};
-  chain.from = vi.fn().mockReturnValue(chain);
-  chain.where = vi.fn().mockReturnValue(chain);
-  chain.limit = vi.fn().mockResolvedValue(returnRows);
-  // Allow await on chain (without .limit) → returns rows
-  (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
-    Promise.resolve(returnRows).then(resolve);
-  return chain;
-}
-
-function makeTxInsert() {
-  const onConflictDoNothing = vi.fn().mockResolvedValue(undefined);
-  const values = vi.fn().mockReturnValue({ onConflictDoNothing });
-  const insert = vi.fn().mockImplementation((table: unknown) => {
-    return {
-      values: (vals: unknown) => {
-        dbState.txnInsertCalls.push({ table, values: vals });
-        return { onConflictDoNothing };
-      },
-    };
-  });
-  return { insert, values };
-}
+const { dbState } = vi.hoisted(() => ({
+  dbState: {
+    selectReturns: [] as unknown[][],
+    insertCalls: [] as Array<{ table: unknown; values: unknown }>,
+    txnInsertCalls: [] as Array<{ table: unknown; values: unknown }>,
+    txnDeleteCalls: [] as Array<{ table: unknown; where: unknown }>,
+  },
+}));
 
 vi.mock("@/lib/db", () => {
+  function makeSelectChain(returnRows: unknown[]) {
+    const chain: Record<string, unknown> = {};
+    chain.from = vi.fn().mockReturnValue(chain);
+    chain.where = vi.fn().mockReturnValue(chain);
+    chain.limit = vi.fn().mockResolvedValue(returnRows);
+    // Allow await on chain (without .limit) → returns rows
+    (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
+      Promise.resolve(returnRows).then(resolve);
+    return chain;
+  }
   const db = {
     select: vi.fn(() => {
       const rows = dbState.selectReturns.shift() ?? [];
@@ -122,15 +113,19 @@ vi.mock("@/lib/db", () => {
 });
 
 // --- gcal events mock ------------------------------------------------------
+//
+// vi.mock() factories are hoisted ABOVE imports — we use vi.hoisted to
+// declare the spy refs so the factory can reference them safely.
 
-const createEventForJarvisMock = vi.fn();
+const { createEventForJarvisMock, upsertHashtagMock } = vi.hoisted(() => ({
+  createEventForJarvisMock: vi.fn(),
+  upsertHashtagMock: vi.fn(),
+}));
+
 vi.mock("@/lib/gcal/events", () => ({
   createEventForJarvis: createEventForJarvisMock,
 }));
 
-// --- hashtag upsert mock ---------------------------------------------------
-
-const upsertHashtagMock = vi.fn();
 vi.mock("@/app/actions/hashtags", () => ({
   upsertHashtag: upsertHashtagMock,
 }));
