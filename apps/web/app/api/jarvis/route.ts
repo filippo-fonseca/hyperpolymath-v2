@@ -361,6 +361,29 @@ export async function POST(req: NextRequest) {
         // our executors (DB inserts, gcal calls) may still be running.
         await Promise.allSettled(pendingActions);
 
+        // Inspect final.content authoritatively rather than trusting stream
+        // event accounting alone — covers any race where text deltas arrive
+        // after we stopped tracking. Stream a text replay if the model DID
+        // emit a text block but stream-event accounting missed it.
+        const finalContent = (final?.content ?? []) as Array<{
+          type?: string;
+          text?: string;
+        }>;
+        const finalTextBlocks = finalContent
+          .filter(
+            (b) =>
+              b.type === "text" &&
+              typeof b.text === "string" &&
+              b.text.trim().length > 0,
+          )
+          .map((b) => b.text as string);
+        if (!anyTextEmitted && finalTextBlocks.length > 0) {
+          controller.enqueue(
+            encoder.encode(sse("text", { delta: finalTextBlocks.join("\n") })),
+          );
+          anyTextEmitted = true;
+        }
+
         // Empty-response fallback: if the model emitted neither text nor any
         // successful action, synthesize a short prose reply so the user
         // doesn't see the thinking-word vanish into silence. Most commonly
@@ -372,6 +395,20 @@ export async function POST(req: NextRequest) {
             : "I didn't quite catch that, sir — try rephrasing as a thing to file, or use /ask to query history.";
           controller.enqueue(
             encoder.encode(sse("text", { delta: fallback })),
+          );
+        }
+
+        // Dev-mode diagnostics — surface to server logs so we can see what
+        // the model actually emitted on perplexing turns.
+        if (process.env.NODE_ENV !== "production") {
+          const stopReason = (final as { stop_reason?: string } | undefined)
+            ?.stop_reason;
+          const blockTypes = finalContent
+            .map((b) => b.type ?? "?")
+            .join(",");
+          // eslint-disable-next-line no-console
+          console.log(
+            `[jarvis] askMode=${askMode} stop=${stopReason} text=${anyTextEmitted} actions=${actionTypes.length} blocks=${blockTypes}`,
           );
         }
 
