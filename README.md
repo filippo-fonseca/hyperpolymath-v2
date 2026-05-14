@@ -25,7 +25,7 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, quick captures, and Google Calendar — unified under a single natural-language agent named **JARVIS**, powered by Claude Sonnet 4.6.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, quick captures, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6.
 
 Type one sentence. The right action lands in the right place. Every time.
 
@@ -38,7 +38,7 @@ Type one sentence. The right action lands in the right place. Every time.
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
-This is **v2** — a ground-up rebuild of [`polymath-web`](https://github.com/filippo-fonseca/polymath-web) with a tighter MVP, a Postgres-backed stack, and a stronger agent contract. The aesthetic is *academic paper meets Notion meets Todoist* — crisp, journal-vibe, EB Garamond / Louize, unapologetically Renaissance.
+This is **v2**. A ground-up rebuild of [`polymath-web`](https://github.com/filippo-fonseca/polymath-web) with a tighter MVP, a Postgres-backed stack, and a stronger agent contract. The aesthetic is *academic paper crossed with Notion crossed with Todoist*: crisp, journal-vibe, EB Garamond / Louize, unapologetically Renaissance.
 
 ---
 
@@ -46,13 +46,13 @@ This is **v2** — a ground-up rebuild of [`polymath-web`](https://github.com/fi
 
 Modern productivity tools assume you're one thing. A runner, or a researcher, or a founder. Habits live in one app, training in another, nutrition somewhere else, ideas scattered across three different notebooks. Context-switching kills momentum, and the more domains you operate across, the more friction compounds.
 
-Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Running discipline informs studying discipline. Music trains pattern recognition. Everything connects — so the tool should too.
+Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Running discipline informs studying discipline. Music trains pattern recognition. Everything connects, so the tool should too.
 
 ---
 
-## ⚜  The Engine — JARVIS
+## ⚜  The Engine: JARVIS
 
-JARVIS is the centerpiece. It's a streaming, structured-output agent built on Claude Sonnet 4.6 with **Strict Tool Use** for zero-parse-error JSON contracts. One input → N actions, each a different shape.
+JARVIS is the centerpiece. A streaming, structured-output agent built on Claude Sonnet 4.6 with **Strict Tool Use** for zero-parse-error JSON contracts. One input becomes N actions, each a different shape.
 
 | Input | JARVIS infers |
 |---|---|
@@ -65,9 +65,9 @@ JARVIS is the centerpiece. It's a streaming, structured-output agent built on Cl
 **Design principles**
 
 - **Capture-first.** Ambiguous input becomes a capture. JARVIS never asks a clarifying question for non-destructive actions.
-- **Inline references.** `$projectname` resolves to project IDs, `#hashtag` to tags — highlighted in the input bar, normalized before reaching the model.
-- **Native date/time.** "tomorrow", "next thursday", "8pm sat", "M/D", time ranges — all parsed.
-- **Personality.** British register, formal, concise, dry, never sycophantic. Voice + wake-word ("Hey Jarvis") + clap-detection ship in Phase 7.
+- **Inline references.** `$projectname` resolves to project IDs, `#hashtag` to tags. Highlighted in the input bar, normalized before reaching the model.
+- **Native date/time.** "tomorrow", "next thursday", "8pm sat", "M/D", time ranges. All parsed.
+- **Personality.** British register, formal, concise, dry, never sycophantic. Voice, wake-word ("Hey Jarvis"), and clap-detection ship in Phase 7.
 
 ---
 
@@ -98,7 +98,7 @@ JARVIS is the centerpiece. It's a streaming, structured-output agent built on Cl
 |---|---|
 | **Direct `@anthropic-ai/sdk`** (not Vercel AI SDK) | Single-provider + heavy tool use + custom streaming UX. Less indirection, more control. |
 | **Drizzle for queries · `supabase-js` for everything else** | Drizzle = typed schema as source of truth. `supabase-js` handles what it's actually good at (Auth, Realtime, Storage). |
-| **`getClaims()` over `getSession()`** | JWT-validated against published public keys. `getSession()` reads cookies without revalidation — spoofable. |
+| **`getClaims()` over `getSession()`** | JWT-validated against published public keys. `getSession()` reads cookies without revalidation, which is spoofable. |
 | **TanStack Query + Realtime invalidation** | Realtime fires → invalidate query → refetch. Simpler than merging payloads into cache. Free dedup, optimism, devtools. |
 | **gcal events are NOT in Postgres** | Google Calendar is the source of truth for scheduling. The app is a CRUD operator over gcal. |
 | **`userId` scoping from day one + RLS** | Single-user architecturally, multi-user-ready by construction. |
@@ -133,7 +133,7 @@ JARVIS is the centerpiece. It's a streaming, structured-output agent built on Cl
 ## ⚜  Surfaces
 
 ```
-   /                       JARVIS console — the homescreen
+   /                       JARVIS console, the homescreen
    /today                  today's tasks + today's gcal
    /tasks                  all tasks (kanban · list · filters)
    /captures               quick-capture feed (hashtag-filterable, searchable)
@@ -149,14 +149,14 @@ JARVIS is the centerpiece. It's a streaming, structured-output agent built on Cl
 ```
 hyperpolymath-v2/
 ├── apps/
-│   └── web/                   Next.js 16 app — UI, API routes, server actions
+│   └── web/                   Next.js 16 app: UI, API routes, server actions
 │       ├── app/               App Router (RSC + server actions)
 │       ├── components/        shadcn primitives + feature components
 │       ├── drizzle/           SQL migrations (numbered, generated)
 │       ├── lib/               db · auth · gcal · jarvis · realtime · utils
 │       └── tests/             Vitest specs (agent contract, parsers, executors)
 ├── packages/
-│   └── jarvis-core/           agent logic — sharable with future CLI
+│   └── jarvis-core/           agent logic, sharable with a future CLI
 ├── .planning/                 GSD workflow artifacts (roadmap, phases, state)
 └── resources/                 vision docs (core.md, handoff, idea archive)
 ```
@@ -225,13 +225,13 @@ Detailed phase plans live in [`.planning/`](./.planning).
 >
 > **2.4**  Capture everything. *Ideas are fleeting; the inbox is frictionless.*
 >
-> **2.5**  Measure what matters. *What gets measured gets mastered — but only measure what moves the needle.*
+> **2.5**  Measure what matters. *What gets measured gets mastered. But only measure what moves the needle.*
 
 ---
 
 ## ⚜  License & Brand
 
-MIT — see [`LICENSE`](./LICENSE). Open source by commitment, not convenience. Secrets live in env, never in the repo.
+MIT. See [`LICENSE`](./LICENSE). Open source by commitment, not convenience. Secrets live in env, never in the repo.
 
 Hyperpolymath is built and maintained by [@filippo-fonseca](https://github.com/filippo-fonseca). The name, the wordmark, and the Renaissance trade-dress are part of an evolving personal brand; please don't reuse them for derivative products without asking.
 
