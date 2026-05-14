@@ -2,11 +2,11 @@
 
 ## What This Is
 
-A personal life-OS web app for one user (Filippo) that unifies areas, projects (incl. classes), tasks, quick captures, and Google Calendar behind a single natural-language agent called **Kiwi**. v2 is a ground-up rebuild of v1 (`polymath-web`) with a tighter MVP scope, a modern Postgres-backed stack, and Claude Sonnet 4.6 powering the agent. The aesthetic is "academic paper meets Notion meets Todoist" — crisp, journal-vibe, EB Garamond / Louize fonts, unapologetically Renaissance.
+A personal life-OS web app for one user (Filippo) that unifies areas, projects (incl. classes), tasks, quick captures, and Google Calendar behind a single natural-language agent called **JARVIS**. v2 is a ground-up rebuild of v1 (`polymath-web`) with a tighter MVP scope, a modern Postgres-backed stack, and Claude Sonnet 4.6 powering the agent. The aesthetic is "academic paper meets Notion meets Todoist" — crisp, journal-vibe, EB Garamond / Louize fonts, unapologetically Renaissance.
 
 ## Core Value
 
-**Type one sentence into Kiwi → the right action lands in the right place across tasks, captures, and calendar — every time.** If everything else is beautiful but Kiwi misroutes, v2 has failed.
+**Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.** If everything else is beautiful but JARVIS misroutes, v2 has failed.
 
 ## Requirements
 
@@ -31,26 +31,32 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 
 <!-- Current scope. Building toward these. -->
 
-**Kiwi (the engine)**
-- [ ] Kiwi is invoked from the app homescreen as a centralized terminal-style chat interface (Warp-inspired, journal-paper-styled)
-- [ ] Kiwi parses a single user message and infers one or more actions: create task, create capture, create calendar event, or any combination thereof — emitting structured JSON the backend executes
-- [ ] Kiwi resolves project references with `$projectname` syntax (highlighted inline; resolves to project ID when sent to the model) and hashtag references with `#tag` syntax for captures
-- [ ] Kiwi handles natural date/time parsing (today, tomorrow, this/next weekday, M/D, "8pm saturday", time ranges)
-- [ ] Kiwi handles priority tokens (`ptop`/`p0` → `P∞`, `p1` → `P1`, etc.) with `P3` as default
-- [ ] Kiwi defaults to capture-first when input is ambiguous (never asks a clarifying question for non-destructive actions)
-- [ ] Kiwi has a manual mode toggle to force a specific action type (capture / task / event); default is auto-infer
-- [ ] Kiwi shows the streaming response with the v1 thinking-word indicator (preserve the UX)
+**JARVIS (the engine)**
+- [ ] JARVIS is invoked from the app homescreen as a centralized terminal-style chat interface (Warp-inspired, journal-paper-styled)
+- [ ] JARVIS parses a single user message and infers one or more actions: create task, create capture, create calendar event, or any combination thereof — emitting structured JSON the backend executes
+- [ ] JARVIS resolves project references with `$projectname` syntax (highlighted inline; resolves to project ID when sent to the model) and hashtag references with `#tag` syntax for captures
+- [ ] JARVIS handles natural date/time parsing (today, tomorrow, this/next weekday, M/D, "8pm saturday", time ranges)
+- [ ] JARVIS handles priority tokens (`ptop`/`p0` → `P∞`, `p1` → `P1`, etc.) with `P3` as default
+- [ ] JARVIS defaults to capture-first when input is ambiguous (never asks a clarifying question for non-destructive actions)
+- [ ] JARVIS has a manual mode toggle to force a specific action type (capture / task / event); default is auto-infer
+- [ ] JARVIS shows the streaming response with the v1 thinking-word indicator (preserve the UX)
 - [ ] Conversation memory is session-only (matches v1 — fresh context per session)
-- [ ] MVP scope: Kiwi creates (C in CRUD). Read/Update/Delete via Kiwi is post-MVP — handled manually in tabs
+- [ ] MVP scope: JARVIS creates (C in CRUD). Read/Update/Delete via JARVIS is post-MVP — handled manually in tabs
 
-**Calendar** *(validated in Phase 4: google-calendar; Kiwi event-creation pending Phase 5)*
+**Calendar** *(validated in Phase 4: google-calendar; JARVIS event-creation pending Phase 5)*
 - [x] User connects Google Calendar via OAuth
 - [x] Full bi-directional CRUD: create/edit/delete on app pushes to Google Calendar; loading the page reflects external Google Calendar changes (no background polling — sync on page load + refetch-on-focus)
 - [x] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
-- [ ] Kiwi can create calendar events (e.g., "dinner with anna 8pm saturday") *(pending Phase 5 Kiwi)*
+- [ ] JARVIS can create calendar events (e.g., "dinner with anna 8pm saturday") *(pending Phase 5 JARVIS)*
 
 **Navigation & Tabs** *(remainder)*
-- [ ] Homescreen is the Kiwi interaction surface
+- [ ] Homescreen is the JARVIS interaction surface
+
+**JARVIS Voice + Ambient** *(Phase 7 — text Console remains discreet fallback)*
+- [ ] User can wake JARVIS by saying "Hey Jarvis" (Picovoice on-device wake-word) or by clapping twice in quick succession
+- [ ] After wake, voice command transcribed via Groq Whisper; response receipt spoken aloud in a British accent via ElevenLabs Flash WebSocket TTS
+- [ ] One-click "Discreet" toggle silences voice + disables wake-word for public-space use; text Console remains fully functional in parallel
+- [ ] System prompt establishes JARVIS personality: British register, formal, concise, dry, never sycophantic (lands in Phase 5 text Console; voice in Phase 7)
 
 **Auth & User Settings**
 - [ ] Google OAuth via Supabase Auth (single-user app architecturally, but every row scoped to `userId` for future multi-user readiness)
@@ -60,19 +66,19 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 - [ ] Visual design feels like an academic journal (Elsevier/Nature) crossed with Notion's Japanese-zen restraint
 - [ ] Typography: EB Garamond or Louize as the primary serif
 - [ ] Bold, Genz-Renaissance brand voice (per `idea_for_polymathy.md`)
-- [ ] Kiwi interface visually echoes Warp terminal while preserving the journal-paper feel
+- [ ] JARVIS interface visually echoes Warp terminal while preserving the journal-paper feel
 
 ### Out of Scope
 
 <!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
 
-- **All v1 domains beyond core.md** (Habits, Fueling, Training, Goals, Library, Assignments, Academics view, Analytics) — deferred to post-MVP; v2 MVP is deliberately scoped to Areas/Projects/Tasks/Captures/Calendar/Kiwi only
+- **All v1 domains beyond core.md** (Habits, Fueling, Training, Goals, Library, Assignments, Academics view, Analytics) — deferred to post-MVP; v2 MVP is deliberately scoped to Areas/Projects/Tasks/Captures/Calendar/JARVIS only
 - **Twilio SMS ingestion** — v1 feature, not in core.md scope
 - **Strava integration** — Training is out of scope
 - **Goodreads import** — Library is out of scope
-- **Kiwi CLI (Ink terminal client)** — web-only MVP; CLI deferred (factor agent logic so a CLI can be added later)
-- **Persistent Kiwi conversation memory** — session-only matches v1; persistence + summarization is post-MVP
-- **Update / Delete via Kiwi** — MVP is creation-only via the agent; modifications go through manual UI in tabs
+- **JARVIS CLI (Ink terminal client)** — web-only MVP; CLI deferred (factor agent logic so a CLI can be added later)
+- **Persistent JARVIS conversation memory** — session-only matches v1; persistence + summarization is post-MVP
+- **Update / Delete via JARVIS** — MVP is creation-only via the agent; modifications go through manual UI in tabs
 - **Multi-tenant SaaS / team features** — single-user app architecturally; rows scoped to `userId` for future expansion only
 - **Mobile native app** — responsive web only; native deferred
 - **Real-time multi-device collaboration** — single-user means realtime is for live UI updates, not collaborative editing
@@ -81,15 +87,15 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 
 ## Context
 
-**v1 reference:** A working production app at `/Users/filippofonseca/Developer/Projects/polymath-web` covers 9 domains, has Kiwi as a Cmd+K modal, is built on Next.js 16 / React 19 / Tailwind 4 / Firebase / OpenAI gpt-4o, and has an in-progress Ink CLI in `packages/kiwi-cli`. v2 is a ground-up rebuild — same product spirit, narrower scope, modernized stack. The full v1 system is documented in `resources/HYPERPOLYMATH_V2_HANDOFF.md`.
+**v1 reference:** A working production app at `/Users/filippofonseca/Developer/Projects/polymath-web` covers 9 domains, has JARVIS as a Cmd+K modal, is built on Next.js 16 / React 19 / Tailwind 4 / Firebase / OpenAI gpt-4o, and has an in-progress Ink CLI in `packages/jarvis-cli`. v2 is a ground-up rebuild — same product spirit, narrower scope, modernized stack. The full v1 system is documented in `resources/HYPERPOLYMATH_V2_HANDOFF.md`.
 
 **Source spec:** `resources/core.md` is the canonical scope description. `resources/idea_for_polymathy.md` carries the brand voice and mission. `resources/HYPERPOLYMATH_V2_HANDOFF.md` is the v1 reference for inherited patterns.
 
 **Inherited non-negotiables from v1** (preserve these in v2):
 - `P∞` and `lesno` literal strings (status/priority enums)
-- The thinking-word indicator UX during Kiwi response streaming
-- Capture-first principle when Kiwi is ambiguous
-- Confirm-before-destructive when Update/Delete via Kiwi eventually lands (post-MVP)
+- The thinking-word indicator UX during JARVIS response streaming
+- Capture-first principle when JARVIS is ambiguous
+- Confirm-before-destructive when Update/Delete via JARVIS eventually lands (post-MVP)
 
 **Open-source posture:** Repository will be public. Never commit secrets; environment variables only. License is MIT (matches v1 inspiration).
 
@@ -99,7 +105,7 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 
 - **Tech stack**: Next.js (App Router) + TypeScript strict + Tailwind + Supabase (Postgres + Auth + Realtime + Storage) + Anthropic Claude Sonnet 4.6 — Modern, batteries-included; matches greenfield-no-migrations preference
 - **Hosting**: Vercel (Next.js) + Supabase (managed Postgres) — Standard pairing; minimal ops overhead
-- **Testing**: Vitest for critical paths (Kiwi agent JSON contract, NLP parsers) — Skip UI tests for MVP; address v1's "no tests" regret without slowing MVP
+- **Testing**: Vitest for critical paths (JARVIS agent JSON contract, NLP parsers) — Skip UI tests for MVP; address v1's "no tests" regret without slowing MVP
 - **Realtime**: Supabase Realtime channels on all primary tables (tasks, captures, projects, areas) — Matches v1's onSnapshot feel
 - **Calendar**: Events live in Google Calendar exclusively; never persisted in Postgres — gcal is the source of truth for scheduling
 - **Single-user architecturally, multi-user readiness**: All rows scoped to `userId` from day one — Future-proofs without adding multi-tenancy now
@@ -113,12 +119,12 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 |----------|-----------|---------|
 | Modernize stack vs mirror v1 | v1's Firebase + raw-fetch-OpenAI choices are battle-tested but limit type-safety, query power, and structured tool use. Greenfield is the right time. | — Pending |
 | Supabase over Neon | Bundles Auth (Google) + Realtime + Storage; one fewer integration to wire | — Pending |
-| Claude Sonnet 4.6 over OpenAI gpt-4o | Better instruction-following + tool use for the multi-action JSON contract Kiwi requires | — Pending |
+| Claude Sonnet 4.6 over OpenAI gpt-4o | Better instruction-following + tool use for the multi-action JSON contract JARVIS requires | — Pending |
 | Realtime everywhere (not just captures) | v1's onSnapshot feel is part of the product; downgrading would be a regression | — Pending |
 | Web-only MVP, no CLI | core.md doesn't mention CLI; v1's CLI is unfinished; defer until web is solid | — Pending |
 | Strict core.md scope (drop 6 v1 domains) | "Be goated" requires depth; spreading thin across 9 domains was a v1 weakness | — Pending |
-| Session-only Kiwi memory | Matches v1; persistence adds prompt-design complexity (summarization) for unclear MVP value | — Pending |
-| Kiwi creates only (no R/U/D via agent) in MVP | core.md explicitly defers R/U/D: "let's get creation really good now" | — Pending |
+| Session-only JARVIS memory | Matches v1; persistence adds prompt-design complexity (summarization) for unclear MVP value | — Pending |
+| JARVIS creates only (no R/U/D via agent) in MVP | core.md explicitly defers R/U/D: "let's get creation really good now" | — Pending |
 | Calendar events not persisted locally | gcal is source of truth; avoids dual-write consistency bugs | — Pending |
 | MIT license, public repo from day one | Filippo's open-source commitment | — Pending |
 

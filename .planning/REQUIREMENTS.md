@@ -1,7 +1,7 @@
 # Requirements: Hyperpolymath v2
 
 **Defined:** 2026-05-07
-**Core Value:** Type one sentence into Kiwi → the right action lands in the right place across tasks, captures, and calendar — every time.
+**Core Value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
 
 ## v1 Requirements
 
@@ -29,7 +29,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SET-01**: User can set their college graduation year on a settings page (drives Class semester options)
 - [x] **SET-02**: Settings page shows Google Calendar connection status (connected / not connected / token expired)
 - [ ] **SET-03**: User can switch between light and dark theme; preference persists across sessions
-- [x] **SET-04**: User can set a default Google Calendar (used when Kiwi creates events without explicit calendar reference)
+- [x] **SET-04**: User can set a default Google Calendar (used when JARVIS creates events without explicit calendar reference)
 
 ### Areas
 
@@ -91,25 +91,42 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CAL-08**: Calendar handles DST transitions correctly; spring-forward and fall-back test cases pass
 - [x] **CAL-09**: User can disconnect Google Calendar (revokes tokens, clears stored tokens)
 
-### Kiwi (the agent)
+### JARVIS (the agent)
 
-- [ ] **KIWI-01**: Kiwi Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
-- [ ] **KIWI-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
-- [ ] **KIWI-03**: Kiwi parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
-- [ ] **KIWI-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
-- [ ] **KIWI-05**: Kiwi handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
-- [ ] **KIWI-06**: When input is ambiguous and no destructive action is implied, Kiwi defaults to creating a Capture (capture-first principle)
-- [ ] **KIWI-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
-- [ ] **KIWI-08**: Kiwi response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
-- [ ] **KIWI-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
-- [ ] **KIWI-10**: Conversation memory is session-only; no persistence across browser sessions
-- [ ] **KIWI-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `kiwi_events` telemetry
-- [ ] **KIWI-12**: `/api/kiwi` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
-- [ ] **KIWI-13**: Captures created via Kiwi display a one-tap "Convert to task" affordance to recover from misroutes
-- [ ] **KIWI-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause Kiwi to emit destructive actions in subsequent turns
-- [ ] **KIWI-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `kiwi_events` table)
-- [ ] **KIWI-16**: Agent logic lives in `packages/kiwi-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
-- [ ] **KIWI-17**: When Kiwi cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
+- [ ] **JARVIS-01**: JARVIS Console is the homescreen of the authenticated app — a centralized terminal-style chat interface (Warp aesthetic + journal-paper styling)
+- [ ] **JARVIS-02**: User input field supports inline `$projectname` chips (autocomplete from user's projects, sent to model as project ID) and `#hashtag` chips (autocomplete from existing hashtags, new ones auto-created on submit)
+- [ ] **JARVIS-03**: JARVIS parses a single message and emits one or more structured actions via Anthropic strict tool use; tool schemas: `create_task`, `create_capture`, `create_event`
+- [ ] **JARVIS-04**: A deterministic `chrono-node` pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday") to ISO timestamps before the prompt is sent; the resolved date is included in the action receipt
+- [ ] **JARVIS-05**: JARVIS handles priority tokens: `ptop`/`p0` → `P∞`, `p1` → `P1`, `p2` → `P2`, `p3` or default → `P3`
+- [ ] **JARVIS-06**: When input is ambiguous and no destructive action is implied, JARVIS defaults to creating a Capture (capture-first principle)
+- [ ] **JARVIS-07**: User can manually toggle the action type (capture / task / event) from the input UI before submitting; default is auto-infer
+- [ ] **JARVIS-08**: JARVIS response streams via SSE with v1's thinking-word indicator (animated word from a curated list while waiting for the first chunk)
+- [ ] **JARVIS-09**: Each emitted action displays as an intent-badged action receipt showing the resolved fields (title, date, project, etc.) before execution
+- [ ] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
+- [ ] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
+- [ ] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
+- [ ] **JARVIS-13**: Captures created via JARVIS display a one-tap "Convert to task" affordance to recover from misroutes
+- [ ] **JARVIS-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause JARVIS to emit destructive actions in subsequent turns
+- [ ] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
+- [ ] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
+- [ ] **JARVIS-17**: When JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
+
+### JARVIS Voice + Ambient (Phase 7)
+
+- [ ] **VOICE-01**: User can enable voice mode via a toggle in Settings → Voice; toggling on requests microphone permission and resumes the AudioContext via user gesture (browser autoplay handling)
+- [ ] **VOICE-02**: Saying "Hey Jarvis" (configurable in Settings, default pre-trained Picovoice Porcupine keyword) wakes JARVIS within ~200ms; wake-word detection runs entirely on-device via `@picovoice/porcupine-react` (no audio leaves device for wake detection)
+- [ ] **VOICE-03**: Two claps in quick succession (250-650ms apart) also wake JARVIS via a Web Audio API onset detector running alongside Porcupine
+- [ ] **VOICE-04**: After wake, end-of-turn voice activity detection via `@ricky0123/vad-web` (`onSpeechEnd` flushes audio buffer)
+- [ ] **VOICE-05**: Captured audio routes through `/api/jarvis/stt` (Node route, proxies to Groq Whisper large-v3-turbo); transcript is appended to the JARVIS Console as if typed and triggers the existing `/api/jarvis` pipeline with a `voiceActive: true` header
+- [ ] **VOICE-06**: Receipt summaries play aloud via `/api/jarvis/tts` (Node route, ElevenLabs Flash v2.5 WebSocket); voice ID is a British accent voice from the ElevenLabs voice library (default "Posh" or "George"); user can audition + switch in Settings
+- [ ] **VOICE-07**: One-click "Discreet" toggle in the header silences TTS playback and disables the wake-word listener; the text Console remains fully functional in parallel (verifiable in a coffee-shop / library / shared-network scenario)
+- [ ] **VOICE-08**: Mic-active visual indicator in header reflects 5 states: `idle` (off), `listening` (Porcupine armed, slow pulse), `recording` (VAD open, fast pulse), `thinking` (waiting on Claude), `speaking` (TTS playing)
+- [ ] **VOICE-09**: `Cmd+Shift+J` keyboard shortcut wakes JARVIS as press-to-talk (alternative to wake-word/clap; useful when discreet mode is on but the user wants one-shot voice)
+- [ ] **VOICE-10**: System prompt extends Phase 5's personality (D-16) with voice-aware register and a `voice_summary` field on each tool schema (≤20 words; spoken aloud when `voiceActive` header is present, ignored otherwise)
+- [ ] **VOICE-11**: Settings → Voice section exposes: Enable voice (toggle), Wake-word phrase (text, default "Hey Jarvis"), Clap-clap (toggle), TTS provider (ElevenLabs / Browser SpeechSynthesis fallback / Off), Voice ID picker with audition, Discreet mode toggle, Mic device picker
+- [ ] **VOICE-12**: Barge-in — user speaking while TTS is playing pauses the playback and starts a new recording turn (echo cancellation via `getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }})`)
+- [ ] **VOICE-13**: End-to-end latency from speech-end to receipt-visible AND first TTS audio chunk playing: p50 < 3s, p95 < 6s for typical single-action turn (measured via `jarvis_events` with voice-mode flag)
+- [ ] **VOICE-14**: Adversarial voice transcript containing prompt-injection phrasing is treated as user content (capture-first per JARVIS-06/JARVIS-14 — inherited from Phase 5 structural defense); voice mode does NOT introduce a new attack surface beyond what STT itself permits
 
 ### Aesthetic & Polish
 
@@ -117,7 +134,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AES-02**: Visual style matches "academic journal × Notion-Japanese-zen × Warp terminal" — restraint, generous whitespace, monochrome plus single accent color
 - [ ] **AES-03**: Page transitions and list reorders use Motion (formerly Framer Motion) for subtle animation
 - [ ] **AES-04**: Brand voice is Genz-Renaissance per `idea_for_polymathy.md` — confident, literate, unapologetic; copy throughout reflects this (empty states, error messages, button labels)
-- [ ] **AES-05**: Cmd+K keyboard shortcut focuses the Kiwi input from anywhere in the app
+- [ ] **AES-05**: Cmd+K keyboard shortcut focuses the JARVIS input from anywhere in the app
 - [ ] **AES-06**: Light and dark themes both pass the journal-paper feel; toggle accessible from settings and any page header
 - [ ] **AES-07**: Layout is responsive; usable down to iPad-width (≥768px); mobile-native is out of scope but core flows must not break
 
@@ -127,36 +144,36 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **RES-02**: Toast notifications for action success / error states; non-destructive actions include "Undo" within 5 seconds
 - [ ] **RES-03**: Empty states for every list view (Tasks, Captures, Areas, Projects, Calendar) with brand-voice copy
 - [ ] **RES-04**: `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity check
-- [ ] **RES-05**: `kiwi_events` Postgres table logs each Kiwi turn (action types emitted, latency, cache hit rate, error if any)
-- [ ] **RES-06**: `/insights` page renders simple charts over `kiwi_events`: action-type distribution, latency p50/p95, error rate
+- [ ] **RES-05**: `jarvis_events` Postgres table logs each JARVIS turn (action types emitted, latency, cache hit rate, error if any)
+- [ ] **RES-06**: `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate
 - [ ] **RES-07**: Sentry (or equivalent) wired to capture client + server unhandled errors
 
 ### Tests
 
 - [ ] **TEST-01**: Vitest unit tests cover the chrono-node date pre-parser (today, tomorrow, this Friday, next Friday, M/D, time ranges, am/pm ambiguity, DST edge cases)
 - [ ] **TEST-02**: Vitest unit tests cover priority and status token extraction (`ptop`, `p1-p3`, `lesno`)
-- [ ] **TEST-03**: Vitest contract tests validate Kiwi tool-call output against Zod schemas for each tool
+- [ ] **TEST-03**: Vitest contract tests validate JARVIS tool-call output against Zod schemas for each tool
 - [x] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
-- [ ] **TEST-05**: Vitest adversarial-injection test suite for Kiwi (covers Pitfall 5 scenarios from PITFALLS.md)
+- [ ] **TEST-05**: Vitest adversarial-injection test suite for JARVIS (covers Pitfall 5 scenarios from PITFALLS.md)
 
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Kiwi Update/Delete
+### JARVIS Update/Delete
 
-- **KIWI-V2-01**: Kiwi can update existing Tasks/Captures/Events via natural language ("move the meeting to 9pm", "change the orgo task to p1")
-- **KIWI-V2-02**: Kiwi can delete existing Tasks/Captures/Events; destructive actions require y/n/a confirmation flow
-- **KIWI-V2-03**: Reference resolution ("the first one", "that meeting") works across the session
+- **JARVIS-V2-01**: JARVIS can update existing Tasks/Captures/Events via natural language ("move the meeting to 9pm", "change the orgo task to p1")
+- **JARVIS-V2-02**: JARVIS can delete existing Tasks/Captures/Events; destructive actions require y/n/a confirmation flow
+- **JARVIS-V2-03**: Reference resolution ("the first one", "that meeting") works across the session
 
-### Persistent Kiwi Memory
+### Persistent JARVIS Memory
 
-- **KIWI-V2-04**: Conversation history persists across sessions
-- **KIWI-V2-05**: Older conversation turns are summarized to keep context within budget
+- **JARVIS-V2-04**: Conversation history persists across sessions
+- **JARVIS-V2-05**: Older conversation turns are summarized to keep context within budget
 
 ### CLI Client
 
-- **CLI-V2-01**: Ink-based `kiwi` CLI consumes `packages/kiwi-core` and provides feature parity with the web Kiwi Console
+- **CLI-V2-01**: Ink-based `jarvis` CLI consumes `packages/jarvis-core` and provides feature parity with the web JARVIS Console
 - **CLI-V2-02**: CLI auth via long-lived token issued by `/api/auth/cli-token`
 
 ### Other v1 Domains
@@ -171,12 +188,12 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Recurring Events / Tasks
 
-- **REC-V2-01**: Recurring events via Kiwi (RRULE generation)
+- **REC-V2-01**: Recurring events via JARVIS (RRULE generation)
 - **REC-V2-02**: Recurring tasks (e.g., "every Tuesday")
 
 ### Mobile
 
-- **MOB-V2-01**: Native mobile app (iOS/Android) or PWA install with offline-capable Kiwi capture
+- **MOB-V2-01**: Native mobile app (iOS/Android) or PWA install with offline-capable JARVIS capture
 
 ## Out of Scope
 
@@ -193,7 +210,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Notifications (email/push) | gcal handles event reminders natively; in-app notifications are post-MVP |
 | Gamification (XP, streaks, badges) | Research shows it undermines intrinsic motivation in single-user productivity apps |
 | Social sharing / collaboration | Single-user product; sharing fights the focus |
-| AI content generation (writing prompts, summaries) | Kiwi routes input, never authors content; preserves the journal/scratchpad voice |
+| AI content generation (writing prompts, summaries) | JARVIS routes input, never authors content; preserves the journal/scratchpad voice |
 | Pomodoro timer / habit tracking in MVP | Spreading thin was a v1 weakness; out for MVP |
 | Browser extension | Web app + Cmd+K is sufficient for MVP |
 | Native desktop app | Vercel-hosted web is the deployment target |
@@ -263,23 +280,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAL-07 | Phase 4 | Complete |
 | CAL-08 | Phase 4 | Complete |
 | CAL-09 | Phase 4 | Complete |
-| KIWI-01 | Phase 5 | Pending |
-| KIWI-02 | Phase 5 | Pending |
-| KIWI-03 | Phase 5 | Pending |
-| KIWI-04 | Phase 5 | Pending |
-| KIWI-05 | Phase 5 | Pending |
-| KIWI-06 | Phase 5 | Pending |
-| KIWI-07 | Phase 5 | Pending |
-| KIWI-08 | Phase 5 | Pending |
-| KIWI-09 | Phase 5 | Pending |
-| KIWI-10 | Phase 5 | Pending |
-| KIWI-11 | Phase 5 | Pending |
-| KIWI-12 | Phase 5 | Pending |
-| KIWI-13 | Phase 5 | Pending |
-| KIWI-14 | Phase 5 | Pending |
-| KIWI-15 | Phase 5 | Pending |
-| KIWI-16 | Phase 5 | Pending |
-| KIWI-17 | Phase 5 | Pending |
+| JARVIS-01 | Phase 5 | Pending |
+| JARVIS-02 | Phase 5 | Pending |
+| JARVIS-03 | Phase 5 | Pending |
+| JARVIS-04 | Phase 5 | Pending |
+| JARVIS-05 | Phase 5 | Pending |
+| JARVIS-06 | Phase 5 | Pending |
+| JARVIS-07 | Phase 5 | Pending |
+| JARVIS-08 | Phase 5 | Pending |
+| JARVIS-09 | Phase 5 | Pending |
+| JARVIS-10 | Phase 5 | Pending |
+| JARVIS-11 | Phase 5 | Pending |
+| JARVIS-12 | Phase 5 | Pending |
+| JARVIS-13 | Phase 5 | Pending |
+| JARVIS-14 | Phase 5 | Pending |
+| JARVIS-15 | Phase 5 | Pending |
+| JARVIS-16 | Phase 5 | Pending |
+| JARVIS-17 | Phase 5 | Pending |
+| VOICE-01 | Phase 7 | Pending |
+| VOICE-02 | Phase 7 | Pending |
+| VOICE-03 | Phase 7 | Pending |
+| VOICE-04 | Phase 7 | Pending |
+| VOICE-05 | Phase 7 | Pending |
+| VOICE-06 | Phase 7 | Pending |
+| VOICE-07 | Phase 7 | Pending |
+| VOICE-08 | Phase 7 | Pending |
+| VOICE-09 | Phase 7 | Pending |
+| VOICE-10 | Phase 7 | Pending |
+| VOICE-11 | Phase 7 | Pending |
+| VOICE-12 | Phase 7 | Pending |
+| VOICE-13 | Phase 7 | Pending |
+| VOICE-14 | Phase 7 | Pending |
 | AES-01 | Phase 6 | Pending |
 | AES-02 | Phase 6 | Pending |
 | AES-03 | Phase 6 | Pending |
@@ -310,7 +341,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 2 (Manual CRUD): 28 requirements
 - Phase 3 (Realtime): 5 requirements
 - Phase 4 (Calendar): 11 requirements
-- Phase 5 (Kiwi): 22 requirements
+- Phase 5 (JARVIS): 22 requirements
 - Phase 6 (Polish): 14 requirements
 
 ---

@@ -20,7 +20,7 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-05-07)
 
-**Core value:** Type one sentence into Kiwi → the right action lands in the right place across tasks, captures, and calendar — every time.
+**Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
 **Current focus:** Phase 04 — google-calendar
 
 ## Current Position
@@ -69,10 +69,10 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Roadmap: 6 phases derived from research dependency graph (Foundations → Manual CRUD → Realtime → Calendar → Kiwi → Polish). Coarse granularity but 6 is justified — each phase is a coherent unit and Kiwi must come last so its primitives are proven.
+- Roadmap: 6 phases derived from research dependency graph (Foundations → Manual CRUD → Realtime → Calendar → JARVIS → Polish). Coarse granularity but 6 is justified — each phase is a coherent unit and JARVIS must come last so its primitives are proven.
 - Roadmap: SET-01 (graduation year) shipped in Phase 1 with auth/foundations because Class metadata in Phase 2 depends on it; SET-02/SET-04 (gcal status, default calendar) deferred to Phase 4; SET-03 (theme) deferred to Phase 6.
 - Roadmap: TEST-04 (RLS integration test) ships in Phase 1; TEST-01/02/03/05 (parser, contract, adversarial) ship in Phase 5 with the agent.
-- Roadmap: RES-05 (`kiwi_events` table) ships in Phase 5 with Kiwi (telemetry from first call); other RES requirements ship in Phase 6.
+- Roadmap: RES-05 (`jarvis_events` table) ships in Phase 5 with JARVIS (telemetry from first call); other RES requirements ship in Phase 6.
 - [Phase 01-foundations]: drizzle.config.ts uses lib/db/*.ts glob so drizzle-kit picks up pgEnum declarations from enums.ts and emits CREATE TYPE in generated SQL
 - [Phase 01-foundations]: supabase/migrations/0000_init_schema.sql strips --> statement-breakpoint markers from drizzle output for Supabase CLI compatibility
 - [Phase 03]: [Phase 03-realtime P01]: useTableSubscription uses a module-level Map<`${table}::${userId}`, { channel, refcount }> singleton — two component mounts of the same (table, userId) share one Supabase RealtimeChannel (RT-01 / D-08)
@@ -111,10 +111,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Open behavior decisions per research SUMMARY.md "Gaps to Address" should be locked in PROJECT.md "Key Decisions" before Phase 5 planning at the latest: date-only vs date-time tasks, "next Friday" semantics, hashtag normalization specifics, default calendar fallback, attendees on events, behavior when Kiwi can't resolve `$project`, Vercel AI SDK vs raw Anthropic SDK, kiwi-core ↔ Server Actions sharing pattern, calendar grid library, Louize licensing path.
+- Open behavior decisions per research SUMMARY.md "Gaps to Address" should be locked in PROJECT.md "Key Decisions" before Phase 5 planning at the latest: date-only vs date-time tasks, "next Friday" semantics, hashtag normalization specifics, default calendar fallback, attendees on events, behavior when JARVIS can't resolve `$project`, Vercel AI SDK vs raw Anthropic SDK, jarvis-core ↔ Server Actions sharing pattern, calendar grid library, Louize licensing path.
 
 ## Session Continuity
 
 Last session: 2026-05-13T01:43:45.366Z
 Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-kiwi/05-CONTEXT.md
+Resume file: .planning/phases/05-jarvis/05-CONTEXT.md
