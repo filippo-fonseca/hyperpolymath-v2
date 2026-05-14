@@ -11,8 +11,8 @@
  *   - getClaims() for auth — JWT-validating (per CLAUDE.md Critical Pattern 1
  *     forbidding the cookie-only readback path in server code).
  *   - userId is re-derived at the boundary — model never emits userId.
- *   - Per-tool strict: true via jarvis-core's buildToolDefinitions (no
- *     structured-outputs-2025-11-13 beta header).
+ *   - Per-tool strict: true via jarvis-core's buildToolDefinitions (the
+ *     previous structured-outputs beta header is deprecated — research §1.5).
  *   - cache_control on LAST system block + LAST tool (set inside
  *     jarvis-core; we just pass the values through).
  *   - X-Accel-Buffering: no header (Vercel proxy must not buffer SSE).
