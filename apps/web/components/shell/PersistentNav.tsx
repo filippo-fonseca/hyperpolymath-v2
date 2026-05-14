@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Sun,
+  Sparkles,
   CheckSquare,
   MessageSquare,
   Calendar,
@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  * /calendar at the moment.
  */
 const items = [
-  { href: "/today", label: "Today", icon: Sun, disabled: false, tooltip: undefined },
+  { href: "/today", label: "JARVIS", icon: Sparkles, disabled: false, tooltip: undefined },
   { href: "/tasks", label: "All Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined },
