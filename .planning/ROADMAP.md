@@ -181,3 +181,21 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 - [ ] TBD (run `/gsd:discuss-phase 999.2` to scope before promoting)
 
+### Phase 999.3: JARVIS read layer — query existing tasks / events / captures (BACKLOG)
+
+**Goal:** Give JARVIS read-only tools (`list_tasks`, `list_events`, `search_captures`) so the agent can answer "what's due tomorrow?", "what's on my list?", "did I file the X?" against the actual database rather than from the visible scrollback alone.
+
+**Why:** Surfaced live during Plan 05-03 smoke (2026-05-14). User asked "what do I need to do tomorrow?" — model honestly answered from scrollback only (D-06 session memory) because it has no DB read access. The current MVP scope was create-only per PROJECT.md line 44 ("R/U/D handled manually in tabs") and REQUIREMENTS.md V2 section deferred U/D + persistent memory — but R was never named explicitly. This entry names it.
+
+**Likely shape:**
+- New `list_tasks` / `list_events` / `search_captures` tools wired into `buildToolDefinitions` + a read-side executor with RLS-safe Drizzle queries
+- System-prompt rule directing the model to call read tools before answering meta-questions (replaces the current scrollback-only fallback)
+- UX decision: read results as a new receipt type vs streaming the resolved list into the prose reply
+- Likely pairs with `JARVIS-V2-01..03` (update/delete + reference resolution) since once the model can list, "delete the second one" becomes natural
+
+**Requirements:** Add `JARVIS-V2-06` (list_tasks / list_events / search_captures) when promoting. May also tighten `JARVIS-V2-03` (reference resolution) to depend on read tools.
+
+**Plans:** 0 plans
+
+- [ ] TBD (promote with `/gsd:review-backlog` when ready)
+
