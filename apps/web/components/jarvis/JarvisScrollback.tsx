@@ -47,12 +47,21 @@ export function JarvisScrollback({ turns }: Props) {
             </div>
           ) : (
             <div className="ml-3">
-              {/* D-16: suppress assistant narrative text — render tool-use
-                  receipts only. The model occasionally narrates ("Two items,
-                  two tools — dispatching simultaneously") before tool blocks;
-                  that voice is forbidden by personality but we enforce it
-                  client-side as defense-in-depth. */}
-              {turn.status === "streaming" && turn.actions.length === 0 ? (
+              {/* D-16 defense-in-depth: suppress assistant narrative ONLY when
+                  this turn produced tool-use actions. The model occasionally
+                  narrates ("Two items, two tools — dispatching ...") before
+                  tool blocks; that prose is forbidden by personality and we
+                  drop it client-side. But under /ask + bare meta-questions
+                  the assistant turn has NO actions and the prose IS the
+                  response — render it. */}
+              {turn.actions.length === 0 && turn.textDelta ? (
+                <div className="font-serif text-base text-foreground/90 mb-1 leading-relaxed">
+                  {turn.textDelta}
+                </div>
+              ) : null}
+              {turn.status === "streaming" &&
+              turn.actions.length === 0 &&
+              !turn.textDelta ? (
                 <ThinkingWord active />
               ) : null}
               {turn.actions.map((a, i) => (
