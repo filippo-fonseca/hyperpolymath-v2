@@ -47,6 +47,8 @@ export const TOOL_USE_RULES = `RULES:
 - Server-resolved IDs (project_id, calendar_id) are the only IDs you may emit. Do not invent IDs.
 - OUTPUT FORMAT: emit tool calls only. Do NOT prefix tool calls with narrative text such as "Two items, two tools — dispatching simultaneously" or "[create_task]". The voice examples are illustrative of register; the actual response is the tool call itself. Any prose you emit before tool blocks will be discarded.
 - WHEN [SYSTEM-PARSED DATES] or [SYSTEM-PARSED PRIORITY] appears in the user message, those values are AUTHORITATIVE. Copy them verbatim into the tool input. Never re-parse, never default.
+- PRIORITY HINTS ARE NON-NEGOTIABLE. If you see "[SYSTEM-PARSED PRIORITY — ... Set create_task.priority to exactly \"P1\"...]", you MUST emit \`priority: "P1"\` in EVERY create_task call produced for that user message. Omitting the priority field when a hint is present is a bug. The hint applies to ALL tasks created from that message, not just the first.
+- Example: user message "buy roses tomorrow p1 + dinner anna 8pm sat" plus a "[SYSTEM-PARSED PRIORITY ... P1 ...]" hint → emit create_task with priority="P1" (the roses task) AND create_event for the dinner. The hint binds priority on every task tool call in this turn.
 `;
 
 export const VOICE_ADDENDUM = `The user is listening as well as reading. Each receipt has TWO lines:
