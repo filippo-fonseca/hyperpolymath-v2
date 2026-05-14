@@ -17,6 +17,18 @@ export {
 } from "./parsers";
 
 export {
+  JARVIS_PERSONALITY,
+  TOOL_USE_RULES,
+  VOICE_ADDENDUM,
+} from "./personality";
+
+export {
+  buildProjectListContext,
+  buildSystemPrompt,
+  type SystemBlock,
+} from "./prompt-builder";
+
+export {
   buildToolDefinitions,
   type JarvisToolDefinition,
   zCreateCapture,
