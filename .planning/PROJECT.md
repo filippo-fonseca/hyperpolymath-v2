@@ -34,23 +34,23 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 **JARVIS (the engine)**
 - [ ] JARVIS is invoked from the app homescreen as a centralized terminal-style chat interface (Warp-inspired, journal-paper-styled)
 - [ ] JARVIS parses a single user message and infers one or more actions: create task, create capture, create calendar event, or any combination thereof — emitting structured JSON the backend executes
-- [ ] JARVIS resolves project references with `$projectname` syntax (highlighted inline; resolves to project ID when sent to the model) and hashtag references with `#tag` syntax for captures
-- [ ] JARVIS handles natural date/time parsing (today, tomorrow, this/next weekday, M/D, "8pm saturday", time ranges)
-- [ ] JARVIS handles priority tokens (`ptop`/`p0` → `P∞`, `p1` → `P1`, etc.) with `P3` as default
-- [ ] JARVIS defaults to capture-first when input is ambiguous (never asks a clarifying question for non-destructive actions)
-- [ ] JARVIS has a manual mode toggle to force a specific action type (capture / task / event); default is auto-infer
-- [ ] JARVIS shows the streaming response with the v1 thinking-word indicator (preserve the UX)
-- [ ] Conversation memory is session-only (matches v1 — fresh context per session)
-- [ ] MVP scope: JARVIS creates (C in CRUD). Read/Update/Delete via JARVIS is post-MVP — handled manually in tabs
+- [x] JARVIS resolves project references with `$projectname` syntax (highlighted inline; resolves to project ID when sent to the model) and hashtag references with `#tag` syntax for captures
+- [x] JARVIS handles natural date/time parsing (today, tomorrow, this/next weekday, M/D, "8pm saturday", time ranges)
+- [x] JARVIS handles priority tokens (`ptop`/`p0` → `P∞`, `p1` → `P1`, etc.) with `P3` as default
+- [x] JARVIS defaults to capture-first when input is ambiguous (never asks a clarifying question for non-destructive actions)
+- [x] JARVIS has a manual mode toggle to force a specific action type (capture / task / event); default is auto-infer
+- [x] JARVIS shows the streaming response with the v1 thinking-word indicator (preserve the UX)
+- [x] Conversation memory is session-only (matches v1 — fresh context per session)
+- [x] MVP scope: JARVIS creates (C in CRUD). Read/Update/Delete via JARVIS is post-MVP — handled manually in tabs *(read-back tools captured as backlog 999.3)*
 
-**Calendar** *(validated in Phase 4: google-calendar; JARVIS event-creation pending Phase 5)*
+**Calendar** *(validated in Phase 4: google-calendar; JARVIS event-creation validated in Phase 5)*
 - [x] User connects Google Calendar via OAuth
 - [x] Full bi-directional CRUD: create/edit/delete on app pushes to Google Calendar; loading the page reflects external Google Calendar changes (no background polling — sync on page load + refetch-on-focus)
 - [x] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
-- [ ] JARVIS can create calendar events (e.g., "dinner with anna 8pm saturday") *(pending Phase 5 JARVIS)*
+- [x] JARVIS can create calendar events (e.g., "dinner with anna 8pm saturday") *(Phase 5)*
 
 **Navigation & Tabs** *(remainder)*
-- [ ] Homescreen is the JARVIS interaction surface
+- [x] Homescreen is the JARVIS interaction surface *(Phase 5: /today renders JarvisConsole)*
 
 **JARVIS Voice + Ambient** *(Phase 7 — text Console remains discreet fallback)*
 - [ ] User can wake JARVIS by saying "Hey Jarvis" (Picovoice on-device wake-word) or by clapping twice in quick succession
@@ -146,4 +146,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-13 after Phase 4 (google-calendar) completion — Full bi-directional gcal CRUD shipped end-to-end. Google Calendar-familiar grid (`react-big-calendar@1.19` + `withDragAndDrop`, day + week views, Monday start), event create/edit/delete via 560px Sheet panel with optimistic UI + non-UUID canonical-ID swap, drag-move + drag-resize auto-save, multi-calendar filter chips via nuqs `?cals=`, Settings page additions (default calendar picker, visible calendars checkbox list, timezone override), persistent disconnect banner + Settings nav badge on token revoke, transparent token refresh via `getValidGcalToken` with typed `GcalTokenRevokedError` detection, DST-correct rendering via `@date-fns/tz` 1.4.1 (Mar 8 + Nov 1 2026 fixtures pinned). Encryption layer revised from CONTEXT.md's pgcrypto to app-level AES-256-GCM via `node:crypto` (Supabase Vault rejected — requires service_role); cutover migration discipline: 0007 additive → 0008 dropped plaintext columns after hard-gated psql precondition. Three placeholder polish iterations ensure user sees outlined preview throughout drag → Sheet → save flow for conflict detection. 79/79 tests across 19 files.*
+*Last updated: 2026-05-15 after Phase 5 (jarvis) completion — The Core Value of v2 ("Type one sentence into Kiwi → the right action lands in the right place every time") is live. Pure `@hyperpolymath/jarvis-core` package (zero React/Next/Supabase imports, 152/152 tests including DST Mar 8 + Nov 1 fixtures), Anthropic SDK 0.96 with Sonnet 4.6 + zod 4 strict tool use, deterministic chrono pre-parser + priority regex pipeline (3-stage belt-and-suspenders: client → server hint → executor override), SSE Node-runtime route handler with prompt caching + AbortController, JARVIS Console at /today (TipTap dual-Mention composer for `$project` + `#hashtag` siblings, Motion 12 thinking-word indicator, intent-badged streaming receipts, 5-command slash popover including `/ask`, bare-meta-question heuristic, session memory from scrollback). Plan 05-04 closes the user-facing loop: 5s undo countdown on every receipt with hard-delete (B5 pattern) + gcal 404/410 tolerance per D-04, "Convert to task" affordance gated on `captures.createdVia === 'jarvis'`, `getLatencyStats(userId, sinceMinutes)` helper for the Phase 6 /insights chart. 16-fixture adversarial defense holds via structural `tool_choice` constraints. Read-back via JARVIS (`list_tasks`/`list_events`/`search_captures`) intentionally deferred — captured as backlog 999.3 per PROJECT.md create-only MVP scope. apps/web 177/177 tests + jarvis-core 152/152 + typecheck + build green; 36/36 must-haves verified end-to-end against the codebase.*

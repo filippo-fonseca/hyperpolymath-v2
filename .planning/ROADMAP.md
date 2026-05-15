@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Manual CRUD** - Areas, Projects, Tasks, and Captures fully usable via UI without JARVIS (sidebar tree, kanban+list, hashtag feed, project detail)
 - [ ] **Phase 3: Realtime Layer** - Cross-device live updates via TanStack Query + Supabase Realtime, with leak-proof subscriptions and visibility-change recovery
 - [x] **Phase 4: Google Calendar** - Full bi-directional gcal CRUD with encrypted token storage, transparent refresh, day/week views, and DST-correct time handling (completed 2026-05-13)
-- [ ] **Phase 5: JARVIS** - The agent: pure `jarvis-core` package, deterministic date pre-parser, strict tool-use, prompt caching, streaming console with `$project`/`#hashtag` chips, action receipts, telemetry
+- [x] **Phase 5: JARVIS** - The agent: pure `jarvis-core` package, deterministic date pre-parser, strict tool-use, prompt caching, streaming console with `$project`/`#hashtag` chips, action receipts, telemetry (completed 2026-05-15)
 - [ ] **Phase 6: Polish** - EB Garamond/Louize typography, journal-paper styling, light/dark themes, error boundaries, toasts, empty states, settings page, /insights, accessibility
 - [ ] **Phase 7: JARVIS Voice + Ambient** - "Hey Jarvis" + clap-clap wake, Groq Whisper STT, ElevenLabs Flash British TTS, discreet mode toggle, mic-active indicator. Text Console remains fallback for public spaces.
 
