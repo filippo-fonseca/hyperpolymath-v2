@@ -105,7 +105,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **JARVIS-10**: Conversation memory is session-only; no persistence across browser sessions
 - [x] **JARVIS-11**: Anthropic prompt caching is enabled on the system prompt + tool definitions + static context (project list); verify ~90% input cost reduction after turn 1 in `jarvis_events` telemetry
 - [x] **JARVIS-12**: `/api/jarvis` Route Handler runs on Node runtime (NOT Edge); RLS enforces `userId` from server session, never trusting model-emitted IDs
-- [ ] **JARVIS-13**: Captures created via JARVIS display a one-tap "Convert to task" affordance to recover from misroutes
+- [x] **JARVIS-13**: Captures created via JARVIS display a one-tap "Convert to task" affordance to recover from misroutes
 - [x] **JARVIS-14**: Adversarial prompt-injection test suite passes: a Capture containing instructions to delete tasks does NOT cause JARVIS to emit destructive actions in subsequent turns
 - [x] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
 - [x] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
@@ -292,7 +292,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JARVIS-10 | Phase 5 | Complete |
 | JARVIS-11 | Phase 5 | Complete |
 | JARVIS-12 | Phase 5 | Complete |
-| JARVIS-13 | Phase 5 | Pending |
+| JARVIS-13 | Phase 5 | Complete |
 | JARVIS-14 | Phase 5 | Complete |
 | JARVIS-15 | Phase 5 | Complete |
 | JARVIS-16 | Phase 5 | Complete |

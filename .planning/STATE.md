@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
-last_updated: "2026-05-14T18:20:35.363Z"
-last_activity: 2026-05-14
+last_updated: "2026-05-15T05:37:46.199Z"
+last_activity: 2026-05-15
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 05 (jarvis) — EXECUTING
-Plan: 2 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-05-14
+Last activity: 2026-05-15
 
 Progress: [██████████] 100%
 
@@ -122,6 +122,7 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-03: Session memory (D-06) reads via turnsRef.current (a React ref to the latest snapshot) — NOT the closure-captured 'turns' state. The closure version returned empty on first send because handleSubmit closed over the initial snapshot. Canonical React-ref-for-latest-snapshot pattern.
 - [Phase 05]: Plan 05-03: Receipts always render the resolved fields once an action arrives — no model-narrative gating, no client-side suppression. The receipt-leak fix (commit 6d1bb8a) explicitly removed the prior conditional that hid receipts when the model didn't also emit prose.
 - [Phase 05]: Plan 05-03: JARVIS read-back (list_tasks / list_events / search_captures) is intentionally OUT OF SCOPE for Phase 5 — surfaced live during smoke when user asked 'what's due tomorrow?' and model answered from scrollback only. Captured as backlog 999.3 (commit 82431ae). Phase 5 MVP is create-only per PROJECT.md line 44; read tools deferred.
+- [Phase 05]: undo + convert + latency
 
 ### Pending Todos
 
@@ -133,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-14T18:20:13.621Z
+Last session: 2026-05-15T05:37:38.849Z
 Stopped at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
 Resume file: None
