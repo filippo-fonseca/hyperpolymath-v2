@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
-last_updated: "2026-05-15T05:44:45.389Z"
+stopped_at: Phase 05.1 context gathered
+last_updated: "2026-05-17T15:24:12.900Z"
 last_activity: 2026-05-15
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 5
   total_plans: 19
   completed_plans: 19
@@ -66,6 +66,10 @@ Progress: [██████████] 100%
 | Phase 05 P03 | 167 | 5 tasks | 29 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 05.1 inserted after Phase 5: jarvis-agentic-refactor (URGENT) — implicit intent extraction, multi-action action-graph, persistent instruction memory, pipeline efficiency cleanup (Sidebar areas refetches on every JARVIS submit), conversational personality, smart ambiguity. Builds on Phase 5 jarvis-core. Out of scope: voice (Phase 7), read-back (backlog 999.3).
 
 ### Decisions
 
@@ -134,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-15T05:37:38.849Z
-Stopped at: Completed 05-03-PLAN.md (JARVIS Console UI — dual-Mention TipTap + slash commands + Motion 12 thinking-word + intent receipts + ask-mode; smoke approved; backlog 999.3 captured)
-Resume file: None
+Last session: 2026-05-17T15:24:12.878Z
+Stopped at: Phase 05.1 context gathered
+Resume file: .planning/phases/05.1-jarvis-agentic-refactor/05.1-CONTEXT.md
