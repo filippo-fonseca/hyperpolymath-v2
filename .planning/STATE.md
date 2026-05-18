@@ -156,7 +156,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | TBD | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
+| 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
 
 ## Session Continuity
 
