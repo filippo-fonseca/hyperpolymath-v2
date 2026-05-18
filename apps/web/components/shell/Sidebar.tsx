@@ -93,6 +93,14 @@ export function Sidebar({
     queryKey: tableKey("areas", userId),
     queryFn: getAreasForCurrentUser,
     initialData: initialActiveAreas,
+    // Phase 5.1 D-P2 #1 / JARVIS-21: treat the SSR-provided initialData as
+    // fresh at mount time. Without this, TanStack 5 treats initialData as
+    // updatedAt=0 (instantly stale) — any invalidateQueries call on this key
+    // (e.g. from a JARVIS Server Action) triggers an immediate background
+    // refetch even though the data hasn't changed. Realtime (useTableSubscription
+    // above) remains the legitimate update path for actual areas table changes.
+    initialDataUpdatedAt: Date.now(),
+    staleTime: Infinity,
   });
 
   const [optimisticAreas, addOptimisticArea] = useOptimistic(
