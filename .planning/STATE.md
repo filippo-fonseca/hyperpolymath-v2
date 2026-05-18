@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05.1-01-PLAN.md (Pipeline Efficiency)
-last_updated: "2026-05-18T01:01:23.104Z"
+stopped_at: Completed 05.1-02-PLAN.md (Prose-First Personality)
+last_updated: "2026-05-18T01:12:04.167Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 23
-  completed_plans: 20
+  completed_plans: 21
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 05.1 (jarvis-agentic-refactor) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-18
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 05 P05-02 | 15 | 5 tasks | 15 files |
 | Phase 05 P03 | 167 | 5 tasks | 29 files |
 | Phase 05.1-jarvis-agentic-refactor P01 | 9 | 2 tasks | 8 files |
+| Phase 05.1 P02 | 6 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Recent decisions affecting current work:
 - [Phase 05.1-jarvis-agentic-refactor]: Sidebar staleTime: Infinity + initialDataUpdatedAt: Date.now() — SSR areas data treated as perpetually fresh; Realtime remains sole update path
 - [Phase 05.1-jarvis-agentic-refactor]: validateTurnReferences only pre-validates when linkedProjectIds non-empty — avoids extra calendar SELECT for zero-project capture turns
 - [Phase 05.1-jarvis-agentic-refactor]: resolveProjectIds in executor.ts is backward-compatible optional short-circuit — preValidatedProjectIds absent means full DB validation (defense-in-depth preserved)
+- [Phase 05.1]: VOICE_ADDENDUM updated to describe leading text block behavior (not voice_summary fields) — the leading text block IS the spoken response in Phase 5.1+
+- [Phase 05.1]: JarvisScrollback passes variant=compact to receipts when turn has prose; onQueued/onAction lifecycle manages queued placeholder upgrades by toolUseId
+- [Phase 05.1]: result is optional on ScrollbackAction — queued placeholders have no result; all consumers guarded
 
 ### Pending Todos
 
@@ -142,6 +146,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-18T01:01:23.102Z
-Stopped at: Completed 05.1-01-PLAN.md (Pipeline Efficiency)
+Last session: 2026-05-18T01:12:04.163Z
+Stopped at: Completed 05.1-02-PLAN.md (Prose-First Personality)
 Resume file: None
