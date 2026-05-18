@@ -17,6 +17,16 @@ export interface ExecutionContext {
   /** IANA timezone. */
   userTimezone: string;
   defaultCalendarId: string | null;
+  /**
+   * Phase 5.1 D-P2 #3 / JARVIS-21 — pre-validated project IDs from the turn
+   * boundary. When present, executors short-circuit their own validateProjectIds
+   * call for any project_id that is already in this set, avoiding duplicate
+   * SELECTs on multi-action turns that reference the same project.
+   *
+   * Optional — backward-compatible. Executors MUST fall back to full validation
+   * if this field is absent (e.g. tests that don't wire the route).
+   */
+  preValidatedProjectIds?: Set<string>;
 }
 
 export type ExecutorResult =

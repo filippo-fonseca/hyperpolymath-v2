@@ -49,6 +49,44 @@ export interface ValidateCalendarResult {
   calendarId: string | null;
 }
 
+/**
+ * Phase 5.1 D-P2 #3 / JARVIS-21 — batched reference validation for one
+ * JARVIS turn.
+ *
+ * Pre-resolves at the route boundary BEFORE executor dispatch so that:
+ *   1. Multi-action turns referencing the same project don't fire duplicate
+ *      SELECTs — a single project query covers all actions in the turn.
+ *   2. Project + calendar queries are dispatched concurrently via Promise.all
+ *      (one "round-trip" for both), keeping total DB roundtrips per turn ≤ 2.
+ *
+ * Callers pass all project IDs referenced across ALL actions in the turn.
+ * Duplicate IDs are deduplicated before the SELECT (Pitfall 5 guard).
+ *
+ * For the per-turn budget:
+ *   Round-trip 1: validateTurnReferences (project SELECT + calendar SELECT, concurrent)
+ *   Round-trip 2: executor write (db.transaction with all inserts)
+ *
+ * Reference: RESEARCH §F (validate-references batching) + CONTEXT D-P2 #3.
+ */
+export interface ValidatedTurnRefs {
+  projects: ValidateProjectsResult;
+  calendar: ValidateCalendarResult;
+}
+
+export async function validateTurnReferences(
+  userId: string,
+  allProjectIds: string[],
+  calendarId: string | null | undefined,
+): Promise<ValidatedTurnRefs> {
+  // Deduplicate project IDs across all actions in this turn (Pitfall 5).
+  const uniqueProjectIds = Array.from(new Set(allProjectIds));
+  const [projects, calendar] = await Promise.all([
+    validateProjectIds(userId, uniqueProjectIds),
+    validateCalendarId(userId, calendarId),
+  ]);
+  return { projects, calendar };
+}
+
 export async function validateCalendarId(
   userId: string,
   calendarId: string | null | undefined,

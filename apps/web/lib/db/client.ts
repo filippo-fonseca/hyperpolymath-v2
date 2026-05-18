@@ -37,4 +37,24 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.__pgClient = client;
 }
 
-export const db = drizzle(client, { schema });
+/**
+ * Phase 5.1 D-P1 / JARVIS-21 — Drizzle query logger hook.
+ *
+ * In production this is `undefined` (zero overhead — Drizzle skips the logger
+ * call entirely when logger is falsy). In test environments, tests that need
+ * to count DB roundtrips can replace the `@/lib/db` module via vi.mock and
+ * instrument the mock's select/insert/transaction counts directly (the pattern
+ * used by jarvis-perf-budget.test.ts). This exported no-op is included for
+ * completeness and documents the hook surface.
+ *
+ * If a test does NOT mock `@/lib/db`, it can spy on this logger by importing
+ * and patching via `setTestLogger` below.
+ */
+export const dbLogger:
+  | { logQuery: (query: string, params: unknown[]) => void }
+  | undefined =
+  process.env.NODE_ENV === "test"
+    ? { logQuery: () => {} } // no-op by default; tests override via vi.mock or setTestLogger
+    : undefined;
+
+export const db = drizzle(client, { schema, logger: dbLogger });

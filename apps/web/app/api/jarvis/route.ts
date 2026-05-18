@@ -40,6 +40,7 @@ import {
 } from "@/lib/jarvis/anthropic-client";
 import { createServerExecutor } from "@/lib/jarvis/executor";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
+import { validateTurnReferences } from "@/lib/jarvis/validate-references";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildSystemPrompt,
@@ -181,12 +182,25 @@ export async function POST(req: NextRequest) {
     { role: "user", content: userContent },
   ];
 
-  // 7. AbortController propagation: client req.signal → upstream signal
+  // 7. Pre-validate all project references for this turn (D-P2 #3 / JARVIS-21).
+  //    Only fires when the client linked one or more project IDs. Empty turns
+  //    skip this step entirely (no extra DB query for zero-reference turns).
+  //    The validated project IDs flow into ctx.preValidatedProjectIds so
+  //    multi-action turns referencing the same project short-circuit executor
+  //    validation without re-querying (see resolveProjectIds in executor.ts).
+  const linkedProjectIds = body.linkedProjectIds ?? [];
+  let preValidatedProjectIds = new Set<string>();
+  if (linkedProjectIds.length > 0) {
+    const turnRefs = await validateTurnReferences(userId, linkedProjectIds, null);
+    preValidatedProjectIds = new Set(turnRefs.projects.ids);
+  }
+
+  // 8. AbortController propagation: client req.signal → upstream signal
   const upstream = new AbortController();
   const onAbort = () => upstream.abort();
   req.signal.addEventListener("abort", onAbort, { once: true });
 
-  // 8. Build SSE stream
+  // 9. Build SSE stream
   const encoder = new TextEncoder();
   const actionTypes: string[] = [];
   let anyTextEmitted = false;
@@ -195,6 +209,10 @@ export async function POST(req: NextRequest) {
     userId,
     userTimezone: userRow?.timezone ?? "America/New_York",
     defaultCalendarId: userRow?.defaultCalendarId ?? null,
+    // Phase 5.1 D-P2 #3: pre-validated project IDs from the turn boundary.
+    // Executors consume this set to short-circuit their own validation when
+    // the model-emitted project_ids are a subset of the pre-validated set.
+    preValidatedProjectIds,
   };
 
   // Track all async executor work spawned from contentBlock events so we can

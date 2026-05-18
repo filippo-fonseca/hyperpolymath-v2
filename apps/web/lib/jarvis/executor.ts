@@ -59,13 +59,36 @@ import {
   validateProjectIds,
 } from "./validate-references";
 
+/**
+ * Phase 5.1 D-P2 #3 / JARVIS-21 — check if all model-emitted project_ids
+ * are already covered by the pre-validated set from the turn boundary.
+ * If so, short-circuit and return a synthetic ValidateProjectsResult.
+ * If not (model emitted IDs not in the pre-validated set), fall back to
+ * a full DB validation call.
+ */
+async function resolveProjectIds(
+  ctx: ExecutionContext,
+  projectIds: string[] | undefined,
+): Promise<Awaited<ReturnType<typeof validateProjectIds>>> {
+  if (!projectIds || projectIds.length === 0) {
+    return { ok: true, ids: [], rejected: [] };
+  }
+  if (ctx.preValidatedProjectIds && projectIds.every((id) => ctx.preValidatedProjectIds!.has(id))) {
+    // All IDs are pre-validated — skip the DB round-trip (JARVIS-21 budget)
+    return { ok: true, ids: projectIds, rejected: [] };
+  }
+  // Fall back to full validation (defense-in-depth: model emitted an ID that
+  // wasn't in the client-validated set → re-check ownership)
+  return validateProjectIds(ctx.userId, projectIds);
+}
+
 export function createServerExecutor(): ActionExecutor {
   return {
     async createTask(
       input: CreateTaskAction,
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
-      const projectCheck = await validateProjectIds(ctx.userId, input.project_ids);
+      const projectCheck = await resolveProjectIds(ctx, input.project_ids);
       if (!projectCheck.ok) {
         return {
           ok: false,
@@ -125,7 +148,7 @@ export function createServerExecutor(): ActionExecutor {
       input: CreateCaptureAction,
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
-      const projectCheck = await validateProjectIds(ctx.userId, input.project_ids);
+      const projectCheck = await resolveProjectIds(ctx, input.project_ids);
       if (!projectCheck.ok) {
         return {
           ok: false,
