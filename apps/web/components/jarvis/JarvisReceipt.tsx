@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   FileText,
+  HelpCircle,
   ListTodo,
   Sparkles,
 } from "lucide-react";
@@ -68,6 +69,14 @@ const INTENT_META = {
   remember_fact: {
     label: "MEMORY",
     icon: Brain,
+    classes: "border-violet-500/50 bg-violet-500/5",
+  },
+  // Phase 5.1 D-A1 / JARVIS-19: ask_clarification gets a receipt badge too
+  // (the event: action still fires for uniform dispatch loop; the dedicated
+  // event: clarification SSE provides the interactive question UI above this).
+  ask_clarification: {
+    label: "QUESTION",
+    icon: HelpCircle,
     classes: "border-violet-500/50 bg-violet-500/5",
   },
 } as const;

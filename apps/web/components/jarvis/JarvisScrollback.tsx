@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
+import { JarvisClarification } from "./JarvisClarification";
 import { ThinkingWord } from "./ThinkingWord";
 
 /**
@@ -29,9 +30,15 @@ interface Props {
    * happens there.
    */
   onUndoAction?: (turnId: string, action: ScrollbackAction) => void;
+  /**
+   * Phase 5.1 D-A2 / JARVIS-19 — fired when user submits a clarification reply
+   * (chip click or free-text enter). JarvisConsole prepends [CLARIFICATION REPLY]
+   * and submits the next user turn.
+   */
+  onClarificationReply?: (turnId: string, text: string) => void;
 }
 
-export function JarvisScrollback({ turns, onUndoAction }: Props) {
+export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,6 +78,18 @@ export function JarvisScrollback({ turns, onUndoAction }: Props) {
               turn.actions.length === 0 &&
               !turn.textDelta ? (
                 <ThinkingWord active />
+              ) : null}
+              {/* Phase 5.1 D-A2 / JARVIS-19: clarification receipt renders
+                  AFTER prose text and BEFORE action receipts per plan spec. */}
+              {turn.clarification ? (
+                <JarvisClarification
+                  clarification={turn.clarification}
+                  onReply={
+                    onClarificationReply
+                      ? (text) => onClarificationReply(turn.id, text)
+                      : undefined
+                  }
+                />
               ) : null}
               {turn.actions.map((a, i) => (
                 <JarvisReceipt

@@ -4,6 +4,8 @@
  * Plan 05-03 ships the *shell*: user echoes + assistant streaming text/actions
  * + intent-badged receipts. Plan 05-04 layers undo countdown + execution side
  * effects on top of `ScrollbackAction` (`undone?: boolean`).
+ * Plan 05.1-04 (D-A2 / JARVIS-19) adds ScrollbackClarification for inline
+ * question receipts with chip options + free-text reply input.
  *
  * Session memory IS the scrollback (D-06): refresh clears it. The last N
  * turns are mapped into the model's `history` field at submit time.
@@ -16,6 +18,19 @@ export interface ScrollbackUserTurn {
   createdAt: Date;
 }
 
+/**
+ * Phase 5.1 (D-A2 / JARVIS-19) — clarification question from ask_clarification tool.
+ * Lives as an optional field on ScrollbackAssistantTurn. Never persisted — scrollback only.
+ */
+export interface ScrollbackClarification {
+  toolUseId: string;
+  question: string;
+  options: string[];
+  suggestedAction: { tool: string; args: Record<string, unknown> } | null;
+  /** true once user submitted a reply (any next user turn). Disables reply input. */
+  answered: boolean;
+}
+
 export interface ScrollbackAssistantTurn {
   kind: "assistant";
   id: string;
@@ -24,11 +39,13 @@ export interface ScrollbackAssistantTurn {
   createdAt: Date;
   status: "streaming" | "done" | "error";
   errorMessage?: string;
+  /** Phase 5.1 D-A2 / JARVIS-19: inline clarification question, if this turn asked one. */
+  clarification?: ScrollbackClarification;
 }
 
 export interface ScrollbackAction {
   toolUseId: string;
-  name: "create_task" | "create_capture" | "create_event" | "remember_fact";
+  name: "create_task" | "create_capture" | "create_event" | "remember_fact" | "ask_clarification";
   /** Phase 5.1 D-P3: "queued" while executor pending, "done" once result arrives. */
   status?: "queued" | "done";
   /** Optional once queued placeholder lands; populated when event: action arrives. */

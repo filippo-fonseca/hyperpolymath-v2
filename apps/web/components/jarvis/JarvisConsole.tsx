@@ -8,7 +8,7 @@ import {
 } from "./jarvis-stream-client";
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputPayload } from "./JarvisInput";
-import type { ScrollbackAction, ScrollbackTurn } from "./jarvis-types";
+import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
 import {
   undoJarvisAction,
   type UndoTarget,
@@ -111,6 +111,19 @@ export function JarvisConsole({
         createdAt: new Date(),
       };
       const assistantId = crypto.randomUUID();
+      // Phase 5.1 (D-A2 / JARVIS-19): When the user submits any new message,
+      // mark all prior clarifications as answered (last-question-wins; historical
+      // record remains in scrollback but reply input is disabled).
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.kind === "assistant" && t.clarification && !t.clarification.answered
+            ? {
+                ...t,
+                clarification: { ...t.clarification, answered: true },
+              }
+            : t,
+        ),
+      );
       const assistantTurn: ScrollbackTurn = {
         kind: "assistant",
         id: assistantId,
@@ -164,6 +177,25 @@ export function JarvisConsole({
               prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, actions: [...t.actions, placeholder] }
+                  : t,
+              ),
+            );
+          },
+          // Phase 5.1 (D-A2 / JARVIS-19): clarification SSE event — store on current turn.
+          // Last-question-wins: if multiple ask_clarification blocks fire (shouldn't happen
+          // per the co-emit rule, but this guards against it), the last one wins.
+          onClarification: (data) => {
+            const clar: ScrollbackClarification = {
+              toolUseId: data.toolUseId,
+              question: data.question,
+              options: data.options ?? [],
+              suggestedAction: data.suggestedAction ?? null,
+              answered: false,
+            };
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === assistantId && t.kind === "assistant"
+                  ? { ...t, clarification: clar }
                   : t,
               ),
             );
@@ -307,9 +339,43 @@ export function JarvisConsole({
     [],
   );
 
+  // Phase 5.1 (D-A2 / JARVIS-19) — handle clarification reply from JarvisClarification.
+  //
+  // The user clicked a chip or typed in the free-text reply within a clarification
+  // receipt. We:
+  //   1. Mark that turn's clarification as answered (disables further input).
+  //   2. Submit the reply as the next user turn, prefixed with [CLARIFICATION REPLY].
+  //      The route detects this prefix and adds a depth-cap system note (Pitfall 2).
+  const handleClarificationReply = useCallback(
+    (turnId: string, text: string) => {
+      // Mark answered immediately so the receipt UI snaps to disabled state.
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId && t.kind === "assistant" && t.clarification
+            ? { ...t, clarification: { ...t.clarification, answered: true } }
+            : t,
+        ),
+      );
+      // Submit as next user turn with the [CLARIFICATION REPLY] prefix.
+      void handleSubmit({
+        input: `[CLARIFICATION REPLY] ${text}`,
+        parsedDates: [],
+        parsedPriority: null,
+        slashCommand: null,
+        projectIds: [],
+        hashtags: [],
+      });
+    },
+    [handleSubmit],
+  );
+
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
-      <JarvisScrollback turns={turns} onUndoAction={handleUndoAction} />
+      <JarvisScrollback
+        turns={turns}
+        onUndoAction={handleUndoAction}
+        onClarificationReply={handleClarificationReply}
+      />
       <div className="border-t bg-card px-6 py-3">
         <JarvisInput
           userTimezone={userTimezone}
