@@ -118,6 +118,20 @@ export default async function SettingsPage() {
           )}
         </Card>
 
+        {/* Phase 5.1 (D-M6 / JARVIS-18) — Memory settings link */}
+        <Card className="p-6 space-y-2">
+          <h2 className="text-lg font-medium">JARVIS Memory</h2>
+          <p className="text-sm text-muted-foreground">
+            Review, edit, or remove facts JARVIS has remembered about you.
+          </p>
+          <Link
+            href="/settings/memory"
+            className="inline-flex items-center text-sm underline underline-offset-4 hover:text-foreground/80"
+          >
+            Manage memory
+          </Link>
+        </Card>
+
         <Card className="p-6 space-y-4">
           <h2 className="text-lg font-medium">Sign out</h2>
           <SignOutButton />

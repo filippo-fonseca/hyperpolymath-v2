@@ -17,10 +17,10 @@ import { jarvisFacts } from "@/lib/db/schema";
 
 export type JarvisFactRow = {
   id: string;
-  type: string;
+  type: "preference" | "rule" | "entity" | "workflow";
   key: string;
   value: string;
-  source: string;
+  source: "user_explicit" | "jarvis_suggested";
   updatedAt: Date;
   lastUsedAt: Date | null;
 };
@@ -33,7 +33,7 @@ export type JarvisFactRow = {
  *   - Settings → Memory page display (all fields including id/source for edit + delete)
  */
 export async function getJarvisFactsForUser(userId: string): Promise<JarvisFactRow[]> {
-  return db
+  const rows = await db
     .select({
       id: jarvisFacts.id,
       type: jarvisFacts.type,
@@ -46,4 +46,7 @@ export async function getJarvisFactsForUser(userId: string): Promise<JarvisFactR
     .from(jarvisFacts)
     .where(eq(jarvisFacts.userId, userId))
     .orderBy(desc(jarvisFacts.updatedAt));
+  // Cast: Drizzle infers text columns as `string`; the DB CHECK constraint
+  // guarantees the literal union values at write time (migration 0011).
+  return rows as JarvisFactRow[];
 }
