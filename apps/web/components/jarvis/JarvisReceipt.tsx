@@ -19,6 +19,15 @@ import { cn } from "@/lib/utils";
  * Plan 05-03 shipped the shell — title + badge + resolved fields.
  * Plan 05-04 wires the 5s undo countdown (D-03 / D-04).
  *
+ * Phase 5.1 (D-R1 / JARVIS-20):
+ *   - Added `variant?: "default" | "compact"` prop. Compact de-emphasizes the
+ *     receipt visually when prose text appears above it (thinner border, smaller
+ *     padding, reduced font) so prose reads as primary, receipt as supplementary.
+ *   - Added `status === "queued"` early-return: renders a placeholder receipt
+ *     with animate-pulse while the executor is in-flight (D-P3). The Console
+ *     upgrades the placeholder to `status: "done"` when `event: action` lands.
+ *   - `result` is now optional — queued placeholders have no result yet.
+ *
  * Undo lifecycle:
  *   - On mount of a successful, not-yet-undone receipt, start a 5s countdown.
  *   - Render "Undo (N)" while countdown > 0.
@@ -50,6 +59,12 @@ const INTENT_META = {
 interface Props {
   action: ScrollbackAction;
   /**
+   * Phase 5.1 D-R1: visual weight control.
+   * - "default" (base): border-l-2 px-3 py-2 — standard receipt weight.
+   * - "compact": border-l px-2.5 py-1 opacity-95 — de-emphasized under prose text.
+   */
+  variant?: "default" | "compact";
+  /**
    * Plan 05-04: fired when the user clicks Undo within the 5s window.
    * Parent (JarvisConsole) handles the optimistic scrollback update + the
    * server round-trip. When undefined, the Undo button is not rendered.
@@ -57,16 +72,40 @@ interface Props {
   onUndo?: () => void;
 }
 
-export function JarvisReceipt({ action, onUndo }: Props) {
+export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const meta = INTENT_META[action.name];
+  if (!meta) return null;
+  const Icon = meta.icon;
+
+  // Phase 5.1 D-P3: queued placeholder — renders before executor resolves.
+  // The Console will upgrade this to status: "done" when event: action lands.
+  if (action.status === "queued" && !action.result) {
+    return (
+      <div
+        data-status="queued"
+        className={cn(
+          "rounded border-l-2 px-3 py-1 my-1 opacity-60 animate-pulse",
+          meta.classes,
+        )}
+      >
+        <span className="font-mono text-xs uppercase tracking-wide flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5" />
+          {meta.label} <span className="text-muted-foreground">queued…</span>
+        </span>
+      </div>
+    );
+  }
+
+  // Guard: if result is not yet populated (shouldn't happen outside queued state,
+  // but defensive for type safety since result is now optional).
+  if (!action.result) return null;
+
   const ok = action.result.ok;
   const undone = action.undone === true;
   // Receipt is eligible for undo iff: action succeeded, has not been undone,
   // and the parent wired the onUndo callback.
   const undoEligible = ok && !undone && typeof onUndo === "function";
 
-  if (!meta) return null;
-  const Icon = meta.icon;
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})
     : null;
@@ -127,12 +166,24 @@ export function JarvisReceipt({ action, onUndo }: Props) {
     });
   }
 
+  // Phase 5.1 D-R1: compact variant uses thinner border + reduced padding
+  const containerCls = cn(
+    "rounded my-1",
+    variant === "compact"
+      ? "border-l px-2.5 py-1 opacity-95"
+      : "border-l-2 px-3 py-2",
+    meta.classes,
+  );
+
+  // Body text size: compact uses text-xs (de-emphasized); default uses text-sm
+  const bodyTextCls = variant === "compact" ? "text-xs" : "text-sm";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={cn("rounded border-l-2 px-3 py-2 my-1", meta.classes)}
+      className={containerCls}
     >
       <div className="flex items-center justify-between gap-3 font-mono text-xs uppercase tracking-wide">
         <span className="flex items-center gap-1.5">
@@ -150,7 +201,7 @@ export function JarvisReceipt({ action, onUndo }: Props) {
       </div>
 
       {ok && receipt ? (
-        <div className="mt-1.5 space-y-0.5 text-sm">
+        <div className={cn("mt-1.5 space-y-0.5", bodyTextCls)}>
           {action.name === "create_task" ? (
             <>
               <div className="font-serif">{String(receipt.title ?? "")}</div>

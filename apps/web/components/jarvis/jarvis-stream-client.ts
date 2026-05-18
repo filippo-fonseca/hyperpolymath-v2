@@ -42,9 +42,17 @@ export interface JarvisActionEvent {
   };
 }
 
+export interface JarvisQueuedEvent {
+  toolUseId: string;
+  name: string;
+}
+
 export interface JarvisCallbacks {
   onText: (delta: string) => void;
   onAction: (data: JarvisActionEvent) => void;
+  /** Phase 5.1 D-P3: fires when a tool_use block is acknowledged (before executor resolves).
+   *  Client renders a queued placeholder receipt that upgrades to done on onAction. */
+  onQueued?: (data: JarvisQueuedEvent) => void;
   onDone: (usage: Record<string, number>) => void;
   onError: (message: string) => void;
 }
@@ -101,6 +109,12 @@ export async function streamJarvis(
         const obj = (data ?? {}) as Record<string, unknown>;
         if (eventName === "text") {
           callbacks.onText(typeof obj.delta === "string" ? obj.delta : "");
+        } else if (eventName === "queued") {
+          // Phase 5.1 D-P3: queued placeholder before executor resolves
+          callbacks.onQueued?.({
+            toolUseId: typeof obj.toolUseId === "string" ? obj.toolUseId : "",
+            name: typeof obj.name === "string" ? obj.name : "",
+          });
         } else if (eventName === "action") {
           callbacks.onAction(obj as unknown as JarvisActionEvent);
         } else if (eventName === "done") {

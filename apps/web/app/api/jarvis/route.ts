@@ -266,6 +266,11 @@ export async function POST(req: NextRequest) {
         };
         if (b.type !== "tool_use") return;
 
+        // Phase 5.1 D-P3: emit "queued" placeholder BEFORE the executor runs.
+        // The client pre-renders a JarvisReceipt in queued/pulse state so the
+        // user sees something immediately, then the "action" event upgrades it.
+        controller.enqueue(encoder.encode(sse("queued", { toolUseId: b.id, name: b.name })));
+
         // CRITICAL: wrap the async executor work in a tracked promise. The
         // Anthropic SDK fires `contentBlock` synchronously and ignores the
         // returned promise — without this barrier the second tool_use's

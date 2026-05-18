@@ -78,7 +78,7 @@ export function JarvisConsole({
           const parts: string[] = [];
           if (t.textDelta) parts.push(t.textDelta);
           for (const a of t.actions) {
-            if (!a.result.ok) continue;
+            if (!a.result || !a.result.ok) continue;
             const r = (a.result as { receipt?: Record<string, unknown> })
               .receipt ?? {};
             if (a.name === "create_task") {
@@ -151,16 +151,52 @@ export function JarvisConsole({
               ),
             );
           },
-          onAction: (data) => {
-            const action: ScrollbackAction = {
+          // Phase 5.1 D-P3: pre-push a queued placeholder when the route
+          // acknowledges a tool_use block (before executor resolves). The
+          // onAction handler below upgrades the same toolUseId to done.
+          onQueued: (data) => {
+            const placeholder: ScrollbackAction = {
               toolUseId: data.toolUseId,
               name: data.name as ScrollbackAction["name"],
-              result: data.result as ScrollbackAction["result"],
+              status: "queued",
             };
             setTurns((prev) =>
               prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, actions: [...t.actions, action] }
+                  ? { ...t, actions: [...t.actions, placeholder] }
+                  : t,
+              ),
+            );
+          },
+          onAction: (data) => {
+            // Upgrade existing queued placeholder with the real result,
+            // or append a new action if no placeholder exists (fallback for
+            // clients that don't get the queued event).
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === assistantId && t.kind === "assistant"
+                  ? {
+                      ...t,
+                      actions: t.actions.some((a) => a.toolUseId === data.toolUseId)
+                        ? t.actions.map((a) =>
+                            a.toolUseId === data.toolUseId
+                              ? {
+                                  ...a,
+                                  status: "done" as const,
+                                  result: data.result as ScrollbackAction["result"],
+                                }
+                              : a,
+                          )
+                        : [
+                            ...t.actions,
+                            {
+                              toolUseId: data.toolUseId,
+                              name: data.name as ScrollbackAction["name"],
+                              status: "done" as const,
+                              result: data.result as ScrollbackAction["result"],
+                            },
+                          ],
+                    }
                   : t,
               ),
             );
@@ -207,7 +243,8 @@ export function JarvisConsole({
   // calls onUndo synchronously after cancel()), so no race on the 5s window.
   const handleUndoAction = useCallback(
     async (turnId: string, action: ScrollbackAction) => {
-      if (!action.result.ok) return; // belt-and-suspenders; the receipt won't render Undo for !ok
+      // Guard against queued placeholders (result not yet populated)
+      if (!action.result || !action.result.ok) return;
       const id = (action.result as { id: string }).id;
 
       // Build the UndoTarget per action.name. For events we also need the
