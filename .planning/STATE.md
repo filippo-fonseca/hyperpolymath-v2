@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 05.1-03-PLAN.md (Persistent Memory Layer — JARVIS-18)
-last_updated: "2026-05-18T01:36:31.911Z"
+status: verifying
+stopped_at: Completed 05.1-04-PLAN.md (Clarification + Implicit-Intent Corpus — JARVIS-19/22)
+last_updated: "2026-05-18T01:57:20.932Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 100
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 Phase: 05.1 (jarvis-agentic-refactor) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-18
 
 Progress: [██████████] 100%
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 05.1-jarvis-agentic-refactor P01 | 9 | 2 tasks | 8 files |
 | Phase 05.1 P02 | 6 | 2 tasks | 10 files |
 | Phase 05.1 P03 | ~2 sessions | 3 tasks | 31 files |
+| Phase 05.1 P04 | 85m | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase 05.1]: cache_control moves from create_event to remember_fact (new last tool) — D-M4 cache rotation per fact write
 - [Phase 05.1]: onConflictDoUpdate on UNIQUE(user_id,type,key) for last-write-wins fact upserts; no deleted_at column
 - [Phase 05.1]: Executor always writes jarvis_suggested facts immediately; 10s Keep/Discard window in JarvisReceipt for undo
+- [Phase 05.1]: cache_control moves from remember_fact to ask_clarification (the new 5th and final tool); future tool additions must also move the marker
+- [Phase 05.1]: ask_clarification depth cap via input.startsWith('[CLARIFICATION REPLY]') prefix detection in route.ts — stateless and reliable, no server-side counter
+- [Phase 05.1]: JARVIS-22 mocked-mode is the CI regression guard; live-mode (ANTHROPIC_LIVE=true) is the acceptance assertion, run on demand
 
 ### Pending Todos
 
@@ -150,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-18T01:36:31.908Z
-Stopped at: Completed 05.1-03-PLAN.md (Persistent Memory Layer — JARVIS-18)
+Last session: 2026-05-18T01:57:20.928Z
+Stopped at: Completed 05.1-04-PLAN.md (Clarification + Implicit-Intent Corpus — JARVIS-19/22)
 Resume file: None
