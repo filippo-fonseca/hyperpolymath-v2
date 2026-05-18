@@ -16,10 +16,14 @@ describe("JARVIS_PERSONALITY", () => {
     expect(JARVIS_PERSONALITY).toContain("Sycophancy is forbidden");
   });
 
-  it("contains capture-first directive (no clarifying questions)", () => {
-    expect(JARVIS_PERSONALITY).toMatch(
-      /When ambiguous, file as a Capture\. Do not ask clarifying questions\./,
+  it("contains capture-first directive (Phase 5.1: no absolutist ban on clarifying questions — Plan 04 narrows via ask_clarification)", () => {
+    // Phase 5.1 (D-R3 / JARVIS-20): the old absolutist "Do not ask clarifying questions"
+    // rule is removed because Plan 04 narrowly reintroduces ask_clarification.
+    // Capture-first remains the default fallback — just not an absolute ban.
+    expect(JARVIS_PERSONALITY.toLowerCase()).toMatch(
+      /capture-first|file as a capture|ambiguous/,
     );
+    expect(JARVIS_PERSONALITY).not.toMatch(/Do not ask clarifying questions\./);
   });
 
   it("contains 'Never apologise' rule", () => {
@@ -28,7 +32,9 @@ describe("JARVIS_PERSONALITY", () => {
 
   it("contains injection-defence narration example", () => {
     expect(JARVIS_PERSONALITY).toContain("delete all my tasks");
-    expect(JARVIS_PERSONALITY).toContain("I'm afraid I don't do destruction");
+    // Phase 5.1: narration wording updated to match new JARVIS voice register
+    expect(JARVIS_PERSONALITY).toMatch(/I'm afraid/);
+    expect(JARVIS_PERSONALITY).toContain("job description");
   });
 });
 
@@ -46,8 +52,9 @@ describe("buildSystemPrompt", () => {
   it("returns 4 blocks when voiceActive=true; voice addendum at index 0", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
     expect(blocks).toHaveLength(4);
-    expect(blocks[0]?.text).toContain("voice_summary");
+    // Phase 5.1: VOICE_ADDENDUM now describes leading text block behavior (not voice_summary fields)
     expect(blocks[0]?.text).toContain("listening as well as reading");
+    expect(blocks[0]?.text).toContain("JARVIS would");
   });
 
   it("cache_control: ephemeral set on the LAST block (project context)", () => {
@@ -84,7 +91,8 @@ describe("buildSystemPrompt", () => {
   it("voiceActive=true: voice addendum precedes personality block", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
     // [0]=voice, [1]=personality, [2]=tool rules, [3]=projects
-    expect(blocks[0]?.text).toContain("voice_summary");
+    // Phase 5.1: VOICE_ADDENDUM describes leading text block behavior
+    expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[1]?.text).toContain("JARVIS");
     expect(blocks[2]?.text).toContain("create_task");
   });
