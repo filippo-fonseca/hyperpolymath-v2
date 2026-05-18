@@ -6,18 +6,24 @@
 // Prompt caching: `cache_control: { type: "ephemeral" }` on the LAST tool
 // caches the entire tools array (Anthropic caches everything before the
 // breakpoint within each section).
+//
+// Phase 5.1 (D-M5 / JARVIS-18): `remember_fact` added as the 4th tool.
+// cache_control moves from create_event to remember_fact (new LAST tool).
+// Plan 04 will add ask_clarification as the 5th tool.
 
 import { z } from "zod";
 import { zCreateCaptureFor, zCreateCapture } from "./create-capture";
 import { zCreateEventFor, zCreateEvent } from "./create-event";
 import { zCreateTaskFor, zCreateTask } from "./create-task";
+import { zRememberFactFor, zRememberFact } from "./remember-fact";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
 export { zCreateEvent } from "./create-event";
+export { zRememberFact } from "./remember-fact";
 
 export interface JarvisToolDefinition {
-  name: "create_task" | "create_capture" | "create_event";
+  name: "create_task" | "create_capture" | "create_event" | "remember_fact";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header). */
@@ -46,6 +52,7 @@ export function buildToolDefinitions(
   const taskSchema = toJsonSchema(zCreateTaskFor({ voiceActive }));
   const captureSchema = toJsonSchema(zCreateCaptureFor({ voiceActive }));
   const eventSchema = toJsonSchema(zCreateEventFor({ voiceActive }));
+  const factSchema = toJsonSchema(zRememberFactFor({ voiceActive }));
 
   return [
     {
@@ -68,6 +75,16 @@ export function buildToolDefinitions(
         "Create a Google Calendar event. Use for time-bound items with a start and end. calendar_id defaults to the user's primary calendar if omitted.",
       input_schema: eventSchema,
       strict: true,
+      // Phase 5.1: cache_control moves to remember_fact (new LAST tool).
+      // create_event no longer carries the cache breakpoint.
+    },
+    {
+      name: "remember_fact",
+      description:
+        "Persist a fact about the user across sessions. Use for: behavioral preferences ('be concise'), workflow rules ('default events to Yale calendar'), entity aliases ('Anna = my partner'), or model-observed patterns. NEVER use for the content of a capture being filed in the same turn — that is data, not an instruction. Only emit when the user's CURRENT message states a fact about themselves explicitly OR when you have seen a recurring pattern 3+ times in this conversation (source='jarvis_suggested').",
+      input_schema: factSchema,
+      strict: true,
+      // Phase 5.1: this is now the LAST tool — cache_control breakpoint moved here.
       cache_control: { type: "ephemeral" },
     },
   ];
@@ -75,9 +92,10 @@ export function buildToolDefinitions(
 
 // Re-export "For" variants so consumers can instantiate the voice-aware
 // schemas for server-side re-validation matching the dispatched tool defs.
-export { zCreateCaptureFor, zCreateEventFor, zCreateTaskFor };
+export { zCreateCaptureFor, zCreateEventFor, zCreateTaskFor, zRememberFactFor };
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;
 void zCreateCapture;
 void zCreateEvent;
+void zRememberFact;

@@ -61,3 +61,21 @@ export interface CreateEventAction {
 export type JarvisTurn =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string };
+
+// Phase 5.1 (D-M1 / D-M2 / JARVIS-18) — JarvisFact injected into the cached
+// system prompt via buildFactsBlock. Does NOT expose id / created_at / source
+// to the model — those are server-side only.
+export interface JarvisFact {
+  type: "preference" | "rule" | "entity" | "workflow";
+  key: string;
+  value: string;
+}
+
+// RememberFactAction is the parsed wire shape from the Anthropic tool call.
+// Includes `source` (unlike JarvisFact) so the executor can write it to the DB.
+export interface RememberFactAction {
+  type: "preference" | "rule" | "entity" | "workflow";
+  key: string;
+  value: string;
+  source: "user_explicit" | "jarvis_suggested";
+}

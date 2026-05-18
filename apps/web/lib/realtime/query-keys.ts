@@ -12,7 +12,8 @@ export type RealtimeTable =
   | "hashtags"
   | "captures_hashtags"
   | "tasks_projects"
-  | "captures_projects";
+  | "captures_projects"
+  | "jarvis_facts"; // Phase 5.1 (D-M6 — Settings → Memory live updates)
 
 export function tableKey(
   table: RealtimeTable,

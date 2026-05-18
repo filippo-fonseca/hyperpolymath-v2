@@ -252,6 +252,30 @@ export const kiwiEvents = pgTable(
   (t) => [index("kiwi_events_user_turn_idx").on(t.userId, sql`turn_at DESC`)],
 );
 
+// jarvis_facts — Phase 5.1 Plan 05.1-03 (D-M1 / JARVIS-18). Persistent memory.
+// Stores one row per user-fact for whole-blob injection into the cached system
+// prompt (D-M4). UNIQUE(user_id, type, key) enforces last-write-wins via
+// onConflictDoUpdate. Hard-delete on forgetFactAction (no deleted_at column).
+export const jarvisFacts = pgTable(
+  "jarvis_facts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (t) => [
+    // CHECK constraints + UNIQUE enforced in raw SQL (migration 0011).
+    // Drizzle index name suffixed _drz to avoid collision with the SQL-defined index.
+    index("jarvis_facts_user_type_idx_drz").on(t.userId, t.type),
+  ],
+);
+
 // jarvis_events — Phase 5 Plan 05-02 (RES-05). One row per JARVIS turn.
 // Mirrors the kiwi_events shell but with the canonical JARVIS column set:
 // usage tokens (input/output/cache_read/cache_creation), first-token latency,
