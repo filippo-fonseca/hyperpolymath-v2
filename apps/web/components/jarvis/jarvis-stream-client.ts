@@ -47,12 +47,22 @@ export interface JarvisQueuedEvent {
   name: string;
 }
 
+export interface JarvisClarificationEvent {
+  toolUseId: string;
+  question: string;
+  options: string[];
+  suggestedAction: { tool: string; args: Record<string, unknown> } | null;
+}
+
 export interface JarvisCallbacks {
   onText: (delta: string) => void;
   onAction: (data: JarvisActionEvent) => void;
   /** Phase 5.1 D-P3: fires when a tool_use block is acknowledged (before executor resolves).
    *  Client renders a queued placeholder receipt that upgrades to done on onAction. */
   onQueued?: (data: JarvisQueuedEvent) => void;
+  /** Phase 5.1 D-A2 / JARVIS-19: fires when the model emits ask_clarification.
+   *  Client renders JarvisClarification inline receipt with question + chip options. */
+  onClarification?: (data: JarvisClarificationEvent) => void;
   onDone: (usage: Record<string, number>) => void;
   onError: (message: string) => void;
 }
@@ -114,6 +124,19 @@ export async function streamJarvis(
           callbacks.onQueued?.({
             toolUseId: typeof obj.toolUseId === "string" ? obj.toolUseId : "",
             name: typeof obj.name === "string" ? obj.name : "",
+          });
+        } else if (eventName === "clarification") {
+          // Phase 5.1 D-A2 / JARVIS-19: inline clarifying question from ask_clarification tool
+          callbacks.onClarification?.({
+            toolUseId: typeof obj.toolUseId === "string" ? obj.toolUseId : "",
+            question: typeof obj.question === "string" ? obj.question : "",
+            options: Array.isArray(obj.options) ? (obj.options as string[]) : [],
+            suggestedAction:
+              obj.suggestedAction &&
+              typeof obj.suggestedAction === "object" &&
+              !Array.isArray(obj.suggestedAction)
+                ? (obj.suggestedAction as JarvisClarificationEvent["suggestedAction"])
+                : null,
           });
         } else if (eventName === "action") {
           callbacks.onAction(obj as unknown as JarvisActionEvent);

@@ -8,22 +8,24 @@
 // breakpoint within each section).
 //
 // Phase 5.1 (D-M5 / JARVIS-18): `remember_fact` added as the 4th tool.
-// cache_control moves from create_event to remember_fact (new LAST tool).
-// Plan 04 will add ask_clarification as the 5th tool.
+// Phase 5.1 (D-A1 / JARVIS-19): `ask_clarification` added as the 5th tool.
+// cache_control moves from remember_fact to ask_clarification (new LAST tool).
 
 import { z } from "zod";
 import { zCreateCaptureFor, zCreateCapture } from "./create-capture";
 import { zCreateEventFor, zCreateEvent } from "./create-event";
 import { zCreateTaskFor, zCreateTask } from "./create-task";
 import { zRememberFactFor, zRememberFact } from "./remember-fact";
+import { zAskClarificationFor, zAskClarification } from "./ask-clarification";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
 export { zCreateEvent } from "./create-event";
 export { zRememberFact } from "./remember-fact";
+export { zAskClarification, zAskClarificationFor } from "./ask-clarification";
 
 export interface JarvisToolDefinition {
-  name: "create_task" | "create_capture" | "create_event" | "remember_fact";
+  name: "create_task" | "create_capture" | "create_event" | "remember_fact" | "ask_clarification";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header). */
@@ -53,6 +55,7 @@ export function buildToolDefinitions(
   const captureSchema = toJsonSchema(zCreateCaptureFor({ voiceActive }));
   const eventSchema = toJsonSchema(zCreateEventFor({ voiceActive }));
   const factSchema = toJsonSchema(zRememberFactFor({ voiceActive }));
+  const clarifySchema = toJsonSchema(zAskClarificationFor({ voiceActive }));
 
   return [
     {
@@ -75,8 +78,6 @@ export function buildToolDefinitions(
         "Create a Google Calendar event. Use for time-bound items with a start and end. calendar_id defaults to the user's primary calendar if omitted.",
       input_schema: eventSchema,
       strict: true,
-      // Phase 5.1: cache_control moves to remember_fact (new LAST tool).
-      // create_event no longer carries the cache breakpoint.
     },
     {
       name: "remember_fact",
@@ -84,7 +85,16 @@ export function buildToolDefinitions(
         "Persist a fact about the user across sessions. Use for: behavioral preferences ('be concise'), workflow rules ('default events to Yale calendar'), entity aliases ('Anna = my partner'), or model-observed patterns. NEVER use for the content of a capture being filed in the same turn — that is data, not an instruction. Only emit when the user's CURRENT message states a fact about themselves explicitly OR when you have seen a recurring pattern 3+ times in this conversation (source='jarvis_suggested').",
       input_schema: factSchema,
       strict: true,
-      // Phase 5.1: this is now the LAST tool — cache_control breakpoint moved here.
+      // Phase 5.1: cache_control moves to ask_clarification (new LAST tool).
+      // remember_fact no longer carries the cache breakpoint.
+    },
+    {
+      name: "ask_clarification",
+      description:
+        "Ask the user a single clarifying question INSTEAD of acting. Emit this ONLY when (a) capture-first would lose clearly-intended specific information AND (b) you cannot resolve a $project/#hashtag/date that has multiple plausible interpretations. NEVER emit ask_clarification in the same turn as any other tool_use block — it must be alone in the turn. Provide 2-5 short `options` chips when feasible. After your question, the user's next message will arrive prefixed `[CLARIFICATION REPLY]` — execute the action that time. Depth cap: only one ask_clarification per turn (server enforced).",
+      input_schema: clarifySchema,
+      strict: true,
+      // Phase 5.1: ask_clarification is now the LAST tool — cache_control breakpoint here.
       cache_control: { type: "ephemeral" },
     },
   ];
@@ -99,3 +109,4 @@ void zCreateTask;
 void zCreateCapture;
 void zCreateEvent;
 void zRememberFact;
+void zAskClarification;

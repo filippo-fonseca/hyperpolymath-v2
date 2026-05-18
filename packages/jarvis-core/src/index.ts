@@ -37,6 +37,9 @@ export {
   // Phase 5.1 (D-M5 / JARVIS-18): remember_fact tool
   zRememberFact,
   zRememberFactFor,
+  // Phase 5.1 (D-A1 / JARVIS-19): ask_clarification tool
+  zAskClarification,
+  zAskClarificationFor,
 } from "./tools";
 
 // Phase 5.1 (D-M4): buildFactsBlock for system-prompt injection
@@ -56,3 +59,6 @@ export type {
   JarvisFact,
   RememberFactAction,
 } from "./types";
+
+// Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
+export type { AskClarificationAction } from "./tools/ask-clarification";

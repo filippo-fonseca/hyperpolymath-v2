@@ -102,6 +102,7 @@ vi.mock("@/lib/jarvis/executor", () => ({
     createCapture: executorCreateCaptureMock,
     createEvent: executorCreateEventMock,
     rememberFact: vi.fn(async () => ({ ok: true, id: "fact:test", receipt: {} })),
+    askClarification: vi.fn(async () => ({ ok: true, id: "clarification:test", receipt: {} })),
   }),
 }));
 

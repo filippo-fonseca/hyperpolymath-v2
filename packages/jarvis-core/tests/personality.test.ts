@@ -23,12 +23,16 @@ describe("personality.ts — Phase 5.1 prose-first rewrite (JARVIS-20)", () => {
     expect(TOOL_USE_RULES).toMatch(/JARVIS MEMORY/);
   });
 
-  it("TOOL_USE_RULES says 'four tools' after Plan 03 registers remember_fact (Warning 2)", () => {
-    // Wave 2 left "three tools (Phase 5 baseline)". Plan 03 updates this line
-    // to prevent a mismatch between the system prompt and buildToolDefinitions.
-    // Plan 04 will update to "five tools" when ask_clarification lands.
-    expect(TOOL_USE_RULES).toMatch(/four tools/);
-    expect(TOOL_USE_RULES).not.toMatch(/three tools/);
+  it("TOOL_USE_RULES says 'five tools' after Plan 04 registers ask_clarification", () => {
+    // Wave 3 left "four tools". Plan 04 updates to "five tools" (ask_clarification).
+    expect(TOOL_USE_RULES).toMatch(/five tools/);
+    expect(TOOL_USE_RULES).not.toMatch(/four tools/);
+  });
+
+  it("Plan 04 adds ask_clarification rule + five tools + co-emit prohibition (JARVIS-19)", () => {
+    expect(TOOL_USE_RULES).toMatch(/five tools/);
+    expect(TOOL_USE_RULES).toMatch(/ask_clarification/);
+    expect(TOOL_USE_RULES).toMatch(/alone in the turn|never.*same turn|never co-emit/i);
   });
 
   it("TOOL_USE_RULES contains remember_fact adversarial defense rule (D-M5)", () => {

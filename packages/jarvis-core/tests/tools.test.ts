@@ -110,15 +110,15 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns four tools in order: create_task, create_capture, create_event, remember_fact (Phase 5.1)", () => {
-    // Phase 5.1 (D-M5 / JARVIS-18): remember_fact is the 4th tool.
-    // Plan 04 will add ask_clarification as the 5th.
+  it("returns five tools in order: create_task, create_capture, create_event, remember_fact, ask_clarification (Phase 5.1 Plan 04)", () => {
+    // Phase 5.1 Plan 04 (D-A1 / JARVIS-19): ask_clarification is the 5th tool.
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(4);
+    expect(tools).toHaveLength(5);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");
     expect(tools[3]?.name).toBe("remember_fact");
+    expect(tools[4]?.name).toBe("ask_clarification");
   });
 
   it("each tool has strict: true (per-tool, replaces deprecated beta header)", () => {
@@ -128,16 +128,16 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("cache_control: ephemeral is set ONLY on the last tool (remember_fact in Phase 5.1)", () => {
-    // Phase 5.1: cache_control moved from create_event to remember_fact (new LAST tool).
+  it("cache_control: ephemeral is set ONLY on the last tool (ask_clarification in Phase 5.1 Plan 04)", () => {
+    // Phase 5.1 Plan 04: cache_control moves from remember_fact to ask_clarification (new LAST tool).
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("remember_fact");
+    expect(cached[0]?.name).toBe("ask_clarification");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral" });
-    // create_event must NOT carry cache_control anymore
-    const createEvent = tools.find((t) => t.name === "create_event");
-    expect(createEvent?.cache_control).toBeUndefined();
+    // remember_fact must NOT carry cache_control anymore
+    const rememberFact = tools.find((t) => t.name === "remember_fact");
+    expect(rememberFact?.cache_control).toBeUndefined();
   });
 
   it("each tool's input_schema has additionalProperties: false (strict mode requirement)", () => {

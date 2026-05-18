@@ -11,6 +11,7 @@ import type {
   CreateTaskAction,
   RememberFactAction,
 } from "../types";
+import type { AskClarificationAction } from "../tools/ask-clarification";
 
 export interface ExecutionContext {
   /** Re-derived from getClaims() at the boundary, NEVER trusted from model. */
@@ -54,6 +55,15 @@ export interface ActionExecutor {
   /** Phase 5.1 (D-M5 / JARVIS-18): persist a user fact via onConflictDoUpdate. */
   rememberFact(
     input: RememberFactAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
+  /**
+   * Phase 5.1 (D-A1 / JARVIS-19): ask a clarifying question. No-op on the server —
+   * the question payload is streamed via event: clarification SSE BEFORE this runs.
+   * Returns an ok receipt for uniform dispatch-loop handling.
+   */
+  askClarification(
+    input: AskClarificationAction,
     ctx: ExecutionContext,
   ): Promise<ExecutorResult>;
 }

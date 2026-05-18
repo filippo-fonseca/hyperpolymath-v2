@@ -46,6 +46,7 @@ import {
   buildSystemPrompt,
   buildToolDefinitions,
   type ProjectSummary,
+  zAskClarification,
   zCreateCapture,
   zCreateEvent,
   zCreateTask,
@@ -62,6 +63,8 @@ const TOOL_VALIDATORS = {
   create_event: zCreateEvent,
   // Phase 5.1 (D-M5 / JARVIS-18): remember_fact added as 4th tool
   remember_fact: zRememberFact,
+  // Phase 5.1 (D-A1 / JARVIS-19): ask_clarification added as 5th tool
+  ask_clarification: zAskClarification,
 } as const;
 
 type ToolName = keyof typeof TOOL_VALIDATORS;
@@ -168,6 +171,9 @@ export async function POST(req: NextRequest) {
       : ({ type: "auto" as const });
 
   // 6. Build user message — append pre-parsed dates + linked-references hints
+  //    Phase 5.1 (D-A2 / Pitfall 2): detect [CLARIFICATION REPLY] prefix for depth cap.
+  //    When present, append a system note forbidding another ask_clarification this turn.
+  const isClarificationReply = body.input.trimStart().startsWith("[CLARIFICATION REPLY]");
   let userContent = body.input;
   if (body.parsedDates && body.parsedDates.length > 0) {
     // MANDATORY hint: model MUST copy these ISO strings verbatim into due/start/end.
@@ -193,6 +199,12 @@ export async function POST(req: NextRequest) {
       parts.push(`hashtags=${JSON.stringify(body.linkedHashtags)}`);
     }
     userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
+  }
+  // Phase 5.1 (D-A2 / Pitfall 2): depth cap. When user reply contains [CLARIFICATION REPLY],
+  // append a system note so the model does NOT emit ask_clarification again this turn.
+  // The model sees this as the user's answer and must proceed to action or capture-first.
+  if (isClarificationReply) {
+    userContent += `\n\n[INTERNAL: This message is a reply to your previous ask_clarification. Do NOT emit another ask_clarification this turn — execute the action now using the user's clarification, or fall back to capture-first if still ambiguous. Depth cap enforced (Pitfall 2).]`;
   }
   const messages: Array<{ role: "user" | "assistant"; content: string }> = [
     ...body.history,
@@ -350,6 +362,30 @@ export async function POST(req: NextRequest) {
               // the jarvis_suggested Keep/Discard path can hard-delete.
               result = await executor.rememberFact(
                 parsed.data as Parameters<typeof executor.rememberFact>[0],
+                ctx,
+              );
+            } else if (b.name === "ask_clarification") {
+              // Phase 5.1 (D-A1 / JARVIS-19): clarifying question — no DB write.
+              // First, emit a dedicated SSE event so the client can render the
+              // inline question receipt BEFORE the executor responds. The executor
+              // is a no-op that returns an ok receipt for uniform dispatch handling.
+              const cdata = parsed.data as {
+                question: string;
+                options?: string[];
+                suggested_action?: { tool: string; args: Record<string, unknown> };
+              };
+              controller.enqueue(
+                encoder.encode(
+                  sse("clarification", {
+                    toolUseId: b.id,
+                    question: cdata.question,
+                    options: cdata.options ?? [],
+                    suggestedAction: cdata.suggested_action ?? null,
+                  }),
+                ),
+              );
+              result = await executor.askClarification(
+                parsed.data as Parameters<typeof executor.askClarification>[0],
                 ctx,
               );
             } else {

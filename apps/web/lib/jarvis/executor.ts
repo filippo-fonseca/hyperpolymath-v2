@@ -50,6 +50,7 @@ import {
 } from "@/lib/gcal/token";
 import type {
   ActionExecutor,
+  AskClarificationAction,
   CreateCaptureAction,
   CreateEventAction,
   CreateTaskAction,
@@ -262,6 +263,31 @@ export function createServerExecutor(): ActionExecutor {
           error: err instanceof Error ? err.message : String(err),
         };
       }
+    },
+
+    /**
+     * Phase 5.1 (D-A1 / JARVIS-19) — ask_clarification no-op executor.
+     *
+     * The question payload has ALREADY been streamed to the client via the
+     * `event: clarification` SSE event emitted from route.ts BEFORE this
+     * executor is called. This method returns a uniform ok receipt so the
+     * dispatch loop can treat ask_clarification uniformly with action tools.
+     *
+     * NO DB write. NO side effect. Console renders the question via the SSE event.
+     */
+    async askClarification(
+      input: AskClarificationAction,
+      _ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      return {
+        ok: true,
+        id: `clarification:${randomUUID()}`,
+        receipt: {
+          question: input.question,
+          options: input.options ?? [],
+          suggested_action: input.suggested_action ?? null,
+        },
+      };
     },
 
     /**
