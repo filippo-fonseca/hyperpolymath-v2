@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05.1-02-PLAN.md (Prose-First Personality)
-last_updated: "2026-05-18T01:12:04.167Z"
+stopped_at: Completed 05.1-03-PLAN.md (Persistent Memory Layer — JARVIS-18)
+last_updated: "2026-05-18T01:36:31.911Z"
 last_activity: 2026-05-18
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 05.1 (jarvis-agentic-refactor) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-18
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 05 P03 | 167 | 5 tasks | 29 files |
 | Phase 05.1-jarvis-agentic-refactor P01 | 9 | 2 tasks | 8 files |
 | Phase 05.1 P02 | 6 | 2 tasks | 10 files |
+| Phase 05.1 P03 | ~2 sessions | 3 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,9 @@ Recent decisions affecting current work:
 - [Phase 05.1]: VOICE_ADDENDUM updated to describe leading text block behavior (not voice_summary fields) — the leading text block IS the spoken response in Phase 5.1+
 - [Phase 05.1]: JarvisScrollback passes variant=compact to receipts when turn has prose; onQueued/onAction lifecycle manages queued placeholder upgrades by toolUseId
 - [Phase 05.1]: result is optional on ScrollbackAction — queued placeholders have no result; all consumers guarded
+- [Phase 05.1]: cache_control moves from create_event to remember_fact (new last tool) — D-M4 cache rotation per fact write
+- [Phase 05.1]: onConflictDoUpdate on UNIQUE(user_id,type,key) for last-write-wins fact upserts; no deleted_at column
+- [Phase 05.1]: Executor always writes jarvis_suggested facts immediately; 10s Keep/Discard window in JarvisReceipt for undo
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-18T01:12:04.163Z
-Stopped at: Completed 05.1-02-PLAN.md (Prose-First Personality)
+Last session: 2026-05-18T01:36:31.908Z
+Stopped at: Completed 05.1-03-PLAN.md (Persistent Memory Layer — JARVIS-18)
 Resume file: None

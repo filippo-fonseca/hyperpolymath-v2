@@ -127,7 +127,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 - [x] 05.1-01-PLAN.md — Wave 1: Pipeline efficiency — Sidebar refetch fix (initialDataUpdatedAt + staleTime: Infinity) + validate-references batching (Promise.all) + perf-budget test with Drizzle logger spy + sidebar-no-refetch regression test (JARVIS-21)
 - [x] 05.1-02-PLAN.md — Wave 2: Prose-first personality — personality.ts rewrite with canonical "Handled, sir" calibration example + reversed OUTPUT FORMAT rule + JarvisScrollback drops actions-gate on textDelta + JarvisReceipt compact variant + queued SSE placeholder per D-P3 (JARVIS-20)
-- [ ] 05.1-03-PLAN.md — Wave 3: Persistent memory — migration 0011_jarvis_facts.sql + Drizzle schema + remember_fact tool (4th tool, cache_control moves) + buildSystemPrompt facts param + executor.rememberFact onConflictDoUpdate + /settings/memory page + 3 new adversarial fixtures (JARVIS-18)
+- [x] 05.1-03-PLAN.md — Wave 3: Persistent memory — migration 0011_jarvis_facts.sql + Drizzle schema + remember_fact tool (4th tool, cache_control moves) + buildSystemPrompt facts param + executor.rememberFact onConflictDoUpdate + /settings/memory page + 3 new adversarial fixtures (JARVIS-18)
 - [ ] 05.1-04-PLAN.md — Wave 4: ask_clarification + implicit-intent corpus — ask_clarification tool (5th tool, cache_control re-anchors) + personality co-emit prohibition + depth cap + JarvisClarification UI component + 20-fixture jarvis-implicit-intent test (mocked default + live mode behind env flag) (JARVIS-19, JARVIS-22)
 **UI hint**: yes
 **Wave structure**: Plan 01 (Wave 1, autonomous — perf baseline lands first so downstream waves don't amplify waste) → Plan 02 (Wave 2, prose-first personality + scrollback + queued SSE event in route.ts) → Plan 03 (Wave 3, persistent memory; extends route.ts + tools/index.ts that Plan 02 also touched → sequential to honor file ownership) → Plan 04 (Wave 4, ask_clarification + implicit-intent corpus; extends route.ts + tools/index.ts + personality.ts again → sequential). Each plan: 2-3 tasks, ~50% context target, autonomous (no checkpoints). Final E2E smoke deferred to a verification pass after Plan 04 completes.
@@ -175,7 +175,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7
 | 3. Realtime Layer | 0/4 | Not started | - |
 | 4. Google Calendar | 4/4 | Complete    | 2026-05-13 |
 | 5. JARVIS | 4/4 | Complete    | 2026-05-15 |
-| 5.1. JARVIS Agentic Refactor | 0/4 | Planned | - |
+| 5.1. JARVIS Agentic Refactor | 3/4 | In Progress|  |
 | 6. Polish | 0/TBD | Not started | - |
 | 7. JARVIS Voice + Ambient | 0/TBD | Not started | - |
 
