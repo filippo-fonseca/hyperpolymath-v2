@@ -202,23 +202,29 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     });
   }
 
-  // Phase 5.1 D-R1: compact variant uses thinner border + reduced padding
+  // Phase 5.1 D-R1: compact variant uses thinner border + reduced padding.
+  // Undone tombstone: drop opacity + grayscale so the user sees what they
+  // reversed (the row stays as a record, doesn't disappear from scrollback).
   const containerCls = cn(
     "rounded my-1",
     variant === "compact"
       ? "border-l px-2.5 py-1 opacity-95"
       : "border-l-2 px-3 py-2",
     meta.classes,
+    undone && "opacity-50 grayscale",
   );
 
   // Body text size: compact uses text-xs (de-emphasized); default uses text-sm
   const bodyTextCls = variant === "compact" ? "text-xs" : "text-sm";
+  // Tombstone styling on title text when undone.
+  const titleCls = cn("font-serif", undone && "line-through text-muted-foreground");
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
+      data-undone={undone ? "true" : undefined}
       className={containerCls}
     >
       <div className="flex items-center justify-between gap-3 font-mono text-xs uppercase tracking-wide">
@@ -231,7 +237,11 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             <AlertCircle className="h-3.5 w-3.5 text-red-600" />
           )}
         </span>
-        {undoEligible ? (
+        {undone ? (
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Undone
+          </span>
+        ) : undoEligible ? (
           <UndoButton onUndo={onUndo as () => void} />
         ) : null}
       </div>
@@ -240,7 +250,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
         <div className={cn("mt-1.5 space-y-0.5", bodyTextCls)}>
           {action.name === "create_task" ? (
             <>
-              <div className="font-serif">{String(receipt.title ?? "")}</div>
+              <div className={titleCls}>{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-muted-foreground">
                 {String(receipt.priority ?? "P3")}
                 {receipt.due
@@ -255,7 +265,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
           {action.name === "create_capture" ? (
             <>
-              <div className="font-serif">{String(receipt.content ?? "")}</div>
+              <div className={titleCls}>{String(receipt.content ?? "")}</div>
               {Array.isArray(receipt.hashtags) && receipt.hashtags.length ? (
                 <div className="font-mono text-xs text-muted-foreground">
                   #{(receipt.hashtags as string[]).join(" #")}
@@ -265,7 +275,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
           {action.name === "create_event" ? (
             <>
-              <div className="font-serif">{String(receipt.title ?? "")}</div>
+              <div className={titleCls}>{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-muted-foreground">
                 {fmtDate(receipt.start, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
                 {" → "}
@@ -275,7 +285,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
           {action.name === "remember_fact" ? (
             <>
-              <div className="font-serif">
+              <div className={titleCls}>
                 <strong>{String(receipt.key ?? "")}</strong>: {String(receipt.value ?? "")}
               </div>
               <div className="font-mono text-xs text-muted-foreground">

@@ -82,6 +82,7 @@ export const ProjectSuggestionList = forwardRef<
     <div
       className="min-w-[200px] max-w-[280px] rounded-md border bg-popover text-popover-foreground shadow-md py-1 font-sans text-[13px]"
       role="listbox"
+      data-mention-suggestion-active="project"
     >
       {items.map((item, i) => {
         const isHighlighted = i === selectedIndex;

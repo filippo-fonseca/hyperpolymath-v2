@@ -207,6 +207,13 @@ export function JarvisInput({
 
         // Default Enter submit (no slash popover open)
         if (event.key === "Enter" && !event.shiftKey) {
+          // A TipTap mention popover ($project / #hashtag) renders to document.body
+          // and tags its root with `data-mention-suggestion-active`. When it's open,
+          // ProseMirror's suggestion plugin owns Enter — it inserts the highlighted
+          // pill via `command(item)`. Bailing out here lets that handler win.
+          if (document.querySelector("[data-mention-suggestion-active]")) {
+            return false;
+          }
           // Read live text + JSON from the view (not the closure editor —
           // it can be stale on the very first submit after mount).
           const liveJson = _view.state.doc.toJSON();
