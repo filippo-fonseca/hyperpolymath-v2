@@ -49,7 +49,9 @@ import {
   zCreateCapture,
   zCreateEvent,
   zCreateTask,
+  zRememberFact,
 } from "@hyperpolymath/jarvis-core";
+import { getJarvisFactsForUser } from "@/lib/db/queries/jarvis-facts";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // JARVIS-15 budget; Vercel default 300s gives headroom.
@@ -58,6 +60,8 @@ const TOOL_VALIDATORS = {
   create_task: zCreateTask,
   create_capture: zCreateCapture,
   create_event: zCreateEvent,
+  // Phase 5.1 (D-M5 / JARVIS-18): remember_fact added as 4th tool
+  remember_fact: zRememberFact,
 } as const;
 
 type ToolName = keyof typeof TOOL_VALIDATORS;
@@ -119,12 +123,25 @@ export async function POST(req: NextRequest) {
     .limit(1);
   const userRow = userRows[0];
 
+  // Phase 5.1 (D-M4 / JARVIS-18): load facts for whole-blob injection into
+  // the cached system prompt. Loaded once per turn at the route boundary.
+  // When jarvis_facts changes, the cache key rotates on next turn (D-M4 —
+  // one cold-cache turn is acceptable). Returns [] for new users.
+  const userFacts = await getJarvisFactsForUser(userId);
+
   const projectSummaries: ProjectSummary[] = userProjects.map((p) => ({
     id: p.id,
     name: p.name,
     icon: p.icon,
   }));
-  const system = buildSystemPrompt({ projects: projectSummaries, voiceActive });
+  // Cast to JarvisFact[] — DB CHECK constraint guarantees the type/key/value
+  // fields are always valid literals. The cast avoids a round-trip re-validation
+  // that would cost an extra Zod parse per turn (not worth it for trusted DB reads).
+  const system = buildSystemPrompt({
+    projects: projectSummaries,
+    facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
+    voiceActive,
+  });
   const tools = buildToolDefinitions({ voiceActive });
 
   // 5. Slash-command forcing via tool_choice
@@ -324,6 +341,15 @@ export async function POST(req: NextRequest) {
             } else if (b.name === "create_event") {
               result = await executor.createEvent(
                 parsed.data as Parameters<typeof executor.createEvent>[0],
+                ctx,
+              );
+            } else if (b.name === "remember_fact") {
+              // Phase 5.1 (D-M5 / JARVIS-18): persist a user fact.
+              // TOOL_VALIDATORS already validated the shape; executor handles
+              // the onConflictDoUpdate upsert + returns factId in receipt so
+              // the jarvis_suggested Keep/Discard path can hard-delete.
+              result = await executor.rememberFact(
+                parsed.data as Parameters<typeof executor.rememberFact>[0],
                 ctx,
               );
             } else {

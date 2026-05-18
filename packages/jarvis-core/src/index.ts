@@ -34,7 +34,13 @@ export {
   zCreateCapture,
   zCreateEvent,
   zCreateTask,
+  // Phase 5.1 (D-M5 / JARVIS-18): remember_fact tool
+  zRememberFact,
+  zRememberFactFor,
 } from "./tools";
+
+// Phase 5.1 (D-M4): buildFactsBlock for system-prompt injection
+export { buildFactsBlock } from "./prompt-builder";
 
 export type {
   ActionType,
@@ -46,4 +52,7 @@ export type {
   Priority,
   ProjectSummary,
   TaskStatus,
+  // Phase 5.1 (D-M1 / D-M5 / JARVIS-18)
+  JarvisFact,
+  RememberFactAction,
 } from "./types";

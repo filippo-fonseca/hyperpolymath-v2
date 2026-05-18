@@ -28,7 +28,7 @@ export interface ScrollbackAssistantTurn {
 
 export interface ScrollbackAction {
   toolUseId: string;
-  name: "create_task" | "create_capture" | "create_event";
+  name: "create_task" | "create_capture" | "create_event" | "remember_fact";
   /** Phase 5.1 D-P3: "queued" while executor pending, "done" once result arrives. */
   status?: "queued" | "done";
   /** Optional once queued placeholder lands; populated when event: action arrives. */

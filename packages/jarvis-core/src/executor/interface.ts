@@ -9,6 +9,7 @@ import type {
   CreateCaptureAction,
   CreateEventAction,
   CreateTaskAction,
+  RememberFactAction,
 } from "../types";
 
 export interface ExecutionContext {
@@ -48,6 +49,11 @@ export interface ActionExecutor {
   ): Promise<ExecutorResult>;
   createEvent(
     input: CreateEventAction,
+    ctx: ExecutionContext,
+  ): Promise<ExecutorResult>;
+  /** Phase 5.1 (D-M5 / JARVIS-18): persist a user fact via onConflictDoUpdate. */
+  rememberFact(
+    input: RememberFactAction,
     ctx: ExecutionContext,
   ): Promise<ExecutorResult>;
 }

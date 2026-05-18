@@ -107,7 +107,15 @@ vi.mock("@/lib/jarvis/executor", () => ({
     createTask: executorCreateTaskMock,
     createCapture: executorCreateCaptureMock,
     createEvent: executorCreateEventMock,
+    rememberFact: vi.fn(async () => ({ ok: true, id: "fact:test", receipt: {} })),
   }),
+}));
+
+// Phase 5.1 (D-M4 / JARVIS-18): route now loads facts before buildSystemPrompt.
+// Mock to return empty facts — jarvis-perf-budget.test.ts tests DB roundtrips,
+// and the facts load is the mocked module path (not a db.select call).
+vi.mock("@/lib/db/queries/jarvis-facts", () => ({
+  getJarvisFactsForUser: vi.fn(async () => []),
 }));
 
 process.env.ANTHROPIC_API_KEY = "test-key-for-perf";

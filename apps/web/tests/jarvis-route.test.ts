@@ -101,7 +101,14 @@ vi.mock("@/lib/jarvis/executor", () => ({
     createTask: executorCreateTaskMock,
     createCapture: executorCreateCaptureMock,
     createEvent: executorCreateEventMock,
+    rememberFact: vi.fn(async () => ({ ok: true, id: "fact:test", receipt: {} })),
   }),
+}));
+
+// Phase 5.1 (D-M4 / JARVIS-18): route now loads facts before buildSystemPrompt.
+// Mock to return empty facts — jarvis-route.test.ts doesn't test memory paths.
+vi.mock("@/lib/db/queries/jarvis-facts", () => ({
+  getJarvisFactsForUser: vi.fn(async () => []),
 }));
 
 // --- Anthropic API key env var ---------------------------------------------

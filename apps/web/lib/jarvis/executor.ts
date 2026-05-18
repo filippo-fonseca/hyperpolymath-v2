@@ -32,11 +32,13 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
   capturesHashtags,
   capturesProjects,
+  jarvisFacts,
   tasks,
   tasksProjects,
 } from "@/lib/db/schema";
@@ -53,6 +55,7 @@ import type {
   CreateTaskAction,
   ExecutionContext,
   ExecutorResult,
+  RememberFactAction,
 } from "@hyperpolymath/jarvis-core";
 import {
   validateCalendarId,
@@ -256,6 +259,65 @@ export function createServerExecutor(): ActionExecutor {
         return {
           ok: false,
           kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    /**
+     * Phase 5.1 (D-M5 / JARVIS-18) — persist a user fact via onConflictDoUpdate.
+     *
+     * INVARIANTS:
+     *   1. ctx.userId is the ONLY source of userId (never trust model-emitted ids).
+     *   2. Uses UNIQUE(user_id, type, key) for last-write-wins semantics.
+     *   3. Returns factId in receipt so the jarvis_suggested Keep/Discard path
+     *      can hard-delete via forgetFactAction (Blocker 2 / D-M3).
+     *   4. Fact is inserted IMMEDIATELY — the 10s countdown is the user's undo
+     *      window (mirrors Phase 5's 5s undo pattern for create_task/capture).
+     */
+    async rememberFact(
+      input: RememberFactAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      try {
+        const now = new Date();
+        const [row] = await db
+          .insert(jarvisFacts)
+          .values({
+            userId: ctx.userId, // JARVIS-12: from getClaims(), NEVER model
+            type: input.type,
+            key: input.key,
+            value: input.value,
+            source: input.source,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            // UNIQUE(user_id, type, key) — last-write-wins (D-M1)
+            target: [jarvisFacts.userId, jarvisFacts.type, jarvisFacts.key],
+            set: {
+              value: sql`excluded.value`,
+              source: sql`excluded.source`,
+              updatedAt: now,
+            },
+          })
+          .returning({ id: jarvisFacts.id });
+
+        return {
+          ok: true,
+          id: `fact:${input.type}:${input.key}`,
+          receipt: {
+            type: input.type,
+            key: input.key,
+            value: input.value,
+            source: input.source,
+            // Surface the row id so Discard can hard-delete (Blocker 2 / D-M3)
+            factId: row!.id,
+          },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "validation",
           error: err instanceof Error ? err.message : String(err),
         };
       }

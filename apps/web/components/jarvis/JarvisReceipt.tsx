@@ -4,14 +4,18 @@ import { useCallback, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertCircle,
+  Brain,
   CalendarDays,
   CheckCircle2,
   FileText,
   ListTodo,
+  Sparkles,
 } from "lucide-react";
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
 import { cn } from "@/lib/utils";
+import { forgetFactAction } from "@/app/actions/jarvis-facts";
+import { Button } from "@/components/ui/button";
 
 /**
  * Intent-badged action receipt (D-09 / JARVIS-09).
@@ -27,6 +31,13 @@ import { cn } from "@/lib/utils";
  *     with animate-pulse while the executor is in-flight (D-P3). The Console
  *     upgrades the placeholder to `status: "done"` when `event: action` lands.
  *   - `result` is now optional — queued placeholders have no result yet.
+ *
+ * Phase 5.1 Plan 03 (D-M3 / JARVIS-18):
+ *   - Added `remember_fact` receipt type — user_explicit shows a standard
+ *     receipt with 5s undo; jarvis_suggested shows Keep/Discard with 10s
+ *     countdown (useUndoCountdown(10, onExpire) reused from Phase 5).
+ *   - jarvis_suggested fact is persisted IMMEDIATELY by the executor; Discard
+ *     hard-deletes via forgetFactAction; Keep is implicit on countdown expire.
  *
  * Undo lifecycle:
  *   - On mount of a successful, not-yet-undone receipt, start a 5s countdown.
@@ -53,6 +64,11 @@ const INTENT_META = {
     label: "EVENT",
     icon: CalendarDays,
     classes: "border-emerald-500/50 bg-emerald-500/5",
+  },
+  remember_fact: {
+    label: "MEMORY",
+    icon: Brain,
+    classes: "border-violet-500/50 bg-violet-500/5",
   },
 } as const;
 
@@ -99,6 +115,17 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // Guard: if result is not yet populated (shouldn't happen outside queued state,
   // but defensive for type safety since result is now optional).
   if (!action.result) return null;
+
+  // Phase 5.1 Plan 03 (D-M3 / JARVIS-18): jarvis_suggested branch.
+  // The executor persisted the fact immediately; this receipt is the 10s
+  // undo window (Keep/Discard) — Discard hard-deletes via forgetFactAction.
+  if (
+    action.name === "remember_fact" &&
+    action.result.ok === true &&
+    (action.result.receipt as { source?: string }).source === "jarvis_suggested"
+  ) {
+    return <SuggestedFactReceipt action={action} />;
+  }
 
   const ok = action.result.ok;
   const undone = action.undone === true;
@@ -237,6 +264,16 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               </div>
             </>
           ) : null}
+          {action.name === "remember_fact" ? (
+            <>
+              <div className="font-serif">
+                <strong>{String(receipt.key ?? "")}</strong>: {String(receipt.value ?? "")}
+              </div>
+              <div className="font-mono text-xs text-muted-foreground">
+                {String(receipt.type ?? "")} · remembered
+              </div>
+            </>
+          ) : null}
         </div>
       ) : (
         <div className="mt-1.5 font-mono text-xs text-red-600">
@@ -283,5 +320,90 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
     >
       Undo ({seconds})
     </button>
+  );
+}
+
+/**
+ * jarvis_suggested fact receipt — Keep/Discard with 10s countdown (Blocker 2 / D-M3).
+ *
+ * The executor inserts the fact row IMMEDIATELY. This component is the user's
+ * undo window. On expiry → Keep (no-op, fact stays). On Discard → forgetFactAction
+ * hard-deletes the just-inserted row.
+ */
+function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
+  const result = action.result as { ok: true; id: string; receipt: Record<string, unknown> };
+  const receipt = result.receipt as {
+    type: string;
+    key: string;
+    value: string;
+    source: string;
+    factId?: string;
+  };
+  const [discarded, setDiscarded] = useState(false);
+  const [kept, setKept] = useState(false);
+
+  const handleExpire = useCallback(() => {
+    // Countdown expired — Keep is implicit. Fact is already persisted.
+    setKept(true);
+  }, []);
+
+  const { seconds, cancel } = useUndoCountdown(10, handleExpire);
+
+  async function handleDiscard() {
+    cancel();
+    const factId = receipt.factId;
+    if (!factId) return;
+    const result = await forgetFactAction({ factId });
+    if (result.ok) {
+      setDiscarded(true);
+    }
+  }
+
+  function handleKeep() {
+    cancel();
+    setKept(true);
+  }
+
+  if (discarded) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      data-source="jarvis_suggested"
+      className="rounded border-l-2 border-violet-500/50 bg-violet-500/5 px-3 py-2 my-1"
+    >
+      <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-violet-700 dark:text-violet-300">
+        <Sparkles className="h-3.5 w-3.5" />
+        SUGGESTED FACT — {receipt.type}
+      </div>
+      <div className="font-serif text-sm mt-1">
+        <strong>{receipt.key}</strong>: {receipt.value}
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleKeep}
+          aria-label="Keep"
+          className="h-6 px-2 text-xs"
+        >
+          Keep
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleDiscard}
+          aria-label="Discard"
+          className="h-6 px-2 text-xs"
+        >
+          Discard
+        </Button>
+        <span className="text-xs text-muted-foreground font-mono ml-auto">
+          {kept ? "kept" : seconds > 0 ? `auto-keep in ${seconds}s` : "kept"}
+        </span>
+      </div>
+    </motion.div>
   );
 }
