@@ -110,6 +110,11 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **JARVIS-15**: Latency budget: p50 first-token < 4s, p95 first-token < 10s for typical multi-action prompts (measured via `jarvis_events` table)
 - [x] **JARVIS-16**: Agent logic lives in `packages/jarvis-core` as a pure TypeScript package with zero React/Next dependencies; web app consumes it via workspace import
 - [x] **JARVIS-17**: When JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved (capture-first applied to ambiguity)
+- [ ] **JARVIS-18**: Persistent memory layer — `jarvis_facts` Postgres table (type ∈ preference/rule/entity/workflow, source ∈ user_explicit/jarvis_suggested) with RLS, `remember_fact` tool wired into JARVIS, whole-blob fact injection into the cached system prompt, and a `/settings/memory` editor surface (read/edit/delete). Survives across sessions
+- [ ] **JARVIS-19**: `ask_clarification` tool — model emits an inline question (with optional preset chips and an optional `suggested_action`) when medium-low confidence AND capture-first would lose clearly-intended specific information. Reply submits as the next user turn prefixed `[CLARIFICATION REPLY]`; depth capped at 1 per turn
+- [ ] **JARVIS-20**: Prose-first response surface — every assistant turn renders ONE leading text block (1-3 sentences, JARVIS register, dry observational wit when natural) above compact receipts. Reverses Phase 5's "tool calls only, no narrative prefix" rule. Receipts are visually de-emphasized but still resolved-field accurate
+- [ ] **JARVIS-21**: Per-turn pipeline budget — DB roundtrips ≤ 2 per single-action turn (asserted by perf test with Drizzle logger spy); zero incidental Sidebar areas/projects refetches triggered by JARVIS Server Actions; `validate-references` batches project + calendar checks into one Promise.all; TTFA warm-cache p50 < 800ms target (asserted in smoke, not unit test)
+- [ ] **JARVIS-22**: Implicit-intent fidelity — `tests/jarvis-implicit-intent.test.ts` with ~20 paired fixtures (fragmented vs explicit phrasings of the same intent); model produces structurally equivalent action sets (same tools, same key fields, dates within ±1 day) for both phrasings. Pass rate ≥ 95% on the fixture set
 
 ### JARVIS Voice + Ambient (Phase 7)
 
@@ -297,6 +302,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JARVIS-15 | Phase 5 | Complete |
 | JARVIS-16 | Phase 5 | Complete |
 | JARVIS-17 | Phase 5 | Complete |
+| JARVIS-18 | Phase 5.1 | Pending |
+| JARVIS-19 | Phase 5.1 | Pending |
+| JARVIS-20 | Phase 5.1 | Pending |
+| JARVIS-21 | Phase 5.1 | Pending |
+| JARVIS-22 | Phase 5.1 | Pending |
 | VOICE-01 | Phase 7 | Pending |
 | VOICE-02 | Phase 7 | Pending |
 | VOICE-03 | Phase 7 | Pending |
@@ -332,8 +342,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-05 | Phase 5 | Complete |
 
 **Coverage:**
-- v1 requirements: 93 total (across 13 categories — note: brief cited 79 but the file enumerates 93; all enumerated requirements are mapped)
-- Mapped to phases: 93 / 93 (100%)
+- v1 requirements: 98 total (across 13 categories — JARVIS-18..22 added by Phase 5.1 planning)
+- Mapped to phases: 98 / 98 (100%)
 - Unmapped: 0
 
 **Per-phase counts:**
@@ -342,8 +352,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 3 (Realtime): 5 requirements
 - Phase 4 (Calendar): 11 requirements
 - Phase 5 (JARVIS): 22 requirements
+- Phase 5.1 (jarvis-agentic-refactor): 5 requirements
 - Phase 6 (Polish): 14 requirements
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-07 after roadmap creation (traceability populated)*
+*Last updated: 2026-05-17 — Phase 5.1 planning registered JARVIS-18..22*
