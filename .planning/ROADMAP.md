@@ -220,3 +220,23 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 **Plans:** 0 plans
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
+
+### Phase 999.4: JARVIS 5.2 — memory rework + ptop polish (BACKLOG)
+
+**Goal:** Tighten JARVIS memory semantics and a small priority-display polish, captured during Phase 5.1 manual testing on 2026-05-18. Three items bundled here for triage; item 2 may warrant its own phase.
+
+**Why:** Phase 5.1 made `remember_fact` model-discretion ("emit on explicit fact OR 3+ patterns"). Live testing showed the user wants stricter control — facts should only land on explicit `/memory` commands, with the rest of "fact-shaped" natural language routed to captures. They also want memory built passively from accumulated artifacts (captures/tasks/events/past conversations), which is a new capability the 5.1 table+write-through doesn't ship.
+
+**Likely shape:**
+
+1. **`/memory` slash command + typed sub-flavors.** Add `memory*` to the `slashCommand` enum in `apps/web/app/api/jarvis/route.ts`. Support `/memory` (default), `/memory-workflow-rule`, `/memory-preference`, `/memory-entity` — parse suffix as `type`. Swap personality.ts to: **only** emit `remember_fact` when `slashCommand` starts with `memory`; route natural fact-shaped input to `create_capture` instead. Removes the "3+ repeated pattern" heuristic entirely.
+
+2. **Passive fact synthesis pipeline (new capability — may deserve its own phase).** Read recent captures/tasks/events/past conversations and distill candidate facts the model can offer via the existing `jarvis_suggested` source with the 10s Keep/Discard UX. Open questions: cadence (per-turn budget vs nightly job), per-turn DB roundtrip impact (must respect JARVIS-21 ≤2 roundtrips), how to avoid noise.
+
+3. **`ptop` typed — clarification needed.** Parser already accepts `ptop` → `P∞` at `packages/jarvis-core/src/parsers/priority.ts:6`. User said "ptinfinity should be ptop typed" — ambiguous between (a) typed input not currently working for them, (b) receipts display `P∞` and they want `PTOP` shown, (c) some hint/copy string says `pinfinity` and they want it to say `ptop`. Confirm before implementing.
+
+**Requirements:** Add `JARVIS-V2-07` (memory slash-command discipline), `JARVIS-V2-08` (passive fact synthesis), `JARVIS-V2-09` (ptop display polish) when promoting.
+
+**Plans:** 0 plans
+
+- [ ] TBD (promote with `/gsd:review-backlog` when ready)
