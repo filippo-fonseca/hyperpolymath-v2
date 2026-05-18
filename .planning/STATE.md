@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 05.1 context gathered
-last_updated: "2026-05-17T15:24:12.900Z"
-last_activity: 2026-05-15
+stopped_at: Completed 05.1-01-PLAN.md (Pipeline Efficiency)
+last_updated: "2026-05-18T01:01:23.104Z"
+last_activity: 2026-05-18
 progress:
   total_phases: 11
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 23
+  completed_plans: 20
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 05 — jarvis
+**Current focus:** Phase 05.1 — jarvis-agentic-refactor
 
 ## Current Position
 
-Phase: 07
-Plan: Not started
+Phase: 05.1 (jarvis-agentic-refactor) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-05-15
+Last activity: 2026-05-18
 
 Progress: [██████████] 100%
 
@@ -64,6 +64,7 @@ Progress: [██████████] 100%
 | Phase 05-jarvis P01 | 11min | 4 tasks | 24 files |
 | Phase 05 P05-02 | 15 | 5 tasks | 15 files |
 | Phase 05 P03 | 167 | 5 tasks | 29 files |
+| Phase 05.1-jarvis-agentic-refactor P01 | 9 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-03: Receipts always render the resolved fields once an action arrives — no model-narrative gating, no client-side suppression. The receipt-leak fix (commit 6d1bb8a) explicitly removed the prior conditional that hid receipts when the model didn't also emit prose.
 - [Phase 05]: Plan 05-03: JARVIS read-back (list_tasks / list_events / search_captures) is intentionally OUT OF SCOPE for Phase 5 — surfaced live during smoke when user asked 'what's due tomorrow?' and model answered from scrollback only. Captured as backlog 999.3 (commit 82431ae). Phase 5 MVP is create-only per PROJECT.md line 44; read tools deferred.
 - [Phase 05]: undo + convert + latency
+- [Phase 05.1-jarvis-agentic-refactor]: Sidebar staleTime: Infinity + initialDataUpdatedAt: Date.now() — SSR areas data treated as perpetually fresh; Realtime remains sole update path
+- [Phase 05.1-jarvis-agentic-refactor]: validateTurnReferences only pre-validates when linkedProjectIds non-empty — avoids extra calendar SELECT for zero-project capture turns
+- [Phase 05.1-jarvis-agentic-refactor]: resolveProjectIds in executor.ts is backward-compatible optional short-circuit — preValidatedProjectIds absent means full DB validation (defense-in-depth preserved)
 
 ### Pending Todos
 
@@ -138,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T15:24:12.878Z
-Stopped at: Phase 05.1 context gathered
-Resume file: .planning/phases/05.1-jarvis-agentic-refactor/05.1-CONTEXT.md
+Last session: 2026-05-18T01:01:23.102Z
+Stopped at: Completed 05.1-01-PLAN.md (Pipeline Efficiency)
+Resume file: None

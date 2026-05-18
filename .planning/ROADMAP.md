@@ -125,7 +125,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. `tests/jarvis-implicit-intent.test.ts` ships 20 paired fixtures (fragmented vs explicit phrasing of the same intent); mocked-mode regression guard runs on every CI; live-mode (ANTHROPIC_LIVE=true) achieves ≥ 95% structural equivalence
   6. All Phase 5 must-haves (36/36) continue to pass — no regression in JARVIS-01..17 / TEST-01..05 / RES-05
 **Plans**: 4 plans
-- [ ] 05.1-01-PLAN.md — Wave 1: Pipeline efficiency — Sidebar refetch fix (initialDataUpdatedAt + staleTime: Infinity) + validate-references batching (Promise.all) + perf-budget test with Drizzle logger spy + sidebar-no-refetch regression test (JARVIS-21)
+- [x] 05.1-01-PLAN.md — Wave 1: Pipeline efficiency — Sidebar refetch fix (initialDataUpdatedAt + staleTime: Infinity) + validate-references batching (Promise.all) + perf-budget test with Drizzle logger spy + sidebar-no-refetch regression test (JARVIS-21)
 - [ ] 05.1-02-PLAN.md — Wave 2: Prose-first personality — personality.ts rewrite with canonical "Handled, sir" calibration example + reversed OUTPUT FORMAT rule + JarvisScrollback drops actions-gate on textDelta + JarvisReceipt compact variant + queued SSE placeholder per D-P3 (JARVIS-20)
 - [ ] 05.1-03-PLAN.md — Wave 3: Persistent memory — migration 0011_jarvis_facts.sql + Drizzle schema + remember_fact tool (4th tool, cache_control moves) + buildSystemPrompt facts param + executor.rememberFact onConflictDoUpdate + /settings/memory page + 3 new adversarial fixtures (JARVIS-18)
 - [ ] 05.1-04-PLAN.md — Wave 4: ask_clarification + implicit-intent corpus — ask_clarification tool (5th tool, cache_control re-anchors) + personality co-emit prohibition + depth cap + JarvisClarification UI component + 20-fixture jarvis-implicit-intent test (mocked default + live mode behind env flag) (JARVIS-19, JARVIS-22)
@@ -193,7 +193,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 0 plans
+**Plans:** 1/4 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
