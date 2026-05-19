@@ -252,3 +252,79 @@ select,
 .agent-glow-passive {
   box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.08);
 }
+
+/* ─── Phase 6 Plan 06-03: JARVIS-blue agent-mode animations (D-08, UI-SPEC §7) ─────
+   SCOPED to agent surfaces — applied via opt-in class names, NEVER global.
+   Each animation has a reduced-motion override in the @media block below. */
+
+/* 7a — Queued placeholder shimmer (scan-line gradient sweep) */
+@keyframes jarvis-queued-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.jarvis-queued-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 212, 255, 0.10) 40%,
+    rgba(0, 212, 255, 0.25) 50%,
+    rgba(0, 212, 255, 0.10) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: jarvis-queued-shimmer 1.8s ease-in-out infinite;
+}
+
+/* 7b — Streaming prose caret pulse */
+@keyframes jarvis-cursor-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px 1px rgba(0, 212, 255, 0.5); }
+  50%      { opacity: 0.3; box-shadow: none; }
+}
+.jarvis-streaming-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: #00d4ff;
+  border-radius: 1px;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: jarvis-cursor-pulse 1.1s ease-in-out infinite;
+}
+
+/* 7c — Scan reveal wipe (one-shot, 400ms) */
+@keyframes jarvis-scan-reveal {
+  0%   { top: 0%; opacity: 0.6; }
+  80%  { top: 85%; opacity: 0.4; }
+  100% { top: 100%; opacity: 0; }
+}
+.jarvis-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 212, 255, 0.3) 20%,
+    rgba(0, 212, 255, 0.7) 50%,
+    rgba(0, 212, 255, 0.3) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: jarvis-scan-reveal 400ms ease-in forwards;
+}
+
+/* ─── Reduced-motion fallback for ALL JARVIS animations + view-transition (UI-SPEC §6a) ─── */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  .jarvis-queued-shimmer,
+  .jarvis-streaming-caret,
+  .jarvis-scan-line {
+    animation: none !important;
+  }
+}
