@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Calendar,
   Settings,
+  BarChart2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -32,6 +33,7 @@ const items = [
   { href: "/tasks", label: "All Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined },
+  { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined },
   { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined },
 ] as const;
 
