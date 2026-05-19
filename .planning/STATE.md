@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 6 closed passed_with_deferrals — visual contract rejected by user; AES-01..04,06,07 deferred to Phase 6.1 (visual-redesign-jarvis-notion); awaiting /gsd:insert-phase 6 then /gsd:ui-phase 6.1
-last_updated: "2026-05-19T03:10:00.000Z"
-last_activity: 2026-05-19 - Phase 6 closed with deferrals after live UI rejection; pivot to JARVIS×Notion visual rebuild
+status: executing
+stopped_at: Phase 6.1 planned — 6 plans across 4 waves; checker VERIFIED after revision 1
+last_updated: "2026-05-19T16:37:28.261Z"
+last_activity: 2026-05-19 -- Phase 06.1 execution started
 progress:
   total_phases: 13
   completed_phases: 7
-  total_plans: 28
+  total_plans: 34
   completed_plans: 28
   percent: 100
 ---
@@ -21,14 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 6.1 — visual-redesign-jarvis-notion (to be inserted)
+**Current focus:** Phase 06.1 — visual-redesign-jarvis-notion
 
 ## Current Position
 
-Phase: 06 (polish) — COMPLETE with deferrals (2026-05-19)
+Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
+Plan: 1 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
-Status: Phase 6 closed passed_with_deferrals — RES-01..04,06,07 + SET-03 + AES-05 verified; AES-01..04,06,07 deferred to 6.1 after user rejected visual contract at 06-05 Task 3 checkpoint ("I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion")
-Last activity: 2026-05-19 - Phase 6 closed with deferrals; visual rebuild scoped to Phase 6.1
+Status: Executing Phase 06.1
+Last activity: 2026-05-19 -- Phase 06.1 execution started
 
 Progress: [██████████] 100%
 
@@ -185,6 +186,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T02:58:37.720Z
-Stopped at: Completed 06-04-PLAN.md (telemetry — /api/health JSON + visual /health page + /insights server aggregation + 3-chart recharts panel + /insights nav entry)
-Resume file: None
+Last session: 2026-05-19T16:00:55.346Z
+Stopped at: Phase 6.1 planned — 6 plans across 4 waves; checker VERIFIED after revision 1
+Resume file: .planning/phases/06.1-visual-redesign-jarvis-notion/06.1-01-PLAN.md
