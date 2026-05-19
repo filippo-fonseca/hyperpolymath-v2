@@ -61,6 +61,8 @@ Phase 6 overlays TWO visual modes on top of the shared base token set. Every sur
 
 **Boundary rule:** Agent-mode styling (JARVIS blue, holographic animations, scan shimmer) MUST NOT appear on Journal-mode routes. A neumorphic button on `/tasks` uses the neutral shadow tokens; the same button on `/insights` may use the agent glow variant.
 
+**Primary focal point — JARVIS Console home screen (`/`):** The JARVIS Console input field is the primary focal point of the home screen. It is where the eye lands first and where every interaction originates. All visual weight decisions on this route must reinforce it as the dominant element — neumorphic inset treatment, JARVIS-blue focus ring, and centered placement in the viewport.
+
 ---
 
 ## 2. Color Tokens
@@ -251,27 +253,29 @@ EB Garamond is the ONLY serif typeface. Louize is deferred (D-01). JetBrains Mon
 
 ### 4a. Full Type Scale
 
+Four distinct sizes. Roles are collapsed to fit within the constraint while preserving the journal-paper hierarchy.
+
 | Role | CSS Class Pattern | Size | Weight | Line Height | Font | Usage |
 |------|-------------------|------|--------|-------------|------|-------|
-| Display | `text-5xl font-serif font-semibold` | 48px | 600 | 1.1 | EB Garamond | Hero headings (empty states hero text, /insights page title at full bleed) |
-| H1 | `text-4xl font-serif font-semibold` | 36px | 600 | 1.2 | EB Garamond | Page headings — Memory, Settings, Insights, Tasks, Captures |
-| H2 | `text-2xl font-serif font-medium` | 24px | 500 | 1.3 | EB Garamond | Section headings, card headers, modal titles |
-| H3 | `text-xl font-serif font-medium` | 20px | 500 | 1.35 | EB Garamond | Sub-section headings, chart titles |
-| Body | `text-base font-serif` | 16px | 400 | 1.5 | EB Garamond | Default body — prose, descriptions, labels |
-| Body italic | `text-base font-serif italic` | 16px | 400 italic | 1.5 | EB Garamond | JARVIS prose output, blockquotes, placeholder text |
-| Body small | `text-sm font-serif` | 14px | 400 | 1.5 | EB Garamond | Secondary descriptors, settings page sub-copy |
-| Caption | `text-xs font-mono text-muted-foreground` | 12px | 400 | 1.4 | JetBrains Mono | Timestamps, receipt metadata, field labels in receipts |
-| Badge / label | `text-xs font-mono uppercase tracking-wide` | 12px | 400 | 1.4 | JetBrains Mono | Intent badges (TASK, CAPTURE, EVENT, MEMORY) |
-| Code / mono body | `text-sm font-mono` | 14px | 400 | 1.5 | JetBrains Mono | Error digests, /health JSON output, copy-report payload preview |
+| H1 / Display | `text-4xl font-serif font-semibold` | 36px | 600 | 1.2 | EB Garamond | Page headings (Memory, Settings, Insights, Tasks, Captures) and full-bleed hero text. Display collapses into H1 at 36px; visual distinction comes from layout context (full-bleed vs. page-top), not size. |
+| H2 / Section | `text-2xl font-serif font-semibold` | 24px | 600 | 1.3 | EB Garamond | Section headings, card headers, modal titles, chart titles. H3 (previously 20px) is eliminated — neumorphic card depth and `uppercase tracking-wide` on section labels provide sub-section separation without a third heading size. |
+| Body | `text-base font-serif` | 16px | 400 | 1.5 | EB Garamond | Default body, JARVIS prose output (italic variant: `font-serif italic`), placeholder text, secondary descriptors, and settings page sub-copy. Body small (previously 14px) collapses here — use `text-muted-foreground` or reduced opacity to visually recede secondary text without breaking the size scale. |
+| Mono / Caption | `text-xs font-mono` | 12px | 400 | 1.4 | JetBrains Mono | Timestamps, receipt metadata, field labels in receipts, intent badges (`uppercase tracking-wide`), error digests, /health JSON output, copy-report payload preview. All mono-tier text lives at 12px. |
+
+**Collapse notes for executor:**
+- Do not use `text-5xl` (48px Display) — removed.
+- Do not use `text-xl` (20px H3) — removed. Apply section hierarchy through `uppercase tracking-wide text-xs font-mono` labels above content blocks instead of an H3 heading.
+- Do not use `text-sm` (14px) — removed. Use 16px body with `text-muted-foreground` for visually lighter secondary text.
+- Do not use `text-sm font-mono` (14px mono) — removed. Use `text-xs font-mono` (12px) for all mono-tier content.
 
 ### 4b. Declared Weights (max 2 — per design constraint)
 
 | Weight | Usage |
 |--------|-------|
-| 400 (regular) | All body, captions, serif body text |
-| 500/600 (medium/semibold) | All headings (H1–H3 use 500 or 600 exclusively) |
+| 400 (regular) | All body text, captions, receipt metadata, mono-tier content |
+| 600 (semibold) | All headings — H1/Display and H2/Section both use 600 |
 
-H1 and Display use 600 (semibold). H2 and H3 use 500 (medium). The distinction: page titles at 600 communicate authority; section headers at 500 communicate structure without competing.
+**Weight 500 (medium) is eliminated.** Do not use `font-medium` anywhere in Phase 6 implementation. The journal-paper aesthetic requires strong contrast between body (400) and heading (600) — a three-step gradient undermines that contrast. H2/Section headings use 600 alongside H1.
 
 ### 4c. Font Loading
 
@@ -281,7 +285,7 @@ import { EB_Garamond, JetBrains_Mono } from 'next/font/google'
 
 const ebGaramond = EB_Garamond({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['400', '600', '700', '800'],
   style: ['normal', 'italic'],
   variable: '--font-eb-garamond',
   display: 'swap',
@@ -289,7 +293,7 @@ const ebGaramond = EB_Garamond({
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  weight: ['400', '500'],
+  weight: ['400'],
   variable: '--font-jetbrains-mono',
   display: 'swap',
 })
@@ -300,12 +304,15 @@ Update `globals.css @theme`:
 --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 ```
 
+Note: weight `'500'` removed from both font definitions since weight 500 is no longer declared.
+
 ### 4d. Hierarchy Enforcement Rules
 
 - Every page must use exactly one H1. No H1-skipping (H2 before H1).
 - JARVIS prose output (`textDelta`) renders as body italic — EB Garamond 16px italic, weight 400. This is the "JARVIS register" visually.
-- Metadata rows in receipts (priority, due date, hashtag list) always use the Caption/mono row — never body serif.
-- Empty state headings use H2 (not Display) — they must feel calm, not dramatic.
+- Metadata rows in receipts (priority, due date, hashtag list) always use the mono/caption tier — 12px JetBrains Mono, weight 400.
+- Empty state headings use H2 (24px, 600) — they must feel calm, not dramatic.
+- Sub-section separation that would have used H3 (20px) is achieved via `text-xs font-mono uppercase tracking-wide text-muted-foreground` label rows above content blocks.
 
 ---
 
@@ -327,8 +334,8 @@ Tailwind 4 defaults apply. Specific density choices by surface:
 
 | Surface | Density | Rationale |
 |---------|---------|-----------|
-| JARVIS receipt (compact variant) | `px-2.5 py-1` (10px/4px) — already defined in JarvisReceipt | Compact receipts under prose are supplementary |
-| JARVIS receipt (default variant) | `px-3 py-2` (12px/8px) — already defined | Standard weight when prose is absent |
+| JARVIS receipt (compact variant) | `px-2 py-1` (8px/4px) | On-grid: 8px horizontal. `JarvisReceipt.tsx` currently uses `px-2.5` (10px) from Phase 5.1 quick-task 260518-mhu and will be updated to `px-2` (8px) during Phase 6 execution. Visual delta is 2px — negligible. |
+| JARVIS receipt (default variant) | `px-4 py-2` (16px/8px) | On-grid: 16px horizontal. `JarvisReceipt.tsx` currently uses `px-3` (12px) for the default variant and will be updated to `px-4` (16px) during Phase 6 execution. Compact/default ratio is now 8px/16px — preserves the 2× visual weight distinction, both values on-grid. |
 | Settings page body | `px-6 py-12` + `max-w-2xl mx-auto space-y-6` | Mirrors /settings/memory pattern (confirmed in code) |
 | /insights page | `px-6 py-12` + `max-w-3xl mx-auto space-y-8` | Slightly wider for charts |
 | Tasks list rows | `px-4 py-2` | Comfortable; not cramped for dense task lists |
@@ -337,7 +344,7 @@ Tailwind 4 defaults apply. Specific density choices by surface:
 | error.tsx | `px-6 py-24` centered | Same generous treatment — error should feel calm |
 | Toast notifications | Managed by sonner; no override | sonner's default is correctly dense |
 
-**Exception:** Touch targets for icon-only buttons (theme toggle, undo, close) must be 44px minimum height/width per WCAG 2.5.5 — use `h-11 w-11` or `p-2.5` on a `h-9 w-9` icon button.
+**Exception:** Touch targets for icon-only buttons (theme toggle, undo, close) must be 44px minimum height/width per WCAG 2.5.5 — use `h-11 w-11` or `p-2` on a `h-9 w-9` icon button (8px padding on each side = 36px icon + 16px padding = achieves 44px+ touch area).
 
 ---
 
@@ -588,7 +595,7 @@ Apply to: `/insights` chart panel wrappers, `/health` "ok" status pill.
 Two variants — same component, two placement contexts.
 
 **Header variant** (global, appears in persistent nav/sidebar footer):
-- Size: `h-9 w-9` icon button (44px touch target via `p-2.5`)
+- Size: `h-9 w-9` icon button (44px touch target via `p-2`)
 - Icon: `Moon` (in light mode, to switch to dark) / `Sun` (in dark mode, to switch to light) — Lucide React
 - Tooltip: `aria-label="Switch to dark mode"` / `"Switch to light mode"`
 - Neumorphic: `box-shadow: var(--shadow-nm-button)` at rest, `var(--shadow-nm-button-hover)` on hover
@@ -620,11 +627,11 @@ Each error.tsx uses this layout. Copy is brand-voice calibrated (Genz-Renaissanc
 ```
 [full viewport height, centered vertically and horizontally]
   H1: "Something went wrong."        [text-4xl font-serif font-semibold]
-  Body: [1-2 sentences, see copy below]  [text-sm font-serif text-muted-foreground, max-w-md text-center]
+  Body: [1-2 sentences, see copy below]  [text-base font-serif text-muted-foreground, max-w-md text-center]
   Digest: "digest: {error.digest}"   [text-xs font-mono text-muted-foreground, if present]
   Buttons:
     "Copy error report"   [primary neumorphic button]
-    "Try again"           [secondary/ghost button]
+    "Reload page"         [secondary/ghost button]
 ```
 
 **Error copy (brand-voice):**
@@ -638,6 +645,8 @@ Body (auth error): "Couldn't load the page. Try signing out and back in."
 - On click: calls `navigator.clipboard.writeText(JSON.stringify(payload, null, 2))` where payload includes: `timestamp`, `route`, `error.name`, `error.message`, `digest` (may be generic in prod), `error.stack`, `userAgent`
 - After click: button label briefly changes to "Copied" (500ms) then resets
 - Payload format: wrapped in triple-backtick code fence for direct paste into GitHub
+
+**"Reload page" button behavior:** Calls `window.location.reload()`. Label is "Reload page" — a verb + noun that describes the exact action taken, with no ambiguity about outcome.
 
 **Neumorphic button:** `box-shadow: var(--shadow-nm-button)` at rest → `var(--shadow-nm-button-active)` on click.
 
@@ -664,7 +673,7 @@ Route: `app/api/health/route.ts` (API route, no page.tsx — returns JSON)
 ```
 H1: "System Health"    [text-4xl font-serif font-semibold]
 Status tiles (3): Supabase / Anthropic / Google Calendar
-  Each tile: service name [text-sm font-mono uppercase] + status badge
+  Each tile: service name [text-xs font-mono uppercase tracking-wide] + status badge
   "ok" badge: bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 + agent-glow-passive
   "down" badge: bg-destructive/10 text-destructive
   "n/a" badge: bg-muted text-muted-foreground
@@ -680,24 +689,24 @@ Route: `app/(app)/insights/page.tsx` (Server Component, `force-dynamic`)
 **Layout:**
 ```
 H1: "Insights"               [text-4xl font-serif font-semibold]
-Subhead: "Last 7 days of JARVIS activity." [text-sm font-serif text-muted-foreground]
+Subhead: "Last 7 days of JARVIS activity." [text-base font-serif text-muted-foreground]
 Live dot: ● [#00d4ff, 6px, no animation — passive glow only]
 
-Chart 1: "Action Distribution"  [H3 + BarChart]
+Chart 1: "Action Distribution"  [H2 section heading + BarChart]
   - X-axis: tool name (create_task, create_capture, create_event, remember_fact, ask_clarification)
   - Y-axis: count
   - Bar fill: var(--color-accent) [amber in journal? No — agent mode, use #00d4ff with 0.7 opacity]
   - Tooltip font: font-mono text-xs
   - Height: 200px
 
-Chart 2: "Latency"             [H3 + LineChart]
+Chart 2: "Latency"             [H2 section heading + LineChart]
   - X-axis: day (Mon, Tue, ... aggregated by day of week bucket)
   - Y-axis: ms
   - Two lines: p50 (solid, #00d4ff), p95 (dashed, #00d4ff at 0.5 opacity)
   - Height: 200px
 
-Chart 3: "Error Rate"          [H3 + number + Sparkline]
-  - Number: large percent [text-3xl font-serif font-semibold] (e.g., "2.4%")
+Chart 3: "Error Rate"          [H2 section heading + number + Sparkline]
+  - Number: large percent [text-4xl font-serif font-semibold] (e.g., "2.4%")
   - Sparkline: LineChart height=60px, no axes, no tooltip, pure visual
   - Color: --color-destructive when >5%; --color-accent-jarvis when ≤5%
   - Height: 60px sparkline + large number stacked
@@ -713,18 +722,18 @@ Each chart panel: Card wrapper with `var(--shadow-nm-surface)` + `p-6`.
 Existing: `/settings` has GCal connection row and default calendar. `/settings/memory` is a sub-page.
 
 Phase 6 additions:
-- **Theme tile:** Card on `/settings` with ThemeToggle (settings variant per §8a). Title: "Appearance". Sub-text: "Light, dark, or follow your system." — `text-sm font-serif text-muted-foreground`.
+- **Theme tile:** Card on `/settings` with ThemeToggle (settings variant per §8a). Title: "Appearance". Sub-text: "Light, dark, or follow your system." — `text-base font-serif text-muted-foreground`.
 - **Memory tile:** Card linking to `/settings/memory`. Title: "Memory". Sub-text: "Facts JARVIS has learned about you." With a right-arrow Lucide icon (`ChevronRight`).
 
 **Settings page structure:**
 ```
 H1: "Settings"          [text-4xl font-serif font-semibold]
-Section: Appearance     [H2: text-2xl font-serif font-medium]
+Section: Appearance     [H2: text-2xl font-serif font-semibold]
   → Theme tile (Card with ThemeToggle settings variant)
 Section: Google Calendar [H2 — already exists]
   → GcalConnectionRow (already exists)
   → Default calendar select (already exists)
-Section: Agent          [H2: text-2xl font-serif font-medium]
+Section: Agent          [H2: text-2xl font-serif font-semibold]
   → Memory tile (Card with link to /settings/memory)
 ```
 
@@ -742,8 +751,8 @@ A single reusable `EmptyState` component. No icon (per AES-02 restraint principl
   transition={{ duration: shouldReduce ? 0 : 0.3 }}
   className="flex flex-col items-center justify-center py-24 px-6 text-center"
 >
-  <h2 className="text-2xl font-serif font-medium text-foreground">{heading}</h2>
-  <p className="text-sm font-serif text-muted-foreground mt-2 max-w-xs">{body}</p>
+  <h2 className="text-2xl font-serif font-semibold text-foreground">{heading}</h2>
+  <p className="text-base font-serif text-muted-foreground mt-2 max-w-xs">{body}</p>
   {action && <Button className="mt-6" onClick={action.onClick}>{action.label}</Button>}
 </motion.div>
 ```
@@ -759,14 +768,14 @@ Sonner manages layout. Spec for content only:
 **Success toast (action created):**
 ```
 Icon: none
-Content: '"Task title" created'  [font-serif text-sm]
+Content: '"Task title" created'  [font-serif text-base]
 Action: "Undo" button [font-mono text-xs]
 Duration: 5000ms
 ```
 
 **Error toast:**
 ```
-Content: 'Could not save: [brief reason]'  [font-serif text-sm]
+Content: 'Could not save: [brief reason]'  [font-serif text-base]
 No action button
 Duration: 5000ms
 ```
@@ -827,7 +836,7 @@ select,
 | Receipt Keep/Discard buttons | SuggestedFactReceipt | `cursor-pointer` (Button component — covered) |
 | Theme toggle button | ThemeToggle | `cursor-pointer` (button — covered) |
 | Error page "Copy error report" | error.tsx | `cursor-pointer` (button — covered) |
-| Error page "Try again" | error.tsx | `cursor-pointer` (button — covered) |
+| Error page "Reload page" | error.tsx | `cursor-pointer` (button — covered) |
 | /insights nav entry | PersistentNav | `cursor-pointer` (anchor — covered) |
 | Settings memory tile | /settings page | `cursor-pointer` (Link/anchor — covered) |
 | Calendar event tiles | CalendarGrid | `cursor-pointer` — verify rbc renders button or div |
@@ -926,6 +935,10 @@ All animation behavior at `prefers-reduced-motion: reduce`:
 | JetBrains Mono via next/font/google | RESEARCH.md §2 open question → resolved | Loaded in §4c |
 | Genz-Renaissance brand voice | CONTEXT.md, REQUIREMENTS.md AES-04 | Copy in §9 |
 | Motion prefers-reduced-motion via `useReducedMotion()` | RESEARCH.md §9 | Applied throughout §6 |
+| Typography: 4 sizes (36/24/16/12), 2 weights (400/600) | checker revision 2026-05-19 | §4a, §4b updated |
+| Spacing: compact receipt px-2 (8px), default receipt px-4 (16px) | checker revision 2026-05-19 | §5a updated; JarvisReceipt.tsx to be updated in Phase 6 execution |
+| Error CTA: "Reload page" (verb+noun) | checker revision 2026-05-19 | §8c updated |
+| JARVIS Console input = primary focal point of home screen | checker revision 2026-05-19 | §1 (Route-to-Mode Mapping) |
 
 ---
 
