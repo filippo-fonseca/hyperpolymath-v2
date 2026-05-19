@@ -1,19 +1,30 @@
+import { headers } from "next/headers";
 import { requireOnboarded } from "@/lib/auth/get-user";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Phase 6 Plan 06-04: /health visual page (UI-SPEC §8d).
+ * Phase 6.1 Plan 06.1-03: /health pure instrument panel (UI-SPEC §5c).
  *
- * Authenticated diagnostic surface. Fetches /api/health server-side
- * (relative URL via Next 16 fetch). Agent-mode visual treatment:
- * neumorphic Card tiles + JARVIS-blue passive glow on "ok" status pills.
+ * The /api/health JSON contract is unchanged (UI-SPEC §14 carry-forward).
+ * This page is the most spare surface in the app: no card chrome at all;
+ * the data sits on --canvas directly, the only chrome is 4 viewport
+ * corner crops and a single 1px --edge-hud hairline below the H1.
  *
- * The public /api/health endpoint returns 'n/a' for google_calendar (no user
- * context on a public endpoint — RESEARCH §7); the visual page surfaces that
- * 'n/a' verbatim. A per-user gcal status surface lives on /settings.
+ * Register-swap (UI-SPEC §4b): the H1 "System Health" is the only H1 in
+ * the app rendered in JetBrains Mono italic 500 24px instead of EB
+ * Garamond serif. This surface IS the JSON, made human.
+ *
+ * Service rows are flex containers with key column (mono dim, ~180px),
+ * status pill column (dot glyph + lowercase status), and value column
+ * (mono ink). Status pill uses ● for ok/down and ◌ for n/a per UI-SPEC
+ * §5c + §12c.
+ *
+ * Cyan for ok, coral for down, muted for n/a per UI-SPEC §3f.
+ *
+ * Wrapped in .agent-mode-scope so focus-visible inside picks up
+ * --ring-hud per UI-SPEC §11a.
  */
 interface HealthBody {
   supabase: "ok" | "down";
@@ -23,73 +34,130 @@ interface HealthBody {
 }
 
 async function fetchHealth(): Promise<HealthBody> {
-  // Server-side fetch — use absolute origin from env or relative path.
-  // Next 16 in Server Components: full URL required for fetch during SSR.
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `${protocol}://${host}`;
   const res = await fetch(`${baseUrl}/api/health`, { cache: "no-store" });
-  // 503 is also a valid response — surface the body either way
   return (await res.json()) as HealthBody;
+}
+
+interface StatusRowProps {
+  serviceKey: string;
+  status: "ok" | "down" | "n/a";
+  value: string;
+}
+
+function StatusRow({ serviceKey, status, value }: StatusRowProps) {
+  const dotGlyph = status === "n/a" ? "◌" : "●";
+  const dotColor =
+    status === "ok"
+      ? "var(--hud-cyan)"
+      : status === "down"
+        ? "var(--ink-coral)"
+        : "var(--ink-muted)";
+  return (
+    <div
+      className="flex items-baseline gap-4 py-1 font-mono text-xs"
+      role="row"
+      aria-label={`${serviceKey}: ${status}`}
+    >
+      <span className="w-48 text-[var(--ink-muted)]">{serviceKey}</span>
+      <span
+        className="inline-flex items-center gap-2 w-24"
+        style={{ color: dotColor }}
+      >
+        <span aria-hidden="true">{dotGlyph}</span>
+        <span className="uppercase tracking-[0.06em]">{status}</span>
+      </span>
+      <span className="text-[var(--ink)]">{value}</span>
+    </div>
+  );
 }
 
 export default async function HealthPage() {
   await requireOnboarded();
-  const health = await fetchHealth();
-
-  const services: Array<{
-    key: "supabase" | "anthropic" | "google_calendar";
-    label: string;
-  }> = [
-    { key: "supabase", label: "Supabase" },
-    { key: "anthropic", label: "Anthropic" },
-    { key: "google_calendar", label: "Google Calendar" },
-  ];
+  const data = await fetchHealth();
 
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-4xl font-serif font-semibold">System Health</h1>
-        <p className="text-base font-serif text-muted-foreground">
-          Live connectivity check across upstream services.
-        </p>
-      </header>
+    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12">
+      <HudCornerCrops
+        size={12}
+        className="fixed inset-0 pointer-events-none z-0"
+      />
+      <main className="relative z-10 max-w-2xl mx-auto">
+        {/* HUD-coded H1 — the only mono italic H1 in the app (UI-SPEC §4b). */}
+        <h1 className="font-mono italic font-medium text-2xl text-[var(--ink)]">
+          System Health
+        </h1>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {services.map(({ key, label }) => {
-          const status = health[key];
-          const isOk = status === "ok";
-          const isNa = status === "n/a";
-          return (
-            <Card
-              key={key}
-              className="p-6 gap-3"
-              style={{
-                boxShadow: "var(--shadow-nm-surface)",
-                border: "none",
-              }}
+        {/* 1px --edge-hud hairline separating heading from readout. */}
+        <div
+          className="h-px my-6"
+          style={{ backgroundColor: "var(--edge-hud)" }}
+          aria-hidden="true"
+        />
+
+        {/* JSON-styled readout. Braces are decorative. The /api/health route
+            returns ok|down only (no latency in shape per UI-SPEC §14
+            carry-forward); the value column renders status-derived copy
+            until a future plan extends the route shape with latencyMs. */}
+        <div className="font-mono">
+          <span
+            className="font-mono text-xs"
+            style={{ opacity: 0.3 }}
+            aria-hidden="true"
+          >
+            {"{"}
+          </span>
+          <div className="pl-4 my-2">
+            <StatusRow
+              serviceKey="supabase"
+              status={data.supabase}
+              value={data.supabase === "ok" ? "reachable" : "unreachable"}
+            />
+            <StatusRow
+              serviceKey="anthropic"
+              status={data.anthropic}
+              value={data.anthropic === "ok" ? "reachable" : "unreachable"}
+            />
+            <StatusRow
+              serviceKey="google_calendar"
+              status={data.google_calendar}
+              value="per-user OAuth"
+            />
+            <div
+              className="flex items-baseline gap-4 py-1 font-mono text-xs"
+              role="row"
             >
-              <p className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
-                {label}
-              </p>
-              <span
-                aria-label={`${label}: ${status}`}
-                className={cn(
-                  "inline-flex items-center self-start px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wide",
-                  isOk &&
-                    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 agent-glow-passive",
-                  !isOk && !isNa && "bg-destructive/10 text-destructive",
-                  isNa && "bg-muted text-muted-foreground",
-                )}
-              >
-                {status}
-              </span>
-            </Card>
-          );
-        })}
-      </section>
+              <span className="w-48 text-[var(--ink-muted)]">checked_at</span>
+              <span className="w-24" aria-hidden="true" />
+              <span className="text-[var(--ink)]">{data.checked_at}</span>
+            </div>
+          </div>
+          <span
+            className="font-mono text-xs"
+            style={{ opacity: 0.3 }}
+            aria-hidden="true"
+          >
+            {"}"}
+          </span>
+        </div>
 
-      <p className="text-xs font-mono text-muted-foreground">
-        Checked at: {health.checked_at}
-      </p>
-    </main>
+        {/* Bottom rail — refresh hint per UI-SPEC §5c. */}
+        <div className="mt-12 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] opacity-60">
+          <span aria-hidden="true">╶──</span>
+          <span>refresh ⌘R · serves at /api/health</span>
+          <span aria-hidden="true">──╴</span>
+        </div>
+      </main>
+
+      {/*
+        TODO(phase 6.1.x): status-latch flash animation on /api/health change
+        (240ms one-shot --hud-cyan-glow pulse on the affected row) per
+        UI-SPEC §5c motion permission. Deferred — current rows render
+        statically; the visual register and JSON readout shape are complete.
+      */}
+    </div>
   );
 }
