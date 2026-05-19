@@ -4,27 +4,57 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Phase 06.1 Plan 04 (UI-SPEC §9a) — Document-tier Button.
+ *
+ * Every variant has explicit hover + active + disabled states; 150ms
+ * transition-colors duration; cursor-pointer-always universal rule from
+ * Phase 6 06-01; `focus-visible:outline-none` defers to the global
+ * :focus-visible rule in globals.css which paints --ring-doc.
+ *
+ * NO neumorphic shadow on any button — Phase 6's retired button shadow tokens
+ * (purged in Plan 06.1-01) are intentionally absent. Consumers that need an
+ * agent-tier glow add it inline at the consumption site.
+ *
+ * Destructive intentionally uses --ring-doc (amber) on focus, not red — keeps
+ * the button bordered + colored in coral but the ring stays in the document
+ * register per UI-SPEC §9a.
+ */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-serif whitespace-nowrap cursor-pointer-always " +
+    "transition-colors duration-150 ease-out " +
+    "focus-visible:outline-none " +
+    "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none " +
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // Document primary — solid ink fill
+        default:
+          "bg-[var(--ink)] text-[var(--canvas)] hover:opacity-90 active:opacity-80",
+        // Destructive — bordered coral, amber ring on focus (UI-SPEC §9a)
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
+          "bg-transparent border border-[var(--ink-coral)] text-[var(--ink-coral)] " +
+          "hover:bg-[color:rgb(220_38_38_/_0.08)] active:bg-[color:rgb(220_38_38_/_0.16)]",
+        // Outline / Secondary — 1px edge, surface on hover
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "bg-transparent border border-[var(--edge)] text-[var(--ink)] " +
+          "hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-transparent border border-[var(--edge)] text-[var(--ink)] " +
+          "hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
+        // Ghost — no border at rest; surface on hover
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-transparent text-[var(--ink)] hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
+        // Link — underlined affordance
+        link:
+          "bg-transparent text-[var(--ink)] underline-offset-4 hover:underline active:opacity-80",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        default: "h-9 px-4 py-2 text-base has-[>svg]:px-3",
         xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        sm: "h-8 gap-1.5 rounded-md px-3 text-sm has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 text-base has-[>svg]:px-4",
         icon: "size-9",
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
