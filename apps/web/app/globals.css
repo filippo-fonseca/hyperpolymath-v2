@@ -11,44 +11,68 @@
   --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
-  --color-background: hsl(42 18% 97%);
-  --color-foreground: hsl(30 8% 16%);
-  --color-card: hsl(40 14% 93%);
-  --color-card-foreground: hsl(30 8% 16%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(30 8% 16%);
-  --color-primary: hsl(30 8% 16%);
-  --color-primary-foreground: hsl(42 18% 97%);
-  --color-secondary: hsl(40 10% 90%);
-  --color-secondary-foreground: hsl(30 8% 16%);
-  --color-muted: hsl(40 10% 90%);
-  --color-muted-foreground: hsl(30 5% 45%);
-  --color-accent: hsl(38 72% 52%);
-  --color-accent-foreground: hsl(30 8% 16%);
-  --color-destructive: hsl(4 72% 42%);
-  --color-destructive-foreground: hsl(42 18% 97%);
-  --color-border: hsl(38 12% 85%);
-  --color-input: hsl(38 10% 88%);
-  --color-ring: hsl(38 72% 52%);
+  /* =====================================================================
+     Phase 6.1 Plan 06.1-01 — Token foundation (UI-SPEC §3, §6, §11).
+     Retires Phase 6's neumorphic + cyan-everywhere tokens. Installs:
+       - OKLCH base palette (warm parchment light / cool ink dark)
+       - HUD cyan family (agent-mode signature, light-mode dampened)
+       - Three academic intent inks (amber/sage/coral)
+       - Focus ring tokens (--ring-doc, --ring-hud)
+       - Motion easing tokens
+       - Tailwind 4 --color-* bindings rewired to new base palette
+     ===================================================================== */
+
+  /* Base palette — warm parchment (light) */
+  --canvas: oklch(97% 0.005 75);
+  --surface: oklch(94% 0.008 75);
+  --surface-raised: oklch(99% 0.003 75);
+  --ink: oklch(22% 0.01 60);
+  --ink-muted: oklch(50% 0.01 60);
+  --edge: oklch(86% 0.008 75);
+  --edge-hud: oklch(72% 0.05 210);
+
+  /* HUD cyan family (agent-mode signature) */
+  --hud-cyan: oklch(72% 0.13 210);
+  --hud-cyan-bright: oklch(78% 0.16 210);
+  --hud-cyan-dim: oklch(58% 0.10 210);
+  --hud-cyan-light: oklch(48% 0.13 210);
+  --hud-cyan-glow: rgb(34 211 238 / 0.18);
+  --hud-cyan-glow-soft: rgb(34 211 238 / 0.08);
+
+  /* Three academic intent inks (document/diplomatic) */
+  --ink-amber: oklch(70% 0.13 75);
+  --ink-sage: oklch(62% 0.09 145);
+  --ink-coral: oklch(63% 0.16 25);
+
+  /* Focus ring tokens (replace --shadow-nm-focus-*) */
+  --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
+  --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 8px var(--hud-cyan-glow);
+
+  /* Motion easing tokens */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-fast: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* Tailwind 4 color bindings — preserved names, NEW source values */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--canvas);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--ink-coral);
+  --color-destructive-foreground: var(--canvas);
+  --color-border: var(--edge);
+  --color-input: var(--surface);
   --radius: 0.5rem;
-
-  /* Phase 6 Plan 06-01 — JARVIS-blue agent accent (D-08).
-     Scoped to agent-mode routes (JARVIS Console, /settings/memory, /insights, /health).
-     NEVER applied as the general accent; reserved for streaming caret,
-     queued shimmer, focus rings on agent surfaces, live status dots. */
-  --color-accent-jarvis: #00d4ff;
-  --color-accent-jarvis-glow: rgba(0, 212, 255, 0.15);
-
-  /* Phase 6 Plan 06-01 — Neumorphic shadow tokens, light theme (D-07, UI-SPEC §3a).
-     Applied to interactive surfaces (buttons, cards, receipts, input fields).
-     NEVER applied to body text, list rows, or inline metadata. */
-  --shadow-nm-surface: 4px 4px 10px hsl(38 20% 86%), -4px -4px 10px hsl(0 0% 100%);
-  --shadow-nm-button: 3px 3px 8px hsl(38 20% 86%), -3px -3px 8px hsl(0 0% 100%);
-  --shadow-nm-button-hover: 5px 5px 12px hsl(38 20% 84%), -5px -5px 12px hsl(0 0% 100%);
-  --shadow-nm-button-active: inset 2px 2px 6px hsl(38 20% 86%), inset -2px -2px 6px hsl(0 0% 100%);
-  --shadow-nm-input: inset 2px 2px 6px hsl(38 20% 88%), inset -2px -2px 6px hsl(0 0% 100%);
-  --shadow-nm-focus-journal: 0 0 0 2px hsl(42 18% 97%), 0 0 0 4px hsl(38 72% 52%);
-  --shadow-nm-focus-agent: 0 0 0 2px hsl(42 18% 97%), 0 0 0 4px #00d4ff;
 }
 
 @keyframes shimmer {
@@ -76,28 +100,45 @@ select,
   cursor: pointer;
 }
 
-/* Dark theme token declarations — Phase 6 activates via .dark class on html */
+/* =====================================================================
+   Phase 6.1 Plan 06.1-01 — Dark theme overrides (UI-SPEC §3c).
+   Activates via .dark class on <html> (next-themes attribute='class').
+   ===================================================================== */
 .dark {
-  --color-background: hsl(30 8% 10%);
-  --color-card: hsl(30 7% 13%);
-  --color-border: hsl(30 6% 20%);
-  --color-foreground: hsl(38 15% 92%);
-  --color-muted-foreground: hsl(30 8% 58%);
-  --color-accent: hsl(38 65% 58%);
+  --canvas: oklch(15% 0.005 240);
+  --surface: oklch(19% 0.006 240);
+  --surface-raised: oklch(23% 0.007 240);
+  --ink: oklch(92% 0.01 90);
+  --ink-muted: oklch(65% 0.01 90);
+  --edge: oklch(28% 0.008 240);
+  --edge-hud: oklch(45% 0.06 210);
+  --hud-cyan: oklch(72% 0.13 210);
+  --hud-cyan-bright: oklch(78% 0.16 210);
+  --hud-cyan-dim: oklch(58% 0.10 210);
+  --hud-cyan-light: oklch(48% 0.13 210);
+  --ink-amber: oklch(72% 0.12 75);
+  --ink-sage: oklch(68% 0.10 145);
+  --ink-coral: oklch(68% 0.15 25);
+  --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
+  --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
+}
 
-  /* Phase 6 Plan 06-01 — Agent accent dark theme (D-08, UI-SPEC §2b).
-     Same hex on dark — electric blue reads equally in both themes. */
-  --color-accent-jarvis: #00d4ff;
-  --color-accent-jarvis-glow: rgba(0, 212, 255, 0.12);
-
-  /* Phase 6 Plan 06-01 — Neumorphic shadow tokens, dark theme (D-07, UI-SPEC §3b). */
-  --shadow-nm-surface: 4px 4px 10px hsl(30 8% 7%), -4px -4px 10px hsl(30 8% 16%);
-  --shadow-nm-button: 3px 3px 8px hsl(30 8% 7%), -3px -3px 8px hsl(30 8% 16%);
-  --shadow-nm-button-hover: 5px 5px 12px hsl(30 8% 6%), -5px -5px 12px hsl(30 8% 18%);
-  --shadow-nm-button-active: inset 2px 2px 6px hsl(30 8% 7%), inset -2px -2px 6px hsl(30 8% 16%);
-  --shadow-nm-input: inset 2px 2px 6px hsl(30 8% 7%), inset -2px -2px 6px hsl(30 8% 16%);
-  --shadow-nm-focus-journal: 0 0 0 2px hsl(30 8% 10%), 0 0 0 4px hsl(38 65% 58%);
-  --shadow-nm-focus-agent: 0 0 0 2px hsl(30 8% 10%), 0 0 0 4px #00d4ff;
+/* =====================================================================
+   Phase 6.1 Plan 06.1-01 — prefers-contrast escalation (UI-SPEC §11d).
+   Increases edge contrast and tones up ink-muted for users who request
+   higher contrast. Applies to both light and dark mode.
+   ===================================================================== */
+@media (prefers-contrast: more) {
+  :root {
+    --edge: oklch(60% 0.02 75);
+    --edge-hud: oklch(55% 0.10 210);
+    --ink-muted: oklch(35% 0.01 60);
+  }
+  .dark {
+    --edge: oklch(45% 0.02 240);
+    --edge-hud: oklch(60% 0.08 210);
+    --ink-muted: oklch(78% 0.01 90);
+  }
 }
 
 /* ─── Captures composer (Plan 02-04) ─────────────────────────────────────────
@@ -246,99 +287,16 @@ select,
   z-index: 10;
 }
 
-/* Phase 6 Plan 06-01 — Agent surface passive glow (UI-SPEC §7e, D-08).
-   Applied to /insights chart panels, /health "ok" status badges.
-   Static box-shadow — NOT an animation. */
-.agent-glow-passive {
-  box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.08);
-}
-
-/* ─── Phase 6 Plan 06-03: JARVIS-blue agent-mode animations (D-08, UI-SPEC §7) ─────
-   SCOPED to agent surfaces — applied via opt-in class names, NEVER global.
-   Each animation has a reduced-motion override in the @media block below. */
-
-/* 7a — Queued placeholder shimmer (scan-line gradient sweep) */
-@keyframes jarvis-queued-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-.jarvis-queued-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(0, 212, 255, 0.10) 40%,
-    rgba(0, 212, 255, 0.25) 50%,
-    rgba(0, 212, 255, 0.10) 60%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: jarvis-queued-shimmer 1.8s ease-in-out infinite;
-}
-
-/* 7b — Streaming prose caret pulse */
-@keyframes jarvis-cursor-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px 1px rgba(0, 212, 255, 0.5); }
-  50%      { opacity: 0.3; box-shadow: none; }
-}
-.jarvis-streaming-caret {
-  display: inline-block;
-  width: 2px;
-  height: 1.1em;
-  background: #00d4ff;
-  border-radius: 1px;
-  vertical-align: text-bottom;
-  margin-left: 2px;
-  animation: jarvis-cursor-pulse 1.1s ease-in-out infinite;
-}
-
-/* 7c — Scan reveal wipe (one-shot, 400ms) */
-@keyframes jarvis-scan-reveal {
-  0%   { top: 0%; opacity: 0.6; }
-  80%  { top: 85%; opacity: 0.4; }
-  100% { top: 100%; opacity: 0; }
-}
-.jarvis-scan-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(0, 212, 255, 0.3) 20%,
-    rgba(0, 212, 255, 0.7) 50%,
-    rgba(0, 212, 255, 0.3) 80%,
-    transparent 100%
-  );
-  pointer-events: none;
-  animation: jarvis-scan-reveal 400ms ease-in forwards;
-}
-
-/* ─── Reduced-motion fallback for ALL JARVIS animations + view-transition (UI-SPEC §6a) ─── */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-  }
-  .jarvis-queued-shimmer,
-  .jarvis-streaming-caret,
-  .jarvis-scan-line {
-    animation: none !important;
-  }
-}
-
-/* ─── Phase 6 Plan 06-05 — Focus-visible ring system (UI-SPEC §11a) ─────────────
+/* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
    mouse clicks do not (UI-SPEC §11a explicit rule).
    Two flavors:
-     - Journal: amber ring via --shadow-nm-focus-journal (default for all routes)
-     - Agent  : JARVIS-blue ring via --shadow-nm-focus-agent (opt-in via .agent-focus
+     - Journal: amber ring via --ring-doc (default for all routes)
+     - Agent  : HUD-cyan ring via --ring-hud (opt-in via .agent-focus
                 class on the element OR on an ancestor with .agent-mode-scope)
 
    Default rule covers ALL interactive elements. Agent-mode override is
-   opt-in to avoid bleeding blue rings into Journal-mode surfaces. */
+   opt-in to avoid bleeding HUD rings into Journal-mode surfaces. */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
@@ -347,7 +305,7 @@ textarea:focus-visible,
 select:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
   outline: none;
-  box-shadow: var(--shadow-nm-focus-journal);
+  box-shadow: var(--ring-doc);
 }
 
 .agent-mode-scope button:focus-visible,
@@ -357,7 +315,7 @@ select:focus-visible,
 .agent-mode-scope textarea:focus-visible,
 .agent-focus:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-nm-focus-agent);
+  box-shadow: var(--ring-hud);
 }
 
 /* ─── Phase 6 Plan 06-05 — react-big-calendar event cursor (UI-SPEC §10) ────────
