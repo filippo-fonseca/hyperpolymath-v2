@@ -11,14 +11,20 @@ interface Props {
 }
 
 /**
- * Hashtag chip pill per UI-SPEC §Hashtag Chips.
+ * Phase 06.1 Plan 04 (UI-SPEC §5i, §9g) — sage hashtag chip.
  *
- * Variants (background/foreground):
- * - default:  warm tan (hsl(38, 40%, 88%)) on foreground
- * - selected: accent / accent-foreground (sidebar active state — color shift, weight stays 400)
- * - new:      cool blue (hsl(215, 40%, 90%)) on dark blue text + italic "(new)" suffix
+ * Color contract:
+ *   - idle    : bg rgb(101 163 13 / 0.12), text --ink
+ *   - hover   : bg rgb(101 163 13 / 0.18) over 100ms --ease-out-quart
+ *   - active  : bg rgb(101 163 13 / 0.22), text --ink-sage (selected/filter)
+ *   - "new"   : same sage register with italic "(new)" suffix — used in the
+ *     composer suggestion popover only
  *
- * Use `asButton={false}` for purely visual chips inside capture text bodies (no click target).
+ * Type register: font-mono 12px — metadata chrome family, distinguishes the
+ * chip from serif body text per UI-SPEC §4a. NO cyan anywhere on this chip;
+ * captures surfaces never use HUD cyan.
+ *
+ * Use `asButton={false}` for purely visual chips inside capture text bodies.
  */
 export function HashtagChip({
   displayName,
@@ -27,21 +33,17 @@ export function HashtagChip({
   onClick,
   asButton = true,
 }: Props) {
-  const style = isSelected
-    ? {
-        backgroundColor: "var(--color-accent)",
-        color: "var(--color-accent-foreground)",
-      }
-    : isNew
-      ? { backgroundColor: "hsl(215, 40%, 90%)", color: "hsl(215, 60%, 30%)" }
-      : {
-          backgroundColor: "hsl(38, 40%, 88%)",
-          color: "var(--color-foreground)",
-        };
-
   const className = cn(
-    "inline-flex items-center font-sans text-[13px] font-normal rounded-md px-2 py-1",
-    asButton && "cursor-pointer hover:opacity-80 transition-opacity",
+    "inline-flex items-center font-mono text-xs font-normal rounded-sm px-2 py-0.5",
+    "transition-colors duration-100 ease-out",
+    // Sage alpha ladder per UI-SPEC §9g
+    isSelected
+      ? "bg-[color:rgb(101_163_13_/_0.22)] text-[var(--ink-sage)]"
+      : isNew
+        ? "bg-[color:rgb(101_163_13_/_0.18)] text-[var(--ink-sage)] italic"
+        : "bg-[color:rgb(101_163_13_/_0.12)] text-[var(--ink)]",
+    asButton && !isSelected && "hover:bg-[color:rgb(101_163_13_/_0.18)]",
+    asButton && "cursor-pointer-always",
   );
 
   const content = (
@@ -52,11 +54,7 @@ export function HashtagChip({
   );
 
   if (!asButton) {
-    return (
-      <span className={className} style={style}>
-        {content}
-      </span>
-    );
+    return <span className={className}>{content}</span>;
   }
 
   return (
@@ -64,7 +62,7 @@ export function HashtagChip({
       type="button"
       onClick={onClick}
       className={className}
-      style={style}
+      data-active={isSelected ? "true" : "false"}
     >
       {content}
     </button>

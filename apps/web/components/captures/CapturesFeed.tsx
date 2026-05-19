@@ -96,8 +96,11 @@ export function CapturesFeed({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <AnimatePresence initial={false}>
+    // Phase 06.1 Plan 04 (UI-SPEC §7d) — flat feed list. No card spacing; the
+    // per-row hover left-edge is the affordance signal. mode="popLayout" lets
+    // siblings reflow while a row exits via the motion exit prop on CaptureCard.
+    <div className="flex flex-col">
+      <AnimatePresence mode="popLayout" initial={false}>
         {captures.map((c) => (
           <CaptureCard
             key={c.id}
@@ -126,20 +129,18 @@ function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  // Phase 06.1 Plan 04 (UI-SPEC §5i, §12b) — document-tier empty state:
+  // serif H2 24px + serif body --ink-muted + Document primary <Button>.
   return (
-    <div className="flex flex-col items-center text-center py-16 px-4">
-      <h3 className="font-serif text-[28px] font-semibold leading-tight text-foreground mb-2">
+    <div className="flex flex-col items-center text-center py-24 px-6 gap-3">
+      <h2 className="font-serif text-2xl font-semibold leading-tight text-[var(--ink)]">
         {title}
-      </h3>
-      <p className="font-serif text-base text-muted-foreground mb-6 max-w-md">
+      </h2>
+      <p className="font-serif text-base text-[var(--ink-muted)] max-w-md">
         {body}
       </p>
       {actionLabel && onAction && (
-        <Button
-          variant="outline"
-          className="font-sans text-[13px]"
-          onClick={onAction}
-        >
+        <Button onClick={onAction} className="mt-4">
           {actionLabel}
         </Button>
       )}

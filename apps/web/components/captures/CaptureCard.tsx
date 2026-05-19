@@ -158,22 +158,20 @@ export function CaptureCard({
       {!removed && (
         <motion.div
           key={capture.id}
-          initial={{ opacity: 0, y: 8 }}
+          layout
+          initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): the wrapper is clickable
-            // only when onOpen is provided (feed context). In compact mode
-            // (project detail Captures column), the card is display-only — no
-            // cursor change. Inline #hashtag and $project chips inside CaptureBody
-            // are rendered as <span> (non-interactive in the feed), so they
-            // intentionally inherit the wrapper's cursor. When HashtagChip is
-            // rendered asButton={true} elsewhere (HashtagSidebar), it carries
-            // its own cursor-pointer + native <button> coverage from globals.css.
-            "group relative border border-border rounded-lg bg-card transition-colors",
-            compact ? "p-2" : "p-4",
-            onOpen && "cursor-pointer hover:bg-card/80",
+            // Phase 06.1 Plan 04 (UI-SPEC §5i): captures feed is document-pure —
+            // no card chrome, no border, no shadow. Hover paints a 1px --edge
+            // left edge over 150ms (felt-quality grep target). Wrapper is
+            // clickable only when onOpen is provided.
+            "group relative transition-colors duration-150 ease-out",
+            "border-l-2 border-l-transparent",
+            compact ? "px-3 py-2" : "px-4 py-3",
+            onOpen && "cursor-pointer hover:border-l-[var(--edge)]",
           )}
           {...(onOpen
             ? {
@@ -208,7 +206,7 @@ export function CaptureCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="font-sans text-[13px]"
+                className="font-serif text-base"
               >
                 {onOpen && (
                   <DropdownMenuItem onSelect={() => onOpen()}>
@@ -235,7 +233,7 @@ export function CaptureCard({
             <div className="flex gap-3">
               {/* Twitter-style avatar column — single-user life-OS, this is always "you".
                   No ring/border (journal-paper aesthetic), fallback initial sits on
-                  the existing AvatarFallback bg-muted token. */}
+                  the existing AvatarFallback token. */}
               <Avatar className="h-9 w-9 flex-shrink-0">
                 {userAvatarUrl ? (
                   <AvatarImage
@@ -244,7 +242,7 @@ export function CaptureCard({
                     referrerPolicy="no-referrer"
                   />
                 ) : null}
-                <AvatarFallback className="font-sans text-[13px] text-muted-foreground">
+                <AvatarFallback className="font-mono text-xs text-[var(--ink-muted)]">
                   {userInitials ?? "·"}
                 </AvatarFallback>
               </Avatar>
@@ -346,16 +344,18 @@ function CaptureBody({
 
   return (
     <div className="flex flex-col gap-2 pr-8">
-      <div className="font-serif text-base text-foreground whitespace-pre-wrap break-words">
+      {/* Capture body — serif throughout per UI-SPEC §5i */}
+      <div className="font-serif text-base text-[var(--ink)] whitespace-pre-wrap break-words">
         {rendered}
       </div>
-      <div className="flex flex-wrap items-center gap-2 font-sans text-[13px] text-muted-foreground">
+      {/* Metadata strip — mono timestamp + project chips per UI-SPEC §5i / §4a */}
+      <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--ink-muted)]">
         {!compact && capture.projects.length > 0 && (
           <>
             {capture.projects.map((p) => (
               <span
                 key={p.id}
-                className="inline-flex items-center bg-secondary/50 rounded-md px-2 py-0.5"
+                className="inline-flex items-center bg-[var(--surface)] border border-[var(--edge)] rounded-sm px-2 py-0.5 text-[var(--ink)]"
               >
                 {p.name}
               </span>

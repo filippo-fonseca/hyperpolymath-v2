@@ -90,7 +90,10 @@ export function ProjectDetailClient({
     | null;
 
   return (
-    <div className="flex flex-col min-h-full">
+    // Phase 06.1 Plan 04 (UI-SPEC §5j) — Notion-pure: bg --canvas, NO card chrome.
+    // Banner sits flush at the top via ProjectHeader; everything else is plain
+    // document column with --ink text on --canvas.
+    <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <ProjectHeader
         project={{
           id: liveProject.id,

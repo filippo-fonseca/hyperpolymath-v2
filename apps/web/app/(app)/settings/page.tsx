@@ -23,19 +23,26 @@ import { listCalendars, type GcalCalendarMeta } from "@/lib/gcal/calendars";
 // /settings reads connection status that can change mid-session (after the
 // OAuth callback returns OR after a Disconnect Server Action runs).
 // `force-dynamic` opts out of Next's full-route cache so each visit re-runs
-// `getGcalConnectionStatus` against the live DB. Plan 04-04 reuses the same
-// dynamic gate for the gcal-prefs fetch (calendars + tz + visible/default).
+// `getGcalConnectionStatus` against the live DB.
 export const dynamic = "force-dynamic";
 
+/**
+ * Phase 06.1 Plan 04 (UI-SPEC §5k, §7f) — document-tier Settings.
+ *
+ * Visual register:
+ *  - bg --canvas
+ *  - Tiles are shadcn Cards (Task 1 ships --surface bg + 1px --edge border,
+ *    no shadow). Each tile adds hover:border-[var(--edge-hud)] over 150ms
+ *    --ease-out-quart — felt-quality grep target for §5k "hover deepens edge"
+ *  - H1 serif 36px 600 / H2 serif 24px 600
+ *  - Body serif --ink-muted
+ *  - Mono only on chrome labels (none on this page — all section heads are serif)
+ *  - Amber focus rings via --ring-doc applied globally
+ */
 export default async function SettingsPage() {
   const user = await requireOnboarded();
   const gcalStatus = await getGcalConnectionStatus(user.id);
 
-  // Plan 04-04 — fetch the per-user gcal prefs + the calendar list ONLY
-  // when connected. Wrap in try/catch so a token revoked between the
-  // status read and the calendar list read still renders the page (the
-  // status badge will show "Not connected" on the next refresh once the
-  // token layer NULLs the columns).
   let calendars: GcalCalendarMeta[] = [];
   let currentDefault: string | null = null;
   let currentVisible: string[] | null = null;
@@ -59,11 +66,6 @@ export default async function SettingsPage() {
       const cal = await getValidGcalToken(user.id);
       calendars = await listCalendars(cal);
     } catch (e) {
-      // If the token revoked between the status check and the listCalendars
-      // call (e.g., user revoked externally), the status row will reflect
-      // "not_connected" on the next visit because getValidGcalToken NULLs
-      // the encrypted columns on invalid_grant. For this render, we just
-      // skip the multi-calendar rows.
       if (
         e instanceof GcalTokenRevokedError ||
         e instanceof GcalNotConnectedError
@@ -75,54 +77,63 @@ export default async function SettingsPage() {
     }
   }
 
+  // Shared tile chrome: surface + edge border (Card default) + hover --edge-hud
+  // deepen per UI-SPEC §5k. Repeated as a className constant keeps each Card
+  // call site readable while making the felt-quality contract grep-verifiable.
+  const tileHover =
+    "p-6 space-y-4 hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out";
+
   return (
-    <main className="min-h-screen px-6 py-12">
+    <main className="min-h-screen bg-[var(--canvas)] px-6 py-12">
       <div className="max-w-2xl mx-auto space-y-8">
         <header className="flex items-center justify-between">
-          <h1 className="text-4xl font-serif">Settings</h1>
-          <Link href="/today" className="underline text-sm">
+          <h1 className="font-serif text-4xl font-semibold text-[var(--ink)]">
+            Settings
+          </h1>
+          <Link
+            href="/today"
+            className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
             Back to today
           </Link>
         </header>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-lg font-medium">Account</h2>
-          <p className="text-sm text-neutral-600">{user.email}</p>
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Account
+          </h2>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
+            {user.email}
+          </p>
         </Card>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-lg font-medium">Graduation year</h2>
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Graduation year
+          </h2>
           <SettingsForm
             currentYear={user.graduationYear ?? new Date().getFullYear() + 4}
           />
         </Card>
 
-        {/* Phase 6 Plan 06-01 (SET-03, AES-06, D-06) — Appearance section.
-            Neumorphic Card uses --shadow-nm-surface and overrides default
-            Card border so the shadow reads cleanly (UI-SPEC §8f). */}
-        <section className="space-y-3">
-          <h2 className="text-2xl font-serif font-semibold">Appearance</h2>
-          <Card
-            className="p-6 space-y-3"
-            style={{ boxShadow: "var(--shadow-nm-surface)", border: "none" }}
-          >
-            <div className="space-y-1">
-              <p className="text-base font-serif">Theme</p>
-              <p className="text-base font-serif text-muted-foreground">
-                Light, dark, or follow your system.
-              </p>
-            </div>
-            <ThemeToggle variant="settings" />
-          </Card>
-        </section>
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Appearance
+          </h2>
+          <div className="space-y-1">
+            <p className="font-serif text-base text-[var(--ink)]">Theme</p>
+            <p className="font-serif text-base text-[var(--ink-muted)]">
+              Light, dark, or follow your system.
+            </p>
+          </div>
+          <ThemeToggle variant="settings" />
+        </Card>
 
-        <Card className="p-6 space-y-2">
-          <h2 className="text-lg font-medium">Integrations</h2>
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Integrations
+          </h2>
           <GcalConnectionRow status={gcalStatus} />
-          {/* Plan 04-04 — the three multi-cal + tz override rows render
-              only when gcal is connected AND the calendar list resolved.
-              If the user externally revoked, calendars is [] and the rows
-              are hidden until reconnection. */}
           {gcalStatus === "connected" && calendars.length > 0 && (
             <>
               <DefaultCalendarPicker
@@ -139,21 +150,25 @@ export default async function SettingsPage() {
         </Card>
 
         {/* Phase 5.1 (D-M6 / JARVIS-18) — Memory settings link */}
-        <Card className="p-6 space-y-2">
-          <h2 className="text-lg font-medium">JARVIS Memory</h2>
-          <p className="text-sm text-muted-foreground">
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            JARVIS Memory
+          </h2>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
             Review, edit, or remove facts JARVIS has remembered about you.
           </p>
           <Link
             href="/settings/memory"
-            className="inline-flex items-center text-sm underline underline-offset-4 hover:text-foreground/80"
+            className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
           >
-            Manage memory
+            Manage memory →
           </Link>
         </Card>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-lg font-medium">Sign out</h2>
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Sign out
+          </h2>
           <SignOutButton />
         </Card>
       </div>

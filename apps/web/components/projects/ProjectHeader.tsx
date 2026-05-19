@@ -32,15 +32,12 @@ interface Props {
   addOptimisticProject: ProjectOptimisticDispatch;
 }
 
-/**
- * Capitalizes the first letter of a semester term for display.
- */
 function formatTerm(term: string): string {
   return term.charAt(0).toUpperCase() + term.slice(1);
 }
 
 /**
- * Builds the class metadata inline line per D-16 / UI-SPEC §Project Detail Page:
+ * Class metadata inline line (UI-SPEC §5j metadata strip):
  *   PHIL 277 · Prof. Lloyd · Fall 2026 · A-
  */
 function buildClassMeta(project: ProjectData): string {
@@ -59,12 +56,22 @@ function buildClassMeta(project: ProjectData): string {
 }
 
 /**
- * ProjectHeader — Phase 3:
- * - Receives the canonical project shape from ProjectDetailClient's useQuery+select.
- * - All optimistic edits (icon, banner, name) dispatch through addOptimisticProject
- *   so the same useOptimistic state that ProjectDetailClient owns updates instantly.
- * - No router.refresh — Realtime echo invalidates `['projects', userId]` and
- *   the parent's `select` projection re-derives this project's data automatically.
+ * Phase 06.1 Plan 04 (UI-SPEC §5j) — Notion-pure project header.
+ *
+ * Visual register:
+ *  - bg --canvas, NO card chrome anywhere on the page
+ *  - Banner sits flush at the top of the content column (no rounded corners,
+ *    no border — pure edge-to-edge image)
+ *  - Project icon (Lucide via DynamicIcon at stroke 1.5) inline with H1
+ *  - H1 serif 36px 600 in --ink
+ *  - Class metadata strip in font-mono text-xs --ink-muted (only mono usage
+ *    on this page — UI-SPEC §5j)
+ *  - Inline name edit underline on edit becomes --ink-amber
+ *
+ * Phase 3 wiring (preserved):
+ *  - All optimistic edits dispatch through addOptimisticProject so the same
+ *    useOptimistic state ProjectDetailClient owns updates instantly.
+ *  - Realtime echo invalidates ['projects', userId] and refetches canonical.
  */
 export function ProjectHeader({
   project,
@@ -73,16 +80,13 @@ export function ProjectHeader({
 }: Props) {
   const [, startTransition] = useTransition();
 
-  // Inline name edit
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(project.name);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Edit class dialog
   const [editClassOpen, setEditClassOpen] = useState(false);
 
   function handleBannerChange(newBanner: string | null) {
-    // D-04: optimistic banner update
     addOptimisticProject({
       type: "update",
       id: project.id,
@@ -94,10 +98,8 @@ export function ProjectHeader({
         bannerUrl: newBanner,
       });
       if (!result.success) {
-        // D-03: silent revert + toast.error
         toast.error(result.error);
       }
-      // Realtime echo on ['projects', userId] settles the canonical state.
     });
   }
 
@@ -113,8 +115,6 @@ export function ProjectHeader({
       setNameValue(project.name);
       return;
     }
-    // D-04: optimistic name update — header re-renders instantly via the
-    // parent's useOptimistic state
     addOptimisticProject({
       type: "update",
       id: project.id,
@@ -127,9 +127,6 @@ export function ProjectHeader({
         setNameValue(project.name);
         return;
       }
-      // Realtime echo: ['projects', userId] → refetch → select picks the
-      // canonical name → header settles. Same key drives the sidebar so the
-      // rename propagates everywhere automatically.
     });
   }
 
@@ -137,12 +134,11 @@ export function ProjectHeader({
 
   return (
     <>
-      {/* Banner — 120px tall, full-width, "Change cover" button group on hover */}
+      {/* Banner — flush, edge-to-edge, no rounded corners (UI-SPEC §5j) */}
       <div
         className="group/banner-area relative w-full"
         style={{ height: "120px", background: parseBanner(project.bannerUrl) }}
       >
-        {/* "Change cover" — wraps BannerPicker popover trigger */}
         <div
           className={cn(
             "absolute top-3 right-3",
@@ -153,20 +149,21 @@ export function ProjectHeader({
         </div>
       </div>
 
-      {/* Header row: icon + name + class meta */}
-      <div className="px-8 pt-6 pb-4 flex flex-col gap-1">
+      {/* Header row: icon + name + class meta — serif throughout (UI-SPEC §5j) */}
+      <div className="px-8 pt-8 pb-4 flex flex-col gap-2">
         <div className="flex items-start gap-3">
-          {/* Icon */}
+          {/* Icon — Lucide at stroke 1.5 per UI-SPEC §8a, inline with title */}
           <div className="mt-1 shrink-0">
             <DynamicIcon
               name={project.icon}
               size={32}
-              className="text-foreground"
+              strokeWidth={1.5}
+              className="text-[var(--ink)]"
             />
           </div>
 
-          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-            {/* Project name — editable inline on click */}
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            {/* H1 serif 36px 600 per UI-SPEC §5j */}
             {isEditingName ? (
               <input
                 ref={nameInputRef}
@@ -181,9 +178,9 @@ export function ProjectHeader({
                   }
                 }}
                 className={cn(
-                  "font-serif text-[28px] font-semibold leading-tight",
-                  "bg-transparent border-b border-border outline-none",
-                  "text-foreground w-full",
+                  "font-serif text-4xl font-semibold leading-tight",
+                  "bg-transparent border-b border-[var(--ink-amber)] outline-none",
+                  "text-[var(--ink)] w-full",
                 )}
                 autoFocus
               />
@@ -191,31 +188,32 @@ export function ProjectHeader({
               <h1
                 onClick={handleNameClick}
                 className={cn(
-                  "font-serif text-[28px] font-semibold leading-tight",
-                  "text-foreground cursor-text hover:opacity-80 transition-opacity",
+                  "font-serif text-4xl font-semibold leading-tight",
+                  "text-[var(--ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out",
                 )}
               >
                 {project.name}
               </h1>
             )}
 
-            {/* Class metadata inline line — EB Garamond 16px italic */}
+            {/* Class metadata strip — mono only, --ink-muted (UI-SPEC §5j) */}
             {project.isClass && classMeta && (
-              <p className="font-serif text-base italic text-muted-foreground leading-snug">
+              <p className="font-mono text-xs text-[var(--ink-muted)] leading-snug tracking-[0.02em]">
                 {classMeta}
               </p>
             )}
 
-            {/* "Edit class" button — ghost, small, only when isClass */}
+            {/* "Edit class" affordance — ghost-tier button surface */}
             {project.isClass && (
               <button
                 type="button"
                 onClick={() => setEditClassOpen(true)}
                 className={cn(
-                  "self-start mt-1 px-2 py-0.5 rounded text-[13px] font-sans",
-                  "text-muted-foreground hover:text-foreground",
-                  "border border-transparent hover:border-border transition-colors",
-                  "focus-visible:ring-2 focus-visible:ring-ring outline-none",
+                  "self-start mt-1 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
+                  "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                  "border border-transparent hover:border-[var(--edge)]",
+                  "transition-colors duration-150 ease-out",
+                  "focus-visible:outline-none",
                 )}
               >
                 Edit class
@@ -225,9 +223,6 @@ export function ProjectHeader({
         </div>
       </div>
 
-      {/* Edit class dialog — Realtime echo handles the post-save refresh
-          (no manual router.refresh needed; the dialog dispatches optimistic
-          updates through addOptimisticProject directly). */}
       <ProjectEditClassDialog
         open={editClassOpen}
         onOpenChange={setEditClassOpen}

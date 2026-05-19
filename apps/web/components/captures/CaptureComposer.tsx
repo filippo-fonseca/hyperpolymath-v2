@@ -266,7 +266,11 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    <div className="border border-border rounded-lg bg-card">
+    // Phase 06.1 Plan 04 (UI-SPEC §5i, §9d) — document-tier composer chrome.
+    // Wrapper: bg --surface + 1px --edge border at rest; focus-within bumps the
+    // border to --ink-amber over 150ms --ease-out-quart. The global :focus-visible
+    // rule layers --ring-doc onto focused inputs inside automatically.
+    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--ink-amber)] transition-colors duration-150 ease-out">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
@@ -277,11 +281,11 @@ export function CaptureComposer({
           placeholder="Link to projects"
         />
       </div>
-      <div className="flex items-center justify-between p-2 border-t border-border">
-        <span className="font-sans text-[13px] text-muted-foreground">
+      <div className="flex items-center justify-between p-2 border-t border-[var(--edge)]">
+        <span className="font-mono text-xs text-[var(--ink-muted)]">
           Cmd+Enter to capture
         </span>
-        <Button onClick={handleSubmit} disabled={pending || !editor}>
+        <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
           Capture
         </Button>
       </div>
