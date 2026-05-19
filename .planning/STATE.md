@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06.1-03-PLAN.md — /insights + /health + /settings/memory rebuilt per UI-SPEC §5b–§5d
-last_updated: "2026-05-19T18:09:23.048Z"
+stopped_at: Completed 06.1-04-PLAN.md — document surfaces rebuilt (Tasks/Captures/Projects/Settings + shadcn primitives + EmptyState)
+last_updated: "2026-05-19T18:32:42.793Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 34
-  completed_plans: 31
+  completed_plans: 32
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -76,6 +76,7 @@ Progress: [██████████] 100%
 | Phase 06.1 P01 | 10 | 4 tasks | 5 files |
 | Phase 06.1 P02 | 54min | 3 tasks | 9 files |
 | Phase 06.1 P03 | 8 | 3 tasks | 5 files |
+| Phase 06.1 P04 | 45min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -190,6 +191,11 @@ Recent decisions affecting current work:
 - [Phase 06.1]: Plan 06.1-03: MemoryTable.tsx rebuilt (scope clarification beyond plan files list) — UI-SPEC §5d FactCard contract (1px --edge left edge + ambient cyan glow + mono 'FACT · type' + serif body) describes per-row chrome that lives inside MemoryTable, not page.tsx; updating only the page would have left rows in the Phase 5.1 flat-list register
 - [Phase 06.1]: Plan 06.1-03: HudCornerCrops static (breathing={false}) at panel level for InsightsCharts chart panels — only viewport-level crops carry the 6s opacity-breathe per UI-SPEC §6e; nested panel-level crops are static so motion doesn't compound
 - [Phase 06.1]: Plan 06.1-03: agent-mode-scope page-wrapper pattern proven on three non-Console surfaces — outermost <div className='agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12'> + fixed HudCornerCrops at z-0 + relative main content at z-10; reusable for any future surface needing cyan focus-ring scope
+- [Phase 06.1]: Plan 06.1-04: Motion 12 + dnd-kit single-div pattern — motion.div with ref={setNodeRef} + style={CSS.Transform.toString} + layout + exit; drag and animation concerns coexist on the same element. Canonical 2026 idiom
+- [Phase 06.1]: Plan 06.1-04: AnimatePresence mode=popLayout is the canonical parent contract for list views with exit animations — TaskList + KanbanColumn + CapturesFeed all use identical wrapper; lets siblings reflow during exit
+- [Phase 06.1]: Plan 06.1-04: PriorityChip dominance via opacity ladder not hue (P1:1, P2:0.6, P3:0.35 all --ink-amber) + Lucide Infinity icon for P∞ — collapses Phase 6's per-priority HSL pills to single intent color
+- [Phase 06.1]: Plan 06.1-04: Projects detail page is Notion-pure — strips every <Card> chrome (UI-SPEC §5j), bg --canvas + text --ink + mono ONLY on metadata strip; most aggressive document-tier register on the app
+- [Phase 06.1]: Plan 06.1-04: DynamicIcon strokeWidth prop addition (default 1.5 per UI-SPEC §8a) is shared-infra scope — single change unblocks both Plan 06.1-04 (ProjectHeader) and parallel Plan 06.1-05 (SidebarTree) typecheck
 
 ### Pending Todos
 
@@ -207,6 +213,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T18:09:05.459Z
-Stopped at: Completed 06.1-03-PLAN.md — /insights + /health + /settings/memory rebuilt per UI-SPEC §5b–§5d
+Last session: 2026-05-19T18:32:28.014Z
+Stopped at: Completed 06.1-04-PLAN.md — document surfaces rebuilt (Tasks/Captures/Projects/Settings + shadcn primitives + EmptyState)
 Resume file: None
