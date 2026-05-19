@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import { createProjectSuggestion } from "./project-suggestions";
 import {
@@ -111,6 +112,16 @@ export function JarvisInput({
   const [pinnedSlashCommand, setPinnedSlashCommand] =
     useState<SlashCommandKey | null>(null);
   const pinnedSlashCommandRef = useRef<SlashCommandKey | null>(null);
+
+  // Phase 6.1 Plan 02 — 7-state JARVIS Console interaction machine.
+  // This component owns states 1-4 (idle, focused-idle, typing, submitting-ignite);
+  // states 5-8 (thinking, streaming, done, error) live in JarvisScrollback.
+  const [isFocused, setIsFocused] = useState(false);
+  const [hasContent, setHasContent] = useState(false);
+  const [igniting, setIgniting] = useState(false); // 320ms post-submit ignite window
+  const [keystrokeCount, setKeystrokeCount] = useState(0);
+  const [typingDotVisible, setTypingDotVisible] = useState(false);
+  const shouldReduce = useReducedMotion();
   // Latest userTimezone/onSubmit accessible to the editor keyDown handler
   // without depending on the captured closure (TipTap freezes editorProps at
   // editor-creation time).
@@ -165,7 +176,8 @@ export function JarvisInput({
       attributes: {
         class:
           "jarvis-input-content focus:outline-none min-h-[40px] max-h-[200px] overflow-y-auto px-3 py-2 font-mono text-base",
-        "data-placeholder": "Type a sentence — JARVIS will route it.",
+        // Phase 6.1 Plan 02 (UI-SPEC §5a): placeholder reads as JARVIS's prompt.
+        "data-placeholder": "what shall we file?",
       },
       handleKeyDown: (_view, event) => {
         // N4: read text from the live ProseMirror view, NOT the closure
@@ -285,6 +297,40 @@ export function JarvisInput({
     return () => registerJarvisFocus(null);
   }, [editor]);
 
+  // Phase 6.1 Plan 02 — State 2 (focused-idle) + State 3 (typing).
+  // Track focus via TipTap editor focus/blur events. Track unsubmitted content
+  // + keystroke counter via TipTap update event. The breathing focus ring
+  // applies only when focusedIdle (focused && !hasContent).
+  useEffect(() => {
+    if (!editor) return;
+    const onFocus = () => setIsFocused(true);
+    const onBlur = () => setIsFocused(false);
+    const onUpdate = () => {
+      const has = !editor.isEmpty;
+      setHasContent(has);
+      setKeystrokeCount((n) => n + 1);
+    };
+    editor.on("focus", onFocus);
+    editor.on("blur", onBlur);
+    editor.on("update", onUpdate);
+    return () => {
+      editor.off("focus", onFocus);
+      editor.off("blur", onBlur);
+      editor.off("update", onUpdate);
+    };
+  }, [editor]);
+
+  // Phase 6.1 Plan 02 — State 3 (typing): every 8 keystrokes, a 4px cyan dot
+  // flashes top-right of the input for 240ms (acknowledgment of input, not
+  // an agent indicator). AnimatePresence in the JSX handles the fade.
+  useEffect(() => {
+    if (!hasContent || keystrokeCount === 0) return;
+    if (keystrokeCount % 8 !== 0) return;
+    setTypingDotVisible(true);
+    const t = setTimeout(() => setTypingDotVisible(false), 240);
+    return () => clearTimeout(t);
+  }, [keystrokeCount, hasContent]);
+
   /**
    * Drive submission from the live ProseMirror view's text + JSON. This is
    * the canonical submit path — both Enter-in-editor and click-submit
@@ -304,6 +350,16 @@ export function JarvisInput({
       override,
     );
     if (!payload) return;
+    // Phase 6.1 Plan 02 — State 4 (submitting-ignite): trigger the 320ms
+    // ignite window. The wrapper className flips to .hud-submit-ignite-border
+    // (border flashes cyan-bright with --ease-out-back overshoot) and the
+    // scan-drop child mounts via AnimatePresence (1px line drops 80px over
+    // 320ms). Reset hasContent/keystroke counter so the next session starts
+    // fresh.
+    setIgniting(true);
+    setKeystrokeCount(0);
+    setHasContent(false);
+    setTimeout(() => setIgniting(false), 320);
     onSubmitRef.current(payload);
     editor?.commands.clearContent();
     setSlashOpen(false);
@@ -341,14 +397,40 @@ export function JarvisInput({
     editor.commands.focus("end");
   }
 
+  // Phase 6.1 Plan 02 — derived flags for the 4 input-side states.
+  // State 1 (idle): not focused, no content → 1px --edge-hud border
+  // State 2 (focused-idle): focused, no content → 2px --hud-cyan + .hud-focus-breathe ring
+  // State 3 (typing): focused, has content → 2px --hud-cyan (no breathe; typing dot fires every 8 keys)
+  // State 4 (submitting-ignite): igniting=true → .hud-submit-ignite-border + scan-drop child
+  const focusedIdle = isFocused && !hasContent;
+  const focusedActive = isFocused && hasContent;
+
   return (
     <div className="relative">
       <div
-        className={
-          disabled
-            ? "rounded-md border bg-card opacity-60 pointer-events-none"
-            : "rounded-md border bg-card"
-        }
+        // Phase 6.1 Plan 02 (UI-SPEC §6b states 1-4): state-driven input wrapper.
+        // - Border: 1px --edge-hud (idle) → 2px --hud-cyan (focused, any content)
+        // - .hud-focus-breathe class (Plan 01 keyframe): only when focused-idle,
+        //   ring breathes 8px → 14px → 8px on a 2400ms loop via --ease-in-out-circ
+        // - .hud-submit-ignite-border class: 320ms cyan→cyan-bright→cyan flash
+        //   via --ease-out-back overshoot, applied while igniting=true
+        // - shouldReduce gates the breathing class (focus ring becomes static
+        //   2px --hud-cyan) and the ignite animation
+        className={[
+          "relative rounded-md transition-[border-color] duration-200 ease-out",
+          disabled ? "opacity-60 pointer-events-none" : "",
+          focusedIdle && !shouldReduce ? "hud-focus-breathe" : "",
+          igniting && !shouldReduce ? "hud-submit-ignite-border" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={{
+          backgroundColor: "var(--surface-raised)",
+          border:
+            focusedIdle || focusedActive
+              ? "2px solid var(--hud-cyan)"
+              : "1px solid var(--edge-hud)",
+        }}
       >
         {pinnedSlashCommand ? (
           <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-border/50 font-mono text-[12px]">
@@ -378,19 +460,61 @@ export function JarvisInput({
             </span>
           </div>
         ) : null}
+
         <EditorContent editor={editor} />
+
+        {/* Phase 6.1 Plan 02 — State 3 (typing): 4px cyan dot flashes top-right
+            every 8 keystrokes for 240ms via Motion 12 AnimatePresence. The
+            keystrokeCount-based trigger ensures the dot is acknowledgment of
+            input (not an agent indicator — that's the status pill). */}
+        <AnimatePresence>
+          {typingDotVisible ? (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+              className="absolute top-1 right-12 w-1 h-1 rounded-full pointer-events-none"
+              style={{ backgroundColor: "var(--hud-cyan)" }}
+              aria-hidden="true"
+            />
+          ) : null}
+        </AnimatePresence>
+
+        {/* Phase 6.1 Plan 02 — State 4 (submitting-ignite): a 1px horizontal
+            cyan scan line drops from input bottom over 320ms via Motion 12
+            y: 0 → 80px + opacity 1 → 0 with --ease-out-quart. Skipped under
+            reduced-motion (the border flash alone communicates submit). */}
+        <AnimatePresence>
+          {igniting && !shouldReduce ? (
+            <motion.div
+              initial={{ y: 0, opacity: 1 }}
+              animate={{ y: 80, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.25, 1, 0.5, 1] }}
+              className="absolute left-0 right-0 bottom-0 h-px pointer-events-none"
+              style={{
+                backgroundColor: "var(--hud-cyan-bright)",
+                boxShadow: "0 0 8px var(--hud-cyan-glow)",
+              }}
+              aria-hidden="true"
+            />
+          ) : null}
+        </AnimatePresence>
+
         <div className="flex items-center justify-between px-3 pb-1.5 border-t border-border/50 pt-1.5">
-          <span className="font-sans text-[12px] text-muted-foreground">
+          <span className="font-mono text-[11px] text-[var(--ink-muted)]">
             <span className="opacity-60 select-none mr-1.5">{">"}</span>
-            Enter to send · type / for commands · $ for projects · # for hashtags
+            enter to send · type / for commands · $ for projects · # for hashtags
           </span>
-          {/* Phase 6 Plan 06-05 (UI-SPEC §8b): ⌘K hint chip — purely visual signal
-              that Cmd+K focuses JARVIS from anywhere in (app). The binding itself
-              lives in GlobalHotkeys (06-03). Hidden below md: per spec — too
-              cramped on tablet. aria-hidden because it's decorative — the
-              keyboard shortcut works whether the chip is visible or not. */}
+          {/* Phase 6.1 Plan 02 (UI-SPEC §9e): ⌘K hint chip — mono 11px uppercase
+              tracking-wide, 1px --edge-hud border. Hidden below md: per §10c. */}
           <kbd
-            className="hidden md:inline-flex items-center px-1.5 py-0.5 text-xs font-mono text-muted-foreground opacity-50 select-none"
+            className="hidden md:inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none"
+            style={{
+              border: "1px solid var(--edge-hud)",
+              backgroundColor: "var(--surface)",
+            }}
             aria-hidden="true"
             title="Focus JARVIS from anywhere"
           >
