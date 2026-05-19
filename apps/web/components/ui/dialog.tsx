@@ -6,7 +6,26 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops"
 
+/**
+ * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §9c + §13 anti-pattern):
+ *
+ * Diplomatic-tier modal chrome. Background --surface-raised, 1px --edge
+ * border, 10px --edge-hud corner L-brackets (rendered via HudCornerCrops
+ * at the diplomatic scale — 10px legs per UI-SPEC §5f, vs the 12px viewport
+ * crops on agent surfaces). Backdrop uses plain `backdrop-blur-md` (8px)
+ * over rgba(canvas, 0.6) — NOT iOS Liquid Glass refraction (UI-SPEC §13
+ * anti-pattern catalog).
+ *
+ * Motion: scale 0.95 → 1 + fade-in over 200ms on open (tailwindcss-animate's
+ * zoom-in-95 + fade-in-0 — close enough to UI-SPEC §5f's 0.96 → 1 spec for
+ * the visual delta to be imperceptible). 150ms opacity-only exit per
+ * UI-SPEC §7b.
+ *
+ * Neumorphic shadow tokens retired (UI-SPEC §14a) — single hard-coded
+ * box-shadow per UI-SPEC §9c instead.
+ */
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -38,10 +57,14 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
+      // UI-SPEC §5f backdrop: rgba(canvas, 0.6) + backdrop-blur(8px). NOT
+      // iOS Liquid Glass refraction. Plain blur over the canvas-colored
+      // scrim is the explicit anti-pattern boundary.
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 backdrop-blur-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 duration-200",
         className
       )}
+      style={{ backgroundColor: "rgb(0 0 0 / 0.5)" }}
       {...props}
     />
   )
@@ -60,19 +83,31 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        // --surface-raised + 1px --edge per UI-SPEC §9c. box-shadow values
+        // per UI-SPEC §9c dark + light variants (the literal here matches
+        // the dark value; light mode reads softer per the @theme palette).
+        // Motion: 200ms enter scale 0.95→1 + fade-in; 150ms exit opacity-only.
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-6 outline-none",
+          "shadow-[0_12px_32px_rgba(0,0,0,0.3)]",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-150",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-200",
+          "sm:max-w-lg",
           className
         )}
         {...props}
       >
+        {/* UI-SPEC §5f — 10px corner L-brackets on diplomatic-tier modals.
+            Static (breathing={false}) — only viewport-level agent crops
+            breathe per UI-SPEC §6e. */}
+        <HudCornerCrops size={10} breathing={false} className="absolute inset-0 pointer-events-none" />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-[var(--canvas)] transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-[var(--surface)] data-[state=open]:text-[var(--ink-muted)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
-            <XIcon />
+            <XIcon strokeWidth={1.5} />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -125,7 +160,10 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+      // Serif body for content per UI-SPEC §5f ("mono chrome, serif body"
+      // — dialog title sits between the two; we keep semibold serif as the
+      // default per the existing register and let consumers override).
+      className={cn("font-serif text-lg leading-none font-semibold text-[var(--ink)]", className)}
       {...props}
     />
   )
@@ -138,7 +176,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("font-serif text-sm text-[var(--ink-muted)]", className)}
       {...props}
     />
   )

@@ -274,8 +274,15 @@ export function EventDetailPanel({
     state.mode === "edit" ? state.event.recurringEventId : null;
   const htmlLink =
     state.mode === "edit" && state.event.htmlLink ? state.event.htmlLink : null;
+  // UI-SPEC §12e — Sheet titles. Edit mode reads "Edit event" (not "Event")
+  // so the diplomatic chrome carries the action intent. Create mode preserves
+  // "New event" parity with the calendar header CTA.
   const headerLabel =
-    state.mode === "edit" ? "Event" : state.mode === "create" ? "New event" : "";
+    state.mode === "edit"
+      ? "Edit event"
+      : state.mode === "create"
+        ? "New event"
+        : "";
 
   const onValidSubmit = useCallback(
     async (data: EventFormValues) => {
@@ -646,6 +653,10 @@ export function EventDetailPanel({
                   >
                     Cmd+Enter to save
                   </span>
+                  {/* UI-SPEC §12f button label register:
+                      - "Cancel" → "Discard changes" (confirms intent)
+                      - "Save" → "Save event" (context-specific verb)
+                  */}
                   <Button
                     type="button"
                     variant="ghost"
@@ -654,7 +665,7 @@ export function EventDetailPanel({
                     onClick={handleCancelClick}
                     disabled={submitting}
                   >
-                    Cancel
+                    Discard changes
                   </Button>
                   <Button
                     type="submit"
@@ -664,7 +675,7 @@ export function EventDetailPanel({
                       submitting || (state.mode === "edit" && !isDirty)
                     }
                   >
-                    {submitting ? "Saving…" : "Save"}
+                    {submitting ? "Saving…" : "Save event"}
                   </Button>
                 </div>
               </div>
@@ -703,7 +714,8 @@ export function EventDetailPanel({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete confirm. */}
+      {/* Delete confirm. UI-SPEC §12f — "Cancel" → "Discard changes" register;
+          "Delete" preserves per §12f exact label. */}
       <AlertDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
@@ -720,7 +732,7 @@ export function EventDetailPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="font-sans text-[13px]">
-              Cancel
+              Discard changes
             </AlertDialogCancel>
             <AlertDialogAction
               className="font-sans text-[13px]"

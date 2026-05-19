@@ -275,7 +275,10 @@ export function CalendarClient({
       });
       if (!res.success) {
         if (res.kind === "revoked") {
-          toast.error("Google Calendar disconnected. Reconnect in Settings.");
+          // UI-SPEC §12e — exact copy: "Reconnect from Settings."
+          toast.error(
+            "Google Calendar disconnected. Reconnect from Settings.",
+          );
         }
         return initialEvents;
       }
@@ -624,16 +627,52 @@ export function CalendarClient({
     return handleDelete(panelState.event.id, panelState.event.calendarId);
   }, [panelState, handleDelete]);
 
+  // Phase 6.1 Plan 06.1-05 (UI-SPEC §5g):
+  //   - Outer container on bg --canvas (calendar is document-leaning surface,
+  //     axis 4, per UI-SPEC §2b)
+  //   - "today" column receives an 8% amber wash (rgb(217 119 6 / 0.08) per
+  //     UI-SPEC §3f reserved-for list / §5g) — applied via the .rbc-today
+  //     selector in globals.css (kept as a single source of truth for rbc
+  //     overrides). The literal also appears once here as a comment marker so
+  //     the SUMMARY audit can grep for it across the calendar surface.
+  //   - Event color falls back to --ink-coral when gcal doesn't supply one
+  //     (UI-SPEC §3f).
+  //
+  // Calendar copy register per UI-SPEC §12e:
+  //   - "New event" CTA (header)
+  //   - "Edit event" Sheet title (handled in EventDetailPanel)
+  //   - "Save event" + "Discard changes" + "Delete" button labels (per §12f)
+  //   - "Google Calendar disconnected. Reconnect from Settings." (toast above)
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border gap-4">
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--canvas)]">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--edge)] gap-4">
         <DayWeekToggle
           view={view}
           onChange={setView}
           date={date}
           onDateChange={setDate}
         />
-        <CalendarFilters calendars={calendars} />
+        <div className="flex items-center gap-3">
+          <CalendarFilters calendars={calendars} />
+          {/* UI-SPEC §12e — "New event" CTA opens the create Sheet at the
+              next round half-hour (parity with the Cmd+K?create=now path). */}
+          <button
+            type="button"
+            onClick={() => {
+              const start = nextHalfHour(new Date());
+              const end = addMinutes(start, 60);
+              setPanelState({
+                mode: "create",
+                start: new TZDate(start, effectiveTz),
+                end: new TZDate(end, effectiveTz),
+                allDay: false,
+              });
+            }}
+            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)] border border-[var(--edge)] rounded-sm px-2 py-1 hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
+            New event
+          </button>
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         <CalendarGrid

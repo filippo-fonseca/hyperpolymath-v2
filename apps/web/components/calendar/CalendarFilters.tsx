@@ -64,16 +64,23 @@ export function CalendarFilters({ calendars }: Props) {
       {calendars.map((c) => {
         const active = visibleSet.has(c.id);
         return (
+          // Phase 6.1 Plan 06.1-05 (UI-SPEC §5g + §9 chip register):
+          // Diplomatic-tier chip. Inactive renders with 1px --edge border at
+          // --ink-muted; active picks up --ink-amber tint per UI-SPEC §3f
+          // ("amber for active filter chips" carries from /tasks). Mono 11px
+          // register matches the calendar-time-label family — these chips
+          // are metadata chrome, not document body.
           <button
             key={c.id}
             type="button"
             onClick={() => toggle(c.id)}
             aria-pressed={active}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs border transition-colors font-sans",
+              "flex items-center gap-1.5 px-2 py-0.5 rounded-sm border font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+              "transition-colors duration-150 ease-out",
               active
-                ? "border-foreground/40 text-foreground"
-                : "border-border opacity-50 hover:opacity-75 text-muted-foreground",
+                ? "border-[var(--edge)] text-[var(--ink)] bg-[var(--surface)]"
+                : "border-[var(--edge)] text-[var(--ink-muted)] opacity-60 hover:opacity-100 hover:text-[var(--ink)]",
             )}
             title={`${active ? "Hide" : "Show"} ${c.summary}`}
           >

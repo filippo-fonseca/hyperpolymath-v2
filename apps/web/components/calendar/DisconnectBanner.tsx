@@ -12,6 +12,16 @@
  * Handler that 302s to Google's consent screen — client-side nav would
  * try to render its body as a page.
  *
+ * Phase 6.1 Plan 06.1-05 (UI-SPEC §5g + §3f + §12e + §12f):
+ *
+ * Diplomatic banner chrome — bg --surface + 3px --ink-coral LEFT edge
+ * (UI-SPEC §3f reserved-for list: coral for "error/destructive UI signal").
+ * Serif body copy (the banner is reading to the user — document register),
+ * mono CTA label (the action is chrome — calls into OAuth). Copy per
+ * UI-SPEC §12e — exact strings "Google Calendar disconnected. Reconnect
+ * from Settings." for revoked, "Google Calendar isn't connected." for
+ * never-connected. CTA label "Connect Google Calendar" per §12f.
+ *
  * Variants:
  *   - "revoked"       — user previously connected; refresh failed with
  *                       invalid_grant (Pitfall 6).
@@ -20,24 +30,41 @@
  */
 
 import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface Props {
   variant: "revoked" | "not_connected";
 }
 
 export function DisconnectBanner({ variant }: Props) {
+  // UI-SPEC §12e — exact copy. The revoked branch tells the user where to
+  // reconnect (Settings), bridging the failure mode to the resolution path.
   const copy =
     variant === "revoked"
-      ? "Google Calendar disconnected — your token was revoked."
+      ? "Google Calendar disconnected. Reconnect from Settings."
       : "Google Calendar isn't connected.";
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-100">
-      <AlertCircle size={16} />
-      <span className="text-sm flex-1 font-sans">{copy}</span>
-      <Button asChild size="sm" variant="outline">
-        <a href="/api/gcal/auth">Reconnect</a>
-      </Button>
+    <div
+      className="flex items-center gap-3 px-4 py-3 bg-[var(--surface)] border-b border-[var(--edge)]"
+      style={{ borderLeft: "3px solid var(--ink-coral)" }}
+      role="alert"
+    >
+      <AlertCircle
+        size={16}
+        strokeWidth={1.5}
+        className="shrink-0 text-[var(--ink-coral)]"
+        aria-hidden="true"
+      />
+      <span className="font-serif text-base flex-1 text-[var(--ink)]">
+        {copy}
+      </span>
+      {/* UI-SPEC §12f — "Connect Google Calendar" CTA. Mono chrome register
+          per UI-SPEC §5l toast Undo-button precedent (banner is diplomatic). */}
+      <a
+        href="/api/gcal/auth"
+        className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)] border border-[var(--edge)] rounded-sm px-2 py-1 hover:bg-[var(--surface-raised)] transition-colors duration-150 ease-out cursor-pointer-always"
+      >
+        Connect Google Calendar
+      </a>
     </div>
   );
 }
