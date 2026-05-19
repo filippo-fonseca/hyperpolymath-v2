@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 6 context gathered (06-CONTEXT.md)
-last_updated: "2026-05-19T00:03:04.474Z"
-last_activity: 2026-05-18 - Closed Phase 05.1; quick task 260518-mhu shipped ($project pill + undo tombstone)
+status: executing
+stopped_at: Phase 6 UI-SPEC approved (4 BLOCKs fixed in iteration 1; checker VERIFIED)
+last_updated: "2026-05-19T02:16:21.259Z"
+last_activity: 2026-05-19 -- Phase 06 execution started
 progress:
   total_phases: 12
   completed_phases: 6
-  total_plans: 23
+  total_plans: 28
   completed_plans: 23
   percent: 100
 ---
@@ -21,14 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 05.1 — jarvis-agentic-refactor
+**Current focus:** Phase 06 — polish
 
 ## Current Position
 
-Phase: 05.1 (jarvis-agentic-refactor) — COMPLETE (2026-05-18)
+Phase: 06 (polish) — EXECUTING
+Plan: 1 of 5
 Next: Phase 6 (Polish) — discussion pending
-Status: Phase 5.1 verified (22/22 automated must-haves + manual UAT confirmed by user 2026-05-18); advancing
-Last activity: 2026-05-18 - Closed Phase 05.1; quick task 260518-mhu shipped ($project pill + undo tombstone)
+Status: Executing Phase 06
+Last activity: 2026-05-19 -- Phase 06 execution started
 
 Progress: [██████████] 100%
 
@@ -160,6 +161,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T00:03:04.462Z
-Stopped at: Phase 6 context gathered (06-CONTEXT.md)
-Resume file: .planning/phases/06-polish/06-CONTEXT.md
+Last session: 2026-05-19T01:09:13.803Z
+Stopped at: Phase 6 UI-SPEC approved (4 BLOCKs fixed in iteration 1; checker VERIFIED)
+Resume file: .planning/phases/06-polish/06-UI-SPEC.md
