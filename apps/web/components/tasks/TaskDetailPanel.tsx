@@ -266,8 +266,8 @@ export function TaskDetailPanel({
         >
           {task && (
             <>
-              {/* Header */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+              {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
+              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--edge)]">
                 <div className="flex items-start justify-between gap-3">
                   <SheetTitle className="flex-1 p-0 m-0">
                     <input
@@ -275,9 +275,9 @@ export function TaskDetailPanel({
                       value={form.title}
                       onChange={(e) => set("title", e.target.value)}
                       className={cn(
-                        "font-serif text-xl font-semibold text-foreground w-full",
+                        "font-serif text-xl font-semibold text-[var(--ink)] w-full",
                         "bg-transparent focus:outline-none border-b border-transparent",
-                        "focus:border-ring transition-colors",
+                        "focus:border-[var(--ink-amber)] transition-colors duration-150 ease-out",
                       )}
                       aria-label="Task title"
                     />
@@ -286,9 +286,9 @@ export function TaskDetailPanel({
                     type="button"
                     onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
-                    className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0 mt-1"
+                    className="p-1 rounded hover:bg-[var(--surface)] transition-colors duration-150 ease-out flex-shrink-0 mt-1 cursor-pointer-always"
                   >
-                    <X size={16} className="text-muted-foreground" />
+                    <X size={16} className="text-[var(--ink-muted)]" />
                   </button>
                 </div>
               </SheetHeader>
@@ -374,12 +374,11 @@ export function TaskDetailPanel({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--edge)]">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
-                  className="font-sans text-[13px] text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setShowDeleteConfirm(true)}
                   disabled={isPending}
                 >
@@ -390,7 +389,6 @@ export function TaskDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="font-sans text-[13px]"
                     onClick={handleCancelClick}
                     disabled={!dirty || isPending}
                     title={dirty ? "Discard unsaved changes" : undefined}
@@ -400,7 +398,6 @@ export function TaskDetailPanel({
                   <Button
                     type="button"
                     size="sm"
-                    className="font-sans text-[13px]"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
@@ -488,7 +485,8 @@ function FieldSection({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="font-sans text-[13px] text-muted-foreground">
+      {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
+      <label className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
         {label}
       </label>
       {children}

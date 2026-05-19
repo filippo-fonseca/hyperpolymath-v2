@@ -3,6 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { motion } from "motion/react";
 import { GripVertical, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
@@ -38,6 +39,28 @@ interface Props {
   addOptimistic: TasksOptimisticDispatch;
 }
 
+/**
+ * Phase 06.1 Plan 04 (UI-SPEC §5h, §7c) — document-tier task list row.
+ *
+ * Visual register:
+ *  - bg --canvas (no card chrome)
+ *  - 1px transparent left edge at rest; 1px --edge left edge on hover
+ *    (fades over 150ms — felt-quality mandate)
+ *  - lesno state: 2px --ink-sage persistent left edge + line-through + 70% opacity
+ *  - Title in font-serif --ink (or --ink-muted line-through when lesno)
+ *  - PriorityChip uses the amber opacity ladder + Infinity icon (no pills)
+ *  - Status + Due in mono metadata register, --ink-muted
+ *
+ * Motion (Motion 12 / motion/react):
+ *  - `layout` prop drives reorder choreography (--ease-out-quart over 280ms)
+ *  - Enter: fade-in + 4px Y-translate over 220ms --ease-out-quart
+ *  - Exit: opacity → 0, height → 0 over 200ms (TasksClient must wrap the mapped
+ *    rows in `<AnimatePresence mode="popLayout">` for exit to fire on delete)
+ *
+ * The motion wrapper is ALSO the dnd-kit sortable node (single div serves both
+ * concerns). dnd-kit's `transform` is applied via style; motion's layout takes
+ * over once dragging ends. No double-wrap to keep markup flat.
+ */
 export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -53,7 +76,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
     isDragging,
   } = useSortable({ id: task.id });
 
-  const style = {
+  const dndStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
@@ -78,11 +101,9 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
     setIsEditingTitle(false);
     if (trimmed && trimmed !== task.title) {
       startTransition(async () => {
-        // Optimistic title update — D-02 instant
         addOptimistic({ type: "update", id: task.id, patch: { title: trimmed } });
         const r = await updateTask({ id: task.id, title: trimmed });
         if (!r.success) {
-          // D-03: silent revert + toast.error
           toast.error(r.error);
         }
       });
@@ -116,45 +137,47 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   }
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
-      style={style}
+      layout
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: isDragging ? 0 : 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+      style={dndStyle}
       className={cn(
-        // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): row is clickable (the title
-        // span opens detail, the lesno checkbox toggles status, etc.). Marking
-        // the wrapper with cursor-pointer broadcasts "this whole row is
-        // interactive" even though individual cells own their own click logic.
-        // Drag is on a SEPARATE handle (GripVertical button below), which
-        // keeps its cursor-grab — no conflict with the row-level pointer.
-        "flex items-center gap-2 h-10 px-2 rounded cursor-pointer",
-        "hover:bg-secondary/40 transition-colors group",
-        isDragging && "opacity-0",
-        // D-02: no opacity dim on pending — keep UI feeling instant
+        // Flat row on --canvas — no card chrome.
+        "group flex items-center gap-2 h-10 px-2 cursor-pointer",
+        // Hover left edge accent (felt-quality grep target: hover:border-l-[var(--edge)])
+        "border-l-2 transition-colors duration-150 ease-out",
+        isLesno
+          ? "border-l-[var(--ink-sage)] opacity-70"
+          : "border-l-transparent hover:border-l-[var(--edge)]",
       )}
     >
       {/* Drag handle */}
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
         onPointerDown={(e) => {
-          // Prevent drag from blocking other interactions
           listeners?.onPointerDown?.(e);
         }}
       >
         <GripVertical size={14} />
       </button>
 
-      {/* Lesno checkbox */}
+      {/* Lesno checkbox — sage fill when checked */}
       <button
         type="button"
         onClick={toggleLesno}
         className={cn(
-          "w-4 h-4 rounded border border-border flex-shrink-0 flex items-center justify-center",
-          isLesno && "bg-primary border-primary",
-          "transition-colors",
+          "w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors duration-150 ease-out",
+          isLesno
+            ? "bg-[var(--ink-sage)] border-[var(--ink-sage)]"
+            : "border-[var(--edge)]",
         )}
         aria-label={isLesno ? "Mark incomplete" : "Mark complete"}
       >
@@ -164,7 +187,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             height="10"
             viewBox="0 0 10 10"
             fill="none"
-            className="text-primary-foreground"
+            style={{ color: "var(--canvas)" }}
           >
             <path
               d="M2 5l2.5 2.5L8 3"
@@ -178,7 +201,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       </button>
 
       {/* Priority */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 w-4 flex items-center justify-center">
         <PriorityChip priority={task.priority} />
       </div>
 
@@ -187,7 +210,6 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         className="flex-1 min-w-0 cursor-pointer"
         onClick={(e) => {
           if (!isEditingTitle) {
-            // body click (not title) → detail panel
             e.stopPropagation();
           }
         }}
@@ -201,14 +223,19 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             onKeyDown={handleTitleKeyDown}
             onBlur={commitTitle}
             onClick={(e) => e.stopPropagation()}
-            className="w-full bg-transparent font-serif text-base text-foreground focus:outline-none border-b border-ring"
+            className={cn(
+              "w-full bg-transparent font-serif text-base text-[var(--ink)]",
+              "focus:outline-none border-b border-[var(--ink-amber)]",
+            )}
           />
         ) : (
           <span
             onClick={startEditTitle}
             className={cn(
-              "font-serif text-base text-foreground truncate block",
-              isLesno && "line-through opacity-60",
+              "font-serif text-base truncate block",
+              isLesno
+                ? "line-through text-[var(--ink-muted)]"
+                : "text-[var(--ink)]",
             )}
           >
             {task.title}
@@ -218,14 +245,14 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
 
       {/* Project */}
       {task.projects.length > 0 && (
-        <span className="font-sans text-[13px] text-muted-foreground truncate max-w-[120px] flex-shrink-0">
+        <span className="font-mono text-xs text-[var(--ink-muted)] truncate max-w-[120px] flex-shrink-0">
           {task.projects[0]!.name}
           {task.projects.length > 1 && ` +${task.projects.length - 1}`}
         </span>
       )}
 
-      {/* Status badge */}
-      <span className="font-sans text-[13px] text-muted-foreground flex-shrink-0">
+      {/* Status badge — mono metadata register */}
+      <span className="font-mono text-xs text-[var(--ink-muted)] flex-shrink-0 uppercase tracking-[0.04em]">
         {STATUS_LABELS[task.status as Status]}
       </span>
 
@@ -233,8 +260,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       {task.dueDate && (
         <span
           className={cn(
-            "font-sans text-[13px] flex-shrink-0",
-            isOverdue ? "text-destructive" : "text-muted-foreground",
+            "font-mono text-xs flex-shrink-0",
+            isOverdue ? "text-[var(--ink-coral)]" : "text-[var(--ink-muted)]",
           )}
         >
           {formatDate(task.dueDate)}
@@ -246,7 +273,10 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-secondary"
+            className={cn(
+              "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded",
+              "hover:bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
+            )}
             aria-label="Task options"
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -255,14 +285,14 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
-            className="font-sans text-[13px]"
+            className="font-serif text-base"
             onClick={() => onRowClick(task.id)}
           >
             Open detail
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </motion.div>
   );
 }
 
