@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Wordmark } from "./Wordmark";
 import { PersistentNav } from "./PersistentNav";
 import { SidebarTree } from "./SidebarTree";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { AreaCreateDialog } from "@/components/areas/AreaCreateDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -213,8 +214,14 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Footer: show archived toggle */}
-      <div className="border-t border-border px-3 py-2 shrink-0">
+      {/* Footer: theme toggle + show archived toggle */}
+      <div className="border-t border-border px-3 py-2 shrink-0 space-y-2">
+        {/* Phase 6 Plan 06-01 (SET-03, AES-06, D-06) — theme toggle anchored
+            in sidebar footer; renders header variant even when collapsed
+            (36px icon button fits the 16-wide collapsed sidebar). */}
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-start")}>
+          <ThemeToggle variant="header" />
+        </div>
         {!collapsed ? (
           <button
             type="button"

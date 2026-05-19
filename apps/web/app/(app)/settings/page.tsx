@@ -7,6 +7,7 @@ import { users } from "@/lib/db/schema";
 import { Card } from "@/components/ui/card";
 import { SettingsForm } from "@/components/settings-form";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { getGcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import { GcalConnectionRow } from "@/components/settings/GcalConnectionRow";
 import { DefaultCalendarPicker } from "@/components/settings/DefaultCalendarPicker";
@@ -95,6 +96,25 @@ export default async function SettingsPage() {
             currentYear={user.graduationYear ?? new Date().getFullYear() + 4}
           />
         </Card>
+
+        {/* Phase 6 Plan 06-01 (SET-03, AES-06, D-06) — Appearance section.
+            Neumorphic Card uses --shadow-nm-surface and overrides default
+            Card border so the shadow reads cleanly (UI-SPEC §8f). */}
+        <section className="space-y-3">
+          <h2 className="text-2xl font-serif font-semibold">Appearance</h2>
+          <Card
+            className="p-6 space-y-3"
+            style={{ boxShadow: "var(--shadow-nm-surface)", border: "none" }}
+          >
+            <div className="space-y-1">
+              <p className="text-base font-serif">Theme</p>
+              <p className="text-base font-serif text-muted-foreground">
+                Light, dark, or follow your system.
+              </p>
+            </div>
+            <ThemeToggle variant="settings" />
+          </Card>
+        </section>
 
         <Card className="p-6 space-y-2">
           <h2 className="text-lg font-medium">Integrations</h2>
