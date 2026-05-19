@@ -120,7 +120,13 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 h-10 px-2 rounded",
+        // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): row is clickable (the title
+        // span opens detail, the lesno checkbox toggles status, etc.). Marking
+        // the wrapper with cursor-pointer broadcasts "this whole row is
+        // interactive" even though individual cells own their own click logic.
+        // Drag is on a SEPARATE handle (GripVertical button below), which
+        // keeps its cursor-grab — no conflict with the row-level pointer.
+        "flex items-center gap-2 h-10 px-2 rounded cursor-pointer",
         "hover:bg-secondary/40 transition-colors group",
         isDragging && "opacity-0",
         // D-02: no opacity dim on pending — keep UI feeling instant

@@ -55,6 +55,9 @@ export function SlashCommandPopover({ query, selectedIndex, onSelect }: Props) {
             idx ===
             Math.min(Math.max(0, selectedIndex), filtered.length - 1);
           return (
+            // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): native <button> — covered
+            // by the universal `button { cursor: pointer; }` rule in globals.css.
+            // No explicit cursor-pointer className required.
             <button
               key={cmd.key}
               type="button"

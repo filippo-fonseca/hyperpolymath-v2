@@ -110,7 +110,13 @@ export function SortableTaskCard({
       {...attributes}
       {...listeners}
       className={cn(
-        "touch-none",
+        // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): the whole sortable wrapper
+        // is BOTH the drag target (dnd-kit listeners attach here) and the
+        // click-to-open surface (TaskCard's onClick bubbles up). Drag intent
+        // supersedes click intent visually — cursor-grab at rest, grabbing
+        // while pressed. The inner TaskCard keeps its own cursor-pointer
+        // for completeness, but this wrapper's cursor wins because it's on top.
+        "touch-none cursor-grab active:cursor-grabbing",
         isSortableDragging && "opacity-0",
       )}
     >

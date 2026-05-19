@@ -163,6 +163,14 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           className={cn(
+            // Phase 6 Plan 06-05 (UI-SPEC §10 / D-09): the wrapper is clickable
+            // only when onOpen is provided (feed context). In compact mode
+            // (project detail Captures column), the card is display-only — no
+            // cursor change. Inline #hashtag and $project chips inside CaptureBody
+            // are rendered as <span> (non-interactive in the feed), so they
+            // intentionally inherit the wrapper's cursor. When HashtagChip is
+            // rendered asButton={true} elsewhere (HashtagSidebar), it carries
+            // its own cursor-pointer + native <button> coverage from globals.css.
             "group relative border border-border rounded-lg bg-card transition-colors",
             compact ? "p-2" : "p-4",
             onOpen && "cursor-pointer hover:bg-card/80",
