@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 06-04-PLAN.md (telemetry — /api/health JSON + visual /health page + /insights server aggregation + 3-chart recharts panel + /insights nav entry)
-last_updated: "2026-05-19T02:58:37.724Z"
-last_activity: 2026-05-19
+status: planning
+stopped_at: Phase 6 closed passed_with_deferrals — visual contract rejected by user; AES-01..04,06,07 deferred to Phase 6.1 (visual-redesign-jarvis-notion); awaiting /gsd:insert-phase 6 then /gsd:ui-phase 6.1
+last_updated: "2026-05-19T03:10:00.000Z"
+last_activity: 2026-05-19 - Phase 6 closed with deferrals after live UI rejection; pivot to JARVIS×Notion visual rebuild
 progress:
-  total_phases: 12
-  completed_phases: 6
+  total_phases: 13
+  completed_phases: 7
   total_plans: 28
-  completed_plans: 27
+  completed_plans: 28
   percent: 100
 ---
 
@@ -21,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 06 — polish
+**Current focus:** Phase 6.1 — visual-redesign-jarvis-notion (to be inserted)
 
 ## Current Position
 
-Phase: 06 (polish) — EXECUTING
-Plan: 5 of 5
-Next: Phase 6 (Polish) — discussion pending
-Status: Ready to execute
-Last activity: 2026-05-19
+Phase: 06 (polish) — COMPLETE with deferrals (2026-05-19)
+Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
+Status: Phase 6 closed passed_with_deferrals — RES-01..04,06,07 + SET-03 + AES-05 verified; AES-01..04,06,07 deferred to 6.1 after user rejected visual contract at 06-05 Task 3 checkpoint ("I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion")
+Last activity: 2026-05-19 - Phase 6 closed with deferrals; visual rebuild scoped to Phase 6.1
 
 Progress: [██████████] 100%
 
@@ -79,6 +78,7 @@ Progress: [██████████] 100%
 ### Roadmap Evolution
 
 - Phase 05.1 inserted after Phase 5: jarvis-agentic-refactor (URGENT) — implicit intent extraction, multi-action action-graph, persistent instruction memory, pipeline efficiency cleanup (Sidebar areas refetches on every JARVIS submit), conversational personality, smart ambiguity. Builds on Phase 5 jarvis-core. Out of scope: voice (Phase 7), read-back (backlog 999.3).
+- Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
 
 ### Decisions
 

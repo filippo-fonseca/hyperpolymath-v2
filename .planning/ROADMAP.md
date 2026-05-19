@@ -171,7 +171,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -181,7 +181,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7
 | 4. Google Calendar | 4/4 | Complete    | 2026-05-13 |
 | 5. JARVIS | 4/4 | Complete    | 2026-05-15 |
 | 5.1. JARVIS Agentic Refactor | 3/4 | In Progress|  |
-| 6. Polish | 0/TBD | Not started | - |
+| 6. Polish | 5/5 | Complete (passed_with_deferrals) | 2026-05-19 |
+| 6.1. Visual Redesign — JARVIS × Notion | 0/TBD | Not started | - |
 | 7. JARVIS Voice + Ambient | 0/TBD | Not started | - |
 
 ## Backlog
