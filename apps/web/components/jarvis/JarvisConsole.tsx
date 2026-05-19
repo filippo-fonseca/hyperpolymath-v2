@@ -20,6 +20,7 @@ import {
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
+import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 
 /**
  * JARVIS Console (D-01) — top-level orchestrator.
@@ -417,6 +418,18 @@ export function JarvisConsole({
   const cacheHitPercent: number | null = null;
   const lastTurnRelative: string | null = null;
 
+  // Phase 6.1 — HudCoreBubble visual anchor (arc-reactor centerpiece per
+  // Stark HUD reference). Reactive: idle ambient when no conversation,
+  // thinking/streaming when JARVIS is active, error on stream failure.
+  // Dims to ambient background opacity once scrollback has any turns.
+  const coreState: HudCoreBubbleState =
+    status === "thinking" || status === "streaming" || status === "sending"
+      ? "thinking"
+      : status === "error"
+        ? "error"
+        : "idle";
+  const coreDimmed = turns.length > 0;
+
   return (
     // Phase 6 Plan 06-05 (UI-SPEC §11a): .agent-mode-scope activates the
     // JARVIS-blue focus-visible ring on all interactive descendants. The
@@ -438,12 +451,23 @@ export function JarvisConsole({
           doesn't displace the scrollback layout. */}
       <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
 
-      <JarvisScrollback
-        turns={turns}
-        onUndoAction={handleUndoAction}
-        onClarificationReply={handleClarificationReply}
+      {/* Phase 6.1 — Arc-reactor centerpiece. Sits behind scrollback at z-0;
+          dominant in empty state, ambient when conversation begins.
+          aria-hidden + pointer-events-none — pure visual anchor. */}
+      <HudCoreBubble
+        state={coreState}
+        dimmed={coreDimmed}
+        className="absolute inset-0 flex items-center justify-center z-0"
       />
-      <div className="border-t bg-card px-6 py-3">
+
+      <div className="relative z-10 flex-1 min-h-0">
+        <JarvisScrollback
+          turns={turns}
+          onUndoAction={handleUndoAction}
+          onClarificationReply={handleClarificationReply}
+        />
+      </div>
+      <div className="relative z-10 border-t bg-card px-6 py-3">
         <JarvisInput
           ref={jarvisInputRef}
           userTimezone={userTimezone}

@@ -180,6 +180,24 @@
   100% { transform: translateX(0);    }
 }
 
+/* Core bubble — slow rotational drift (outer tick ring) */
+@keyframes hud-core-rotate-slow {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* Core bubble — faster rotation for arc-tip sweep when JARVIS is thinking/streaming */
+@keyframes hud-core-rotate-fast {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* Core bubble — gentle inner glow + central triangle breathing */
+@keyframes hud-core-breathe {
+  0%,  100% { transform: scale(1);    opacity: 0.85; }
+  50%       { transform: scale(1.04); opacity: 1;    }
+}
+
 /* =====================================================================
    Phase 6.1 Plan 06.1-01 — Motion utility classes (UI-SPEC §6).
    Opt-in classNames; nothing animates unless a component adds the class.
@@ -228,6 +246,19 @@
   animation: hud-error-glitch 80ms var(--ease-in-fast) forwards;
 }
 
+/* Core bubble animations — opt-in via component className */
+.hud-core-rotate-slow {
+  animation: hud-core-rotate-slow 80s linear infinite;
+}
+
+.hud-core-rotate-fast {
+  animation: hud-core-rotate-fast 6s linear infinite;
+}
+
+.hud-core-breathe {
+  animation: hud-core-breathe 4s var(--ease-in-out-circ) infinite;
+}
+
 /* Mono ligature suppression — keep "telex-typed" register pure per UI-SPEC §13 anti-pattern */
 .font-mono,
 [style*="--font-mono"] {
@@ -250,7 +281,10 @@
   .hud-receipt-shimmer,
   .hud-edge-tick,
   .hud-undo-wipe,
-  .hud-error-glitch {
+  .hud-error-glitch,
+  .hud-core-rotate-slow,
+  .hud-core-rotate-fast,
+  .hud-core-breathe {
     animation: none !important;
   }
   ::view-transition-old(*),
