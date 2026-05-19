@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06.1-02-PLAN.md — JARVIS Console motion choreography rebuild (7-state machine + receipt materialize + diplomatic popovers)
-last_updated: "2026-05-19T17:54:28.090Z"
+stopped_at: Completed 06.1-03-PLAN.md — /insights + /health + /settings/memory rebuilt per UI-SPEC §5b–§5d
+last_updated: "2026-05-19T18:09:23.048Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 34
-  completed_plans: 30
+  completed_plans: 31
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -75,6 +75,7 @@ Progress: [██████████] 100%
 | Phase 06-polish P04 | 5 | 3 tasks | 7 files |
 | Phase 06.1 P01 | 10 | 4 tasks | 5 files |
 | Phase 06.1 P02 | 54min | 3 tasks | 9 files |
+| Phase 06.1 P03 | 8 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,12 @@ Recent decisions affecting current work:
 - [Phase 06.1]: Plan 06.1-02: JarvisClarification 'QUESTION' Phase 5.1 badge → 'clarify' chrome label per UI-SPEC §5a — clarification surface bridges agent (HUD chrome) and document (serif body) registers; jarvis-clarification.test.tsx migrated to assert 'clarify' (mechanism under test unchanged)
 - [Phase 06.1]: Plan 06.1-02: Reduced-motion gates layered at TWO levels — (1) CSS @media block kills .hud-* animations via animation:none !important; (2) component useReducedMotion() guards omit decorative elements (light-trail, scan reveal, glitch class). Belt-and-suspenders so neither layer is single point of failure
 - [Phase 06.1]: Plan 06.1-02: Edge instrumentation telemetry deferred — HudEdgeInstrumentation mounted with null props rendering '—ms / —% / —' placeholders + TODO(phase 6.1.x) marker; visual register preserved without requiring jarvis_events aggregation in this plan
+- [Phase 06.1]: Plan 06.1-03: recharts SVG strokes/fills require sRGB hex literals (#22d3ee for --hud-cyan, #0891b2 for --hud-cyan-dim) because var(--*) doesn't resolve inside chart SVG attributes; CSS variables continue to work for wrapping <div> chrome (border, boxShadow) per UI-SPEC §3b OKLCH → sRGB mapping
+- [Phase 06.1]: Plan 06.1-03: /health H1 'System Health' is the only HUD-coded H1 in the app per UI-SPEC §4b register-swap (font-mono italic font-medium text-2xl); /insights and /settings/memory keep serif 36px 600. The register-swap encodes 'this surface speaks AS the machine' vs 'this surface speaks ABOUT the machine'
+- [Phase 06.1]: Plan 06.1-03: /health value column renders 'reachable'/'unreachable'/'per-user OAuth' instead of fictional latency numbers — UI-SPEC §14 preserves /api/health route shape (ok|down only, no latencyMs); a future plan can extend route + page together for live latency display
+- [Phase 06.1]: Plan 06.1-03: MemoryTable.tsx rebuilt (scope clarification beyond plan files list) — UI-SPEC §5d FactCard contract (1px --edge left edge + ambient cyan glow + mono 'FACT · type' + serif body) describes per-row chrome that lives inside MemoryTable, not page.tsx; updating only the page would have left rows in the Phase 5.1 flat-list register
+- [Phase 06.1]: Plan 06.1-03: HudCornerCrops static (breathing={false}) at panel level for InsightsCharts chart panels — only viewport-level crops carry the 6s opacity-breathe per UI-SPEC §6e; nested panel-level crops are static so motion doesn't compound
+- [Phase 06.1]: Plan 06.1-03: agent-mode-scope page-wrapper pattern proven on three non-Console surfaces — outermost <div className='agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12'> + fixed HudCornerCrops at z-0 + relative main content at z-10; reusable for any future surface needing cyan focus-ring scope
 
 ### Pending Todos
 
@@ -200,6 +207,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T17:54:28.086Z
-Stopped at: Completed 06.1-02-PLAN.md — JARVIS Console motion choreography rebuild (7-state machine + receipt materialize + diplomatic popovers)
+Last session: 2026-05-19T18:09:05.459Z
+Stopped at: Completed 06.1-03-PLAN.md — /insights + /health + /settings/memory rebuilt per UI-SPEC §5b–§5d
 Resume file: None
