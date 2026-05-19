@@ -285,7 +285,10 @@ import { EB_Garamond, JetBrains_Mono } from 'next/font/google'
 
 const ebGaramond = EB_Garamond({
   subsets: ['latin'],
-  weight: ['400', '600', '700', '800'],
+  // Phase 6 design constraint: USE ONLY 400 and 600. Weights 700/800 are NOT
+  // loaded — keeps the bundle lean and enforces the 2-weight rule from §4b.
+  // If a heavier weight is needed later, revisit §4b first; do not just add it.
+  weight: ['400', '600'],
   style: ['normal', 'italic'],
   variable: '--font-eb-garamond',
   display: 'swap',
