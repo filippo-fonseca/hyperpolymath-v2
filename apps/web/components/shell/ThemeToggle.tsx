@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
-import { Moon, Sun, Monitor } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 /**
  * Phase 6.1 Plan 06.1-01: theme toggle (SET-03, AES-06).
@@ -24,22 +24,17 @@ import { cn } from '@/lib/utils';
  * the at-rest border (transparent) to match post-mount visual.
  */
 interface Props {
-  variant?: 'header' | 'settings';
+  variant?: "header" | "settings";
 }
 
-export function ThemeToggle({ variant = 'header' }: Props) {
+export function ThemeToggle({ variant = "header" }: Props) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    if (variant === 'header') {
-      return (
-        <div
-          className="h-9 w-9 rounded-md border border-transparent"
-          aria-hidden="true"
-        />
-      );
+    if (variant === "header") {
+      return <div className="h-9 w-9 rounded-md border border-transparent" aria-hidden="true" />;
     }
     return (
       <div
@@ -49,9 +44,9 @@ export function ThemeToggle({ variant = 'header' }: Props) {
     );
   }
 
-  if (variant === 'header') {
-    const isDark = resolvedTheme === 'dark';
-    const nextTheme = isDark ? 'light' : 'dark';
+  if (variant === "header") {
+    const isDark = resolvedTheme === "dark";
+    const nextTheme = isDark ? "light" : "dark";
     return (
       <button
         type="button"
@@ -59,20 +54,16 @@ export function ThemeToggle({ variant = 'header' }: Props) {
         aria-label={`Switch to ${nextTheme} mode`}
         className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent hover:border-[var(--edge)] transition-colors duration-150 ease-out cursor-pointer-always"
       >
-        {isDark ? (
-          <Sun size={16} strokeWidth={1.5} />
-        ) : (
-          <Moon size={16} strokeWidth={1.5} />
-        )}
+        {isDark ? <Sun size={16} strokeWidth={1.5} /> : <Moon size={16} strokeWidth={1.5} />}
       </button>
     );
   }
 
   // Settings variant — segmented control with 3 options
-  const options: Array<{ value: 'light' | 'dark' | 'system'; label: string; Icon: typeof Sun }> = [
-    { value: 'light', label: 'Light', Icon: Sun },
-    { value: 'dark', label: 'Dark', Icon: Moon },
-    { value: 'system', label: 'System', Icon: Monitor },
+  const options: Array<{ value: "light" | "dark" | "system"; label: string; Icon: typeof Sun }> = [
+    { value: "light", label: "Light", Icon: Sun },
+    { value: "dark", label: "Dark", Icon: Moon },
+    { value: "system", label: "System", Icon: Monitor },
   ];
   return (
     <div
@@ -86,15 +77,16 @@ export function ThemeToggle({ variant = 'header' }: Props) {
           <button
             key={value}
             type="button"
+            // biome-ignore lint/a11y/useSemanticElements: segmented control pattern — button + role=radio is the canonical Radix/shadcn approach for visually styled radio groups (input type=radio would force native browser chrome).
             role="radio"
             aria-checked={active}
             onClick={() => setTheme(value)}
             aria-label={`Use ${label} theme`}
             className={cn(
-              'h-8 px-3 inline-flex items-center gap-2 rounded text-xs font-mono transition-all duration-150 ease-out cursor-pointer-always',
+              "h-8 px-3 inline-flex items-center gap-2 rounded text-xs font-mono transition-all duration-150 ease-out cursor-pointer-always",
               active
-                ? 'bg-[var(--surface-raised)] text-[var(--ink)] shadow-[inset_0_0_0_1px_var(--edge)] font-semibold'
-                : 'text-[var(--ink-muted)] hover:text-[var(--ink)]',
+                ? "bg-[var(--surface-raised)] text-[var(--ink)] shadow-[inset_0_0_0_1px_var(--edge)] font-semibold"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
             )}
           >
             <Icon size={14} strokeWidth={1.5} />
