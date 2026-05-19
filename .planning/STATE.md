@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: complete
-stopped_at: Phase 05.1 complete — verification + manual UAT passed; advancing to Phase 6 (Polish)
-last_updated: "2026-05-18T20:50:00.000Z"
-last_activity: 2026-05-18
+status: verifying
+stopped_at: Phase 6 context gathered (06-CONTEXT.md)
+last_updated: "2026-05-19T00:03:04.474Z"
+last_activity: 2026-05-18 - Closed Phase 05.1; quick task 260518-mhu shipped ($project pill + undo tombstone)
 progress:
-  total_phases: 11
-  completed_phases: 7
+  total_phases: 12
+  completed_phases: 6
   total_plans: 23
   completed_plans: 23
   percent: 100
@@ -160,6 +160,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-18T01:57:20.928Z
-Stopped at: Completed 05.1-04-PLAN.md (Clarification + Implicit-Intent Corpus — JARVIS-19/22)
-Resume file: None
+Last session: 2026-05-19T00:03:04.462Z
+Stopped at: Phase 6 context gathered (06-CONTEXT.md)
+Resume file: .planning/phases/06-polish/06-CONTEXT.md
