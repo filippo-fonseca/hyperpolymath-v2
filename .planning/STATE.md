@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6.1 planned — 6 plans across 4 waves; checker VERIFIED after revision 1
-last_updated: "2026-05-19T16:37:28.261Z"
-last_activity: 2026-05-19 -- Phase 06.1 execution started
+stopped_at: Completed 06.1-01-PLAN.md — token foundation, motion library, ThemeToggle migration, shared HUD primitives
+last_updated: "2026-05-19T16:52:18.071Z"
+last_activity: 2026-05-19
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 34
-  completed_plans: 28
+  completed_plans: 29
   percent: 100
 ---
 
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 1 of 6
+Plan: 2 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
-Status: Executing Phase 06.1
-Last activity: 2026-05-19 -- Phase 06.1 execution started
+Status: Ready to execute
+Last activity: 2026-05-19
 
 Progress: [██████████] 100%
 
@@ -73,6 +73,7 @@ Progress: [██████████] 100%
 | Phase 06-polish P03 | 9 | 3 tasks | 10 files |
 | Phase 06-polish P02 | 16 | 3 tasks | 14 files |
 | Phase 06-polish P04 | 5 | 3 tasks | 7 files |
+| Phase 06.1 P01 | 10 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,11 @@ Recent decisions affecting current work:
 - [Phase 06-polish]: Plan 06-04: Day-of-week (Sun..Sat) bucketing for latency + sparkline over absolute dates — stable axis on rolling 7-day window; connectNulls on Latency LineChart so brand-new users with sparse data draw across gaps
 - [Phase 06-polish]: Plan 06-04: recharts ResponsiveContainer always wrapped in fixed-height div (h-[200px] x2 + h-[60px] sparkline) per RESEARCH §6 Pitfall 4 — parent must have deterministic height at first paint or chart collapses to 0; hex #00d4ff as literal in chart series props because recharts SVG can't resolve CSS variables at render time
 - [Phase 06-polish]: Plan 06-04: Server Component aggregation pattern for diagnostic surfaces — page.tsx is Server Component, getInsightsData runs Drizzle SELECT, shaped data passes to 'use client' InsightsCharts; no TanStack Query because data is per-page-load, not realtime
+- [Phase 06.1]: Plan 06.1-01: Retired ALL --shadow-nm-* tokens + --color-accent-jarvis + .agent-glow-passive in one sweep; downstream Phase 6 components that still reference these will visually degrade until Waves 2-4 rebuild them (by design)
+- [Phase 06.1]: Plan 06.1-01: OKLCH chosen for entire base palette + HUD cyan family per Linear LCH precedent (perceptually uniform light/dark variants); --hud-cyan-light oklch(48% 0.13 210) used on warm parchment to clear 4.5:1 contrast (full --hud-cyan would fail)
+- [Phase 06.1]: Plan 06.1-01: HudCornerCrops + HudEdgeInstrumentation shared primitives land in Wave 1 (this plan) — eliminates race between Plan 02 (JARVIS Console) and Plan 03 (/insights+/health+/settings/memory); JARVIS-specific HudStatusPill + HudThinkingRing deliberately deferred to Plan 02
+- [Phase 06.1]: Plan 06.1-01: Motion easing declared as CSS variables (--ease-out-quart, --ease-in-out-circ, --ease-out-back, --ease-in-fast) so .hud-* utility classes consume them by reference; consumers can swap easing without rewriting keyframes
+- [Phase 06.1]: Plan 06.1-01: ThemeToggle settings variant uses <button role='radio'> segmented-control pattern (Radix/shadcn canonical) over <input type='radio'>; biome-ignore comment on useSemanticElements explains the deviation
 
 ### Pending Todos
 
@@ -186,6 +192,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T16:00:55.346Z
-Stopped at: Phase 6.1 planned — 6 plans across 4 waves; checker VERIFIED after revision 1
-Resume file: .planning/phases/06.1-visual-redesign-jarvis-notion/06.1-01-PLAN.md
+Last session: 2026-05-19T16:52:18.067Z
+Stopped at: Completed 06.1-01-PLAN.md — token foundation, motion library, ThemeToggle migration, shared HUD primitives
+Resume file: None

@@ -165,12 +165,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. AES-01..AES-07 (deferred from Phase 6) are re-verified against the new contract — no requirement is silently dropped
   4. The Phase 6 plumbing (tokens infrastructure, error boundaries, undo toasts, empty states, /api/health, /insights, focus singleton, page-transition infrastructure, focus-visible ring system) remains intact; only the *values* and surface treatments change
   5. Brand-voice copy pass (AES-04) completes against the new register on every surface that 06-05 deferred (Sidebar, AppShell, CalendarClient, remaining button labels)
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 **UI hint**: yes
 **Notes**: Research-first phase — `/gsd:ui-phase 6.1` produced the UI-SPEC contract before planning. The `/gsd:research-phase 6.1` step was skipped (UI-SPEC research grounded the contract). Aesthetic memory: see `~/.claude/projects/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/memory/feedback_ui_aesthetic.md`.
 
 Plans:
-- [ ] 06.1-01-PLAN.md — Wave 1: Token foundation rebuild (retire neumorphic + cyan-everywhere; install OKLCH base palette + HUD cyan family + intent inks + focus ring tokens + motion easing + all @keyframes + reduced-motion guards + JetBrains Mono weight 500/italic) (AES-01, AES-02, AES-03, AES-06)
+- [x] 06.1-01-PLAN.md — Wave 1: Token foundation rebuild (retire neumorphic + cyan-everywhere; install OKLCH base palette + HUD cyan family + intent inks + focus ring tokens + motion easing + all @keyframes + reduced-motion guards + JetBrains Mono weight 500/italic) (AES-01, AES-02, AES-03, AES-06)
 - [ ] 06.1-02-PLAN.md — Wave 2: JARVIS Console motion choreography — 7-state interaction machine + receipt materialize choreography + shared HUD primitives (HudCornerCrops, HudStatusPill, HudEdgeInstrumentation, HudThinkingRing) (AES-02, AES-03, AES-06)
 - [ ] 06.1-03-PLAN.md — Wave 2: /insights + /health + /settings/memory rebuild as agent-mode-scope routes with HUD chrome, mono JSON readout, cyan chart strokes (AES-02, AES-03, AES-06)
 - [ ] 06.1-04-PLAN.md — Wave 3: Document surfaces — shadcn primitives (Button/Card/Input) + EmptyState + Tasks + Captures + Projects + Settings with Motion 12 interaction states (AES-02, AES-03, AES-04, AES-06)
