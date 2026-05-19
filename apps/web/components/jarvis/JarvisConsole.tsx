@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   streamJarvis,
@@ -13,6 +13,13 @@ import {
   undoJarvisAction,
   type UndoTarget,
 } from "@/app/actions/jarvis";
+// Phase 6.1 Plan 02 — JARVIS Console chrome (UI-SPEC §5a, §6d, §6e, §9f).
+// HudCornerCrops + HudEdgeInstrumentation come from Plan 01 (shared primitives
+// to break the Wave 2 race). HudStatusPill + HudThinkingRing are this plan's
+// JARVIS-specific primitives.
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
+import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
+import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 
 /**
  * JARVIS Console (D-01) — top-level orchestrator.
@@ -374,12 +381,63 @@ export function JarvisConsole({
     [handleSubmit],
   );
 
+  // Phase 6.1 Plan 02 — derive the HudStatusPill state from scrollback turn
+  // lifecycle. The ScrollbackAssistantTurn.status is "streaming" | "done" | "error";
+  // we split "streaming" into thinking (pre-first-token) vs streaming (textDelta
+  // arriving) using textDelta presence as the threshold.
+  //
+  // The status pill cycles READY → SENDING → THINKING → STREAMING → READY on the
+  // happy path. SENDING is the brief window between submit (streaming=true) and
+  // the assistant turn entering scrollback (which it does immediately, so SENDING
+  // is fleeting — acceptable per UI-SPEC §6b state 4).
+  const status: HudStatusState = useMemo(() => {
+    // Walk from the end — most recent assistant turn governs the pill
+    for (let i = turns.length - 1; i >= 0; i--) {
+      const t = turns[i];
+      if (t.kind !== "assistant") continue;
+      if (t.status === "error") return "error";
+      if (t.status === "streaming") {
+        // No textDelta yet → still waiting for first token (THINKING)
+        // textDelta arriving → STREAMING
+        return t.textDelta.length > 0 ? "streaming" : "thinking";
+      }
+      // status === "done": no longer governs the pill
+      break;
+    }
+    // No active turn — if a submit just fired and the assistant turn hasn't
+    // been pushed yet, `streaming=true` flags the SENDING window.
+    if (streaming) return "sending";
+    return "ready";
+  }, [turns, streaming]);
+
+  // Phase 6.1 Plan 02 — TODO(phase 6.1.x): wire real telemetry from
+  // jarvis_events when /insights aggregation lands. For now, null values
+  // render as "—ms / —% / —" placeholders so the rail doesn't feel broken.
+  const latencyMs: number | null = null;
+  const cacheHitPercent: number | null = null;
+  const lastTurnRelative: string | null = null;
+
   return (
     // Phase 6 Plan 06-05 (UI-SPEC §11a): .agent-mode-scope activates the
     // JARVIS-blue focus-visible ring on all interactive descendants. The
     // globals.css default rule paints amber rings on Journal-mode routes;
     // this opt-in wrapper swaps the ring to JARVIS-blue inside the Console.
-    <div className="agent-mode-scope flex h-[calc(100vh-3rem)] flex-col">
+    //
+    // Phase 6.1 Plan 02 (UI-SPEC §5a, §6d, §6e):
+    //   - HudCornerCrops: 4 viewport-corner L-bracket crops, 12px legs, breathing 6s loop
+    //   - HudStatusPill: top-right state indicator (READY/SENDING/THINKING/STREAMING/ERROR)
+    //   - HudEdgeInstrumentation: bottom-edge LATENCY/CACHE/LAST telemetry rail
+    // `relative` is required so the absolutely-positioned chrome anchors to the
+    // console viewport, not the page.
+    <div className="agent-mode-scope relative flex h-[calc(100vh-3rem)] flex-col">
+      {/* Phase 6.1 Plan 02: 4 corner L-brackets at viewport corners (12px legs,
+          breathing 6s). aria-hidden + pointer-events-none — pure chrome. */}
+      <HudCornerCrops size={12} />
+
+      {/* Phase 6.1 Plan 02: top-right status pill. Positioned absolute so it
+          doesn't displace the scrollback layout. */}
+      <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
+
       <JarvisScrollback
         turns={turns}
         onUndoAction={handleUndoAction}
@@ -394,6 +452,15 @@ export function JarvisConsole({
           onSubmit={handleSubmit}
           disabled={streaming}
         />
+        {/* Phase 6.1 Plan 02: bottom-edge instrumentation rail. hidden md:flex
+            per UI-SPEC §10c — drops below 768px to preserve mobile vertical space. */}
+        <div className="flex justify-center mt-2">
+          <HudEdgeInstrumentation
+            latencyMs={latencyMs}
+            cacheHitPercent={cacheHitPercent}
+            lastTurnRelative={lastTurnRelative}
+          />
+        </div>
       </div>
     </div>
   );
