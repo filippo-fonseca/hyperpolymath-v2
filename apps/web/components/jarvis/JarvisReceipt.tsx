@@ -17,6 +17,7 @@ import { useUndoCountdown } from "./use-undo-countdown";
 import { cn } from "@/lib/utils";
 import { forgetFactAction } from "@/app/actions/jarvis-facts";
 import { Button } from "@/components/ui/button";
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
 /**
  * Intent-badged action receipt (D-09 / JARVIS-09).
@@ -29,8 +30,9 @@ import { Button } from "@/components/ui/button";
  *     receipt visually when prose text appears above it (thinner border, smaller
  *     padding, reduced font) so prose reads as primary, receipt as supplementary.
  *   - Added `status === "queued"` early-return: renders a placeholder receipt
- *     with jarvis-queued-shimmer while the executor is in-flight (D-P3). The Console
- *     upgrades the placeholder to `status: "done"` when `event: action` lands.
+ *     with an outline-trace + shimmer while the executor is in-flight (D-P3).
+ *     The Console upgrades the placeholder to `status: "done"` when
+ *     `event: action` lands.
  *   - `result` is now optional — queued placeholders have no result yet.
  *
  * Phase 5.1 Plan 03 (D-M3 / JARVIS-18):
@@ -50,26 +52,39 @@ import { Button } from "@/components/ui/button";
  * conditional. Once an action arrives, the receipt is visible.
  */
 
+/**
+ * Phase 6.1 Plan 02 (UI-SPEC §9b + §9i): intent communicated via the
+ * leading 6px dot color (not via card border or background). The card
+ * itself is a clean 1px --edge-hud rectangle with --hud-cyan-glow-soft
+ * ambient — intent is signal via the dot only.
+ *
+ * Color mapping per UI-SPEC §3c intent ink palette:
+ *   create_task        → --ink-amber  (action items, deadlines)
+ *   create_capture     → --ink-sage   (preservation, growth)
+ *   create_event       → --ink-coral  (time-bound, sharp edge)
+ *   remember_fact      → --hud-cyan-light (agent-side, low chroma)
+ *   ask_clarification  → --hud-cyan-light (agent-side, same family)
+ */
 const INTENT_META = {
   create_task: {
     label: "TASK",
     icon: ListTodo,
-    classes: "border-blue-500/50 bg-blue-500/5",
+    intentDot: "var(--ink-amber)",
   },
   create_capture: {
     label: "CAPTURE",
     icon: FileText,
-    classes: "border-amber-500/50 bg-amber-500/5",
+    intentDot: "var(--ink-sage)",
   },
   create_event: {
     label: "EVENT",
     icon: CalendarDays,
-    classes: "border-emerald-500/50 bg-emerald-500/5",
+    intentDot: "var(--ink-coral)",
   },
   remember_fact: {
     label: "MEMORY",
     icon: Brain,
-    classes: "border-violet-500/50 bg-violet-500/5",
+    intentDot: "var(--hud-cyan-light)",
   },
   // Phase 5.1 D-A1 / JARVIS-19: ask_clarification gets a receipt badge too
   // (the event: action still fires for uniform dispatch loop; the dedicated
@@ -77,7 +92,7 @@ const INTENT_META = {
   ask_clarification: {
     label: "QUESTION",
     icon: HelpCircle,
-    classes: "border-violet-500/50 bg-violet-500/5",
+    intentDot: "var(--hud-cyan-light)",
   },
 } as const;
 
@@ -109,23 +124,62 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // Phase 5.1 D-P3: queued placeholder — renders before executor resolves.
   // The Console will upgrade this to status: "done" when event: action lands.
   //
-  // Phase 6 Plan 06-03 (D-08, UI-SPEC §7a): replaced the generic Tailwind
-  // pulse with jarvis-queued-shimmer — a JARVIS-blue scan-line sweep that
-  // signals "agent is working" instead of "loading skeleton." Reduced-motion
-  // override in globals.css disables the sweep while keeping the placeholder
-  // visible. Padding snapped to px-2 py-1 per UI-SPEC §5a (compact-on-grid).
+  // Phase 6.1 Plan 02 (UI-SPEC §6c queued state): outline-trace SVG draws the
+  // border clockwise over 360ms via .hud-receipt-outline-trace (stroke-dasharray
+  // reveal), then the .hud-receipt-shimmer class sweeps a --hud-cyan-glow
+  // gradient through the card interior at 1800ms/loop until the action arrives.
+  // Phase 6's intent-color border + Tailwind-pulse treatment fully retired.
   if (action.status === "queued" && !action.result) {
     return (
       <div
         data-status="queued"
-        className={cn(
-          "rounded border-l-2 px-2 py-1 my-1 opacity-60 jarvis-queued-shimmer",
-          meta.classes,
-        )}
+        className="relative rounded-sm px-2 py-1 my-1 opacity-80 overflow-hidden"
+        style={{
+          backgroundColor: "var(--surface)",
+          // Static placeholder border so the outline-trace SVG draws over it
+          border: "1px solid var(--edge-hud)",
+        }}
       >
-        <span className="font-mono text-xs uppercase tracking-wide flex items-center gap-1.5">
+        {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
+        {!shouldReduce ? (
+          <svg
+            className="absolute inset-0 pointer-events-none hud-receipt-outline-trace"
+            aria-hidden="true"
+            preserveAspectRatio="none"
+            style={{
+              // Approximation of card perimeter; the stroke-dashoffset
+              // keyframe interpolates against this length
+              ["--receipt-outline-len" as string]: "320",
+            }}
+          >
+            <rect
+              x="0.5"
+              y="0.5"
+              width="calc(100% - 1px)"
+              height="calc(100% - 1px)"
+              fill="none"
+              stroke="var(--hud-cyan-bright)"
+              strokeWidth="1"
+              rx="2"
+              strokeDasharray="320"
+            />
+          </svg>
+        ) : null}
+        {/* Shimmer sweeps through card body until action arrives */}
+        {!shouldReduce ? (
+          <div
+            className="absolute inset-0 pointer-events-none hud-receipt-shimmer"
+            aria-hidden="true"
+          />
+        ) : null}
+        <span className="relative font-mono text-xs uppercase tracking-[0.08em] flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: meta.intentDot }}
+            aria-hidden="true"
+          />
           <Icon className="h-3.5 w-3.5" />
-          {meta.label} <span className="text-muted-foreground">queued…</span>
+          {meta.label} <span className="text-[var(--ink-muted)]">queued…</span>
         </span>
       </div>
     );
@@ -212,62 +266,110 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     });
   }
 
-  // Phase 5.1 D-R1: compact variant uses thinner border + reduced padding.
-  // Phase 6 Plan 06-03 (UI-SPEC §5a): padding snapped to grid — compact uses
-  // px-2 py-1 (8px/4px) and default uses px-4 py-2 (16px/8px) so both values
-  // align with the spacing scale and preserve the 2× horizontal ratio.
+  // Phase 6.1 Plan 02 (UI-SPEC §5a + §9b): padding stays on the same grid as
+  // Phase 6 — compact px-2 py-1, default px-4 py-2. Border replaced with
+  // 1px --edge-hud at rest. Intent now communicated via the leading dot
+  // (intentDot color in INTENT_META), not the card border.
+  //
+  // Error path (UI-SPEC §6b state 8): card gets a 3px --ink-coral left edge
+  // overriding the standard border, AND the .hud-error-glitch class fires
+  // the 80ms translateX(2px) jitter once on mount.
+  //
   // Undone tombstone: drop opacity + grayscale so the user sees what they
   // reversed (the row stays as a record, doesn't disappear from scrollback).
+  const isError = !ok;
   const containerCls = cn(
-    "rounded my-1",
-    variant === "compact"
-      ? "border-l px-2 py-1 opacity-95"
-      : "border-l-2 px-4 py-2",
-    meta.classes,
+    "relative rounded-sm my-1 overflow-hidden",
+    variant === "compact" ? "px-2 py-1 opacity-95" : "px-4 py-2",
+    isError && !shouldReduce && "hud-error-glitch",
     undone && "opacity-50 grayscale",
   );
 
+  const containerStyle: React.CSSProperties = {
+    backgroundColor: "var(--surface)",
+    // 1px --edge-hud base border; error overrides the LEFT edge to 3px coral
+    border: "1px solid var(--edge-hud)",
+    ...(isError
+      ? {
+          borderLeftWidth: "3px",
+          borderLeftColor: "var(--ink-coral)",
+        }
+      : {
+          // Phase 6.1 Plan 02 (UI-SPEC §9b): ambient --hud-cyan-glow-soft
+          // halo on resolved receipts — gives the "JARVIS bringing the
+          // element online" feel via a soft surrounding glow (UI-SPEC §13
+          // explicitly rejects filter-channel theatrics on this surface).
+          boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+        }),
+  };
+
   // Body text size: compact uses text-xs (de-emphasized); default uses text-sm
   const bodyTextCls = variant === "compact" ? "text-xs" : "text-sm";
-  // Tombstone styling on title text when undone.
+  // Phase 6.1 Plan 02 (UI-SPEC §4): receipt title in serif body register
+  // (the receipt is content, not chrome). Tombstone styling on undo.
   const titleCls = cn("font-serif", undone && "line-through text-muted-foreground");
 
   return (
     <motion.div
-      // Phase 6 Plan 06-03 (D-08, UI-SPEC §7d): holographic fade-in — a brief
-      // blue-shifted hue-rotate that resolves to the natural intent color
-      // within 300ms. "JARVIS bringing the element online" metaphor. Reduced
-      // motion → opacity-only, no filter, no y-offset, no duration.
-      initial={{
-        opacity: 0,
-        y: shouldReduce ? 0 : 4,
-        filter: shouldReduce ? "none" : "brightness(1.4) saturate(0.3) hue-rotate(160deg)",
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        filter: "brightness(1) saturate(1) hue-rotate(0deg)",
-      }}
+      // Phase 6.1 Plan 02 (UI-SPEC §6c landing state): content fade-in
+      // opacity 0 → 1 + y: 4 → 0 over 220ms. Phase 6's holographic filter
+      // channel (brightness + saturate + hue shift) is REJECTED per
+      // UI-SPEC §13 anti-pattern catalog.
+      initial={shouldReduce ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: shouldReduce ? 0 : 0.3,
-        ease: "easeOut",
-        filter: { duration: shouldReduce ? 0 : 0.25 },
+        duration: shouldReduce ? 0 : 0.22,
+        ease: [0.25, 1, 0.5, 1],
       }}
       data-undone={undone ? "true" : undefined}
       className={containerCls}
+      style={containerStyle}
     >
-      <div className="flex items-center justify-between gap-3 font-mono text-xs uppercase tracking-wide">
+      {/* Phase 6.1 Plan 02 (UI-SPEC §6c landing): corner crops on the receipt
+          card (10px legs, static — not viewport-level breathing) frame the
+          receipt as an "artifact materialized by JARVIS". */}
+      <HudCornerCrops
+        size={10}
+        className="absolute inset-0 pointer-events-none"
+        breathing={false}
+      />
+
+      <div className="relative flex items-center justify-between gap-3 font-mono text-xs uppercase tracking-[0.08em]">
         <span className="flex items-center gap-1.5">
+          {/* Phase 6.1 Plan 02 (UI-SPEC §6c + §9i): intent dot — 6px filled
+              circle, scale 1 → 1.4 → 1 over 280ms via Motion 12 on mount.
+              Color encodes the intent (amber/sage/coral/cyan-light). */}
+          <motion.span
+            initial={shouldReduce ? false : { scale: 1 }}
+            animate={{ scale: [1, 1.4, 1] }}
+            transition={{
+              duration: shouldReduce ? 0 : 0.28,
+              ease: [0.25, 1, 0.5, 1],
+            }}
+            className="inline-block rounded-full"
+            style={{
+              width: "6px",
+              height: "6px",
+              backgroundColor: meta.intentDot,
+            }}
+            aria-hidden="true"
+          />
           <Icon className="h-3.5 w-3.5" />
           <span>{meta.label}</span>
           {ok ? (
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+            <CheckCircle2
+              className="h-3.5 w-3.5"
+              style={{ color: "var(--ink-sage)" }}
+            />
           ) : (
-            <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+            <AlertCircle
+              className="h-3.5 w-3.5"
+              style={{ color: "var(--ink-coral)" }}
+            />
           )}
         </span>
         {undone ? (
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
             Undone
           </span>
         ) : undoEligible ? (
@@ -276,11 +378,11 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
       </div>
 
       {ok && receipt ? (
-        <div className={cn("mt-1.5 space-y-0.5", bodyTextCls)}>
+        <div className={cn("relative mt-1.5 space-y-0.5", bodyTextCls)}>
           {action.name === "create_task" ? (
             <>
               <div className={titleCls}>{String(receipt.title ?? "")}</div>
-              <div className="font-mono text-xs text-muted-foreground">
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
                 {String(receipt.priority ?? "P3")}
                 {receipt.due
                   ? ` · due ${fmtDate(receipt.due, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}`
@@ -296,7 +398,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             <>
               <div className={titleCls}>{String(receipt.content ?? "")}</div>
               {Array.isArray(receipt.hashtags) && receipt.hashtags.length ? (
-                <div className="font-mono text-xs text-muted-foreground">
+                <div className="font-mono text-xs text-[var(--ink-muted)]">
                   #{(receipt.hashtags as string[]).join(" #")}
                 </div>
               ) : null}
@@ -305,7 +407,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {action.name === "create_event" ? (
             <>
               <div className={titleCls}>{String(receipt.title ?? "")}</div>
-              <div className="font-mono text-xs text-muted-foreground">
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
                 {fmtDate(receipt.start, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
                 {" → "}
                 {fmtDate(receipt.end, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
@@ -317,14 +419,17 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               <div className={titleCls}>
                 <strong>{String(receipt.key ?? "")}</strong>: {String(receipt.value ?? "")}
               </div>
-              <div className="font-mono text-xs text-muted-foreground">
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
                 {String(receipt.type ?? "")} · remembered
               </div>
             </>
           ) : null}
         </div>
       ) : (
-        <div className="mt-1.5 font-mono text-xs text-red-600">
+        <div
+          className="relative mt-1.5 font-mono text-xs"
+          style={{ color: "var(--ink-coral)" }}
+        >
           {errorMsg}
         </div>
       )}
@@ -418,18 +523,36 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
       data-source="jarvis_suggested"
-      className="rounded border-l-2 border-violet-500/50 bg-violet-500/5 px-4 py-2 my-1"
+      className="relative rounded-sm px-4 py-2 my-1 overflow-hidden"
+      style={{
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--edge-hud)",
+        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+      }}
     >
-      <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-violet-700 dark:text-violet-300">
+      <HudCornerCrops
+        size={10}
+        className="absolute inset-0 pointer-events-none"
+        breathing={false}
+      />
+      <div
+        className="relative flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em]"
+        style={{ color: "var(--hud-cyan-light)" }}
+      >
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full"
+          style={{ backgroundColor: "var(--hud-cyan-light)" }}
+          aria-hidden="true"
+        />
         <Sparkles className="h-3.5 w-3.5" />
         SUGGESTED FACT — {receipt.type}
       </div>
-      <div className="font-serif text-sm mt-1">
+      <div className="relative font-serif text-sm mt-1">
         <strong>{receipt.key}</strong>: {receipt.value}
       </div>
-      <div className="flex items-center gap-2 mt-2">
+      <div className="relative flex items-center gap-2 mt-2">
         <Button
           size="sm"
           variant="ghost"
@@ -448,7 +571,7 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
         >
           Discard
         </Button>
-        <span className="text-xs text-muted-foreground font-mono ml-auto">
+        <span className="text-xs text-[var(--ink-muted)] font-mono ml-auto">
           {kept ? "kept" : seconds > 0 ? `auto-keep in ${seconds}s` : "kept"}
         </span>
       </div>

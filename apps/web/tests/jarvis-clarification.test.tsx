@@ -113,11 +113,15 @@ describe("JarvisClarification (JARVIS-19 / D-A2)", () => {
     expect(screen.queryByPlaceholderText(/type a reply/i)).toBeNull();
   });
 
-  it("renders QUESTION header badge", () => {
+  it("renders 'clarify' chrome label (UI-SPEC §5a)", () => {
+    // Phase 6.1 Plan 02: the Phase 5.1 "QUESTION" label was retired in favor
+    // of a lowercase mono 'clarify' chrome label per UI-SPEC §5a +
+    // §12c — clarification surface bridges agent (HUD chrome) and doc
+    // (serif body) registers.
     render(
       <JarvisClarification clarification={baseClarification} onReply={vi.fn()} />,
     );
-    expect(screen.getByText("QUESTION")).toBeTruthy();
+    expect(screen.getByText("clarify")).toBeTruthy();
   });
 
   it("renders correctly with no chip options (free-text only mode)", () => {

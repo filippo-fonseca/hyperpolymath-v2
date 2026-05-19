@@ -14,13 +14,18 @@
  *   Console prepends [CLARIFICATION REPLY] and submits normally.
  * - If user ignores and types a new message, the Console marks answered=true
  *   on all prior clarifications (historical record, no further interaction).
+ *
+ * Phase 6.1 Plan 02 (UI-SPEC §5a): clarification bridges agent (HUD chrome —
+ * corner crops, hud-cyan-glow-soft ambient halo, mono 'clarify' label) and
+ * document (serif body for the question text, amber-tinted chip options
+ * matching doc-side intent semantics).
  */
 
 import { useState } from "react";
-import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import type { ScrollbackClarification } from "./jarvis-types";
 
 interface Props {
@@ -43,39 +48,61 @@ export function JarvisClarification({ clarification, onReply }: Props) {
   return (
     <div
       className={cn(
-        "rounded border-l-2 border-l-violet-500/50 bg-violet-500/5 px-3 py-2 my-1",
+        "relative rounded-sm px-4 py-3 my-1 overflow-hidden",
         disabled && "opacity-60",
       )}
+      style={{
+        backgroundColor: "var(--surface)",
+        border: "1px solid var(--edge-hud)",
+        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+      }}
     >
-      {/* Header badge */}
-      <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-violet-700 dark:text-violet-300">
-        <HelpCircle className="h-3.5 w-3.5" />
-        QUESTION
+      {/* Phase 6.1 Plan 02 (UI-SPEC §5a): static 10px corner L-brackets frame
+          the clarification surface as a JARVIS-side artifact. */}
+      <HudCornerCrops
+        size={10}
+        className="absolute inset-0 pointer-events-none"
+        breathing={false}
+      />
+
+      {/* Phase 6.1 Plan 02: 'clarify' chrome label in mono 11px uppercase
+          tracking-wide --ink-muted (replaces the lucide HelpCircle +
+          violet QUESTION label from Phase 5.1). */}
+      <div className="relative font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] mb-2">
+        clarify
       </div>
 
-      {/* Question text */}
-      <div className="font-serif text-sm mt-1.5 mb-2">{clarification.question}</div>
+      {/* Question body — serif (content the user reads, not chrome) */}
+      <p
+        className="relative font-serif text-base"
+        style={{ color: "var(--ink)" }}
+      >
+        {clarification.question}
+      </p>
 
-      {/* Preset chip options */}
+      {/* Preset chip options — amber-tinted (doc-side intent register) */}
       {clarification.options.length > 0 && !disabled ? (
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="relative flex flex-wrap gap-2 mt-3">
           {clarification.options.map((opt) => (
-            <Button
+            <button
               key={opt}
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
+              type="button"
               onClick={() => submit(opt)}
+              className="px-2 py-0.5 rounded-sm font-mono text-xs cursor-pointer-always transition-colors duration-100 ease-out hover:opacity-80"
+              style={{
+                backgroundColor: "rgb(217 119 6 / 0.16)",
+                color: "var(--ink)",
+              }}
             >
               {opt}
-            </Button>
+            </button>
           ))}
         </div>
       ) : null}
 
       {/* Free-text reply input or answered indicator */}
       {!disabled ? (
-        <div className="flex gap-2">
+        <div className="relative flex gap-2 mt-3">
           <Input
             value={reply}
             onChange={(e) => setReply(e.target.value)}
@@ -97,7 +124,7 @@ export function JarvisClarification({ clarification, onReply }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="text-xs text-muted-foreground font-mono italic">
+        <div className="relative text-xs font-mono italic text-[var(--ink-muted)] mt-2">
           answered
         </div>
       )}

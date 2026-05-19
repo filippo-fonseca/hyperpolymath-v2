@@ -5,18 +5,35 @@ import { useReducedMotion } from "motion/react";
 import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
-import { ThinkingWord } from "./ThinkingWord";
+import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 
 /**
  * Terminal-style single-column scrollback (D-05).
  *
- *   - User echoes: mono + `>` prefix, journal-paper tint
- *   - Assistant preamble: EB Garamond italic, muted
- *   - Actions: intent-badged receipt blocks
- *   - Thinking-word indicator: only while streaming + no actions yet
+ * Phase 6.1 Plan 02 (UI-SPEC §6b states 5-8): renders states 5-8 of the
+ * JARVIS Console interaction machine:
  *
- * Auto-scroll on new turn (Claude's discretion to disable on user scroll-up
- * in a future polish pass — out of scope for Plan 05-03).
+ *   State 5 (thinking): assistant turn streaming + no textDelta yet →
+ *     mount HudThinkingRing + "THINKING" caption. Replaced by streaming
+ *     prose once the first textDelta arrives.
+ *
+ *   State 6 (streaming): textDelta arriving + status === "streaming" →
+ *     JARVIS prose renders in JetBrains Mono 500 italic 16px (UI-SPEC §4a).
+ *     A 2px --hud-cyan-bright caret with --hud-cyan-glow halo trails the
+ *     last rendered character via .hud-streaming-caret class. A 32px wide
+ *     --hud-cyan-glow-soft light-trail follows behind the caret as an
+ *     absolute sibling span.
+ *
+ *   State 7 (done): status transitions streaming → done → caret fades and
+ *     ScanRevealOverlay mounts a top-to-bottom .hud-scan-line wipe over
+ *     420ms with --hud-cyan-bright 70%-stop gradient.
+ *
+ *   State 8 (error): status === "error" → assistant turn region gets
+ *     .hud-error-glitch (80ms translateX(2px) jitter). Error receipts
+ *     get a 3px --ink-coral left edge (handled in JarvisReceipt).
+ *
+ * Reduced motion: caret renders static (no .hud-streaming-caret class),
+ * light-trail not mounted, scan reveal not mounted, glitch class not added.
  *
  * Plan 05-04: forwards an `onUndoAction(turnId, action)` callback down to
  * every receipt so JarvisConsole owns the optimistic scrollback update + the
@@ -41,6 +58,7 @@ interface Props {
 
 export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const shouldReduce = useReducedMotion();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -64,36 +82,91 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
               <span className="font-mono text-foreground/80">{turn.text}</span>
             </div>
           ) : (
-            // Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): relative + overflow-hidden
-            // anchor the absolutely-positioned scan-reveal line during the
-            // streaming→done transition. ml-3 preserves prior indentation.
-            <div className="ml-3 relative overflow-hidden">
-              {/* Phase 5.1 (D-R1) — render textDelta on every assistant turn that has it,
-                  including action turns. The Phase 5 suppression gate (actions.length === 0)
-                  is removed; prose-first is the new contract per JARVIS-20. Meta-question
-                  turns (/ask) still produce only prose with no actions — that path is
-                  unchanged. Action turns now lead with prose ABOVE receipt cards.
+            // Phase 6.1 Plan 02 (UI-SPEC §6b state 8): error glitch class on
+            // the assistant turn region — 80ms translateX(2px) jitter via the
+            // .hud-error-glitch keyframe. relative + overflow-hidden anchor
+            // the absolutely-positioned scan-reveal line during the
+            // streaming→done transition.
+            <div
+              className={`ml-3 relative overflow-hidden ${
+                turn.status === "error" && !shouldReduce ? "hud-error-glitch" : ""
+              }`}
+            >
+              {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring while
+                  status='streaming' and no textDelta has arrived. Replaces the
+                  Phase 5 <ThinkingWord /> indicator. Once the first token
+                  lands, the ring unmounts and the streaming prose renders. */}
+              {turn.status === "streaming" &&
+              !turn.textDelta &&
+              turn.actions.length === 0 ? (
+                <div className="flex items-center gap-3 mb-2">
+                  <HudThinkingRing size={32} />
+                  <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-[0.08em]">
+                    THINKING
+                  </span>
+                </div>
+              ) : null}
 
-                  Phase 6 Plan 06-03 (D-08, UI-SPEC §7b): while streaming, a JARVIS-blue
-                  caret pulses inline at the end of the prose. aria-hidden — purely
-                  visual cue; screen readers track the prose content itself. */}
+              {/* Phase 6.1 Plan 02 (UI-SPEC §4a + §6b state 6): JARVIS prose
+                  in JetBrains Mono 500 italic 16px — the agent register.
+                  Phase 6 used font-serif text-base; Phase 6.1 swaps to
+                  font-mono italic font-medium per spec.
+
+                  Streaming caret: 2px --hud-cyan-bright bar trails the last
+                  rendered character; .hud-streaming-caret class drives the
+                  1.1s opacity + glow pulse (Plan 01 keyframe). A 32px wide
+                  --hud-cyan-glow-soft light-trail mounts as an absolute
+                  sibling span when not under reduced-motion. */}
               {turn.textDelta ? (
-                <div className="font-serif text-base text-foreground/90 mb-2 leading-relaxed">
+                <div
+                  className="font-mono text-base italic font-medium mb-2 leading-relaxed"
+                  style={{ color: "var(--ink)" }}
+                >
                   {turn.textDelta}
                   {turn.status === "streaming" ? (
-                    <span className="jarvis-streaming-caret" aria-hidden="true" />
+                    <span className="relative inline-block ml-0.5">
+                      {/* Light-trail: 32px gradient behind caret (Linear
+                          physical-light precedent). Absolutely positioned
+                          so it doesn't shift the text baseline. */}
+                      {!shouldReduce ? (
+                        <span
+                          className="absolute right-2 top-0 h-full pointer-events-none"
+                          style={{
+                            width: "32px",
+                            transform: "translateX(-100%)",
+                            background:
+                              "linear-gradient(90deg, transparent 0%, var(--hud-cyan-glow-soft) 50%, transparent 100%)",
+                          }}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      {/* Caret bar — pulses via .hud-streaming-caret when
+                          motion is allowed; static 2px bar otherwise. */}
+                      <span
+                        className={shouldReduce ? "" : "hud-streaming-caret"}
+                        style={{
+                          display: "inline-block",
+                          width: "2px",
+                          height: "1em",
+                          backgroundColor: "var(--hud-cyan-bright)",
+                          verticalAlign: "middle",
+                          boxShadow: shouldReduce
+                            ? "none"
+                            : "0 0 8px var(--hud-cyan-glow)",
+                        }}
+                        aria-hidden="true"
+                      />
+                    </span>
                   ) : null}
                 </div>
               ) : null}
-              {turn.status === "streaming" &&
-              turn.actions.length === 0 &&
-              !turn.textDelta ? (
-                <ThinkingWord active />
-              ) : null}
-              {/* Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): one-shot scan reveal
-                  on the streaming→done transition. The overlay component owns
-                  its own lifecycle (mount on done, unmount after 400ms). */}
+
+              {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 7): one-shot scan reveal
+                  on the streaming→done transition. Uses .hud-scan-line driven
+                  by the --hud-cyan-bright 70%-stop gradient over 420ms (Phase
+                  6's predecessor class fully retired). */}
               <ScanRevealOverlay status={turn.status} />
+
               {/* Phase 5.1 D-A2 / JARVIS-19: clarification receipt renders
                   AFTER prose text and BEFORE action receipts per plan spec. */}
               {turn.clarification ? (
@@ -119,7 +192,10 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
                 />
               ))}
               {turn.status === "error" ? (
-                <div className="text-xs text-red-600 font-mono">
+                <div
+                  className="text-xs font-mono mt-1"
+                  style={{ color: "var(--ink-coral)" }}
+                >
                   {turn.errorMessage}
                 </div>
               ) : null}
@@ -134,12 +210,12 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
 }
 
 /**
- * Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): one-shot scan-reveal wipe.
+ * Phase 6.1 Plan 02 (UI-SPEC §6b state 7): one-shot scan-reveal wipe.
  *
- * Mounts a JARVIS-blue scan line when the assistant turn transitions from
- * "streaming" to "done", then unmounts 400ms later (matches the CSS
- * animation duration in globals.css). Skipped entirely under
- * prefers-reduced-motion — we don't even render the element.
+ * Mounts a --hud-cyan-bright 70%-stop gradient overlay when the assistant
+ * turn transitions from "streaming" to "done", then unmounts 420ms later
+ * (matches the .hud-scan-line keyframe duration). Skipped entirely under
+ * prefers-reduced-motion — the element is never rendered.
  *
  * The parent container provides position:relative + overflow:hidden so the
  * absolutely-positioned line stays within the turn body.
@@ -151,10 +227,22 @@ function ScanRevealOverlay({ status }: { status: ScrollbackAssistantTurn["status
   useEffect(() => {
     if (status !== "done" || shouldReduce) return;
     setShow(true);
-    const t = window.setTimeout(() => setShow(false), 400);
+    const t = window.setTimeout(() => setShow(false), 420);
     return () => window.clearTimeout(t);
   }, [status, shouldReduce]);
 
   if (!show) return null;
-  return <div className="jarvis-scan-line" aria-hidden="true" />;
+  return (
+    <div className="absolute inset-0 hud-scan-line pointer-events-none" aria-hidden="true">
+      {/* --hud-cyan-bright 70%-stop gradient backdrop per UI-SPEC §6b state 7 */}
+      <div
+        className="absolute inset-x-0 top-0 h-8"
+        style={{
+          background:
+            "linear-gradient(to bottom, var(--hud-cyan-bright) 70%, transparent 100%)",
+          opacity: 0.6,
+        }}
+      />
+    </div>
+  );
 }
