@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
-import { EB_Garamond, Inter } from "next/font/google";
+import { EB_Garamond, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600"],
   style: ["normal", "italic"],
   variable: "--font-eb-garamond",
   display: "swap",
 });
 
-const inter = Inter({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--font-inter",
+  weight: ["400"],
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -24,8 +25,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${ebGaramond.variable} ${inter.variable}`}>
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning className={`${ebGaramond.variable} ${jetbrainsMono.variable}`}>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
