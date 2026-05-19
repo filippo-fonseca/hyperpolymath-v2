@@ -18,7 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Google Calendar** - Full bi-directional gcal CRUD with encrypted token storage, transparent refresh, day/week views, and DST-correct time handling (completed 2026-05-13)
 - [x] **Phase 5: JARVIS** - The agent: pure `jarvis-core` package, deterministic date pre-parser, strict tool-use, prompt caching, streaming console with `$project`/`#hashtag` chips, action receipts, telemetry (completed 2026-05-15)
 - [x] **Phase 5.1: JARVIS Agentic Refactor (INSERTED)** - Prose-first response surface, persistent memory layer (jarvis_facts), ask_clarification tool, per-turn pipeline budget, implicit-intent fidelity test corpus (completed 2026-05-18)
-- [ ] **Phase 6: Polish** - EB Garamond/Louize typography, journal-paper styling, light/dark themes, error boundaries, toasts, empty states, settings page, /insights, accessibility
+- [x] **Phase 6: Polish** - EB Garamond/Louize typography, journal-paper styling, light/dark themes, error boundaries, toasts, empty states, settings page, /insights, accessibility (completed 2026-05-19 — passed_with_deferrals; visual contract rejected, AES-* deferred to 6.1)
+- [ ] **Phase 6.1: Visual Redesign — JARVIS × Notion (INSERTED)** - Research-first rebuild of the visual surface: holographic-AI feel (depth, glow, scan-lines, monospace data, glass) × clean-document discipline (whitespace, strong type hierarchy, restraint). Absorbs AES-01..AES-07 deferred from Phase 6.
 - [ ] **Phase 7: JARVIS Voice + Ambient** - "Hey Jarvis" + clap-clap wake, Groq Whisper STT, ElevenLabs Flash British TTS, discreet mode toggle, mic-active indicator. Text Console remains fallback for public spaces.
 
 ## Phase Details
@@ -151,6 +152,25 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 06-04-PLAN.md — Wave 3: Telemetry — /api/health + /(app)/health page + /insights 3-chart Server Component + recharts (RES-04, RES-06)
 - [ ] 06-05-PLAN.md — Wave 4: A11y + responsive sweep — cursor-pointer audit, focus-visible ring system, agent-mode-scope, ⌘K hint, human-verify checkpoint (AES-04, AES-07)
 **UI hint**: yes
+
+### Phase 06.1: Visual Redesign — JARVIS × Notion (INSERTED)
+
+**Goal:** Rebuild the visual surface to a new directional contract: **"as if the UI for JARVIS from Tony Stark had a baby with Notion."** Holographic-AI surface details (depth, soft glow, scan-lines, monospace data readouts, glass/translucency, thin precise strokes) anchored to clean-document discipline (whitespace, strong type hierarchy, restraint, content-first). Replaces the rejected Phase 6 visual contract (UI-SPEC §3-5: neumorphic surfaces + JARVIS-blue accent).
+**Depends on:** Phase 6 (consumes its design-token plumbing, error/undo/empty/telemetry/focus infrastructure; only changes values + surface treatments)
+**Requirements**: AES-01 (typography values), AES-02 (visual style — superseded target), AES-03 (motion language), AES-04 (brand voice copy — finish pass), AES-06 (theme "feel"), AES-07 (responsive ≥768px verification)
+**Origin**: Inserted 2026-05-19 after Phase 6's 06-05 Task 3 human-verify checkpoint surfaced the user rejection. See `.planning/phases/06-polish/06-VERIFICATION.md` (passed_with_deferrals) for the deferral list and `.planning/phases/06-polish/06-05-SUMMARY.md` for the partial 06-05 outcome.
+**Success Criteria** (what must be TRUE):
+  1. A fresh `06.1-UI-SPEC.md` design contract exists, produced via `/gsd:ui-phase 6.1` with research-grade grounding on the JARVIS × Notion target (reference points, visual vocabulary, depth/glow/typography decisions, motion language, accessibility ceiling)
+  2. The new visual contract passes user review live (the gate that Phase 6 failed); the 22-scenario walkthrough deferred from 06-05 Task 3 runs against the redesigned surface and lands
+  3. AES-01..AES-07 (deferred from Phase 6) are re-verified against the new contract — no requirement is silently dropped
+  4. The Phase 6 plumbing (tokens infrastructure, error boundaries, undo toasts, empty states, /api/health, /insights, focus singleton, page-transition infrastructure, focus-visible ring system) remains intact; only the *values* and surface treatments change
+  5. Brand-voice copy pass (AES-04) completes against the new register on every surface that 06-05 deferred (Sidebar, AppShell, CalendarClient, remaining button labels)
+**Plans:** TBD
+**UI hint**: yes
+**Notes**: Research-first phase — `/gsd:ui-phase 6.1` produces the UI-SPEC contract before `/gsd:plan-phase 6.1`. The `/gsd:research-phase 6.1` step is optional if UI-SPEC research is sufficient. Aesthetic memory: see `~/.claude/projects/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/memory/feedback_ui_aesthetic.md`.
+
+Plans:
+- [ ] TBD (run `/gsd:ui-phase 06.1` first for design contract, then `/gsd:plan-phase 06.1` to break down)
 
 ### Phase 7: JARVIS Voice + Ambient
 **Goal**: Make JARVIS interactable like Tony Stark's JARVIS — voice in via "Hey Jarvis" wake-word or two-clap activation, voice out in a British accent via ElevenLabs Flash WebSocket, single-click discreet mode toggle that mutes TTS and disables the wake-word while leaving the text Console fully functional. The text Console (Phase 5) remains the canonical fallback for public spaces, shared networks, or anytime voice isn't appropriate.
