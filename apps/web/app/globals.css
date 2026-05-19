@@ -414,8 +414,10 @@ select,
   font-family: var(--font-sans);
 }
 .rbc-today {
-  /* Subtle accent wash on the "today" column — journal-paper restraint. */
-  background-color: hsl(38 72% 52% / 0.08);
+  /* Subtle amber wash on the "today" column — UI-SPEC §3f + §5g
+     "amber 8% alpha wash on today column on /calendar". sRGB literal of
+     the --ink-amber OKLCH token at 8% alpha. */
+  background-color: rgb(217 119 6 / 0.08);
 }
 .rbc-time-header,
 .rbc-header,
@@ -505,4 +507,64 @@ select:focus-visible,
    them. Explicit .rbc-event override fills the gap. */
 .rbc-event {
   cursor: pointer;
+}
+
+/* =====================================================================
+   Phase 6.1 Plan 06.1-05 — Sonner toast intent left-edge accents
+   (UI-SPEC §5l + §12c).
+
+   sonner manages enter/exit animations + DOM lifecycle; we only attach
+   the visual chrome via data-attribute selectors. !important is required
+   because sonner injects inline styles at runtime that would otherwise
+   win specificity.
+
+   Per UI-SPEC §5l:
+     - 1px --edge border + 3px LEFT edge in intent color
+       (sage success, coral error, --ink-muted info)
+     - --surface-raised bg (dark) / --canvas (light) — we use
+       --surface-raised across both modes for a consistent landing surface
+     - Serif body text (the toast is reading to the user — content register)
+     - Mono "Undo" action button per UI-SPEC §12c "Undo (mono — toast is
+       diplomatic, chrome register)"
+   ===================================================================== */
+[data-sonner-toast] {
+  border-left-width: 3px !important;
+  border-left-style: solid !important;
+  border-left-color: var(--ink-muted) !important; /* default = info */
+  background: var(--surface-raised) !important;
+  color: var(--ink) !important;
+  border-radius: 4px !important;
+  font-family: var(--font-serif) !important;
+}
+
+[data-sonner-toast][data-type='success'] {
+  border-left-color: var(--ink-sage) !important;
+}
+
+[data-sonner-toast][data-type='error'] {
+  border-left-color: var(--ink-coral) !important;
+}
+
+[data-sonner-toast][data-type='info'] {
+  border-left-color: var(--ink-muted) !important;
+}
+
+/* Sonner "Undo" / action button — mono chrome register per UI-SPEC §12c.
+   Hover deepens the bg one tier (surface) for the felt-quality hover lift
+   without animating size or position. */
+[data-sonner-toast] [data-button] {
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--ink) !important;
+  background: transparent !important;
+  border: 1px solid var(--edge) !important;
+  border-radius: 2px !important;
+  padding: 4px 8px !important;
+  transition: background 150ms ease-out !important;
+}
+
+[data-sonner-toast] [data-button]:hover {
+  background: var(--surface) !important;
 }

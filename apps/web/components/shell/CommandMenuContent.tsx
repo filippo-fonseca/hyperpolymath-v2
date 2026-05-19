@@ -26,6 +26,15 @@ interface Props {
  * mounted in the current session.
  * Phase 5: replaced wholesale with the Kiwi agent UI; CommandMenu.tsx itself
  * never changes.
+ *
+ * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §12e + §12f):
+ *
+ * Cmd+K modal sits on diplomatic-tier chrome. Composer wrapper gets the
+ * doc focus-amber treatment (1px transparent border → 1px --ink-amber on
+ * focus-within, 150ms transition) per UI-SPEC §9d Input register. Calendar
+ * section uses mono chrome (section label + button label) per UI-SPEC §5f.
+ * "New event" copy + /calendar?create=now deep-link mechanism preserved
+ * per UI-SPEC §14 carry-forward.
  */
 export function CommandMenuContent({
   hashtags,
@@ -45,24 +54,30 @@ export function CommandMenuContent({
 
   return (
     <div className="flex flex-col gap-4">
-      <CaptureComposer
-        hashtags={hashtags}
-        projects={projects}
-        onSubmitSuccess={onSubmitSuccess}
-        autoFocus
-      />
-      <div className="flex flex-col gap-1 border-t border-border pt-3">
-        <span className="font-sans text-[11px] uppercase tracking-wider text-muted-foreground px-1">
+      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes --ink-amber
+          when any child has focus; 150ms transition matches Tasks/Captures
+          composer wrappers across the app. */}
+      <div className="rounded-sm border border-transparent focus-within:border-[var(--ink-amber)] transition-colors duration-150 ease-out p-2">
+        <CaptureComposer
+          hashtags={hashtags}
+          projects={projects}
+          onSubmitSuccess={onSubmitSuccess}
+          autoFocus
+        />
+      </div>
+      <div className="flex flex-col gap-1 border-t border-[var(--edge)] pt-3">
+        {/* Mono section label per UI-SPEC §12c chrome register */}
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] px-1">
           Calendar
         </span>
         <button
           type="button"
           onClick={handleNewEvent}
-          className="flex items-center gap-2 px-2 py-1.5 rounded text-left text-[13px] font-sans hover:bg-secondary transition-colors"
+          className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always"
         >
-          <Calendar size={14} className="text-muted-foreground" />
+          <Calendar size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
           <span>New event</span>
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-[var(--ink-muted)]">
             /calendar?create=now
           </span>
         </button>
