@@ -3,7 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import { createProjectSuggestion } from "./project-suggestions";
 import {
@@ -15,6 +15,7 @@ import {
   buildJarvisInputPayload,
   type JarvisInputPayload,
 } from "./jarvis-input-payload";
+import { registerJarvisFocus } from "@/lib/jarvis/focus";
 
 /**
  * JARVIS Console composer (Plan 05-03 Task 3).
@@ -60,12 +61,34 @@ interface HashtagSource {
 // Re-export so JarvisConsole can keep importing from "./JarvisInput".
 export type { JarvisInputPayload };
 
+/**
+ * Phase 6 Plan 06-03 (AES-05, D-02): imperative focus handle.
+ *
+ * Allows parent components to focus the editor without prop-drilling
+ * editor state. Used by JarvisConsole for the ref-as-prop pattern.
+ *
+ * The module-level singleton in lib/jarvis/focus.ts is the canonical
+ * Cmd+K dispatch path (cross-tree, no ref required) — but exposing the
+ * handle documents the contract + enables future imperative actions
+ * (e.g., focus-on-clarification-reply).
+ */
+export interface JarvisInputHandle {
+  focus(): void;
+}
+
 interface Props {
   userTimezone: string;
   getProjects: () => ProjectSource[];
   getHashtags: () => HashtagSource[];
   onSubmit: (payload: JarvisInputPayload) => void;
   disabled?: boolean;
+  /**
+   * Phase 6 Plan 06-03: React 19 ref-as-prop pattern (no forwardRef wrapper).
+   * Optional — parent passes a ref<JarvisInputHandle> to focus the editor
+   * imperatively. Cmd+K already works via the module-level singleton; this
+   * is the contract-documenting alternative.
+   */
+  ref?: React.Ref<JarvisInputHandle>;
 }
 
 export function JarvisInput({
@@ -74,6 +97,7 @@ export function JarvisInput({
   getHashtags,
   onSubmit,
   disabled,
+  ref,
 }: Props) {
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -238,6 +262,28 @@ export function JarvisInput({
       setSlashOpen(false);
     },
   });
+
+  // Phase 6 Plan 06-03 (AES-05, D-02): expose imperative focus handle.
+  // React 19 ref-as-prop pattern — no forwardRef wrapper required.
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus() {
+        editor?.commands.focus("end");
+      },
+    }),
+    [editor],
+  );
+
+  // Phase 6 Plan 06-03 (AES-05, D-02): register a focus function at the
+  // module level so the global Cmd+K listener (in GlobalHotkeys) can reach
+  // it without ref drilling. Re-register on every editor change to handle
+  // the initial null-then-instance transition. Cleanup on unmount.
+  useEffect(() => {
+    if (!editor) return;
+    registerJarvisFocus(() => editor.commands.focus("end"));
+    return () => registerJarvisFocus(null);
+  }, [editor]);
 
   /**
    * Drive submission from the live ProseMirror view's text + JSON. This is

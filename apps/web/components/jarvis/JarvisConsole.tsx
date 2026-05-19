@@ -7,7 +7,7 @@ import {
   type JarvisRequest,
 } from "./jarvis-stream-client";
 import { JarvisScrollback } from "./JarvisScrollback";
-import { JarvisInput, type JarvisInputPayload } from "./JarvisInput";
+import { JarvisInput, type JarvisInputHandle, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
 import {
   undoJarvisAction,
@@ -53,6 +53,11 @@ export function JarvisConsole({
   const [turns, setTurns] = useState<ScrollbackTurn[]>([]);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // Phase 6 Plan 06-03 (AES-05, D-02): imperative handle to the JARVIS input.
+  // The module-level singleton (registerJarvisFocus) is the canonical Cmd+K
+  // dispatch path; this ref documents the contract and enables future
+  // imperative actions (e.g., focus-on-clarification-reply).
+  const jarvisInputRef = useRef<JarvisInputHandle>(null);
 
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
@@ -378,6 +383,7 @@ export function JarvisConsole({
       />
       <div className="border-t bg-card px-6 py-3">
         <JarvisInput
+          ref={jarvisInputRef}
           userTimezone={userTimezone}
           getProjects={() => initialProjects}
           getHashtags={() => initialHashtags}

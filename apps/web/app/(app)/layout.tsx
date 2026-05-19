@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
+import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -50,7 +51,10 @@ export default async function AppLayout({
         >
           {children}
         </AppShell>
-        {/* Global Cmd+K command menu — Phase 5 will swap CommandMenuContent for the Kiwi UI */}
+        {/* Phase 6 Plan 06-03 (AES-05, D-02): Cmd+K focuses JARVIS Console input
+            anywhere in (app). CommandMenu rebound to Cmd+Shift+K. */}
+        <GlobalHotkeys />
+        {/* Capture composer — opens on Cmd+Shift+K (Cmd+K reserved for JARVIS focus) */}
         <CommandMenu
           hashtags={hashtagsForComposer}
           projects={projectsForComposer}
