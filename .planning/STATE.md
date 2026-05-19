@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06.1-01-PLAN.md — token foundation, motion library, ThemeToggle migration, shared HUD primitives
-last_updated: "2026-05-19T16:52:18.071Z"
+stopped_at: Completed 06.1-02-PLAN.md — JARVIS Console motion choreography rebuild (7-state machine + receipt materialize + diplomatic popovers)
+last_updated: "2026-05-19T17:54:28.090Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 34
-  completed_plans: 29
+  completed_plans: 30
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -74,6 +74,7 @@ Progress: [██████████] 100%
 | Phase 06-polish P02 | 16 | 3 tasks | 14 files |
 | Phase 06-polish P04 | 5 | 3 tasks | 7 files |
 | Phase 06.1 P01 | 10 | 4 tasks | 5 files |
+| Phase 06.1 P02 | 54min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,13 @@ Recent decisions affecting current work:
 - [Phase 06.1]: Plan 06.1-01: HudCornerCrops + HudEdgeInstrumentation shared primitives land in Wave 1 (this plan) — eliminates race between Plan 02 (JARVIS Console) and Plan 03 (/insights+/health+/settings/memory); JARVIS-specific HudStatusPill + HudThinkingRing deliberately deferred to Plan 02
 - [Phase 06.1]: Plan 06.1-01: Motion easing declared as CSS variables (--ease-out-quart, --ease-in-out-circ, --ease-out-back, --ease-in-fast) so .hud-* utility classes consume them by reference; consumers can swap easing without rewriting keyframes
 - [Phase 06.1]: Plan 06.1-01: ThemeToggle settings variant uses <button role='radio'> segmented-control pattern (Radix/shadcn canonical) over <input type='radio'>; biome-ignore comment on useSemanticElements explains the deviation
+- [Phase 06.1]: Plan 06.1-02: HudStatusPill derives THINKING vs STREAMING from textDelta presence on the active assistant turn (not from a new ScrollbackAssistantTurn.status enum value); existing 'streaming'|'done'|'error' tri-state is preserved, the dual-mode signal reads from data already on the turn object
+- [Phase 06.1]: Plan 06.1-02: Intent inks (--ink-amber task / --ink-sage capture / --ink-coral event / --hud-cyan-light memory & clarification) communicate via the leading 6px dot, NOT via card border color — card border stays 1px --edge-hud across all intent kinds (UI-SPEC §9i); replaces Phase 6's border-blue-500/border-amber-500/border-emerald-500 family
+- [Phase 06.1]: Plan 06.1-02: JARVIS prose register switched from font-serif to font-mono italic font-medium (JetBrains Mono 500 italic 16px) — the single biggest typographic change in the app per UI-SPEC §4a; agent-side reads as 'machine speech' via mono italic register
+- [Phase 06.1]: Plan 06.1-02: Receipt landing replaces Phase 6's hue-rotate + brightness + saturate filter channel (REJECTED per UI-SPEC §13 anti-pattern catalog) with outline-trace SVG + content fade + intent dot scale pulse + corner crops frame + --hud-cyan-glow-soft ambient — choreographed across 5 elements, not one filter channel
+- [Phase 06.1]: Plan 06.1-02: JarvisClarification 'QUESTION' Phase 5.1 badge → 'clarify' chrome label per UI-SPEC §5a — clarification surface bridges agent (HUD chrome) and document (serif body) registers; jarvis-clarification.test.tsx migrated to assert 'clarify' (mechanism under test unchanged)
+- [Phase 06.1]: Plan 06.1-02: Reduced-motion gates layered at TWO levels — (1) CSS @media block kills .hud-* animations via animation:none !important; (2) component useReducedMotion() guards omit decorative elements (light-trail, scan reveal, glitch class). Belt-and-suspenders so neither layer is single point of failure
+- [Phase 06.1]: Plan 06.1-02: Edge instrumentation telemetry deferred — HudEdgeInstrumentation mounted with null props rendering '—ms / —% / —' placeholders + TODO(phase 6.1.x) marker; visual register preserved without requiring jarvis_events aggregation in this plan
 
 ### Pending Todos
 
@@ -192,6 +200,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T16:52:18.067Z
-Stopped at: Completed 06.1-01-PLAN.md — token foundation, motion library, ThemeToggle migration, shared HUD primitives
+Last session: 2026-05-19T17:54:28.086Z
+Stopped at: Completed 06.1-02-PLAN.md — JARVIS Console motion choreography rebuild (7-state machine + receipt materialize + diplomatic popovers)
 Resume file: None
