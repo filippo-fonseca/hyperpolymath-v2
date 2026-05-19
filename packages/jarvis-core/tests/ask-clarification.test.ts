@@ -31,7 +31,6 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
         options: ["Tonight 8pm", "Tomorrow 7pm", "Saturday 8pm"],
         suggested_action: {
           tool: "create_event",
-          args: { title: "Dinner with Anna" },
         },
       }).success,
     ).toBe(true);
@@ -47,13 +46,17 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
     ).toBe(false);
   });
 
-  it("rejects > 5 options (chip cap)", () => {
+  it("accepts > 5 options at the Zod layer (chip cap enforced via prompt + UI truncation)", () => {
+    // Array `.max()` was removed from zAskClarification because Anthropic's
+    // strict tool use rejects JSON Schema `maxItems`. The ≤5 chip rule lives
+    // in TOOL_USE_RULES system-prompt copy + UI-side truncation. The Zod
+    // schema only enforces element shape (string, ≤80 chars).
     expect(
       zAskClarification.safeParse({
         question: "Which?",
-        options: ["A", "B", "C", "D", "E", "F"], // 6 items
+        options: ["A", "B", "C", "D", "E", "F"], // 6 items — accepted by schema
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects option > 80 chars", () => {
@@ -71,7 +74,6 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
         question: "When?",
         suggested_action: {
           tool: "delete_task", // not allowed
-          args: {},
         },
       }).success,
     ).toBe(false);

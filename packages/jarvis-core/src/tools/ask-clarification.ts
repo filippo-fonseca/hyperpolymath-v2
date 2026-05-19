@@ -14,11 +14,20 @@ import { z } from "zod";
 export function zAskClarificationFor(_opts: { voiceActive?: boolean }) {
   return z.object({
     question: z.string().min(1).max(300),
-    options: z.array(z.string().min(1).max(80)).max(5, "Maximum 5 chip options").optional(),
+    // Array `.max()` is intentionally omitted — Anthropic's strict tool use
+    // rejects JSON Schema `maxItems` on array properties. The "≤5 chips"
+    // constraint is enforced via TOOL_USE_RULES copy in personality.ts and
+    // truncated in the UI; this Zod shape only validates element types.
+    options: z.array(z.string().min(1).max(80)).optional(),
+    // `suggested_action` is a model hint about the action it WOULD take if
+    // the user confirms. We only persist the tool name — the freeform `args`
+    // record was removed because Anthropic strict tool use rejects JSON Schema
+    // `additionalProperties: <object>` (it requires `false`). The model can
+    // describe the args in the question text; full pre-fill can come back as
+    // a strict union later if/when the chip UI consumes it.
     suggested_action: z
       .object({
         tool: z.enum(["create_task", "create_capture", "create_event"]),
-        args: z.record(z.string(), z.unknown()),
       })
       .optional(),
   });

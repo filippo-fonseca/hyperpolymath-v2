@@ -372,7 +372,7 @@ export async function POST(req: NextRequest) {
               const cdata = parsed.data as {
                 question: string;
                 options?: string[];
-                suggested_action?: { tool: string; args: Record<string, unknown> };
+                suggested_action?: { tool: string };
               };
               controller.enqueue(
                 encoder.encode(
