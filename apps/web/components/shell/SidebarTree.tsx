@@ -252,9 +252,10 @@ export function SidebarTree({
     // wiring choice; documented in 06-02 SUMMARY).
     if (collapsed) {
       // Collapsed sidebar: keep the original compact text-only fallback to
-      // avoid wrapping the EmptyState H2 in a 48px-wide rail.
+      // avoid wrapping the EmptyState H2 in a 48px-wide rail. Mono register
+      // matches the surrounding sidebar chrome (UI-SPEC §5e).
       return (
-        <div className="px-4 py-2 text-[13px] font-sans text-muted-foreground">
+        <div className="px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
           No areas yet.
         </div>
       );
@@ -317,11 +318,13 @@ export function SidebarTree({
 
       <DragOverlay dropAnimation={dropAnimation}>
         {activeArea ? (
+          // Drag overlay for an area row — preserve the mono uppercase register
+          // (UI-SPEC §5e) so the visual matches what the user grabbed.
           <div
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1",
-              "text-[13px] font-sans text-foreground select-none",
-              "bg-secondary shadow-lg ring-1 ring-ring cursor-grabbing",
+              "flex items-center gap-2 rounded-sm px-2 py-1 select-none cursor-grabbing",
+              "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
+              "bg-[var(--surface-raised)] border border-[var(--edge-hud)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
           >
@@ -333,17 +336,19 @@ export function SidebarTree({
             )}
           </div>
         ) : activeProject ? (
+          // Drag overlay for a project row — serif register (UI-SPEC §5e
+          // project sub-rows render serif).
           <div
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1",
-              "text-[13px] font-sans text-muted-foreground select-none",
-              "bg-secondary shadow-lg ring-1 ring-ring cursor-grabbing",
+              "flex items-center gap-2 rounded-sm px-2 py-1 select-none cursor-grabbing",
+              "font-serif text-sm text-[var(--ink-muted)]",
+              "bg-[var(--surface-raised)] border border-[var(--edge-hud)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
           >
             <DynamicIcon name={activeProject.icon} size={14} />
             {!activeProject.icon && (
-              <span className="text-muted-foreground/60">·</span>
+              <span className="opacity-40">·</span>
             )}
             {!collapsed && (
               <span className="truncate flex-1 min-w-0">
@@ -417,7 +422,7 @@ function SortableAreaRow({
       style={style}
       className={cn("flex flex-col", isDragging && "opacity-0")}
     >
-      {/* Area row */}
+      {/* Area row — mono uppercase chrome register (UI-SPEC §5e) */}
       <div
         {...attributes}
         {...listeners}
@@ -426,9 +431,11 @@ function SortableAreaRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "group/area relative flex items-center gap-2 rounded-md px-2 py-1",
-          "text-[13px] font-sans text-foreground select-none",
-          "hover:bg-secondary cursor-grab active:cursor-grabbing transition-colors",
+          "group/area relative flex items-center gap-2 rounded-sm px-2 py-1 select-none",
+          // Mono 12px uppercase — area-row label per UI-SPEC §5e
+          "font-mono text-xs uppercase tracking-[0.06em] text-[var(--ink-muted)]",
+          // Hover transitions text-muted → ink over 100ms (UI-SPEC §7a)
+          "hover:text-[var(--ink)] cursor-grab active:cursor-grabbing transition-colors duration-100 ease-out",
           // D-02: no opacity dim on pending — UI stays instant
           area.archivedAt && "opacity-50 italic line-through",
         )}
@@ -449,13 +456,13 @@ function SortableAreaRow({
                 openProjectCreate();
               }}
               className={cn(
-                "flex items-center justify-center h-5 w-5 rounded",
-                "text-muted-foreground hover:bg-accent hover:text-foreground",
-                "opacity-0 group-hover/area:opacity-100 transition-opacity",
-                "focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring outline-none",
+                "flex items-center justify-center h-5 w-5 rounded-sm",
+                "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                "opacity-0 group-hover/area:opacity-100 transition-opacity duration-100 ease-out",
+                "outline-none",
               )}
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
             </button>
             <AreaActionsMenu
               areaId={area.id}
@@ -547,11 +554,18 @@ function SortableProjectRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "flex items-center gap-1.5 rounded-md px-2 py-1",
-          "text-[13px] font-sans text-muted-foreground select-none",
-          "hover:bg-secondary hover:text-foreground transition-colors",
+          "flex items-center gap-1.5 rounded-sm px-2 py-1 select-none",
+          // Serif sub-row register (UI-SPEC §5e — area labels mono,
+          // project sub-rows in serif)
+          "font-serif text-sm text-[var(--ink-muted)]",
+          "hover:text-[var(--ink)] transition-colors duration-100 ease-out",
           "cursor-grab active:cursor-grabbing",
-          isActive && "bg-secondary text-foreground border-l-2 border-accent",
+          // Active project: 1px --edge-hud left edge accent (no bg fill)
+          // mirrors the primary-nav active treatment per UI-SPEC §5e.
+          "border-l-2",
+          isActive
+            ? "border-l-[var(--edge-hud)] text-[var(--ink)]"
+            : "border-l-transparent",
           project.archivedAt && "opacity-50 italic line-through",
         )}
       >
@@ -559,7 +573,7 @@ function SortableProjectRow({
         {project.icon ? (
           <DynamicIcon name={project.icon} size={14} className="shrink-0" />
         ) : (
-          <Folder size={14} className="shrink-0 opacity-40" />
+          <Folder size={14} strokeWidth={1.5} className="shrink-0 opacity-40" />
         )}
 
         {/* Clickable name → navigate */}
@@ -723,14 +737,14 @@ function ProjectActionsMenu({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "flex items-center justify-center h-5 w-5 rounded",
-              "text-muted-foreground hover:bg-accent hover:text-foreground",
+              "flex items-center justify-center h-5 w-5 rounded-sm",
+              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
               "opacity-0 group-hover/project:opacity-100",
-              "data-[state=open]:opacity-100 transition-opacity",
-              "focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring outline-none",
+              "data-[state=open]:opacity-100 transition-opacity duration-100 ease-out",
+              "outline-none",
             )}
           >
-            <MoreHorizontal className="h-3.5 w-3.5" />
+            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -762,8 +776,9 @@ function ProjectActionsMenu({
             </DropdownMenuSub>
           )}
           {project.archivedAt ? (
+            // UI-SPEC §12f — "Unarchive" → "Restore"
             <DropdownMenuItem onSelect={handleUnarchive}>
-              Unarchive
+              Restore
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onSelect={handleArchive}>
@@ -794,11 +809,12 @@ function ProjectActionsMenu({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
+            {/* UI-SPEC §12f — "Cancel" → "Discard changes" */}
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
             >
-              Never mind
+              Discard changes
             </Button>
             <Button
               variant="destructive"
@@ -827,11 +843,12 @@ function ProjectActionsMenu({
             autoFocus
           />
           <DialogFooter>
+            {/* UI-SPEC §12f — "Cancel" → "Discard changes" */}
             <Button
               variant="outline"
               onClick={() => setRenameDialogOpen(false)}
             >
-              Never mind
+              Discard changes
             </Button>
             <Button onClick={handleRename} disabled={isRenaming}>
               {isRenaming ? "Saving..." : "Save changes"}

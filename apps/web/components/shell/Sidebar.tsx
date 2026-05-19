@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useOptimistic, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,20 @@ export type AreaOptimisticDispatch = (
  * SidebarTree mutates projects (drag reorder, context-menu rename/archive),
  * so subscribing at the shared parent guarantees one channel per (table, userId)
  * regardless of how many sub-rows mount.
+ *
+ * Phase 6.1 Plan 06.1-05 (UI-SPEC §5e + §7a + §12e):
+ *
+ * Diplomatic chrome. --surface background, 1px --edge right border. Section
+ * labels render as mono 12px uppercase tracking-wide (AREAS / JARVIS /
+ * NAVIGATE per UI-SPEC §12e). The active route's nav link gets a 1px
+ * --edge-hud LEFT-edge accent (not a background fill); the JARVIS link
+ * additionally gets a 4px --hud-cyan dot when /jarvis is current — the one
+ * place cyan touches diplomatic chrome (UI-SPEC §5e). Hover transitions
+ * 100ms text-muted → ink.
+ *
+ * Layout grid carries forward unchanged (UI-SPEC §14). Mechanism for
+ * optimistic state + Realtime + collapse state is untouched — ONLY
+ * typography + edges + copy register update.
  */
 export function Sidebar({
   userId,
@@ -114,7 +129,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-card border-r border-border shrink-0 overflow-hidden",
+        "flex flex-col h-full bg-[var(--surface)] border-r border-[var(--edge)] shrink-0 overflow-hidden",
         "transition-[width] duration-200 ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
         // Prevent layout shift before mounted (localStorage read)
@@ -123,7 +138,7 @@ export function Sidebar({
       aria-label="Sidebar"
     >
       {/* Header: Wordmark + collapse toggle */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
         <Wordmark collapsed={collapsed} />
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -133,12 +148,12 @@ export function Sidebar({
                 size="icon-sm"
                 onClick={toggleCollapsed}
                 aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className="shrink-0 text-muted-foreground hover:text-foreground"
+                className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
               >
                 {collapsed ? (
-                  <ChevronRight size={14} />
+                  <ChevronRight size={14} strokeWidth={1.5} />
                 ) : (
-                  <ChevronLeft size={14} />
+                  <ChevronLeft size={14} strokeWidth={1.5} />
                 )}
               </Button>
             </TooltipTrigger>
@@ -151,15 +166,22 @@ export function Sidebar({
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {/* Persistent nav */}
+        {/* NAVIGATE section — primary nav links (PersistentNav owns the items + the active-edge accent) */}
+        {!collapsed && (
+          <div className="px-3 mb-1 mt-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
+              NAVIGATE
+            </span>
+          </div>
+        )}
         <PersistentNav collapsed={collapsed} />
 
-        {/* Areas section */}
+        {/* AREAS section */}
         <div className="mt-4">
           {!collapsed && (
             <div className="flex items-center justify-between px-3 mb-1">
-              <span className="text-[11px] font-sans uppercase tracking-widest text-muted-foreground select-none">
-                Areas
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
+                AREAS
               </span>
               <AreaCreateDialog
                 userId={userId}
@@ -169,10 +191,10 @@ export function Sidebar({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="New Area"
-                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Create area"
+                  className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
                 >
-                  <Plus size={12} />
+                  <Plus size={12} strokeWidth={1.5} />
                 </Button>
               </AreaCreateDialog>
             </div>
@@ -191,13 +213,13 @@ export function Sidebar({
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        aria-label="New Area"
-                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Create area"
+                        className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
                       >
-                        <Plus size={12} />
+                        <Plus size={12} strokeWidth={1.5} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="right">New Area</TooltipContent>
+                    <TooltipContent side="right">Create area</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </AreaCreateDialog>
@@ -212,10 +234,24 @@ export function Sidebar({
             addOptimisticArea={addOptimisticArea}
           />
         </div>
+
+        {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
+        {!collapsed && (
+          <div className="mt-6 px-3 mb-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
+              JARVIS
+            </span>
+          </div>
+        )}
+        {!collapsed && (
+          <nav aria-label="JARVIS navigation" className="px-2">
+            <SidebarSectionLink href="/settings/memory" label="Memory" />
+          </nav>
+        )}
       </div>
 
       {/* Footer: theme toggle + show archived toggle */}
-      <div className="border-t border-border px-3 py-2 shrink-0 space-y-2">
+      <div className="border-t border-[var(--edge)] px-3 py-2 shrink-0 space-y-2">
         {/* Phase 6 Plan 06-01 (SET-03, AES-06, D-06) — theme toggle anchored
             in sidebar footer; renders header variant even when collapsed
             (36px icon button fits the 16-wide collapsed sidebar). */}
@@ -227,8 +263,8 @@ export function Sidebar({
             type="button"
             onClick={toggleShowArchived}
             className={cn(
-              "w-full text-left text-[13px] font-sans text-muted-foreground hover:text-foreground py-1 px-1 rounded-md hover:bg-secondary transition-colors",
-              showArchived && "text-foreground",
+              "w-full text-left font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] py-1 px-1 rounded-sm transition-colors duration-100 ease-out",
+              showArchived && "text-[var(--ink)]",
             )}
           >
             {showArchived ? "Hide archived" : "Show archived"}
@@ -241,8 +277,8 @@ export function Sidebar({
                   type="button"
                   onClick={toggleShowArchived}
                   className={cn(
-                    "w-full flex justify-center text-[13px] font-sans text-muted-foreground hover:text-foreground py-1 rounded-md hover:bg-secondary transition-colors",
-                    showArchived && "text-foreground",
+                    "w-full flex justify-center font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] py-1 rounded-sm transition-colors duration-100 ease-out",
+                    showArchived && "text-[var(--ink)]",
                   )}
                   aria-label={showArchived ? "Hide archived" : "Show archived"}
                 >
@@ -257,5 +293,42 @@ export function Sidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Local sibling component used by the JARVIS sub-section. Mirrors the
+ * active-edge accent style used by PersistentNav so behavior is consistent.
+ * Kept local to avoid a circular export chain with PersistentNav.
+ *
+ * Active-route detection mirrors PersistentNav's `pathname?.startsWith(href)`
+ * convention. When active, the link draws a 1px --edge-hud LEFT-edge accent
+ * (UI-SPEC §5e — diplomatic chrome active-state register). Hover transition
+ * runs at 100ms per UI-SPEC §7a Sidebar motion.
+ */
+function SidebarSectionLink({
+  href,
+  label,
+}: {
+  href: string;
+  label: string;
+}) {
+  const pathname = usePathname();
+  const isActive = !!pathname?.startsWith(href);
+  return (
+    <a
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-2 rounded-sm px-2 py-1",
+        "font-mono text-[11px] uppercase tracking-[0.06em]",
+        "border-l-2 transition-colors duration-100 ease-out cursor-pointer-always",
+        isActive
+          ? "border-l-[var(--edge-hud)] text-[var(--ink)]"
+          : "border-l-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]",
+      )}
+    >
+      {label}
+    </a>
   );
 }
