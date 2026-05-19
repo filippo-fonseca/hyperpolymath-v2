@@ -144,7 +144,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Each route group has an `error.tsx` boundary rendering a branded fallback with copy-paste error report; Sentry (or equivalent) captures client + server unhandled errors; `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity status
   6. `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate — providing observable signal on what JARVIS is actually doing
   7. Page transitions and list reorders use Motion for subtle animation; Genz-Renaissance brand voice (per `idea_for_polymathy.md`) is reflected throughout copy (empty states, error messages, button labels)
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 06-01-PLAN.md — Wave 1: Design system foundations — fonts, next-themes, neumorphic + JARVIS-blue tokens, cursor:pointer (AES-01, AES-02, AES-06, SET-03)
+- [ ] 06-02-PLAN.md — Wave 2: Resilience — error.tsx + global-error.tsx + EmptyState + useUndoToast across 5 lists + 4 deletes (RES-01, RES-02, RES-03, RES-07, AES-04)
+- [ ] 06-03-PLAN.md — Wave 2: JARVIS polish — Cmd+K focus delegation, page transitions, queued shimmer/streaming caret/scan reveal/holographic fade, receipt padding fix (AES-03, AES-05)
+- [ ] 06-04-PLAN.md — Wave 3: Telemetry — /api/health + /(app)/health page + /insights 3-chart Server Component + recharts (RES-04, RES-06)
+- [ ] 06-05-PLAN.md — Wave 4: A11y + responsive sweep — cursor-pointer audit, focus-visible ring system, agent-mode-scope, ⌘K hint, human-verify checkpoint (AES-04, AES-07)
 **UI hint**: yes
 
 ### Phase 7: JARVIS Voice + Ambient
