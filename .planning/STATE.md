@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-02-PLAN.md (resilience layer — error boundaries, EmptyState, useUndoToast)
-last_updated: "2026-05-19T02:47:10.179Z"
+stopped_at: Completed 06-04-PLAN.md (telemetry — /api/health JSON + visual /health page + /insights server aggregation + 3-chart recharts panel + /insights nav entry)
+last_updated: "2026-05-19T02:58:37.724Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 28
-  completed_plans: 26
+  completed_plans: 27
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06 (polish) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Next: Phase 6 (Polish) — discussion pending
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 06-polish P01 | 5 | 4 tasks | 8 files |
 | Phase 06-polish P03 | 9 | 3 tasks | 10 files |
 | Phase 06-polish P02 | 16 | 3 tasks | 14 files |
+| Phase 06-polish P04 | 5 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,11 @@ Recent decisions affecting current work:
 - [Phase 06-polish]: Plan 06-02: useUndoToast lifts delete handlers from leaf components (TaskDetailPanel, CaptureCard, AreaActionsMenu) to orchestrators (TasksClient, CapturesClient, SidebarTree) via optional callback props; leaf retains legacy inline path when callback absent
 - [Phase 06-polish]: Plan 06-02: Delete task/capture/calendar event commits to server only after 5s (true deferred delete); archive-area commits immediately for cross-window Realtime echo and Undo calls unarchiveArea — semantics deliberately differ
 - [Phase 06-polish]: Plan 06-02: JarvisReceipt.tsx + use-undo-countdown.ts intentionally unchanged per RESEARCH §4 — JARVIS receipts keep inline UndoButton pattern; only non-JARVIS CRUD migrates to sonner toast wrapper
+- [Phase 06-polish]: Plan 06-04: /api/health is public (no auth) with google_calendar='n/a' rationale — gcal needs per-user OAuth so we can't probe from a public surface; 200/503 discrimination is on supabase + anthropic only
+- [Phase 06-polish]: Plan 06-04: getInsightsData uses single SELECT + pure-JS reduce (4-aggregations from one query) over 4 group-by queries — at single-user MVP volume one round-trip is faster and keeps executor simple; nearest-rank percentile (Math.floor + clamp) over Tukey hinges for diagnostic clarity
+- [Phase 06-polish]: Plan 06-04: Day-of-week (Sun..Sat) bucketing for latency + sparkline over absolute dates — stable axis on rolling 7-day window; connectNulls on Latency LineChart so brand-new users with sparse data draw across gaps
+- [Phase 06-polish]: Plan 06-04: recharts ResponsiveContainer always wrapped in fixed-height div (h-[200px] x2 + h-[60px] sparkline) per RESEARCH §6 Pitfall 4 — parent must have deterministic height at first paint or chart collapses to 0; hex #00d4ff as literal in chart series props because recharts SVG can't resolve CSS variables at render time
+- [Phase 06-polish]: Plan 06-04: Server Component aggregation pattern for diagnostic surfaces — page.tsx is Server Component, getInsightsData runs Drizzle SELECT, shaped data passes to 'use client' InsightsCharts; no TanStack Query because data is per-page-load, not realtime
 
 ### Pending Todos
 
@@ -179,6 +185,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T02:47:10.175Z
-Stopped at: Completed 06-02-PLAN.md (resilience layer — error boundaries, EmptyState, useUndoToast)
+Last session: 2026-05-19T02:58:37.720Z
+Stopped at: Completed 06-04-PLAN.md (telemetry — /api/health JSON + visual /health page + /insights server aggregation + 3-chart recharts panel + /insights nav entry)
 Resume file: None

@@ -148,9 +148,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **RES-01**: `error.tsx` boundary per route group renders branded fallback with copy-paste error report
 - [x] **RES-02**: Toast notifications for action success / error states; non-destructive actions include "Undo" within 5 seconds
 - [x] **RES-03**: Empty states for every list view (Tasks, Captures, Areas, Projects, Calendar) with brand-voice copy
-- [ ] **RES-04**: `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity check
+- [x] **RES-04**: `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity check
 - [x] **RES-05**: `jarvis_events` Postgres table logs each JARVIS turn (action types emitted, latency, cache hit rate, error if any)
-- [ ] **RES-06**: `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate
+- [x] **RES-06**: `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate
 - [x] **RES-07**: Sentry (or equivalent) wired to capture client + server unhandled errors
 
 ### Tests
@@ -331,9 +331,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RES-01 | Phase 6 | Complete |
 | RES-02 | Phase 6 | Complete |
 | RES-03 | Phase 6 | Complete |
-| RES-04 | Phase 6 | Pending |
+| RES-04 | Phase 6 | Complete |
 | RES-05 | Phase 5 | Complete |
-| RES-06 | Phase 6 | Pending |
+| RES-06 | Phase 6 | Complete |
 | RES-07 | Phase 6 | Complete |
 | TEST-01 | Phase 5 | Complete |
 | TEST-02 | Phase 5 | Complete |
