@@ -384,6 +384,18 @@ export function JarvisInput({
             <span className="opacity-60 select-none mr-1.5">{">"}</span>
             Enter to send · type / for commands · $ for projects · # for hashtags
           </span>
+          {/* Phase 6 Plan 06-05 (UI-SPEC §8b): ⌘K hint chip — purely visual signal
+              that Cmd+K focuses JARVIS from anywhere in (app). The binding itself
+              lives in GlobalHotkeys (06-03). Hidden below md: per spec — too
+              cramped on tablet. aria-hidden because it's decorative — the
+              keyboard shortcut works whether the chip is visible or not. */}
+          <kbd
+            className="hidden md:inline-flex items-center px-1.5 py-0.5 text-xs font-mono text-muted-foreground opacity-50 select-none"
+            aria-hidden="true"
+            title="Focus JARVIS from anywhere"
+          >
+            ⌘K
+          </kbd>
         </div>
       </div>
 

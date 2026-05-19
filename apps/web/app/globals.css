@@ -328,3 +328,42 @@ select,
     animation: none !important;
   }
 }
+
+/* ─── Phase 6 Plan 06-05 — Focus-visible ring system (UI-SPEC §11a) ─────────────
+   Applied via focus-visible: only — keyboard navigation surfaces rings;
+   mouse clicks do not (UI-SPEC §11a explicit rule).
+   Two flavors:
+     - Journal: amber ring via --shadow-nm-focus-journal (default for all routes)
+     - Agent  : JARVIS-blue ring via --shadow-nm-focus-agent (opt-in via .agent-focus
+                class on the element OR on an ancestor with .agent-mode-scope)
+
+   Default rule covers ALL interactive elements. Agent-mode override is
+   opt-in to avoid bleeding blue rings into Journal-mode surfaces. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-nm-focus-journal);
+}
+
+.agent-mode-scope button:focus-visible,
+.agent-mode-scope a:focus-visible,
+.agent-mode-scope [role="button"]:focus-visible,
+.agent-mode-scope input:focus-visible,
+.agent-mode-scope textarea:focus-visible,
+.agent-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-nm-focus-agent);
+}
+
+/* ─── Phase 6 Plan 06-05 — react-big-calendar event cursor (UI-SPEC §10) ────────
+   rbc renders event tiles as <div> elements with click handlers — not <button>
+   or <a>, so the universal cursor:pointer rule in globals.css doesn't catch
+   them. Explicit .rbc-event override fills the gap. */
+.rbc-event {
+  cursor: pointer;
+}

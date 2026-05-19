@@ -375,7 +375,11 @@ export function JarvisConsole({
   );
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] flex-col">
+    // Phase 6 Plan 06-05 (UI-SPEC §11a): .agent-mode-scope activates the
+    // JARVIS-blue focus-visible ring on all interactive descendants. The
+    // globals.css default rule paints amber rings on Journal-mode routes;
+    // this opt-in wrapper swaps the ring to JARVIS-blue inside the Console.
+    <div className="agent-mode-scope flex h-[calc(100vh-3rem)] flex-col">
       <JarvisScrollback
         turns={turns}
         onUndoAction={handleUndoAction}
