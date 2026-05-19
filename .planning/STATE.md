@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-01-PLAN.md (design system foundation)
-last_updated: "2026-05-19T02:26:45.255Z"
+stopped_at: Completed 06-03-PLAN.md (JARVIS Console polish — Cmd+K focus delegation, page transitions, JARVIS-blue animations)
+last_updated: "2026-05-19T02:42:07.299Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 28
-  completed_plans: 24
+  completed_plans: 25
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06 (polish) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Next: Phase 6 (Polish) — discussion pending
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -70,6 +70,7 @@ Progress: [██████████] 100%
 | Phase 05.1 P03 | ~2 sessions | 3 tasks | 31 files |
 | Phase 05.1 P04 | 85m | 3 tasks | 19 files |
 | Phase 06-polish P01 | 5 | 4 tasks | 8 files |
+| Phase 06-polish P03 | 9 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,11 @@ Recent decisions affecting current work:
 - [Phase 06-polish]: Plan 06-01: Neumorphic shadow tokens (D-07) defined as CSS variables in both light (@theme) and dark (.dark) themes; consumed via inline style={{ boxShadow: 'var(--shadow-nm-...)' }} — no Tailwind utility proxy
 - [Phase 06-polish]: Plan 06-01: JARVIS-blue (#00d4ff) hex identical across light + dark; only glow alpha differs (0.15 → 0.12 dark); scoped to agent-mode routes only (D-08)
 - [Phase 06-polish]: Plan 06-01: Universal cursor:pointer rule (D-09) lives in globals.css after body{} — single selector list covers button/[role=button]/a/[data-clickable]/label[for]/select/.cursor-pointer-always
+- [Phase 06-polish]: Plan 06-03: Cmd+K reserved for JARVIS Console focus across (app); CommandMenu rebound to Cmd+Shift+K (D-02/AES-05); dispatch via module-level singleton in lib/jarvis/focus.ts rather than React Context (listener at layout depth, consumer in JARVIS subtree)
+- [Phase 06-polish]: Plan 06-03: app/(app)/template.tsx hosts the per-navigation page transition (not layout.tsx — template re-mounts every navigation); pure opacity, no y-offset per UI-SPEC §6c; useReducedMotion()→0ms
+- [Phase 06-polish]: Plan 06-03: JARVIS-blue animations (queued shimmer, streaming caret, scan reveal, holographic hue-rotate fade-in) live in globals.css as opt-in className utilities + motion/react filter channel; reduced-motion guards at both CSS @media and motion/react useReducedMotion layers
+- [Phase 06-polish]: Plan 06-03: JarvisInput uses React 19 ref-as-prop (no forwardRef); exports JarvisInputHandle interface; module-level singleton remains the canonical Cmd+K dispatch path, ref is for contract documentation + future imperative actions
+- [Phase 06-polish]: Plan 06-03: Receipt padding snapped to UI-SPEC §5a grid — compact px-2 py-1, default px-4 py-2; SuggestedFactReceipt also moved to px-4 py-2 (UI-SPEC §5a applies to all receipts, not just the main branch)
 
 ### Pending Todos
 
@@ -167,6 +173,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T02:26:45.251Z
-Stopped at: Completed 06-01-PLAN.md (design system foundation)
+Last session: 2026-05-19T02:42:07.295Z
+Stopped at: Completed 06-03-PLAN.md (JARVIS Console polish — Cmd+K focus delegation, page transitions, JARVIS-blue animations)
 Resume file: None
