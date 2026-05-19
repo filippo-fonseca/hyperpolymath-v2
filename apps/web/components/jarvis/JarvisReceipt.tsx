@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   Brain,
@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
  *     receipt visually when prose text appears above it (thinner border, smaller
  *     padding, reduced font) so prose reads as primary, receipt as supplementary.
  *   - Added `status === "queued"` early-return: renders a placeholder receipt
- *     with animate-pulse while the executor is in-flight (D-P3). The Console
+ *     with jarvis-queued-shimmer while the executor is in-flight (D-P3). The Console
  *     upgrades the placeholder to `status: "done"` when `event: action` lands.
  *   - `result` is now optional — queued placeholders have no result yet.
  *
@@ -85,8 +85,8 @@ interface Props {
   action: ScrollbackAction;
   /**
    * Phase 5.1 D-R1: visual weight control.
-   * - "default" (base): border-l-2 px-3 py-2 — standard receipt weight.
-   * - "compact": border-l px-2.5 py-1 opacity-95 — de-emphasized under prose text.
+   * - "default" (base): border-l-2 px-4 py-2 — standard receipt weight (UI-SPEC §5a, on-grid).
+   * - "compact": border-l px-2 py-1 opacity-95 — de-emphasized under prose text (UI-SPEC §5a, on-grid).
    */
   variant?: "default" | "compact";
   /**
@@ -98,18 +98,28 @@ interface Props {
 }
 
 export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
+  // Phase 6 Plan 06-03 (D-08, UI-SPEC §7d): reduced-motion guard for the
+  // holographic fade-in. Hooks must be called unconditionally before any
+  // early returns, so this lives at the very top of the component.
+  const shouldReduce = useReducedMotion();
   const meta = INTENT_META[action.name];
   if (!meta) return null;
   const Icon = meta.icon;
 
   // Phase 5.1 D-P3: queued placeholder — renders before executor resolves.
   // The Console will upgrade this to status: "done" when event: action lands.
+  //
+  // Phase 6 Plan 06-03 (D-08, UI-SPEC §7a): replaced the generic Tailwind
+  // pulse with jarvis-queued-shimmer — a JARVIS-blue scan-line sweep that
+  // signals "agent is working" instead of "loading skeleton." Reduced-motion
+  // override in globals.css disables the sweep while keeping the placeholder
+  // visible. Padding snapped to px-2 py-1 per UI-SPEC §5a (compact-on-grid).
   if (action.status === "queued" && !action.result) {
     return (
       <div
         data-status="queued"
         className={cn(
-          "rounded border-l-2 px-3 py-1 my-1 opacity-60 animate-pulse",
+          "rounded border-l-2 px-2 py-1 my-1 opacity-60 jarvis-queued-shimmer",
           meta.classes,
         )}
       >
@@ -203,13 +213,16 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   }
 
   // Phase 5.1 D-R1: compact variant uses thinner border + reduced padding.
+  // Phase 6 Plan 06-03 (UI-SPEC §5a): padding snapped to grid — compact uses
+  // px-2 py-1 (8px/4px) and default uses px-4 py-2 (16px/8px) so both values
+  // align with the spacing scale and preserve the 2× horizontal ratio.
   // Undone tombstone: drop opacity + grayscale so the user sees what they
   // reversed (the row stays as a record, doesn't disappear from scrollback).
   const containerCls = cn(
     "rounded my-1",
     variant === "compact"
-      ? "border-l px-2.5 py-1 opacity-95"
-      : "border-l-2 px-3 py-2",
+      ? "border-l px-2 py-1 opacity-95"
+      : "border-l-2 px-4 py-2",
     meta.classes,
     undone && "opacity-50 grayscale",
   );
@@ -221,9 +234,25 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      // Phase 6 Plan 06-03 (D-08, UI-SPEC §7d): holographic fade-in — a brief
+      // blue-shifted hue-rotate that resolves to the natural intent color
+      // within 300ms. "JARVIS bringing the element online" metaphor. Reduced
+      // motion → opacity-only, no filter, no y-offset, no duration.
+      initial={{
+        opacity: 0,
+        y: shouldReduce ? 0 : 4,
+        filter: shouldReduce ? "none" : "brightness(1.4) saturate(0.3) hue-rotate(160deg)",
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        filter: "brightness(1) saturate(1) hue-rotate(0deg)",
+      }}
+      transition={{
+        duration: shouldReduce ? 0 : 0.3,
+        ease: "easeOut",
+        filter: { duration: shouldReduce ? 0 : 0.25 },
+      }}
       data-undone={undone ? "true" : undefined}
       className={containerCls}
     >
@@ -391,7 +420,7 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       data-source="jarvis_suggested"
-      className="rounded border-l-2 border-violet-500/50 bg-violet-500/5 px-3 py-2 my-1"
+      className="rounded border-l-2 border-violet-500/50 bg-violet-500/5 px-4 py-2 my-1"
     >
       <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-violet-700 dark:text-violet-300">
         <Sparkles className="h-3.5 w-3.5" />

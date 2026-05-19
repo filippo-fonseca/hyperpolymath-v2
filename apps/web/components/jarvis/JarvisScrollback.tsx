@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { ThinkingWord } from "./ThinkingWord";
@@ -63,15 +64,25 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
               <span className="font-mono text-foreground/80">{turn.text}</span>
             </div>
           ) : (
-            <div className="ml-3">
+            // Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): relative + overflow-hidden
+            // anchor the absolutely-positioned scan-reveal line during the
+            // streaming→done transition. ml-3 preserves prior indentation.
+            <div className="ml-3 relative overflow-hidden">
               {/* Phase 5.1 (D-R1) — render textDelta on every assistant turn that has it,
                   including action turns. The Phase 5 suppression gate (actions.length === 0)
                   is removed; prose-first is the new contract per JARVIS-20. Meta-question
                   turns (/ask) still produce only prose with no actions — that path is
-                  unchanged. Action turns now lead with prose ABOVE receipt cards. */}
+                  unchanged. Action turns now lead with prose ABOVE receipt cards.
+
+                  Phase 6 Plan 06-03 (D-08, UI-SPEC §7b): while streaming, a JARVIS-blue
+                  caret pulses inline at the end of the prose. aria-hidden — purely
+                  visual cue; screen readers track the prose content itself. */}
               {turn.textDelta ? (
                 <div className="font-serif text-base text-foreground/90 mb-2 leading-relaxed">
                   {turn.textDelta}
+                  {turn.status === "streaming" ? (
+                    <span className="jarvis-streaming-caret" aria-hidden="true" />
+                  ) : null}
                 </div>
               ) : null}
               {turn.status === "streaming" &&
@@ -79,6 +90,10 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
               !turn.textDelta ? (
                 <ThinkingWord active />
               ) : null}
+              {/* Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): one-shot scan reveal
+                  on the streaming→done transition. The overlay component owns
+                  its own lifecycle (mount on done, unmount after 400ms). */}
+              <ScanRevealOverlay status={turn.status} />
               {/* Phase 5.1 D-A2 / JARVIS-19: clarification receipt renders
                   AFTER prose text and BEFORE action receipts per plan spec. */}
               {turn.clarification ? (
@@ -116,4 +131,30 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
       <div ref={bottomRef} />
     </div>
   );
+}
+
+/**
+ * Phase 6 Plan 06-03 (D-08, UI-SPEC §7c): one-shot scan-reveal wipe.
+ *
+ * Mounts a JARVIS-blue scan line when the assistant turn transitions from
+ * "streaming" to "done", then unmounts 400ms later (matches the CSS
+ * animation duration in globals.css). Skipped entirely under
+ * prefers-reduced-motion — we don't even render the element.
+ *
+ * The parent container provides position:relative + overflow:hidden so the
+ * absolutely-positioned line stays within the turn body.
+ */
+function ScanRevealOverlay({ status }: { status: ScrollbackAssistantTurn["status"] }) {
+  const [show, setShow] = useState(false);
+  const shouldReduce = useReducedMotion();
+
+  useEffect(() => {
+    if (status !== "done" || shouldReduce) return;
+    setShow(true);
+    const t = window.setTimeout(() => setShow(false), 400);
+    return () => window.clearTimeout(t);
+  }, [status, shouldReduce]);
+
+  if (!show) return null;
+  return <div className="jarvis-scan-line" aria-hidden="true" />;
 }
