@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06.1-04-PLAN.md — document surfaces rebuilt (Tasks/Captures/Projects/Settings + shadcn primitives + EmptyState)
-last_updated: "2026-05-19T18:32:42.793Z"
+stopped_at: Completed 06.1-05-PLAN.md — diplomatic surfaces (Sidebar/AppShell/Calendar/Modals/Toasts) rebuilt + AES-04 brand-voice copy pass shipped per UI-SPEC §12e + §12f
+last_updated: "2026-05-19T18:39:27.628Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 13
   completed_phases: 7
   total_plans: 34
-  completed_plans: 32
+  completed_plans: 33
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -77,6 +77,7 @@ Progress: [██████████] 100%
 | Phase 06.1 P02 | 54min | 3 tasks | 9 files |
 | Phase 06.1 P03 | 8 | 3 tasks | 5 files |
 | Phase 06.1 P04 | 45min | 3 tasks | 18 files |
+| Phase 06.1 PP05 | 21min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,10 @@ Recent decisions affecting current work:
 - [Phase 06.1]: Plan 06.1-04: PriorityChip dominance via opacity ladder not hue (P1:1, P2:0.6, P3:0.35 all --ink-amber) + Lucide Infinity icon for P∞ — collapses Phase 6's per-priority HSL pills to single intent color
 - [Phase 06.1]: Plan 06.1-04: Projects detail page is Notion-pure — strips every <Card> chrome (UI-SPEC §5j), bg --canvas + text --ink + mono ONLY on metadata strip; most aggressive document-tier register on the app
 - [Phase 06.1]: Plan 06.1-04: DynamicIcon strokeWidth prop addition (default 1.5 per UI-SPEC §8a) is shared-infra scope — single change unblocks both Plan 06.1-04 (ProjectHeader) and parallel Plan 06.1-05 (SidebarTree) typecheck
+- [Phase 06.1]: Plan 06.1-05: Diplomatic chrome typography contract — mono 12px uppercase tracking-wide section labels + nav links + chip labels; serif for content; 1px --edge-hud LEFT-edge accent on active state (no bg fill) replaces Phase 6 bg-secondary fill
+- [Phase 06.1]: Plan 06.1-05: shadcn Dialog primitive bakes HudCornerCrops(size=10, breathing=false) directly into DialogContent + plain backdrop-blur-md(8px) over rgb(0 0 0 / 0.5) scrim — explicitly NOT iOS Liquid Glass refraction per UI-SPEC §13 anti-pattern
+- [Phase 06.1]: Plan 06.1-05: Sonner toast intent CSS in globals.css uses !important across rules because sonner injects inline styles at runtime that would otherwise win specificity; targets [data-sonner-toast][data-type=success|error|info] for 3px left-edge accents + [data-sonner-toast] [data-button] for mono Undo register
+- [Phase 06.1]: Plan 06.1-05: PersistentNav JARVIS link href stays /today per UI-SPEC §14 carry-forward; only the LABEL flips to JARVIS register; route rename deferred to a future polish plan
 
 ### Pending Todos
 
@@ -213,6 +218,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T18:32:28.014Z
-Stopped at: Completed 06.1-04-PLAN.md — document surfaces rebuilt (Tasks/Captures/Projects/Settings + shadcn primitives + EmptyState)
+Last session: 2026-05-19T18:39:27.625Z
+Stopped at: Completed 06.1-05-PLAN.md — diplomatic surfaces (Sidebar/AppShell/Calendar/Modals/Toasts) rebuilt + AES-04 brand-voice copy pass shipped per UI-SPEC §12e + §12f
 Resume file: None

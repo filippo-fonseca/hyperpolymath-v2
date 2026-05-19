@@ -165,7 +165,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. AES-01..AES-07 (deferred from Phase 6) are re-verified against the new contract — no requirement is silently dropped
   4. The Phase 6 plumbing (tokens infrastructure, error boundaries, undo toasts, empty states, /api/health, /insights, focus singleton, page-transition infrastructure, focus-visible ring system) remains intact; only the *values* and surface treatments change
   5. Brand-voice copy pass (AES-04) completes against the new register on every surface that 06-05 deferred (Sidebar, AppShell, CalendarClient, remaining button labels)
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 **UI hint**: yes
 **Notes**: Research-first phase — `/gsd:ui-phase 6.1` produced the UI-SPEC contract before planning. The `/gsd:research-phase 6.1` step was skipped (UI-SPEC research grounded the contract). Aesthetic memory: see `~/.claude/projects/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/memory/feedback_ui_aesthetic.md`.
 
@@ -174,7 +174,7 @@ Plans:
 - [x] 06.1-02-PLAN.md — Wave 2: JARVIS Console motion choreography — 7-state interaction machine + receipt materialize choreography + shared HUD primitives (HudCornerCrops, HudStatusPill, HudEdgeInstrumentation, HudThinkingRing) (AES-02, AES-03, AES-06)
 - [x] 06.1-03-PLAN.md — Wave 2: /insights + /health + /settings/memory rebuild as agent-mode-scope routes with HUD chrome, mono JSON readout, cyan chart strokes (AES-02, AES-03, AES-06)
 - [x] 06.1-04-PLAN.md — Wave 3: Document surfaces — shadcn primitives (Button/Card/Input) + EmptyState + Tasks + Captures + Projects + Settings with Motion 12 interaction states (AES-02, AES-03, AES-04, AES-06)
-- [ ] 06.1-05-PLAN.md — Wave 3: Diplomatic surfaces — Sidebar + AppShell + Calendar + CommandMenu + shadcn Dialog/Popover/Sheet/Tooltip + sonner toast styles + 06-05 deferred brand-voice copy pass + button label inventory (AES-02, AES-03, AES-04, AES-06)
+- [x] 06.1-05-PLAN.md — Wave 3: Diplomatic surfaces — Sidebar + AppShell + Calendar + CommandMenu + shadcn Dialog/Popover/Sheet/Tooltip + sonner toast styles + 06-05 deferred brand-voice copy pass + button label inventory (AES-02, AES-03, AES-04, AES-06)
 - [ ] 06.1-06-PLAN.md — Wave 4: Final integration — template.tsx page transitions + error.tsx + global-error.tsx restyle + automated VERIFICATION.md sweep + 22-scenario manual walkthrough (the gate Phase 6 failed) (AES-02, AES-03, AES-06, AES-07)
 
 **Wave structure**: Plan 01 (Wave 1, foundation tokens) → Plans 02 + 03 (Wave 2, parallel — agent surfaces; file-disjoint via apps/web/components/jarvis/* vs apps/web/app/(app)/{insights,health,settings/memory}/*) → Plans 04 + 05 (Wave 3, parallel — document tier + diplomatic tier; file-disjoint via apps/web/components/{tasks,captures,projects}+ui/{button,card,input} vs apps/web/components/{shell,calendar}+ui/{dialog,popover,sheet,tooltip}) → Plan 06 (Wave 4, autonomous=false — final integration + human-verify walkthrough)
