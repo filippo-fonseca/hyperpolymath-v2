@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 UI-SPEC approved (4 BLOCKs fixed in iteration 1; checker VERIFIED)
-last_updated: "2026-05-19T02:16:21.259Z"
-last_activity: 2026-05-19 -- Phase 06 execution started
+stopped_at: Completed 06-01-PLAN.md (design system foundation)
+last_updated: "2026-05-19T02:26:45.255Z"
+last_activity: 2026-05-19
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 28
-  completed_plans: 23
+  completed_plans: 24
   percent: 100
 ---
 
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06 (polish) — EXECUTING
-Plan: 1 of 5
+Plan: 2 of 5
 Next: Phase 6 (Polish) — discussion pending
-Status: Executing Phase 06
-Last activity: 2026-05-19 -- Phase 06 execution started
+Status: Ready to execute
+Last activity: 2026-05-19
 
 Progress: [██████████] 100%
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 05.1 P02 | 6 | 2 tasks | 10 files |
 | Phase 05.1 P03 | ~2 sessions | 3 tasks | 31 files |
 | Phase 05.1 P04 | 85m | 3 tasks | 19 files |
+| Phase 06-polish P01 | 5 | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,11 @@ Recent decisions affecting current work:
 - [Phase 05.1]: cache_control moves from remember_fact to ask_clarification (the new 5th and final tool); future tool additions must also move the marker
 - [Phase 05.1]: ask_clarification depth cap via input.startsWith('[CLARIFICATION REPLY]') prefix detection in route.ts — stateless and reliable, no server-side counter
 - [Phase 05.1]: JARVIS-22 mocked-mode is the CI regression guard; live-mode (ANTHROPIC_LIVE=true) is the acceptance assertion, run on demand
+- [Phase 06-polish]: Plan 06-01: ThemeProvider configured attribute='class' + defaultTheme='system' + storageKey='hyperpolymath-theme' (D-05/D-06); Tailwind 4 @variant dark paired with .dark class on <html>
+- [Phase 06-polish]: Plan 06-01: EB Garamond collapsed from 5 weights to 2 (400/600) per UI-SPEC §4b 'max 2 weights' rule; Inter fully removed from layout; JetBrains Mono 400 loaded as --font-jetbrains-mono and bound to --font-mono
+- [Phase 06-polish]: Plan 06-01: Neumorphic shadow tokens (D-07) defined as CSS variables in both light (@theme) and dark (.dark) themes; consumed via inline style={{ boxShadow: 'var(--shadow-nm-...)' }} — no Tailwind utility proxy
+- [Phase 06-polish]: Plan 06-01: JARVIS-blue (#00d4ff) hex identical across light + dark; only glow alpha differs (0.15 → 0.12 dark); scoped to agent-mode routes only (D-08)
+- [Phase 06-polish]: Plan 06-01: Universal cursor:pointer rule (D-09) lives in globals.css after body{} — single selector list covers button/[role=button]/a/[data-clickable]/label[for]/select/.cursor-pointer-always
 
 ### Pending Todos
 
@@ -161,6 +167,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T01:09:13.803Z
-Stopped at: Phase 6 UI-SPEC approved (4 BLOCKs fixed in iteration 1; checker VERIFIED)
-Resume file: .planning/phases/06-polish/06-UI-SPEC.md
+Last session: 2026-05-19T02:26:45.251Z
+Stopped at: Completed 06-01-PLAN.md (design system foundation)
+Resume file: None

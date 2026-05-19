@@ -28,7 +28,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **SET-01**: User can set their college graduation year on a settings page (drives Class semester options)
 - [x] **SET-02**: Settings page shows Google Calendar connection status (connected / not connected / token expired)
-- [ ] **SET-03**: User can switch between light and dark theme; preference persists across sessions
+- [x] **SET-03**: User can switch between light and dark theme; preference persists across sessions
 - [x] **SET-04**: User can set a default Google Calendar (used when JARVIS creates events without explicit calendar reference)
 
 ### Areas
@@ -135,12 +135,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Aesthetic & Polish
 
-- [ ] **AES-01**: Primary serif typography is EB Garamond loaded via `next/font/google`; if Louize licensing resolves, Louize is loaded via `next/font/local` for headings
-- [ ] **AES-02**: Visual style matches "academic journal × Notion-Japanese-zen × Warp terminal" — restraint, generous whitespace, monochrome plus single accent color
+- [x] **AES-01**: Primary serif typography is EB Garamond loaded via `next/font/google`; if Louize licensing resolves, Louize is loaded via `next/font/local` for headings
+- [x] **AES-02**: Visual style matches "academic journal × Notion-Japanese-zen × Warp terminal" — restraint, generous whitespace, monochrome plus single accent color
 - [ ] **AES-03**: Page transitions and list reorders use Motion (formerly Framer Motion) for subtle animation
 - [ ] **AES-04**: Brand voice is Genz-Renaissance per `idea_for_polymathy.md` — confident, literate, unapologetic; copy throughout reflects this (empty states, error messages, button labels)
 - [ ] **AES-05**: Cmd+K keyboard shortcut focuses the JARVIS input from anywhere in the app
-- [ ] **AES-06**: Light and dark themes both pass the journal-paper feel; toggle accessible from settings and any page header
+- [x] **AES-06**: Light and dark themes both pass the journal-paper feel; toggle accessible from settings and any page header
 - [ ] **AES-07**: Layout is responsive; usable down to iPad-width (≥768px); mobile-native is out of scope but core flows must not break
 
 ### Resilience & Telemetry
@@ -241,7 +241,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Phase 1 | Complete |
 | SET-01 | Phase 1 | Pending |
 | SET-02 | Phase 4 | Complete |
-| SET-03 | Phase 6 | Pending |
+| SET-03 | Phase 6 | Complete |
 | SET-04 | Phase 4 | Complete |
 | AREA-01 | Phase 2 | Pending |
 | AREA-02 | Phase 2 | Pending |
@@ -321,12 +321,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-12 | Phase 7 | Pending |
 | VOICE-13 | Phase 7 | Pending |
 | VOICE-14 | Phase 7 | Pending |
-| AES-01 | Phase 6 | Pending |
-| AES-02 | Phase 6 | Pending |
+| AES-01 | Phase 6 | Complete |
+| AES-02 | Phase 6 | Complete |
 | AES-03 | Phase 6 | Pending |
 | AES-04 | Phase 6 | Pending |
 | AES-05 | Phase 6 | Pending |
-| AES-06 | Phase 6 | Pending |
+| AES-06 | Phase 6 | Complete |
 | AES-07 | Phase 6 | Pending |
 | RES-01 | Phase 6 | Pending |
 | RES-02 | Phase 6 | Pending |
