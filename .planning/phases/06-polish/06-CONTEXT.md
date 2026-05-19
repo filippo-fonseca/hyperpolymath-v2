@@ -51,6 +51,20 @@ Out of scope: mobile-native UX (AES-07 floors at iPad ≥768px), voice (Phase 7)
 - **D-05:** **Dark mode follows system on first load.** Once user clicks the toggle (in settings or header), preference persists to the `users` table or browser storage and overrides system from then on. Standard 2026 pattern (next-themes-style).
 - **D-06:** **Toggle lives in BOTH** `/settings` (canonical surface — persistent preference) AND the global header (one-click everywhere — small icon button).
 
+### Late-breaking design directives (added 2026-05-18 during research run)
+
+User added three constraints that the UI-SPEC researcher MUST address. These overlay on top of the prior aesthetic decisions (journal-paper / academic / Notion / Warp) — they do not replace them.
+
+- **D-07 (Neumorphic surfaces):** UI surfaces use neumorphic styling — soft extruded shadows, subtle inset/outset depth, no hard borders on most cards/buttons. Implementation: light theme uses light-on-light extrusion (background + offset light/dark shadow pair); dark theme uses dark-on-dark equivalent. NOT a full Dribbble neumorphism (no skeuomorphism overload) — restrained, journal-paper still readable. The neumorphic feel applies to interactive surfaces (buttons, cards, receipts, panels) but NOT to body text or list rows where it would compete with typography.
+
+- **D-08 (JARVIS-esque animation + accent — "the blue thing"):** The JARVIS Console + receipts + /insights surfaces feel like Tony Stark's JARVIS HUD. Specifically:
+  - **Accent color:** electric/holographic JARVIS blue (think `#00d4ff` / cyan-ish), used SPARINGLY — pulsing indicators, focus rings, the "queued" placeholder animation, the streaming-prose caret, the live status dot on /insights charts. NOT the general accent for buttons (those stay neutral). This is the "JARVIS is alive" accent.
+  - **Animations:** scan-line shimmer on the queued placeholder, subtle pulse on the streaming cursor, holographic fade-in on receipt mount (motion/react, ~300ms), light "scan reveal" wipe when a turn lands. Respect `prefers-reduced-motion` — disable all pulse/shimmer, keep fade-only.
+  - **Constraint:** the JARVIS aesthetic is SCOPED to JARVIS surfaces (Console scrollback, receipts, /insights, /health page). Settings pages, Tasks list, Captures feed, Calendar — those stay journal-clean. The blue accent + holographic motion is the visual signal "this is the agent layer."
+  - **Reference:** Iron Man movie HUDs, Apple's "Now Playing" pulse on the Watch, Linear's command palette focus ring intensity.
+
+- **D-09 (Cursor pointer on every clickable element):** Universal rule — any element the user can click MUST have `cursor: pointer`. This includes `<button>`, `<a>`, role="button", clickable list items, etc. Tailwind 4 defaults often miss this. Implementation: add a global CSS rule (`button, [role="button"], a { cursor: pointer; }`) AND a Tailwind plugin / preset where applicable. Audit all existing surfaces during this phase — flag any clickable thing without pointer.
+
 ### Claude's Discretion
 
 The following are not blocking decisions — I'll make sensible defaults during planning, document them in plans, and any choice can be revisited if it doesn't land well:
@@ -60,7 +74,7 @@ The following are not blocking decisions — I'll make sensible defaults during 
 - **Empty-state copy voice:** brand-voice per `idea_for_polymathy.md` (Genz-Renaissance, confident, literate). I'll draft copy for every list view; you can review during execution.
 - **error.tsx structure:** one per route group (root, `(app)`, etc.) following Next.js 16 conventions.
 - **/health endpoint shape:** plain JSON `{ supabase: "ok"|"down", anthropic: "ok"|"down", google_calendar: "ok"|"down", checked_at }`; 200 if all ok, 503 if any down.
-- **Accent color:** ONE accent (per AES-02 "monochrome plus single accent"). Likely a warm ink-red or muted blue — I'll prototype during planning and surface the swatch for confirmation before locking.
+- **Accent color (general UI):** ONE neutral-leaning accent (per AES-02 "monochrome plus single accent") — likely warm ink-red, muted indigo, or warm umber for non-JARVIS surfaces (button hovers, link underlines, focus rings outside JARVIS). DISTINCT from D-08's JARVIS blue which is reserved for the agent layer. I'll prototype both during UI-SPEC and surface swatches before locking.
 - **Motion durations:** 150–250ms for micro, 300–400ms for page transitions; respect `prefers-reduced-motion`.
 - **Settings page IA:** existing `/settings/memory` pattern stays; theme + future toggles go under `/settings` root (no sub-navigation needed at this scale).
 - **Responsive breakpoint behavior:** Tailwind defaults (`md:` = 768px). Below 768px, the spec says "core flows must not break" — interpretation: layout doesn't shatter, but density / sidebar collapse is acceptable.
