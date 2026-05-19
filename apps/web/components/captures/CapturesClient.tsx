@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useOptimistic, useState } from "react";
+import { useCallback, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { CaptureComposer } from "./CaptureComposer";
 import { CapturesFeed } from "./CapturesFeed";
 import { CaptureDetailPanel } from "./CaptureDetailPanel";
@@ -12,11 +13,13 @@ import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { getCapturesForCurrentUser } from "@/app/actions/captures";
+import { getCapturesForCurrentUser, deleteCapture } from "@/app/actions/captures";
 import {
   getHashtagsForUserAction,
   type HashtagWithCount,
 } from "@/app/actions/hashtags";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 
 interface Props {
   /** Signed-in user id — required for tableKey-scoped queries + Realtime filters. */
@@ -253,6 +256,45 @@ export function CapturesClient({
     [addOptimistic],
   );
 
+  // Phase 6 Plan 06-02 (RES-02): delete-capture wrapped in 5s sonner Undo.
+  // Passed to CapturesFeed → CaptureCard so the card no longer commits the
+  // server-side delete itself; the toast helper manages the commit window.
+  const { show: showUndoToast } = useUndoToast();
+  const [, startTransition] = useTransition();
+  const handleDeleteCapture = useCallback(
+    (capture: CaptureWithLinks) => {
+      // 1. Optimistic remove — instant feedback (D-02)
+      addOptimistic({ type: "delete", id: capture.id });
+      // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h)
+      const preview = capture.content.slice(0, 40);
+      const ellipsis = capture.content.length > 40 ? "…" : "";
+      showUndoToast({
+        message: `"${preview}${ellipsis}" deleted`,
+        optimisticRemove: () => {
+          /* already done above */
+        },
+        commit: async () => {
+          const r = await deleteCapture(capture.id);
+          if (!r.success) {
+            toast.error(r.error);
+            startTransition(() => {
+              addOptimistic({ type: "insert", row: capture });
+            });
+          }
+          // Realtime DELETE echo invalidates → refetch → cache aligns.
+        },
+        undo: () => {
+          /* Server delete only fires on commit; no server-side rollback needed */
+        },
+        addBack: () =>
+          startTransition(() => {
+            addOptimistic({ type: "insert", row: capture });
+          }),
+      });
+    },
+    [addOptimistic, showUndoToast],
+  );
+
   return (
     <div className="flex h-full min-h-0">
       <aside className="w-[200px] border-r border-border p-4 overflow-y-auto shrink-0">
@@ -277,18 +319,31 @@ export function CapturesClient({
           />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <CapturesFeed
-            captures={filtered}
-            activeHashtagId={activeTagId}
-            isSearchActive={searchResultIds !== null}
-            onClearHashtag={() => setActiveTagId(null)}
-            onClearSearch={() => handleSearchResults(null)}
-            onSelectCapture={(c) => setSelectedCaptureId(c.id)}
-            onOptimisticDelete={handleOptimisticDelete}
-            userAvatarUrl={userAvatarUrl}
-            userInitials={userInitials}
-            availableProjects={projects}
-          />
+          {/* Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty
+              state when the inbox is truly empty (no captures, no filter, no
+              search). CapturesFeed retains its own filter/search empty states. */}
+          {optimisticCaptures.length === 0 &&
+          !activeTagId &&
+          searchResultIds === null ? (
+            <EmptyState
+              heading="The inbox is quiet."
+              body="Type anything — a thought, a link, a fragment. JARVIS will sort it out."
+            />
+          ) : (
+            <CapturesFeed
+              captures={filtered}
+              activeHashtagId={activeTagId}
+              isSearchActive={searchResultIds !== null}
+              onClearHashtag={() => setActiveTagId(null)}
+              onClearSearch={() => handleSearchResults(null)}
+              onSelectCapture={(c) => setSelectedCaptureId(c.id)}
+              onOptimisticDelete={handleOptimisticDelete}
+              onDeleteCapture={handleDeleteCapture}
+              userAvatarUrl={userAvatarUrl}
+              userInitials={userInitials}
+              availableProjects={projects}
+            />
+          )}
         </div>
       </div>
 

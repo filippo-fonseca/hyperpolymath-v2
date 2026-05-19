@@ -82,6 +82,8 @@ import {
   type EventFormResult,
   type PanelState,
 } from "./EventDetailPanel";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 
 interface Props {
   initialEvents: GcalEventDTO[];
@@ -520,27 +522,62 @@ export function CalendarClient({
     [optimisticEvents, effectiveTz, colorByCalendar, addOptimistic, qc, userId],
   );
 
+  // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for gcal event delete.
+  // The gcal API is the source of truth — committing the delete must hit
+  // googleapis. Pattern: optimistic remove immediately, defer the actual
+  // gcal DELETE by 5s. If the user clicks Undo within the window, no API
+  // call is made; the row is restored locally and the Realtime/refetch
+  // cycle confirms the canonical row still exists in gcal.
+  const { show: showUndoToast } = useUndoToast();
   const handleDelete = useCallback(
     async (eventId: string, calendarId: string) => {
       const previous = optimisticEvents.find((e) => e.id === eventId);
+      // 1. Optimistic remove — instant grid feedback (D-02)
       startTransition(() => {
         addOptimistic({ type: "delete", id: eventId });
       });
-      const res = await deleteEvent({ calendarId, eventId });
-      if (!res.success) {
-        if (previous) {
-          startTransition(() => {
-            addOptimistic({ type: "insert", row: previous });
-          });
+      if (!previous) {
+        // Race: row already gone from the cache. Fall back to immediate
+        // server delete since there's nothing to addBack().
+        const res = await deleteEvent({ calendarId, eventId });
+        if (!res.success) {
+          toast.error(res.error ?? "Failed to delete event");
+          return { success: false };
         }
-        toast.error(res.error ?? "Failed to delete event");
-        return { success: false };
+        void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        return { success: true };
       }
-      void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
-      toast.success("Event deleted.");
+      // 2. 5s Undo toast (RES-02 / UI-SPEC §8h). gcal DELETE deferred.
+      const previousRow = previous;
+      showUndoToast({
+        message: `"${previous.title || "Event"}" deleted`,
+        optimisticRemove: () => {
+          /* already done above */
+        },
+        commit: async () => {
+          const res = await deleteEvent({ calendarId, eventId });
+          if (!res.success) {
+            toast.error(res.error ?? "Failed to delete event");
+            // Restore the optimistic row since gcal rejected the delete.
+            startTransition(() => {
+              addOptimistic({ type: "insert", row: previousRow });
+            });
+            return;
+          }
+          void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        },
+        undo: () => {
+          /* gcal delete only fires on commit; no server-side rollback needed */
+        },
+        addBack: () => {
+          startTransition(() => {
+            addOptimistic({ type: "insert", row: previousRow });
+          });
+        },
+      });
       return { success: true };
     },
-    [optimisticEvents, addOptimistic, qc, userId],
+    [optimisticEvents, addOptimistic, qc, userId, showUndoToast],
   );
 
   // Cmd+K → "?create=now" — open the create panel pre-filled at the next
@@ -636,6 +673,17 @@ export function CalendarClient({
           }}
         />
       </div>
+      {/* Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty
+          state below the grid when no events render in the visible range.
+          Note: the grid stays mounted (primary surface); the EmptyState is a
+          small note beneath. */}
+      {displayEvents.length === 0 && (
+        <EmptyState
+          className="py-12"
+          heading="Nothing on the calendar."
+          body="Either a very good day or JARVIS hasn't made plans for you yet."
+        />
+      )}
       <EventDetailPanel
         state={panelState}
         onClose={() => setPanelState({ mode: "closed" })}

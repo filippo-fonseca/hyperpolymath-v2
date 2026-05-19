@@ -37,6 +37,9 @@ import {
 } from "@/app/actions/projects";
 import { AreaActionsMenu } from "@/components/areas/AreaContextMenu";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
+import { archiveArea, unarchiveArea } from "@/app/actions/areas";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +112,51 @@ export function SidebarTree({
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for area archive flow.
+  // Replaces AreaContextMenu's inline toast.action({label: "Undo"}) pattern
+  // with the shared useUndoToast helper.
+  //
+  // Semantics adapted for archive (vs hard-delete on Tasks/Captures):
+  //   - The server archive commits IMMEDIATELY so Realtime fans the change
+  //     out to other windows. The 5s undo window lets the same window roll
+  //     it back via unarchiveArea() if the user clicks Undo.
+  //   - This differs from useUndoToast's typical "delay commit by 5s"
+  //     pattern but matches what the existing inline pattern already did;
+  //     we're just routing the toast UX through the shared helper.
+  const { show: showUndoToast } = useUndoToast();
+  const handleArchiveAreaWithUndo = (areaId: string, areaName: string) => {
+    // 1. Optimistic remove + immediate server archive (D-04 + cross-window).
+    startTransition(async () => {
+      addOptimisticArea({ type: "delete", id: areaId });
+      const r = await archiveArea(areaId);
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h). Commit is a no-op
+      //    (already committed); Undo calls unarchiveArea.
+      showUndoToast({
+        message: `Area "${areaName}" archived`,
+        optimisticRemove: () => {
+          /* already done above */
+        },
+        commit: () => {
+          /* server commit already happened pre-toast for cross-window propagation */
+        },
+        undo: async () => {
+          const u = await unarchiveArea(areaId);
+          if (!u.success) {
+            toast.error(u.error);
+          }
+          // Realtime echo restores the row in the active list.
+        },
+        addBack: () => {
+          /* Optimistic restoration handled by the Realtime echo on unarchive. */
+        },
+      });
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -197,10 +245,26 @@ export function SidebarTree({
   }
 
   if (optimisticAreas.length === 0) {
+    // Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty state.
+    // Compact py-12 override fits inside the sidebar's narrow width.
+    // No action button — the "+ New Area" trigger is rendered by Sidebar.tsx
+    // immediately above this tree as a sibling element (least-invasive
+    // wiring choice; documented in 06-02 SUMMARY).
+    if (collapsed) {
+      // Collapsed sidebar: keep the original compact text-only fallback to
+      // avoid wrapping the EmptyState H2 in a 48px-wide rail.
+      return (
+        <div className="px-4 py-2 text-[13px] font-sans text-muted-foreground">
+          No areas yet.
+        </div>
+      );
+    }
     return (
-      <div className="px-4 py-2 text-[13px] font-sans text-muted-foreground">
-        No areas yet.
-      </div>
+      <EmptyState
+        className="py-12"
+        heading="No areas yet."
+        body="Areas are the chapters. Start with one — Work, School, Life."
+      />
     );
   }
 
@@ -245,6 +309,7 @@ export function SidebarTree({
               collapsed={collapsed}
               graduationYear={graduationYear ?? null}
               addOptimisticArea={addOptimisticArea}
+              onArchiveWithUndo={handleArchiveAreaWithUndo}
             />
           ))}
         </ul>
@@ -300,12 +365,14 @@ function SortableAreaRow({
   collapsed,
   graduationYear,
   addOptimisticArea,
+  onArchiveWithUndo,
 }: {
   area: SidebarArea;
   allAreas: SidebarArea[];
   collapsed: boolean;
   graduationYear: number | null;
   addOptimisticArea: AreaOptimisticDispatch;
+  onArchiveWithUndo?: (areaId: string, areaName: string) => void;
 }) {
   const {
     attributes,
@@ -397,6 +464,7 @@ function SortableAreaRow({
               rightClickOpen={rightClickOpen}
               onRightClickClose={() => setRightClickOpen(false)}
               addOptimisticArea={addOptimisticArea}
+              onArchiveWithUndo={onArchiveWithUndo}
             />
           </>
         )}

@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
-import { updateTask, deleteTask } from "@/app/actions/tasks";
+import { updateTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   addOptimistic: TasksOptimisticDispatch;
+  /**
+   * Phase 6 Plan 06-02 (RES-02): delete-task handler lifted to TasksClient so
+   * it can wrap the server action in useUndoToast. The panel only invokes
+   * the parent's handler; it no longer owns the optimistic delete or the
+   * server call.
+   */
+  onDeleteTask?: (task: TaskWithProjects) => void;
 }
 
 interface FormState {
@@ -103,6 +110,7 @@ export function TaskDetailPanel({
   open,
   onClose,
   addOptimistic,
+  onDeleteTask,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -227,20 +235,20 @@ export function TaskDetailPanel({
     onClose();
   }, [initialForm, onClose]);
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!task) return;
-    // D-04: optimistic delete first — UI flips instantly
-    addOptimistic({ type: "delete", id: task.id });
-    const r = await deleteTask(task.id);
-    if (!r.success) {
-      // D-03: silent revert + toast.error
-      toast.error(r.error);
+    // Phase 6 Plan 06-02 (RES-02): defer to parent handler which wraps the
+    // server call in useUndoToast (5s Undo window). The parent dispatches the
+    // optimistic delete + commit/restore via the shared sonner toast helper.
+    if (onDeleteTask) {
+      onDeleteTask(task);
+      setShowDeleteConfirm(false);
+      onClose();
       return;
     }
-    toast("Task deleted.");
+    // Defensive fallback (parent always passes onDeleteTask in current usage):
+    // no-op + close the dialog.
     setShowDeleteConfirm(false);
-    onClose();
-    // Realtime DELETE echo invalidates → refetch → cache aligns.
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -459,7 +467,7 @@ export function TaskDetailPanel({
               variant="destructive"
               size="sm"
               className="font-sans text-[13px]"
-              onClick={() => startTransition(() => void handleDelete())}
+              onClick={() => startTransition(() => handleDelete())}
               disabled={isPending}
             >
               Delete task

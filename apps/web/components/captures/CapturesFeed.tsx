@@ -24,6 +24,13 @@ interface Props {
    */
   onOptimisticDelete?: (id: string) => void;
   /**
+   * Phase 6 Plan 06-02 (RES-02) — when provided, CaptureCard hands off the
+   * entire delete flow (optimistic remove + 5s sonner Undo + server commit)
+   * to this parent handler instead of running its own deleteCapture()
+   * invocation. Lifts the toast UX up one level (UI-SPEC §8h).
+   */
+  onDeleteCapture?: (capture: CaptureWithLinks) => void;
+  /**
    * Signed-in user's avatar URL + fallback initial. Forwarded to each card so
    * the Twitter-style avatar | content rhythm renders consistently across the
    * feed. Compact mode (project detail Captures column) does NOT receive this.
@@ -54,6 +61,7 @@ export function CapturesFeed({
   onClearSearch,
   onSelectCapture,
   onOptimisticDelete,
+  onDeleteCapture,
   userAvatarUrl,
   userInitials,
   availableProjects,
@@ -96,6 +104,7 @@ export function CapturesFeed({
             capture={c}
             onOpen={() => onSelectCapture(c)}
             onOptimisticDelete={onOptimisticDelete}
+            onDeleteCapture={onDeleteCapture}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
             availableProjects={availableProjects}

@@ -33,6 +33,9 @@ import { TaskList } from "./TaskList";
 import { TaskFilters } from "./TaskFilters";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
+import { deleteTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
 type TaskStatus =
@@ -88,6 +91,8 @@ export function TasksClient({
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  // Phase 6 Plan 06-02: sonner Undo toast helper for delete-task flow (RES-02).
+  const { show: showUndoToast } = useUndoToast();
 
   // ── Canonical cache (D-06 hybrid SSR + TanStack Query) ───────────────────
   const { data: tasks = initialTasks } = useQuery({
@@ -266,26 +271,26 @@ export function TasksClient({
         </Button>
       </div>
 
-      {/* Content area */}
+      {/* Content area — Phase 6 Plan 06-02 (RES-03, AES-04) empty states */}
       {filtered.length === 0 && hasActiveFilters ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <h2 className="font-serif text-[28px] font-semibold text-foreground">
-            Nothing matches.
-          </h2>
-          <p className="font-serif text-base text-muted-foreground mt-2">
-            Adjust your filters, or clear them to see everything.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="font-sans text-[13px] mt-4"
-            onClick={() => {
-              router.push("/tasks");
-            }}
-          >
-            Clear filters
-          </Button>
-        </div>
+        // Filter empty (UI-SPEC §9: "Nothing matches.")
+        <EmptyState
+          heading="Nothing matches."
+          body="Adjust the filters or clear them all."
+          action={{ label: "Clear filters", onClick: () => router.push("/tasks") }}
+        />
+      ) : tasks.length === 0 && !hasActiveFilters ? (
+        // True empty — no tasks at all (UI-SPEC §9: "Nothing needs doing.")
+        <EmptyState
+          heading="Nothing needs doing."
+          body="Which probably means you've handled everything. JARVIS is waiting if that changes."
+          action={{
+            label: "Tell JARVIS",
+            onClick: () => {
+              window.location.href = "/today";
+            },
+          }}
+        />
       ) : view === "list" ? (
         <TaskList
           tasks={filtered}
@@ -301,13 +306,42 @@ export function TasksClient({
         />
       )}
 
-      {/* Detail panel */}
+      {/* Detail panel — RES-02: delete passes through useUndoToast for 5s Undo */}
       <TaskDetailPanel
         task={openTask}
         projects={projects}
         open={!!openTask}
         onClose={() => setOpenTaskId(null)}
         addOptimistic={addOptimistic}
+        onDeleteTask={(task) => {
+          // 1. Optimistic remove — flips UI instantly (D-02)
+          addOptimistic({ type: "delete", id: task.id });
+          // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h)
+          showUndoToast({
+            message: `"${task.title}" deleted`,
+            optimisticRemove: () => {
+              /* already done above */
+            },
+            commit: async () => {
+              const r = await deleteTask(task.id);
+              if (!r.success) {
+                toast.error(r.error);
+                // Server rejected the delete — restore the row.
+                startTransition(() => {
+                  addOptimistic({ type: "insert", row: task });
+                });
+              }
+              // Realtime DELETE echo invalidates → refetch → cache aligns.
+            },
+            undo: () => {
+              /* Server delete only fires on commit; nothing server-side to roll back */
+            },
+            addBack: () =>
+              startTransition(() => {
+                addOptimistic({ type: "insert", row: task });
+              }),
+          });
+        }}
       />
     </div>
   );

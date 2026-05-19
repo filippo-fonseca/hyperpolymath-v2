@@ -41,6 +41,14 @@ interface Props {
    * AreaCreateDialog and SidebarTree all see the same instant-feedback rows.
    */
   addOptimisticArea: AreaOptimisticDispatch;
+  /**
+   * Phase 6 Plan 06-02 (RES-02) — when provided, the archive action defers
+   * to this parent-supplied handler which wraps the flow in the shared
+   * useUndoToast helper (sonner 5s Undo). Replaces the inline
+   * toast.action({label: "Undo"}) pattern. Optional for backward compat
+   * with any other callsites.
+   */
+  onArchiveWithUndo?: (areaId: string, areaName: string) => void;
 }
 
 /**
@@ -55,6 +63,7 @@ export function AreaActionsMenu({
   rightClickOpen,
   onRightClickClose,
   addOptimisticArea,
+  onArchiveWithUndo,
 }: Props) {
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -73,6 +82,14 @@ export function AreaActionsMenu({
 
   function handleArchive() {
     setEffectiveOpen(false);
+    // Phase 6 Plan 06-02 (RES-02): when SidebarTree supplies onArchiveWithUndo,
+    // route through the shared useUndoToast helper (5s sonner Undo). Falls
+    // back to the legacy inline toast.action pattern if the prop is absent
+    // (defensive — current SidebarTree always passes it).
+    if (onArchiveWithUndo) {
+      onArchiveWithUndo(areaId, areaName);
+      return;
+    }
     startTransition(async () => {
       // D-04: optimistic delete (active list excludes archived; the canonical
       // refetch via Realtime echo will reconcile if "Show archived" is toggled).

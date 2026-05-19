@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { PriorityChip } from "@/components/tasks/PriorityChip";
 import { CaptureCard } from "@/components/captures/CaptureCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -28,6 +29,32 @@ export function ProjectDetailColumns({
   tasks,
   captures,
 }: Props) {
+  // Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): when a project has
+  // neither tasks nor captures linked, surface the brand-voice EmptyState
+  // ("Nothing in this area.") above the column scaffolding. The per-column
+  // empty states (TasksEmptyState / CapturesEmptyState below) still render
+  // for the partial-empty case where exactly one column is empty.
+  if (tasks.length === 0 && captures.length === 0) {
+    return (
+      <EmptyState
+        className="py-16"
+        heading="Nothing in this area."
+        body="Projects are the work. Add one."
+        action={{
+          label: "New project",
+          onClick: () => {
+            // The page-level "+ New Project" affordance lives in
+            // Sidebar.tsx (rendered by AreaCreateDialog sibling) and on
+            // each area row in SidebarTree. We can't trigger them
+            // synchronously from here without lifting state across the
+            // shell; route the user to /today where JARVIS can create a
+            // project via natural-language ("new project X under Y").
+            window.location.href = "/today";
+          },
+        }}
+      />
+    );
+  }
   return (
     <div className="flex flex-col lg:flex-row gap-8 w-full">
       {/* Tasks column */}

@@ -48,6 +48,13 @@ interface Props {
    */
   onOptimisticDelete?: (id: string) => void;
   /**
+   * Phase 6 Plan 06-02 (RES-02) — when provided, the card hands off the
+   * entire delete flow to the parent (CapturesClient) which wraps it in
+   * useUndoToast (5s sonner Undo). Bypasses the card's inline server call
+   * + confirm dialog flow — the toast IS the confirmation surface.
+   */
+  onDeleteCapture?: (capture: CaptureWithLinks) => void;
+  /**
    * Signed-in user's avatar URL (from Supabase Auth `user_metadata.avatar_url`).
    * Rendered Twitter-style on the leading edge of the card in non-compact mode
    * — single-user life-OS, so the avatar is always "you". Compact mode (project
@@ -94,6 +101,7 @@ export function CaptureCard({
   compact = false,
   onOpen,
   onOptimisticDelete,
+  onDeleteCapture,
   userAvatarUrl,
   userInitials,
   availableProjects = [],
@@ -110,8 +118,18 @@ export function CaptureCard({
   const isJarvisCreated = capture.createdVia === "jarvis";
 
   function handleDelete() {
-    // Optimistic delete first — instant feedback. If the server rejects,
-    // useOptimistic auto-reverts on transition completion.
+    // Phase 6 Plan 06-02 (RES-02): when the parent provides onDeleteCapture,
+    // defer the entire flow (optimistic remove + 5s Undo toast + server
+    // commit) to it. The toast IS the confirmation surface — close the local
+    // confirm dialog and play the exit animation.
+    if (onDeleteCapture) {
+      setConfirmOpen(false);
+      setRemoved(true);
+      onDeleteCapture(capture);
+      return;
+    }
+    // Legacy path (project detail Captures column, etc.) — keep the
+    // pre-Phase-6 inline delete so the card works standalone.
     onOptimisticDelete?.(capture.id);
     setConfirmOpen(false);
     setRemoved(true);
@@ -119,14 +137,9 @@ export function CaptureCard({
       const r = await deleteCapture(capture.id);
       if (!r.success) {
         toast.error(r.error);
-        // Local "removed" still played the exit animation; if the server
-        // rejects, the row will come back via useOptimistic auto-revert +
-        // Realtime echo. We reset local `removed` so the card mounts again
-        // when CapturesClient re-renders with the canonical row.
         setRemoved(false);
         return;
       }
-      // Toast after the local fade so it feels intentional.
       toast("Capture deleted.");
     });
   }
