@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-03-PLAN.md (JARVIS Console polish — Cmd+K focus delegation, page transitions, JARVIS-blue animations)
-last_updated: "2026-05-19T02:42:07.299Z"
+stopped_at: Completed 06-02-PLAN.md (resilience layer — error boundaries, EmptyState, useUndoToast)
+last_updated: "2026-05-19T02:47:10.179Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 28
-  completed_plans: 25
+  completed_plans: 26
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 06 (polish) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Next: Phase 6 (Polish) — discussion pending
 Status: Ready to execute
 Last activity: 2026-05-19
@@ -71,6 +71,7 @@ Progress: [██████████] 100%
 | Phase 05.1 P04 | 85m | 3 tasks | 19 files |
 | Phase 06-polish P01 | 5 | 4 tasks | 8 files |
 | Phase 06-polish P03 | 9 | 3 tasks | 10 files |
+| Phase 06-polish P02 | 16 | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,11 @@ Recent decisions affecting current work:
 - [Phase 06-polish]: Plan 06-03: JARVIS-blue animations (queued shimmer, streaming caret, scan reveal, holographic hue-rotate fade-in) live in globals.css as opt-in className utilities + motion/react filter channel; reduced-motion guards at both CSS @media and motion/react useReducedMotion layers
 - [Phase 06-polish]: Plan 06-03: JarvisInput uses React 19 ref-as-prop (no forwardRef); exports JarvisInputHandle interface; module-level singleton remains the canonical Cmd+K dispatch path, ref is for contract documentation + future imperative actions
 - [Phase 06-polish]: Plan 06-03: Receipt padding snapped to UI-SPEC §5a grid — compact px-2 py-1, default px-4 py-2; SuggestedFactReceipt also moved to px-4 py-2 (UI-SPEC §5a applies to all receipts, not just the main branch)
+- [Phase 06-polish]: Plan 06-02: Error boundary clipboard payload is code-fenced JSON with 7 fields (timestamp, route, name, message, digest, stack, userAgent); execCommand textarea fallback when navigator.clipboard.writeText unavailable
+- [Phase 06-polish]: Plan 06-02: global-error.tsx ships own <html><body> + inline styles + system serif fallback (Georgia, Times New Roman) — never assumes globals.css or next/font survived the root layout failure
+- [Phase 06-polish]: Plan 06-02: useUndoToast lifts delete handlers from leaf components (TaskDetailPanel, CaptureCard, AreaActionsMenu) to orchestrators (TasksClient, CapturesClient, SidebarTree) via optional callback props; leaf retains legacy inline path when callback absent
+- [Phase 06-polish]: Plan 06-02: Delete task/capture/calendar event commits to server only after 5s (true deferred delete); archive-area commits immediately for cross-window Realtime echo and Undo calls unarchiveArea — semantics deliberately differ
+- [Phase 06-polish]: Plan 06-02: JarvisReceipt.tsx + use-undo-countdown.ts intentionally unchanged per RESEARCH §4 — JARVIS receipts keep inline UndoButton pattern; only non-JARVIS CRUD migrates to sonner toast wrapper
 
 ### Pending Todos
 
@@ -173,6 +179,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T02:42:07.295Z
-Stopped at: Completed 06-03-PLAN.md (JARVIS Console polish — Cmd+K focus delegation, page transitions, JARVIS-blue animations)
+Last session: 2026-05-19T02:47:10.175Z
+Stopped at: Completed 06-02-PLAN.md (resilience layer — error boundaries, EmptyState, useUndoToast)
 Resume file: None

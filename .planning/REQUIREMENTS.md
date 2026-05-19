@@ -138,20 +138,20 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AES-01**: Primary serif typography is EB Garamond loaded via `next/font/google`; if Louize licensing resolves, Louize is loaded via `next/font/local` for headings
 - [x] **AES-02**: Visual style matches "academic journal × Notion-Japanese-zen × Warp terminal" — restraint, generous whitespace, monochrome plus single accent color
 - [x] **AES-03**: Page transitions and list reorders use Motion (formerly Framer Motion) for subtle animation
-- [ ] **AES-04**: Brand voice is Genz-Renaissance per `idea_for_polymathy.md` — confident, literate, unapologetic; copy throughout reflects this (empty states, error messages, button labels)
+- [x] **AES-04**: Brand voice is Genz-Renaissance per `idea_for_polymathy.md` — confident, literate, unapologetic; copy throughout reflects this (empty states, error messages, button labels)
 - [x] **AES-05**: Cmd+K keyboard shortcut focuses the JARVIS input from anywhere in the app
 - [x] **AES-06**: Light and dark themes both pass the journal-paper feel; toggle accessible from settings and any page header
 - [ ] **AES-07**: Layout is responsive; usable down to iPad-width (≥768px); mobile-native is out of scope but core flows must not break
 
 ### Resilience & Telemetry
 
-- [ ] **RES-01**: `error.tsx` boundary per route group renders branded fallback with copy-paste error report
-- [ ] **RES-02**: Toast notifications for action success / error states; non-destructive actions include "Undo" within 5 seconds
-- [ ] **RES-03**: Empty states for every list view (Tasks, Captures, Areas, Projects, Calendar) with brand-voice copy
+- [x] **RES-01**: `error.tsx` boundary per route group renders branded fallback with copy-paste error report
+- [x] **RES-02**: Toast notifications for action success / error states; non-destructive actions include "Undo" within 5 seconds
+- [x] **RES-03**: Empty states for every list view (Tasks, Captures, Areas, Projects, Calendar) with brand-voice copy
 - [ ] **RES-04**: `/health` endpoint returns Supabase + Anthropic + Google Calendar connectivity check
 - [x] **RES-05**: `jarvis_events` Postgres table logs each JARVIS turn (action types emitted, latency, cache hit rate, error if any)
 - [ ] **RES-06**: `/insights` page renders simple charts over `jarvis_events`: action-type distribution, latency p50/p95, error rate
-- [ ] **RES-07**: Sentry (or equivalent) wired to capture client + server unhandled errors
+- [x] **RES-07**: Sentry (or equivalent) wired to capture client + server unhandled errors
 
 ### Tests
 
@@ -324,17 +324,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AES-01 | Phase 6 | Complete |
 | AES-02 | Phase 6 | Complete |
 | AES-03 | Phase 6 | Complete |
-| AES-04 | Phase 6 | Pending |
+| AES-04 | Phase 6 | Complete |
 | AES-05 | Phase 6 | Complete |
 | AES-06 | Phase 6 | Complete |
 | AES-07 | Phase 6 | Pending |
-| RES-01 | Phase 6 | Pending |
-| RES-02 | Phase 6 | Pending |
-| RES-03 | Phase 6 | Pending |
+| RES-01 | Phase 6 | Complete |
+| RES-02 | Phase 6 | Complete |
+| RES-03 | Phase 6 | Complete |
 | RES-04 | Phase 6 | Pending |
 | RES-05 | Phase 5 | Complete |
 | RES-06 | Phase 6 | Pending |
-| RES-07 | Phase 6 | Pending |
+| RES-07 | Phase 6 | Complete |
 | TEST-01 | Phase 5 | Complete |
 | TEST-02 | Phase 5 | Complete |
 | TEST-03 | Phase 5 | Complete |
