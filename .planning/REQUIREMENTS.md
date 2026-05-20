@@ -122,8 +122,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **VOICE-02**: Saying "Hey Jarvis" (configurable in Settings, default pre-trained Picovoice Porcupine keyword) wakes JARVIS within ~200ms; wake-word detection runs entirely on-device via `@picovoice/porcupine-react` (no audio leaves device for wake detection)
 - [ ] **VOICE-03**: Two claps in quick succession (250-650ms apart) also wake JARVIS via a Web Audio API onset detector running alongside Porcupine
 - [ ] **VOICE-04**: After wake, end-of-turn voice activity detection via `@ricky0123/vad-web` (`onSpeechEnd` flushes audio buffer)
-- [ ] **VOICE-05**: Captured audio routes through `/api/jarvis/stt` (Node route, proxies to Groq Whisper large-v3-turbo); transcript is appended to the JARVIS Console as if typed and triggers the existing `/api/jarvis` pipeline with a `voiceActive: true` header
-- [ ] **VOICE-06**: Receipt summaries play aloud via `/api/jarvis/tts` (Node route, ElevenLabs Flash v2.5 WebSocket); voice ID is a British accent voice from the ElevenLabs voice library (default "Posh" or "George"); user can audition + switch in Settings
+- [x] **VOICE-05**: Captured audio routes through `/api/jarvis/stt` (Node route, proxies to Groq Whisper large-v3-turbo); transcript is appended to the JARVIS Console as if typed and triggers the existing `/api/jarvis` pipeline with a `voiceActive: true` header
+- [x] **VOICE-06**: Receipt summaries play aloud via `/api/jarvis/tts` (Node route, ElevenLabs Flash v2.5 WebSocket); voice ID is a British accent voice from the ElevenLabs voice library (default "Posh" or "George"); user can audition + switch in Settings
 - [ ] **VOICE-07**: One-click "Discreet" toggle in the header silences TTS playback and disables the wake-word listener; the text Console remains fully functional in parallel (verifiable in a coffee-shop / library / shared-network scenario)
 - [ ] **VOICE-08**: Mic-active visual indicator in header reflects 5 states: `idle` (off), `listening` (Porcupine armed, slow pulse), `recording` (VAD open, fast pulse), `thinking` (waiting on Claude), `speaking` (TTS playing)
 - [ ] **VOICE-09**: `Cmd+Shift+J` keyboard shortcut wakes JARVIS as press-to-talk (alternative to wake-word/clap; useful when discreet mode is on but the user wants one-shot voice)
@@ -311,8 +311,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-02 | Phase 7 | Pending |
 | VOICE-03 | Phase 7 | Pending |
 | VOICE-04 | Phase 7 | Pending |
-| VOICE-05 | Phase 7 | Pending |
-| VOICE-06 | Phase 7 | Pending |
+| VOICE-05 | Phase 7 | Complete |
+| VOICE-06 | Phase 7 | Complete |
 | VOICE-07 | Phase 7 | Pending |
 | VOICE-08 | Phase 7 | Pending |
 | VOICE-09 | Phase 7 | Pending |
