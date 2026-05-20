@@ -180,6 +180,30 @@ Plans:
 
 **Wave structure**: Plan 01 (Wave 1, foundation tokens) → Plans 02 + 03 (Wave 2, parallel — agent surfaces; file-disjoint via apps/web/components/jarvis/* vs apps/web/app/(app)/{insights,health,settings/memory}/*) → Plans 04 + 05 (Wave 3, parallel — document tier + diplomatic tier; file-disjoint via apps/web/components/{tasks,captures,projects}+ui/{button,card,input} vs apps/web/components/{shell,calendar}+ui/{dialog,popover,sheet,tooltip}) → Plan 06 (Wave 4, autonomous=false — final integration + human-verify walkthrough)
 
+### Phase 06.2: Anthropic-Discipline Rebuild (INSERTED)
+
+**Goal:** Rebuild the visual surface with **Anthropic** (claude.ai, claude.com, Claude Code CLI, console.anthropic.com) as the new discipline pole, **Notion** as content frame, and **JARVIS** as atmospheric mood only — cyan accent + subtle depth, NO literal HUD vocabulary. Third visual rebuild after Phase 6 (neumorphic) and Phase 6.1 (Stark HUD vocabulary) were both rejected by user with the same words ("clunky and blah"). The PROBLEM was never cyan (user reinforced cyan-canonical signature via second image reference 2026-05-19 PM); the PROBLEM was overwhelming application of cyan + supporting HUD chrome. Phase 6.2 keeps cyan as the signature accent but applies it like Anthropic applies their orange: sparingly, perfectly placed, never as decoration.
+
+**Depends on:** Phase 6.1 (consumes its infrastructure carry-forward: token cleanup, motion library substrate, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility classes; replaces or scopes down the HUD-heavy chrome)
+
+**Requirements:** AES-01 (typography re-deployment), AES-02 (Anthropic + Notion + JARVIS-mood target), AES-03 (Anthropic-restrained motion vocabulary), AES-04 (final tone alignment), AES-06 (theme feel against new contract), AES-07 (responsive verification against new surface)
+
+**Origin:** Inserted 2026-05-19 PM after Phase 6.1's 06.1-06 Task 3 manual-walkthrough rejection. User verbatim: *"i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah."* Then reinforced: *"for the accent color, remember... we are doing it jarvis-esque like in the tony stark movie."* See `.planning/phases/06.1-visual-redesign-jarvis-notion/06.1-VERIFICATION.md` for the deferral list and `.planning/phases/06.1-visual-redesign-jarvis-notion/06.1-06-SUMMARY.md` for Phase 6.1's partial close.
+
+**Success Criteria** (what must be TRUE):
+  1. A fresh `06.2-RESEARCH.md` exists, produced via `/gsd:research-phase 06.2`, with deep study of Anthropic's actual claude.ai/claude.com/Claude Code CLI/console.anthropic.com surfaces + Notion editor + the JARVIS atmospheric mood references — captures specific patterns (typography, color application, spacing, motion, interaction polish) extractable into design tokens
+  2. A fresh `06.2-UI-SPEC.md` exists, produced via `/gsd:ui-phase 06.2` grounded in the research, articulating the Anthropic-discipline + Notion-frame + JARVIS-atmospheric-mood contract with concrete tokens and per-surface treatments
+  3. The new visual contract passes user review live (the gate two previous phases failed); the manual walkthrough runs against the redesigned surface and lands "approved"
+  4. AES-01..AES-04, AES-06, AES-07 are re-verified against the new contract — no requirement silently dropped through three rebuilds
+  5. Phase 6.1 infrastructure carry-forward (per 06.1-VERIFICATION.md) remains intact; only HUD-heavy chrome (corner crops, hex-grid background, 7-state motion machine, arc-reactor, edge instrumentation rails) is replaced or scoped down
+
+**Plans:** TBD
+**UI hint:** yes
+**Notes:** Research-first phase — `/gsd:research-phase 06.2` BEFORE `/gsd:ui-phase 06.2` (Phase 6.1 attempted UI-SPEC without a separate research phase; this time research is non-negotiable). Aesthetic memory: see `~/.claude/projects/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/memory/feedback_ui_pattern_restraint.md` for the two-rejection pattern + new triumvirate brief.
+
+Plans:
+- [ ] TBD (run `/gsd:research-phase 06.2` first, then `/gsd:ui-phase 06.2`, then `/gsd:plan-phase 06.2` to break down)
+
 ### Phase 7: JARVIS Voice + Ambient
 **Goal**: Make JARVIS interactable like Tony Stark's JARVIS — voice in via "Hey Jarvis" wake-word or two-clap activation, voice out in a British accent via ElevenLabs Flash WebSocket, single-click discreet mode toggle that mutes TTS and disables the wake-word while leaving the text Console fully functional. The text Console (Phase 5) remains the canonical fallback for public spaces, shared networks, or anytime voice isn't appropriate.
 **Depends on**: Phase 5 (Phase 6 can run in parallel or before)
