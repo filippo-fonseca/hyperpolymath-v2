@@ -58,7 +58,7 @@ function StatusRow({ serviceKey, status, value }: StatusRowProps) {
         : "var(--ink-muted)";
   return (
     <div
-      className="flex items-baseline gap-4 py-1 font-mono text-xs"
+      className="flex items-baseline gap-4 py-1 font-mono-stats text-xs"
       role="row"
       aria-label={`${serviceKey}: ${status}`}
     >
@@ -127,7 +127,7 @@ export default async function HealthPage() {
               value="per-user OAuth"
             />
             <div
-              className="flex items-baseline gap-4 py-1 font-mono text-xs"
+              className="flex items-baseline gap-4 py-1 font-mono-stats text-xs"
               role="row"
             >
               <span className="w-48 text-[var(--ink-muted)]">checked_at</span>

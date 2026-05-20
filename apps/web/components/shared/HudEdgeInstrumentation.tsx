@@ -65,7 +65,7 @@ export function HudEdgeInstrumentation({
 
   return (
     <div
-      className={`hidden md:flex items-center gap-4 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] opacity-40 hover:opacity-85 transition-opacity duration-200 ease-out ${className}`}
+      className={`hidden md:flex items-center gap-4 font-mono-stats text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] opacity-40 hover:opacity-85 transition-opacity duration-200 ease-out ${className}`}
       aria-hidden="true"
     >
       <span className="text-[var(--ink-muted)]">╶──</span>
