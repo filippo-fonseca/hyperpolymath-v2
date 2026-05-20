@@ -223,9 +223,17 @@ Plans:
   5. Adversarial voice transcript containing prompt-injection phrasing is treated as user content (capture-first per KIWI-06/KIWI-14 / JARVIS-06/JARVIS-14 — locked from Phase 5), never as agent instructions; JARVIS structurally cannot emit destruction (CREATE-only tools)
   6. Mic-active visual indicator in the header reflects all 5 states (`idle`, `listening`, `recording`, `thinking`, `speaking`); browser autoplay handled via user-gesture audio-context unlock at voice-enable time
   7. Settings page exposes: Enable voice (toggle), Wake-word phrase (default "Hey Jarvis"), Clap-clap (toggle), TTS provider (ElevenLabs / Browser fallback / Off), Voice ID picker with audition, Discreet mode toggle, Mic device picker
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
-**Notes**: Supersedes backlog 999.2 ("JARVIS-esque ambient assistant"). Research grounding in `.planning/research/jarvis-voice-layer.md`.
+**Notes**: Supersedes backlog 999.2 ("JARVIS-esque ambient assistant"). Research grounding in `.planning/research/jarvis-voice-layer.md` + phase-specific `.planning/phases/07-jarvis-voice-ambient/07-RESEARCH.md`.
+
+Plans:
+- [ ] 07-01-PLAN.md — Wave 1: env vars + voice deps + /api/jarvis/stt (Groq Whisper) + /api/jarvis/tts (ElevenLabs Flash) + AudioWorklet asset + lib/voice types/constants/encode-wav foundation (VOICE-05, VOICE-06)
+- [ ] 07-02-PLAN.md — Wave 1: Settings → Voice section (7 controls) + EnableVoiceModal (AudioContext-unlock + welcome greeting) + useVoiceSettings localStorage hook (VOICE-01, VOICE-11)
+- [ ] 07-03-PLAN.md — Wave 2: 5-state useReducer FSM + <JarvisListener /> (Porcupine + VAD + clap-onset + Cmd+Shift+J) + MicIndicatorDot + DiscreetToggleButton + PersistentNav wiring (VOICE-02, VOICE-03, VOICE-04, VOICE-07, VOICE-08, VOICE-09)
+- [ ] 07-04-PLAN.md — Wave 3: voice_summary butler-register VOICE_ADDENDUM + transcript→/api/jarvis wiring + AudioQueue TTS playback + SpeechSynthesis fallback + barge-in + adversarial test + latency smoke + human-verify checkpoint (VOICE-10, VOICE-12, VOICE-13, VOICE-14)
+
+**Wave structure**: Plans 01 + 02 (Wave 1, parallel — file-disjoint: 01 owns api/jarvis/{stt,tts} + public/worklets + lib/voice types/constants/encode-wav; 02 owns components/voice/EnableVoiceModal + components/settings/voice/* + lib/voice/use-voice-settings + (app)/settings/page.tsx) → Plan 03 (Wave 2, depends on 01+02 — consumes types from 01 + useVoiceSettings from 02) → Plan 04 (Wave 3, autonomous=false — depends on 01+02+03; closes with human-verify smoke for the 7 end-to-end scenarios)
 
 ## Progress
 
@@ -243,7 +251,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 6. Polish | 5/5 | Complete (passed_with_deferrals) | 2026-05-19 |
 | 6.1. Visual Redesign — JARVIS × Notion | 6/6 | Complete (passed_with_deferrals) | 2026-05-19 |
 | 6.2. Anthropic-Discipline Rebuild | 0/7 | Not started | - |
-| 7. JARVIS Voice + Ambient | 0/TBD | Not started | - |
+| 7. JARVIS Voice + Ambient | 0/4 | Not started | - |
 
 ## Backlog
 
