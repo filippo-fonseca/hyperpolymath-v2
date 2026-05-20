@@ -197,13 +197,20 @@ Plans:
   4. AES-01..AES-04, AES-06, AES-07 are re-verified against the new contract — no requirement silently dropped through three rebuilds
   5. Phase 6.1 infrastructure carry-forward (per 06.1-VERIFICATION.md) remains intact; only HUD-heavy chrome (corner crops, hex-grid background, 7-state motion machine, arc-reactor, edge instrumentation rails) is replaced or scoped down
 
-**Plans:** TBD
+**Plans:** 7 plans
 **UI hint:** yes
 **Notes:** Research-first phase — `/gsd:research-phase 06.2` BEFORE `/gsd:ui-phase 06.2` (Phase 6.1 attempted UI-SPEC without a separate research phase; this time research is non-negotiable). Aesthetic memory: see `~/.claude/projects/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/memory/feedback_ui_pattern_restraint.md` for the two-rejection pattern + new triumvirate brief.
 
 Plans:
-- [ ] TBD (run `/gsd:research-phase 06.2` first, then `/gsd:ui-phase 06.2`, then `/gsd:plan-phase 06.2` to break down)
+- [ ] 06.2-01-PLAN.md — Wave 1: REVERT — delete 4 HUD primitives + 13 keyframes + 2 ambient pseudo-elements; narrow .agent-mode-scope to JARVIS Console only; collapse motion state machine to 3 states; refactor HudEdgeInstrumentation → ConsoleMetaStrip (AES-02, AES-03)
+- [ ] 06.2-02-PLAN.md — Wave 2: TOKEN REFRESH — lock @theme tokens to UI-SPEC §3/§4/§6/§10 values; collapse to single ease-out-quart curve; simplify --ring-hud; tighten next/font weight subsets (AES-01, AES-02, AES-06)
+- [ ] 06.2-03-PLAN.md — Wave 3: JARVIS Console rebuild — composer (focal cyan moment #1) + streaming caret (focal cyan moment #2) + assistant/user turn renderers + empty-state greeting + receipt + slash popover + clarification (AES-02, AES-03, AES-06)
+- [ ] 06.2-04-PLAN.md — Wave 4: Agent-adjacent rebuild — /insights (cyan only on chart strokes) + /health (clean data table) + /settings/memory (plain fact cards) (AES-02, AES-03, AES-06)
+- [ ] 06.2-05-PLAN.md — Wave 5A: Document surfaces — Tasks + Captures + Projects + Settings + shadcn Button/Card/Input/Textarea + EmptyState (AES-02, AES-03, AES-04, AES-06)
+- [ ] 06.2-06-PLAN.md — Wave 5B: Diplomatic surfaces — Sidebar (224px Notion-exact) + AppShell + Calendar + CommandMenu + shadcn Dialog/Popover/Sheet/Tooltip + sonner toast CSS (AES-02, AES-03, AES-04, AES-06)
+- [ ] 06.2-07-PLAN.md — Wave 6: Final integration — template.tsx + error.tsx + global-error.tsx audit + automated VERIFICATION.md sweep + human-verify manual walkthrough (the gate two previous phases failed) (AES-02, AES-03, AES-04, AES-06, AES-07)
 
+**Wave structure**: Plan 01 (Wave 1, sequential foundation revert) → Plan 02 (Wave 2, sequential token refresh) → Plan 03 (Wave 3, Console rebuild — the focal cyan moments) → Plan 04 (Wave 4, agent-adjacent rebuild) → Plans 05 + 06 (Wave 5, parallel — document tier + diplomatic tier; file-disjoint per components/{tasks,captures,projects,ui/button,ui/card,ui/input,ui/textarea,shared/EmptyState}+(app)/settings/page.tsx vs components/{shell,calendar,ui/dialog,ui/popover,ui/sheet,ui/tooltip}+globals.css for sonner) → Plan 07 (Wave 6, autonomous=false — final integration + human-verify walkthrough)
 ### Phase 7: JARVIS Voice + Ambient
 **Goal**: Make JARVIS interactable like Tony Stark's JARVIS — voice in via "Hey Jarvis" wake-word or two-clap activation, voice out in a British accent via ElevenLabs Flash WebSocket, single-click discreet mode toggle that mutes TTS and disables the wake-word while leaving the text Console fully functional. The text Console (Phase 5) remains the canonical fallback for public spaces, shared networks, or anytime voice isn't appropriate.
 **Depends on**: Phase 5 (Phase 6 can run in parallel or before)
@@ -235,7 +242,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 5.1. JARVIS Agentic Refactor | 3/4 | In Progress|  |
 | 6. Polish | 5/5 | Complete (passed_with_deferrals) | 2026-05-19 |
 | 6.1. Visual Redesign — JARVIS × Notion | 6/6 | Complete (passed_with_deferrals) | 2026-05-19 |
-| 6.2. Anthropic-Discipline Rebuild | 0/TBD | Not started | - |
+| 6.2. Anthropic-Discipline Rebuild | 0/7 | Not started | - |
 | 7. JARVIS Voice + Ambient | 0/TBD | Not started | - |
 
 ## Backlog
