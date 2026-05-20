@@ -118,7 +118,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### JARVIS Voice + Ambient (Phase 7)
 
-- [ ] **VOICE-01**: User can enable voice mode via a toggle in Settings → Voice; toggling on requests microphone permission and resumes the AudioContext via user gesture (browser autoplay handling)
+- [x] **VOICE-01**: User can enable voice mode via a toggle in Settings → Voice; toggling on requests microphone permission and resumes the AudioContext via user gesture (browser autoplay handling)
 - [ ] **VOICE-02**: Saying "Hey Jarvis" (configurable in Settings, default pre-trained Picovoice Porcupine keyword) wakes JARVIS within ~200ms; wake-word detection runs entirely on-device via `@picovoice/porcupine-react` (no audio leaves device for wake detection)
 - [ ] **VOICE-03**: Two claps in quick succession (250-650ms apart) also wake JARVIS via a Web Audio API onset detector running alongside Porcupine
 - [ ] **VOICE-04**: After wake, end-of-turn voice activity detection via `@ricky0123/vad-web` (`onSpeechEnd` flushes audio buffer)
@@ -128,7 +128,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **VOICE-08**: Mic-active visual indicator in header reflects 5 states: `idle` (off), `listening` (Porcupine armed, slow pulse), `recording` (VAD open, fast pulse), `thinking` (waiting on Claude), `speaking` (TTS playing)
 - [ ] **VOICE-09**: `Cmd+Shift+J` keyboard shortcut wakes JARVIS as press-to-talk (alternative to wake-word/clap; useful when discreet mode is on but the user wants one-shot voice)
 - [ ] **VOICE-10**: System prompt extends Phase 5's personality (D-16) with voice-aware register and a `voice_summary` field on each tool schema (≤20 words; spoken aloud when `voiceActive` header is present, ignored otherwise)
-- [ ] **VOICE-11**: Settings → Voice section exposes: Enable voice (toggle), Wake-word phrase (text, default "Hey Jarvis"), Clap-clap (toggle), TTS provider (ElevenLabs / Browser SpeechSynthesis fallback / Off), Voice ID picker with audition, Discreet mode toggle, Mic device picker
+- [x] **VOICE-11**: Settings → Voice section exposes: Enable voice (toggle), Wake-word phrase (text, default "Hey Jarvis"), Clap-clap (toggle), TTS provider (ElevenLabs / Browser SpeechSynthesis fallback / Off), Voice ID picker with audition, Discreet mode toggle, Mic device picker
 - [ ] **VOICE-12**: Barge-in — user speaking while TTS is playing pauses the playback and starts a new recording turn (echo cancellation via `getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }})`)
 - [ ] **VOICE-13**: End-to-end latency from speech-end to receipt-visible AND first TTS audio chunk playing: p50 < 3s, p95 < 6s for typical single-action turn (measured via `jarvis_events` with voice-mode flag)
 - [ ] **VOICE-14**: Adversarial voice transcript containing prompt-injection phrasing is treated as user content (capture-first per JARVIS-06/JARVIS-14 — inherited from Phase 5 structural defense); voice mode does NOT introduce a new attack surface beyond what STT itself permits
@@ -307,7 +307,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | JARVIS-20 | Phase 5.1 | Complete |
 | JARVIS-21 | Phase 5.1 | Complete |
 | JARVIS-22 | Phase 5.1 | Complete |
-| VOICE-01 | Phase 7 | Pending |
+| VOICE-01 | Phase 7 | Complete |
 | VOICE-02 | Phase 7 | Pending |
 | VOICE-03 | Phase 7 | Pending |
 | VOICE-04 | Phase 7 | Pending |
@@ -317,7 +317,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-08 | Phase 7 | Pending |
 | VOICE-09 | Phase 7 | Pending |
 | VOICE-10 | Phase 7 | Pending |
-| VOICE-11 | Phase 7 | Pending |
+| VOICE-11 | Phase 7 | Complete |
 | VOICE-12 | Phase 7 | Pending |
 | VOICE-13 | Phase 7 | Pending |
 | VOICE-14 | Phase 7 | Pending |

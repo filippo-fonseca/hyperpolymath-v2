@@ -228,8 +228,8 @@ Plans:
 **Notes**: Supersedes backlog 999.2 ("JARVIS-esque ambient assistant"). Research grounding in `.planning/research/jarvis-voice-layer.md` + phase-specific `.planning/phases/07-jarvis-voice-ambient/07-RESEARCH.md`.
 
 Plans:
-- [ ] 07-01-PLAN.md — Wave 1: env vars + voice deps + /api/jarvis/stt (Groq Whisper) + /api/jarvis/tts (ElevenLabs Flash) + AudioWorklet asset + lib/voice types/constants/encode-wav foundation (VOICE-05, VOICE-06)
-- [ ] 07-02-PLAN.md — Wave 1: Settings → Voice section (7 controls) + EnableVoiceModal (AudioContext-unlock + welcome greeting) + useVoiceSettings localStorage hook (VOICE-01, VOICE-11)
+- [x] 07-01-PLAN.md — Wave 1: env vars + voice deps + /api/jarvis/stt (Groq Whisper) + /api/jarvis/tts (ElevenLabs Flash) + AudioWorklet asset + lib/voice types/constants/encode-wav foundation (VOICE-05, VOICE-06)
+- [x] 07-02-PLAN.md — Wave 1: Settings → Voice section (7 controls) + EnableVoiceModal (AudioContext-unlock + welcome greeting) + useVoiceSettings localStorage hook (VOICE-01, VOICE-11)
 - [ ] 07-03-PLAN.md — Wave 2: 5-state useReducer FSM + <JarvisListener /> (Porcupine + VAD + clap-onset + Cmd+Shift+J) + MicIndicatorDot + DiscreetToggleButton + PersistentNav wiring (VOICE-02, VOICE-03, VOICE-04, VOICE-07, VOICE-08, VOICE-09)
 - [ ] 07-04-PLAN.md — Wave 3: voice_summary butler-register VOICE_ADDENDUM + transcript→/api/jarvis wiring + AudioQueue TTS playback + SpeechSynthesis fallback + barge-in + adversarial test + latency smoke + human-verify checkpoint (VOICE-10, VOICE-12, VOICE-13, VOICE-14)
 

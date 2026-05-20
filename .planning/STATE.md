@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 6.1 closed passed_with_deferrals — infrastructure shipped (token cleanup, motion library, shadcn restyles, intentionality.io utilities, AES-04 copy pass); cumulative HUD-heavy visual surface rejected; AES-01..04,06,07 re-deferred to 6.2 after user feedback 2026-05-19 PM: "i still do not like how it looks and everything feels clunky and blah. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has.""
-stopped_at: Phase 07 context gathered
-last_updated: "2026-05-20T19:57:56.116Z"
-last_activity: 2026-05-19 - Phase 6.1 closed; pivoting to Phase 6.2 with Anthropic + Notion + Claude Code as new discipline triumvirate
+status: executing
+stopped_at: Completed 07-jarvis-voice-ambient/07-02-PLAN.md
+last_updated: "2026-05-20T20:37:33.683Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 15
   completed_phases: 8
-  total_plans: 41
-  completed_plans: 34
+  total_plans: 45
+  completed_plans: 36
   percent: 100
 ---
 
@@ -21,14 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 6.2 — anthropic-discipline-rebuild (to be inserted)
+**Current focus:** Phase 07 — jarvis-voice-ambient
 
 ## Current Position
 
-Phase: 06.1 (visual-redesign-jarvis-notion) — COMPLETE with deferrals (2026-05-19)
+Phase: 07 (jarvis-voice-ambient) — EXECUTING
+Plan: 2 of 4
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
-Status: Phase 6.1 closed passed_with_deferrals — infrastructure shipped (token cleanup, motion library, shadcn restyles, intentionality.io utilities, AES-04 copy pass); cumulative HUD-heavy visual surface rejected; AES-01..04,06,07 re-deferred to 6.2 after user feedback 2026-05-19 PM: "i still do not like how it looks and everything feels clunky and blah. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has."
-Last activity: 2026-05-19 - Phase 6.1 closed; pivoting to Phase 6.2 with Anthropic + Notion + Claude Code as new discipline triumvirate
+Status: Ready to execute
+Last activity: 2026-05-20
 
 Progress: [██████████] 100%
 
@@ -77,6 +78,7 @@ Progress: [██████████] 100%
 | Phase 06.1 P03 | 8 | 3 tasks | 5 files |
 | Phase 06.1 P04 | 45min | 3 tasks | 18 files |
 | Phase 06.1 PP05 | 21min | 3 tasks | 18 files |
+| Phase 07-jarvis-voice-ambient P02 | 6 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -201,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase 06.1]: Plan 06.1-05: shadcn Dialog primitive bakes HudCornerCrops(size=10, breathing=false) directly into DialogContent + plain backdrop-blur-md(8px) over rgb(0 0 0 / 0.5) scrim — explicitly NOT iOS Liquid Glass refraction per UI-SPEC §13 anti-pattern
 - [Phase 06.1]: Plan 06.1-05: Sonner toast intent CSS in globals.css uses !important across rules because sonner injects inline styles at runtime that would otherwise win specificity; targets [data-sonner-toast][data-type=success|error|info] for 3px left-edge accents + [data-sonner-toast] [data-button] for mono Undo register
 - [Phase 06.1]: Plan 06.1-05: PersistentNav JARVIS link href stays /today per UI-SPEC §14 carry-forward; only the LABEL flips to JARVIS register; route rename deferred to a future polish plan
+- [Phase 07-jarvis-voice-ambient]: Posh (EXAVITQu4vr4xnSDxMaL) is first AUDITION_VOICES option; George (JBFqnCBsd6RMkjVDRZzb) is DEFAULT_VOICE_ID in constants.ts; final pick is user's live audition choice
+- [Phase 07-jarvis-voice-ambient]: useVoiceSettings uses ThemeToggle mount-guard pattern (mounted bool) for SSR safety; localStorage is sole persistence for single-user MVP (no DB round-trip per Context.md §Claude's Discretion)
 
 ### Pending Todos
 
@@ -218,6 +222,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-20T19:57:56.108Z
-Stopped at: Phase 07 context gathered
-Resume file: .planning/phases/07-jarvis-voice-ambient/07-CONTEXT.md
+Last session: 2026-05-20T20:37:33.680Z
+Stopped at: Completed 07-jarvis-voice-ambient/07-02-PLAN.md
+Resume file: None
