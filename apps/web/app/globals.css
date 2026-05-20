@@ -6,6 +6,11 @@
    AND the .dark {} CSS variable override block below. (RESEARCH §1 Pitfall 2) */
 @variant dark (&:where(.dark, .dark *));
 
+/* Phase 6.1 — pointer-fine custom variant (stolen from intentionality.io).
+   Targets devices with a fine pointer (mouse/trackpad). Use for hover-reveal
+   patterns: buttons stay visible on touch, hidden on mouse. */
+@custom-variant pointer-fine (@media (pointer: fine));
+
 @theme {
   --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -38,6 +43,15 @@
   --hud-cyan-light: oklch(48% 0.13 210);
   --hud-cyan-glow: rgb(34 211 238 / 0.18);
   --hud-cyan-glow-soft: rgb(34 211 238 / 0.08);
+  /* RGB triplet for rgba() consumption (stolen from intentionality.io pattern) */
+  --hud-cyan-rgb: 34, 211, 238;
+
+  /* Glow intensity tokens (stolen from intentionality.io --glow-subtle/medium/strong).
+     Pre-baked component glow shadows — use on cards, panels, focused inputs
+     inside .agent-mode-scope only. Dark mode overrides at the bottom. */
+  --glow-hud-subtle: 0 0 20px rgb(var(--hud-cyan-rgb) / 0.10);
+  --glow-hud-medium: 0 0 28px rgb(var(--hud-cyan-rgb) / 0.16);
+  --glow-hud-strong: 0 0 36px rgb(var(--hud-cyan-rgb) / 0.24);
 
   /* Three academic intent inks (document/diplomatic) */
   --ink-amber: oklch(70% 0.13 75);
@@ -263,6 +277,96 @@
 .font-mono,
 [style*="--font-mono"] {
   font-variant-ligatures: none;
+}
+
+/* =====================================================================
+   Phase 6.1 — Layered ambient HUD background (stolen from intentionality.io).
+   Scoped to .agent-mode-scope so it only renders on agent surfaces:
+   JARVIS Console (/), /insights, /health, /settings/memory.
+   Document surfaces (Tasks, Captures, Projects, Settings) stay Notion-clean.
+
+   Layer 1 (::before): hexagonal dot pattern + 48px grid lines
+   Layer 2 (::after): 4 corner radial cyan glows + center vignette
+   Both layers are pointer-events:none, behind content (z:0).
+   ===================================================================== */
+.agent-mode-scope::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle at center, rgb(var(--hud-cyan-rgb) / 0.035) 1px, transparent 1px),
+    linear-gradient(to right, rgb(var(--hud-cyan-rgb) / 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--hud-cyan-rgb) / 0.025) 1px, transparent 1px);
+  background-size: 24px 24px, 48px 48px, 48px 48px;
+  opacity: 0.55;
+}
+
+.agent-mode-scope::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(700px circle at 5% 5%,   rgb(var(--hud-cyan-rgb) / 0.10), transparent 50%),
+    radial-gradient(500px circle at 95% 10%, rgb(var(--hud-cyan-rgb) / 0.05), transparent 50%),
+    radial-gradient(400px circle at 10% 90%, rgb(var(--hud-cyan-rgb) / 0.05), transparent 50%),
+    radial-gradient(600px circle at 90% 85%, rgb(var(--hud-cyan-rgb) / 0.07), transparent 50%);
+  opacity: 1;
+  transition: opacity 400ms var(--ease-out-quart);
+}
+
+/* =====================================================================
+   Phase 6.1 — Utility classes (stolen from intentionality.io).
+   ===================================================================== */
+
+/* Tabular + lining figures for stats. Use on /insights numbers, /health
+   latency readouts, JARVIS edge instrumentation, jarvis_events digits. */
+.font-mono-stats {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-feature-settings: "tnum" on, "lnum" on;
+}
+
+/* Thin themed scrollbar — webkit + firefox. Pairs with overflow utilities. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--edge);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-muted);
+}
+
+/* Hidden scrollbar — overflow remains functional but the scrollbar itself
+   is invisible. Use on horizontal-scroll strips where the scrollbar would
+   add visual noise (kanban columns at width, calendar week scroll, etc). */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Theme-aware color-scheme for native date/time/color inputs. Without this,
+   native input chrome stays browser-default and breaks in dark mode. */
+.theme-color-scheme {
+  color-scheme: light;
+}
+.dark .theme-color-scheme {
+  color-scheme: dark;
 }
 
 /* =====================================================================
