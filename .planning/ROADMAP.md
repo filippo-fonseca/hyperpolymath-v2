@@ -19,7 +19,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: JARVIS** - The agent: pure `jarvis-core` package, deterministic date pre-parser, strict tool-use, prompt caching, streaming console with `$project`/`#hashtag` chips, action receipts, telemetry (completed 2026-05-15)
 - [x] **Phase 5.1: JARVIS Agentic Refactor (INSERTED)** - Prose-first response surface, persistent memory layer (jarvis_facts), ask_clarification tool, per-turn pipeline budget, implicit-intent fidelity test corpus (completed 2026-05-18)
 - [x] **Phase 6: Polish** - EB Garamond/Louize typography, journal-paper styling, light/dark themes, error boundaries, toasts, empty states, settings page, /insights, accessibility (completed 2026-05-19 — passed_with_deferrals; visual contract rejected, AES-* deferred to 6.1)
-- [ ] **Phase 6.1: Visual Redesign — JARVIS × Notion (INSERTED)** - Research-first rebuild of the visual surface: holographic-AI feel (depth, glow, scan-lines, monospace data, glass) × clean-document discipline (whitespace, strong type hierarchy, restraint). Absorbs AES-01..AES-07 deferred from Phase 6.
+- [x] **Phase 6.1: Visual Redesign — JARVIS × Notion (INSERTED)** - Research-first rebuild attempt #1: Stark HUD vocabulary translated through Linear/Vercel discipline. Shipped 6 plans across 4 waves of infrastructure (token cleanup, motion library, shadcn restyles, intentionality.io utilities). Cumulative HUD-heavy surface rejected by user; AES-* re-deferred to 6.2. (completed 2026-05-19 — passed_with_deferrals)
+- [ ] **Phase 6.2: Anthropic-Discipline Rebuild (INSERTED)** - Third visual rebuild after two rejections ("clunky and blah" both times). New discipline pole: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com). Notion content frame. JARVIS as atmospheric mood only — cyan accent + subtle depth, NO literal HUD vocabulary. Massive refactor of Phase 6.1's chrome.
 - [ ] **Phase 7: JARVIS Voice + Ambient** - "Hey Jarvis" + clap-clap wake, Groq Whisper STT, ElevenLabs Flash British TTS, discreet mode toggle, mic-active indicator. Text Console remains fallback for public spaces.
 
 ## Phase Details
@@ -198,7 +199,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -209,7 +210,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 5. JARVIS | 4/4 | Complete    | 2026-05-15 |
 | 5.1. JARVIS Agentic Refactor | 3/4 | In Progress|  |
 | 6. Polish | 5/5 | Complete (passed_with_deferrals) | 2026-05-19 |
-| 6.1. Visual Redesign — JARVIS × Notion | 0/TBD | Not started | - |
+| 6.1. Visual Redesign — JARVIS × Notion | 6/6 | Complete (passed_with_deferrals) | 2026-05-19 |
+| 6.2. Anthropic-Discipline Rebuild | 0/TBD | Not started | - |
 | 7. JARVIS Voice + Ambient | 0/TBD | Not started | - |
 
 ## Backlog

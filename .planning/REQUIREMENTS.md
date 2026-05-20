@@ -321,13 +321,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-12 | Phase 7 | Pending |
 | VOICE-13 | Phase 7 | Pending |
 | VOICE-14 | Phase 7 | Pending |
-| AES-01 | Phase 6.1 | Deferred from 6 (visual contract redesign) |
-| AES-02 | Phase 6.1 | Deferred from 6 (visual contract redesign) |
-| AES-03 | Phase 6.1 | Deferred from 6 (motion language ties to redesign) |
-| AES-04 | Phase 6.1 | Deferred from 6 (copy register pending new voice) |
+| AES-01 | Phase 6.2 | Deferred from 6+6.1 (third visual rebuild — Anthropic-discipline) |
+| AES-02 | Phase 6.2 | Deferred from 6+6.1 (third visual rebuild — Anthropic + Notion + JARVIS-mood) |
+| AES-03 | Phase 6.2 | Deferred from 6+6.1 (Anthropic-restrained motion vocabulary) |
+| AES-04 | Phase 6.2 | Final tone alignment with Anthropic-leaning voice |
 | AES-05 | Phase 6 | Complete |
-| AES-06 | Phase 6.1 | Deferred from 6 (toggle done; journal-paper feel deferred) |
-| AES-07 | Phase 6.1 | Deferred from 6 (responsive verification against new surface) |
+| AES-06 | Phase 6.2 | Theme feel deferred through two rebuilds |
+| AES-07 | Phase 6.2 | Responsive verification against new contract |
 | RES-01 | Phase 6 | Complete |
 | RES-02 | Phase 6 | Complete |
 | RES-03 | Phase 6 | Complete |

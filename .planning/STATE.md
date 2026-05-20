@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 06.1-05-PLAN.md — diplomatic surfaces (Sidebar/AppShell/Calendar/Modals/Toasts) rebuilt + AES-04 brand-voice copy pass shipped per UI-SPEC §12e + §12f
-last_updated: "2026-05-19T18:39:27.628Z"
-last_activity: 2026-05-19
+status: planning
+stopped_at: Phase 6.1 closed passed_with_deferrals — cumulative HUD-heavy visual surface rejected by user on second walkthrough; AES-* re-deferred to Phase 6.2 (Anthropic-discipline rebuild)
+last_updated: "2026-05-19T21:00:00.000Z"
+last_activity: 2026-05-19 - Phase 6.1 closed; pivoting to Phase 6.2 with Anthropic + Notion + Claude Code as new discipline triumvirate
 progress:
-  total_phases: 13
-  completed_phases: 7
+  total_phases: 14
+  completed_phases: 8
   total_plans: 34
-  completed_plans: 33
+  completed_plans: 34
   percent: 100
 ---
 
@@ -21,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 06.1 — visual-redesign-jarvis-notion
+**Current focus:** Phase 6.2 — anthropic-discipline-rebuild (to be inserted)
 
 ## Current Position
 
-Phase: 06.1 (visual-redesign-jarvis-notion) — EXECUTING
-Plan: 6 of 6
-Next: Phase 6.1 (visual-redesign-jarvis-notion) — insert via /gsd:insert-phase 6, then /gsd:ui-phase 6.1
-Status: Ready to execute
-Last activity: 2026-05-19
+Phase: 06.1 (visual-redesign-jarvis-notion) — COMPLETE with deferrals (2026-05-19)
+Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
+Status: Phase 6.1 closed passed_with_deferrals — infrastructure shipped (token cleanup, motion library, shadcn restyles, intentionality.io utilities, AES-04 copy pass); cumulative HUD-heavy visual surface rejected; AES-01..04,06,07 re-deferred to 6.2 after user feedback 2026-05-19 PM: "i still do not like how it looks and everything feels clunky and blah. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has."
+Last activity: 2026-05-19 - Phase 6.1 closed; pivoting to Phase 6.2 with Anthropic + Notion + Claude Code as new discipline triumvirate
 
 Progress: [██████████] 100%
 
@@ -85,6 +84,7 @@ Progress: [██████████] 100%
 
 - Phase 05.1 inserted after Phase 5: jarvis-agentic-refactor (URGENT) — implicit intent extraction, multi-action action-graph, persistent instruction memory, pipeline efficiency cleanup (Sidebar areas refetches on every JARVIS submit), conversational personality, smart ambiguity. Builds on Phase 5 jarvis-core. Out of scope: voice (Phase 7), read-back (backlog 999.3).
 - Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
+- Phase 6.2 inserted after Phase 6.1 (2026-05-19 PM): anthropic-discipline-rebuild. User rejected Phase 6.1's cumulative HUD-heavy visual surface during 06.1-06 Task 3 walkthrough: "i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah." Then reinforced cyan-canonical via second image reference + "we are doing it jarvis-esque like in the tony stark movie." Phase 6.1 closed passed_with_deferrals on infrastructure (token cleanup, motion library substrate, focus-visible system, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility class adoption); AES-01..04,06,07 re-deferred to Phase 6.2. New discipline triumvirate for 6.2: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com) as the discipline pole, Notion as content frame, JARVIS as atmospheric mood only (cyan accent + subtle depth, no literal HUD vocabulary). Massive refactor of Phase 6.1's chrome — throw out corner crops on every surface, hex-grid background, 7-state motion machine, arc-reactor centerpiece. 6.2 is research-first via /gsd:research-phase + /gsd:ui-phase.
 
 ### Decisions
 
