@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 6.1 closed passed_with_deferrals — cumulative HUD-heavy visual surface rejected by user on second walkthrough; AES-* re-deferred to Phase 6.2 (Anthropic-discipline rebuild)
-last_updated: "2026-05-19T21:00:00.000Z"
+stopped_at: Phase 6.2 planned (7 plans across 6 waves); checker verification pending. Branch safety push + new working branch creation before continuing.
+last_updated: "2026-05-20T01:42:45.646Z"
 last_activity: 2026-05-19 - Phase 6.1 closed; pivoting to Phase 6.2 with Anthropic + Notion + Claude Code as new discipline triumvirate
 progress:
   total_phases: 14
@@ -218,6 +218,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-19T18:39:27.625Z
-Stopped at: Completed 06.1-05-PLAN.md — diplomatic surfaces (Sidebar/AppShell/Calendar/Modals/Toasts) rebuilt + AES-04 brand-voice copy pass shipped per UI-SPEC §12e + §12f
-Resume file: None
+Last session: 2026-05-20T01:42:45.632Z
+Stopped at: Phase 6.2 UI-SPEC approved (2 BLOCKs fixed in revision 1; checker VERIFIED). Research + design contract ready for planning.
+Resume file: .planning/phases/06.2-anthropic-discipline-rebuild/06.2-UI-SPEC.md
