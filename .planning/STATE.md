@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-05-20T20:38:21.834Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-05-20T20:51:48.223Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 15
   completed_phases: 8
   total_plans: 45
-  completed_plans: 36
+  completed_plans: 37
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 07 (jarvis-voice-ambient) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
 Last activity: 2026-05-20
@@ -80,6 +80,7 @@ Progress: [██████████] 100%
 | Phase 06.1 PP05 | 21min | 3 tasks | 18 files |
 | Phase 07-jarvis-voice-ambient P02 | 6 | 3 tasks | 10 files |
 | Phase 07 P01 | 6 | 3 tasks | 12 files |
+| Phase 07 P03 | 7 | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,9 @@ Recent decisions affecting current work:
 - [Phase 07-01]: STT/TTS routes use claimsResult.error || !claimsResult.data?.claims?.sub auth pattern (matches existing /api/jarvis route) — the destructured form causes TS2339 in strict mode
 - [Phase 07-01]: TTS proxy returns 502 (not 500) on ElevenLabs failure — upstream-failed sentinel signals client to activate SpeechSynthesis fallback (Pitfall 7)
 - [Phase 07-01]: vad.onnx sourced from silero_vad_v5.onnx in @ricky0123/vad-web@0.0.30 dist/ (2.3MB) self-hosted at public/voice/vad.onnx — Pitfall 4 CDN failure defense
+- [Phase 07]: Module-level pub-sub (subscribeToMicState) for cross-tree MicState propagation — no Context provider, pattern from lib/jarvis/focus.ts
+- [Phase 07]: pressToTalkActive gated on voiceEnabled only, NOT discreetMode — VOICE-09 requires Cmd+Shift+J in Discreet mode (CRITICAL_PHASE7_CONCERNS #10)
+- [Phase 07]: vad-react@0.0.36 uses baseAssetPath (directory) not modelURL; library expects silero_vad_v5.onnx filename — copied vad.onnx to silero_vad_v5.onnx in /public/voice/
 
 ### Pending Todos
 
@@ -226,6 +230,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-20T20:38:21.830Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-05-20T20:51:48.220Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
