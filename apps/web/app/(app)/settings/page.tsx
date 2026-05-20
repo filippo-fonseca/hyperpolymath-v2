@@ -13,6 +13,7 @@ import { GcalConnectionRow } from "@/components/settings/GcalConnectionRow";
 import { DefaultCalendarPicker } from "@/components/settings/DefaultCalendarPicker";
 import { VisibleCalendarsCheckboxList } from "@/components/settings/VisibleCalendarsCheckboxList";
 import { TimezoneOverrideRow } from "@/components/settings/TimezoneOverrideRow";
+import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
 import {
   getValidGcalToken,
   GcalNotConnectedError,
@@ -148,6 +149,9 @@ export default async function SettingsPage() {
             </>
           )}
         </Card>
+
+        {/* Phase 7 Plan 07-02 — Voice settings (VOICE-01, VOICE-11) */}
+        <VoiceSettingsSection />
 
         {/* Phase 5.1 (D-M6 / JARVIS-18) — Memory settings link */}
         <Card className={tileHover}>
