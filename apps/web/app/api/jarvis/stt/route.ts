@@ -27,12 +27,12 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25MB Groq cap (Pitfall 8 server bel
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request): Promise<Response> {
-  // 1. Auth (same pattern as /api/jarvis route)
+  // 1. Auth (same pattern as /api/jarvis route — getClaims() per CLAUDE.md §1)
   const supabase = await createClient();
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims();
-  if (!claims) return new Response("Unauthorized", { status: 401 });
+  const claimsResult = await supabase.auth.getClaims();
+  if (claimsResult.error || !claimsResult.data?.claims?.sub) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   // 2. Read audio body (Content-Type: audio/wav from encode-wav helper)
   const audioBuffer = await req.arrayBuffer();
