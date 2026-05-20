@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   streamJarvis,
   type JarvisRequest,
 } from "./jarvis-stream-client";
+import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputHandle, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
@@ -66,6 +67,14 @@ export function JarvisConsole({
   // dispatch path; this ref documents the contract and enables future
   // imperative actions (e.g., focus-on-clarification-reply).
   const jarvisInputRef = useRef<JarvisInputHandle>(null);
+
+  // Phase 7 Plan 07-04: voice-active flag derived from settings.
+  // voiceActive=true → X-Voice-Active: true header → voice_summary required on tools.
+  // Discreet mode sets voiceActive=false so voice_summary is not requested when
+  // TTS is silenced — the model won't waste tokens on a field that won't play.
+  const { settings: voiceSettings } = useVoiceSettings();
+  const voiceActive =
+    voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
 
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
@@ -245,6 +254,27 @@ export function JarvisConsole({
                   : t,
               ),
             );
+
+            // Phase 7 Plan 07-04: dispatch TTS speak event when action receipt has
+            // a voice_summary (only present when voiceActive=true header was sent).
+            // JarvisListener listens for 'jarvis-voice-speak' and calls ttsPlayer.play().
+            if (voiceActive && data.result?.ok) {
+              // voice_summary lives on the receipt object returned by the executor.
+              const receipt = (data.result as { receipt?: Record<string, unknown> }).receipt ?? {};
+              const voiceSummary = typeof receipt.voice_summary === "string"
+                ? receipt.voice_summary
+                : null;
+              if (voiceSummary) {
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-voice-speak", {
+                    detail: {
+                      text: voiceSummary,
+                      voiceId: voiceSettings.voiceId,
+                    },
+                  }),
+                );
+              }
+            }
           },
           onDone: () => {
             setTurns((prev) =>
@@ -270,10 +300,37 @@ export function JarvisConsole({
           },
         },
         ac.signal,
+        voiceActive,
       );
     },
-    [buildHistory],
+    [buildHistory, voiceActive, voiceSettings.voiceId],
   );
+
+  // Phase 7 Plan 07-04: listen for voice transcripts dispatched by JarvisListener
+  // after STT completes. The transcript is treated identically to typed input —
+  // voice is just another input channel. JarvisListener dispatches the custom
+  // event with { detail: { transcript: string } }.
+  useEffect(() => {
+    function handleVoiceTranscript(e: Event) {
+      const detail = (e as CustomEvent<{ transcript: string }>).detail;
+      if (!detail?.transcript?.trim()) return;
+      void handleSubmit({
+        input: detail.transcript,
+        parsedDates: [],
+        parsedPriority: null,
+        slashCommand: null,
+        projectIds: [],
+        hashtags: [],
+      });
+    }
+    window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
+    return () => {
+      window.removeEventListener(
+        "jarvis-voice-transcript",
+        handleVoiceTranscript,
+      );
+    };
+  }, [handleSubmit]);
 
   // Plan 05-04 — Undo handler (D-03 / D-04).
   //

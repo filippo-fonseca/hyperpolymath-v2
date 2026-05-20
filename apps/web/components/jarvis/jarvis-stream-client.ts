@@ -71,6 +71,11 @@ export async function streamJarvis(
   payload: JarvisRequest,
   callbacks: JarvisCallbacks,
   signal?: AbortSignal,
+  /** Phase 7 Plan 07-04: when true, sets X-Voice-Active: true so the route
+   *  injects voice_summary on all tool schemas. Reads from useVoiceSettings.
+   *  Prior phases always passed false (or omitted); the default preserves
+   *  the existing text-mode behaviour. */
+  voiceActive = false,
 ): Promise<void> {
   let response: Response;
   try {
@@ -78,7 +83,7 @@ export async function streamJarvis(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Voice-Active": "false", // Phase 7 will toggle
+        "X-Voice-Active": voiceActive ? "true" : "false",
       },
       body: JSON.stringify(payload),
       signal,

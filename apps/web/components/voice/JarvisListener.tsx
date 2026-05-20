@@ -17,6 +17,7 @@ import {
   VAD_BASE_ASSET_PATH,
 } from "@/lib/voice/constants";
 import { encodeWav } from "@/lib/voice/encode-wav";
+import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 
 /**
  * Phase 7 Plan 07-03 — owns Porcupine + VAD + clap-onset + press-to-talk lifecycles.
@@ -61,6 +62,9 @@ export function JarvisListener() {
   const [micState, dispatch] = useReducer(micReducer, "idle");
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Phase 7 Plan 07-04: TTS playback hook (ElevenLabs → SpeechSynthesis fallback).
+  const ttsPlayer = useTtsPlayer();
 
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
@@ -181,8 +185,13 @@ export function JarvisListener() {
     // to defeat CDN failure (Pitfall 4 — @ricky0123/vad-web v0.0.36 API).
     baseAssetPath: VAD_BASE_ASSET_PATH,
     onSpeechStart: () => {
-      // Barge-in (VOICE-12): if JARVIS is speaking, interrupt and re-enter recording.
-      if (micState === "speaking" || micState === "recording") {
+      if (micState === "speaking") {
+        // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
+        // and transition back to recording so the new utterance can be captured.
+        ttsPlayer.stop();
+        dispatch({ type: "SPEECH_START" });
+      } else if (micState === "recording") {
+        // Already recording — VAD detecting speech during recording is normal; no-op.
         dispatch({ type: "SPEECH_START" });
       }
     },
@@ -244,6 +253,48 @@ export function JarvisListener() {
   }, []);
 
   usePressToTalk(pressToTalkActive, onPressToTalk);
+
+  // ─── TTS speak event listener (Phase 7 Plan 07-04) ───────────────────────
+  // JarvisConsole dispatches 'jarvis-voice-speak' when an action receipt with
+  // voice_summary arrives. We play it back via useTtsPlayer, dispatching
+  // TTS_START (→ speaking state) and TTS_END (→ listening state) to the FSM.
+  //
+  // Discreet mode gate (VOICE-07): when discreetMode is on, TTS provider is
+  // effectively 'off' — we instantly cycle TTS_START/TTS_END so the FSM
+  // transitions correctly but no audio plays.
+  useEffect(() => {
+    const audioContext = audioContextRef.current;
+
+    function handleVoiceSpeak(e: Event) {
+      const detail = (e as CustomEvent<{ text: string; voiceId?: string }>).detail;
+      if (!detail?.text?.trim()) return;
+      if (!audioContext) return;
+
+      // Discreet mode: skip audio, but still cycle FSM states.
+      if (settings.discreetMode || settings.ttsProvider === "off") {
+        dispatch({ type: "TTS_START" });
+        dispatch({ type: "TTS_END" });
+        return;
+      }
+
+      void ttsPlayer.play({
+        text: detail.text,
+        voiceId: detail.voiceId ?? settings.voiceId,
+        ttsProvider: settings.ttsProvider,
+        audioContext,
+        onStart: () => dispatch({ type: "TTS_START" }),
+        onEnd: () => dispatch({ type: "TTS_END" }),
+      });
+    }
+
+    window.addEventListener("jarvis-voice-speak", handleVoiceSpeak);
+    return () => {
+      window.removeEventListener("jarvis-voice-speak", handleVoiceSpeak);
+    };
+  // settings changes are intentionally included — discreetMode / ttsProvider
+  // changes should be reflected immediately on the next speak event.
+  // ttsPlayer is stable (useCallback refs in useTtsPlayer).
+  }, [settings.discreetMode, settings.ttsProvider, settings.voiceId, ttsPlayer]);
 
   // JarvisListener renders nothing — it is a pure lifecycle owner.
   return null;
