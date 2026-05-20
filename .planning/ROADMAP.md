@@ -305,4 +305,22 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Plans:** 0 plans
 
+### Phase 999.5: Clean up dark mode UI — light tuning pass (BACKLOG)
+
+**Goal:** Light polish pass on Phase 6.1's HUD-heavy dark surface — contrast, glow density, scan-line opacity, and any small dark-mode-specific rough edges. NOT a full visual rebuild (those failed three times); just tuning the existing accepted contract.
+
+**Why:** Captured 2026-05-20 after Phase 6.2 (Anthropic-discipline rebuild) was reverted and Phase 6.1's HUD-heavy visual surface was reaffirmed as the accepted contract. The user wants surgical dark-mode polish without re-opening the visual-redesign loop that consumed phases 6 → 6.1 → 6.2.
+
+**Likely shape:**
+1. Audit dark-mode contrast on agent surfaces (cyan accents on graphite — verify legibility, no muddy pairings)
+2. Glow density review (focus rings, composer halo, scan ambient) — dial down anywhere it reads heavy at idle
+3. Scan-line opacity (`.agent-mode-scope::before/::after`) tuned for dark canvas specifically
+4. Any one-off dark-mode rough edges (token mismatches, hairline borders disappearing, text-muted dropping below 4.5:1)
+
+**Constraint:** Stays within Phase 6.1 vocabulary. No new HUD primitives. No vocabulary swaps. Token-level + opacity-level adjustments only. If a finding can't be fixed within those constraints, log it for a future phase instead of expanding scope.
+
+**Requirements:** TBD (promote with `/gsd:review-backlog` when ready)
+
+**Plans:** 0 plans
+
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
