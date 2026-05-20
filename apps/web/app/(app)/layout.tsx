@@ -1,4 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
+import dynamic from "next/dynamic";
 import { getUserOrRedirect } from "@/lib/auth/get-user";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
@@ -10,6 +11,25 @@ import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+
+/**
+ * Phase 7 Plan 07-03 — JarvisListener dynamic import.
+ *
+ * MUST be ssr: false — Porcupine + @ricky0123/vad-react both import
+ * WebAssembly and Web Worker code that crashes SSR evaluation.
+ * Without this guard, `next build` will throw "self is not defined"
+ * or a WASM import failure (Pitfall 2 from 07-RESEARCH.md).
+ *
+ * The component returns null (pure lifecycle owner) so there is
+ * no visual flash or hydration mismatch.
+ */
+const JarvisListener = dynamic(
+  () =>
+    import("@/components/voice/JarvisListener").then((m) => ({
+      default: m.JarvisListener,
+    })),
+  { ssr: false },
+);
 
 export default async function AppLayout({
   children,
@@ -61,6 +81,11 @@ export default async function AppLayout({
         />
         {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
         <Toaster position="bottom-right" duration={4000} />
+        {/* Phase 7 Plan 07-03 — always-mounted voice lifecycle owner.
+            Owns Porcupine wake-word + VAD + clap-onset + press-to-talk.
+            Returns null (no DOM render) — pure side-effects component.
+            ssr: false guard protects against Porcupine WASM SSR crash (Pitfall 2). */}
+        <JarvisListener />
       </QueryProvider>
     </NuqsAdapter>
   );

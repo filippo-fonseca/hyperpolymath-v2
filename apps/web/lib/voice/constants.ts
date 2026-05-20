@@ -41,7 +41,19 @@ export const MAX_UTTERANCE_MS = 45_000;
 export const CLAP_WORKLET_URL = "/worklets/clap-detector.js";
 export const CLAP_PROCESSOR_NAME = "clap-detector-processor";
 
-/** Self-hosted Silero VAD model path (Pitfall 4). */
+/**
+ * Self-hosted Silero VAD base asset path (Pitfall 4 — CDN failure defense).
+ *
+ * @ricky0123/vad-web@0.0.36 constructs the model URL as:
+ *   baseAssetPath + "silero_vad_v5.onnx" (for model='v5', the default)
+ *
+ * The ONNX file is served from /public/voice/silero_vad_v5.onnx.
+ * /public/voice/vad.onnx is the canonical short-name alias (legacy Plan 01 name);
+ * both files are identical — silero_vad_v5.onnx satisfies the library convention.
+ */
+export const VAD_BASE_ASSET_PATH = "/voice/";
+
+/** @deprecated Use VAD_BASE_ASSET_PATH with useMicVAD({ baseAssetPath }). */
 export const VAD_MODEL_URL = "/voice/vad.onnx";
 
 /** Default state for useVoiceSettings on first mount (no localStorage). */

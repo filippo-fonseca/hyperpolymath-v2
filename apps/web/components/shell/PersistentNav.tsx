@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
@@ -19,6 +20,12 @@ import {
 } from "@/components/ui/tooltip";
 import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
 import { cn } from "@/lib/utils";
+import {
+  subscribeToMicState,
+} from "@/components/voice/JarvisListener";
+import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
+import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
+import type { MicState } from "@/lib/voice/types";
 
 /**
  * Top-level primary navigation rendered inside the Sidebar's NAVIGATE section.
@@ -49,6 +56,16 @@ const items = [
   { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined, isAgent: false },
 ] as const;
+
+/**
+ * Phase 7 Plan 07-03 — subscribes to the JarvisListener module-level singleton
+ * and feeds current MicState into MicIndicatorDot. Thin adapter: no logic here.
+ */
+function MicIndicatorDotContainer() {
+  const [state, setState] = useState<MicState>("idle");
+  useEffect(() => subscribeToMicState(setState), []);
+  return <MicIndicatorDot state={state} />;
+}
 
 interface Props {
   collapsed: boolean;
@@ -161,6 +178,21 @@ export function PersistentNav({ collapsed }: Props) {
             </Link>
           );
         })}
+
+        {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern).
+            MicIndicatorDot lives inside .agent-mode-scope (cyan HUD vocabulary).
+            DiscreetToggleButton lives outside that scope (diplomatic chrome).
+            Only renders content when voice is enabled (DiscreetToggleButton
+            gates itself; MicIndicatorDotContainer always renders the dot but
+            shows as --ink-muted at 40% in idle state when voice is off). */}
+        <div className="flex items-center gap-1 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
+          {/* Cyan dot inside agent-mode-scope per D-01 */}
+          <div className="agent-mode-scope inline-flex items-center">
+            <MicIndicatorDotContainer />
+          </div>
+          {/* Discreet toggle outside agent-mode-scope per D-01 */}
+          {!collapsed && <DiscreetToggleButton />}
+        </div>
       </nav>
     </TooltipProvider>
   );
