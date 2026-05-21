@@ -6,18 +6,9 @@ import {
   useRef,
   useCallback,
 } from "react";
-import * as ort from "onnxruntime-web";
 import { usePorcupine } from "@picovoice/porcupine-react";
 import { useMicVAD } from "@ricky0123/vad-react";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
-
-// onnxruntime-web needs to know where to fetch its WASM binaries from. Default
-// is the bundle's runtime path, which Turbopack rewrites to /_next/static/...
-// where the files don't exist. Self-host under /voice/ to match the VAD assets.
-// (Files copied from node_modules/onnxruntime-web/dist/ during Phase 7 fix.)
-if (typeof window !== "undefined") {
-  ort.env.wasm.wasmPaths = "/voice/";
-}
 import { micReducer, type MicState } from "@/lib/voice/mic-state";
 import { useClapDetector } from "@/lib/voice/use-clap-detector";
 import { usePressToTalk } from "@/lib/voice/use-press-to-talk";
@@ -175,10 +166,17 @@ export function JarvisListener() {
   // onSpeechStart handles barge-in; onSpeechEnd flushes for STT.
   const vad = useMicVAD({
     startOnLoad: false,
-    // baseAssetPath: library constructs URL as baseAssetPath + "silero_vad_v5.onnx"
-    // (for model='v5' default). We self-host the ONNX at /voice/silero_vad_v5.onnx
-    // to defeat CDN failure (Pitfall 4 — @ricky0123/vad-web v0.0.36 API).
+    // baseAssetPath: library constructs URL as baseAssetPath + "silero_vad_legacy.onnx"
+    // (model="legacy" is vad-web's DEFAULT_MODEL). We self-host the ONNX and
+    // worklet at /voice/ to defeat CDN failure (Pitfall 4).
     baseAssetPath: VAD_BASE_ASSET_PATH,
+    // vad-web imports `onnxruntime-web/wasm` (a separate ORT instance from the
+    // standalone `onnxruntime-web` import). ortConfig is vad-web's hook to
+    // reach that internal instance so we can point it at our self-hosted
+    // ort-wasm-*.{mjs,wasm} files instead of the default CDN/bundle path.
+    ortConfig: (ort) => {
+      ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
+    },
     onSpeechStart: () => {
       if (micState === "speaking") {
         // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
