@@ -35,7 +35,16 @@ export function DiscreetToggleButton() {
       <TooltipTrigger asChild>
         <button
           type="button"
-          onClick={() => update({ discreetMode: !discreet })}
+          onClick={() => {
+            // eslint-disable-next-line no-console
+            console.log(
+              "[discreet-toggle] click — current:",
+              discreet,
+              "→ next:",
+              !discreet,
+            );
+            update({ discreetMode: !discreet });
+          }}
           aria-pressed={discreet}
           aria-label={discreet ? "Exit Discreet mode" : "Enter Discreet mode"}
           className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-transparent hover:border-[var(--edge)] transition-colors duration-150 ease-out cursor-pointer-always"

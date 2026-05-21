@@ -49,6 +49,13 @@ function publish(next: VoiceSettings) {
   } catch (err) {
     console.warn("[voice-settings] localStorage write failed", err);
   }
+  // eslint-disable-next-line no-console
+  console.log(
+    "[voice-settings] publish",
+    { discreetMode: next.discreetMode, voiceEnabled: next.voiceEnabled },
+    "subscribers:",
+    subscribers.size,
+  );
   subscribers.forEach((fn) => fn(next));
 }
 
