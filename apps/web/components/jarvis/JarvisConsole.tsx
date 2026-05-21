@@ -258,12 +258,28 @@ export function JarvisConsole({
             // Phase 7 Plan 07-04: dispatch TTS speak event when action receipt has
             // a voice_summary (only present when voiceActive=true header was sent).
             // JarvisListener listens for 'jarvis-voice-speak' and calls ttsPlayer.play().
+            // eslint-disable-next-line no-console
+            console.log(
+              "[jarvis-console] action_result — voiceActive:",
+              voiceActive,
+              "ok:",
+              data.result?.ok,
+              "result keys:",
+              data.result ? Object.keys(data.result) : null,
+              "receipt:",
+              data.result?.ok ? (data.result as { receipt?: unknown }).receipt : null,
+            );
             if (voiceActive && data.result?.ok) {
               // voice_summary lives on the receipt object returned by the executor.
               const receipt = (data.result as { receipt?: Record<string, unknown> }).receipt ?? {};
               const voiceSummary = typeof receipt.voice_summary === "string"
                 ? receipt.voice_summary
                 : null;
+              // eslint-disable-next-line no-console
+              console.log(
+                "[jarvis-console] voice_summary on receipt:",
+                voiceSummary,
+              );
               if (voiceSummary) {
                 window.dispatchEvent(
                   new CustomEvent("jarvis-voice-speak", {
