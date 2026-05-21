@@ -68,12 +68,15 @@ export function JarvisConsole({
   // imperative actions (e.g., focus-on-clarification-reply).
   const jarvisInputRef = useRef<JarvisInputHandle>(null);
 
-  // Phase 7 Plan 07-04: voice-active flag derived from settings.
-  // voiceActive=true → X-Voice-Active: true header → voice_summary required on tools.
-  // Discreet mode sets voiceActive=false so voice_summary is not requested when
-  // TTS is silenced — the model won't waste tokens on a field that won't play.
+  // Phase 7 Plan 07-04: voice-active is a PER-MESSAGE concern, not a global
+  // setting. Even with voice mode enabled, typed input doesn't need a spoken
+  // receipt — and forcing voice_summary required on typed turns made the
+  // model stall (Anthropic strict mode couldn't satisfy a "voice receipt for
+  // text input" instruction). Resolved per-call inside handleSubmit via an
+  // `isVoice` parameter; the derived flag below is now only a base capability
+  // signal for components that need to know "is voice infra usable at all".
   const { settings: voiceSettings } = useVoiceSettings();
-  const voiceActive =
+  const voiceCapable =
     voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
 
   // Always points at the latest turns state. The previous snapshot-via-
@@ -125,7 +128,11 @@ export function JarvisConsole({
   );
 
   const handleSubmit = useCallback(
-    async (payload: JarvisInputPayload) => {
+    async (payload: JarvisInputPayload, opts?: { isVoice?: boolean }) => {
+      // voiceActive is the per-message header that triggers VOICE_ADDENDUM +
+      // voice_summary required on tool schemas. Only true when (a) this input
+      // came from the voice channel AND (b) voice infra is usable.
+      const voiceActive = (opts?.isVoice ?? false) && voiceCapable;
       const userTurn: ScrollbackTurn = {
         kind: "user",
         id: crypto.randomUUID(),
@@ -319,7 +326,7 @@ export function JarvisConsole({
         voiceActive,
       );
     },
-    [buildHistory, voiceActive, voiceSettings.voiceId],
+    [buildHistory, voiceCapable, voiceSettings.voiceId],
   );
 
   // Phase 7 Plan 07-04: listen for voice transcripts dispatched by JarvisListener
@@ -330,14 +337,17 @@ export function JarvisConsole({
     function handleVoiceTranscript(e: Event) {
       const detail = (e as CustomEvent<{ transcript: string }>).detail;
       if (!detail?.transcript?.trim()) return;
-      void handleSubmit({
-        input: detail.transcript,
-        parsedDates: [],
-        parsedPriority: null,
-        slashCommand: null,
-        projectIds: [],
-        hashtags: [],
-      });
+      void handleSubmit(
+        {
+          input: detail.transcript,
+          parsedDates: [],
+          parsedPriority: null,
+          slashCommand: null,
+          projectIds: [],
+          hashtags: [],
+        },
+        { isVoice: true },
+      );
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
