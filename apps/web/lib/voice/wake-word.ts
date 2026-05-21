@@ -26,6 +26,22 @@ const WAKE_PATTERN =
   /^(?:hey|hi|ok|okay|yo|hello)?\s*(?:jarvis|jervis|jarvi|javis|jarvy|jarrvis|jarviz)\b[,.!?]?\s*/i;
 
 /**
+ * Normalize a Whisper transcript before wake-word matching.
+ *
+ * Whisper sometimes wraps short utterances in straight or curly quotes
+ * (`"Hey Jarvis, buy milk."`) and may add leading/trailing whitespace.
+ * Without stripping these, the anchored `^` regex sees a quote/space
+ * before "hey" and fails to match.
+ */
+function normalize(transcript: string): string {
+  return transcript
+    .trim()
+    .replace(/^["'“”‘’`]+/, "")
+    .replace(/["'“”‘’`]+$/, "")
+    .trim();
+}
+
+/**
  * If the transcript begins with a wake phrase, return the remainder
  * (the command portion). If no wake phrase, return null.
  *
@@ -33,9 +49,12 @@ const WAKE_PATTERN =
  *   "jarvis what time is it" → "what time is it"
  *   "hey jarvis"            → ""           (wake phrase only — no command)
  *   "buy milk"              → null         (no wake phrase — not for JARVIS)
+ *
+ * Tolerates surrounding quotation marks + whitespace that Whisper adds.
  */
 export function stripWakeWord(transcript: string): string | null {
-  const match = transcript.match(WAKE_PATTERN);
+  const normalized = normalize(transcript);
+  const match = normalized.match(WAKE_PATTERN);
   if (!match) return null;
-  return transcript.slice(match[0].length).trim();
+  return normalized.slice(match[0].length).trim();
 }

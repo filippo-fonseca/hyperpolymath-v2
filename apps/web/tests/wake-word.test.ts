@@ -49,4 +49,22 @@ describe("stripWakeWord", () => {
       expect(stripWakeWord(input)).toBe(expected);
     });
   });
+
+  describe("tolerates Whisper quoting and padding", () => {
+    it.each([
+      // The actual Whisper output that broke wake-word detection in
+      // verification — leading quote + space + trailing quote. The trailing
+      // period inside the quotes survives — that's fine, JARVIS treats it
+      // as ordinary punctuation in the command.
+      ['" Hey Jarvis, need to buy milk."', "need to buy milk."],
+      ['"Hey Jarvis, add a task"', "add a task"],
+      ["  hey jarvis buy bread  ", "buy bread"],
+      // Curly quotes (some clients use them).
+      ["“Hey Jarvis, schedule lunch”", "schedule lunch"],
+      // Single-quote wrap.
+      ["'jarvis what time'", "what time"],
+    ])("%s → %s", (input, expected) => {
+      expect(stripWakeWord(input)).toBe(expected);
+    });
+  });
 });
