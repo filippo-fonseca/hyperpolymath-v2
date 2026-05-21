@@ -6,9 +6,18 @@ import {
   useRef,
   useCallback,
 } from "react";
+import * as ort from "onnxruntime-web";
 import { usePorcupine } from "@picovoice/porcupine-react";
 import { useMicVAD } from "@ricky0123/vad-react";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
+
+// onnxruntime-web needs to know where to fetch its WASM binaries from. Default
+// is the bundle's runtime path, which Turbopack rewrites to /_next/static/...
+// where the files don't exist. Self-host under /voice/ to match the VAD assets.
+// (Files copied from node_modules/onnxruntime-web/dist/ during Phase 7 fix.)
+if (typeof window !== "undefined") {
+  ort.env.wasm.wasmPaths = "/voice/";
+}
 import { micReducer, type MicState } from "@/lib/voice/mic-state";
 import { useClapDetector } from "@/lib/voice/use-clap-detector";
 import { usePressToTalk } from "@/lib/voice/use-press-to-talk";
