@@ -128,11 +128,14 @@ export function JarvisConsole({
   );
 
   const handleSubmit = useCallback(
-    async (payload: JarvisInputPayload, opts?: { isVoice?: boolean }) => {
-      // voiceActive is the per-message header that triggers VOICE_ADDENDUM +
-      // voice_summary required on tool schemas. Only true when (a) this input
-      // came from the voice channel AND (b) voice infra is usable.
-      const voiceActive = (opts?.isVoice ?? false) && voiceCapable;
+    async (payload: JarvisInputPayload, _opts?: { isVoice?: boolean }) => {
+      // voiceActive header is now ALWAYS false — the model no longer needs to
+      // emit a separate voice_summary field. The spoken response is the
+      // leading text block (collected client-side from text deltas and fired
+      // through TTS on onDone), so what's heard matches what's on screen.
+      // _opts.isVoice is retained for future channel-aware logic but does not
+      // currently affect server behavior.
+      const voiceActive = false;
       const userTurn: ScrollbackTurn = {
         kind: "user",
         id: crypto.randomUUID(),
@@ -262,42 +265,10 @@ export function JarvisConsole({
               ),
             );
 
-            // Phase 7 Plan 07-04: dispatch TTS speak event when action receipt has
-            // a voice_summary (only present when voiceActive=true header was sent).
-            // JarvisListener listens for 'jarvis-voice-speak' and calls ttsPlayer.play().
-            // eslint-disable-next-line no-console
-            console.log(
-              "[jarvis-console] action_result — voiceActive:",
-              voiceActive,
-              "ok:",
-              data.result?.ok,
-              "result keys:",
-              data.result ? Object.keys(data.result) : null,
-              "receipt:",
-              data.result?.ok ? (data.result as { receipt?: unknown }).receipt : null,
-            );
-            if (voiceActive && data.result?.ok) {
-              // voice_summary lives on the receipt object returned by the executor.
-              const receipt = (data.result as { receipt?: Record<string, unknown> }).receipt ?? {};
-              const voiceSummary = typeof receipt.voice_summary === "string"
-                ? receipt.voice_summary
-                : null;
-              // eslint-disable-next-line no-console
-              console.log(
-                "[jarvis-console] voice_summary on receipt:",
-                voiceSummary,
-              );
-              if (voiceSummary) {
-                window.dispatchEvent(
-                  new CustomEvent("jarvis-voice-speak", {
-                    detail: {
-                      text: voiceSummary,
-                      voiceId: voiceSettings.voiceId,
-                    },
-                  }),
-                );
-              }
-            }
+            // Phase 7 Plan 07-04 (revised): TTS no longer reads from
+            // receipt.voice_summary. Spoken text is the assistant's leading
+            // prose, fired once in onDone after the full text has streamed
+            // in. See onDone for the dispatch logic.
           },
           onDone: () => {
             setTurns((prev) =>
@@ -307,6 +278,25 @@ export function JarvisConsole({
                   : t,
               ),
             );
+
+            // Phase 7 — TTS dispatch. Speak the assistant's leading text so
+            // what's heard matches what's on screen. Triggers on ANY input
+            // channel (text or voice). Gated on voiceCapable: when discreet
+            // mode is on, we skip the dispatch entirely so no /api/jarvis/tts
+            // request fires — saves ElevenLabs character budget.
+            if (voiceCapable) {
+              const turn = turnsRef.current.find((t) => t.id === assistantId);
+              const spoken =
+                turn?.kind === "assistant" ? turn.textDelta.trim() : "";
+              if (spoken.length > 0) {
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-voice-speak", {
+                    detail: { text: spoken, voiceId: voiceSettings.voiceId },
+                  }),
+                );
+              }
+            }
+
             setStreaming(false);
             abortRef.current = null;
           },
