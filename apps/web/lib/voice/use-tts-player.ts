@@ -95,7 +95,16 @@ export function useTtsPlayer() {
           return play({ ...params, ttsProvider: "browser" });
         }
 
-        // Set up queue for chunked decoding.
+        // Buffer the entire MP3 body before decoding. Streaming MP3 chunk-by-
+        // chunk to decodeAudioData is broken: ElevenLabs returns HTTP chunks
+        // of arbitrary size, but MP3 needs frame-aligned segments to decode
+        // correctly. Decoding partial frames produces choppy / cut-off audio
+        // (verified in Safari, Phase 7 verification).
+        //
+        // Trade-off: ~500ms extra latency to wait for the full body. With
+        // ElevenLabs Flash v2.5 (~300ms TTFB) the total stays inside the
+        // ~2s budget that feels conversational. For longer prose responses
+        // we may want MSE-based streaming later, but Flash is short by design.
         if (!queueRef.current) {
           queueRef.current = new AudioQueue(audioContext);
         }
@@ -107,38 +116,19 @@ export function useTtsPlayer() {
             onEnd();
           }
         };
-        const offEnded = queue.onAllEnded(safeOnEnd);
+        queue.onAllEnded(safeOnEnd);
 
-        let first = true;
-        const reader = res.body.getReader();
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (!value || value.byteLength === 0) continue;
-
-          // Clone the ArrayBuffer so decodeAudioData gets an owned copy.
-          const buf = value.buffer.slice(
-            value.byteOffset,
-            value.byteOffset + value.byteLength,
-          );
-
-          try {
-            await queue.enqueue(buf as ArrayBuffer);
-            if (first) {
-              onStart();
-              first = false;
-            }
-          } catch (err) {
-            // Don't bail — mp3 chunked decoder may need >1 chunk to make a frame.
-            console.warn("[tts] chunk decode failed", err);
+        try {
+          const full = await res.arrayBuffer();
+          if (full.byteLength === 0) {
+            safeOnEnd();
+            return;
           }
-        }
-
-        // If no audio decoded (e.g. empty stream), call onEnd defensively.
-        if (first) {
-          offEnded();
-          safeOnEnd();
+          await queue.enqueue(full);
+          onStart();
+        } catch (err) {
+          console.warn("[tts] decode failed, falling back to SpeechSynthesis", err);
+          return play({ ...params, ttsProvider: "browser" });
         }
       } catch (err) {
         clearTimeout(timeout);
