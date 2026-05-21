@@ -22,8 +22,11 @@ export function zCreateTaskFor(opts: { voiceActive?: boolean }) {
     status: StatusSchema.optional(),
     due: z.iso.datetime({ offset: true }).optional(),
     project_ids: z.array(z.uuid()).optional(),
+    // voice_summary is REQUIRED when voiceActive — making it optional caused
+    // Claude to skip emitting it despite the VOICE_ADDENDUM "MUST include"
+    // instruction, leaving the TTS pipeline silent (Phase 7 verification).
     ...(opts.voiceActive
-      ? { voice_summary: z.string().max(200).optional() }
+      ? { voice_summary: z.string().min(1).max(200) }
       : {}),
   });
 }

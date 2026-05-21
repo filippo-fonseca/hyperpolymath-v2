@@ -8,8 +8,9 @@ export function zCreateCaptureFor(opts: { voiceActive?: boolean }) {
     content: z.string().min(1).max(10_000),
     hashtags: z.array(z.string().min(1).max(64)).optional(),
     project_ids: z.array(z.uuid()).optional(),
+    // voice_summary REQUIRED when voiceActive — see create-task.ts for rationale.
     ...(opts.voiceActive
-      ? { voice_summary: z.string().max(200).optional() }
+      ? { voice_summary: z.string().min(1).max(200) }
       : {}),
   });
 }

@@ -12,8 +12,9 @@ export function zCreateEventFor(opts: { voiceActive?: boolean }) {
     start: z.iso.datetime({ offset: true }),
     end: z.iso.datetime({ offset: true }),
     description: z.string().max(5_000).optional(),
+    // voice_summary REQUIRED when voiceActive — see create-task.ts for rationale.
     ...(opts.voiceActive
-      ? { voice_summary: z.string().max(200).optional() }
+      ? { voice_summary: z.string().min(1).max(200) }
       : {}),
   });
 }
