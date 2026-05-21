@@ -137,6 +137,7 @@ export function createServerExecutor(): ActionExecutor {
             priority: input.priority ?? "P3",
             due: input.due,
             project_ids: projectCheck.ids,
+            voice_summary: input.voice_summary,
           },
         };
       } catch (err) {
@@ -203,6 +204,7 @@ export function createServerExecutor(): ActionExecutor {
             content: input.content,
             hashtags: input.hashtags ?? [],
             project_ids: projectCheck.ids,
+            voice_summary: input.voice_summary,
           },
         };
       } catch (err) {
@@ -244,6 +246,7 @@ export function createServerExecutor(): ActionExecutor {
             start: event.start,
             end: event.end,
             calendar_id: event.calendarId,
+            voice_summary: input.voice_summary,
           },
         };
       } catch (err) {
