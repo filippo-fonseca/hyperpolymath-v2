@@ -55,6 +55,8 @@ export function JarvisListener() {
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
     publishMicState(micState);
+    // eslint-disable-next-line no-console
+    console.log("[jarvis] mic-state →", micState);
   }, [micState]);
 
   // ─── Gate computations ───────────────────────────────────────────────────
@@ -178,6 +180,8 @@ export function JarvisListener() {
       ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
     },
     onSpeechStart: () => {
+      // eslint-disable-next-line no-console
+      console.log("[jarvis] VAD onSpeechStart (state was:", micState, ")");
       if (micState === "speaking") {
         // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
         // and transition back to recording so the new utterance can be captured.
@@ -189,6 +193,8 @@ export function JarvisListener() {
       }
     },
     onSpeechEnd: async (audio: Float32Array) => {
+      // eslint-disable-next-line no-console
+      console.log("[jarvis] VAD onSpeechEnd — audio samples:", audio.length);
       dispatch({ type: "SPEECH_END" });
 
       // POST to /api/jarvis/stt; result forwarded to Plan 04 via custom event.
@@ -223,6 +229,8 @@ export function JarvisListener() {
   // Arm VAD during recording and speaking (barge-in detection); pause otherwise.
   useEffect(() => {
     if (micState === "recording" || micState === "speaking") {
+      // eslint-disable-next-line no-console
+      console.log("[jarvis] vad.start() — listening, loading:", vad.loading, "errored:", vad.errored);
       vad.start();
     } else {
       vad.pause();
