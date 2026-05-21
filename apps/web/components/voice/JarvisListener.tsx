@@ -52,8 +52,13 @@ export function JarvisListener() {
   // Phase 7 Plan 07-04: TTS playback hook (ElevenLabs → SpeechSynthesis fallback).
   const ttsPlayer = useTtsPlayer();
 
+  // Ref-mirror of micState so VAD callbacks (which capture stale closures
+  // via vad-react's internal hook structure) can read the current FSM state.
+  const micStateRef = useRef<MicState>("idle");
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
+    micStateRef.current = micState;
     publishMicState(micState);
     // eslint-disable-next-line no-console
     console.log("[jarvis] mic-state →", micState);
@@ -167,7 +172,13 @@ export function JarvisListener() {
   // ─── VAD (voice activity detection) ──────────────────────────────────────
   // onSpeechStart handles barge-in; onSpeechEnd flushes for STT.
   const vad = useMicVAD({
-    startOnLoad: false,
+    // startOnLoad MUST be true: with `false`, vad-react defers stream acquisition
+    // until vad.start() is called — but React StrictMode's destroy/remount cycle
+    // tears down the stream before we can use it, leaving the surviving instance
+    // permanently errored ("MicVAD has null stream, audio context, or processor
+    // adapter"). Running continuously and gating responses via the FSM in the
+    // onSpeech* callbacks is the only reliable pattern under StrictMode.
+    startOnLoad: true,
     // baseAssetPath: library constructs URL as baseAssetPath + "silero_vad_legacy.onnx"
     // (model="legacy" is vad-web's DEFAULT_MODEL). We self-host the ONNX and
     // worklet at /voice/ to defeat CDN failure (Pitfall 4).
@@ -180,21 +191,30 @@ export function JarvisListener() {
       ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
     },
     onSpeechStart: () => {
+      const s = micStateRef.current;
       // eslint-disable-next-line no-console
-      console.log("[jarvis] VAD onSpeechStart (state was:", micState, ")");
-      if (micState === "speaking") {
+      console.log("[jarvis] VAD onSpeechStart (state was:", s, ")");
+      if (s === "speaking") {
         // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
         // and transition back to recording so the new utterance can be captured.
         ttsPlayer.stop();
         dispatch({ type: "SPEECH_START" });
-      } else if (micState === "recording") {
+      } else if (s === "recording") {
         // Already recording — VAD detecting speech during recording is normal; no-op.
         dispatch({ type: "SPEECH_START" });
       }
+      // Other states (listening, thinking, idle): VAD runs continuously since
+      // startOnLoad=true, so this fires constantly. Ignore unless explicitly
+      // armed via wake-word, clap, or press-to-talk.
     },
     onSpeechEnd: async (audio: Float32Array) => {
+      const s = micStateRef.current;
       // eslint-disable-next-line no-console
-      console.log("[jarvis] VAD onSpeechEnd — audio samples:", audio.length);
+      console.log("[jarvis] VAD onSpeechEnd (state:", s, ") — audio samples:", audio.length);
+      // Only flush to STT when the FSM was armed for recording.
+      // Without this guard, every casual utterance in `listening` state would
+      // POST to STT and trigger an unwanted JARVIS turn.
+      if (s !== "recording") return;
       dispatch({ type: "SPEECH_END" });
 
       // POST to /api/jarvis/stt; result forwarded to Plan 04 via custom event.
@@ -226,17 +246,13 @@ export function JarvisListener() {
     },
   });
 
-  // Arm VAD during recording and speaking (barge-in detection); pause otherwise.
+  // VAD runs continuously (startOnLoad=true) — gating happens in the
+  // onSpeechStart/onSpeechEnd callbacks via micStateRef. No start/pause cycle
+  // here: StrictMode's destroy/remount made vad.start() unreliable.
   useEffect(() => {
-    if (micState === "recording" || micState === "speaking") {
-      // eslint-disable-next-line no-console
-      console.log("[jarvis] vad.start() — listening, loading:", vad.loading, "errored:", vad.errored);
-      vad.start();
-    } else {
-      vad.pause();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [micState]);
+    // eslint-disable-next-line no-console
+    console.log("[jarvis] vad status — loading:", vad.loading, "errored:", vad.errored);
+  }, [vad.loading, vad.errored]);
 
   // ─── Clap-clap activation (VOICE-03) ─────────────────────────────────────
   useClapDetector({
