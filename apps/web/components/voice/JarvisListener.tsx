@@ -68,20 +68,26 @@ export function JarvisListener() {
   }, [micState]);
 
   // ─── Gate computations ───────────────────────────────────────────────────
-  // wakeWordActive: voice must be on AND not in discreet mode (Porcupine gated).
-  // pressToTalkActive: voice on only — NOT gated on discreet (CRITICAL #10).
-  const wakeWordActive = mounted && settings.voiceEnabled && !settings.discreetMode;
+  // Phase 7 revised model — two independent flags:
+  //   voiceEnabled  = "aware mode" — wake-word + clap + press-to-talk listening
+  //   discreetMode  = mute — silences TTS playback only
+  // Listening is gated on voiceEnabled alone. Discreet does NOT stop the mic.
+  // The TTS gate lives in handleVoiceSpeak (settings.discreetMode short-circuit).
+  const listenActive = mounted && settings.voiceEnabled;
   const pressToTalkActive = mounted && settings.voiceEnabled;
+  // wakeWordActive is kept for the Porcupine gate (separate engine, not used in
+  // the Whisper-keyword path); only relevant when a Picovoice key is configured.
+  const wakeWordActive = listenActive && !settings.discreetMode;
 
   // ─── Voice enabled/disabled FSM transition ───────────────────────────────
   useEffect(() => {
     if (!mounted) return;
-    if (settings.voiceEnabled && !settings.discreetMode) {
+    if (settings.voiceEnabled) {
       dispatch({ type: "VOICE_ENABLED" });
     } else {
       dispatch({ type: "VOICE_DISABLED" });
     }
-  }, [mounted, settings.voiceEnabled, settings.discreetMode]);
+  }, [mounted, settings.voiceEnabled]);
 
   // ─── First-gesture AudioContext unlock ───────────────────────────────────
   // When voiceEnabled defaults to true (aware mode), users never click the
@@ -111,9 +117,10 @@ export function JarvisListener() {
   }, [pressToTalkActive]);
 
   // ─── Mic stream acquisition ───────────────────────────────────────────────
-  // Acquire (and hold) the mic stream whenever wake-word mode is active.
+  // Acquire (and hold) the mic stream whenever voice is enabled. Discreet
+  // mode does NOT release the mic — we still listen, just don't speak back.
   useEffect(() => {
-    if (!wakeWordActive) return;
+    if (!listenActive) return;
 
     let cancelled = false;
 
@@ -159,7 +166,7 @@ export function JarvisListener() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [wakeWordActive, settings.micDeviceId]);
+  }, [listenActive, settings.micDeviceId]);
 
   // ─── Porcupine wake-word ──────────────────────────────────────────────────
   // Armed when wakeWordActive AND PICOVOICE key is present.
@@ -318,8 +325,10 @@ export function JarvisListener() {
   }, [vad.errored]);
 
   // ─── Clap-clap activation (VOICE-03) ─────────────────────────────────────
+  // Clap is a listening trigger (same class as wake-word + press-to-talk),
+  // so it runs whenever voice is enabled — including discreet mode.
   useClapDetector({
-    enabled: wakeWordActive && settings.clapEnabled && micState === "listening",
+    enabled: listenActive && settings.clapEnabled && micState === "listening",
     audioContext: audioContextRef.current,
     stream: streamRef.current,
     onDoubleClap: () => dispatch({ type: "DOUBLE_CLAP" }),
