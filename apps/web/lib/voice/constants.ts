@@ -58,7 +58,10 @@ export const VAD_MODEL_URL = "/voice/vad.onnx";
 
 /** Default state for useVoiceSettings on first mount (no localStorage). */
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
-  voiceEnabled: false,
+  // "Aware mode" — wake-word listening starts as soon as mic permission is
+  // granted. First-time users see a browser mic prompt instead of the
+  // EnableVoiceModal; subsequent sessions are silent until "Hey JARVIS".
+  voiceEnabled: true,
   discreetMode: false,
   wakeWordPhrase: DEFAULT_WAKE_WORD,
   clapEnabled: true,

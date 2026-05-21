@@ -19,6 +19,7 @@ import {
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { publishMicState } from "@/lib/voice/mic-state-bus";
+import { stripWakeWord } from "@/lib/voice/wake-word";
 import {
   getSharedAudioContext,
   unlockAudioContext,
@@ -81,6 +82,33 @@ export function JarvisListener() {
       dispatch({ type: "VOICE_DISABLED" });
     }
   }, [mounted, settings.voiceEnabled, settings.discreetMode]);
+
+  // ─── First-gesture AudioContext unlock ───────────────────────────────────
+  // When voiceEnabled defaults to true (aware mode), users never click the
+  // EnableVoiceModal's "Enable" button — so the AudioContext stays suspended
+  // in Safari and TTS plays silently. Hook the first ANY user interaction
+  // (click / keydown / touch) to unlock the shared AudioContext.
+  useEffect(() => {
+    if (!pressToTalkActive) return;
+    if (getSharedAudioContext()) return; // already unlocked elsewhere
+
+    let unlocked = false;
+    function unlock() {
+      if (unlocked) return;
+      unlocked = true;
+      void unlockAudioContext().catch((err) => {
+        console.warn("[jarvis-listener] first-gesture audio unlock failed", err);
+      });
+    }
+    window.addEventListener("click", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, [pressToTalkActive]);
 
   // ─── Mic stream acquisition ───────────────────────────────────────────────
   // Acquire (and hold) the mic stream whenever wake-word mode is active.
@@ -216,14 +244,22 @@ export function JarvisListener() {
     },
     onSpeechEnd: async (audio: Float32Array) => {
       const s = micStateRef.current;
-      // Only flush to STT when the FSM was armed for recording.
-      // Without this guard, every casual utterance in `listening` state would
-      // POST to STT and trigger an unwanted JARVIS turn.
-      if (s !== "recording") return;
-      dispatch({ type: "SPEECH_END" });
+      // Two entry paths:
+      //   - "recording" — user explicitly armed via press-to-talk / clap.
+      //     Transcript IS the command. Transition to thinking immediately.
+      //   - "listening" — wake-word path. Transcribe everything, only treat
+      //     as a command if it starts with "hey jarvis" (stripWakeWord).
+      //     This is the always-on listening loop.
+      // Other states (thinking, speaking, idle): discard.
+      if (s !== "recording" && s !== "listening") return;
 
-      // POST to /api/jarvis/stt; result forwarded to Plan 04 via custom event.
-      // Plan 03 dispatches the event; Plan 04 listens and pipes into the JARVIS Console.
+      const isWakeWordPath = s === "listening";
+
+      // Press-to-talk path: move to thinking now so the dot reflects the
+      // pipeline state during the STT round-trip. Wake-word path stays in
+      // listening until we confirm the wake phrase matched.
+      if (!isWakeWordPath) dispatch({ type: "SPEECH_END" });
+
       try {
         const wav = encodeWav(audio, 16000);
         const res = await fetch("/api/jarvis/stt", {
@@ -232,20 +268,35 @@ export function JarvisListener() {
           headers: { "Content-Type": "audio/wav" },
         });
 
-        if (!res.ok) {
-          throw new Error(`stt ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`stt ${res.status}`);
 
         const { transcript } = (await res.json()) as { transcript: string };
 
-        // Plan 04 listens for this event to pipe the transcript into the JARVIS Console.
+        let command = transcript;
+        if (isWakeWordPath) {
+          const stripped = stripWakeWord(transcript);
+          if (stripped === null) {
+            // No wake phrase — silently discard, stay in listening.
+            return;
+          }
+          if (!stripped) {
+            // Wake phrase alone with no command ("hey jarvis"). For now,
+            // discard. A future revision could acknowledge with "Yes, sir?"
+            // and arm a short recording window.
+            return;
+          }
+          command = stripped;
+          dispatch({ type: "SPEECH_END" }); // listening → thinking now
+        }
+
         window.dispatchEvent(
-          new CustomEvent("jarvis-voice-transcript", { detail: { transcript } }),
+          new CustomEvent("jarvis-voice-transcript", { detail: { transcript: command } }),
         );
 
         dispatch({ type: "TRANSCRIPT_SENT" });
       } catch (err) {
         console.error("[jarvis-listener] stt failed", err);
+        // ERROR → listening (resilient — user can try again).
         dispatch({ type: "ERROR", reason: "stt" });
       }
     },
