@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
+import { PressToTalkButton } from "@/components/voice/PressToTalkButton";
 import type { MicState } from "@/lib/voice/types";
 
 /**
@@ -188,8 +189,15 @@ export function PersistentNav({ collapsed }: Props) {
           <div className="agent-mode-scope inline-flex items-center">
             <MicIndicatorDotContainer />
           </div>
-          {/* Discreet toggle outside agent-mode-scope per D-01 */}
-          {!collapsed && <DiscreetToggleButton />}
+          {/* Discreet toggle + tap-to-talk outside agent-mode-scope per D-01.
+              PressToTalkButton is the Cmd+Shift+J fallback for Safari and any
+              focus context that swallows the keystroke. */}
+          {!collapsed && (
+            <>
+              <PressToTalkButton />
+              <DiscreetToggleButton />
+            </>
+          )}
         </div>
       </nav>
     </TooltipProvider>

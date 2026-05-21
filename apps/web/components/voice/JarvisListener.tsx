@@ -247,6 +247,18 @@ export function JarvisListener() {
 
   usePressToTalk(pressToTalkActive, onPressToTalk);
 
+  // Allow UI buttons (PressToTalkButton in header) to trigger the same
+  // PRESS_TO_TALK transition via a custom event — keyboard shortcut is
+  // unreliable in Safari and gets intercepted by some focus contexts.
+  useEffect(() => {
+    if (!pressToTalkActive) return;
+    function handler() {
+      onPressToTalk();
+    }
+    window.addEventListener("jarvis-press-to-talk", handler);
+    return () => window.removeEventListener("jarvis-press-to-talk", handler);
+  }, [pressToTalkActive, onPressToTalk]);
+
   // ─── TTS speak event listener (Phase 7 Plan 07-04) ───────────────────────
   // JarvisConsole dispatches 'jarvis-voice-speak' when an action receipt with
   // voice_summary arrives. We play it back via useTtsPlayer, dispatching
