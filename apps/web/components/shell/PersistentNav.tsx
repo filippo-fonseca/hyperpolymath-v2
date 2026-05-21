@@ -20,9 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
 import { cn } from "@/lib/utils";
-import {
-  subscribeToMicState,
-} from "@/components/voice/JarvisListener";
+import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
 import type { MicState } from "@/lib/voice/types";

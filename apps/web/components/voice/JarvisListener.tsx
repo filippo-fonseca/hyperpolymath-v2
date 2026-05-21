@@ -27,6 +27,7 @@ import {
 } from "@/lib/voice/constants";
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
+import { publishMicState } from "@/lib/voice/mic-state-bus";
 
 /**
  * Phase 7 Plan 07-03 — owns Porcupine + VAD + clap-onset + press-to-talk lifecycles.
@@ -47,24 +48,9 @@ import { useTtsPlayer } from "@/lib/voice/use-tts-player";
  *   - pressToTalkActive = voiceEnabled (NOT gated on discreetMode).
  */
 
-// ─── Module-level singleton pub-sub ────────────────────────────────────────
-// Single subscriber (MicIndicatorDot in header). Keeps FSM state visible to
-// a sibling component tree without a Context provider or global store.
-let currentMicState: MicState = "idle";
-const stateSubscribers = new Set<(s: MicState) => void>();
-
-export function subscribeToMicState(fn: (s: MicState) => void): () => void {
-  stateSubscribers.add(fn);
-  // Immediately notify with current state so subscriber doesn't wait.
-  fn(currentMicState);
-  return () => stateSubscribers.delete(fn);
-}
-
-function publishMicState(s: MicState) {
-  currentMicState = s;
-  stateSubscribers.forEach((fn) => fn(s));
-}
-// ───────────────────────────────────────────────────────────────────────────
+// Pub-sub for the mic FSM lives in lib/voice/mic-state-bus.ts so consumers
+// (PersistentNav → MicIndicatorDot) can subscribe without dragging Porcupine
+// + vad-react + onnxruntime-web into the SSR bundle (defeats ssr:false gate).
 
 export function JarvisListener() {
   const { settings, mounted } = useVoiceSettings();
