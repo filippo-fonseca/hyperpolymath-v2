@@ -47,27 +47,45 @@ import {
   buildToolDefinitions,
   type ProjectSummary,
   zAskClarification,
+  zAskClarificationFor,
   zCreateCapture,
+  zCreateCaptureFor,
   zCreateEvent,
+  zCreateEventFor,
   zCreateTask,
+  zCreateTaskFor,
   zRememberFact,
+  zRememberFactFor,
 } from "@hyperpolymath/jarvis-core";
 import { getJarvisFactsForUser } from "@/lib/db/queries/jarvis-facts";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // JARVIS-15 budget; Vercel default 300s gives headroom.
 
-const TOOL_VALIDATORS = {
-  create_task: zCreateTask,
-  create_capture: zCreateCapture,
-  create_event: zCreateEvent,
-  // Phase 5.1 (D-M5 / JARVIS-18): remember_fact added as 4th tool
-  remember_fact: zRememberFact,
-  // Phase 5.1 (D-A1 / JARVIS-19): ask_clarification added as 5th tool
-  ask_clarification: zAskClarification,
-} as const;
+// TOOL_VALIDATORS must match the schema variant SENT to the model, otherwise
+// Zod silently strips fields the model included (Phase 7: voice_summary was
+// being stripped from voice turns because the non-voice variant didn't know
+// about it, leaving receipt.voice_summary undefined and no audio).
+// buildToolValidators returns the variant matching voiceActive at request time.
+function buildToolValidators(voiceActive: boolean) {
+  return {
+    create_task: zCreateTaskFor({ voiceActive }),
+    create_capture: zCreateCaptureFor({ voiceActive }),
+    create_event: zCreateEventFor({ voiceActive }),
+    remember_fact: zRememberFactFor({ voiceActive }),
+    ask_clarification: zAskClarificationFor({ voiceActive }),
+  } as const;
+}
 
-type ToolName = keyof typeof TOOL_VALIDATORS;
+type ToolName = keyof ReturnType<typeof buildToolValidators>;
+
+// Touch the non-voice exports so tree-shaking doesn't drop them (they're still
+// referenced by test fixtures and by external consumers via index.ts barrel).
+void zCreateTask;
+void zCreateCapture;
+void zCreateEvent;
+void zRememberFact;
+void zAskClarification;
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -146,6 +164,7 @@ export async function POST(req: NextRequest) {
     voiceActive,
   });
   const tools = buildToolDefinitions({ voiceActive });
+  const toolValidators = buildToolValidators(voiceActive);
 
   // 5. Slash-command forcing via tool_choice
   //    /task | /capture | /event → force the matching create_* tool
@@ -306,7 +325,7 @@ export async function POST(req: NextRequest) {
         // executor result lands AFTER controller.close() and is lost.
         const work = (async () => {
           try {
-            const validator = TOOL_VALIDATORS[b.name as ToolName];
+            const validator = toolValidators[b.name as ToolName];
             if (!validator) {
               controller.enqueue(
                 encoder.encode(

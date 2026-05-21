@@ -32,8 +32,11 @@ export {
   buildToolDefinitions,
   type JarvisToolDefinition,
   zCreateCapture,
+  zCreateCaptureFor,
   zCreateEvent,
+  zCreateEventFor,
   zCreateTask,
+  zCreateTaskFor,
   // Phase 5.1 (D-M5 / JARVIS-18): remember_fact tool
   zRememberFact,
   zRememberFactFor,
