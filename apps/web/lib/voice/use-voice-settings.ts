@@ -8,66 +8,76 @@ import {
 import type { VoiceSettings } from "@/lib/voice/types";
 
 /**
- * Phase 7 Plan 07-02 — voice settings hook.
+ * Phase 7 — voice settings, shared across all useVoiceSettings() callers.
  *
- * Single-user MVP: state lives in localStorage. ThemeToggle's mount-guard
- * pattern (ThemeToggle.tsx lines 30-46) is replicated to prevent SSR
- * hydration mismatch — server cannot see localStorage, so we render
- * DEFAULT_VOICE_SETTINGS until the useEffect fires post-mount.
+ * Previously each hook instance held its own useState, so toggling discreet
+ * mode from the header DiscreetToggleButton updated localStorage but not the
+ * JarvisConsole's instance — and TTS still fired for muted typed input.
  *
- * Plan 07-03 (JarvisListener) consumes this hook to know whether to start
- * Porcupine. Plan 07-04 (TTS pipeline) reads `voiceId` and `ttsProvider`.
+ * Fix: module-level singleton + pub-sub. update() mutates the shared
+ * `currentSettings` and notifies all subscribed components, which re-render
+ * with the same state. Same pattern as mic-state-bus.ts; CLAUDE.md bans
+ * Zustand/Jotai but allows plain module state + Set<>.
  *
- * The `update` setter always persists immediately — no debounce, no
- * batching; single-user settings changes are rare and the write is cheap.
- *
- * No global stores (Zustand / Jotai / XState) — CLAUDE.md bans them for
- * the single-user MVP; useReducer / useState is the mandated pattern.
+ * `mounted` is still per-instance to keep the SSR hydration guard intact.
  */
+
+let currentSettings: VoiceSettings = DEFAULT_VOICE_SETTINGS;
+const subscribers = new Set<(s: VoiceSettings) => void>();
+
+function hydrateFromStorage(): VoiceSettings {
+  if (typeof window === "undefined") return DEFAULT_VOICE_SETTINGS;
+  try {
+    const raw = window.localStorage.getItem(VOICE_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<VoiceSettings>;
+      return { ...DEFAULT_VOICE_SETTINGS, ...parsed };
+    }
+  } catch (err) {
+    console.warn(
+      "[voice-settings] malformed localStorage entry; using defaults",
+      err,
+    );
+  }
+  return DEFAULT_VOICE_SETTINGS;
+}
+
+function publish(next: VoiceSettings) {
+  currentSettings = next;
+  try {
+    window.localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(next));
+  } catch (err) {
+    console.warn("[voice-settings] localStorage write failed", err);
+  }
+  subscribers.forEach((fn) => fn(next));
+}
+
+/** Sync read for non-React code (e.g. JarvisListener callbacks). */
+export function getCurrentVoiceSettings(): VoiceSettings {
+  return currentSettings;
+}
+
 export function useVoiceSettings() {
-  const [settings, setSettings] = useState<VoiceSettings>(DEFAULT_VOICE_SETTINGS);
+  const [settings, setSettings] = useState<VoiceSettings>(currentSettings);
   const [mounted, setMounted] = useState(false);
 
-  // Read persisted settings from localStorage on first mount.
-  // The SSR render (mounted=false) always returns DEFAULT_VOICE_SETTINGS to
-  // avoid React hydration mismatch — window.localStorage is not available
-  // server-side (or during the SSR render in client components).
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(VOICE_SETTINGS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<VoiceSettings>;
-        setSettings({ ...DEFAULT_VOICE_SETTINGS, ...parsed });
-      }
-    } catch (err) {
-      console.warn(
-        "[voice-settings] malformed localStorage entry; using defaults",
-        err,
-      );
-      // Keep DEFAULT_VOICE_SETTINGS — no setSettings call needed since that
-      // is already the initial state value.
-    }
+    // Re-hydrate from localStorage on every mount. Cheap (JSON.parse of a
+    // small object) and keeps the shared singleton in sync with whatever
+    // another tab / component / test wrote last.
+    currentSettings = hydrateFromStorage();
+    setSettings(currentSettings);
     setMounted(true);
+
+    const listener = (s: VoiceSettings) => setSettings(s);
+    subscribers.add(listener);
+    return () => {
+      subscribers.delete(listener);
+    };
   }, []);
 
-  /**
-   * Merge a partial patch into settings and immediately persist to localStorage.
-   *
-   * Called by VoiceSettingsSection (Plan 07-02) and by Plan 07-03's
-   * JarvisListener (to update micDeviceId when the OS device list changes).
-   */
   const update = useCallback((patch: Partial<VoiceSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      try {
-        window.localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(next));
-      } catch (err) {
-        // Storage quota exceeded — unlikely for small settings payload, but
-        // don't crash the UI.
-        console.warn("[voice-settings] localStorage write failed", err);
-      }
-      return next;
-    });
+    publish({ ...currentSettings, ...patch });
   }, []);
 
   return { settings, mounted, update };
