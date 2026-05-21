@@ -244,6 +244,8 @@ export function JarvisListener() {
     },
     onSpeechEnd: async (audio: Float32Array) => {
       const s = micStateRef.current;
+      // eslint-disable-next-line no-console
+      console.log("[jarvis] onSpeechEnd state:", s, "samples:", audio.length);
       // Two entry paths:
       //   - "recording" — user explicitly armed via press-to-talk / clap.
       //     Transcript IS the command. Transition to thinking immediately.
@@ -271,10 +273,14 @@ export function JarvisListener() {
         if (!res.ok) throw new Error(`stt ${res.status}`);
 
         const { transcript } = (await res.json()) as { transcript: string };
+        // eslint-disable-next-line no-console
+        console.log("[jarvis] STT transcript:", JSON.stringify(transcript), "wake-path:", isWakeWordPath);
 
         let command = transcript;
         if (isWakeWordPath) {
           const stripped = stripWakeWord(transcript);
+          // eslint-disable-next-line no-console
+          console.log("[jarvis] wake-word strip result:", stripped === null ? "NO MATCH" : `"${stripped}"`);
           if (stripped === null) {
             // No wake phrase — silently discard, stay in listening.
             return;
