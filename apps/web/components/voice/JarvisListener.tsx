@@ -64,8 +64,6 @@ export function JarvisListener() {
   useEffect(() => {
     micStateRef.current = micState;
     publishMicState(micState);
-    // eslint-disable-next-line no-console
-    console.log("[jarvis] mic-state →", micState);
   }, [micState]);
 
   // ─── Gate computations ───────────────────────────────────────────────────
@@ -203,8 +201,6 @@ export function JarvisListener() {
     },
     onSpeechStart: () => {
       const s = micStateRef.current;
-      // eslint-disable-next-line no-console
-      console.log("[jarvis] VAD onSpeechStart (state was:", s, ")");
       if (s === "speaking") {
         // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
         // and transition back to recording so the new utterance can be captured.
@@ -220,8 +216,6 @@ export function JarvisListener() {
     },
     onSpeechEnd: async (audio: Float32Array) => {
       const s = micStateRef.current;
-      // eslint-disable-next-line no-console
-      console.log("[jarvis] VAD onSpeechEnd (state:", s, ") — audio samples:", audio.length);
       // Only flush to STT when the FSM was armed for recording.
       // Without this guard, every casual utterance in `listening` state would
       // POST to STT and trigger an unwanted JARVIS turn.
@@ -261,9 +255,10 @@ export function JarvisListener() {
   // onSpeechStart/onSpeechEnd callbacks via micStateRef. No start/pause cycle
   // here: StrictMode's destroy/remount made vad.start() unreliable.
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("[jarvis] vad status — loading:", vad.loading, "errored:", vad.errored);
-  }, [vad.loading, vad.errored]);
+    if (vad.errored) {
+      console.warn("[jarvis] vad errored:", vad.errored);
+    }
+  }, [vad.errored]);
 
   // ─── Clap-clap activation (VOICE-03) ─────────────────────────────────────
   useClapDetector({
@@ -305,8 +300,6 @@ export function JarvisListener() {
   useEffect(() => {
     function handleVoiceSpeak(e: Event) {
       const detail = (e as CustomEvent<{ text: string; voiceId?: string }>).detail;
-      // eslint-disable-next-line no-console
-      console.log("[jarvis] voice-speak received:", detail?.text?.slice(0, 60));
       if (!detail?.text?.trim()) return;
 
       // Read the shared AudioContext lazily on every event so we pick it up
@@ -315,15 +308,6 @@ export function JarvisListener() {
       // unlock can happen anytime).
       const audioContext =
         audioContextRef.current ?? getSharedAudioContext();
-      // eslint-disable-next-line no-console
-      console.log(
-        "[jarvis] voice-speak audioContext:",
-        audioContext ? `state=${audioContext.state}` : "null",
-        "provider:",
-        settings.ttsProvider,
-        "discreet:",
-        settings.discreetMode,
-      );
       if (!audioContext) return;
       audioContextRef.current = audioContext;
 
