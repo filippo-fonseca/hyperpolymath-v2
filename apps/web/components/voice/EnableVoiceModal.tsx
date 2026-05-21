@@ -14,6 +14,7 @@ import {
   DEFAULT_VOICE_ID,
   WELCOME_GREETING,
 } from "@/lib/voice/constants";
+import { unlockAudioContext } from "@/lib/voice/audio-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -185,12 +186,12 @@ export function EnableVoiceModal({
   async function handleEnableClick() {
     setEnabling(true);
     try {
-      // 1. Create + resume AudioContext SYNCHRONOUSLY in the click handler
+      // 1. Unlock the SHARED AudioContext SYNCHRONOUSLY in this click handler
       //    (Pattern 6 / CRITICAL_PHASE7_CONCERNS #1 — autoplay unlock).
-      const audioContext = new AudioContext();
-      if (audioContext.state === "suspended") {
-        await audioContext.resume();
-      }
+      //    The shared singleton in lib/voice/audio-context.ts is reused by
+      //    JarvisListener + TtsPlayer so they don't create their own
+      //    suspended contexts outside a user gesture.
+      const audioContext = await unlockAudioContext();
       audioContextRef.current = audioContext;
 
       // 2. Capture chosen mic deviceId via enumerateDevices (now permitted post-grant).

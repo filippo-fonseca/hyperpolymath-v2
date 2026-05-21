@@ -19,6 +19,10 @@ import {
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { publishMicState } from "@/lib/voice/mic-state-bus";
+import {
+  getSharedAudioContext,
+  unlockAudioContext,
+} from "@/lib/voice/audio-context";
 
 /**
  * Phase 7 Plan 07-03 — owns Porcupine + VAD + clap-onset + press-to-talk lifecycles.
@@ -105,11 +109,18 @@ export function JarvisListener() {
 
         streamRef.current = stream;
 
-        // AudioContext was unlocked by the EnableVoiceModal click handler in
-        // Plan 07-02 (autoplay policy satisfied). Re-create here for ownership
-        // clarity; the user-gesture lock is already satisfied for this origin.
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext();
+        // Reuse the shared AudioContext unlocked by EnableVoiceModal /
+        // PressToTalkButton click. Creating a fresh AudioContext here
+        // (outside a user gesture) would leave it suspended in Safari and
+        // any decodeAudioData → bufferSource.start() chain would produce
+        // silence with no error.
+        const shared = getSharedAudioContext();
+        if (shared) {
+          audioContextRef.current = shared;
+        } else {
+          console.warn(
+            "[jarvis-listener] no shared AudioContext yet — TTS will be silent until a user-gesture unlock",
+          );
         }
       } catch (err) {
         console.error("[jarvis-listener] mic acquisition failed", err);
@@ -292,12 +303,29 @@ export function JarvisListener() {
   // effectively 'off' — we instantly cycle TTS_START/TTS_END so the FSM
   // transitions correctly but no audio plays.
   useEffect(() => {
-    const audioContext = audioContextRef.current;
-
     function handleVoiceSpeak(e: Event) {
       const detail = (e as CustomEvent<{ text: string; voiceId?: string }>).detail;
+      // eslint-disable-next-line no-console
+      console.log("[jarvis] voice-speak received:", detail?.text?.slice(0, 60));
       if (!detail?.text?.trim()) return;
+
+      // Read the shared AudioContext lazily on every event so we pick it up
+      // even if it was unlocked AFTER this effect mounted (modal unlock
+      // happens before the user navigates to /today, but PressToTalkButton
+      // unlock can happen anytime).
+      const audioContext =
+        audioContextRef.current ?? getSharedAudioContext();
+      // eslint-disable-next-line no-console
+      console.log(
+        "[jarvis] voice-speak audioContext:",
+        audioContext ? `state=${audioContext.state}` : "null",
+        "provider:",
+        settings.ttsProvider,
+        "discreet:",
+        settings.discreetMode,
+      );
       if (!audioContext) return;
+      audioContextRef.current = audioContext;
 
       // Discreet mode: skip audio, but still cycle FSM states.
       if (settings.discreetMode || settings.ttsProvider === "off") {

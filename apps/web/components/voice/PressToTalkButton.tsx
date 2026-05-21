@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Radio } from "lucide-react";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
+import { unlockAudioContext } from "@/lib/voice/audio-context";
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +31,15 @@ export function PressToTalkButton() {
   const speaking = state === "speaking";
   const busy = recording || thinking || speaking;
 
-  function trigger() {
+  async function trigger() {
+    // This click IS a user gesture — perfect time to unlock the shared
+    // AudioContext so TTS playback can produce audio later. Safari (and
+    // Chrome strict autoplay) require resume() inside a gesture.
+    try {
+      await unlockAudioContext();
+    } catch (err) {
+      console.warn("[press-to-talk] audio unlock failed", err);
+    }
     window.dispatchEvent(new CustomEvent("jarvis-press-to-talk"));
   }
 
