@@ -394,11 +394,21 @@ export function JarvisListener() {
       // unlock can happen anytime).
       const audioContext =
         audioContextRef.current ?? getSharedAudioContext();
-      if (!audioContext) return;
       audioContextRef.current = audioContext;
 
-      // Discreet mode: skip audio, but still cycle FSM states.
-      if (settings.discreetMode || settings.ttsProvider === "off") {
+      // FSM MUST cycle regardless of whether we can actually play audio.
+      // If we bail early, the listener stays in "thinking" forever and
+      // subsequent wake-word utterances get discarded. The three silent
+      // cases:
+      //   1. No AudioContext yet (Safari needs a user gesture to unlock)
+      //   2. Discreet mode (user muted TTS)
+      //   3. ttsProvider === 'off'
+      const silent =
+        !audioContext ||
+        settings.discreetMode ||
+        settings.ttsProvider === "off";
+
+      if (silent) {
         dispatch({ type: "TTS_START" });
         dispatch({ type: "TTS_END" });
         followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
