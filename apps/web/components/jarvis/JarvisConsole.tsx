@@ -279,22 +279,21 @@ export function JarvisConsole({
               ),
             );
 
-            // Phase 7 — TTS dispatch. Speak the assistant's leading text so
-            // what's heard matches what's on screen. Triggers on ANY input
-            // channel (text or voice). Gated on voiceCapable: when discreet
-            // mode is on, we skip the dispatch entirely so no /api/jarvis/tts
-            // request fires — saves ElevenLabs character budget.
-            if (voiceCapable) {
-              const turn = turnsRef.current.find((t) => t.id === assistantId);
-              const spoken =
-                turn?.kind === "assistant" ? turn.textDelta.trim() : "";
-              if (spoken.length > 0) {
-                window.dispatchEvent(
-                  new CustomEvent("jarvis-voice-speak", {
-                    detail: { text: spoken, voiceId: voiceSettings.voiceId },
-                  }),
-                );
-              }
+            // Phase 7 — always dispatch on response completion. JarvisListener's
+            // handleVoiceSpeak owns the play/skip decision: it skips the TTS
+            // fetch entirely when discreetMode is on (saves ElevenLabs chars)
+            // but still cycles TTS_START → TTS_END so the FSM returns to
+            // listening AND the 5-second follow-up window opens. Without this
+            // always-dispatch, muted users would get stuck in `thinking`.
+            const turn = turnsRef.current.find((t) => t.id === assistantId);
+            const spoken =
+              turn?.kind === "assistant" ? turn.textDelta.trim() : "";
+            if (spoken.length > 0) {
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-speak", {
+                  detail: { text: spoken, voiceId: voiceSettings.voiceId },
+                }),
+              );
             }
 
             setStreaming(false);

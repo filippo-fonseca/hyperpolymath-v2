@@ -61,6 +61,13 @@ export function JarvisListener() {
   // via vad-react's internal hook structure) can read the current FSM state.
   const micStateRef = useRef<MicState>("idle");
 
+  // Follow-up window: 5 seconds after each JARVIS response (TTS_END), the
+  // user can speak without prefixing "Hey Jarvis". Window closes naturally
+  // when the timestamp elapses; another response opens a fresh 5-second
+  // window. Lets you chain commands in a conversation.
+  const followUpUntilRef = useRef<number>(0);
+  const FOLLOW_UP_MS = 5000;
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
     micStateRef.current = micState;
@@ -236,16 +243,17 @@ export function JarvisListener() {
     },
     onSpeechStart: () => {
       const s = micStateRef.current;
-      if (s === "speaking") {
-        // Barge-in (VOICE-12 / Pitfall 8): JARVIS is speaking → stop TTS immediately
-        // and transition back to recording so the new utterance can be captured.
-        ttsPlayer.stop();
-        dispatch({ type: "SPEECH_START" });
-      } else if (s === "recording") {
+      // Barge-in is disabled — talking over JARVIS while it speaks would
+      // otherwise auto-transition to recording and process the interruption
+      // as a new command, capturing things like "yes it works" that were
+      // meant as side comments, not commands. The 5-second follow-up window
+      // opened on TTS_END is the supported way to chain commands without
+      // saying "Hey Jarvis" each time.
+      if (s === "recording") {
         // Already recording — VAD detecting speech during recording is normal; no-op.
         dispatch({ type: "SPEECH_START" });
       }
-      // Other states (listening, thinking, idle): VAD runs continuously since
+      // Other states (listening, thinking, speaking, idle): VAD runs continuously since
       // startOnLoad=true, so this fires constantly. Ignore unless explicitly
       // armed via wake-word, clap, or press-to-talk.
     },
@@ -285,20 +293,32 @@ export function JarvisListener() {
 
         let command = transcript;
         if (isWakeWordPath) {
-          const stripped = stripWakeWord(transcript);
-          // eslint-disable-next-line no-console
-          console.log("[jarvis] wake-word strip result:", stripped === null ? "NO MATCH" : `"${stripped}"`);
-          if (stripped === null) {
-            // No wake phrase — silently discard, stay in listening.
-            return;
+          const inFollowUp = followUpUntilRef.current > Date.now();
+          if (inFollowUp) {
+            // 5-second window after the last response: any utterance counts
+            // as a follow-up command, no wake phrase required.
+            command = transcript
+              .trim()
+              .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, "")
+              .trim();
+            if (!command) return;
+            // eslint-disable-next-line no-console
+            console.log("[jarvis] follow-up window — captured:", command);
+          } else {
+            const stripped = stripWakeWord(transcript);
+            // eslint-disable-next-line no-console
+            console.log("[jarvis] wake-word strip result:", stripped === null ? "NO MATCH" : `"${stripped}"`);
+            if (stripped === null) {
+              // No wake phrase — silently discard, stay in listening.
+              return;
+            }
+            if (!stripped) {
+              // Wake phrase alone with no command ("hey jarvis"). Discard
+              // for now; could later acknowledge with "Yes, sir?".
+              return;
+            }
+            command = stripped;
           }
-          if (!stripped) {
-            // Wake phrase alone with no command ("hey jarvis"). For now,
-            // discard. A future revision could acknowledge with "Yes, sir?"
-            // and arm a short recording window.
-            return;
-          }
-          command = stripped;
           dispatch({ type: "SPEECH_END" }); // listening → thinking now
         }
 
@@ -381,6 +401,7 @@ export function JarvisListener() {
       if (settings.discreetMode || settings.ttsProvider === "off") {
         dispatch({ type: "TTS_START" });
         dispatch({ type: "TTS_END" });
+        followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
         return;
       }
 
@@ -390,7 +411,10 @@ export function JarvisListener() {
         ttsProvider: settings.ttsProvider,
         audioContext,
         onStart: () => dispatch({ type: "TTS_START" }),
-        onEnd: () => dispatch({ type: "TTS_END" }),
+        onEnd: () => {
+          dispatch({ type: "TTS_END" });
+          followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+        },
       });
     }
 
