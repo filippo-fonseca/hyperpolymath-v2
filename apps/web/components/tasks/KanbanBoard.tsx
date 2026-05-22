@@ -77,11 +77,15 @@ export function KanbanBoard({
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) ?? null : null;
 
   function handleDragStart(e: DragStartEvent) {
+    // eslint-disable-next-line no-console
+    console.log("[kanban] drag start:", e.active.id);
     setActiveId(String(e.active.id));
   }
 
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
+    // eslint-disable-next-line no-console
+    console.log("[kanban] drag end:", { active: active.id, over: over?.id });
     setActiveId(null);
     if (!over) return;
 
