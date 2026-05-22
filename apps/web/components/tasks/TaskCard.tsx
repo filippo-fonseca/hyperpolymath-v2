@@ -46,16 +46,38 @@ export function TaskCard({ task, onClick, isDragging, isPending }: Props) {
       whileHover={
         isDragging
           ? undefined
-          : { y: -4, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }
+          : {
+              y: -2,
+              boxShadow:
+                "0 8px 24px rgba(0,0,0,0.18), inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent)",
+            }
       }
-      transition={{ duration: 0.15, ease: [0.25, 1, 0.5, 1] }}
+      animate={
+        isDragging
+          ? {
+              rotate: 1.5,
+              scale: 1.02,
+              boxShadow:
+                "0 18px 40px rgba(0,0,0,0.32), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 50%, transparent)",
+            }
+          : { rotate: 0, scale: 1 }
+      }
+      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "rounded-md border border-[var(--edge)] bg-[var(--surface)]",
-        "px-3 py-2 cursor-pointer select-none",
-        isDragging && "opacity-95",
+        "relative rounded-xl px-3.5 py-2.5 cursor-pointer select-none",
         isPending && "opacity-50",
-        isLesno && "border-l-4 border-l-[var(--ink-sage)] opacity-70",
+        isLesno && "opacity-70",
       )}
+      style={{
+        background: isLesno
+          ? "linear-gradient(180deg, color-mix(in oklch, var(--ink-sage) 12%, var(--surface-raised)) 0%, var(--surface) 100%)"
+          : "linear-gradient(180deg, color-mix(in oklch, var(--surface-raised) 92%, transparent) 0%, var(--surface) 100%)",
+        boxShadow:
+          "inset 0 0 0 1px color-mix(in oklch, var(--edge) 70%, transparent), inset 0 1px 0 color-mix(in oklch, var(--ink) 4%, transparent), 0 1px 2px rgba(0,0,0,0.08)",
+        borderLeft: isLesno
+          ? "3px solid var(--ink-sage)"
+          : undefined,
+      }}
       onClick={() => onClick(task.id)}
     >
       {/* Title */}
