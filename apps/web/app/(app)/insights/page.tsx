@@ -2,8 +2,6 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { getInsightsData } from "@/lib/db/queries/insights";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
-import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 
 export const dynamic = "force-dynamic";
 
@@ -34,14 +32,10 @@ export default async function InsightsPage() {
   const data = await getInsightsData(user.id);
 
   return (
-    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-6 py-12">
-      <HudCornerCrops
-        size={12}
-        className="fixed inset-0 pointer-events-none z-0"
-      />
-      <main className="relative z-10 max-w-3xl mx-auto space-y-8">
-        <header className="space-y-2">
-          <h1 className="font-serif text-4xl font-semibold text-[var(--ink)]">
+    <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-8 py-12">
+      <main className="relative z-10 max-w-5xl mx-auto space-y-10">
+        <header className="space-y-1.5">
+          <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
             Insights
           </h1>
           <p className="font-serif text-base text-[var(--ink-muted)] flex items-center gap-2">
@@ -65,18 +59,6 @@ export default async function InsightsPage() {
           <InsightsCharts data={data} />
         )}
       </main>
-
-      {/* Bottom edge instrumentation rail per UI-SPEC §5b + §6d.
-          Values are nullable — renders "—ms / —% / —" placeholders.
-          TODO(phase 6.1.x): wire jarvis_events aggregation for live telemetry. */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10">
-        <HudEdgeInstrumentation
-          latencyMs={null}
-          cacheHitPercent={null}
-          lastTurnRelative={null}
-          className="pointer-events-auto"
-        />
-      </div>
     </div>
   );
 }
