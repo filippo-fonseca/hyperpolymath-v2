@@ -56,7 +56,14 @@ export function FloatingJarvisStatus() {
   }, []);
 
   if (!mounted || !settings.voiceEnabled) return null;
-  if (state === "idle" && !tentativelyActive) return null;
+  // Only show the pill when JARVIS is actually doing something — recording,
+  // thinking, speaking, or the brief tentative window right after a wake
+  // burst fires. In plain `listening` (or idle) the pill is hidden entirely
+  // so the user has no false "I'm active" cue when they're not addressing
+  // JARVIS.
+  const fsmActive =
+    state === "recording" || state === "thinking" || state === "speaking";
+  if (!fsmActive && !tentativelyActive) return null;
 
   const muted = settings.discreetMode;
   const isThinking = state === "thinking";

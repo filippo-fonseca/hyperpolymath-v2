@@ -257,17 +257,13 @@ export function JarvisListener() {
       if (s === "recording") {
         // Already recording — VAD detecting speech during recording is normal; no-op.
         dispatch({ type: "SPEECH_START" });
-      } else if (s === "listening") {
-        // Anticipatory wake burst — fires the visual indicator AT THE START
-        // of an utterance so wake-word activation feels as immediate as
-        // press-to-talk. Listeners (HudCoreBubble, FloatingJarvisStatus)
-        // start their growth animation now; STT confirms or quietly retreats
-        // a few seconds later. Without this the burst lagged by ~1.5s
-        // because we couldn't know it was a wake phrase until the transcript
-        // came back.
-        window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
       }
-      // Other states (thinking, speaking, idle): VAD runs continuously since
+      // Anticipatory wake burst was REMOVED: it lit up the visuals on any
+      // ambient speech, which felt like JARVIS was activating even when no
+      // wake word was said. The burst now fires only in onSpeechEnd after
+      // STT confirms either a wake phrase match OR an in-follow-up command.
+      //
+      // Other states (listening, thinking, speaking, idle): VAD runs continuously since
       // startOnLoad=true, so this fires constantly. Ignore unless explicitly
       // armed via wake-word, clap, or press-to-talk.
     },
@@ -338,6 +334,11 @@ export function JarvisListener() {
             }
             command = stripped;
           }
+          // Confirmed: either wake phrase matched, or we're inside the
+          // follow-up window. NOW it's safe to fire the visual burst —
+          // before this point we couldn't know whether the utterance was
+          // for JARVIS or ambient speech.
+          window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
           dispatch({ type: "SPEECH_END" }); // listening → thinking now
         }
 
