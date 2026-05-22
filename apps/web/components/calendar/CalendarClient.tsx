@@ -645,7 +645,25 @@ export function CalendarClient({
   //   - "Google Calendar disconnected. Reconnect from Settings." (toast above)
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--canvas)]">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--edge)] gap-4">
+      {/* Arc-redesign page header — serif title + glance subtitle. */}
+      <header className="px-8 pt-10 pb-5 space-y-1.5">
+        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
+          Calendar
+        </h1>
+        <p className="font-serif text-base text-[var(--ink-muted)]">
+          {displayEvents.length} event{displayEvents.length === 1 ? "" : "s"} in view
+        </p>
+      </header>
+
+      {/* Toolbar — wrapped in a soft pill container that matches /tasks. */}
+      <div
+        className="mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2"
+        style={{
+          backgroundColor: "var(--surface)",
+          boxShadow:
+            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
+        }}
+      >
         <DayWeekToggle
           view={view}
           onChange={setView}
@@ -654,8 +672,8 @@ export function CalendarClient({
         />
         <div className="flex items-center gap-3">
           <CalendarFilters calendars={calendars} />
-          {/* UI-SPEC §12e — "New event" CTA opens the create Sheet at the
-              next round half-hour (parity with the Cmd+K?create=now path). */}
+          {/* "New event" CTA opens the create Sheet at the next round
+              half-hour (parity with the Cmd+K?create=now path). */}
           <button
             type="button"
             onClick={() => {
@@ -668,7 +686,13 @@ export function CalendarClient({
                 allDay: false,
               });
             }}
-            className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)] border border-[var(--edge)] rounded-sm px-2 py-1 hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always"
+            className="font-sans text-[13px] text-[var(--ink)] rounded-lg px-3 py-1.5 transition-colors duration-150 ease-out cursor-pointer-always"
+            style={{
+              backgroundColor:
+                "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
+              boxShadow:
+                "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 32%, transparent)",
+            }}
           >
             New event
           </button>

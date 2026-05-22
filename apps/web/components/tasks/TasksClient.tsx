@@ -256,16 +256,61 @@ export function TasksClient({
     filters.due.length > 0 ||
     filters.project.length > 0;
 
+  // Arc-redesign: lightweight stats for the page header so the user gets
+  // a glance-able sense of load without leaving /tasks. Computed locally
+  // from the same `tasks` list the body renders.
+  const headerStats = useMemo(() => {
+    const today = startOfDay(new Date());
+    const open = tasks.filter((t) => t.status !== "lesno");
+    const overdue = open.filter(
+      (t) => t.dueDate && isBefore(new Date(t.dueDate), today),
+    ).length;
+    return {
+      open: open.length,
+      overdue,
+      done: tasks.length - open.length,
+    };
+  }, [tasks]);
+
   return (
-    <div className="flex flex-col gap-4 p-6 min-h-0">
-      {/* Toolbar: filters + view toggle */}
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col min-h-0 px-8 py-10 max-w-6xl mx-auto w-full">
+      {/* Arc-redesign page header — serif title + glance stats row. */}
+      <header className="mb-6 space-y-1.5">
+        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
+          Tasks
+        </h1>
+        <p className="font-serif text-base text-[var(--ink-muted)] flex items-center gap-3">
+          <span>
+            {headerStats.open} open
+            {headerStats.overdue > 0 ? (
+              <span className="ml-1.5 text-[var(--ink-coral)]">
+                · {headerStats.overdue} overdue
+              </span>
+            ) : null}
+          </span>
+          {headerStats.done > 0 ? (
+            <span className="text-[var(--ink-muted)]/60">
+              · {headerStats.done} done
+            </span>
+          ) : null}
+        </p>
+      </header>
+
+      {/* Toolbar: filters + view toggle wrapped in a soft pill container. */}
+      <div
+        className="flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2"
+        style={{
+          backgroundColor: "var(--surface)",
+          boxShadow:
+            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
+        }}
+      >
         <TaskFilters projects={projects} />
         <Button
           variant="outline"
           size="sm"
           onClick={() => setView(view === "kanban" ? "list" : "kanban")}
-          className="font-sans text-[13px] flex-shrink-0"
+          className="font-sans text-[13px] flex-shrink-0 rounded-lg"
         >
           {view === "kanban" ? "List" : "Kanban"}
         </Button>
