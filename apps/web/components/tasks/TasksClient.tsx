@@ -273,7 +273,9 @@ export function TasksClient({
   }, [tasks]);
 
   return (
-    <div className="flex flex-col min-h-0 px-8 py-10 max-w-6xl mx-auto w-full">
+    // No max-w cap — kanban view needs full horizontal real estate for the
+    // 5 status columns. Header + toolbar happily extend to the page edge.
+    <div className="flex flex-col min-h-0 px-8 py-10 w-full">
       {/* Arc-redesign page header — serif title + glance stats row. */}
       <header className="mb-6 space-y-1.5">
         <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
