@@ -534,25 +534,19 @@ select,
  * Pitfall 8). Per-event color via inline style beats class-based bg.
  * --------------------------------------------------------------------------- */
 /* Arc-redesign — calendar grid polish. Reads as a calm dark dashboard:
-   subtle dividers, soft today highlight, glossy event chips. */
+   subtle dividers, barely-there today highlight, glossy event chips.
+   The default RBC toolbar is HIDDEN (we render our own DayWeekToggle +
+   filters above the grid). */
 .rbc-toolbar {
-  border-bottom: none;
-  padding: 0.5rem 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  display: none !important;
 }
-.rbc-toolbar button {
-  font-size: 0.8125rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.5rem;
-  font-family: var(--font-sans);
-}
-.rbc-time-content,
+.rbc-time-view,
 .rbc-month-view {
   font-size: 0.8125rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in oklch, var(--edge) 55%, transparent);
+  border-radius: 0.875rem;
+  border: 1px solid color-mix(in oklch, var(--edge) 35%, transparent);
   overflow: hidden;
-  background: color-mix(in oklch, var(--surface) 96%, transparent);
+  background: color-mix(in oklch, var(--surface) 80%, var(--canvas));
 }
 /* Day-of-week header row — serif labels, softer rule. */
 .rbc-header {

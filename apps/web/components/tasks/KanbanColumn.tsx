@@ -28,39 +28,44 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
  * Each column gets a faint tinted gradient + dot indicator. Cyan stays the
  * primary JARVIS register; the other tints are siblings, not replacements.
  */
+/**
+ * Solid column tints + matching darker card backgrounds. Reads as a playful
+ * dark dashboard while staying inside the JARVIS palette. Cards inherit the
+ * column's hue but in a deeper tone so they layer cleanly.
+ */
 const STATUS_ACCENT: Record<
   TaskStatus,
-  { dot: string; tint: string; rim: string; glow: string }
+  { dot: string; bg: string; rim: string; cardBg: string }
 > = {
   "not started": {
-    dot: "var(--ink-muted)",
-    tint: "color-mix(in oklch, var(--ink-muted) 8%, transparent)",
-    rim: "color-mix(in oklch, var(--edge) 70%, transparent)",
-    glow: "color-mix(in oklch, var(--ink-muted) 14%, transparent)",
+    dot: "oklch(0.72 0.02 80)",
+    bg: "oklch(0.21 0.02 80 / 0.55)",
+    rim: "oklch(0.42 0.04 80 / 0.6)",
+    cardBg: "oklch(0.27 0.03 80 / 0.8)",
   },
   "up next": {
-    dot: "var(--ink-amber)",
-    tint: "color-mix(in oklch, var(--ink-amber) 10%, transparent)",
-    rim: "color-mix(in oklch, var(--ink-amber) 40%, transparent)",
-    glow: "color-mix(in oklch, var(--ink-amber) 22%, transparent)",
+    dot: "oklch(0.78 0.16 80)",
+    bg: "oklch(0.22 0.04 75 / 0.75)",
+    rim: "oklch(0.55 0.13 75 / 0.6)",
+    cardBg: "oklch(0.30 0.07 60 / 0.85)",
   },
   "in progress": {
-    dot: "var(--hud-cyan)",
-    tint: "color-mix(in oklch, var(--hud-cyan) 10%, transparent)",
-    rim: "color-mix(in oklch, var(--hud-cyan) 40%, transparent)",
-    glow: "color-mix(in oklch, var(--hud-cyan) 22%, transparent)",
+    dot: "oklch(0.74 0.16 240)",
+    bg: "oklch(0.22 0.05 245 / 0.78)",
+    rim: "oklch(0.52 0.13 245 / 0.6)",
+    cardBg: "oklch(0.30 0.08 260 / 0.85)",
   },
   "almost done": {
-    dot: "oklch(0.65 0.18 295)",
-    tint: "color-mix(in oklch, oklch(0.65 0.18 295) 10%, transparent)",
-    rim: "color-mix(in oklch, oklch(0.65 0.18 295) 40%, transparent)",
-    glow: "color-mix(in oklch, oklch(0.65 0.18 295) 22%, transparent)",
+    dot: "oklch(0.78 0.16 305)",
+    bg: "oklch(0.22 0.05 295 / 0.78)",
+    rim: "oklch(0.55 0.13 295 / 0.6)",
+    cardBg: "oklch(0.30 0.08 290 / 0.85)",
   },
   lesno: {
-    dot: "var(--ink-sage)",
-    tint: "color-mix(in oklch, var(--ink-sage) 10%, transparent)",
-    rim: "color-mix(in oklch, var(--ink-sage) 40%, transparent)",
-    glow: "color-mix(in oklch, var(--ink-sage) 22%, transparent)",
+    dot: "oklch(0.78 0.18 160)",
+    bg: "oklch(0.22 0.05 175 / 0.78)",
+    rim: "oklch(0.52 0.12 175 / 0.6)",
+    cardBg: "oklch(0.30 0.07 180 / 0.85)",
   },
 };
 
@@ -88,38 +93,43 @@ export function KanbanColumn({
   const activeDrop = isOver && activeId;
 
   return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0">
-      {/* Column header — small dot + label + count, sticky to scroll. */}
-      <div className="flex items-center gap-2 px-3 py-2 sticky top-0 z-10 bg-[var(--canvas)]/85 backdrop-blur-sm">
+    <div
+      className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl"
+      data-status={status}
+      style={
+        {
+          background: accent.bg,
+          boxShadow: activeDrop
+            ? `inset 0 0 0 2px ${accent.rim}, 0 0 28px ${accent.rim}`
+            : `inset 0 0 0 1px ${accent.rim}`,
+          transition: "box-shadow 180ms ease-out",
+          // Cards inside read this via CSS so each column tints its own.
+          ["--task-card-bg" as string]: accent.cardBg,
+        } as React.CSSProperties
+      }
+    >
+      {/* Column header — accent dot + uppercase label + count. */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
-          style={{
-            backgroundColor: accent.dot,
-            boxShadow: `0 0 8px ${accent.glow}`,
-          }}
+          style={{ backgroundColor: accent.dot }}
         />
-        <span className="font-serif text-sm font-semibold tracking-tight text-[var(--ink)]">
+        <span
+          className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold"
+          style={{ color: accent.dot }}
+        >
           {STATUS_LABELS[status]}
         </span>
         <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
-          {tasks.length}
+          ({tasks.length})
         </span>
       </div>
 
-      {/* Drop zone — status-tinted gradient + soft inset border. Pulses
-          inward when a card is hovering over it (activeDrop). */}
+      {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className={cn(
-          "flex flex-col gap-2.5 flex-1 p-3 rounded-2xl min-h-[160px]",
-          "transition-all duration-200 ease-out",
-        )}
-        style={{
-          background: `linear-gradient(180deg, ${accent.tint} 0%, color-mix(in oklch, var(--surface) 92%, transparent) 70%)`,
-          boxShadow: activeDrop
-            ? `inset 0 0 0 2px ${accent.rim}, 0 0 32px ${accent.glow}`
-            : `inset 0 0 0 1px ${accent.rim}, 0 1px 2px rgba(0,0,0,0.05)`,
-        }}
+        className="flex flex-col gap-2.5 flex-1 px-3 pb-3 min-h-[160px]"
+        data-card-bg={accent.cardBg}
       >
         <SortableContext
           id={`kanban-column-${status}`}
