@@ -94,15 +94,16 @@ export function KanbanColumn({
 
   return (
     <div
+      ref={setNodeRef}
       className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl"
       data-status={status}
       style={
         {
           background: accent.bg,
           boxShadow: activeDrop
-            ? `inset 0 0 0 2px ${accent.rim}, 0 0 28px ${accent.rim}`
+            ? `inset 0 0 0 3px ${accent.dot}, 0 0 48px ${accent.rim}`
             : `inset 0 0 0 1px ${accent.rim}`,
-          transition: "box-shadow 180ms ease-out",
+          transition: "box-shadow 160ms ease-out",
           // Cards inside read this via CSS so each column tints its own.
           ["--task-card-bg" as string]: accent.cardBg,
         } as React.CSSProperties
@@ -125,11 +126,11 @@ export function KanbanColumn({
         </span>
       </div>
 
-      {/* Drop zone */}
+      {/* Drop zone — droppable ref is on the OUTER wrapper above so the
+          whole column (header + body) accepts drops. This inner div just
+          handles content layout. */}
       <div
-        ref={setNodeRef}
         className="flex flex-col gap-2.5 flex-1 px-3 pb-3 min-h-[160px]"
-        data-card-bg={accent.cardBg}
       >
         <SortableContext
           id={`kanban-column-${status}`}

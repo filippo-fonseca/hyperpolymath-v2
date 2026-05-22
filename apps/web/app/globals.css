@@ -533,10 +533,11 @@ select,
  * CalendarGrid.eventPropGetter MUST win for per-event gcal color (D-03 /
  * Pitfall 8). Per-event color via inline style beats class-based bg.
  * --------------------------------------------------------------------------- */
-/* Arc-redesign — calendar grid polish. Reads as a calm dark dashboard:
-   subtle dividers, barely-there today highlight, glossy event chips.
-   The default RBC toolbar is HIDDEN (we render our own DayWeekToggle +
-   filters above the grid). */
+/* Arc-redesign — calendar grid polish. Calm dark dashboard with subtle
+   dividers and barely-there today highlight. RBC's default toolbar is
+   hidden (we render our own DayWeekToggle + filters above the grid).
+   Explicit rgba values used everywhere to avoid color-mix surprises
+   between light/dark themes. */
 .rbc-toolbar {
   display: none !important;
 }
@@ -544,11 +545,11 @@ select,
 .rbc-month-view {
   font-size: 0.8125rem;
   border-radius: 0.875rem;
-  border: 1px solid color-mix(in oklch, var(--edge) 35%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
-  background: color-mix(in oklch, var(--surface) 80%, var(--canvas));
+  background: rgba(255, 255, 255, 0.015);
 }
-/* Day-of-week header row — serif labels, softer rule. */
+/* Day-of-week header row — serif labels, no harsh divider. */
 .rbc-header {
   font-family: var(--font-serif);
   font-weight: 500;
@@ -557,9 +558,35 @@ select,
   color: var(--ink-muted);
   padding: 0.625rem 0.5rem;
   text-transform: none;
-  border-bottom: 1px solid color-mix(in oklch, var(--edge) 45%, transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background: transparent !important;
 }
-/* Date number in each month cell — tabular-num, top-aligned. */
+/* All internal grid dividers: 4-6% white so they read as separators, not
+   borders. Hard !important so RBC's specificity doesn't reclaim them. */
+.rbc-time-header,
+.rbc-time-header-content,
+.rbc-time-content,
+.rbc-time-gutter,
+.rbc-timeslot-group,
+.rbc-day-bg,
+.rbc-day-slot,
+.rbc-time-slot,
+.rbc-month-row,
+.rbc-day-bg + .rbc-day-bg,
+.rbc-header + .rbc-header {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+.rbc-timeslot-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.rbc-time-slot {
+  border-top: 1px solid rgba(255, 255, 255, 0.025) !important;
+}
+/* Today column wash — TINY tint so it doesn't read as a bright column. */
+.rbc-today {
+  background-color: rgba(34, 211, 238, 0.04) !important;
+}
+/* Date number in each month cell. */
 .rbc-date-cell {
   padding: 0.375rem 0.5rem;
   font-family: var(--font-sans);
@@ -570,23 +597,6 @@ select,
   color: var(--ink);
   font-weight: 600;
 }
-/* Event chip — rounded-lg, soft inset border, subtle drop shadow. The
-   per-event background colour comes from CalendarGrid.eventPropGetter
-   inline style (D-03), so we only set shape + outline here. */
-.rbc-event {
-  border-radius: 0.625rem;
-  font-family: var(--font-sans);
-  padding: 0.25rem 0.5rem;
-  border: none !important;
-  box-shadow:
-    inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 35%, transparent),
-    0 1px 2px rgba(0, 0, 0, 0.12);
-}
-.rbc-today {
-  background-color: color-mix(in oklch, var(--hud-cyan) 6%, transparent);
-}
-/* "Today" date number gets a small cyan-tinted pill instead of a full
-   column wash — quieter cue per the reference. */
 .rbc-now .rbc-button-link {
   display: inline-flex;
   min-width: 1.5rem;
@@ -599,22 +609,27 @@ select,
   color: var(--canvas);
   font-weight: 600;
 }
-.rbc-time-header,
-.rbc-time-content,
-.rbc-time-gutter,
-.rbc-timeslot-group,
-.rbc-day-bg,
-.rbc-time-slot {
-  border-color: color-mix(in oklch, var(--edge) 35%, transparent) !important;
-}
-.rbc-month-row {
-  border-color: color-mix(in oklch, var(--edge) 35%, transparent) !important;
+/* Event chip — rounded-lg, no border, subtle drop shadow. Per-event bg
+   colour comes from CalendarGrid.eventPropGetter inline style (D-03). */
+.rbc-event {
+  border-radius: 0.5rem;
+  font-family: var(--font-sans);
+  padding: 0.25rem 0.5rem;
+  border: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .rbc-off-range-bg {
-  background: color-mix(in oklch, var(--canvas) 70%, transparent);
+  background: rgba(0, 0, 0, 0.25);
 }
 .rbc-off-range {
-  color: color-mix(in oklch, var(--ink-muted) 50%, transparent);
+  color: rgba(255, 255, 255, 0.25);
+}
+/* Hour labels in the time gutter — calmer typography. */
+.rbc-time-gutter .rbc-label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  color: var(--ink-muted);
+  padding: 0 0.5rem;
 }
 
 /* ─── Plan 04-04 polish — outlined placeholder for in-flight create/edit ──
