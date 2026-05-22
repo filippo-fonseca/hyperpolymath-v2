@@ -533,113 +533,157 @@ select,
  * CalendarGrid.eventPropGetter MUST win for per-event gcal color (D-03 /
  * Pitfall 8). Per-event color via inline style beats class-based bg.
  * --------------------------------------------------------------------------- */
-/* ─── Arc-redesign — calendar grid full restyle ────────────────────────
-   Calm dark dashboard. Reads as a single rounded card with day columns
-   inside. RBC's default toolbar is hidden (we render our own).
-   ALL borders go through rgba so light/dark theming is predictable. */
-.rbc-toolbar {
-  display: none !important;
+/* ─── Arc-redesign — calendar grid (scoped under .arc-cal) ─────────────
+   All rules are scoped under .arc-cal so they win specificity against
+   react-big-calendar's defaults without an !important war. Token colours
+   resolved against the .arc-cal wrapper. */
+.arc-cal {
+  --cal-surface: rgba(255, 255, 255, 0.02);
+  --cal-surface-2: rgba(255, 255, 255, 0.035);
+  --cal-divider: rgba(255, 255, 255, 0.05);
+  --cal-divider-soft: rgba(255, 255, 255, 0.025);
+  --cal-ink: var(--ink);
+  --cal-ink-muted: color-mix(in oklch, var(--ink-muted) 90%, transparent);
 }
-.rbc-calendar {
-  background: transparent !important;
+.arc-cal .rbc-toolbar {
+  display: none;
 }
-.rbc-time-view,
-.rbc-month-view {
-  font-size: 0.8125rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+.arc-cal .rbc-calendar {
+  background: transparent;
+  color: var(--cal-ink);
+}
+.arc-cal .rbc-time-view,
+.arc-cal .rbc-month-view {
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-divider);
+  border-radius: 16px;
   overflow: hidden;
-  background: rgba(20, 20, 24, 0.85);
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
-}
-/* Day-of-week header — sentence-case serif labels, almost-invisible rule. */
-.rbc-header {
-  font-family: var(--font-serif) !important;
-  font-weight: 500 !important;
-  font-size: 0.875rem !important;
-  letter-spacing: -0.01em;
-  color: var(--ink-muted) !important;
-  padding: 0.75rem 0.625rem !important;
-  text-transform: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-  background: transparent !important;
-}
-/* Carve out every internal divider RBC ships — set them all to a single
-   barely-there 4% white. !important wins over inline rbc rules. */
-.rbc-time-view *,
-.rbc-month-view *,
-.rbc-time-header,
-.rbc-time-header-content,
-.rbc-time-content,
-.rbc-time-gutter,
-.rbc-timeslot-group,
-.rbc-day-bg,
-.rbc-day-slot,
-.rbc-time-slot,
-.rbc-month-row,
-.rbc-row-bg,
-.rbc-day-bg + .rbc-day-bg,
-.rbc-header + .rbc-header {
-  border-color: rgba(255, 255, 255, 0.04) !important;
-}
-.rbc-time-slot {
-  border-top: 1px solid rgba(255, 255, 255, 0.02) !important;
-}
-/* Today column wash — barely-perceptible cyan tint. */
-.rbc-today {
-  background: rgba(34, 211, 238, 0.035) !important;
-}
-/* Date numbers — calm sans, tabular. */
-.rbc-date-cell {
-  padding: 0.5rem 0.625rem !important;
   font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
 }
-.rbc-date-cell.rbc-now {
-  color: var(--ink);
+/* Wipe every internal border RBC sets, then re-apply hairlines we want. */
+.arc-cal .rbc-time-view *,
+.arc-cal .rbc-month-view * {
+  border-color: transparent;
+}
+/* Hairlines we KEEP: between day columns + between hour rows. */
+.arc-cal .rbc-day-bg + .rbc-day-bg,
+.arc-cal .rbc-header + .rbc-header,
+.arc-cal .rbc-day-slot + .rbc-day-slot {
+  border-left: 1px solid var(--cal-divider);
+}
+.arc-cal .rbc-time-content > * + * > * {
+  border-left: 1px solid var(--cal-divider);
+}
+.arc-cal .rbc-timeslot-group {
+  border-bottom: 1px solid var(--cal-divider);
+  min-height: 56px;
+}
+.arc-cal .rbc-time-slot {
+  border-top: 1px solid var(--cal-divider-soft);
+}
+.arc-cal .rbc-time-header {
+  border-bottom: 1px solid var(--cal-divider);
+}
+.arc-cal .rbc-month-row + .rbc-month-row {
+  border-top: 1px solid var(--cal-divider);
+}
+/* Day-of-week headers */
+.arc-cal .rbc-header {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--cal-ink-muted);
+  padding: 12px 10px;
+  text-transform: none;
+  background: transparent;
+}
+/* Date number cells */
+.arc-cal .rbc-date-cell {
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cal-ink-muted);
+}
+.arc-cal .rbc-date-cell.rbc-now {
+  color: var(--cal-ink);
   font-weight: 600;
 }
-/* Today's date number gets a small cyan pill — quiet, scannable cue. */
-.rbc-now .rbc-button-link {
+.arc-cal .rbc-now .rbc-button-link {
   display: inline-flex;
-  min-width: 1.5rem;
-  height: 1.5rem;
+  min-width: 22px;
+  height: 22px;
   align-items: center;
   justify-content: center;
-  padding: 0 0.375rem;
-  border-radius: 0.5rem;
+  padding: 0 6px;
+  border-radius: 6px;
   background: var(--hud-cyan);
-  color: rgb(20, 20, 24);
+  color: rgb(15, 15, 18);
   font-weight: 600;
+  font-size: 12px;
 }
-/* Event chip — rounded, no border, soft drop shadow. Per-event bg
-   colour still comes from CalendarGrid.eventPropGetter inline style. */
-.rbc-event {
-  border-radius: 0.5rem !important;
-  font-family: var(--font-sans) !important;
-  padding: 0.3rem 0.55rem !important;
-  border: none !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32) !important;
+/* Today column — barely-there tint. */
+.arc-cal .rbc-today {
+  background: rgba(34, 211, 238, 0.025);
 }
-.rbc-off-range-bg {
-  background: rgba(0, 0, 0, 0.3) !important;
+/* Hour gutter */
+.arc-cal .rbc-time-gutter {
+  background: transparent;
 }
-.rbc-off-range {
-  color: rgba(255, 255, 255, 0.22) !important;
+.arc-cal .rbc-time-gutter .rbc-label,
+.arc-cal .rbc-time-gutter .rbc-timeslot-group {
+  border-bottom: none;
 }
-/* Hour labels in the time gutter. */
-.rbc-time-gutter .rbc-label {
+.arc-cal .rbc-time-gutter .rbc-time-slot {
+  border-top: none;
+}
+.arc-cal .rbc-time-gutter .rbc-label {
   font-family: var(--font-sans);
-  font-size: 0.6875rem;
-  color: var(--ink-muted);
-  padding: 0 0.5rem;
+  font-size: 11px;
+  color: var(--cal-ink-muted);
+  padding: 0 12px;
+  letter-spacing: -0.01em;
 }
-/* Current-time indicator line — single cyan hair. */
-.rbc-current-time-indicator {
-  background-color: var(--hud-cyan) !important;
-  height: 1px !important;
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+.arc-cal .rbc-time-gutter {
+  border-right: 1px solid var(--cal-divider);
+}
+/* Event chips */
+.arc-cal .rbc-event {
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.arc-cal .rbc-event-label {
+  font-size: 11px;
+  opacity: 0.85;
+}
+/* Off-range month cells */
+.arc-cal .rbc-off-range-bg {
+  background: rgba(0, 0, 0, 0.25);
+}
+.arc-cal .rbc-off-range {
+  color: rgba(255, 255, 255, 0.22);
+}
+/* Now-line */
+.arc-cal .rbc-current-time-indicator {
+  background-color: var(--hud-cyan);
+  height: 1px;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.55);
+}
+/* Slot drag-selection (creating an event by dragging) */
+.arc-cal .rbc-slot-selection {
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px dashed rgba(34, 211, 238, 0.6);
+  color: var(--cal-ink);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
 }
 
 /* ─── Plan 04-04 polish — outlined placeholder for in-flight create/edit ──

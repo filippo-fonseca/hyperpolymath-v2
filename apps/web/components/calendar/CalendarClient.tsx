@@ -698,7 +698,7 @@ export function CalendarClient({
           </button>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="arc-cal flex-1 min-h-0 mx-8 mb-8">
         <CalendarGrid
           events={displayEvents}
           view={view}
