@@ -22,6 +22,7 @@ import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
+import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 
 /**
  * JARVIS Console (D-01) — top-level orchestrator.
@@ -289,7 +290,9 @@ export function JarvisConsole({
             // so we don't depend on a separate voice_summary contract.
             const turn = turnsRef.current.find((t) => t.id === assistantId);
             const spoken =
-              turn?.kind === "assistant" ? turn.textDelta.trim() : "";
+              turn?.kind === "assistant"
+                ? stripSystemTags(turn.textDelta)
+                : "";
             // eslint-disable-next-line no-console
             console.log(
               "[jarvis-console] onDone — spoken length:",

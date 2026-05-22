@@ -6,6 +6,7 @@ import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
+import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 
 /**
  * Terminal-style single-column scrollback (D-05).
@@ -79,7 +80,9 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
               <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
                 {">"}
               </span>
-              <span className="font-mono text-foreground/80">{turn.text}</span>
+              <span className="font-mono text-foreground/80">
+                {stripSystemTags(turn.text)}
+              </span>
             </div>
           ) : (
             // Phase 6.1 Plan 02 (UI-SPEC §6b state 8): error glitch class on
@@ -122,7 +125,7 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
                   className="font-mono text-base italic font-medium mb-2 leading-relaxed"
                   style={{ color: "var(--ink)" }}
                 >
-                  {turn.textDelta}
+                  {stripSystemTags(turn.textDelta)}
                   {turn.status === "streaming" ? (
                     <span className="relative inline-block ml-0.5">
                       {/* Light-trail: 32px gradient behind caret (Linear
