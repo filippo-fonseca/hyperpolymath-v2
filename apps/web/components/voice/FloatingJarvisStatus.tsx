@@ -25,23 +25,38 @@ export function FloatingJarvisStatus() {
   const { settings, mounted } = useVoiceSettings();
   const [state, setState] = useState<MicState>("idle");
   const [burstAt, setBurstAt] = useState<number>(0);
-  const prevStateRef = useRef<MicState>("idle");
+  const [tentativelyActive, setTentativelyActive] = useState(false);
+  const tentativeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => subscribeToMicState(setState), []);
 
-  // Detect wake-word activation: listening → (recording | thinking).
+  // Listen for the unified wake-burst event — fires the moment JARVIS sees
+  // the user addressing it (VAD speech start in listening, or PRESS_TO_TALK).
+  // Wake-word and press-to-talk paths feel identical.
   useEffect(() => {
-    const prev = prevStateRef.current;
-    const isWakeBurst =
-      prev === "listening" && (state === "recording" || state === "thinking");
-    if (isWakeBurst) {
-      setBurstAt(Date.now());
+    function handleWakeBurst() {
+      const now = Date.now();
+      setBurstAt(now);
+      setTentativelyActive(true);
+      // Clear the halo element after the keyframe finishes, then clear the
+      // tentative-active state a few seconds later (covers wake-word STT
+      // latency before the FSM moves out of listening).
+      setTimeout(() => setBurstAt((current) => (current === now ? 0 : current)), 800);
+      if (tentativeTimerRef.current) clearTimeout(tentativeTimerRef.current);
+      tentativeTimerRef.current = setTimeout(() => {
+        setTentativelyActive(false);
+        tentativeTimerRef.current = null;
+      }, 4000);
     }
-    prevStateRef.current = state;
-  }, [state]);
+    window.addEventListener("jarvis-wake-burst", handleWakeBurst);
+    return () => {
+      window.removeEventListener("jarvis-wake-burst", handleWakeBurst);
+      if (tentativeTimerRef.current) clearTimeout(tentativeTimerRef.current);
+    };
+  }, []);
 
   if (!mounted || !settings.voiceEnabled) return null;
-  if (state === "idle") return null;
+  if (state === "idle" && !tentativelyActive) return null;
 
   const muted = settings.discreetMode;
   const isThinking = state === "thinking";

@@ -353,6 +353,18 @@ export function JarvisConsole({
     };
   }, [handleSubmit]);
 
+  // Phase 7 voice-everywhere: jarvis-cancel aborts the in-flight /api/jarvis
+  // request so the user can stop the run before the model finishes.
+  useEffect(() => {
+    function handleCancel() {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setStreaming(false);
+    }
+    window.addEventListener("jarvis-cancel", handleCancel);
+    return () => window.removeEventListener("jarvis-cancel", handleCancel);
+  }, []);
+
   // Plan 05-04 — Undo handler (D-03 / D-04).
   //
   // Owns:

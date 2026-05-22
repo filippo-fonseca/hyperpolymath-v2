@@ -41,25 +41,42 @@ export function HudCoreBubble({
 }: Props) {
   const shouldReduce = useReducedMotion();
 
-  // Phase 7 voice-everywhere: bubble also reflects the mic FSM. Recording /
-  // thinking / speaking transitions in via wake-word fire a one-shot wake
-  // burst on top of the regular activity throb.
+  // Phase 7 voice-everywhere: bubble reflects the mic FSM AND a wake-burst
+  // event JarvisListener fires the moment the user starts addressing JARVIS.
+  // Wake-word and press-to-talk both dispatch `jarvis-wake-burst` at the
+  // visually-appropriate moment so the burst feels instant regardless of
+  // activation channel.
   const [micState, setMicState] = useState<MicState>("idle");
   const [wakeBurstKey, setWakeBurstKey] = useState(0);
-  const prevMicRef = useRef<MicState>("idle");
+  const [tentativelyActive, setTentativelyActive] = useState(false);
+  const tentativeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => subscribeToMicState(setMicState), []);
 
   useEffect(() => {
-    const prev = prevMicRef.current;
-    if (prev === "listening" && (micState === "recording" || micState === "thinking")) {
+    function handleWakeBurst() {
       setWakeBurstKey((k) => k + 1);
+      setTentativelyActive(true);
+      // Hold the active visuals for up to 4s — covers the STT round-trip
+      // for the wake-word path. If the FSM transitions to recording /
+      // thinking / speaking before the timer fires, micActive stays true
+      // via fsmActive; the timer is a safety net.
+      if (tentativeTimerRef.current) clearTimeout(tentativeTimerRef.current);
+      tentativeTimerRef.current = setTimeout(() => {
+        setTentativelyActive(false);
+        tentativeTimerRef.current = null;
+      }, 4000);
     }
-    prevMicRef.current = micState;
-  }, [micState]);
+    window.addEventListener("jarvis-wake-burst", handleWakeBurst);
+    return () => {
+      window.removeEventListener("jarvis-wake-burst", handleWakeBurst);
+      if (tentativeTimerRef.current) clearTimeout(tentativeTimerRef.current);
+    };
+  }, []);
 
-  const micActive =
+  const fsmActive =
     micState === "recording" || micState === "thinking" || micState === "speaking";
+  const micActive = fsmActive || tentativelyActive;
   const isActive = state === "thinking" || state === "streaming" || micActive;
   const isError = state === "error";
 

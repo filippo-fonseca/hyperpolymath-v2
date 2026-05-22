@@ -112,9 +112,16 @@ export function GlobalJarvisHandler() {
       );
     }
 
+    function handleCancel() {
+      abort?.abort();
+      abort = null;
+    }
+
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
+    window.addEventListener("jarvis-cancel", handleCancel);
     return () => {
       window.removeEventListener("jarvis-voice-transcript", handleVoiceTranscript);
+      window.removeEventListener("jarvis-cancel", handleCancel);
       abort?.abort();
     };
   }, [isConsolePage]);

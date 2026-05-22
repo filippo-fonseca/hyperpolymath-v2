@@ -68,6 +68,11 @@ export function JarvisListener() {
   const followUpUntilRef = useRef<number>(0);
   const FOLLOW_UP_MS = 5000;
 
+  // Abort controller for the in-flight STT request — cancelled when the
+  // user fires `jarvis-cancel` (stop button while active). Re-allocated
+  // on each onSpeechEnd.
+  const sttAbortRef = useRef<AbortController | null>(null);
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
     micStateRef.current = micState;
@@ -252,8 +257,17 @@ export function JarvisListener() {
       if (s === "recording") {
         // Already recording — VAD detecting speech during recording is normal; no-op.
         dispatch({ type: "SPEECH_START" });
+      } else if (s === "listening") {
+        // Anticipatory wake burst — fires the visual indicator AT THE START
+        // of an utterance so wake-word activation feels as immediate as
+        // press-to-talk. Listeners (HudCoreBubble, FloatingJarvisStatus)
+        // start their growth animation now; STT confirms or quietly retreats
+        // a few seconds later. Without this the burst lagged by ~1.5s
+        // because we couldn't know it was a wake phrase until the transcript
+        // came back.
+        window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
       }
-      // Other states (listening, thinking, speaking, idle): VAD runs continuously since
+      // Other states (thinking, speaking, idle): VAD runs continuously since
       // startOnLoad=true, so this fires constantly. Ignore unless explicitly
       // armed via wake-word, clap, or press-to-talk.
     },
@@ -275,12 +289,17 @@ export function JarvisListener() {
       // listening until we confirm the wake phrase matched.
       if (!isWakeWordPath) dispatch({ type: "SPEECH_END" });
 
+      sttAbortRef.current?.abort();
+      const abort = new AbortController();
+      sttAbortRef.current = abort;
+
       try {
         const wav = encodeWav(audio, 16000);
         const res = await fetch("/api/jarvis/stt", {
           method: "POST",
           body: wav,
           headers: { "Content-Type": "audio/wav" },
+          signal: abort.signal,
         });
 
         if (!res.ok) throw new Error(`stt ${res.status}`);
@@ -320,12 +339,39 @@ export function JarvisListener() {
 
         dispatch({ type: "TRANSCRIPT_SENT" });
       } catch (err) {
+        const name = (err as { name?: string })?.name;
+        if (name === "AbortError") {
+          // User cancelled mid-STT — silently return to listening.
+          dispatch({ type: "ERROR", reason: "cancelled" });
+          return;
+        }
         console.error("[jarvis-listener] stt failed", err);
         // ERROR → listening (resilient — user can try again).
         dispatch({ type: "ERROR", reason: "stt" });
+      } finally {
+        if (sttAbortRef.current === abort) sttAbortRef.current = null;
       }
     },
   });
+
+  // ─── Global cancel (jarvis-cancel) ───────────────────────────────────────
+  // Fired by PressToTalkButton when the user taps the active stop button.
+  // Aborts in-flight STT, stops TTS playback, closes the follow-up window,
+  // and resets the FSM to listening. /api/jarvis abort is handled by the
+  // submit owners (JarvisConsole / GlobalJarvisHandler) listening for the
+  // same event.
+  useEffect(() => {
+    function handleCancel() {
+      sttAbortRef.current?.abort();
+      sttAbortRef.current = null;
+      ttsPlayer.stop();
+      followUpUntilRef.current = 0;
+      // ERROR action returns to listening from any non-idle state.
+      dispatch({ type: "ERROR", reason: "cancelled" });
+    }
+    window.addEventListener("jarvis-cancel", handleCancel);
+    return () => window.removeEventListener("jarvis-cancel", handleCancel);
+  }, [ttsPlayer]);
 
   // VAD runs continuously (startOnLoad=true) — gating happens in the
   // onSpeechStart/onSpeechEnd callbacks via micStateRef. No start/pause cycle
@@ -350,6 +396,9 @@ export function JarvisListener() {
   // CRITICAL_PHASE7_CONCERNS #10: gated on pressToTalkActive (voiceEnabled only),
   // NOT on wakeWordActive — this fires EVEN in Discreet mode.
   const onPressToTalk = useCallback(() => {
+    // Same anticipatory burst as the wake-word path so the visual response
+    // is identical regardless of activation channel.
+    window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
     dispatch({ type: "PRESS_TO_TALK" });
   }, []);
 
