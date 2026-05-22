@@ -175,9 +175,9 @@ export function JarvisInput({
     editorProps: {
       attributes: {
         class:
-          "jarvis-input-content focus:outline-none min-h-[40px] max-h-[200px] overflow-y-auto px-3 py-2 font-mono text-base",
-        // Phase 6.1 Plan 02 (UI-SPEC §5a): placeholder reads as JARVIS's prompt.
-        "data-placeholder": "what shall we file?",
+          "jarvis-input-content focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto px-4 py-3 font-sans text-[15px] leading-relaxed text-[var(--ink)]",
+        // Placeholder reads as JARVIS's prompt — soft serif italic per CSS.
+        "data-placeholder": "Tell JARVIS what's on your mind…",
       },
       handleKeyDown: (_view, event) => {
         // N4: read text from the live ProseMirror view, NOT the closure
@@ -417,9 +417,8 @@ export function JarvisInput({
         // - shouldReduce gates the breathing class (focus ring becomes static
         //   2px --hud-cyan) and the ignite animation
         className={[
-          "relative rounded-md transition-[border-color] duration-200 ease-out",
+          "relative rounded-2xl transition-[box-shadow,border-color] duration-200 ease-out",
           disabled ? "opacity-60 pointer-events-none" : "",
-          focusedIdle && !shouldReduce ? "hud-focus-breathe" : "",
           igniting && !shouldReduce ? "hud-submit-ignite-border" : "",
         ]
           .filter(Boolean)
@@ -428,8 +427,12 @@ export function JarvisInput({
           backgroundColor: "var(--surface-raised)",
           border:
             focusedIdle || focusedActive
-              ? "2px solid var(--hud-cyan)"
-              : "1px solid var(--edge-hud)",
+              ? "1px solid color-mix(in oklch, var(--hud-cyan) 70%, transparent)"
+              : "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+          boxShadow:
+            focusedIdle || focusedActive
+              ? "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 10%, transparent), 0 1px 2px rgba(0,0,0,0.06)"
+              : "0 1px 2px rgba(0,0,0,0.04)",
         }}
       >
         {pinnedSlashCommand ? (
@@ -502,23 +505,27 @@ export function JarvisInput({
           ) : null}
         </AnimatePresence>
 
-        <div className="flex items-center justify-between px-3 pb-1.5 border-t border-border/50 pt-1.5">
-          <span className="font-mono text-[11px] text-[var(--ink-muted)]">
-            <span className="opacity-60 select-none mr-1.5">{">"}</span>
-            enter to send · type / for commands · $ for projects · # for hashtags
+        <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[color-mix(in_oklch,var(--edge)_60%,transparent)]">
+          <span className="font-sans text-[12px] text-[color-mix(in_oklch,var(--ink-muted)_85%,transparent)]">
+            Enter to send · <span className="font-mono text-[11px]">/</span>{" "}
+            commands · <span className="font-mono text-[11px]">$</span> projects
+            · <span className="font-mono text-[11px]">#</span> tags
           </span>
-          {/* Phase 6.1 Plan 02 (UI-SPEC §9e): ⌘K hint chip — mono 11px uppercase
-              tracking-wide, 1px --edge-hud border. Hidden below md: per §10c. */}
+          {/* ⌘K hint chip — cleaner pill, sentence-case-style label tucked
+              behind the kbd glyph. Hidden below md per UI-SPEC §10c. */}
           <kbd
-            className="hidden md:inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none"
+            className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--ink-muted)] select-none"
             style={{
-              border: "1px solid var(--edge-hud)",
-              backgroundColor: "var(--surface)",
+              border:
+                "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+              backgroundColor:
+                "color-mix(in oklch, var(--surface) 92%, transparent)",
             }}
             aria-hidden="true"
             title="Focus JARVIS from anywhere"
           >
-            ⌘K
+            <span>⌘</span>
+            <span>K</span>
           </kbd>
         </div>
       </div>

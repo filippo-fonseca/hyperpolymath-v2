@@ -495,16 +495,16 @@ select,
   margin: 0 1px;
 }
 
-/* ─── JARVIS Console input (Plan 05-03) ─────────────────────────────────────
-   Placeholder + inline $project chips. Same pattern as the captures composer
-   but with mono typography (terminal aesthetic per D-05). */
+/* ─── JARVIS Console input (Plan 05-03 → arc redesign) ─────────────────────
+   Placeholder + inline $project chips. Placeholder reads as a soft butler
+   prompt: serif italic, subtle ink-muted color, no fake-italic mono. */
 .jarvis-input-content[data-placeholder] p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--color-muted-foreground);
-  opacity: 0.7;
+  color: color-mix(in oklch, var(--ink-muted) 70%, transparent);
   font-style: italic;
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
   pointer-events: none;
   float: left;
   height: 0;
