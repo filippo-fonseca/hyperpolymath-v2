@@ -63,7 +63,12 @@ export function HudCoreBubble({
   const isActive = state === "thinking" || state === "streaming" || micActive;
   const isError = state === "error";
 
+  // When the user is talking to JARVIS (mic active), the bubble takes over
+  // as the focal point: full opacity (override dimmed), scaled up, brighter
+  // glow. Returns to ambient when state drops back to listening.
   const baseOpacity = dimmed ? 0.18 : 0.7;
+  const effectiveOpacity = micActive ? 1 : baseOpacity;
+  const wakeScale = micActive ? 1.45 : 1;
   const stroke = isError ? "var(--ink-coral)" : "var(--hud-cyan)";
 
   // Outer tick-mark ring: 24 evenly-spaced 6px ticks at r≈124
@@ -98,8 +103,11 @@ export function HudCoreBubble({
       aria-hidden="true"
       className={`pointer-events-none select-none ${className}`}
       style={{
-        opacity: baseOpacity,
-        transition: "opacity 400ms cubic-bezier(0.25, 1, 0.5, 1)",
+        opacity: effectiveOpacity,
+        transform: `scale(${wakeScale})`,
+        transformOrigin: "center center",
+        transition:
+          "opacity 350ms cubic-bezier(0.25, 1, 0.5, 1), transform 450ms cubic-bezier(0.16, 1, 0.3, 1)",
       }}
     >
       <svg
@@ -113,7 +121,10 @@ export function HudCoreBubble({
           !shouldReduce && wakeBurstKey > 0 ? "hud-core-wake-burst" : ""
         }`}
         style={{
-          filter: `drop-shadow(0 0 24px color-mix(in oklch, ${stroke} 35%, transparent))`,
+          filter: micActive
+            ? `drop-shadow(0 0 48px color-mix(in oklch, ${stroke} 70%, transparent))`
+            : `drop-shadow(0 0 24px color-mix(in oklch, ${stroke} 35%, transparent))`,
+          transition: "filter 350ms ease-out",
         }}
       >
         {/* Soft outward glow disc */}
