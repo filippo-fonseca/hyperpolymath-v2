@@ -309,6 +309,14 @@ export function JarvisListener() {
         let command = transcript;
         if (isWakeWordPath) {
           const inFollowUp = followUpUntilRef.current > Date.now();
+          const msUntilWindowClose = followUpUntilRef.current - Date.now();
+          // eslint-disable-next-line no-console
+          console.log(
+            "[jarvis] wake-path:",
+            inFollowUp ? `follow-up (${msUntilWindowClose}ms left)` : "wake-word required",
+            "transcript:",
+            JSON.stringify(transcript),
+          );
           if (inFollowUp) {
             // 5-second window after the last response: any utterance counts
             // as a follow-up command, no wake phrase required.

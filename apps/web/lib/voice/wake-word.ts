@@ -22,8 +22,13 @@
  *   - Optional trailing punctuation (, . ! ?)
  */
 
+// Require an explicit wake prefix (hey | hi | ok | …) followed by the JARVIS
+// name. Bare "jarvis" used to match — Whisper occasionally hallucinates the
+// name at the start of ambient speech, so we now demand both the prefix and
+// the name with whitespace between them. The user has to actually say one of
+// the wake phrases to activate.
 const WAKE_PATTERN =
-  /^(?:hey|hi|ok|okay|yo|hello)?\s*(?:jarvis|jervis|jarvi|javis|jarvy|jarrvis|jarviz)\b[,.!?]?\s*/i;
+  /^(?:hey|hi|ok|okay|yo|hello|hej)\s+(?:jarvis|jervis|jarvi|javis|jarvy|jarrvis|jarviz)\b[,.!?]?\s*/i;
 
 /**
  * Normalize a Whisper transcript before wake-word matching.

@@ -6,7 +6,6 @@ describe("stripWakeWord", () => {
     it.each([
       ["hey jarvis, buy milk", "buy milk"],
       ["Hey Jarvis buy milk", "buy milk"],
-      ["jarvis what time is it", "what time is it"],
       ["okay jarvis schedule a meeting", "schedule a meeting"],
       ["ok jarvis remember mom's birthday", "remember mom's birthday"],
       ["hi jarvis. add bread to my list", "add bread to my list"],
@@ -18,12 +17,9 @@ describe("stripWakeWord", () => {
   });
 
   describe("returns empty string for wake phrase alone", () => {
-    it.each(["hey jarvis", "Jarvis", "ok jarvis", "okay jarvis."])(
-      "%s → ''",
-      (input) => {
-        expect(stripWakeWord(input)).toBe("");
-      },
-    );
+    it.each(["hey jarvis", "ok jarvis", "okay jarvis."])("%s → ''", (input) => {
+      expect(stripWakeWord(input)).toBe("");
+    });
   });
 
   describe("returns null when no wake phrase", () => {
@@ -35,15 +31,21 @@ describe("stripWakeWord", () => {
       "the cat sat on the mat",
       // jarvis must be at the start to count — not buried mid-sentence.
       "tell jarvis to buy milk",
+      // Bare "jarvis" no longer matches — must be preceded by an explicit
+      // wake prefix (hey / ok / hi / yo / hello). Whisper occasionally
+      // hallucinates "jarvis" at the start of ambient speech, so we now
+      // demand the prefix to avoid spurious activations.
+      "Jarvis",
+      "jarvis what time is it",
     ])("%s → null", (input) => {
       expect(stripWakeWord(input)).toBeNull();
     });
   });
 
-  describe("tolerates common Whisper mishears", () => {
+  describe("tolerates common Whisper mishears (prefix still required)", () => {
     it.each([
       ["hey jervis buy milk", "buy milk"],
-      ["javis what time", "what time"],
+      ["okay javis what time", "what time"],
       ["hey jarvy add task", "add task"],
     ])("%s → %s", (input, expected) => {
       expect(stripWakeWord(input)).toBe(expected);
@@ -61,8 +63,8 @@ describe("stripWakeWord", () => {
       ["  hey jarvis buy bread  ", "buy bread"],
       // Curly quotes (some clients use them).
       ["“Hey Jarvis, schedule lunch”", "schedule lunch"],
-      // Single-quote wrap.
-      ["'jarvis what time'", "what time"],
+      // Single-quote wrap with explicit prefix.
+      ["'hey jarvis what time'", "what time"],
     ])("%s → %s", (input, expected) => {
       expect(stripWakeWord(input)).toBe(expected);
     });
