@@ -165,23 +165,17 @@ export function Sidebar({
       </div>
 
       {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {/* NAVIGATE section — primary nav links (PersistentNav owns the items + the active-edge accent) */}
-        {!collapsed && (
-          <div className="px-3 mb-1 mt-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
-              NAVIGATE
-            </span>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
+        {/* Primary nav — labels speak for themselves now; section header
+            removed for the cleaner Arc-style layout. */}
         <PersistentNav collapsed={collapsed} />
 
         {/* AREAS section */}
-        <div className="mt-4">
+        <div className="mt-6">
           {!collapsed && (
-            <div className="flex items-center justify-between px-3 mb-1">
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
-                AREAS
+            <div className="flex items-center justify-between px-4 mb-1.5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
+                Areas
               </span>
               <AreaCreateDialog
                 userId={userId}
@@ -237,8 +231,8 @@ export function Sidebar({
 
         {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
         {!collapsed && (
-          <div className="mt-6 px-3 mb-1">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] select-none">
+          <div className="mt-6 px-4 mb-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
               JARVIS
             </span>
           </div>
@@ -320,13 +314,23 @@ function SidebarSectionLink({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-sm px-2 py-1",
-        "font-mono text-[11px] uppercase tracking-[0.06em]",
-        "border-l-2 transition-colors duration-100 ease-out cursor-pointer-always",
+        "mx-2 flex items-center gap-3 rounded-lg px-3 h-9",
+        "font-serif text-[14px] tracking-tight",
+        "transition-all duration-150 ease-out cursor-pointer-always",
         isActive
-          ? "border-l-[var(--edge-hud)] text-[var(--ink)]"
-          : "border-l-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          ? "text-[var(--ink)] font-medium"
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
       )}
+      style={
+        isActive
+          ? {
+              background:
+                "linear-gradient(95deg, color-mix(in oklch, var(--hud-cyan) 22%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 60%, transparent 100%)",
+              boxShadow:
+                "0 0 24px color-mix(in oklch, var(--hud-cyan) 14%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent)",
+            }
+          : undefined
+      }
     >
       {label}
     </a>

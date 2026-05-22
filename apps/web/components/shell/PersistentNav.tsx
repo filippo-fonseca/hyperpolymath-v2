@@ -92,24 +92,54 @@ export function PersistentNav({ collapsed }: Props) {
           const inner = (
             <span
               className={cn(
-                // Mono uppercase chrome (UI-SPEC §5e nav-link register)
-                "relative flex items-center gap-2 rounded-sm px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] w-full",
-                // 1px --edge-hud LEFT-edge accent on active route (no bg fill);
-                // 100ms transition on text color + opacity per UI-SPEC §7a.
-                "border-l-2 transition-colors duration-100 ease-out",
+                // Arc-style nav row: pill background on active, generous padding,
+                // sentence-case sans label. Larger touch target + icon for the
+                // 2026 refresh.
+                "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
+                "font-serif text-[14px] tracking-tight",
+                "transition-all duration-150 ease-out",
                 active && !item.disabled
-                  ? "border-l-[var(--edge-hud)] text-[var(--ink)]"
-                  : "border-l-transparent text-[var(--ink-muted)]",
-                !active && !item.disabled && "hover:text-[var(--ink)]",
+                  ? "text-[var(--ink)]"
+                  : "text-[var(--ink-muted)]",
+                !active && !item.disabled &&
+                  "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
                 item.disabled && "opacity-40 cursor-not-allowed",
               )}
+              style={
+                active && !item.disabled
+                  ? {
+                      background:
+                        "linear-gradient(95deg, color-mix(in oklch, var(--hud-cyan) 22%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 60%, transparent 100%)",
+                      boxShadow:
+                        "0 0 24px color-mix(in oklch, var(--hud-cyan) 14%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent)",
+                    }
+                  : undefined
+              }
               aria-label={item.label}
               aria-current={active ? "page" : undefined}
               aria-disabled={item.disabled}
             >
+              {/* Active accent bar — vertical cyan stripe on the left, only when active */}
+              {active && !item.disabled && !reduceMotion && (
+                <motion.span
+                  layoutId="nav-active-stripe"
+                  className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full"
+                  style={{ backgroundColor: "var(--hud-cyan)" }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  aria-hidden="true"
+                />
+              )}
               {/* Icon + collapsed-mode badge anchor. */}
               <span className="relative shrink-0">
-                <Icon size={16} strokeWidth={1.5} />
+                <Icon
+                  size={18}
+                  strokeWidth={active ? 2 : 1.5}
+                  className={
+                    item.isAgent && active
+                      ? "text-[var(--hud-cyan)]"
+                      : undefined
+                  }
+                />
                 {renderBadge && collapsed && (
                   <span
                     className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--surface)]"
@@ -118,26 +148,14 @@ export function PersistentNav({ collapsed }: Props) {
                   />
                 )}
               </span>
-              {!collapsed && <span>{item.label}</span>}
-              {/* JARVIS link active → 4px cyan dot (UI-SPEC §5e — the one
-                  place cyan touches diplomatic chrome). Scale 0 → 1 over
-                  200ms on route change unless reduced-motion. */}
-              {item.isAgent && active && !collapsed && (
-                <motion.span
-                  initial={reduceMotion ? { scale: 1 } : { scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{
-                    duration: reduceMotion ? 0 : 0.2,
-                    ease: [0.25, 1, 0.5, 1],
-                  }}
-                  className="ml-1 inline-block h-1 w-1 rounded-full"
-                  style={{ backgroundColor: "var(--hud-cyan)" }}
-                  aria-hidden="true"
-                />
+              {!collapsed && (
+                <span className={cn("flex-1", active && "font-medium")}>
+                  {item.label}
+                </span>
               )}
               {renderBadge && !collapsed && (
                 <span
-                  className="ml-auto h-2 w-2 rounded-full"
+                  className="h-2 w-2 rounded-full shrink-0"
                   style={{ backgroundColor: "var(--ink-coral)" }}
                   aria-label="Google Calendar disconnected"
                 />
