@@ -9,6 +9,8 @@ import { CommandMenu } from "@/components/shell/CommandMenu";
 import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
+import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
+import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -67,6 +69,12 @@ export default async function AppLayout({
             dynamic({ ssr: false }) import (Next 16 forbids ssr:false in RSC).
             Porcupine + vad-react crash SSR (Pitfall 2). */}
         <JarvisListenerMount />
+        {/* Phase 7 voice-everywhere — voice transcript handler for pages
+            other than /today (where JarvisConsole owns the pipeline). */}
+        <GlobalJarvisHandler />
+        {/* Phase 7 voice-everywhere — bottom-right HUD pill showing current
+            mic FSM state. Always visible when voice is enabled. */}
+        <FloatingJarvisStatus />
       </QueryProvider>
     </NuqsAdapter>
   );

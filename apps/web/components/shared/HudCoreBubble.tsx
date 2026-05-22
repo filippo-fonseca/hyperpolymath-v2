@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
+import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
+import type { MicState } from "@/lib/voice/types";
 
 /**
  * HudCoreBubble — the central arc-reactor visual anchor for the JARVIS Console.
@@ -37,7 +40,27 @@ export function HudCoreBubble({
   className = "",
 }: Props) {
   const shouldReduce = useReducedMotion();
-  const isActive = state === "thinking" || state === "streaming";
+
+  // Phase 7 voice-everywhere: bubble also reflects the mic FSM. Recording /
+  // thinking / speaking transitions in via wake-word fire a one-shot wake
+  // burst on top of the regular activity throb.
+  const [micState, setMicState] = useState<MicState>("idle");
+  const [wakeBurstKey, setWakeBurstKey] = useState(0);
+  const prevMicRef = useRef<MicState>("idle");
+
+  useEffect(() => subscribeToMicState(setMicState), []);
+
+  useEffect(() => {
+    const prev = prevMicRef.current;
+    if (prev === "listening" && (micState === "recording" || micState === "thinking")) {
+      setWakeBurstKey((k) => k + 1);
+    }
+    prevMicRef.current = micState;
+  }, [micState]);
+
+  const micActive =
+    micState === "recording" || micState === "thinking" || micState === "speaking";
+  const isActive = state === "thinking" || state === "streaming" || micActive;
   const isError = state === "error";
 
   const baseOpacity = dimmed ? 0.18 : 0.7;
@@ -61,6 +84,15 @@ export function HudCoreBubble({
     );
   });
 
+  // Build animation classes: wake burst is a one-shot (keyed remount) and
+  // the active throb runs continuously while mic is in recording / thinking
+  // / speaking. shouldReduce kills both.
+  const animationClasses = shouldReduce
+    ? ""
+    : micActive
+      ? "hud-core-active-throb"
+      : "";
+
   return (
     <div
       aria-hidden="true"
@@ -71,11 +103,15 @@ export function HudCoreBubble({
       }}
     >
       <svg
+        key={wakeBurstKey}
         viewBox="0 0 280 280"
         width="280"
         height="280"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        className={`${animationClasses} ${
+          !shouldReduce && wakeBurstKey > 0 ? "hud-core-wake-burst" : ""
+        }`}
         style={{
           filter: `drop-shadow(0 0 24px color-mix(in oklch, ${stroke} 35%, transparent))`,
         }}
