@@ -293,12 +293,6 @@ export function JarvisConsole({
               turn?.kind === "assistant"
                 ? stripSystemTags(turn.textDelta)
                 : "";
-            // eslint-disable-next-line no-console
-            console.log(
-              "[jarvis-console] onDone — spoken length:",
-              spoken.length,
-              "dispatching voice-speak",
-            );
             window.dispatchEvent(
               new CustomEvent("jarvis-voice-speak", {
                 detail: {
@@ -337,8 +331,6 @@ export function JarvisConsole({
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
       const detail = (e as CustomEvent<{ transcript: string }>).detail;
-      // eslint-disable-next-line no-console
-      console.log("[jarvis-console] voice-transcript received:", detail?.transcript);
       if (!detail?.transcript?.trim()) return;
       void handleSubmit(
         {
