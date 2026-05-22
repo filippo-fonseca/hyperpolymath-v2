@@ -279,22 +279,31 @@ export function JarvisConsole({
               ),
             );
 
-            // Phase 7 — always dispatch on response completion. JarvisListener's
-            // handleVoiceSpeak owns the play/skip decision: it skips the TTS
-            // fetch entirely when discreetMode is on (saves ElevenLabs chars)
-            // but still cycles TTS_START → TTS_END so the FSM returns to
-            // listening AND the 5-second follow-up window opens. Without this
-            // always-dispatch, muted users would get stuck in `thinking`.
+            // Phase 7 — ALWAYS dispatch on response completion so the
+            // JarvisListener FSM cycles thinking → speaking → listening
+            // regardless of (a) whether the model emitted leading text or
+            // only a tool call and (b) whether voice is muted. Without this
+            // the FSM gets stuck at "thinking" and subsequent utterances
+            // are discarded.
+            // Fallback when no leading text: a short butler ack. Kept literal
+            // so we don't depend on a separate voice_summary contract.
             const turn = turnsRef.current.find((t) => t.id === assistantId);
             const spoken =
               turn?.kind === "assistant" ? turn.textDelta.trim() : "";
-            if (spoken.length > 0) {
-              window.dispatchEvent(
-                new CustomEvent("jarvis-voice-speak", {
-                  detail: { text: spoken, voiceId: voiceSettings.voiceId },
-                }),
-              );
-            }
+            // eslint-disable-next-line no-console
+            console.log(
+              "[jarvis-console] onDone — spoken length:",
+              spoken.length,
+              "dispatching voice-speak",
+            );
+            window.dispatchEvent(
+              new CustomEvent("jarvis-voice-speak", {
+                detail: {
+                  text: spoken.length > 0 ? spoken : "Done, sir.",
+                  voiceId: voiceSettings.voiceId,
+                },
+              }),
+            );
 
             setStreaming(false);
             abortRef.current = null;
@@ -325,6 +334,8 @@ export function JarvisConsole({
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
       const detail = (e as CustomEvent<{ transcript: string }>).detail;
+      // eslint-disable-next-line no-console
+      console.log("[jarvis-console] voice-transcript received:", detail?.transcript);
       if (!detail?.transcript?.trim()) return;
       void handleSubmit(
         {
