@@ -698,13 +698,12 @@ export function CalendarClient({
           </button>
         </div>
       </div>
-      <div className="arc-cal flex-1 min-h-0 mx-8 mb-8">
+      <div className="flex-1 min-h-0 mx-8 mb-8">
         <CalendarGrid
           events={displayEvents}
           view={view}
           date={date}
           onNavigate={setDate}
-          onView={setView}
           userTimezone={effectiveTz}
           onSelectSlot={(range) =>
             setPanelState({
