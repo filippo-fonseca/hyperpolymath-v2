@@ -1,10 +1,8 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useState } from "react";
 import { AnimatePresence } from "motion/react";
-import { cn } from "@/lib/utils";
-import { SortableTaskCard } from "./TaskCard";
+import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
@@ -23,16 +21,6 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   lesno: "Lesno",
 };
 
-/**
- * Arc-redesign: per-status accent colours for the glossier kanban look.
- * Each column gets a faint tinted gradient + dot indicator. Cyan stays the
- * primary JARVIS register; the other tints are siblings, not replacements.
- */
-/**
- * Solid column tints + matching darker card backgrounds. Reads as a playful
- * dark dashboard while staying inside the JARVIS palette. Cards inherit the
- * column's hue but in a deeper tone so they layer cleanly.
- */
 const STATUS_ACCENT: Record<
   TaskStatus,
   { dot: string; bg: string; rim: string; cardBg: string }
@@ -74,7 +62,11 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: TaskStatus }) => Promise<void>;
-  activeId: string | null;
+  draggedTaskId: string | null;
+  draggedFromStatus: TaskStatus | null;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDropOnColumn: (target: TaskStatus) => void;
   pendingTaskId: string | null;
 }
 
@@ -83,33 +75,50 @@ export function KanbanColumn({
   tasks,
   onTaskClick,
   onCreateTask,
-  activeId,
+  draggedTaskId,
+  draggedFromStatus,
+  onDragStart,
+  onDragEnd,
+  onDropOnColumn,
   pendingTaskId,
 }: Props) {
-  // Column itself is a droppable so empty columns are valid drop targets
-  const droppableId = `column:${status}`;
-  const { setNodeRef, isOver } = useDroppable({ id: droppableId });
+  const [isOver, setIsOver] = useState(false);
   const accent = STATUS_ACCENT[status];
-  const activeDrop = isOver && activeId;
+
+  const isValidTarget =
+    draggedTaskId !== null && draggedFromStatus !== status;
+  const showDropAffordance = isOver && isValidTarget;
 
   return (
     <div
-      ref={setNodeRef}
       className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl"
       data-status={status}
-      style={
-        {
-          background: accent.bg,
-          boxShadow: activeDrop
-            ? `inset 0 0 0 3px ${accent.dot}, 0 0 48px ${accent.rim}`
-            : `inset 0 0 0 1px ${accent.rim}`,
-          transition: "box-shadow 160ms ease-out",
-          // Cards inside read this via CSS so each column tints its own.
-          ["--task-card-bg" as string]: accent.cardBg,
-        } as React.CSSProperties
-      }
+      onDragOver={(e) => {
+        if (!draggedTaskId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!isOver) setIsOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setIsOver(false);
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsOver(false);
+        if (isValidTarget) onDropOnColumn(status);
+      }}
+      style={{
+        background: accent.bg,
+        boxShadow: showDropAffordance
+          ? `inset 0 0 0 3px ${accent.dot}, 0 0 48px ${accent.rim}`
+          : `inset 0 0 0 1px ${accent.rim}`,
+        transform: showDropAffordance ? "scale(1.01)" : "scale(1)",
+        transition: "box-shadow 160ms ease-out, transform 160ms ease-out",
+        ["--task-card-bg" as string]: accent.cardBg,
+      } as React.CSSProperties}
     >
-      {/* Column header — accent dot + uppercase label + count. */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
@@ -126,31 +135,22 @@ export function KanbanColumn({
         </span>
       </div>
 
-      {/* Drop zone — droppable ref is on the OUTER wrapper above so the
-          whole column (header + body) accepts drops. This inner div just
-          handles content layout. */}
-      <div
-        className="flex flex-col gap-2.5 flex-1 px-3 pb-3 min-h-[160px]"
-      >
-        <SortableContext
-          id={`kanban-column-${status}`}
-          items={tasks.map((t) => t.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <AnimatePresence mode="popLayout" initial={false}>
-            {tasks.map((task) => (
-              <SortableTaskCard
-                key={task.id}
-                task={task}
-                onClick={onTaskClick}
-                activeId={activeId}
-                isPending={pendingTaskId === task.id}
-              />
-            ))}
-          </AnimatePresence>
-        </SortableContext>
+      <div className="flex flex-col gap-2.5 flex-1 px-3 pb-3 min-h-[160px]">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onClick={onTaskClick}
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              isDragging={draggedTaskId === task.id}
+              isPending={pendingTaskId === task.id}
+            />
+          ))}
+        </AnimatePresence>
 
-        {/* Add task at column footer */}
         <div className="mt-1">
           <TaskCreateInline status={status} onCreateTask={onCreateTask} />
         </div>
