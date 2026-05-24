@@ -30,9 +30,11 @@ import {
 } from "@/lib/realtime/optimistic-reducer";
 import { KanbanBoard } from "./KanbanBoard";
 import { TaskList } from "./TaskList";
+import { TaskDayView } from "./TaskDayView";
 import { TaskFilters } from "./TaskFilters";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { deleteTask } from "@/app/actions/tasks";
@@ -142,8 +144,11 @@ export function TasksClient({
   useEffect(() => {
     const stored =
       typeof window !== "undefined" ? localStorage.getItem("tasks-view") : null;
-    if (stored === "list" && (!view || view === "kanban")) {
-      setView("list");
+    if (
+      (stored === "list" || stored === "day") &&
+      (!view || view === "kanban")
+    ) {
+      setView(stored);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -308,14 +313,25 @@ export function TasksClient({
         }}
       >
         <TaskFilters projects={projects} />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setView(view === "kanban" ? "list" : "kanban")}
-          className="font-sans text-[13px] flex-shrink-0 rounded-lg"
-        >
-          {view === "kanban" ? "List" : "Kanban"}
-        </Button>
+        <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] shrink-0">
+          {(["kanban", "list", "day"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={cn(
+                "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
+                "transition-colors duration-150 ease-out",
+                view === v
+                  ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content area — Phase 6 Plan 06-02 (RES-03, AES-04) empty states */}
@@ -344,6 +360,8 @@ export function TasksClient({
           onTaskClick={setOpenTaskId}
           addOptimistic={addOptimistic}
         />
+      ) : view === "day" ? (
+        <TaskDayView tasks={filtered} onTaskClick={setOpenTaskId} />
       ) : (
         <KanbanBoard
           tasks={filtered}
