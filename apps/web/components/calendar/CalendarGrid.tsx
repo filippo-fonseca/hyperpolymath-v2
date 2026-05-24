@@ -22,7 +22,13 @@
  * toast in CalendarClient nudges the user otherwise).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   addDays,
   addMinutes,
@@ -223,20 +229,31 @@ export function CalendarGrid({
     };
   }, [drag, days, onSelectSlot]);
 
-  // Scroll the body so the current time sits ~1/3 down from the top on first
-  // paint. Uses exact minutes (not just the hour) so the cyan now-line lands
-  // visibly in the viewport instead of at the edge. Re-runs on view/date
-  // switches; the per-minute `now` interval is excluded from deps so the
-  // scroll doesn't jump every tick.
+  // Auto-scroll the body so the current time sits ~1/3 down from the top.
+  // Deferred to the next frame because EB Garamond / mono fonts reflow the
+  // body's clientHeight after first paint — running the math too early lands
+  // on a stale (zero/short) viewport and the scroll appears not to happen.
+  // Re-runs on view/date switches; the per-minute `now` interval is excluded
+  // from deps so the position doesn't jump every tick.
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const nowPx = (nowMinutes / 60) * HOUR_PX;
-    const offset = el.clientHeight / 3;
-    el.scrollTop = Math.max(0, nowPx - offset);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let raf = 0;
+    const scrollToNow = () => {
+      if (!bodyRef.current) return;
+      const n = new Date();
+      const nowMinutes = n.getHours() * 60 + n.getMinutes();
+      const nowPx = (nowMinutes / 60) * HOUR_PX;
+      const offset = bodyRef.current.clientHeight / 3;
+      bodyRef.current.scrollTop = Math.max(0, nowPx - offset);
+    };
+    // Two-frame defer: first frame lets React commit, second lets the browser
+    // resolve font-driven layout shifts.
+    raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(scrollToNow);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [view, date]);
 
   const minutesSinceMidnight = (d: Date) =>
