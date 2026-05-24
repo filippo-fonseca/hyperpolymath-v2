@@ -357,7 +357,11 @@ export function CalendarGrid({
       )}
 
       {/* ── Scrollable body: time gutter + day columns ──────────────────────── */}
-      <div ref={bodyRef} className="flex-1 overflow-y-auto">
+      {/* `min-h-0` is load-bearing: flex items default to `min-height: auto`
+          which would let the body grow to fit its 1344px inner content and
+          disable overflow. With min-h-0 the body can shrink below content
+          and overflow-y-auto actually kicks in. */}
+      <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto">
         <div
           className="grid"
           style={{ gridTemplateColumns: dayColTemplate, height: TOTAL_HEIGHT }}
