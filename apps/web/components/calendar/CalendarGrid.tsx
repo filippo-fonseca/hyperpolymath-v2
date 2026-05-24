@@ -35,8 +35,17 @@ import {
 const HOUR_PX = 56;
 const TOTAL_HEIGHT = 24 * HOUR_PX;
 const TIME_GUTTER_W = 64;
-const SLOT_MINUTES = 30;
+/** Snap interval while a drag is in progress — matches Google Calendar. */
+const DRAG_SNAP_MINUTES = 15;
+/** Fallback duration when the user clicks without dragging. */
+const CLICK_DEFAULT_MINUTES = 30;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function formatMinutes(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
 
 export interface GcalEvent {
   id: string;
@@ -161,6 +170,58 @@ export function CalendarGrid({
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Drag-to-create state ─────────────────────────────────────────────────
+  // gcal-style: mousedown on an empty slot starts the drag, mousemove sets
+  // the live end-minute (snapped to DRAG_SNAP_MINUTES), mouseup commits via
+  // onSelectSlot. A click without movement falls back to CLICK_DEFAULT_MINUTES.
+  const [drag, setDrag] = useState<{
+    dayIdx: number;
+    startMin: number;
+    currentMin: number;
+  } | null>(null);
+  const dayColumnRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
+
+  const computeSnappedMinutes = (rect: DOMRect, clientY: number): number => {
+    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const raw = (y / HOUR_PX) * 60;
+    const snapped = Math.floor(raw / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
+    return Math.max(0, Math.min(24 * 60 - DRAG_SNAP_MINUTES, snapped));
+  };
+
+  useEffect(() => {
+    if (!drag) return;
+    const handleMove = (e: MouseEvent) => {
+      const el = dayColumnRefs.current.get(drag.dayIdx);
+      if (!el) return;
+      const next = computeSnappedMinutes(el.getBoundingClientRect(), e.clientY);
+      setDrag((d) => (d && d.currentMin !== next ? { ...d, currentMin: next } : d));
+    };
+    const handleUp = () => {
+      setDrag((d) => {
+        if (!d) return null;
+        const day = days[d.dayIdx]!;
+        const startSnap = Math.min(d.startMin, d.currentMin);
+        let endSnap = Math.max(d.startMin, d.currentMin);
+        if (endSnap === startSnap) endSnap = startSnap + CLICK_DEFAULT_MINUTES;
+        const start = addMinutes(startOfDay(day), startSnap);
+        const end = addMinutes(startOfDay(day), endSnap);
+        onSelectSlot({ start, end, allDay: false });
+        return null;
+      });
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrag(null);
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [drag, days, onSelectSlot]);
 
   // Scroll the body so the current hour (or 8 AM as fallback) is visible
   // on first paint. Keeps the grid from booting at midnight.
@@ -308,25 +369,29 @@ export function CalendarGrid({
             return (
               <div
                 key={day.toISOString()}
-                className="relative border-l"
+                ref={(el) => {
+                  dayColumnRefs.current.set(dayIdx, el);
+                }}
+                className="relative border-l select-none"
                 style={{
                   borderColor: "rgba(255,255,255,0.05)",
                   borderLeftWidth: dayIdx === 0 ? 0 : 1,
                   background: isToday
                     ? "rgba(34, 211, 238, 0.025)"
                     : "transparent",
+                  cursor: drag ? "ns-resize" : "default",
                 }}
-                onClick={(e) => {
-                  // Only fire for empty-slot clicks. The event chips below
-                  // stopPropagation in their own onClick.
+                onMouseDown={(e) => {
+                  // Left-click only; event chips stopPropagation so this only
+                  // fires on empty grid area.
+                  if (e.button !== 0) return;
                   const rect = e.currentTarget.getBoundingClientRect();
-                  const y = e.clientY - rect.top;
-                  const rawMinutes = (y / HOUR_PX) * 60;
-                  const snapped =
-                    Math.floor(rawMinutes / SLOT_MINUTES) * SLOT_MINUTES;
-                  const start = addMinutes(startOfDay(day), snapped);
-                  const end = addMinutes(start, SLOT_MINUTES);
-                  onSelectSlot({ start, end, allDay: false });
+                  const snapped = computeSnappedMinutes(rect, e.clientY);
+                  setDrag({
+                    dayIdx,
+                    startMin: snapped,
+                    currentMin: snapped,
+                  });
                 }}
               >
                 {/* Hour gridlines */}
@@ -378,6 +443,43 @@ export function CalendarGrid({
                     />
                   );
                 })}
+
+                {/* Drag-to-create live preview (only in the active day column) */}
+                {drag && drag.dayIdx === dayIdx && (() => {
+                  const startSnap = Math.min(drag.startMin, drag.currentMin);
+                  const rawEnd = Math.max(drag.startMin, drag.currentMin);
+                  const isClickOnly = rawEnd === startSnap;
+                  const endSnap = isClickOnly
+                    ? startSnap + CLICK_DEFAULT_MINUTES
+                    : rawEnd;
+                  const previewTop = (startSnap / 60) * HOUR_PX;
+                  const previewHeight = Math.max(
+                    ((endSnap - startSnap) / 60) * HOUR_PX,
+                    18,
+                  );
+                  return (
+                    <div
+                      className="absolute pointer-events-none z-10 rounded-md"
+                      style={{
+                        top: previewTop,
+                        height: previewHeight,
+                        left: 2,
+                        right: 2,
+                        background: "rgba(34, 211, 238, 0.18)",
+                        borderLeft: "3px solid var(--hud-cyan)",
+                        boxShadow:
+                          "inset 0 0 0 1px rgba(34, 211, 238, 0.5)",
+                      }}
+                    >
+                      <span
+                        className="font-mono text-[10px] px-2 py-0.5 text-[var(--ink)] block truncate"
+                        style={{ opacity: isClickOnly ? 0.7 : 1 }}
+                      >
+                        {formatMinutes(startSnap)}–{formatMinutes(endSnap)}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Current time indicator (today only) */}
                 {showNow && (
@@ -440,6 +542,11 @@ function EventChip({
       role="button"
       tabIndex={0}
       onClick={onClick}
+      onMouseDown={(e) => {
+        // Prevent the day-column's drag-to-create from firing when the user
+        // grabs an existing chip.
+        e.stopPropagation();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
