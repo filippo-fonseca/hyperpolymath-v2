@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { updateTaskStatus } from "@/app/actions/tasks";
 import { cn } from "@/lib/utils";
 import { KanbanColumn } from "./KanbanColumn";
-import { PriorityChip } from "./PriorityChip";
+import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
@@ -249,19 +249,20 @@ function NotStartedTray({
       </button>
 
       {expanded && (
-        <div className="flex flex-wrap gap-2 px-3 pb-3 min-h-[44px]">
+        <div className="flex flex-wrap gap-2.5 px-3 pb-3 min-h-[44px]">
           {tasks.map((task) => (
-            <TaskChip
-              key={task.id}
-              task={task}
-              draggable
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onClick={onTaskClick}
-              isDragging={draggedTaskId === task.id}
-            />
+            <div key={task.id} className="w-[280px]">
+              <TaskCard
+                task={task}
+                draggable
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onClick={onTaskClick}
+                isDragging={draggedTaskId === task.id}
+              />
+            </div>
           ))}
-          <div className="min-w-[180px] flex items-center">
+          <div className="w-[280px] flex items-center">
             <TaskCreateInline
               status="not started"
               onCreateTask={onCreateTask}
@@ -269,54 +270,6 @@ function NotStartedTray({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Compact task chip used inside the tray ───────────────────────────────
-
-interface ChipProps {
-  task: TaskWithProjects;
-  draggable?: boolean;
-  onDragStart?: (id: string) => void;
-  onDragEnd?: () => void;
-  onClick: (id: string) => void;
-  isDragging?: boolean;
-}
-
-function TaskChip({
-  task,
-  draggable,
-  onDragStart,
-  onDragEnd,
-  onClick,
-  isDragging,
-}: ChipProps) {
-  return (
-    <div
-      draggable={draggable}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", task.id);
-        onDragStart?.(task.id);
-      }}
-      onDragEnd={() => onDragEnd?.()}
-      onClick={() => onClick(task.id)}
-      className={cn(
-        "flex items-center gap-2 px-3 py-1.5 rounded-md select-none max-w-[240px]",
-        draggable && "cursor-grab active:cursor-grabbing",
-        isDragging && "opacity-50",
-      )}
-      style={{
-        background: "var(--task-card-bg, var(--surface-raised))",
-        boxShadow:
-          "0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
-      }}
-    >
-      <PriorityChip priority={task.priority} />
-      <span className="font-serif text-[13px] truncate text-[var(--ink)]">
-        {task.title}
-      </span>
     </div>
   );
 }
