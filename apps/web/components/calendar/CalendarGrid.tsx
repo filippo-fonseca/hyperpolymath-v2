@@ -223,17 +223,19 @@ export function CalendarGrid({
     };
   }, [drag, days, onSelectSlot]);
 
-  // Scroll the body so the current hour (or 8 AM as fallback) is visible
-  // on first paint. Keeps the grid from booting at midnight.
+  // Scroll the body so the current time sits ~1/3 down from the top on first
+  // paint. Uses exact minutes (not just the hour) so the cyan now-line lands
+  // visibly in the viewport instead of at the edge. Re-runs on view/date
+  // switches; the per-minute `now` interval is excluded from deps so the
+  // scroll doesn't jump every tick.
   const bodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    const hour = days.some((d) => isSameDay(d, today))
-      ? now.getHours()
-      : 8;
-    el.scrollTop = Math.max(0, hour * HOUR_PX - 80);
-    // Run once on mount per view/date change. Refresh-on-now is too jumpy.
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowPx = (nowMinutes / 60) * HOUR_PX;
+    const offset = el.clientHeight / 3;
+    el.scrollTop = Math.max(0, nowPx - offset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, date]);
 
