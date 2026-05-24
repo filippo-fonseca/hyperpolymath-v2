@@ -112,10 +112,9 @@ export function KanbanColumn({
       style={{
         background: accent.bg,
         boxShadow: showDropAffordance
-          ? `inset 0 0 0 3px ${accent.dot}, 0 0 48px ${accent.rim}`
+          ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`
           : `inset 0 0 0 1px ${accent.rim}`,
-        transform: showDropAffordance ? "scale(1.01)" : "scale(1)",
-        transition: "box-shadow 160ms ease-out, transform 160ms ease-out",
+        transition: "box-shadow 160ms ease-out",
         ["--task-card-bg" as string]: accent.cardBg,
       } as React.CSSProperties}
     >
