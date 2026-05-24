@@ -185,6 +185,20 @@ export function CalendarClient({
     }
   }, [params, router]);
 
+  // The app shell's <main> is `overflow-auto` by default so most routes can
+  // scroll the page. The calendar wants the grid body to be the only scroller
+  // so the day-header + toolbar stay pinned and autoscroll-to-now actually
+  // moves the body (not the page). Lock main while mounted; restore on unmount.
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    const prev = main.style.overflow;
+    main.style.overflow = "hidden";
+    return () => {
+      main.style.overflow = prev;
+    };
+  }, []);
+
   // D-08 first-visit: detect once, persist, refresh.
   useEffect(() => {
     if (userTimezone) return;
