@@ -255,7 +255,7 @@ Plans:
 **Notes**: Build-in-public manifesto, inspired by Karpathy / Garry Tan / Pieter Levels / Linear method-page references. Research pass on those landing-page references required before plan-phase. Must align with Phase 6.1 directional anchors (restraint over theatrics, Anthropic-level interaction polish, JARVIS as MOOD only — not HUD-heavy). Workflow order: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory — UI-SPEC.md before code) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
 
 Plans:
-- [ ] 08-01-PLAN.md — Wave 1: Foundation assets — FRAMEWORK.md at repo root + strict-tool-use.fixture.ts + opengraph-image.png (LAND-FRAMEWORK, LAND-FIXTURE, LAND-OG)
+- [x] 08-01-PLAN.md — Wave 1: Foundation assets — FRAMEWORK.md at repo root + strict-tool-use.fixture.ts + opengraph-image.png (LAND-FRAMEWORK, LAND-FIXTURE, LAND-OG)
 - [ ] 08-02-PLAN.md — Wave 1: Waitlist data layer — Drizzle schema + 0008 migration + 0012 RLS migration + joinWaitlist Server Action + next.config outputFileTracing + GITHUB_TOKEN in .env.example (LAND-WAITLIST, LAND-ROADMAP-FS, LAND-GH-ENV)
 - [ ] 08-03-PLAN.md — Wave 2: Landing chrome + sparse sections — LandingPage + Header + Footer + Divider + Eyebrow + ThesisSection + PrimitivesTable (zero cyan; LAND-SHELL, LAND-THESIS, LAND-PRIMITIVES)
 - [ ] 08-04-PLAN.md — Wave 3: Cyan-bearing surfaces — JarvisDemo (FSM typing + 3 examples + reduced-motion + SSR fallback) + EngineSection (real fixture import + cyan-tinted right card) (LAND-DEMO, LAND-ENGINE)

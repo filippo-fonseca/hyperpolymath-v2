@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 planned (6 plans, checker PASS)
-last_updated: "2026-05-25T17:00:36.974Z"
-last_activity: 2026-05-20
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-05-25T22:55:43.462Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 16
   completed_phases: 8
   total_plans: 51
-  completed_plans: 37
+  completed_plans: 38
   percent: 100
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 07 — jarvis-voice-ambient
+**Current focus:** Phase 08 — public-landing-manifesto
 
 ## Current Position
 
-Phase: 07 (jarvis-voice-ambient) — EXECUTING
-Plan: 4 of 4
+Phase: 08 (public-landing-manifesto) — EXECUTING
+Plan: 2 of 6
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
-Last activity: 2026-05-20
+Last activity: 2026-05-25
 
 Progress: [██████████] 100%
 
@@ -81,6 +81,7 @@ Progress: [██████████] 100%
 | Phase 07-jarvis-voice-ambient P02 | 6 | 3 tasks | 10 files |
 | Phase 07 P01 | 6 | 3 tasks | 12 files |
 | Phase 07 P03 | 7 | 3 tasks | 12 files |
+| Phase 08 P01 | 5min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Module-level pub-sub (subscribeToMicState) for cross-tree MicState propagation — no Context provider, pattern from lib/jarvis/focus.ts
 - [Phase 07]: pressToTalkActive gated on voiceEnabled only, NOT discreetMode — VOICE-09 requires Cmd+Shift+J in Discreet mode (CRITICAL_PHASE7_CONCERNS #10)
 - [Phase 07]: vad-react@0.0.36 uses baseAssetPath (directory) not modelURL; library expects silero_vad_v5.onnx filename — copied vad.onnx to silero_vad_v5.onnx in /public/voice/
+- [Phase 08]: Plan 08-01: FRAMEWORK.md H2s use plain text (no glyph prefix) so GitHub auto-generates clean anchors (#areas/#projects/#captures/#jarvis/#calendar); ornament moves to paragraph body to decorate without breaking Plan 08-03 PrimitivesTable deep-links
+- [Phase 08]: Plan 08-01: strict-tool-use fixture field names match live Zod schemas verbatim (start/end/due, NOT start_iso/end_iso/due_date as plan example suggested) — defer-to-source rule applied; fixture compiles cleanly against production schemas via pnpm tsc --noEmit
+- [Phase 08]: Plan 08-01: twitter-image.png is byte-identical mirror of opengraph-image.png — Next 16 needs both file-convention paths for separate meta tags but one design serves both surfaces; eliminates twice-the-asset maintenance
 
 ### Pending Todos
 
@@ -231,6 +235,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T17:00:36.970Z
-Stopped at: Phase 8 planned (6 plans, checker PASS)
-Resume file: .planning/phases/08-public-landing-manifesto/08-01-PLAN.md
+Last session: 2026-05-25T22:55:43.458Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
