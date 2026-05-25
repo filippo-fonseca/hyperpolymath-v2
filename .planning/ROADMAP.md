@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6.1: Visual Redesign — JARVIS × Notion (INSERTED)** - Research-first rebuild attempt #1: Stark HUD vocabulary translated through Linear/Vercel discipline. Shipped 6 plans across 4 waves of infrastructure (token cleanup, motion library, shadcn restyles, intentionality.io utilities). Cumulative HUD-heavy surface rejected by user; AES-* re-deferred to 6.2. (completed 2026-05-19 — passed_with_deferrals)
 - [ ] **Phase 6.2: Anthropic-Discipline Rebuild (INSERTED)** - Third visual rebuild after two rejections ("clunky and blah" both times). New discipline pole: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com). Notion content frame. JARVIS as atmospheric mood only — cyan accent + subtle depth, NO literal HUD vocabulary. Massive refactor of Phase 6.1's chrome.
 - [ ] **Phase 7: JARVIS Voice + Ambient** - "Hey Jarvis" + clap-clap wake, Groq Whisper STT, ElevenLabs Flash British TTS, discreet mode toggle, mic-active indicator. Text Console remains fallback for public spaces.
+- [ ] **Phase 8: Public Landing Manifesto** - Public-facing landing page at `/` as a printed-manifesto-in-scroll. Karpathy-grade restraint expressed through hyperpolymath's Garamond/paper/Renaissance voice. Build-in-public stance — manifesto IS the front door. Live JARVIS demo, named primitives spec, fork-or-use choice, quiet live build-log feed.
 
 ## Phase Details
 
@@ -235,6 +236,27 @@ Plans:
 
 **Wave structure**: Plans 01 + 02 (Wave 1, parallel — file-disjoint: 01 owns api/jarvis/{stt,tts} + public/worklets + lib/voice types/constants/encode-wav; 02 owns components/voice/EnableVoiceModal + components/settings/voice/* + lib/voice/use-voice-settings + (app)/settings/page.tsx) → Plan 03 (Wave 2, depends on 01+02 — consumes types from 01 + useVoiceSettings from 02) → Plan 04 (Wave 3, autonomous=false — depends on 01+02+03; closes with human-verify smoke for the 7 end-to-end scenarios)
 
+### Phase 8: Public Landing Manifesto
+**Goal**: A public-facing landing page at `/` that channels Karpathy-grade intellectual restraint through hyperpolymath's existing voice (Garamond, paper, Renaissance ornament). The page itself is the artifact — a single elegant scroll that reads like a printed broadside: thesis stated plainly → live animated JARVIS demo → the primitives named like a spec → the engine explained → a fork-or-use choice → a quiet live build-log feed. Build-in-public stance: the manifesto IS the front door. Logged-out visitors land on the manifesto; logged-in users continue redirecting into the app at `/today`.
+**Depends on**: None (independent — public marketing route owns its own visual treatment derived from README voice; does not block on Phase 6.2 app-shell rebuild)
+**Requirements**: TBD (define during `/gsd:discuss-phase 08`)
+**Success Criteria** (what must be TRUE):
+  1. Visiting `/` while signed-out renders the manifesto landing; visiting while signed-in redirects to `/today` (existing app-shell behavior preserved)
+  2. Page renders all six sections in a single scroll: Thesis · Live JARVIS Demo · The Primitives · The Engine · The Choice · Build Log — each with breathing room, Garamond throughout, paper/parchment surface
+  3. JARVIS demo animates the README ASCII block (typed input → routed action receipts stream in) on first paint without layout shift; respects `prefers-reduced-motion`
+  4. The Primitives section names Areas / Projects / Captures / JARVIS / Calendar as a small spec table — the "use mine OR build your own" framework move
+  5. The Engine section explains Claude Sonnet 4.6 + Strict Tool Use + one real input→JSON contract, in plain language, no marketing fluff
+  6. Build-log section pulls last N commits from `main` live (not hardcoded) plus current phase + "shipped this week" stub; degrades gracefully if the data source is unreachable
+  7. The Choice section presents two equally-weighted doors: "Use it" (sign-in / waitlist) and "Fork it" (GitHub repo + framework write-up)
+  8. Passes the Phase 6.1 restraint check — no HUD-heavy chrome, JARVIS as ATMOSPHERIC mood only (cyan accent as trim, not as vocabulary); Anthropic-level interaction polish; Notion document discipline
+  9. Lighthouse ≥ 95 (performance, accessibility, best-practices) on the landing route; no console errors; renders correctly with JS disabled (graceful degradation of the demo animation)
+**Plans**: 0 plans
+**UI hint**: yes (load-bearing — this is the front door; visual treatment must be researched and contracted before code)
+**Notes**: Build-in-public manifesto, inspired by Karpathy / Garry Tan / Pieter Levels / Linear method-page references. Research pass on those landing-page references required before plan-phase. Must align with Phase 6.1 directional anchors (restraint over theatrics, Anthropic-level interaction polish, JARVIS as MOOD only — not HUD-heavy). Workflow order: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory — UI-SPEC.md before code) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
+
+Plans:
+- [ ] TBD (run `/gsd:discuss-phase 08` then `/gsd:ui-phase 08` then `/gsd:plan-phase 08` to break down)
+
 ## Progress
 
 **Execution Order:**
@@ -252,6 +274,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 6.1. Visual Redesign — JARVIS × Notion | 6/6 | Complete (passed_with_deferrals) | 2026-05-19 |
 | 6.2. Anthropic-Discipline Rebuild | 0/7 | Not started | - |
 | 7. JARVIS Voice + Ambient | 3/4 | In Progress|  |
+| 8. Public Landing Manifesto | 0/0 | Not started | - |
 
 ## Backlog
 
@@ -332,3 +355,4 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 **Plans:** 0 plans
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
+
