@@ -229,12 +229,14 @@ export function JarvisListener() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wakeWordActive]);
 
-  // Porcupine fired a keyword: arm the activation source ref so onSpeechEnd
-  // knows to run the Whisper wake-phrase check. Do NOT transition state or
-  // dispatch the visual burst yet — those happen only after Whisper confirms
-  // the user actually said "hey jarvis". Porcupine's built-in model is
-  // sensitive and false-fires on Jarvis-adjacent sounds; without this gate
-  // every misfire briefly glowed the bubble.
+  // Porcupine fired a keyword: arm the activation source ref AND fire the
+  // visual burst immediately so the bubble lights up the instant the wake
+  // phrase is detected (matching press-to-talk's instant feedback). We do
+  // NOT transition state here — onSpeechEnd is what cross-validates against
+  // Whisper and decides whether to dispatch a command. On a misfire (the
+  // bubble glows but no real wake word was spoken), the wake-burst's 4s
+  // tentativelyActive timer expires naturally and the bubble fades back
+  // to ambient.
   //
   // De-dupe by reference: this effect re-fires on every micState change
   // (listening → thinking → speaking → listening …), and `keywordDetection`
@@ -249,6 +251,7 @@ export function JarvisListener() {
     if (porcupine.keywordDetection === lastPorcupineDetectionRef.current) return;
     lastPorcupineDetectionRef.current = porcupine.keywordDetection;
     activationSourceRef.current = "porcupine";
+    window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
   }, [porcupine.keywordDetection, micState]);
 
   // Pitfall 3 — pause Porcupine while speaking to defeat acoustic feedback.
@@ -435,19 +438,21 @@ export function JarvisListener() {
           );
           const stripped = stripWakeWordAnywhere(transcript);
           if (stripped === null) {
-            // Porcupine misfire — silent discard. State stayed in "listening"
-            // the whole time so no recovery dispatch is needed.
+            // Porcupine misfire (Whisper saw no wake phrase). The 4s
+            // tentativelyActive timer started when Porcupine fired will
+            // expire and the bubble fades naturally — silent discard
+            // otherwise.
             return;
           }
-          // Confirmed wake. Visual burst NOW.
-          window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
+          // Wake-burst was already dispatched when Porcupine fired; no
+          // need to repeat it here.
           if (!stripped) {
             // Wake phrase alone — open follow-up window, stay in listening.
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
             return;
           }
           // Promote to thinking so the bubble keeps glowing through the
-          // /api/jarvis round-trip.
+          // /api/jarvis round-trip (fsmActive=true once state=thinking).
           dispatch({ type: "SPEECH_END" });
           command = stripped;
         }
