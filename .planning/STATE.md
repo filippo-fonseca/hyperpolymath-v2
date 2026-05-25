@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-05-25T16:05:06.552Z"
+stopped_at: Phase 8 planned (6 plans, checker PASS)
+last_updated: "2026-05-25T17:00:36.974Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 16
   completed_phases: 8
-  total_plans: 45
+  total_plans: 51
   completed_plans: 37
   percent: 100
 ---
@@ -231,6 +231,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T16:05:06.542Z
-Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-public-landing-manifesto/08-UI-SPEC.md
+Last session: 2026-05-25T17:00:36.970Z
+Stopped at: Phase 8 planned (6 plans, checker PASS)
+Resume file: .planning/phases/08-public-landing-manifesto/08-01-PLAN.md
