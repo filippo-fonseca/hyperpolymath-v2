@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-03-PLAN.md (chrome + thesis + primitives, 3 commits, 7 files, zero cyan)
-last_updated: "2026-05-25T23:07:10.127Z"
+stopped_at: Completed 08-04-PLAN.md — JarvisDemo + EngineSection (cyan-bearing surfaces) wired into LandingPage
+last_updated: "2026-05-25T23:16:53.877Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 16
   completed_phases: 8
   total_plans: 51
-  completed_plans: 40
+  completed_plans: 41
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 08 (public-landing-manifesto) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
 Last activity: 2026-05-25
@@ -84,6 +84,7 @@ Progress: [██████████] 100%
 | Phase 08 P01 | 5min | 3 tasks | 5 files |
 | Phase 08-public-landing-manifesto P02 | verification-only | 3 tasks | 8 files |
 | Phase 08-public-landing-manifesto P03 | 4min | 3 tasks | 7 files |
+| Phase 08-public-landing-manifesto P04 | 6min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -227,6 +228,7 @@ Recent decisions affecting current work:
 - [Phase 08-public-landing-manifesto]: Plan 08-03: ChevronDown scroll affordance uses conditional unmount ({!scrolled && <motion.div>}) rather than opacity:0 transition — UI-SPEC §11d 'vanishes on first scroll and does not re-appear' is enforced literally in the React tree (no DOM residue, no hoverable invisible element); window.scrollY > 8 threshold via passive listener
 - [Phase 08-public-landing-manifesto]: Plan 08-03: font-semibold ban scope clarification — Task 1 chrome forbids it (no Display sizes in chrome); Tasks 2/3 explicitly allow it on Display 1 (56px ThesisSection h1) and Display 2 (32px PrimitivesTable h2) per UI-SPEC §11b serif weights 400+600. Plan-wide grep across components/landing/ accepts the 2 font-semibold hits as the only allowed instances
 - [Phase 08-public-landing-manifesto]: Plan 08-03: PRIMITIVES const declared 'as const' with explicit anchor literals (areas/projects/captures/jarvis/calendar) — type-safe + greppable; each row anchors target=_blank rel=noopener noreferrer on the GitHub FRAMEWORK.md deep-link. Anchors verified live against Plan 08-01 commit 468730d H2 headings before commit
+- [Phase 08-public-landing-manifesto]: Plan 08-04: Cyan-bearing surfaces (JarvisDemo + EngineSection) restricted to exactly 2 landing files; relative-path import for STRICT_TOOL_USE_FIXTURE avoids elevating a test artifact to package public API; FSM initial state 'settled' provides free SSR fallback for JS-disabled visitors (Pitfall 7 / SC-9)
 
 ### Pending Todos
 
@@ -244,6 +246,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T23:06:50.874Z
-Stopped at: Completed 08-03-PLAN.md (chrome + thesis + primitives, 3 commits, 7 files, zero cyan)
+Last session: 2026-05-25T23:16:53.873Z
+Stopped at: Completed 08-04-PLAN.md — JarvisDemo + EngineSection (cyan-bearing surfaces) wired into LandingPage
 Resume file: None
