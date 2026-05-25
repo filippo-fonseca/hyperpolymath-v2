@@ -346,3 +346,32 @@ export const jarvisEvents = pgTable(
   },
   (t) => [index("jarvis_events_user_created_idx").on(t.userId, sql`created_at DESC`)],
 );
+
+// ---------------------------------------------------------------------------
+// waitlist — Phase 8 (D-12 / LAND-WAITLIST). Anonymous email capture from the
+// public landing manifesto. FIRST table to break the userId-scoped RLS pattern.
+//
+// Security model (load-bearing — see 08-RESEARCH.md §Pitfall 5):
+//   - Drizzle pooler connection uses the DB-owner role → BYPASSES RLS.
+//   - Real security boundary is `apps/web/app/actions/waitlist.ts` (Zod +
+//     honeypot + IP rate limit + ON CONFLICT DO NOTHING).
+//   - RLS policies in supabase/migrations/0012_waitlist.sql are defense-in-depth
+//     ONLY for the unlikely case someone calls this table via supabase-js from
+//     the browser. They do NOT protect Server Action writes.
+//
+// Reads: NO SELECT policy → admin reads happen via psql/Studio with service role.
+// No userId column — signups are unauthenticated.
+// ---------------------------------------------------------------------------
+export const waitlist = pgTable(
+  "waitlist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    note: text("note"),
+    // Hashed IP (sha256 first 16 chars) — written by Server Action for abuse triage.
+    // Never raw IP per privacy posture.
+    submittedIp: text("submitted_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("waitlist_email_uniq").on(t.email)],
+);

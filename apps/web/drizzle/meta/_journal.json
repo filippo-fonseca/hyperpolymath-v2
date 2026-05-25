@@ -50,6 +50,13 @@
       "when": 1779728195275,
       "tag": "0006_bent_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779732587685,
+      "tag": "0008_waitlist",
+      "breakpoints": true
     }
   ]
 }
