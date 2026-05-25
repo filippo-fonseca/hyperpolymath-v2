@@ -68,7 +68,7 @@ export function buildToolDefinitions(
     {
       name: "create_capture",
       description:
-        "Create a freeform note. Default fallback when the input is ambiguous, exploratory, or doesn't cleanly fit a task or an event.",
+        "Create a freeform note. Default fallback when the input is ambiguous, exploratory, or doesn't cleanly fit a task or an event. The `content` field MUST be the user's EXACT words, verbatim — never summarize, paraphrase, rewrite, condense, or convert to third-person. Captures are an archive of what the user said; faithfulness beats brevity. (When voiceActive=true, the separate voice_summary field carries the short spoken receipt — that is where compression belongs, not in content.)",
       input_schema: captureSchema,
       strict: true,
     },
