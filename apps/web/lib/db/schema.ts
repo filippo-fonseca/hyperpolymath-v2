@@ -282,6 +282,47 @@ export const jarvisFacts = pgTable(
 // voice_active boolean (Phase 7 forward-compat), slash_command_mode, and the
 // pre_parsed_dates jsonb the client computed via chrono-node.
 // RLS: owner-only SELECT + INSERT (migration 0009). No UPDATE/DELETE policies.
+/**
+ * jarvis_turns — persisted scrollback for the JARVIS Console.
+ *
+ * Stores every user + assistant turn so the UI can hydrate full conversation
+ * history on page reload. The LLM context window still uses an in-memory
+ * sliding window of the last N turns (see JarvisConsole `buildHistory`) — we
+ * persist for DISPLAY, not for prompt input.
+ *
+ * Columns are a flat projection of the client-side `ScrollbackTurn` union:
+ *   - `kind` discriminates user vs assistant
+ *   - `text` / `text_delta` are populated per kind
+ *   - `actions` + `clarification` are JSONB blobs that mirror the client shapes
+ *   - `status` + `error_message` are assistant-only
+ *
+ * RLS: owner-only SELECT + INSERT + UPDATE (added in the migration). UPDATE
+ * is needed so undo + streaming-finalize can amend an existing assistant
+ * turn by id (upsert pattern from the client).
+ */
+export const jarvisTurns = pgTable(
+  "jarvis_turns",
+  {
+    id: uuid("id").primaryKey(), // client-generated UUID (so save-on-stream-end finds the row)
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // 'user' | 'assistant'
+    text: text("text"), // user turn body; null for assistant
+    textDelta: text("text_delta"), // assistant prose; null for user
+    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    clarification: jsonb("clarification"),
+    status: text("status"), // 'streaming' | 'done' | 'error' for assistant; null for user
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("jarvis_turns_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 export const jarvisEvents = pgTable(
   "jarvis_events",
   {

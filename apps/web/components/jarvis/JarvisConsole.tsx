@@ -23,6 +23,30 @@ import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatu
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
+
+/**
+ * Fire-and-forget save. Errors are logged but never bubble — scrollback
+ * persistence is best-effort: a failed save shouldn't disrupt the user's
+ * conversation in-memory.
+ */
+function persistTurn(turn: ScrollbackTurn): void {
+  void saveJarvisTurn({
+    id: turn.id,
+    kind: turn.kind,
+    text: turn.kind === "user" ? turn.text : null,
+    textDelta: turn.kind === "assistant" ? turn.textDelta : null,
+    actions: turn.kind === "assistant" ? turn.actions : [],
+    clarification:
+      turn.kind === "assistant" ? turn.clarification ?? null : null,
+    status: turn.kind === "assistant" ? turn.status : null,
+    errorMessage:
+      turn.kind === "assistant" ? turn.errorMessage ?? null : null,
+    createdAt: turn.createdAt.toISOString(),
+  }).catch((err) => {
+    console.warn("[jarvis] persistTurn failed (non-fatal)", err);
+  });
+}
 
 /**
  * JARVIS Console (D-01) — top-level orchestrator.
@@ -51,6 +75,13 @@ interface Props {
   userTimezone: string;
   initialProjects: ProjectSource[];
   initialHashtags: HashtagSource[];
+  /**
+   * SSR-hydrated scrollback history (Phase 7 polish). Persisted via
+   * jarvis_turns table so the conversation survives page reloads.
+   * The LLM context window still uses an in-memory sliding window of the
+   * last HISTORY_TURN_LIMIT turns — we persist for DISPLAY, not prompt input.
+   */
+  initialTurns?: ScrollbackTurn[];
 }
 
 const HISTORY_TURN_LIMIT = 10;
@@ -59,8 +90,9 @@ export function JarvisConsole({
   userTimezone,
   initialProjects,
   initialHashtags,
+  initialTurns = [],
 }: Props) {
-  const [turns, setTurns] = useState<ScrollbackTurn[]>([]);
+  const [turns, setTurns] = useState<ScrollbackTurn[]>(initialTurns);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   // Phase 6 Plan 06-03 (AES-05, D-02): imperative handle to the JARVIS input.
@@ -171,6 +203,10 @@ export function JarvisConsole({
       const history = buildHistory(turnsRef.current);
       setTurns((prev) => [...prev, userTurn, assistantTurn]);
 
+      // Persist the user turn immediately — even if streaming fails or the
+      // tab closes, the user's question stays in the scrollback on reload.
+      persistTurn(userTurn);
+
       setStreaming(true);
       const ac = new AbortController();
       abortRef.current = ac;
@@ -272,13 +308,20 @@ export function JarvisConsole({
             // in. See onDone for the dispatch logic.
           },
           onDone: () => {
-            setTurns((prev) =>
-              prev.map((t) =>
+            setTurns((prev) => {
+              const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, status: "done" }
+                  ? { ...t, status: "done" as const }
                   : t,
-              ),
-            );
+              );
+              // Persist the completed assistant turn — text + final actions
+              // committed via the SSE stream.
+              const completed = next.find(
+                (t) => t.id === assistantId && t.kind === "assistant",
+              );
+              if (completed) persistTurn(completed);
+              return next;
+            });
 
             // Phase 7 — ALWAYS dispatch on response completion so the
             // JarvisListener FSM cycles thinking → speaking → listening
@@ -306,13 +349,18 @@ export function JarvisConsole({
             abortRef.current = null;
           },
           onError: (message) => {
-            setTurns((prev) =>
-              prev.map((t) =>
+            setTurns((prev) => {
+              const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, status: "error", errorMessage: message }
+                  ? { ...t, status: "error" as const, errorMessage: message }
                   : t,
-              ),
-            );
+              );
+              const errored = next.find(
+                (t) => t.id === assistantId && t.kind === "assistant",
+              );
+              if (errored) persistTurn(errored);
+              return next;
+            });
             setStreaming(false);
             abortRef.current = null;
           },
@@ -404,8 +452,8 @@ export function JarvisConsole({
       }
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
-      setTurns((prev) =>
-        prev.map((t) =>
+      setTurns((prev) => {
+        const next = prev.map((t) =>
           t.id === turnId && t.kind === "assistant"
             ? {
                 ...t,
@@ -414,15 +462,21 @@ export function JarvisConsole({
                 ),
               }
             : t,
-        ),
-      );
+        );
+        // Persist the undone state so it survives reload.
+        const updated = next.find(
+          (t) => t.id === turnId && t.kind === "assistant",
+        );
+        if (updated) persistTurn(updated);
+        return next;
+      });
 
       const result = await undoJarvisAction(target);
       if (!result.ok) {
         toast.error(`Couldn't undo: ${result.error}`);
         // Revert the optimistic flag.
-        setTurns((prev) =>
-          prev.map((t) =>
+        setTurns((prev) => {
+          const next = prev.map((t) =>
             t.id === turnId && t.kind === "assistant"
               ? {
                   ...t,
@@ -433,8 +487,15 @@ export function JarvisConsole({
                   ),
                 }
               : t,
-          ),
-        );
+          );
+          // Re-persist with the reverted state so reload doesn't show a stale
+          // "undone" badge.
+          const reverted = next.find(
+            (t) => t.id === turnId && t.kind === "assistant",
+          );
+          if (reverted) persistTurn(reverted);
+          return next;
+        });
       } else {
         toast.success("Undone");
       }

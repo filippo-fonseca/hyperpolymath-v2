@@ -43,6 +43,13 @@
       "when": 1778633038223,
       "tag": "0005_users_drop_plain_gcal_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779728195275,
+      "tag": "0006_bent_mad_thinker",
+      "breakpoints": true
     }
   ]
 }
