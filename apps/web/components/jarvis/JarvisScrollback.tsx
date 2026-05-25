@@ -7,6 +7,7 @@ import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+import { renderInlineMarkdown } from "@/lib/jarvis/inline-markdown";
 
 /**
  * Terminal-style single-column scrollback (D-05).
@@ -125,7 +126,7 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
                   className="font-mono text-base italic font-medium mb-2 leading-relaxed"
                   style={{ color: "var(--ink)" }}
                 >
-                  {stripSystemTags(turn.textDelta)}
+                  {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
                   {turn.status === "streaming" ? (
                     <span className="relative inline-block ml-0.5">
                       {/* Light-trail: 32px gradient behind caret (Linear
