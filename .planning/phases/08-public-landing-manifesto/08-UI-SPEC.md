@@ -1,11 +1,12 @@
 ---
 phase: 8
 slug: public-landing-manifesto
-status: draft
+status: approved
 shadcn_initialized: true
 preset: new-york (existing project preset; consumed, not extended)
 created: 2026-05-25
 revised: 2026-05-25 (checker pass — Option 1 typography consolidation + 3 non-blocking fixes)
+reviewed_at: 2026-05-25 (gsd-ui-checker round 2: 6/6 dimensions PASS, 0 FLAGs)
 ---
 
 # Phase 8 — UI Design Contract
