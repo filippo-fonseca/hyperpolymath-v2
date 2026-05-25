@@ -264,10 +264,19 @@ export function CalendarGrid({
 
   const dayColTemplate = `${TIME_GUTTER_W}px repeat(${days.length}, minmax(0, 1fr))`;
 
+  const hasAllDay = eventsByDay.some((d) => d.allDay.length > 0);
+
+  // CSS Grid for the OUTER container instead of flex-col. The `1fr` row
+  // owns the scroll body and is bound by the parent's `h-full` — no
+  // `flex-1 min-h-0` chain to bail. With `minmax(0, 1fr)` the body row
+  // is allowed to shrink below content and overflow-y-auto engages.
+  const outerRows = hasAllDay ? "auto auto minmax(0, 1fr)" : "auto minmax(0, 1fr)";
+
   return (
     <div
-      className="flex flex-col rounded-2xl overflow-hidden h-full"
+      className="grid rounded-2xl overflow-hidden h-full"
       style={{
+        gridTemplateRows: outerRows,
         background: "rgba(255,255,255,0.02)",
         boxShadow:
           "inset 0 0 0 1px color-mix(in oklch, var(--edge) 55%, transparent)",
@@ -318,7 +327,7 @@ export function CalendarGrid({
       </div>
 
       {/* ── All-day row (thin strip) ────────────────────────────────────────── */}
-      {eventsByDay.some((d) => d.allDay.length > 0) && (
+      {hasAllDay && (
         <div
           className="grid border-b"
           style={{
@@ -366,7 +375,8 @@ export function CalendarGrid({
           and overflow-y-auto actually kicks in. */}
       <div
         ref={bodyRef}
-        className="flex-1 min-h-0 overflow-y-auto hud-scrollbar"
+        className="overflow-y-auto overscroll-contain hud-scrollbar"
+        style={{ minHeight: 0 }}
       >
         <div
           className="grid"
