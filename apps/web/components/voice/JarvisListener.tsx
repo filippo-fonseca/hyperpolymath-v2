@@ -79,8 +79,16 @@ export function JarvisListener() {
   // the SAME FSM transitions as press-to-talk so the bubble glows the
   // moment speech is detected, instead of after STT confirms.
   const activationSourceRef = useRef<
-    "wake-word" | "follow-up" | "press-to-talk" | "clap" | null
+    "wake-word" | "follow-up" | "press-to-talk" | "clap" | "porcupine" | null
   >(null);
+
+  // Whether on-device wake-word (Porcupine) is configured. When it is, the
+  // Whisper-keyword fallback path is OFF — ambient speech in "listening"
+  // outside the follow-up window does NOT hit Groq STT. Porcupine fires
+  // on-device, no audio leaves the browser unless the wake word is detected.
+  const hasPorcupineWakeWord = Boolean(
+    process.env.NEXT_PUBLIC_PICOVOICE_ACCESS_KEY,
+  );
 
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
@@ -220,6 +228,8 @@ export function JarvisListener() {
   useEffect(() => {
     if (!porcupine.keywordDetection) return;
     if (micState !== "listening") return;
+    activationSourceRef.current = "porcupine";
+    window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
     dispatch({ type: "WAKE_WORD_DETECTED" });
   }, [porcupine.keywordDetection, micState]);
 
@@ -258,26 +268,27 @@ export function JarvisListener() {
     onSpeechStart: () => {
       const s = micStateRef.current;
       if (s === "listening") {
-        // Two sub-cases:
-        //   1. In follow-up window (≤5s after the last JARVIS response): the
-        //      user is in active conversation, so any speech counts as a
-        //      command — flip to "recording" immediately so the bubble glows
-        //      identically to press-to-talk and the transcript is dispatched
+        // Three sub-cases now:
+        //   1. In follow-up window (≤5s after JARVIS's last TTS_END): user
+        //      is in active conversation — any speech is a command. Flip
+        //      to "recording", glow the bubble, dispatch the transcript
         //      verbatim. No wake-word required.
-        //   2. Passive listening (default rest state): we capture the audio
-        //      silently. Stay in "listening" — no visual, no state change.
-        //      STT runs on speech-end and only confirms wake-word matches.
-        //      Ambient speech that doesn't contain "Hey Jarvis" leaves no
-        //      trace on the UI.
+        //   2. Passive listening WITH Porcupine: do nothing. On-device wake
+        //      word will fire WAKE_WORD_DETECTED in a separate effect when
+        //      it hears "Jarvis". No STT call, no log, true rest state.
+        //   3. Passive listening WITHOUT Porcupine: Whisper-keyword fallback.
+        //      Mark the source so onSpeechEnd runs STT + stripWakeWord. UI
+        //      stays silent until a wake match is confirmed.
         const inFollowUp = followUpUntilRef.current > Date.now();
         if (inFollowUp) {
           activationSourceRef.current = "follow-up";
           window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
           dispatch({ type: "SPEECH_START" }); // → recording
-        } else {
+        } else if (!hasPorcupineWakeWord) {
           activationSourceRef.current = "wake-word";
-          // No dispatch — stay in "listening". STT will run on speech-end.
         }
+        // else: Porcupine handles wake — leave activationSource null and
+        //       skip STT entirely in onSpeechEnd.
         return;
       }
       if (s === "recording") {
@@ -307,8 +318,16 @@ export function JarvisListener() {
       const source = activationSourceRef.current;
       activationSourceRef.current = null;
 
+      // Rest-state bail: passive listening with no activation source =
+      // ambient speech outside the follow-up window with Porcupine handling
+      // the wake word on-device. Skip STT entirely — no log, no API call,
+      // no UI change. This is the "completely off/idle" path the user
+      // expects when no wake word is active and >5s have passed.
+      if (s === "listening" && !source) return;
+
       const isPassiveListen = s === "listening" && source === "wake-word";
       const isFollowUp = source === "follow-up";
+      const isPorcupineWake = source === "porcupine";
 
       // Explicit channels: flip to "thinking" now so the bubble keeps glowing
       // through the STT round-trip. Passive listen stays in "listening".
@@ -374,6 +393,24 @@ export function JarvisListener() {
           if (!command) {
             // Empty follow-up — return to listening.
             dispatch({ type: "ERROR", reason: "empty-followup" });
+            return;
+          }
+        } else if (isPorcupineWake) {
+          // Porcupine confirmed wake — defensively strip "Hey Jarvis" in
+          // case the VAD buffer captured it before the state flipped to
+          // "recording". If the transcript doesn't start with the wake
+          // phrase, fall through to using it as-is.
+          // eslint-disable-next-line no-console
+          console.log(
+            "[jarvis] wake-path: porcupine, transcript:",
+            JSON.stringify(transcript),
+          );
+          const stripped = stripWakeWord(transcript);
+          command = stripped ?? transcript.trim();
+          if (!command.trim()) {
+            // Wake phrase alone — open follow-up window.
+            followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+            dispatch({ type: "ERROR", reason: "wake-only" });
             return;
           }
         }
