@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-05-25T22:55:43.462Z"
+stopped_at: Completed 08-02-PLAN.md (verification-only session)
+last_updated: "2026-05-25T22:58:20.991Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 16
   completed_phases: 8
   total_plans: 51
-  completed_plans: 38
+  completed_plans: 39
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 08 (public-landing-manifesto) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
 Last activity: 2026-05-25
@@ -82,6 +82,7 @@ Progress: [██████████] 100%
 | Phase 07 P01 | 6 | 3 tasks | 12 files |
 | Phase 07 P03 | 7 | 3 tasks | 12 files |
 | Phase 08 P01 | 5min | 3 tasks | 5 files |
+| Phase 08-public-landing-manifesto P02 | verification-only | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Plan 08-01: FRAMEWORK.md H2s use plain text (no glyph prefix) so GitHub auto-generates clean anchors (#areas/#projects/#captures/#jarvis/#calendar); ornament moves to paragraph body to decorate without breaking Plan 08-03 PrimitivesTable deep-links
 - [Phase 08]: Plan 08-01: strict-tool-use fixture field names match live Zod schemas verbatim (start/end/due, NOT start_iso/end_iso/due_date as plan example suggested) — defer-to-source rule applied; fixture compiles cleanly against production schemas via pnpm tsc --noEmit
 - [Phase 08]: Plan 08-01: twitter-image.png is byte-identical mirror of opengraph-image.png — Next 16 needs both file-convention paths for separate meta tags but one design serves both surfaces; eliminates twice-the-asset maintenance
+- [Phase 08-public-landing-manifesto]: Plan 08-02: anonymous waitlist Server Action + 0012 RLS defense-in-depth — real security boundary is the action (Drizzle pooler bypasses RLS per RESEARCH §Pitfall 5)
+- [Phase 08-public-landing-manifesto]: Plan 08-02: next.config.ts outputFileTracingRoot pinned to monorepo root + outputFileTracingIncludes ships .planning/ROADMAP.md in Vercel serverless bundle for Plan 08-05 BuildLog
+- [Phase 08-public-landing-manifesto]: Plan 08-02: GITHUB_TOKEN env contract documented with graceful-degradation note — BuildLog block 2 shows 'Commit feed unavailable' if absent while block 1 (ROADMAP shipping line) still works
 
 ### Pending Todos
 
@@ -235,6 +239,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T22:55:43.458Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-05-25T22:58:20.987Z
+Stopped at: Completed 08-02-PLAN.md (verification-only session)
 Resume file: None
