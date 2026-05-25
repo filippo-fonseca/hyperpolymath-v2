@@ -20,7 +20,7 @@ import {
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { publishMicState } from "@/lib/voice/mic-state-bus";
-import { stripWakeWord } from "@/lib/voice/wake-word";
+import { stripWakeWord, stripWakeWordAnywhere } from "@/lib/voice/wake-word";
 import {
   getSharedAudioContext,
   unlockAudioContext,
@@ -404,7 +404,12 @@ export function JarvisListener() {
             "[jarvis] wake-path: follow-up, transcript:",
             JSON.stringify(transcript),
           );
-          command = transcript
+          // If the user habitually says "hey jarvis ..." inside the follow-
+          // up window, strip everything up to and including the phrase so
+          // the command portion is just what comes after.
+          const afterWake = stripWakeWordAnywhere(transcript);
+          const base = afterWake !== null ? afterWake : transcript;
+          command = base
             .trim()
             .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, "")
             .trim();
@@ -419,12 +424,16 @@ export function JarvisListener() {
           // Whisper: only NOW (after STT confirms the user actually said
           // "hey jarvis") do we light the bubble and transition state.
           // Porcupine misfires leave the system completely silent.
+          //
+          // Use `stripWakeWordAnywhere` so any audio captured BEFORE the
+          // wake-word (the user often rambles into the phrase) is also
+          // discarded — only what comes after "hey jarvis" is the command.
           // eslint-disable-next-line no-console
           console.log(
             "[jarvis] wake-path: porcupine, transcript:",
             JSON.stringify(transcript),
           );
-          const stripped = stripWakeWord(transcript);
+          const stripped = stripWakeWordAnywhere(transcript);
           if (stripped === null) {
             // Porcupine misfire — silent discard. State stayed in "listening"
             // the whole time so no recovery dispatch is needed.

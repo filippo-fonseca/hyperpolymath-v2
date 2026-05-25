@@ -30,6 +30,13 @@
 const WAKE_PATTERN =
   /^(?:hey|hi|ok|okay|yo|hello|hej)\s+(?:jarvis|jervis|jarvi|javis|jarvy|jarrvis|jarviz)\b[,.!?]?\s*/i;
 
+// Anywhere-in-string version of the wake pattern. Matches at the start OR
+// after whitespace, so the command portion is everything AFTER the wake
+// phrase even when the user rambled before saying it ("need to buy a Mac
+// hey jarvis I need to buy a Mac" → "I need to buy a Mac").
+const WAKE_PATTERN_ANYWHERE =
+  /(?:^|\s)(?:hey|hi|ok|okay|yo|hello|hej)\s+(?:jarvis|jervis|jarvi|javis|jarvy|jarrvis|jarviz)\b[,.!?]?\s*/i;
+
 /**
  * Normalize a Whisper transcript before wake-word matching.
  *
@@ -62,4 +69,27 @@ export function stripWakeWord(transcript: string): string | null {
   const match = normalized.match(WAKE_PATTERN);
   if (!match) return null;
   return normalized.slice(match[0].length).trim();
+}
+
+/**
+ * Like `stripWakeWord` but matches the wake phrase ANYWHERE in the
+ * transcript and returns everything AFTER it. Anything spoken before
+ * the wake phrase is discarded.
+ *
+ *   "buy a mac hey jarvis i need a mac" → "i need a mac"
+ *   "hey jarvis buy milk"              → "buy milk"
+ *   "hey jarvis"                        → ""
+ *   "just rambling here"                → null
+ *
+ * Used by the Porcupine wake path (where VAD often captures audio
+ * before the wake-word fires) and the follow-up path (so users who
+ * habitually say "hey jarvis" inside the 5s window still get the
+ * pre-phrase audio stripped).
+ */
+export function stripWakeWordAnywhere(transcript: string): string | null {
+  const normalized = normalize(transcript);
+  const match = normalized.match(WAKE_PATTERN_ANYWHERE);
+  if (!match) return null;
+  const idx = (match.index ?? 0) + match[0].length;
+  return normalized.slice(idx).trim();
 }
