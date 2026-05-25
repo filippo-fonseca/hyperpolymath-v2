@@ -5,10 +5,8 @@ import { ThesisSection } from "./ThesisSection";
 import { PrimitivesTable } from "./PrimitivesTable";
 import { JarvisDemo } from "./JarvisDemo";
 import { EngineSection } from "./EngineSection";
-
-// Plan 08-05 ships the final 2 components (ChoiceSection + BuildLog):
-// import { ChoiceSection } from "./ChoiceSection"; // Plan 08-05
-// import { BuildLog } from "./BuildLog";           // Plan 08-05
+import { ChoiceSection } from "./ChoiceSection";
+import { BuildLog } from "./BuildLog";
 
 /**
  * Public landing manifesto — Phase 8 (LAND-SHELL / SC-2).
@@ -57,21 +55,13 @@ export function LandingPage() {
           <SectionDivider />
         </div>
 
-        {/* §05 — THE CHOICE — Plan 08-05 replaces this placeholder */}
-        <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
-          <p className="font-mono text-[14px] text-[var(--ink-muted)]">
-            [§05 ChoiceSection placeholder — replaced in Plan 08-05]
-          </p>
-        </section>
+        {/* §05 — THE CHOICE (Plan 08-05 / two doors — waitlist + fork) */}
+        <ChoiceSection />
 
         <SectionDivider />
 
-        {/* §06 — BUILD LOG — Plan 08-05 replaces this placeholder */}
-        <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
-          <p className="font-mono text-[14px] text-[var(--ink-muted)]">
-            [§06 BuildLog placeholder — replaced in Plan 08-05]
-          </p>
-        </section>
+        {/* §06 — BUILD LOG (Plan 08-05 / hybrid live data + graceful degradation) */}
+        <BuildLog />
       </main>
       <LandingFooter />
     </div>
