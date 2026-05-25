@@ -3,15 +3,10 @@ import { LandingFooter } from "./LandingFooter";
 import { SectionDivider } from "./SectionDivider";
 import { ThesisSection } from "./ThesisSection";
 import { PrimitivesTable } from "./PrimitivesTable";
+import { JarvisDemo } from "./JarvisDemo";
+import { EngineSection } from "./EngineSection";
 
-// The following 4 components do NOT YET EXIST.
-// Plan 08-04 ships JarvisDemo + EngineSection (the cyan-bearing surfaces).
-// Plan 08-05 ships ChoiceSection + BuildLog (data-driven + wiring).
-//
-// For this plan to typecheck standalone, we render typed placeholders below
-// — Plan 08-04 and 08-05 will replace the placeholders with real imports.
-// import { JarvisDemo } from "./JarvisDemo";       // Plan 08-04
-// import { EngineSection } from "./EngineSection"; // Plan 08-04
+// Plan 08-05 ships the final 2 components (ChoiceSection + BuildLog):
 // import { ChoiceSection } from "./ChoiceSection"; // Plan 08-05
 // import { BuildLog } from "./BuildLog";           // Plan 08-05
 
@@ -42,12 +37,8 @@ export function LandingPage() {
 
         <SectionDivider />
 
-        {/* §02 — LIVE JARVIS DEMO — Plan 08-04 replaces this placeholder */}
-        <section className="py-16 max-w-[760px] mx-auto px-6 md:px-10">
-          <p className="font-mono text-[14px] text-[var(--ink-muted)]">
-            [§02 JarvisDemo placeholder — replaced in Plan 08-04]
-          </p>
-        </section>
+        {/* §02 — LIVE JARVIS DEMO (Plan 08-04 / cyan surface 1 of 2) */}
+        <JarvisDemo />
 
         <SectionDivider />
 
@@ -59,12 +50,8 @@ export function LandingPage() {
           <SectionDivider />
         </div>
 
-        {/* §04 — THE ENGINE — Plan 08-04 replaces this placeholder */}
-        <section className="py-16 max-w-[760px] mx-auto px-6 md:px-10">
-          <p className="font-mono text-[14px] text-[var(--ink-muted)]">
-            [§04 EngineSection placeholder — replaced in Plan 08-04]
-          </p>
-        </section>
+        {/* §04 — THE ENGINE (Plan 08-04 / cyan surface 2 of 2) */}
+        <EngineSection />
 
         <div className="py-12">
           <SectionDivider />
