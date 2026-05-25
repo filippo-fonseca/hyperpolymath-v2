@@ -8,6 +8,7 @@ import {
 } from "react";
 import { usePorcupine } from "@picovoice/porcupine-react";
 import { useMicVAD } from "@ricky0123/vad-react";
+import { toast } from "sonner";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { micReducer, type MicState } from "@/lib/voice/mic-state";
 import { useClapDetector } from "@/lib/voice/use-clap-detector";
@@ -81,6 +82,10 @@ export function JarvisListener() {
   const activationSourceRef = useRef<
     "wake-word" | "follow-up" | "press-to-talk" | "clap" | "porcupine" | null
   >(null);
+
+  // One-shot guard for the "audio locked" toast — prevents spamming the
+  // toast on every TTS attempt while the user hasn't clicked anything.
+  const audioLockWarnedRef = useRef(false);
 
   // Whether on-device wake-word (Porcupine) is configured. When it is, the
   // Whisper-keyword fallback path is OFF — ambient speech in "listening"
@@ -537,6 +542,29 @@ export function JarvisListener() {
         settings.ttsProvider === "off";
 
       if (silent) {
+        // If the user has voice enabled and isn't in discreet mode but
+        // we still can't play (AudioContext locked, no user gesture yet
+        // this page load), surface a one-shot toast prompting interaction.
+        // Clicking the toast (or anywhere on the page) triggers the
+        // first-gesture unlock listener and the next TTS will play.
+        const audioLocked =
+          !audioContext &&
+          !settings.discreetMode &&
+          settings.ttsProvider !== "off";
+        if (audioLocked && !audioLockWarnedRef.current) {
+          audioLockWarnedRef.current = true;
+          toast("JARVIS audio locked.", {
+            description:
+              "Browsers require a click before playing audio. Tap anywhere to unlock.",
+            duration: 8000,
+            action: {
+              label: "Unlock",
+              onClick: () => {
+                void unlockAudioContext().catch(() => {});
+              },
+            },
+          });
+        }
         dispatch({ type: "TTS_START" });
         dispatch({ type: "TTS_END" });
         followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
