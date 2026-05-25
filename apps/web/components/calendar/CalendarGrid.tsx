@@ -230,30 +230,33 @@ export function CalendarGrid({
   }, [drag, days, onSelectSlot]);
 
   // Auto-scroll the body so the current time sits ~1/3 down from the top.
-  // Deferred to the next frame because EB Garamond / mono fonts reflow the
-  // body's clientHeight after first paint — running the math too early lands
-  // on a stale (zero/short) viewport and the scroll appears not to happen.
-  // Re-runs on view/date switches; the per-minute `now` interval is excluded
-  // from deps so the position doesn't jump every tick.
+  // Use ResizeObserver so the scroll math only runs once the body actually
+  // has a measurable height — earlier versions used rAF deferral but the
+  // flex chain occasionally still settled at clientHeight=0 on the first
+  // few frames, and the scroll silently no-op'd. ResizeObserver fires the
+  // moment layout produces a real size and disconnects on success.
   const bodyRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    let raf = 0;
-    const scrollToNow = () => {
-      if (!bodyRef.current) return;
+    const scrollToNow = (): boolean => {
+      if (!bodyRef.current) return false;
+      const h = bodyRef.current.clientHeight;
+      if (h === 0) return false;
       const n = new Date();
       const nowMinutes = n.getHours() * 60 + n.getMinutes();
       const nowPx = (nowMinutes / 60) * HOUR_PX;
-      const offset = bodyRef.current.clientHeight / 3;
+      const offset = h / 3;
       bodyRef.current.scrollTop = Math.max(0, nowPx - offset);
+      return true;
     };
-    // Two-frame defer: first frame lets React commit, second lets the browser
-    // resolve font-driven layout shifts.
-    raf = requestAnimationFrame(() => {
-      raf = requestAnimationFrame(scrollToNow);
+    if (scrollToNow()) return;
+    // First paint didn't have a size yet — wait for it via ResizeObserver.
+    const ro = new ResizeObserver(() => {
+      if (scrollToNow()) ro.disconnect();
     });
-    return () => cancelAnimationFrame(raf);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [view, date]);
 
   const minutesSinceMidnight = (d: Date) =>
@@ -361,7 +364,10 @@ export function CalendarGrid({
           which would let the body grow to fit its 1344px inner content and
           disable overflow. With min-h-0 the body can shrink below content
           and overflow-y-auto actually kicks in. */}
-      <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto">
+      <div
+        ref={bodyRef}
+        className="flex-1 min-h-0 overflow-y-auto hud-scrollbar"
+      >
         <div
           className="grid"
           style={{ gridTemplateColumns: dayColTemplate, height: TOTAL_HEIGHT }}
@@ -504,27 +510,45 @@ export function CalendarGrid({
                   );
                 })()}
 
-                {/* Current time indicator (today only) */}
+                {/* Current time indicator (today only) — 1.5px cyan bar
+                    with a soft glow, a left-edge dot, and a mono timestamp
+                    pill that sits in the time gutter on the first day
+                    column so it doesn't overlap event chips. */}
                 {showNow && (
                   <div
                     className="absolute left-0 right-0 pointer-events-none z-20"
                     style={{ top: nowTop }}
                   >
+                    {/* Left-edge dot */}
                     <div
-                      className="h-px"
+                      className="absolute -translate-y-1/2 -translate-x-1/2 rounded-full"
                       style={{
+                        left: 0,
+                        top: 0,
+                        width: 8,
+                        height: 8,
                         background: "var(--hud-cyan)",
-                        boxShadow: "0 0 6px rgba(34,211,238,0.55)",
+                        boxShadow: "0 0 8px rgba(34,211,238,0.7)",
+                      }}
+                    />
+                    {/* Horizontal bar */}
+                    <div
+                      style={{
+                        height: 1.5,
+                        background: "var(--hud-cyan)",
+                        boxShadow:
+                          "0 0 10px rgba(34,211,238,0.55), 0 0 2px rgba(34,211,238,0.9)",
                       }}
                     />
                     {dayIdx === 0 && (
                       <span
-                        className="absolute -translate-y-1/2 -left-1 font-mono text-[9px] font-semibold px-1.5 py-0.5 rounded-sm"
+                        className="absolute -translate-y-1/2 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded-sm tabular-nums"
                         style={{
                           background: "var(--hud-cyan)",
                           color: "rgb(15,15,18)",
-                          left: -TIME_GUTTER_W + 8,
+                          left: -TIME_GUTTER_W + 6,
                           top: 0,
+                          boxShadow: "0 0 6px rgba(34,211,238,0.5)",
                         }}
                       >
                         {format(now, "HH:mm")}
