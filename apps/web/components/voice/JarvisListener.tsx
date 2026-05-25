@@ -73,6 +73,15 @@ export function JarvisListener() {
   // on each onSpeechEnd.
   const sttAbortRef = useRef<AbortController | null>(null);
 
+  // Which channel armed this recording session — set when we leave
+  // "listening" and read in onSpeechEnd to decide whether to check the
+  // wake-word prefix in the transcript. Lets the wake-word path share
+  // the SAME FSM transitions as press-to-talk so the bubble glows the
+  // moment speech is detected, instead of after STT confirms.
+  const activationSourceRef = useRef<
+    "wake-word" | "press-to-talk" | "clap" | null
+  >(null);
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
     micStateRef.current = micState;
@@ -248,42 +257,49 @@ export function JarvisListener() {
     },
     onSpeechStart: () => {
       const s = micStateRef.current;
+      // Wake-word path: VAD speech-start while in "listening" now mirrors
+      // press-to-talk — flip to "recording" so the bubble glows immediately
+      // (HudCoreBubble's fsmActive requires recording/thinking/speaking) and
+      // mark the activation source so onSpeechEnd knows to run the wake-word
+      // check on the resulting transcript. Without this, the wake-word path
+      // was silent on screen until STT finished, which made it feel broken
+      // compared to press-to-talk.
+      if (s === "listening") {
+        activationSourceRef.current = "wake-word";
+        window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
+        dispatch({ type: "SPEECH_START" });
+        return;
+      }
+      if (s === "recording") {
+        // Already recording — VAD speech start during recording is normal.
+        dispatch({ type: "SPEECH_START" });
+      }
       // Barge-in is disabled — talking over JARVIS while it speaks would
       // otherwise auto-transition to recording and process the interruption
       // as a new command, capturing things like "yes it works" that were
       // meant as side comments, not commands. The 5-second follow-up window
       // opened on TTS_END is the supported way to chain commands without
       // saying "Hey Jarvis" each time.
-      if (s === "recording") {
-        // Already recording — VAD detecting speech during recording is normal; no-op.
-        dispatch({ type: "SPEECH_START" });
-      }
-      // Anticipatory wake burst was REMOVED: it lit up the visuals on any
-      // ambient speech, which felt like JARVIS was activating even when no
-      // wake word was said. The burst now fires only in onSpeechEnd after
-      // STT confirms either a wake phrase match OR an in-follow-up command.
       //
-      // Other states (listening, thinking, speaking, idle): VAD runs continuously since
-      // startOnLoad=true, so this fires constantly. Ignore unless explicitly
-      // armed via wake-word, clap, or press-to-talk.
+      // Other states (thinking, speaking, idle): VAD runs continuously since
+      // startOnLoad=true, so this fires constantly. Ignore.
     },
     onSpeechEnd: async (audio: Float32Array) => {
       const s = micStateRef.current;
-      // Two entry paths:
-      //   - "recording" — user explicitly armed via press-to-talk / clap.
-      //     Transcript IS the command. Transition to thinking immediately.
-      //   - "listening" — wake-word path. Transcribe everything, only treat
-      //     as a command if it starts with "hey jarvis" (stripWakeWord).
-      //     This is the always-on listening loop.
-      // Other states (thinking, speaking, idle): discard.
-      if (s !== "recording" && s !== "listening") return;
+      // Only act if we're in "recording" — that covers all three channels
+      // now (wake-word, press-to-talk, clap), since onSpeechStart in
+      // listening also transitions to recording.
+      if (s !== "recording") return;
 
-      const isWakeWordPath = s === "listening";
+      // Read + clear the activation source once at the top of the handler.
+      // We need it later to decide whether the wake-word check runs.
+      const source = activationSourceRef.current;
+      activationSourceRef.current = null;
+      const isWakeWordPath = source === "wake-word";
 
-      // Press-to-talk path: move to thinking now so the dot reflects the
-      // pipeline state during the STT round-trip. Wake-word path stays in
-      // listening until we confirm the wake phrase matched.
-      if (!isWakeWordPath) dispatch({ type: "SPEECH_END" });
+      // Mirror press-to-talk exactly: transition to "thinking" immediately
+      // so the bubble keeps glowing through the STT round-trip.
+      dispatch({ type: "SPEECH_END" });
 
       sttAbortRef.current?.abort();
       const abort = new AbortController();
@@ -320,26 +336,31 @@ export function JarvisListener() {
               .trim()
               .replace(/^["'“”‘’`]+|["'“”‘’`]+$/g, "")
               .trim();
-            if (!command) return;
+            if (!command) {
+              // Empty follow-up — return to listening.
+              dispatch({ type: "ERROR", reason: "empty-followup" });
+              return;
+            }
           } else {
             const stripped = stripWakeWord(transcript);
             if (stripped === null) {
-              // No wake phrase — silently discard, stay in listening.
+              // No wake phrase — discard and return to listening. State is
+              // already "thinking" from the SPEECH_END above, so we route
+              // back to listening via ERROR (which the reducer maps to
+              // "listening" for non-idle states).
+              dispatch({ type: "ERROR", reason: "no-wake" });
               return;
             }
             if (!stripped) {
-              // Wake phrase alone with no command ("hey jarvis"). Discard
-              // for now; could later acknowledge with "Yes, sir?".
+              // Wake phrase alone with no command ("hey jarvis"). Open the
+              // follow-up window so the next utterance is treated as a
+              // command without requiring another "hey jarvis" prefix.
+              followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+              dispatch({ type: "ERROR", reason: "wake-only" });
               return;
             }
             command = stripped;
           }
-          // Confirmed: either wake phrase matched, or we're inside the
-          // follow-up window. NOW it's safe to fire the visual burst —
-          // before this point we couldn't know whether the utterance was
-          // for JARVIS or ambient speech.
-          window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
-          dispatch({ type: "SPEECH_END" }); // listening → thinking now
         }
 
         window.dispatchEvent(
@@ -398,7 +419,10 @@ export function JarvisListener() {
     enabled: listenActive && settings.clapEnabled && micState === "listening",
     audioContext: audioContextRef.current,
     stream: streamRef.current,
-    onDoubleClap: () => dispatch({ type: "DOUBLE_CLAP" }),
+    onDoubleClap: () => {
+      activationSourceRef.current = "clap";
+      dispatch({ type: "DOUBLE_CLAP" });
+    },
   });
 
   // ─── Cmd+Shift+J press-to-talk (VOICE-09) ────────────────────────────────
@@ -407,6 +431,7 @@ export function JarvisListener() {
   const onPressToTalk = useCallback(() => {
     // Same anticipatory burst as the wake-word path so the visual response
     // is identical regardless of activation channel.
+    activationSourceRef.current = "press-to-talk";
     window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
     dispatch({ type: "PRESS_TO_TALK" });
   }, []);
