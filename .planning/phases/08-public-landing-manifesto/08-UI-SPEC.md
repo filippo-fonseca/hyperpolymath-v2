@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: new-york (existing project preset; consumed, not extended)
 created: 2026-05-25
+revised: 2026-05-25 (checker pass — Option 1 typography consolidation + 3 non-blocking fixes)
 ---
 
 # Phase 8 — UI Design Contract
@@ -28,7 +29,7 @@ created: 2026-05-25
 
 **Reuse contract:**
 - `--canvas` parchment, `--surface`, `--surface-raised`, `--ink`, `--ink-muted`, `--edge` consumed for all layout/text/borders.
-- `--hud-cyan` family consumed ONLY inside the JARVIS demo action receipts (D-01 demo).
+- `--hud-cyan` family consumed in **exactly two component surfaces**: the JARVIS demo terminal (D-01 demo) and the §04 Engine right card. See §4 for the full reserved-for list.
 - `--ink-amber`, `--ink-sage`, `--ink-coral` used to color the receipt intent icons in the demo: `--ink-amber` for `created → task`, `--ink-sage` for `captured`, `--ink-coral` for `scheduled → gcal`.
 - Focus ring system: `--ring-doc` (amber on canvas) for the entire landing. **No HUD focus rings on the landing**, even where cyan appears in the demo.
 
@@ -43,7 +44,7 @@ Declared values (multiples of 4; subset of Tailwind defaults):
 | 1 | 4px  | Inline icon gaps, fleur-de-lis tracking |
 | 2 | 8px  | Inline label-to-value gaps inside spec rows |
 | 4 | 16px | Default in-paragraph gaps, button padding-y |
-| 6 | 24px | Paragraph-to-paragraph rhythm inside a section |
+| 6 | 24px | Paragraph-to-paragraph rhythm inside a section; page outer padding on mobile |
 | 8 | 32px | Section-internal sub-block separation (heading ↔ body) |
 | 16 | 64px | **Inter-section vertical rhythm (sparse sections — Thesis, Primitives, Choice, Build Log)** |
 | 24 | 96px | **Inter-section rhythm BEFORE and AFTER the Engine section (D-05 — the one moderate-density section earns extra breathing room around it)** |
@@ -61,8 +62,8 @@ Declared values (multiples of 4; subset of Tailwind defaults):
 | Page outer padding | `px-6` (24px) mobile, `px-10` (40px) ≥768px | Generous edge whitespace, no edge-to-edge |
 
 **Mobile responsiveness (375px target):**
-- Content column collapses to `w-full` with `px-6` (16px each side → ~343px usable).
-- JARVIS demo terminal is the only horizontally-tight surface. **Strategy:** at `<640px`, the terminal box renders at `text-[11px]` mono with `overflow-x-auto` and a thin parchment scrollbar (`.custom-scrollbar`). The box does NOT reflow — preserving the monospace shape is load-bearing. Acceptable horizontal scroll for the demo block; everything else fits vertically.
+- Content column collapses to `w-full` with `px-6` (24px each side → ~327px usable). Matches the declared spacing scale (token 6 = 24px); no off-scale padding values introduced.
+- JARVIS demo terminal is the only horizontally-tight surface. **Strategy:** at `<640px`, the terminal box renders at smaller mono (see §3 type scale Caption role applied to the demo block on mobile) with `overflow-x-auto` and a thin parchment scrollbar (`.custom-scrollbar`). The box does NOT reflow — preserving the monospace shape is load-bearing. Acceptable horizontal scroll for the demo block; everything else fits vertically.
 
 ---
 
@@ -70,22 +71,47 @@ Declared values (multiples of 4; subset of Tailwind defaults):
 
 EB Garamond is the serif voice; JetBrains Mono carries the spec/code/chrome register. Italic serif is used for the README pull-quote and the philosophy aphorisms. Mono is used for: section eyebrows, the JARVIS demo block, the JSON contract in the Engine section, the build-log commit hashes/dates, and footer license tag.
 
-| Role | Size | Weight | Line Height | Family | Usage |
-|------|------|--------|-------------|--------|-------|
-| Display 1 (Thesis hero) | 56px / 3.5rem | 600 | 1.1 | EB Garamond | One-sentence thesis ("Type one sentence...") |
-| Display 2 (section headings) | 32px / 2rem | 600 | 1.2 | EB Garamond | "The Primitives" / "The Engine" / "The Choice" / "Build Log" |
-| Body (default) | 18px / 1.125rem | 400 | 1.6 | EB Garamond | All paragraph text, table cell body |
-| Body italic (pull-quote) | 20px / 1.25rem | 400 italic | 1.5 | EB Garamond | The README epigraph + philosophy aphorisms |
-| Caption / meta | 14px / 0.875rem | 400 | 1.4 | EB Garamond | "Already have an account? →", waitlist hint copy |
-| Mono eyebrow (section label) | 12px / 0.75rem | 500 | 1.0 | JetBrains Mono uppercase, `tracking-[0.14em]` | Section labels above each Display 2 heading ("§ 01 · THESIS", "§ 02 · DEMO", etc.) |
-| Mono inline (spec table cells, code) | 14px / 0.875rem | 400 | 1.5 | JetBrains Mono | Spec-table primitive names, JSON keys, commit hashes |
-| Mono block (Engine JSON, demo terminal) | 14px / 0.875rem desktop, 11px mobile | 400 | 1.55 | JetBrains Mono (`.font-mono-stats` ON for tabular figures) | The Engine JSON contract + the JARVIS demo box |
+### Canonical 4-size scale (load-bearing — both families share the same numbers)
 
-**Anti-rules (load-bearing):**
+The landing uses **exactly 4 font sizes total across both families**. Differentiation between serif/mono and between roles is carried by **family, weight, italic, tracking, case, and color** — never by introducing a new size. This is the disciplined choice; Option 1 from the checker pass.
+
+| Step | Size | Used by (serif role) | Used by (mono role) |
+|------|------|----------------------|---------------------|
+| **Display** | 56px / 3.5rem | Thesis hero only | — |
+| **Heading** | 32px / 2rem | Section headings (Display 2 role) | — |
+| **Body** | 18px / 1.125rem | Default paragraph, table cell body, pull-quote (italic), sub-line, Door 1/2 body, Engine input card body | — |
+| **Caption** | 14px / 0.875rem | Caption / meta, footer sign-off, sign-in escape link, Door 2 caption, error states | Mono eyebrows, primitive table names, JSON block (Engine + demo terminal + JSON contract), commit hashes/dates/subjects, footer columns, "▶ show another" control, source-of-truth note, build-log block bodies, header eyebrow |
+
+### Role specification table (size is always one of {56, 32, 18, 14})
+
+| Role | Size | Weight | Line Height | Family | Notes |
+|------|------|--------|-------------|--------|-------|
+| Display 1 (Thesis hero) | 56 | 600 | 1.1 | EB Garamond | One-sentence thesis ("Type one sentence...") |
+| Display 2 (section headings) | 32 | 600 | 1.2 | EB Garamond | "Watch it route." / "Five primitives. One agent." / "Claude Sonnet 4.6, with a contract." / "Two doors. Both open." / "Live from main." |
+| Body (default) | 18 | 400 | 1.6 | EB Garamond | All paragraph text, table cell body, sub-line caption (italic), Door 1 + Door 2 body copy, Engine input card body (italic), Engine paragraph |
+| Body italic (pull-quote, aphorisms) | 18 | 400 italic | 1.5 | EB Garamond | The README epigraph at §01 top, philosophy aphorisms, Door 1 success copy, Door 2 caption (when italic), §01 sub-line. Same size as Body — italic does the work. |
+| Caption / meta (serif) | 14 | 400 | 1.4 | EB Garamond | Sign-in escape ("Already have an account? Sign in →"), waitlist hint copy, error states (in `--ink-coral` italic), footer sign-off ("be goated. well." italic), Door 2 caption ("4,200+ commits..."), follow-up input placeholder |
+| Mono eyebrow (section labels, headers, footer columns) | 14 | 500 | 1.0 | JetBrains Mono uppercase, `tracking-[0.14em]` | "§ 02 · DEMO", "INPUT", "CURRENTLY SHIPPING", "HYPERPOLYMATH · MANIFESTO", footer column labels. **All eyebrows render at Caption size 14px — the tracking + uppercase + mono family carries the eyebrow register, not a smaller size.** |
+| Mono inline (spec table cells, JSON keys, commits, controls) | 14 | 400 | 1.5 | JetBrains Mono | Primitive table PRIMITIVE column (weight 500), JSON keys, commit hashes/subjects, "▶ show another" control (weight 500), source-of-truth note, Door 2 link rows, `[submit]` button |
+| Mono block (Engine JSON, demo terminal, build-log commit rows) | 14 | 400 | 1.55 | JetBrains Mono (`.font-mono-stats` ON for tabular figures) | The Engine JSON contract + the JARVIS demo box + build-log commit rows. **Desktop AND mobile both render at 14px** — the demo terminal accepts `overflow-x-auto` on `<640px` rather than shrinking to a 5th size. |
+
+**Why one canonical scale across families (justification, since the checker explicitly required Option 1 reasoning):**
+
+The temptation in landing pages is to introduce a "small mono" register (12-13px) to make eyebrows feel "chrome-y" and to fit JSON in narrow viewports. Both moves were tried in the prior draft and produced a 9-size scale — the same kind of "earned its place" drift that got Phase 6 and Phase 6.1 rejected. Forcing both families through the same {56, 32, 18, 14} grid means:
+
+1. Eyebrows differentiate via **family (mono) + case (uppercase) + tracking (`0.14em`) + weight (500)** — they read as chrome without needing to be smaller.
+2. The demo terminal on mobile uses `overflow-x-auto` rather than shrinking — preserving the printed-terminal shape, which was load-bearing per §7.
+3. JSON in the Engine card stays at 14px desktop; the `max-w-[460px]` right card was sized to fit canonical 14px JSON without horizontal scroll.
+4. Footer columns, sign-in link, error states, caption-meta all converge on Caption 14 — visual hierarchy comes from weight + italic + color, never from "let me drop to 13."
+
+### Anti-rules (load-bearing)
+
+- **Exactly 4 font sizes on the entire landing: 56, 32, 18, 14.** Any other `font-size` (specifically: 11, 12, 13, 16, 20, 24, 28) is a contract violation. (Grep gate in §11b.)
 - **Exactly 2 serif weights** (400, 600) and **2 mono weights** (400, 500). No 500 serif. No 700 anywhere.
-- **No `font-size` between 18px and 32px on the landing.** That mid-band is where marketing pages collapse into "feature-card body copy." Force jumps.
+- **No `font-size` strictly between 14px and 18px.** That tight mid-band was where the rejected 13/16/20 sizes lived in the prior draft.
+- **No `font-size` strictly between 18px and 32px on the landing.** That mid-band is where marketing pages collapse into "feature-card body copy." Force jumps.
 - **No drop caps.** Considered, rejected — drop caps push toward "magazine reskin" and away from Karpathy. The fleur-de-lis ornament `⚜` carries the Renaissance signal instead.
-- **No font-style: italic outside of: (a) pull-quote, (b) philosophy aphorisms, (c) the existing JARVIS Console placeholder pattern.** Italic everywhere reads as decoration.
+- **No font-style: italic outside of: (a) pull-quote, (b) philosophy aphorisms, (c) Door 1 success copy, (d) Door 2 caption, (e) error states, (f) the §01 sub-line, (g) the existing JARVIS Console placeholder pattern.** Italic everywhere reads as decoration.
 
 ---
 
@@ -97,22 +123,30 @@ EB Garamond is the serif voice; JetBrains Mono carries the spec/code/chrome regi
 | Secondary (~20%) | `oklch(22% 0.01 60)` (deep ink) | `--ink` | All body type, all headings, all primary copy |
 | Tertiary muted (~3%) | `oklch(50% 0.01 60)` (muted ink) | `--ink-muted` | Captions, meta text, "shipped this week" timestamps, mono eyebrows |
 | Edges/dividers (~1%) | `oklch(86% 0.008 75)` | `--edge` | Hairlines under section dividers, spec table row borders, terminal box border |
-| Accent — JARVIS demo receipts only (~1%) | `oklch(72% 0.13 210)` (HUD cyan) | `--hud-cyan` | **STRICTLY: the `⚜` ornament + leading verb ("scheduled", "created", "captured") inside the JARVIS demo terminal block AND the streaming caret during the typing animation. Nowhere else.** |
+| Accent — restricted to 2 component surfaces (~1%) | `oklch(72% 0.13 210)` (HUD cyan) | `--hud-cyan` | See "Accent reserved for" list immediately below. |
 | Intent-amber (~<1%) | `oklch(70% 0.13 75)` | `--ink-amber` | Focus rings (`--ring-doc`) on all interactive elements; small "P2" priority swatch inside the demo receipt |
 | Intent-sage (~<1%) | `oklch(62% 0.09 145)` | `--ink-sage` | "captured" receipt icon tint when a capture-only demo rotates in (D-03) |
 | Intent-coral (~<1%) | `oklch(63% 0.16 25)` | `--ink-coral` | "scheduled" receipt icon tint (gcal events); also waitlist error state |
 | Destructive | `oklch(63% 0.16 25)` | `--ink-coral` | Waitlist error toast; no destructive actions otherwise on the landing |
 
 **Accent reserved for (explicit list — no other elements may consume `--hud-cyan` on the landing):**
+
+Cyan appears on **exactly 2 component surfaces, in 4 specific elements total**:
+
+**Surface 1 — JARVIS demo terminal (`JarvisDemo.tsx`):**
 1. The `⚜` ornament at the start of each JARVIS demo receipt line.
 2. The leading verb of each receipt line ("scheduled", "created", "captured").
 3. The streaming caret (`▮`) at the end of the typing animation while characters are being typed.
-4. **Nothing else.** No cyan on CTA buttons. No cyan on links. No cyan on hover states. No cyan in the build-log. The point of cyan in only the demo is to teach the reader: "the agent surface speaks cyan; the document speaks ink."
+
+**Surface 2 — Engine §04 right card (`EngineSection.tsx`):**
+4. The `--edge-hud` border + the `STRICT-TOOL-USE JSON` mono eyebrow of the right card. Earned because it signals "this surface IS the machine speaking JSON" — same semantic register as the demo receipts (machine output, typed contract).
+
+**Nothing else.** No cyan on CTA buttons. No cyan on links. No cyan on hover states. No cyan in the build-log. No cyan in the spec table. No cyan in the footer. No cyan in the header. The point of restricting cyan to these two surfaces is to teach the reader: "the agent surface speaks cyan; the document speaks ink." Two cyan surfaces total, both unambiguously "machine speaking."
 
 **60/30/10 split (annotated):**
 - 60% dominant → parchment canvas surface (which is essentially the entire page, hence the ~75% reading above — the manifesto is mostly air).
 - 30% secondary → ink type (concentrated in narrow content column).
-- 10% accent → the demo terminal is the only surface where accent appears at all; within that ~760px-wide block, cyan occupies <5% of pixel area.
+- 10% accent → restricted to the two surfaces above. Across the full page area, cyan occupies <2% of total pixels (the demo terminal is ~760px wide × ~120px tall and uses cyan on ~5% of its area; the Engine right card is ~460px × ~280px and uses cyan on its border + one eyebrow line, ~3% of its area).
 
 ---
 
@@ -143,13 +177,13 @@ Single-column, single-page scroll. No sidebars, no top nav. The page has only:
 ```
 
 **Section dividers between sections:**
-- A single horizontal row, centered, of three `⚜` glyphs separated by `4em` of space, in `--ink-muted` at `text-base`. Sits halfway in the 96px / 128px inter-section gap. **No `<hr>` lines.** The ornament IS the divider.
+- A single horizontal row, centered, of three `⚜` glyphs separated by `4em` of space, in `--ink-muted` at Body 18px. Sits halfway in the 96px / 128px inter-section gap. **No `<hr>` lines.** The ornament IS the divider.
 
 ### 5a. §01 Thesis
 
 - **No mono eyebrow** (the only section without one — opens cold like a frontispiece).
 - **Hero content** (vertically centered in the first 90vh):
-  - **Pull-quote** (top, italic 20px, `--ink-muted`):
+  - **Pull-quote** (top, Body 18px italic, `--ink-muted`):
     > *"You don't have to choose between being a runner or a musician, a creator or a scholar. The Renaissance had it right."*
   - **48px vertical gap.**
   - **Thesis Display 1** (56px serif 600, `--ink`, max 32 chars per line):
@@ -157,24 +191,24 @@ Single-column, single-page scroll. No sidebars, no top nav. The page has only:
     > The right action lands in the right place.
     > Every time.
   - **32px vertical gap.**
-  - **Sub-line caption** (18px serif italic 400, `--ink-muted`, single line):
+  - **Sub-line caption** (Body 18px serif italic 400, `--ink-muted`, single line):
     > *Hyperpolymath is a personal life-OS for people who refuse to specialize.*
 
-- Below-fold subtle scroll affordance: a single small `↓` glyph (Lucide `ChevronDown` 16px, `--ink-muted`, opacity 0.5), centered, with `motion/react` opacity breath (1.5s loop). **Vanishes on first scroll** (no nag).
+- Below-fold subtle scroll affordance: a single small `↓` glyph (Lucide `ChevronDown` 16px icon — icon dimensions, not a `font-size`; icons are exempt from the type scale, `--ink-muted`, opacity 0.5), centered, with `motion/react` opacity breath (1.5s loop). **Vanishes on first scroll** (no nag).
 
 ### 5b. §02 Live JARVIS Demo
 
-- **Mono eyebrow:** `§ 02 · DEMO`
+- **Mono eyebrow:** `§ 02 · DEMO` (Caption 14 mono 500 uppercase, `tracking-[0.14em]`)
 - **Display 2 heading:** "Watch it route."
-- **One sentence of body** (18px serif): "One sentence in. One or more actions out, each routed to the right primitive."
+- **One sentence of body** (Body 18 serif): "One sentence in. One or more actions out, each routed to the right primitive."
 - **24px gap, then the terminal block** (see §7 below for the full animation contract).
-- **Below the terminal**, right-aligned, a single mono caption-link `▶ show another` (14px mono 500, `--ink-muted`, cursor pointer, opacity 0.7 → 1 on hover, no underline). Rotates among 2-3 canned examples per D-03. On click: terminal block clears in 200ms ease-out, then replays the next example.
+- **Below the terminal**, right-aligned, a single mono caption-link `▶ show another` (Caption 14 mono 500, `--ink-muted`, cursor pointer, opacity 0.7 → 1 on hover, no underline). Rotates among 2-3 canned examples per D-03. On click: terminal block clears in 200ms ease-out, then replays the next example.
 
 ### 5c. §03 The Primitives
 
-- **Mono eyebrow:** `§ 03 · THE PRIMITIVES`
+- **Mono eyebrow:** `§ 03 · THE PRIMITIVES` (Caption 14 mono 500 uppercase)
 - **Display 2 heading:** "Five primitives. One agent."
-- **One sentence of body** (18px serif): "Use mine, or fork the framework. Either way, here's the contract."
+- **One sentence of body** (Body 18 serif): "Use mine, or fork the framework. Either way, here's the contract."
 - **24px gap, then a small spec table**, hairline-only (no zebra striping, no card background):
 
 ```
@@ -190,17 +224,17 @@ Single-column, single-page scroll. No sidebars, no top nav. The page has only:
 ```
 
 - **Table spec:**
-  - PRIMITIVE column: `JetBrains Mono 14px 500`, `--ink`, `tracking-[0.04em]`.
-  - ROLE column: `EB Garamond 16px 400`, `--ink`.
-  - SPEC column: a Lucide `ArrowUpRight` (14px, `--ink-muted`) wrapped in an `<a>` to `https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/FRAMEWORK.md#{primitive-anchor}` (per D-06 / D-08).
+  - PRIMITIVE column: `JetBrains Mono Caption 14 500`, `--ink`, `tracking-[0.04em]`.
+  - ROLE column: `EB Garamond Body 18 400`, `--ink`. (Bumped from prior draft's 16px to canonical Body 18 — keeps the table inside the 4-size scale.)
+  - SPEC column: a Lucide `ArrowUpRight` (16px icon dimensions — icons are exempt from the type scale, `--ink-muted`) wrapped in an `<a>` to `https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/FRAMEWORK.md#{primitive-anchor}` (per D-06 / D-08).
   - Row height: 56px (generous).
   - Borders: 1px `--edge` between rows only (no outer box border on desktop — let the table breathe). On mobile, hide the SPEC column header label but keep the arrow.
 
 ### 5d. §04 The Engine (THE ONE MODERATE-DENSITY SECTION — D-05)
 
-- **Mono eyebrow:** `§ 04 · THE ENGINE`
+- **Mono eyebrow:** `§ 04 · THE ENGINE` (Caption 14 mono 500 uppercase)
 - **Display 2 heading:** "Claude Sonnet 4.6, with a contract."
-- **One paragraph of body** (~3-4 sentences, 18px serif, `--ink`):
+- **One paragraph of body** (~3-4 sentences, Body 18 serif, `--ink`):
   > "JARVIS isn't an LLM with prompts taped to it. It's a streaming agent built on Claude Sonnet 4.6 with Strict Tool Use — every action is a typed, schema-validated JSON tool call. The Zod schema is the source of truth; the model cannot emit a malformed action. One input becomes N actions, each a different shape."
 - **24px gap, then a side-by-side block** (collapses to stacked on mobile):
 
@@ -217,55 +251,55 @@ Single-column, single-page scroll. No sidebars, no top nav. The page has only:
 
 - **Left card** (`max-w-[280px]`):
   - 1px `--edge` border, 4px radius, `--surface` background, `p-6` padding.
-  - Header: mono eyebrow `INPUT` (12px mono 500 uppercase `--ink-muted`).
-  - Body: 18px EB Garamond italic `--ink`, the user's verbatim sentence.
-- **Arrow between (desktop only):** a single 24px Lucide `ArrowRight` in `--ink-muted`, vertically centered.
+  - Header: mono eyebrow `INPUT` (Caption 14 mono 500 uppercase `--ink-muted`).
+  - Body: Body 18 EB Garamond italic `--ink`, the user's verbatim sentence.
+- **Arrow between (desktop only):** a single 24px Lucide `ArrowRight` icon (icon dimensions, exempt from type scale) in `--ink-muted`, vertically centered.
 - **Right card** (`max-w-[460px]`):
-  - 1px `--edge-hud` border (subtle cyan-tinted), 4px radius, `--surface-raised` background, `p-6` padding, `box-shadow: var(--glow-hud-subtle)`.
-  - Header: mono eyebrow `STRICT-TOOL-USE JSON` (12px mono 500 uppercase `--hud-cyan-light`). **THIS IS THE ONE PLACE OUTSIDE THE DEMO TERMINAL WHERE CYAN APPEARS** — earned because it signals "this surface IS the machine speaking JSON."
-  - Body: real JSON contract, `JetBrains Mono 13px 400`, `--ink`, syntax-styled per below.
+  - 1px `--edge-hud` border (subtle cyan-tinted — **one of the 2 reserved cyan surfaces per §4**), 4px radius, `--surface-raised` background, `p-6` padding, `box-shadow: var(--glow-hud-subtle)`.
+  - Header: mono eyebrow `STRICT-TOOL-USE JSON` (Caption 14 mono 500 uppercase `--hud-cyan-light`). **This is the cyan eyebrow contracted in §4 Surface 2** — earned because it signals "this surface IS the machine speaking JSON."
+  - Body: real JSON contract, `JetBrains Mono Caption 14 400`, `--ink`, syntax-styled per below. The `max-w-[460px]` card width was specifically sized to fit canonical 14px JSON without horizontal scroll.
 - **JSON syntax styling** (CSS-only, no syntax highlighter library — use plain `<code>` with manual `<span>` classes if needed; the JSON is static, plucked from a real `jarvis-core` test fixture by the executor):
   - Keys: `--ink` weight 500.
   - String values: `--ink-amber`.
   - Number/null/boolean: `--ink-sage`.
   - Punctuation `{ } : , [ ]`: `--ink-muted`.
-- **Source-of-truth note** (below both cards, full content-width, mono 12px `--ink-muted`):
+- **Source-of-truth note** (below both cards, full content-width, Caption 14 mono `--ink-muted`):
   > `Plucked verbatim from packages/jarvis-core/tests/strict-tool-use.fixture.ts — no edits.`
 
 ### 5e. §05 The Choice
 
-- **Mono eyebrow:** `§ 05 · THE CHOICE`
+- **Mono eyebrow:** `§ 05 · THE CHOICE` (Caption 14 mono 500 uppercase)
 - **Display 2 heading:** "Two doors. Both open."
-- **One sentence of body** (18px serif): "Use it as your life-OS, or fork the framework and build your own."
+- **One sentence of body** (Body 18 serif): "Use it as your life-OS, or fork the framework and build your own."
 - **48px gap, then two equally-weighted door blocks**, displayed as `grid grid-cols-1 md:grid-cols-2 gap-8`. **Visual weight: equal.** No "primary" / "secondary" — both are siblings.
 
 **Door 1 — USE IT (waitlist per D-12):**
-- Header: mono eyebrow `USE IT` (12px mono 500 uppercase, `--ink-muted`).
-- Body: 16px serif `--ink`, 2 sentences:
+- Header: mono eyebrow `USE IT` (Caption 14 mono 500 uppercase, `--ink-muted`).
+- Body: Body 18 serif `--ink`, 2 sentences:
   > "v2 is single-user during build-in-public. Multi-user comes when the foundation is bulletproof."
 - 16px gap, then the waitlist form (inline, not modal):
-  - Input: shadcn `<Input>`, type=email, 44px tall, `--surface` bg, `--edge` border, serif 16px, placeholder `your@email.com` in `--ink-muted` italic.
-  - Submit button: shadcn `<Button variant="default">` recoloured via className — `bg-[var(--ink)] text-[var(--canvas)] hover:bg-[var(--ink-muted)] font-serif text-[16px] font-medium px-6 py-3 rounded-[4px]`. **Label: "Join the waitlist"** (verb-noun, no exclamation, no emoji).
-  - After successful submit: the form swaps in-place (no toast) with a one-line success message in serif italic `--ink-muted`: *"You're in. I'll write when there's something to log into."* Plus a *single optional* serif 14px text field (placeholder "what do you do? (optional)") and a small mono `[submit]` button. Per D-12.
+  - Input: shadcn `<Input>`, type=email, 44px tall, `--surface` bg, `--edge` border, serif Body 18, placeholder `your@email.com` in `--ink-muted` italic.
+  - Submit button: shadcn `<Button variant="default">` recoloured via className — `bg-[var(--ink)] text-[var(--canvas)] hover:bg-[var(--ink-muted)] font-serif text-[18px] font-medium px-6 py-3 rounded-[4px]`. **Label: "Join the waitlist"** (verb-noun, no exclamation, no emoji). Button label renders at Body 18 (the canonical body size) — this is intentional: the CTA reads as part of the document's body voice, not as an isolated chrome element.
+  - After successful submit: the form swaps in-place (no toast) with a one-line success message in serif italic Body 18 `--ink-muted`: *"You're in. I'll write when there's something to log into."* Plus a *single optional* serif Caption 14 text field (placeholder "what do you do? (optional)") and a small mono `[submit]` button (Caption 14 mono 500). Per D-12.
 - 16px gap, then the quiet sign-in escape (per D-13):
-  - A single line of caption text (14px serif `--ink-muted`): `Already have an account? <a class="underline underline-offset-4 hover:text-[var(--ink)]">Sign in →</a>` linking to `/sign-in`.
+  - A single line of caption text (Caption 14 serif `--ink-muted`): `Already have an account? <a class="underline underline-offset-4 hover:text-[var(--ink)]">Sign in →</a>` linking to `/sign-in`.
 
 **Door 2 — FORK IT (per D-06 / D-07):**
-- Header: mono eyebrow `FORK IT` (12px mono 500 uppercase, `--ink-muted`).
-- Body: 16px serif `--ink`, 2 sentences:
+- Header: mono eyebrow `FORK IT` (Caption 14 mono 500 uppercase, `--ink-muted`).
+- Body: Body 18 serif `--ink`, 2 sentences:
   > "Read the framework. Clone the repo. Adapt the primitives to your own life-OS. MIT — go."
 - 16px gap, then a row of TWO secondary links (both bare-text, not buttons, to keep visual equality with Door 1's single primary button):
-  - **`▶ Read the framework`** → links to `https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/FRAMEWORK.md`. (Lucide `BookOpen` icon 16px in front, mono 14px 500.)
-  - **`◆ View the repo`** → links to `https://github.com/filippo-fonseca/hyperpolymath-v2`. (Lucide `Github` icon 16px in front, mono 14px 500.)
-- 16px gap, then a quiet caption (14px serif italic `--ink-muted`): *"4,200+ commits. MIT licensed. No dependencies on me."*
+  - **`▶ Read the framework`** → links to `https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/FRAMEWORK.md`. (Lucide `BookOpen` 16px icon in front, Caption 14 mono 500.)
+  - **`◆ View the repo`** → links to `https://github.com/filippo-fonseca/hyperpolymath-v2`. (Lucide `Github` 16px icon in front, Caption 14 mono 500.)
+- 16px gap, then a quiet caption (Caption 14 serif italic `--ink-muted`): *"4,200+ commits. MIT licensed. No dependencies on me."*
 
 **Equal-weight discipline:** the waitlist door has one primary button; the fork door has two secondary text-links plus the framework as the "real CTA." They balance visually because the waitlist door has more chrome (input field + button + sign-in link) while the fork door has more density of content (two links + the longer caption). Audit gate: at 1440px viewport, the two doors must visually weight to 50/50 when scrolled past. No "Use it" prominence over "Fork it."
 
 ### 5f. §06 Build Log
 
-- **Mono eyebrow:** `§ 06 · BUILD LOG`
+- **Mono eyebrow:** `§ 06 · BUILD LOG` (Caption 14 mono 500 uppercase)
 - **Display 2 heading:** "Live from main."
-- **One sentence of body** (18px serif): "This page is a build log. Here's where we are."
+- **One sentence of body** (Body 18 serif): "This page is a build log. Here's where we are."
 - **32px gap, then a three-block stack:**
 
 **Block 1 — Currently shipping (parsed from `ROADMAP.md` at build time per D-09):**
@@ -274,7 +308,7 @@ CURRENTLY SHIPPING
 ────────────────────────────────────────────────────────────────
 ▶  Phase 7 · JARVIS Voice + Ambient        — In Progress (3/4 plans)
 ```
-- Mono eyebrow 12px `--ink-muted`. Body: 18px serif `--ink` for phase name; mono 14px `--ink-muted` for the "(3/4 plans)" status.
+- Mono eyebrow Caption 14 `--ink-muted`. Body: Body 18 serif `--ink` for phase name; Caption 14 mono `--ink-muted` for the "(3/4 plans)" status.
 
 **Block 2 — Last commits (fetched from GitHub API at ISR `revalidate: 600` per D-09):**
 ```
@@ -288,7 +322,7 @@ cd02d6c   2026-05-19   fix(voice): mic permission — Safari gesture-frame fallb
 ...
 ```
 - Layout: 3-column row per commit. Hash (7 chars) | Date (ISO, mono `.font-mono-stats` for tabular figures) | Subject.
-- All mono 13px 400. Hash in `--ink-muted`, date in `--ink-muted`, subject in `--ink`.
+- All Caption 14 mono 400. Hash in `--ink-muted`, date in `--ink-muted`, subject in `--ink`.
 - 8px row gap, no row borders, left-aligned columns with fixed widths (`font-mono-stats` keeps alignment).
 - Each row's hash links to `https://github.com/filippo-fonseca/hyperpolymath-v2/commit/{full-sha}` (the 7-char display is just a substring; the anchor uses the full sha). `hover:text-[var(--ink)]` only — no underline.
 
@@ -298,8 +332,8 @@ SHIPPED THIS WEEK
 ────────────────────────────────────────────────────────────────
 5 fixes · 2 features · 1 refactor                 (latest: 6 hrs ago)
 ```
-- Mono eyebrow 12px. Body: serif 16px `--ink`, plus a mono 12px `--ink-muted` aligned right ("(latest: 6 hrs ago)").
-- If GitHub fetch fails (D-10): Block 2 and Block 3 collapse to a single mono 13px line: `→ Commit feed unavailable. See the repo directly.` linked to the repo URL. Block 1 always renders (build-time parse never fails at runtime).
+- Mono eyebrow Caption 14. Body: Body 18 serif `--ink`, plus a Caption 14 mono `--ink-muted` aligned right ("(latest: 6 hrs ago)").
+- If GitHub fetch fails (D-10): Block 2 and Block 3 collapse to a single Caption 14 mono line: `→ Commit feed unavailable. See the repo directly.` linked to the repo URL. Block 1 always renders (build-time parse never fails at runtime).
 
 ---
 
@@ -350,7 +384,7 @@ The centerpiece. Worth its own section.
 
 - **Box:** `--surface-raised` background, 1px `--edge` border, 4px radius, `p-6` padding, `max-w-[760px]` width, centered.
 - **No glow, no shadow, no inner sub-borders.** It's a printed terminal, not a holographic projection.
-- **All text mono 14px desktop / 11px mobile.** `.font-mono-stats` on for tabular figures.
+- **All text Caption 14 mono — desktop AND mobile.** `.font-mono-stats` on for tabular figures. On `<640px`, the box uses `overflow-x-auto` with a thin `.custom-scrollbar` rather than shrinking the type (per §3 canonical scale discipline).
 
 ### 7b. Choreography (state machine, NOT framer-motion-driven — vanilla `useEffect` + `setTimeout`):
 
@@ -393,7 +427,7 @@ $  finish anth pset $ANTH 2480 p2 by 3pm tomorrow
 ### 7d. The "▶ show another" affordance
 
 - Position: right-aligned, below the terminal box, 16px vertical gap.
-- Style: mono 14px 500, `--ink-muted`, no underline, opacity 0.7. Hover: opacity 1, no other change.
+- Style: Caption 14 mono 500, `--ink-muted`, no underline, opacity 0.7. Hover: opacity 1, no other change.
 - The `▶` glyph is a literal text character (not an SVG icon — keeps the typographic register).
 - Click: terminal contents fade out over 200ms, then the next example begins typing (the cursor-typing animation re-plays). Reduced-motion: instant swap.
 
@@ -408,22 +442,22 @@ $  finish anth pset $ANTH 2480 p2 by 3pm tomorrow
 [ ────────────────────────────────────────────────────────────────────────── ]   (1px --edge hairline)
 ```
 
-- Mono 12px 500 uppercase, `tracking-[0.14em]`, `--ink-muted`.
+- Caption 14 mono 500 uppercase, `tracking-[0.14em]`, `--ink-muted`.
 - Position: `sticky top-0` with `bg-[var(--canvas)]/95 backdrop-blur-sm` ONLY (single light translucency — not "frosted glass" theatrical).
 - The hairline IS the only visual chrome.
 
 ### 8b. Footer
 
-Single row, mono 12px, three balanced columns:
+Single row, Caption 14 mono, three balanced columns:
 
 ```
 [ MIT LICENSE         |    github.com/filippo-fonseca   |    filippofonseca.com → ]
 ```
 
 - 80px vertical padding above and below, 1px `--edge` hairline on top.
-- All caps mono 12px 500 `--ink-muted`. Hover: `--ink`, no underline.
-- A single centered `⚜` ornament (24px, `--ink-muted`, opacity 0.4) below the row.
-- Below the ornament, a single italic 14px serif line, centered: *"be goated. well."* (lowercase intentional — verbatim from README sign-off).
+- All caps Caption 14 mono 500 `--ink-muted`. Hover: `--ink`, no underline.
+- A single centered `⚜` ornament (24px icon dimensions — exempt from type scale, `--ink-muted`, opacity 0.4) below the row.
+- Below the ornament, a single italic Caption 14 serif line, centered: *"be goated. well."* (lowercase intentional — verbatim from README sign-off).
 
 ---
 
@@ -478,12 +512,12 @@ Single row, mono 12px, three balanced columns:
 | §06 Block 2 eyebrow | `LAST 7 COMMITS` |
 | §06 Block 3 eyebrow | `SHIPPED THIS WEEK` |
 | **Empty state** (build log degraded — D-10) | `→ Commit feed unavailable. See the repo directly.` |
-| **Error state** (waitlist submit fail) | `Couldn't reach the list. Try again, or email filippo directly.` (`--ink-coral` text, serif italic 14px, below the form) |
+| **Error state** (waitlist submit fail) | `Couldn't reach the list. Try again, or email filippo directly.` (`--ink-coral` text, serif italic Caption 14, below the form) |
 | Destructive actions | **None on this page.** Waitlist signup is non-destructive; no "delete account" or "unsubscribe" actions live on the landing. |
 | Footer left | `MIT LICENSE` |
 | Footer center | `github.com/filippo-fonseca` |
 | Footer right | `filippofonseca.com →` |
-| Footer sign-off | `be goated. well.` (italic 14px serif, centered) |
+| Footer sign-off | `be goated. well.` (italic Caption 14 serif, centered) |
 
 **Voice rules (load-bearing, mirror the README's voice):**
 - Lowercase sentences in CTA labels are forbidden ("join the waitlist" → wrong). Title-case verbs ("Join the waitlist") for primary actions.
@@ -519,7 +553,9 @@ These are the **literal restraint checks** the executor must self-verify before 
 
 ### 11a. Restraint gates (PASS / FAIL — any FAIL blocks acceptance)
 
-- [ ] **Cyan appears in exactly 2 locations:** (1) inside the JARVIS demo terminal block on the `⚜` glyph + verb + caret; (2) on the `--edge-hud` border + `STRICT-TOOL-USE JSON` eyebrow of the §04 right card. Nowhere else. (Grep for `--hud-cyan` in landing components — must yield 2 component files max.)
+- [ ] **Cyan appears on exactly 2 component files: `apps/web/components/landing/JarvisDemo.tsx` and `apps/web/components/landing/EngineSection.tsx`.** Grep for `--hud-cyan`, `hud-cyan`, `var(--hud` across `apps/web/components/landing/**` — must yield exactly 2 distinct component files in the results, and both must be the two named above. Any cyan reference in any other landing component file is a FAIL.
+- [ ] **Inside `JarvisDemo.tsx`, cyan is restricted to:** (1) the `⚜` ornament glyph on receipt lines; (2) the leading verb of each receipt line; (3) the streaming caret `▮` during typing. Three uses, no more.
+- [ ] **Inside `EngineSection.tsx`, cyan is restricted to:** (1) the right card's `--edge-hud` border; (2) the right card's `STRICT-TOOL-USE JSON` eyebrow. Two uses, no more.
 - [ ] **Zero `box-shadow` on hover states** anywhere on the landing. (Grep for `hover:shadow` and `:hover { box-shadow` in landing files.)
 - [ ] **Zero hex-grid / dot-grid background pseudo-elements.** Landing surfaces must NOT have `.agent-mode-scope` class anywhere.
 - [ ] **Zero HUD primitives.** No `HudCornerCrops`, `HudStatusPill`, `HudEdgeInstrumentation`, `HudThinkingRing`, `HudCoreBubble` imports in landing components.
@@ -528,10 +564,16 @@ These are the **literal restraint checks** the executor must self-verify before 
 
 ### 11b. Typography gates
 
+- [ ] **Exactly 4 font sizes across the entire landing: 56px, 32px, 18px, 14px.** Grep `apps/web/components/landing/**` and `apps/web/app/page.tsx` for `text-[`, `font-size`, `text-xs`, `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`, `text-3xl`, `text-4xl`, `text-5xl`, `text-6xl`. The ONLY permitted hits are:
+  - `text-[56px]` or `text-[3.5rem]` → Display
+  - `text-[32px]` or `text-[2rem]` → Heading
+  - `text-[18px]` or `text-[1.125rem]` → Body (also `text-lg` is acceptable as it maps to 1.125rem in Tailwind 4)
+  - `text-[14px]` or `text-[0.875rem]` → Caption (also `text-sm` is acceptable as it maps to 0.875rem in Tailwind 4)
+- [ ] **Zero hits for forbidden sizes:** `text-xs` (12px), `text-base` (16px), `text-xl` (20px), `text-2xl` (24px), `text-3xl` (30px), `text-4xl` (36px), and any arbitrary `text-[Npx]` where N ∈ {11, 12, 13, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}. Must yield 0 hits in landing files.
 - [ ] Only 2 serif weights used: 400 and 600. (Grep for `font-medium` outside mono contexts — must yield 0 hits in landing.)
 - [ ] Only 2 mono weights used: 400 and 500. (Grep for `font-bold` and `font-semibold` in mono contexts — must yield 0 hits.)
-- [ ] No `font-size` value strictly between `1.125rem` (18px) and `2rem` (32px) anywhere in landing files. (Grep regex; must yield 0 hits in `text-xl` `text-2xl` outside the mobile-resize on the demo block.)
-- [ ] All section eyebrows use `JetBrains Mono 12px 500 uppercase tracking-[0.14em]`. (Visual audit on /, mobile + desktop.)
+- [ ] All section eyebrows use `JetBrains Mono Caption 14 500 uppercase tracking-[0.14em]`. No eyebrow renders smaller than Caption 14. (Visual audit on /, mobile + desktop.)
+- [ ] Icon dimensions (Lucide icon `size` props of 16px / 24px) are NOT counted as font-size violations — icons are exempt from the type scale.
 
 ### 11c. Layout gates
 
@@ -539,6 +581,7 @@ These are the **literal restraint checks** the executor must self-verify before 
 - [ ] Header is exactly 40px tall with one hairline `--edge` bottom border. No left nav. No right nav.
 - [ ] Footer is 3-column mono row + ornament + sign-off; no other footer content (no sitemap, no social icons, no "subscribe to newsletter").
 - [ ] Inter-section spacing matches §2 (64px around sparse sections, 96px around §04 Engine).
+- [ ] Mobile page padding is `px-6` (24px) on `<768px` — matches the spacing scale token 6. Usable content width at 375px viewport is ~327px (375 − 24 − 24).
 - [ ] On 375px viewport: page renders without horizontal scroll *except* the JARVIS demo terminal block, which is `overflow-x-auto` with a thin `.custom-scrollbar`. Everything else fits.
 
 ### 11d. Motion gates
@@ -560,8 +603,8 @@ These are the **literal restraint checks** the executor must self-verify before 
 The previous two visual contracts (Phase 6 neumorphic, Phase 6.1 HUD-heavy) both failed user review with "clunky and blah." This landing is a separate surface but inherits the same lesson:
 
 - [ ] **No surface on the landing reads as agent chrome.** The agent has its OWN surface (the in-app shell under Phase 6.2). The landing speaks IN THE VOICE of the README, not the voice of JARVIS.
-- [ ] **A reader who knows nothing about Tony Stark or HUDs is not confused by anything on the page.** The cyan in the demo reads as "machine output" (universally legible), not as "Iron Man reference."
-- [ ] **A reader who DOES know Tony Stark recognizes the JARVIS reference in the demo, the agent's name, and nowhere else.** The atmospheric mood is earned by one detail, not by surface-wide vocabulary.
+- [ ] **A reader who knows nothing about Tony Stark or HUDs is not confused by anything on the page.** The cyan in the demo + Engine card reads as "machine output" (universally legible), not as "Iron Man reference."
+- [ ] **A reader who DOES know Tony Stark recognizes the JARVIS reference in the demo, the agent's name, and nowhere else.** The atmospheric mood is earned by two adjacent component surfaces, not by surface-wide vocabulary.
 
 ---
 
@@ -588,9 +631,9 @@ The executor will build these components under `apps/web/components/landing/`:
 | `SectionDivider.tsx` | The `⚜ ⚜ ⚜` ornament row between sections | — |
 | `SectionEyebrow.tsx` | Reusable mono eyebrow ("§ 02 · DEMO") | — |
 | `ThesisSection.tsx` | §01 — pull-quote + thesis + sub-line + scroll affordance | `motion/react` (for scroll-affordance breath) |
-| `JarvisDemo.tsx` | §02 — the terminal block + "show another" + animation FSM | `motion/react`, vanilla `useState` + `setTimeout` for typing |
+| `JarvisDemo.tsx` | §02 — the terminal block + "show another" + animation FSM. **One of the 2 cyan-bearing components.** | `motion/react`, vanilla `useState` + `setTimeout` for typing |
 | `PrimitivesTable.tsx` | §03 — the 5-row spec table | `lucide-react` (`ArrowUpRight`) |
-| `EngineSection.tsx` | §04 — the input/JSON side-by-side block + source note | `lucide-react` (`ArrowRight`) |
+| `EngineSection.tsx` | §04 — the input/JSON side-by-side block + source note. **One of the 2 cyan-bearing components.** | `lucide-react` (`ArrowRight`) |
 | `ChoiceSection.tsx` | §05 — the two doors | `ui/Button`, `ui/Input`, the waitlist Server Action |
 | `BuildLog.tsx` | §06 — Server Component reading ROADMAP.md at build + GitHub commits via ISR | Server-only — `fs.readFileSync`, `fetch` with `next: { revalidate: 600 }` |
 | `WaitlistForm.tsx` | Client component, owns the email submit + success swap | `react-hook-form` + `zod`, calls Server Action |
@@ -624,4 +667,4 @@ export default async function Root() {
 
 ---
 
-*Phase 8 UI Design Contract · drafted 2026-05-25 · consumed by `gsd-planner` (Phase 8 plans), `gsd-executor` (implementation source of truth), `gsd-ui-checker` (validation), `gsd-ui-auditor` (post-build audit).*
+*Phase 8 UI Design Contract · drafted 2026-05-25 · revised 2026-05-25 (Option 1 typography consolidation: 4-size canonical scale across both families; cyan reserved-for list reconciled across §1 / §4 / §5d / §11a; mobile padding pinned to spacing scale token 6) · consumed by `gsd-planner` (Phase 8 plans), `gsd-executor` (implementation source of truth), `gsd-ui-checker` (validation), `gsd-ui-auditor` (post-build audit).*
