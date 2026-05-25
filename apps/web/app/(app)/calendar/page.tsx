@@ -144,7 +144,12 @@ export default async function CalendarPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    // Explicit viewport-based height + overflow-hidden — mirrors the JARVIS
+    // console pattern. With a definite outer size, every `h-full` / `flex-1`
+    // inside CalendarClient resolves to a real pixel value, and the grid
+    // body's overflow-y-auto can actually engage. Avoids the imperative
+    // main.style.overflow lock that used to be in CalendarClient.
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
       {bannerVariant && <DisconnectBanner variant={bannerVariant} />}
       <CalendarClient
         initialEvents={initialEvents}

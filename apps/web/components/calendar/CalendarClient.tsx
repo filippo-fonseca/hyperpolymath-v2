@@ -185,19 +185,11 @@ export function CalendarClient({
     }
   }, [params, router]);
 
-  // The app shell's <main> is `overflow-auto` by default so most routes can
-  // scroll the page. The calendar wants the grid body to be the only scroller
-  // so the day-header + toolbar stay pinned and autoscroll-to-now actually
-  // moves the body (not the page). Lock main while mounted; restore on unmount.
-  useEffect(() => {
-    const main = document.querySelector("main");
-    if (!main) return;
-    const prev = main.style.overflow;
-    main.style.overflow = "hidden";
-    return () => {
-      main.style.overflow = prev;
-    };
-  }, []);
+  // (Main-overflow lock removed — the /calendar route's page wrapper now uses
+  // h-[100dvh] + overflow-hidden directly, mirroring the JARVIS console
+  // pattern. With a definite viewport-sized outer container, the internal
+  // flex/grid chain resolves naturally and the body's overflow-y-auto
+  // engages without any imperative DOM manipulation.)
 
   // D-08 first-visit: detect once, persist, refresh.
   useEffect(() => {
