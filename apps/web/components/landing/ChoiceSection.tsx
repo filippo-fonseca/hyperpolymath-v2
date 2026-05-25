@@ -1,0 +1,74 @@
+import { BookOpen, Github } from "lucide-react";
+import { SectionEyebrow } from "./SectionEyebrow";
+import { WaitlistForm } from "./WaitlistForm";
+
+/**
+ * §05 — The Choice (LAND-CHOICE / SC-7 / D-12 / D-13 / UI-SPEC §5e).
+ *
+ * Two equally-weighted doors per UI-SPEC §5e equal-weight discipline:
+ *   - Door 1 USE IT: waitlist form (WaitlistForm component handles state)
+ *   - Door 2 FORK IT: 2 secondary text-links (BookOpen FRAMEWORK.md + Github repo) + caption
+ *
+ * Equal visual weight at 1440px viewport — Door 1 has more chrome (form), Door 2
+ * has more content density (2 links + caption). UI-SPEC §5e: no "primary"/"secondary"
+ * distinction; both are siblings.
+ */
+
+const REPO_URL = "https://github.com/filippo-fonseca/hyperpolymath-v2";
+const FRAMEWORK_URL = `${REPO_URL}/blob/main/FRAMEWORK.md`;
+
+export function ChoiceSection() {
+  return (
+    <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
+      <SectionEyebrow label="§ 05 · THE CHOICE" />
+      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
+        Two doors. Both open.
+      </h2>
+      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        Use it as your life-OS, or fork the framework and build your own.
+      </p>
+
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Door 1 — USE IT (waitlist) */}
+        <div className="space-y-4">
+          <SectionEyebrow label="USE IT" />
+          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+            v2 is single-user during build-in-public. Multi-user comes when the foundation is bulletproof.
+          </p>
+          <WaitlistForm />
+        </div>
+
+        {/* Door 2 — FORK IT */}
+        <div className="space-y-4">
+          <SectionEyebrow label="FORK IT" />
+          <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+            Read the framework. Clone the repo. Adapt the primitives to your own life-OS. MIT — go.
+          </p>
+          <div className="space-y-2">
+            <a
+              href={FRAMEWORK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 font-mono text-[14px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+            >
+              <BookOpen size={16} aria-hidden="true" />
+              <span>▶ Read the framework</span>
+            </a>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 font-mono text-[14px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+            >
+              <Github size={16} aria-hidden="true" />
+              <span>◆ View the repo</span>
+            </a>
+          </div>
+          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+            4,200+ commits. MIT licensed. No dependencies on me.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
