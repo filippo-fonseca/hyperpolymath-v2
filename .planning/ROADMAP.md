@@ -250,12 +250,19 @@ Plans:
   7. The Choice section presents two equally-weighted doors: "Use it" (sign-in / waitlist) and "Fork it" (GitHub repo + framework write-up)
   8. Passes the Phase 6.1 restraint check — no HUD-heavy chrome, JARVIS as ATMOSPHERIC mood only (cyan accent as trim, not as vocabulary); Anthropic-level interaction polish; Notion document discipline
   9. Lighthouse ≥ 95 (performance, accessibility, best-practices) on the landing route; no console errors; renders correctly with JS disabled (graceful degradation of the demo animation)
-**Plans**: 0 plans
+**Plans**: 6 plans
 **UI hint**: yes (load-bearing — this is the front door; visual treatment must be researched and contracted before code)
 **Notes**: Build-in-public manifesto, inspired by Karpathy / Garry Tan / Pieter Levels / Linear method-page references. Research pass on those landing-page references required before plan-phase. Must align with Phase 6.1 directional anchors (restraint over theatrics, Anthropic-level interaction polish, JARVIS as MOOD only — not HUD-heavy). Workflow order: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory — UI-SPEC.md before code) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
 
 Plans:
-- [ ] TBD (run `/gsd:discuss-phase 08` then `/gsd:ui-phase 08` then `/gsd:plan-phase 08` to break down)
+- [ ] 08-01-PLAN.md — Wave 1: Foundation assets — FRAMEWORK.md at repo root + strict-tool-use.fixture.ts + opengraph-image.png (LAND-FRAMEWORK, LAND-FIXTURE, LAND-OG)
+- [ ] 08-02-PLAN.md — Wave 1: Waitlist data layer — Drizzle schema + 0008 migration + 0012 RLS migration + joinWaitlist Server Action + next.config outputFileTracing + GITHUB_TOKEN in .env.example (LAND-WAITLIST, LAND-ROADMAP-FS, LAND-GH-ENV)
+- [ ] 08-03-PLAN.md — Wave 2: Landing chrome + sparse sections — LandingPage + Header + Footer + Divider + Eyebrow + ThesisSection + PrimitivesTable (zero cyan; LAND-SHELL, LAND-THESIS, LAND-PRIMITIVES)
+- [ ] 08-04-PLAN.md — Wave 3: Cyan-bearing surfaces — JarvisDemo (FSM typing + 3 examples + reduced-motion + SSR fallback) + EngineSection (real fixture import + cyan-tinted right card) (LAND-DEMO, LAND-ENGINE)
+- [ ] 08-05-PLAN.md — Wave 4: Data + wiring — BuildLog Server Component (ISR + ROADMAP parse + graceful degradation) + ChoiceSection + WaitlistForm + page.tsx refactor (conditional render + metadata) (LAND-BUILDLOG, LAND-CHOICE, LAND-WAITLIST-UI, LAND-ROUTE, LAND-METADATA)
+- [ ] 08-06-PLAN.md — Wave 5 (autonomous=false): Human-verify acceptance gate — UI-SPEC §11 grep gates + visual walkthrough + waitlist live test + build-log degradation test + Lighthouse + three-rejection gate (LAND-VERIFY)
+
+**Wave structure**: Plans 01 + 02 (Wave 1, parallel — file-disjoint: 01 owns FRAMEWORK.md + jarvis-core fixture + OG image; 02 owns lib/db/schema.ts + drizzle/0008 + supabase/migrations/0012 + actions/waitlist.ts + next.config.ts + .env.example) → Plan 03 (Wave 2, depends on 01 for FRAMEWORK.md anchors; builds the sparse document chrome) → Plan 04 (Wave 3, depends on 01 + 03 — imports fixture + extends LandingPage) → Plan 05 (Wave 4, depends on 02 + 03 + 04 — wires data layer + page.tsx) → Plan 06 (Wave 5, autonomous=false — gates the user the way Phase 6/6.1/6.2 did not)
 
 ## Progress
 
@@ -274,7 +281,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 6.1. Visual Redesign — JARVIS × Notion | 6/6 | Complete (passed_with_deferrals) | 2026-05-19 |
 | 6.2. Anthropic-Discipline Rebuild | 0/7 | Not started | - |
 | 7. JARVIS Voice + Ambient | 3/4 | In Progress|  |
-| 8. Public Landing Manifesto | 0/0 | Not started | - |
+| 8. Public Landing Manifesto | 0/6 | Not started | - |
 
 ## Backlog
 
