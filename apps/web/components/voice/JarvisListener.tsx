@@ -87,6 +87,13 @@ export function JarvisListener() {
   // toast on every TTS attempt while the user hasn't clicked anything.
   const audioLockWarnedRef = useRef(false);
 
+  // Auto-shutoff timer — if the user triggers an activation (press-to-talk,
+  // clap, follow-up enter) but no speech is detected within 8s, return to
+  // listening. Prevents the bubble from glowing forever after an accidental
+  // tap or a Porcupine misfire that the user doesn't follow up on.
+  const noSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const NO_SPEECH_TIMEOUT_MS = 8000;
+
   // Whether on-device wake-word (Porcupine) is configured. When it is, the
   // Whisper-keyword fallback path is OFF — ambient speech in "listening"
   // outside the follow-up window does NOT hit Groq STT. Porcupine fires
@@ -99,6 +106,32 @@ export function JarvisListener() {
   useEffect(() => {
     micStateRef.current = micState;
     publishMicState(micState);
+  }, [micState]);
+
+  // Start an 8s no-speech timer on every entry into "recording" — that's
+  // the state press-to-talk, clap, and the follow-up speech-start all land
+  // in. If VAD detects speech before the timer fires, onSpeechStart clears
+  // it. Otherwise the system ERRORs back to "listening" — bubble fades,
+  // FSM resets, ready for the next trigger.
+  useEffect(() => {
+    if (noSpeechTimeoutRef.current) {
+      clearTimeout(noSpeechTimeoutRef.current);
+      noSpeechTimeoutRef.current = null;
+    }
+    if (micState === "recording") {
+      noSpeechTimeoutRef.current = setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.log("[jarvis] auto-shutoff: no speech within 8s");
+        dispatch({ type: "ERROR", reason: "no-speech-timeout" });
+        noSpeechTimeoutRef.current = null;
+      }, NO_SPEECH_TIMEOUT_MS);
+    }
+    return () => {
+      if (noSpeechTimeoutRef.current) {
+        clearTimeout(noSpeechTimeoutRef.current);
+        noSpeechTimeoutRef.current = null;
+      }
+    };
   }, [micState]);
 
   // ─── Gate computations ───────────────────────────────────────────────────
@@ -314,7 +347,12 @@ export function JarvisListener() {
       }
       if (s === "recording") {
         // Already recording (press-to-talk / clap) — VAD detecting speech
-        // here is normal, just keep the state.
+        // here is normal, just keep the state. Clear the no-speech
+        // auto-shutoff timer so a long utterance isn't cut off after 8s.
+        if (noSpeechTimeoutRef.current) {
+          clearTimeout(noSpeechTimeoutRef.current);
+          noSpeechTimeoutRef.current = null;
+        }
         dispatch({ type: "SPEECH_START" });
       }
       // Barge-in is disabled — talking over JARVIS while it speaks would
