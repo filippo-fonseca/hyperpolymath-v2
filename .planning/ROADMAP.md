@@ -257,7 +257,7 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md — Wave 1: Foundation assets — FRAMEWORK.md at repo root + strict-tool-use.fixture.ts + opengraph-image.png (LAND-FRAMEWORK, LAND-FIXTURE, LAND-OG)
 - [x] 08-02-PLAN.md — Wave 1: Waitlist data layer — Drizzle schema + 0008 migration + 0012 RLS migration + joinWaitlist Server Action + next.config outputFileTracing + GITHUB_TOKEN in .env.example (LAND-WAITLIST, LAND-ROADMAP-FS, LAND-GH-ENV)
-- [ ] 08-03-PLAN.md — Wave 2: Landing chrome + sparse sections — LandingPage + Header + Footer + Divider + Eyebrow + ThesisSection + PrimitivesTable (zero cyan; LAND-SHELL, LAND-THESIS, LAND-PRIMITIVES)
+- [x] 08-03-PLAN.md — Wave 2: Landing chrome + sparse sections — LandingPage + Header + Footer + Divider + Eyebrow + ThesisSection + PrimitivesTable (zero cyan; LAND-SHELL, LAND-THESIS, LAND-PRIMITIVES)
 - [ ] 08-04-PLAN.md — Wave 3: Cyan-bearing surfaces — JarvisDemo (FSM typing + 3 examples + reduced-motion + SSR fallback) + EngineSection (real fixture import + cyan-tinted right card) (LAND-DEMO, LAND-ENGINE)
 - [ ] 08-05-PLAN.md — Wave 4: Data + wiring — BuildLog Server Component (ISR + ROADMAP parse + graceful degradation) + ChoiceSection + WaitlistForm + page.tsx refactor (conditional render + metadata) (LAND-BUILDLOG, LAND-CHOICE, LAND-WAITLIST-UI, LAND-ROUTE, LAND-METADATA)
 - [ ] 08-06-PLAN.md — Wave 5 (autonomous=false): Human-verify acceptance gate — UI-SPEC §11 grep gates + visual walkthrough + waitlist live test + build-log degradation test + Lighthouse + three-rejection gate (LAND-VERIFY)
