@@ -229,13 +229,26 @@ export function JarvisListener() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wakeWordActive]);
 
-  // Dispatch WAKE_WORD_DETECTED when Porcupine fires a keyword.
+  // Porcupine fired a keyword: arm the activation source ref so onSpeechEnd
+  // knows to run the Whisper wake-phrase check. Do NOT transition state or
+  // dispatch the visual burst yet — those happen only after Whisper confirms
+  // the user actually said "hey jarvis". Porcupine's built-in model is
+  // sensitive and false-fires on Jarvis-adjacent sounds; without this gate
+  // every misfire briefly glowed the bubble.
+  //
+  // De-dupe by reference: this effect re-fires on every micState change
+  // (listening → thinking → speaking → listening …), and `keywordDetection`
+  // from a previous wake stays set on the hook between renders. Without
+  // the ref check, the effect would re-arm activationSource on every cycle
+  // back to "listening", making the NEXT ambient utterance look like a
+  // Porcupine wake even though Porcupine hadn't fired in this round.
+  const lastPorcupineDetectionRef = useRef<unknown>(null);
   useEffect(() => {
     if (!porcupine.keywordDetection) return;
     if (micState !== "listening") return;
+    if (porcupine.keywordDetection === lastPorcupineDetectionRef.current) return;
+    lastPorcupineDetectionRef.current = porcupine.keywordDetection;
     activationSourceRef.current = "porcupine";
-    window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
-    dispatch({ type: "WAKE_WORD_DETECTED" });
   }, [porcupine.keywordDetection, micState]);
 
   // Pitfall 3 — pause Porcupine while speaking to defeat acoustic feedback.
@@ -401,13 +414,11 @@ export function JarvisListener() {
             return;
           }
         } else if (isPorcupineWake) {
-          // Porcupine fired its keyword detector — but Picovoice's built-in
-          // "Jarvis" model is sensitive and false-fires on similar-sounding
-          // ambient words (Service, Mars, Jersey, bare "Jarvis", etc.).
-          // Cross-validate against the Whisper transcript: only dispatch
-          // if the user actually said "hey jarvis" (or one of the accepted
-          // wake-phrase variants). Otherwise treat it as a Porcupine misfire
-          // and silently discard.
+          // Porcupine flagged a candidate wake earlier, but the state stayed
+          // in "listening" — no visual change yet. Cross-validate against
+          // Whisper: only NOW (after STT confirms the user actually said
+          // "hey jarvis") do we light the bubble and transition state.
+          // Porcupine misfires leave the system completely silent.
           // eslint-disable-next-line no-console
           console.log(
             "[jarvis] wake-path: porcupine, transcript:",
@@ -415,17 +426,20 @@ export function JarvisListener() {
           );
           const stripped = stripWakeWord(transcript);
           if (stripped === null) {
-            // Whisper didn't see the wake phrase — Porcupine misfire.
-            // Drop back to listening without dispatching anything.
-            dispatch({ type: "ERROR", reason: "porcupine-misfire" });
+            // Porcupine misfire — silent discard. State stayed in "listening"
+            // the whole time so no recovery dispatch is needed.
             return;
           }
+          // Confirmed wake. Visual burst NOW.
+          window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
           if (!stripped) {
-            // Wake phrase alone — open follow-up window.
+            // Wake phrase alone — open follow-up window, stay in listening.
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
-            dispatch({ type: "ERROR", reason: "wake-only" });
             return;
           }
+          // Promote to thinking so the bubble keeps glowing through the
+          // /api/jarvis round-trip.
+          dispatch({ type: "SPEECH_END" });
           command = stripped;
         }
         // Press-to-talk / clap: transcript IS the command, no preprocessing.
