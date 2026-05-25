@@ -83,6 +83,8 @@ export function EnableVoiceModal({
   const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_VOICE_ID);
   const [auditioning, setAuditioning] = useState<string | null>(null);
   const [enabling, setEnabling] = useState(false);
+  const [requestingPermission, setRequestingPermission] = useState(false);
+  const [autoRequestFailed, setAutoRequestFailed] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -93,17 +95,44 @@ export function EnableVoiceModal({
       setSelectedVoiceId(DEFAULT_VOICE_ID);
       setAuditioning(null);
       setEnabling(false);
+      setRequestingPermission(false);
+      setAutoRequestFailed(false);
     }
   }, [open]);
 
-  // Step 1: Request microphone permission as soon as the modal is in "intro" stage.
-  // getUserMedia with AUDIO_CONSTRAINTS (echoCancellation, noiseSuppression, autoGainControl)
-  // per VOICE-12 + D-02.
+  /**
+   * Acquire the mic stream. Extracted so we can call it from BOTH the
+   * mount-effect (which Chrome/Firefox honor without issue) AND from a
+   * click handler (which Safari/WebKit require — the prompt only shows
+   * up if the getUserMedia call is dispatched inside a user-gesture
+   * frame, and a useEffect after a modal-open is no longer a gesture).
+   */
+  async function requestMicPermission() {
+    if (requestingPermission) return;
+    setRequestingPermission(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: AUDIO_CONSTRAINTS,
+      });
+      streamRef.current = stream;
+      setStage("audition");
+    } catch (err) {
+      console.warn("[voice] mic permission denied or unavailable", err);
+      setStage("permission-denied");
+    } finally {
+      setRequestingPermission(false);
+    }
+  }
+
+  // Auto-request on intro stage (Chrome/Firefox path). If Safari silently
+  // drops it (no prompt, no rejection), the explicit "Grant access" button
+  // below provides a user-gesture fallback after 1.5s.
   useEffect(() => {
     if (!open || stage !== "intro") return;
     let cancelled = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
-    async function requestMic() {
+    (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: AUDIO_CONSTRAINTS,
@@ -115,16 +144,21 @@ export function EnableVoiceModal({
         streamRef.current = stream;
         setStage("audition");
       } catch (err) {
-        console.warn("[voice] mic permission denied or unavailable", err);
-        if (!cancelled) {
-          setStage("permission-denied");
-        }
+        console.warn("[voice] auto mic request failed", err);
+        if (!cancelled) setStage("permission-denied");
       }
-    }
+    })();
 
-    requestMic();
+    // Safari sometimes neither resolves nor rejects when the call isn't in
+    // a gesture frame — surface the click-to-grant fallback button so the
+    // user isn't stuck on "Awaiting permission…" forever.
+    fallbackTimer = setTimeout(() => {
+      if (!cancelled) setAutoRequestFailed(true);
+    }, 1500);
+
     return () => {
       cancelled = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   }, [open, stage]);
 
@@ -342,11 +376,32 @@ export function EnableVoiceModal({
 
         {/* Intro stage — waiting for mic permission */}
         {stage === "intro" && (
-          <div className="flex items-center gap-2 pt-2">
-            <span className="h-2 w-2 rounded-full bg-[var(--hud-cyan)] animate-pulse" />
-            <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-wider">
-              Awaiting permission…
-            </span>
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[var(--hud-cyan)] animate-pulse" />
+              <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-wider">
+                {requestingPermission
+                  ? "Requesting…"
+                  : autoRequestFailed
+                    ? "Click to grant microphone access"
+                    : "Awaiting permission…"}
+              </span>
+            </div>
+            {/* Safari fallback: dispatch getUserMedia from a click so the
+                request lands inside a user-gesture frame. Surfaces after a
+                1.5s grace period if the auto-call hasn't resolved. */}
+            {autoRequestFailed && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => void requestMicPermission()}
+                  disabled={requestingPermission}
+                  className="font-mono text-xs uppercase tracking-wider"
+                >
+                  {requestingPermission ? "Requesting…" : "Grant access"}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
