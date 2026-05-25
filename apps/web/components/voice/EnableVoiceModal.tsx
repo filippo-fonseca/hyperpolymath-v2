@@ -387,11 +387,19 @@ export function EnableVoiceModal({
                     : "Awaiting permission…"}
               </span>
             </div>
-            {/* Safari fallback: dispatch getUserMedia from a click so the
-                request lands inside a user-gesture frame. Surfaces after a
-                1.5s grace period if the auto-call hasn't resolved. */}
-            {autoRequestFailed && (
-              <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                className="font-mono text-xs uppercase tracking-wider"
+              >
+                Cancel
+              </Button>
+              {/* Safari fallback: dispatch getUserMedia from a click so the
+                  request lands inside a user-gesture frame. Surfaces after a
+                  1.5s grace period if the auto-call hasn't resolved. */}
+              {autoRequestFailed && (
                 <Button
                   type="button"
                   onClick={() => void requestMicPermission()}
@@ -400,8 +408,8 @@ export function EnableVoiceModal({
                 >
                   {requestingPermission ? "Requesting…" : "Grant access"}
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </DialogContent>

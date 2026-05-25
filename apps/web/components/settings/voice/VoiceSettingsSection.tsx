@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { EnableVoiceModal } from "@/components/voice/EnableVoiceModal";
+import { AUDIO_CONSTRAINTS } from "@/lib/voice/constants";
+import { unlockAudioContext } from "@/lib/voice/audio-context";
 import { MicDevicePicker } from "./MicDevicePicker";
 import { VoiceIdPicker } from "./VoiceIdPicker";
 import { Card } from "@/components/ui/card";
@@ -45,12 +48,43 @@ export function VoiceSettingsSection() {
 
   /**
    * Enable toggle click handler.
-   * OFF → ON: open EnableVoiceModal (which performs mic permission + audition).
-   * ON → OFF: persist voiceEnabled=false directly (no modal needed).
+   *
+   * First-ever enable (hasHeardWelcome === false): open EnableVoiceModal
+   * for the full onboarding flow (mic permission + voice audition +
+   * welcome greeting).
+   *
+   * Re-enable (hasHeardWelcome === true): skip the modal entirely. Ask
+   * the browser for mic permission directly from this click — Safari
+   * needs the getUserMedia call to land inside a user-gesture frame to
+   * show the prompt, and the modal path was stealing that gesture
+   * (modal mounts → useEffect → call happens after the gesture lapses,
+   * Safari silently drops the prompt). No modal = no trap; if the user
+   * denies, voice stays off and a toast surfaces the error.
+   *
+   * ON → OFF: persist voiceEnabled=false directly.
    */
-  function handleEnableToggle(next: boolean) {
+  async function handleEnableToggle(next: boolean) {
     if (next && !settings.voiceEnabled) {
-      setModalOpen(true);
+      if (!settings.hasHeardWelcome) {
+        setModalOpen(true);
+        return;
+      }
+      try {
+        // Unlock the shared AudioContext + acquire mic, both inside
+        // this gesture frame so Safari is happy.
+        await unlockAudioContext();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: AUDIO_CONSTRAINTS,
+        });
+        stream.getTracks().forEach((t) => t.stop());
+        update({ voiceEnabled: true });
+        toast.success("Voice enabled.");
+      } catch (err) {
+        console.warn("[voice] re-enable failed", err);
+        toast.error(
+          "Microphone access is required to enable voice. Check your browser's site permissions.",
+        );
+      }
     } else if (!next) {
       update({ voiceEnabled: false });
     }
