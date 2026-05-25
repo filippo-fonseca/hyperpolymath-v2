@@ -401,23 +401,32 @@ export function JarvisListener() {
             return;
           }
         } else if (isPorcupineWake) {
-          // Porcupine confirmed wake — defensively strip "Hey Jarvis" in
-          // case the VAD buffer captured it before the state flipped to
-          // "recording". If the transcript doesn't start with the wake
-          // phrase, fall through to using it as-is.
+          // Porcupine fired its keyword detector — but Picovoice's built-in
+          // "Jarvis" model is sensitive and false-fires on similar-sounding
+          // ambient words (Service, Mars, Jersey, bare "Jarvis", etc.).
+          // Cross-validate against the Whisper transcript: only dispatch
+          // if the user actually said "hey jarvis" (or one of the accepted
+          // wake-phrase variants). Otherwise treat it as a Porcupine misfire
+          // and silently discard.
           // eslint-disable-next-line no-console
           console.log(
             "[jarvis] wake-path: porcupine, transcript:",
             JSON.stringify(transcript),
           );
           const stripped = stripWakeWord(transcript);
-          command = stripped ?? transcript.trim();
-          if (!command.trim()) {
+          if (stripped === null) {
+            // Whisper didn't see the wake phrase — Porcupine misfire.
+            // Drop back to listening without dispatching anything.
+            dispatch({ type: "ERROR", reason: "porcupine-misfire" });
+            return;
+          }
+          if (!stripped) {
             // Wake phrase alone — open follow-up window.
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
             dispatch({ type: "ERROR", reason: "wake-only" });
             return;
           }
+          command = stripped;
         }
         // Press-to-talk / clap: transcript IS the command, no preprocessing.
 
