@@ -349,6 +349,34 @@
   background-color: var(--ink-muted);
 }
 
+/* HUD-cyan scrollbar — for agent-mode surfaces (JARVIS console scrollback,
+   any other panel that wants to read as instrumentation chrome rather than
+   document chrome). Thumb glows softly on hover. */
+.hud-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 35%, transparent)
+    transparent;
+}
+.hud-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.hud-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hud-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--hud-cyan) 32%, transparent);
+  border-radius: 4px;
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 18%, transparent);
+}
+.hud-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--hud-cyan) 45%, transparent);
+}
+.hud-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Hidden scrollbar — overflow remains functional but the scrollbar itself
    is invisible. Use on horizontal-scroll strips where the scrollbar would
    add visual noise (kanban columns at width, calendar week scroll, etc). */

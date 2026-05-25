@@ -66,7 +66,7 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
   }, [turns.length]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-4 font-mono">
+    <div className="h-full overflow-y-auto overscroll-contain px-6 py-4 font-mono hud-scrollbar">
       {turns.length === 0 ? (
         <div className="flex h-full items-center justify-center font-serif italic text-muted-foreground text-lg">
           Good evening, sir. What shall we file?
