@@ -20,10 +20,10 @@ import { BuildLog } from "./BuildLog";
  * §01/§03/§05/§06) and 96px BEFORE+AFTER §04 (the moderate-density Engine
  * section per UI-SPEC §2).
  *
- * Wave 3 (Plan 08-04) replaces the §02 and §04 placeholders.
- * Wave 4 (Plan 08-05) replaces the §05 and §06 placeholders.
+ * Wave 3 (Plan 08-04) wired the §02 + §04 cyan-bearing surfaces.
+ * Wave 4 (Plan 08-05) wired the §05 ChoiceSection + §06 BuildLog.
  *
- * Phase 8 Plan 08-03 — LAND-SHELL (the chrome).
+ * Phase 8 Plans 08-03 (shell) + 08-04 (cyan surfaces) + 08-05 (data-driven §05 / §06).
  */
 export function LandingPage() {
   return (
