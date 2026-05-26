@@ -23,7 +23,10 @@ import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatu
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
-import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
+import {
+  saveJarvisTurn,
+  loadJarvisHistoryPage,
+} from "@/app/actions/jarvis-turns";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -78,21 +81,41 @@ interface Props {
   /**
    * SSR-hydrated scrollback history (Phase 7 polish). Persisted via
    * jarvis_turns table so the conversation survives page reloads.
-   * The LLM context window still uses an in-memory sliding window of the
-   * last HISTORY_TURN_LIMIT turns — we persist for DISPLAY, not prompt input.
+   * Only the LATEST 10 turns are SSR-loaded; older pages are fetched on
+   * demand via the "Older messages" button in JarvisScrollback. The LLM
+   * context window still uses an in-memory sliding window of the last
+   * HISTORY_TURN_LIMIT turns — we persist for DISPLAY, not prompt input.
    */
   initialTurns?: ScrollbackTurn[];
+  /**
+   * True if there are turns older than the SSR-loaded page. When true,
+   * JarvisScrollback shows the "Older messages" load-more button.
+   */
+  initialHasMore?: boolean;
+  /**
+   * ISO timestamp of the oldest turn currently in memory. Used as the
+   * `before` cursor for the next pagination request.
+   */
+  initialOldestAt?: string | null;
 }
 
 const HISTORY_TURN_LIMIT = 10;
+const HISTORY_PAGE_SIZE = 10;
 
 export function JarvisConsole({
   userTimezone,
   initialProjects,
   initialHashtags,
   initialTurns = [],
+  initialHasMore = false,
+  initialOldestAt = null,
 }: Props) {
   const [turns, setTurns] = useState<ScrollbackTurn[]>(initialTurns);
+  // Pagination cursor state — the oldest turn currently loaded and whether
+  // there's another page behind it.
+  const [hasMore, setHasMore] = useState<boolean>(initialHasMore);
+  const [oldestAt, setOldestAt] = useState<string | null>(initialOldestAt);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   // Phase 6 Plan 06-03 (AES-05, D-02): imperative handle to the JARVIS input.
@@ -616,6 +639,54 @@ export function JarvisConsole({
           turns={turns}
           onUndoAction={handleUndoAction}
           onClarificationReply={handleClarificationReply}
+          hasMore={hasMore}
+          loadingOlder={loadingOlder}
+          onLoadOlder={async () => {
+            if (loadingOlder || !hasMore || !oldestAt) return;
+            setLoadingOlder(true);
+            try {
+              const res = await loadJarvisHistoryPage({
+                limit: HISTORY_PAGE_SIZE,
+                before: oldestAt,
+              });
+              if (!res.success) {
+                toast.error("Couldn't load older messages.");
+                return;
+              }
+              const older: ScrollbackTurn[] = res.data.turns.map(
+                (r): ScrollbackTurn => {
+                  if (r.kind === "user") {
+                    return {
+                      kind: "user",
+                      id: r.id,
+                      text: r.text ?? "",
+                      createdAt: new Date(r.createdAt),
+                    };
+                  }
+                  const rawStatus =
+                    r.status === "streaming" ? "done" : r.status;
+                  return {
+                    kind: "assistant",
+                    id: r.id,
+                    textDelta: r.textDelta ?? "",
+                    actions: (r.actions as ScrollbackAction[]) ?? [],
+                    status:
+                      (rawStatus as "done" | "error") ?? "done",
+                    errorMessage: r.errorMessage ?? undefined,
+                    clarification:
+                      (r.clarification as ScrollbackClarification | null) ??
+                      undefined,
+                    createdAt: new Date(r.createdAt),
+                  };
+                },
+              );
+              setTurns((prev) => [...older, ...prev]);
+              setHasMore(res.data.hasMore);
+              setOldestAt(res.data.oldestAt ?? oldestAt);
+            } finally {
+              setLoadingOlder(false);
+            }
+          }}
         />
       </div>
       <div className="relative z-10 border-t bg-card px-6 py-3">

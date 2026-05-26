@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { hashtags as hashtagsTable, projects, users } from "@/lib/db/schema";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { JarvisConsole } from "@/components/jarvis/JarvisConsole";
-import { loadJarvisTurns } from "@/app/actions/jarvis-turns";
+import { loadJarvisHistoryPage } from "@/app/actions/jarvis-turns";
 import type {
   ScrollbackAction,
   ScrollbackClarification,
@@ -45,16 +45,18 @@ export default async function TodayPage() {
       .from(users)
       .where(eq(users.id, user.id))
       .limit(1),
-    loadJarvisTurns(),
+    loadJarvisHistoryPage({ limit: 10 }),
   ]);
 
   const userTimezone = userRows[0]?.timezone ?? "America/New_York";
 
-  // Hydrate persisted scrollback into the client's ScrollbackTurn union.
-  // Streaming turns persisted before completion (rare — refresh mid-stream)
-  // are normalised to "done" so the UI doesn't render an infinite spinner.
+  // Hydrate the most-recent 10 persisted turns into the client's ScrollbackTurn
+  // union. Older turns are loaded on demand via the "Older messages" button
+  // (client-side, paginated 10-at-a-time). Streaming turns persisted before
+  // completion (rare — refresh mid-stream) are normalised to "done" so the UI
+  // doesn't render an infinite spinner.
   const initialTurns: ScrollbackTurn[] = turnsResult.success
-    ? turnsResult.data.map((r): ScrollbackTurn => {
+    ? turnsResult.data.turns.map((r): ScrollbackTurn => {
         if (r.kind === "user") {
           return {
             kind: "user",
@@ -78,6 +80,9 @@ export default async function TodayPage() {
       })
     : [];
 
+  const initialHasMore = turnsResult.success ? turnsResult.data.hasMore : false;
+  const initialOldestAt = turnsResult.success ? turnsResult.data.oldestAt : null;
+
   return (
     <JarvisConsole
       userTimezone={userTimezone}
@@ -88,6 +93,8 @@ export default async function TodayPage() {
       }))}
       initialHashtags={hashtagRows}
       initialTurns={initialTurns}
+      initialHasMore={initialHasMore}
+      initialOldestAt={initialOldestAt}
     />
   );
 }

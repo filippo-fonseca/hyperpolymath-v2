@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, desc, lt } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
@@ -142,7 +142,105 @@ export async function loadJarvisTurns(): Promise<
   }
 }
 
-// Silence unused-import warning for `and` — kept available for future
-// filtered queries (e.g., by date range).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _unusedAnd = and;
+type TurnRow = {
+  id: string;
+  kind: "user" | "assistant";
+  text: string | null;
+  textDelta: string | null;
+  actions: unknown[];
+  clarification: unknown | null;
+  status: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+};
+
+/**
+ * Paginated history fetch. Returns the most-recent `limit` turns that
+ * are older than `before` (or just the most recent N if `before` is
+ * omitted), in CHRONOLOGICAL order (oldest first within the page) so
+ * the client can append them in render order.
+ *
+ * Pagination semantics:
+ *   - First call: `{ limit: 10 }` → latest 10 turns
+ *   - Click "See older": `{ limit: 10, before: oldestAtCursor }` → next
+ *     10 turns older than that ISO timestamp
+ *   - `hasMore` is true when the DB returned more rows than `limit` —
+ *     we trim and use that as the signal so the client knows there's
+ *     another page available
+ *   - `oldestAt` is the ISO timestamp of the oldest turn in this page —
+ *     pass it back as `before` for the next call
+ */
+const LoadHistoryPageSchema = z.object({
+  before: z.string().datetime().optional(),
+  limit: z.number().int().min(1).max(50).default(10),
+});
+
+export async function loadJarvisHistoryPage(
+  input: z.input<typeof LoadHistoryPageSchema>,
+): Promise<
+  ActionResult<{
+    turns: TurnRow[];
+    hasMore: boolean;
+    oldestAt: string | null;
+  }>
+> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+
+  const parsed = LoadHistoryPageSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.message };
+  }
+  const { before, limit } = parsed.data;
+
+  try {
+    // Fetch limit+1 rows so we know whether there are more. Order DESC
+    // (newest first) for the cursor query, then reverse for display.
+    const whereClause = before
+      ? and(eq(jarvisTurns.userId, userId), lt(jarvisTurns.createdAt, new Date(before)))
+      : eq(jarvisTurns.userId, userId);
+
+    const rows = await db
+      .select({
+        id: jarvisTurns.id,
+        kind: jarvisTurns.kind,
+        text: jarvisTurns.text,
+        textDelta: jarvisTurns.textDelta,
+        actions: jarvisTurns.actions,
+        clarification: jarvisTurns.clarification,
+        status: jarvisTurns.status,
+        errorMessage: jarvisTurns.errorMessage,
+        createdAt: jarvisTurns.createdAt,
+      })
+      .from(jarvisTurns)
+      .where(whereClause)
+      .orderBy(desc(jarvisTurns.createdAt))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const pageRows = rows.slice(0, limit);
+
+    // Reverse to chronological ASC for render order.
+    pageRows.reverse();
+
+    const turns: TurnRow[] = pageRows.map((r) => ({
+      ...r,
+      kind: r.kind as "user" | "assistant",
+      actions: (r.actions as unknown[]) ?? [],
+    }));
+
+    const oldestAt =
+      turns.length > 0 ? turns[0].createdAt.toISOString() : null;
+
+    return {
+      success: true,
+      data: { turns, hasMore, oldestAt },
+    };
+  } catch (err) {
+    console.error("[jarvis-turns] loadJarvisHistoryPage failed", err);
+    return { success: false, error: "Failed to load history page" };
+  }
+}
+
+// `asc` is retained for the legacy loadJarvisTurns full-load path.
+void asc;

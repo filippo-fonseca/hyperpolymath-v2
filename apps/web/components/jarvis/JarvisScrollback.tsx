@@ -56,18 +56,139 @@ interface Props {
    * and submits the next user turn.
    */
   onClarificationReply?: (turnId: string, text: string) => void;
+  /**
+   * Pagination — true if there are persisted turns older than the ones
+   * currently in `turns`. Shows the "Older messages" load-more button.
+   */
+  hasMore?: boolean;
+  /**
+   * True while the older-page fetch is in flight. The button shows a
+   * spinner/disabled state.
+   */
+  loadingOlder?: boolean;
+  /**
+   * Click handler for the "Older messages" button. Should fetch the next
+   * page from the server, prepend it to `turns`, and update hasMore.
+   */
+  onLoadOlder?: () => void | Promise<void>;
 }
 
-export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const shouldReduce = useReducedMotion();
+/**
+ * Group adjacent turns into per-day buckets so we can render date headers
+ * between groups. "Today" / "Yesterday" / weekday for the last week /
+ * full date otherwise.
+ */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
+function formatDayHeader(d: Date): string {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const dKey = dayKey(d);
+  if (dKey === dayKey(today)) return "Today";
+  if (dKey === dayKey(yesterday)) return "Yesterday";
+  // Within the last 6 days → weekday name
+  const diffDays = Math.floor(
+    (today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays >= 0 && diffDays < 7) {
+    return d.toLocaleDateString(undefined, { weekday: "long" });
+  }
+  // Otherwise → "Mon, Dec 18" (this year) or "Dec 18, 2024" (older)
+  const sameYear = d.getFullYear() === today.getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+export function JarvisScrollback({
+  turns,
+  onUndoAction,
+  onClarificationReply,
+  hasMore = false,
+  loadingOlder = false,
+  onLoadOlder,
+}: Props) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const shouldReduce = useReducedMotion();
+  const prevTurnsCountRef = useRef(turns.length);
+  // When the user clicks "Older messages", we record scrollHeight + scrollTop
+  // BEFORE the fetch resolves so the post-prepend effect can restore the
+  // visible message to the same pixel position (no jump).
+  const preserveScrollRef = useRef<{
+    prevHeight: number;
+    prevTop: number;
+  } | null>(null);
+
+  // Auto-scroll-to-bottom only when turns are APPENDED (new conversation),
+  // not when they're PREPENDED (paginated history load).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const grewAtTail = turns.length > prevTurnsCountRef.current;
+    const isPrependEvent = preserveScrollRef.current !== null;
+
+    if (isPrependEvent && containerRef.current) {
+      // Restore scroll so the previously-visible message stays put.
+      const el = containerRef.current;
+      const { prevHeight, prevTop } = preserveScrollRef.current!;
+      const heightDelta = el.scrollHeight - prevHeight;
+      el.scrollTop = prevTop + heightDelta;
+      preserveScrollRef.current = null;
+    } else if (grewAtTail) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    prevTurnsCountRef.current = turns.length;
   }, [turns.length]);
 
+  function handleLoadOlderClick() {
+    if (!containerRef.current || loadingOlder) return;
+    // Snapshot scroll state BEFORE the parent fires its async fetch.
+    preserveScrollRef.current = {
+      prevHeight: containerRef.current.scrollHeight,
+      prevTop: containerRef.current.scrollTop,
+    };
+    void onLoadOlder?.();
+  }
+
+  // Group turns by day for date headers.
+  const grouped: Array<{ day: string; turns: ScrollbackTurn[] }> = [];
+  for (const turn of turns) {
+    const key = dayKey(turn.createdAt);
+    const last = grouped[grouped.length - 1];
+    if (last && last.day === key) {
+      last.turns.push(turn);
+    } else {
+      grouped.push({ day: key, turns: [turn] });
+    }
+  }
+
   return (
-    <div className="h-full overflow-y-auto overscroll-contain px-6 py-4 font-mono hud-scrollbar">
+    <div
+      ref={containerRef}
+      className="h-full overflow-y-auto overscroll-contain px-6 py-4 font-mono hud-scrollbar"
+    >
+      {/* "Older messages" pagination button — only when there's another
+          page behind the oldest currently-loaded turn. Sits at the top so
+          the user reaches it by scrolling up. */}
+      {hasMore && turns.length > 0 ? (
+        <div className="flex justify-center mb-4">
+          <button
+            type="button"
+            onClick={handleLoadOlderClick}
+            disabled={loadingOlder}
+            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] px-3 py-1.5 rounded text-[var(--ink-muted)] hover:text-[var(--hud-cyan-light)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Load older messages"
+          >
+            {loadingOlder ? "Loading…" : "↑ Older messages"}
+          </button>
+        </div>
+      ) : null}
+
       {turns.length === 0 ? (
         <div className="flex h-full items-end justify-center pb-24">
           <div className="flex flex-col items-center text-center max-w-[520px] gap-3 select-none">
@@ -106,8 +227,18 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
         </div>
       ) : null}
 
-      {turns.map((turn) => (
-        <div key={turn.id} className="mb-3">
+      {grouped.map((group) => (
+        <div key={group.day}>
+          {/* Date divider — Today / Yesterday / weekday / "Mon DD" / "Mon DD, YYYY" */}
+          <div className="flex items-center gap-3 my-4 select-none">
+            <div className="flex-1 h-px bg-[var(--edge)]" />
+            <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)] opacity-70">
+              {formatDayHeader(group.turns[0].createdAt)}
+            </span>
+            <div className="flex-1 h-px bg-[var(--edge)]" />
+          </div>
+          {group.turns.map((turn) => (
+            <div key={turn.id} className="mb-3">
           {turn.kind === "user" ? (
             <div className="text-sm">
               <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
@@ -237,6 +368,8 @@ export function JarvisScrollback({ turns, onUndoAction, onClarificationReply }: 
               ) : null}
             </div>
           )}
+        </div>
+          ))}
         </div>
       ))}
 
