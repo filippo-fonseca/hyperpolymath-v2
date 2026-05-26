@@ -593,8 +593,15 @@ export function JarvisListener() {
   // transitions correctly but no audio plays.
   useEffect(() => {
     function handleVoiceSpeak(e: Event) {
-      const detail = (e as CustomEvent<{ text: string; voiceId?: string }>).detail;
+      const detail = (
+        e as CustomEvent<{ text: string; voiceId?: string; isVoice?: boolean }>
+      ).detail;
       if (!detail?.text?.trim()) return;
+      // Bug fix: the 5s wake-word-free follow-up window must only open when
+      // the user's turn was voice. Typed turns dispatch this event too (for
+      // FSM cycling correctness), but they must NOT arm the listener — that
+      // was making the mic stay armed indefinitely after every typed turn.
+      const turnWasVoice = detail.isVoice === true;
 
       // Read the shared AudioContext lazily on every event so we pick it up
       // even if it was unlocked AFTER this effect mounted (modal unlock
@@ -642,7 +649,9 @@ export function JarvisListener() {
         }
         dispatch({ type: "TTS_START" });
         dispatch({ type: "TTS_END" });
-        followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+        if (turnWasVoice) {
+          followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+        }
         return;
       }
 
@@ -654,7 +663,9 @@ export function JarvisListener() {
         onStart: () => dispatch({ type: "TTS_START" }),
         onEnd: () => {
           dispatch({ type: "TTS_END" });
-          followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+          if (turnWasVoice) {
+            followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+          }
         },
       });
     }

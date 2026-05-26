@@ -74,6 +74,25 @@ interface Props {
 }
 
 /**
+ * Per-turn timestamp — small mono caption shown next to each turn.
+ * Muted by default; lifts on hover so the eye isn't constantly distracted
+ * by row metadata. Hover-title shows the full localised date+time.
+ */
+function TurnTimestamp({ createdAt }: { createdAt: Date }) {
+  return (
+    <span
+      className="font-mono text-[11px] text-[var(--ink-muted)] opacity-40 group-hover:opacity-90 transition-opacity select-none whitespace-nowrap"
+      title={createdAt.toLocaleString()}
+    >
+      {createdAt.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })}
+    </span>
+  );
+}
+
+/**
  * Group adjacent turns into per-day buckets so we can render date headers
  * between groups. "Today" / "Yesterday" / weekday for the last week /
  * full date otherwise.
@@ -238,15 +257,16 @@ export function JarvisScrollback({
             <div className="flex-1 h-px bg-[var(--edge)]" />
           </div>
           {group.turns.map((turn) => (
-            <div key={turn.id} className="mb-3">
+            <div key={turn.id} className="mb-3 group">
           {turn.kind === "user" ? (
-            <div className="text-sm">
+            <div className="text-sm flex items-baseline gap-2">
               <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
                 {">"}
               </span>
-              <span className="font-mono text-foreground/80">
+              <span className="font-mono text-foreground/80 flex-1">
                 {stripSystemTags(turn.text)}
               </span>
+              <TurnTimestamp createdAt={turn.createdAt} />
             </div>
           ) : (
             // Phase 6.1 Plan 02 (UI-SPEC §6b state 8): error glitch class on
@@ -259,6 +279,9 @@ export function JarvisScrollback({
                 turn.status === "error" && !shouldReduce ? "hud-error-glitch" : ""
               }`}
             >
+              <div className="absolute top-0 right-0">
+                <TurnTimestamp createdAt={turn.createdAt} />
+              </div>
               {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring while
                   status='streaming' and no textDelta has arrived. Replaces the
                   Phase 5 <ThinkingWord /> indicator. Once the first token

@@ -184,14 +184,18 @@ export function JarvisConsole({
   );
 
   const handleSubmit = useCallback(
-    async (payload: JarvisInputPayload, _opts?: { isVoice?: boolean }) => {
+    async (payload: JarvisInputPayload, opts?: { isVoice?: boolean }) => {
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
       // leading text block (collected client-side from text deltas and fired
       // through TTS on onDone), so what's heard matches what's on screen.
-      // _opts.isVoice is retained for future channel-aware logic but does not
-      // currently affect server behavior.
       const voiceActive = false;
+      // Track the input modality so the onDone dispatch can tell JarvisListener
+      // whether to open the 5s follow-up window. Voice in → open window
+      // (chain conversation by voice). Typed in → don't open window (user is
+      // typing, not in active voice convo). Fix for the bug where typing
+      // would keep the wake-word-free voice window open indefinitely.
+      const turnIsVoice = opts?.isVoice === true;
       const userTurn: ScrollbackTurn = {
         kind: "user",
         id: crypto.randomUUID(),
@@ -364,6 +368,11 @@ export function JarvisConsole({
                 detail: {
                   text: spoken.length > 0 ? spoken : "Done, sir.",
                   voiceId: voiceSettings.voiceId,
+                  // Bug fix: only open the 5s follow-up window when the
+                  // user's input was voice. Typed turns must NOT open the
+                  // window (otherwise the listener stays armed indefinitely
+                  // after each typed message).
+                  isVoice: turnIsVoice,
                 },
               }),
             );
