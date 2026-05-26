@@ -9,6 +9,7 @@ import { BioSection } from "./BioSection";
 import { MeetKiwiSection } from "./MeetKiwiSection";
 import { ChoiceSection } from "./ChoiceSection";
 import { BuildLog } from "./BuildLog";
+import { CursorSpotlight } from "./CursorSpotlight";
 
 /**
  * Public landing manifesto — Phase 8.
@@ -22,7 +23,13 @@ import { BuildLog } from "./BuildLog";
  */
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
+    <div className="relative min-h-screen bg-[var(--canvas)] text-[var(--ink)] overflow-hidden">
+      {/* Cursor-following cyan spotlight — sits at z-index 0 behind all
+          content. Real content stacks above via the relative z-10 wrapper
+          on header / main / footer. */}
+      <CursorSpotlight />
+
+      <div className="relative z-10">
       <LandingHeader />
       <main>
         {/* §01 — THESIS (cold open) */}
@@ -69,6 +76,7 @@ export function LandingPage() {
         <BuildLog />
       </main>
       <LandingFooter />
+      </div>
     </div>
   );
 }
