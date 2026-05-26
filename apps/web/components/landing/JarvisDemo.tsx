@@ -130,14 +130,15 @@ export function JarvisDemo() {
   }
 
   return (
-    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[800px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 02 · DEMO" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Watch it route.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        One sentence in. One or more actions out, each routed to the right
-        primitive.
+        One sentence in, one or more actions out, each routed to the right
+        primitive. This is what I use every day to keep my own life in one
+        place.
       </p>
 
       {/* The terminal block */}
@@ -190,7 +191,7 @@ export function JarvisDemo() {
       </div>
 
       {/* "▶ show another" — right-aligned below terminal */}
-      <div className="mt-4 flex justify-end max-w-[720px] mx-auto">
+      <div className="mt-4 flex justify-end max-w-[800px] mx-auto">
         <button
           type="button"
           onClick={showAnother}

@@ -329,6 +329,27 @@
   font-feature-settings: "tnum" on, "lnum" on;
 }
 
+/* Themed page scrollbar — parchment thumb with cyan accent on hover (JARVIS
+   signature applied page-wide). Phase 8 Plan 08-06 gap closure (user feedback). */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge) transparent;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--edge) 80%, var(--hud-cyan) 20%);
+  border-radius: 6px;
+  border: 2px solid var(--canvas);
+}
+html::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--edge) 35%, var(--hud-cyan) 65%);
+}
+
 /* Thin themed scrollbar — webkit + firefox. Pairs with overflow utilities. */
 .custom-scrollbar {
   scrollbar-width: thin;

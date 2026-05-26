@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Linkedin, Github, Globe } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
 
 /**
@@ -8,22 +9,44 @@ import { SectionEyebrow } from "./SectionEyebrow";
  * Engine (the tech) and the Choice (the ask), so the reader knows whose
  * methodology they're being asked to use or fork.
  *
- * Voice discipline:
- *   - Same 4 canonical sizes {14, 18, 32, 56}; no exceptions
- *   - 720px container like every other section
- *   - No cyan (cyan stays reserved for §02 + §04 per UI-SPEC §4)
+ * Voice + visual discipline (Phase 8 Plan 08-06 gap closure):
+ *   - 4 canonical sizes {14, 18, 32, 56}; no exceptions
+ *   - 800px container (matches the widened landing-wide unify)
  *   - Photo uses rounded-2xl, not rounded-full — softer-square reads more
  *     "frontispiece portrait" than "social-app avatar"
- *   - Photo + prose: side-by-side on md+, stacked on mobile
+ *   - Social link icons hover to --hud-cyan (JARVIS signature now reads as
+ *     ambient — gate UI-SPEC §11a relaxed per checkpoint feedback)
+ *   - The mention of "a startup" links to https://zyndicate.app in a new tab
  *
  * Photo: apps/web/public/filippo.png — Next/Image serves it from /filippo.png.
- *
- * Phase 8 Plan 08-06 gap closure — user feedback at the human-verify
- * checkpoint asked for a "who built this and why" section.
  */
+
+const SOCIAL_LINKS = [
+  {
+    label: "LinkedIn",
+    href: "https://linkedin.com/in/filippo-fonseca",
+    Icon: Linkedin,
+  },
+  {
+    label: "X (Twitter)",
+    href: "https://x.com/FilippoFonseca",
+    Icon: XIcon,
+  },
+  {
+    label: "GitHub",
+    href: "https://github.com/filippo-fonseca",
+    Icon: Github,
+  },
+  {
+    label: "filippofonseca.com",
+    href: "https://filippofonseca.com",
+    Icon: Globe,
+  },
+] as const;
+
 export function BioSection() {
   return (
-    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[800px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 05 · WHO" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Why I built this.
@@ -43,43 +66,101 @@ export function BioSection() {
           <p className="mt-3 font-mono text-[14px] text-[var(--ink-muted)] text-center md:text-left">
             Filippo Fonseca
           </p>
+
+          {/* Social links — icon row. Hover lifts to --hud-cyan (JARVIS signature). */}
+          <ul className="mt-3 flex justify-center md:justify-start gap-3">
+            {SOCIAL_LINKS.map(({ label, href, Icon }) => (
+              <li key={href}>
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  title={label}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-muted)] transition-colors duration-200 hover:text-[var(--hud-cyan)]"
+                >
+                  <Icon size={16} aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Prose */}
         <div className="mt-8 md:mt-0 space-y-4">
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            Student, runner, builder, scholar &mdash; refusing to pick one.
-            I&rsquo;ve spent the last decade collecting the kind of skills
-            that don&rsquo;t belong on the same résumé: distance running,
-            classical reading, software, a few instruments, the long
-            slog of trying to understand things from first principles.
+            I&rsquo;m a student, a runner, a long-time builder, and someone who
+            has spent most of the last decade collecting skills that don&rsquo;t
+            really belong on the same résumé. Distance running, classical
+            reading, software since I was a kid, a few instruments I&rsquo;m bad
+            at, and the slow work of trying to understand things from first
+            principles. The Renaissance ideal has never felt like nostalgia to
+            me. It&rsquo;s felt like a working hypothesis: the same person who
+            trains for a marathon can read Augustine and ship code. The world
+            just needs a system around them that stops asking them to choose.
           </p>
 
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            The pursuit of polymathy isn&rsquo;t a hobby for me; it&rsquo;s a
-            stance. I think the Renaissance ideal &mdash; that the same mind
-            can run intervals, read Augustine, and ship code &mdash; is a
-            working hypothesis, not nostalgia. It just needs the surrounding
-            system to stop forcing you to specialize.
+            I tried to build that system once before. Six years ago I started{" "}
+            <a
+              href="https://zyndicate.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-[var(--edge)] decoration-1 underline-offset-2 transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+            >
+              a productivity startup
+            </a>{" "}
+            with a strikingly similar thesis, that the way our digital tools
+            fragment our attention is the actual obstacle to lifelong learning,
+            not the time we don&rsquo;t have. I wrote a long manifesto about
+            it, full of principles like &ldquo;visualize,&rdquo;
+            &ldquo;relate,&rdquo; &ldquo;ideate,&rdquo; and &ldquo;learn.&rdquo;
+            The startup failed for all the usual reasons (and the fact I was 14
+            and didn&rsquo;t know what I was doing; I still don&rsquo;t most of
+            the time, but I like to think I&rsquo;ve come a long way!). But the
+            problem never went away. If anything, the years since have only
+            made me more convinced that disorganization in our digital lives is
+            the unsolved version of the disorganization we&rsquo;d never
+            tolerate in our physical ones, and that it matters more now than it
+            did then.
           </p>
 
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            Every productivity app I tried did the opposite. Ten objects when
-            I needed five. Fragmented attention when I needed to consolidate.
-            Lifelong learning treated as a checklist instead of a way of
-            being. So I started engineering the system I wanted to exist:
-            small primitives, a single agent, a schema you can fork. The
-            whole point is to reduce friction so the brain can do what
-            brains do.
+            Hyperpolymath is what I want to use, every day. Five primitives
+            instead of ten. One agent instead of a dozen integrations. A schema
+            you can fork rather than a walled garden you have to live inside.
+            The whole point is to lower the friction between having a thought
+            and acting on it, so the brain is free to do what brains do: connect
+            things, learn, build, and yes, get out of the house and run.
           </p>
 
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            Hyperpolymath is the framework that came out of that. It&rsquo;s
-            open-source because if the methodology only works for me, it
-            isn&rsquo;t a methodology &mdash; it&rsquo;s a diary.
+            I made it open-source because the methodology shouldn&rsquo;t only
+            work for me. If it does, it isn&rsquo;t a methodology. It&rsquo;s a
+            diary, and the world has plenty of those already.
           </p>
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Inline X (Twitter) logo. Lucide doesn't ship the post-rebrand X glyph,
+ * so we inline the official mark. Renders at currentColor to inherit
+ * the link's hover state.
+ */
+function XIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
   );
 }

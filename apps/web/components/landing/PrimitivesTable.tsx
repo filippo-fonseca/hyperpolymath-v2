@@ -63,7 +63,7 @@ const PRIMITIVES = [
 
 export function PrimitivesTable() {
   return (
-    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[800px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 03 · THE PRIMITIVES" />
 
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
@@ -71,18 +71,20 @@ export function PrimitivesTable() {
       </h2>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Most life-OS apps give you ten kinds of object and call it flexibility.
-        That&rsquo;s not a system &mdash; it&rsquo;s a furniture store. A
-        Renaissance mind needs the opposite: the smallest set of primitives
-        that still covers the whole surface area of a life.
+        Most productivity apps give you ten kinds of object and call that
+        flexibility. To me it&rsquo;s closer to a furniture store. What I
+        actually wanted was the opposite: the smallest set of primitives that
+        could still cover the whole surface area of a life without forcing
+        me to specialize.
       </p>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Five turned out to be that number. Three modes of intent (areas,
-        projects, captures), one source of time (calendar), and one router
-        between them all (JARVIS). Anything more is decoration. Anything less
-        forces you to specialize. Use mine, or fork the framework &mdash;
-        either way, here&rsquo;s the contract.
+        Five turned out to be the number. Three modes of intent (areas,
+        projects, captures), one source of time (the calendar), and one
+        router that ties them all together (the agent I call JARVIS).
+        Anything more is decoration. Anything less and you&rsquo;re back in
+        the trap. Use mine, or fork the framework. Either way, this is the
+        contract.
       </p>
 
       <div className="mt-6">

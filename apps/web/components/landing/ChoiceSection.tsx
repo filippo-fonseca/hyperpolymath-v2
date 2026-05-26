@@ -19,16 +19,17 @@ const FRAMEWORK_URL = `${REPO_URL}/blob/main/FRAMEWORK.md`;
 
 export function ChoiceSection() {
   return (
-    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[800px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06 · THE CHOICE" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Two doors. Both open.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        The framework is the artifact; the app is one implementation of it.
-        Use mine if it fits your shape, or take the contract and build the one
-        that does. Open-source is the point &mdash; if the methodology only
-        works for me, it isn&rsquo;t a methodology.
+        The framework is the artifact; the app is just one implementation of
+        it. Use mine if it fits the shape of your life, or take the contract
+        and build the one that does. I made all of this open-source on
+        purpose. If the methodology only works for me, it isn&rsquo;t a
+        methodology.
       </p>
 
       <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -36,7 +37,7 @@ export function ChoiceSection() {
         <div className="space-y-4">
           <SectionEyebrow label="USE IT" />
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            v2 is single-user during build-in-public. Multi-user comes when the foundation is bulletproof.
+            v2 is single-user while I&rsquo;m building it in public. Multi-user comes once the foundation is bulletproof.
           </p>
           <WaitlistForm />
         </div>
@@ -45,7 +46,7 @@ export function ChoiceSection() {
         <div className="space-y-4">
           <SectionEyebrow label="FORK IT" />
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            Read the framework. Clone the repo. Adapt the primitives to your own life-OS. MIT — go.
+            Read the framework, clone the repo, and adapt the primitives to your own life-OS. It&rsquo;s MIT-licensed. Go.
           </p>
           <div className="space-y-2">
             <a

@@ -30,24 +30,25 @@ import { STRICT_TOOL_USE_FIXTURE } from "../../../../packages/jarvis-core/tests/
 
 export function EngineSection() {
   return (
-    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[800px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 04 · THE ENGINE" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Claude Sonnet 4.6, with a contract.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Most agents are LLMs with prompts taped to them. They drift. They
-        hallucinate fields. They invent tools that don&rsquo;t exist. That
-        works for a demo and breaks for a life.
+        Most agents are just an LLM with a prompt taped on top. They drift,
+        they hallucinate fields, they cheerfully invent tools that
+        don&rsquo;t exist. That&rsquo;s tolerable for a demo. It isn&rsquo;t
+        tolerable for the thing that organizes the rest of your life.
       </p>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        JARVIS takes the opposite stance: the Zod schema is the source of
-        truth and the model is constrained to it. Claude Sonnet 4.6 with
-        Strict Tool Use cannot emit a malformed action — the contract is
-        enforced at generation time, not validated after the fact. One
-        sentence in; N typed JSON tool calls out, each a different shape. The
-        router stays small because the primitives stay small. The whole
-        pipeline fits in your head.
+        So I built JARVIS the other way around. The schema is the source of
+        truth, and the model is constrained to it. Claude Sonnet 4.6 with
+        Strict Tool Use literally cannot emit a malformed action, because
+        the contract is enforced at generation time rather than validated
+        after the fact. One sentence in, N typed JSON tool calls out, each
+        a different shape. The router stays small because the primitives
+        stay small, and the whole pipeline still fits in my head.
       </p>
 
       {/* Side-by-side input + JSON */}
@@ -89,7 +90,7 @@ export function EngineSection() {
 
       {/* Source-of-truth note */}
       <p className="mt-4 font-mono text-[14px] text-[var(--ink-muted)]">
-        {"Plucked verbatim from packages/jarvis-core/tests/strict-tool-use.fixture.ts — no edits."}
+        {"Plucked verbatim from packages/jarvis-core/tests/strict-tool-use.fixture.ts. No edits."}
       </p>
     </section>
   );
