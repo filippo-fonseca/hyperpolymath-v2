@@ -64,7 +64,7 @@ const PRIMITIVES = [
 export function PrimitivesTable() {
   return (
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
-      <SectionEyebrow label="§ 03 · THE PRIMITIVES" />
+      <SectionEyebrow label="§ 04 · THE PRIMITIVES" />
 
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Five primitives. One agent.
@@ -95,10 +95,7 @@ export function PrimitivesTable() {
           reader gets shape before they get the contract. */}
       <div className="mt-8">
         <SectionEyebrow label="STRUCTURE" />
-        <div
-          className="mt-3 p-6 md:p-8 bg-[var(--surface)] border border-[var(--edge)] rounded overflow-x-auto custom-scrollbar"
-          aria-label="Hyperpolymath primitive tree"
-        >
+        <div className="mt-3 overflow-x-auto custom-scrollbar">
           <PrimitiveTree />
         </div>
       </div>
@@ -146,21 +143,42 @@ export function PrimitivesTable() {
 }
 
 /**
- * Styled hierarchy tree for §03. Uses CSS-drawn connector lines
- * (border-left + border-bottom on each node) rather than ASCII or SVG.
- *
- * Visual grammar:
- *   - Root label sits at top, no incoming connector.
- *   - Each child renders as a pill (mono name) + role caption to its right.
- *   - Connector is a 1px --edge L-shape drawn via ::before pseudo-positioning.
- *   - The vertical spine continues down the left edge for non-last children
- *     via ::after pseudo on each branch.
- *   - JARVIS is the cyan-accented leaf: pill border --edge-hud, label
- *     --hud-cyan, faint glow. Reads as the centerpiece signature.
+ * Styled hierarchy tree for §04. JARVIS is NOT a branch — it's the
+ * envelope. The outer container has a cyan --edge-hud border + soft
+ * --glow-hud-subtle shadow, with a JARVIS label at top, signaling that
+ * the agent permeates every data primitive inside it. The data
+ * primitives (Areas → Projects, Captures, Calendar) sit inside the
+ * envelope as the actual tree.
  */
 function PrimitiveTree() {
   return (
-    <div className="font-serif text-[18px] leading-[1.4] text-[var(--ink)]">
+    <div
+      className="font-serif text-[18px] leading-[1.4] text-[var(--ink)] relative p-6 md:p-7 rounded bg-[var(--surface-raised)]"
+      style={{
+        border: "1px solid var(--edge-hud)",
+        boxShadow: "var(--glow-hud-subtle)",
+      }}
+    >
+      {/* JARVIS envelope header — sits at the top of the container,
+          declares "everything inside is touched by the agent" */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--edge-hud)]">
+        <span
+          className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+          style={{
+            color: "var(--hud-cyan-light)",
+            border: "1px solid var(--edge-hud)",
+            background: "var(--surface)",
+            boxShadow: "var(--glow-hud-subtle)",
+          }}
+        >
+          <span className="mr-1.5">⚜</span>
+          JARVIS
+        </span>
+        <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+          natural-language agent permeating every primitive below
+        </span>
+      </div>
+
       <RootPill label="Hyperpolymath" />
       <ul className="tree-branch mt-2">
         <Branch
@@ -182,11 +200,6 @@ function PrimitiveTree() {
         <Branch
           name="Calendar"
           role="Google Calendar, the source of truth for time"
-        />
-        <Branch
-          name="JARVIS"
-          role="natural-language router across every primitive above"
-          accent="cyan"
           last
         />
       </ul>

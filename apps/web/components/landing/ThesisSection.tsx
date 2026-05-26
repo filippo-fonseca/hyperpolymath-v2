@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
+import { HeroJarvisLine } from "./HeroJarvisLine";
+import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 
 // --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier inference.
 const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
@@ -45,31 +47,52 @@ export function ThesisSection() {
       aria-labelledby="thesis-headline"
     >
       <div className="max-w-[920px] mx-auto text-center">
-        {/* Cyan ⚜ frontispiece ornament — JARVIS centerpiece signature.
-            Breathes gently; reduced-motion fixes opacity. */}
-        <motion.div
-          aria-hidden="true"
-          className="mx-auto select-none"
-          initial={{ opacity: reducedMotion ? 0.85 : 0.5 }}
-          animate={
-            reducedMotion
-              ? { opacity: 0.85 }
-              : { opacity: [0.55, 0.95, 0.55] }
-          }
-          transition={
-            reducedMotion
-              ? { duration: 0 }
-              : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-          }
-          style={{
-            color: "var(--hud-cyan)",
-            textShadow: "0 0 18px var(--hud-cyan-glow)",
-            fontSize: "32px",
-            lineHeight: 1,
-          }}
-        >
-          ⚜
-        </motion.div>
+        {/* Hero JARVIS aura — the rotating HudThinkingRing wraps the ⚜
+            ornament. The ring is the same "agent thinking" indicator the
+            app uses while JARVIS waits on a token; using it here makes
+            the hero a JARVIS surface, not just a manifesto headline.
+            Reduced motion: ring freezes at 12 o'clock per HudThinkingRing's
+            built-in handling; ornament holds a static opacity. */}
+        <div className="mx-auto relative inline-flex items-center justify-center select-none">
+          {/* Soft outer glow halo, sits behind the ring */}
+          <div
+            aria-hidden="true"
+            className="absolute"
+            style={{
+              width: "180px",
+              height: "180px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, var(--hud-cyan-glow) 0%, transparent 65%)",
+              filter: "blur(12px)",
+              pointerEvents: "none",
+            }}
+          />
+          <HudThinkingRing size={108} className="relative" />
+          <motion.span
+            aria-hidden="true"
+            className="absolute inset-0 flex items-center justify-center"
+            initial={{ opacity: reducedMotion ? 0.95 : 0.6 }}
+            animate={
+              reducedMotion
+                ? { opacity: 0.95 }
+                : { opacity: [0.7, 1, 0.7] }
+            }
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
+            }
+            style={{
+              color: "var(--hud-cyan)",
+              textShadow: "0 0 16px var(--hud-cyan-glow)",
+              fontSize: "44px",
+              lineHeight: 1,
+            }}
+          >
+            ⚜
+          </motion.span>
+        </div>
 
         <motion.p
           className="mt-8 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]"
@@ -110,20 +133,19 @@ export function ThesisSection() {
           place.
         </motion.p>
 
-        <motion.p
-          className="mt-6 font-serif text-[18px] leading-[1.6] text-[var(--ink)] max-w-[620px] mx-auto"
+        {/* Live JARVIS line — auto-cycling typing+receipt loop. The
+            centerpiece of the hero. */}
+        <motion.div
           initial={enter.initial}
           animate={enter.animate}
           transition={
             reducedMotion
               ? undefined
-              : { duration: 0.7, delay: 0.4, ease: EASE_OUT_QUART }
+              : { duration: 0.7, delay: 0.5, ease: EASE_OUT_QUART }
           }
         >
-          One brain holds five primitives: areas, projects, captures, a
-          calendar, and the agent that routes between them all. That&rsquo;s
-          the whole system. The point is to stop choosing.
-        </motion.p>
+          <HeroJarvisLine />
+        </motion.div>
       </div>
 
       {/* ↓ scroll affordance — vanishes on first scroll, breathes per UI-SPEC §6 */}
