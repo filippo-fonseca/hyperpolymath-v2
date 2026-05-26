@@ -16,7 +16,7 @@ const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
  * frontispiece. The hero h1 and surrounding paragraphs fade-up on mount for
  * a softer entrance. ↓ scroll affordance retained at bottom-12.
  *
- * Container: max-w-[800px] mx-auto, vertically centered in first 90vh.
+ * Container: max-w-[920px] mx-auto, vertically centered in first 90vh.
  */
 export function ThesisSection() {
   const reducedMotion = useReducedMotion();
@@ -44,7 +44,7 @@ export function ThesisSection() {
       className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 md:px-10"
       aria-labelledby="thesis-headline"
     >
-      <div className="max-w-[800px] mx-auto text-center">
+      <div className="max-w-[920px] mx-auto text-center">
         {/* Cyan ⚜ frontispiece ornament — JARVIS centerpiece signature.
             Breathes gently; reduced-motion fixes opacity. */}
         <motion.div
