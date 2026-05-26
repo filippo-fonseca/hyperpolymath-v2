@@ -82,7 +82,7 @@ export function ThesisSection() {
               : { duration: 0.8, delay: 0.1, ease: EASE_OUT_QUART }
           }
         >
-          I brought back the Renaissance.
+          I brought back the Renaissance. And JARVIS.
         </motion.h1>
 
         {/* Impactful subheader — Display 2 (32px), between the 56px hero
