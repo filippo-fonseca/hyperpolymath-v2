@@ -58,17 +58,22 @@ export function ThesisSection() {
           <HudCoreBubble state="thinking" />
         </div>
 
-        <motion.p
-          className="mt-8 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]"
-          {...enter}
-        >
-          &ldquo;You don&rsquo;t have to choose between being a runner or a
-          musician, a creator or a scholar. The Renaissance had it right.&rdquo;
-        </motion.p>
+        <motion.div className="mt-8" {...enter}>
+          <p className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
+            &ldquo;When we can&rsquo;t take ownership of the situation, we
+            can still take ownership of the process.&rdquo;
+          </p>
+          <p className="mt-2 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
+            &ldquo;Play holds the key to true productivity.&rdquo;
+          </p>
+          <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
+            — Ali Abdaal
+          </p>
+        </motion.div>
 
         <motion.h1
           id="thesis-headline"
-          className="mt-12 font-serif font-semibold text-[56px] leading-[1.1] text-[var(--ink)]"
+          className="mt-10 font-serif font-semibold text-[56px] leading-[1.1] text-[var(--ink)]"
           initial={enter.initial}
           animate={enter.animate}
           transition={
@@ -77,24 +82,36 @@ export function ThesisSection() {
               : { duration: 0.8, delay: 0.1, ease: EASE_OUT_QUART }
           }
         >
-          I brought back
-          <br />
-          the Renaissance.
+          I brought back the Renaissance.
         </motion.h1>
 
+        {/* Impactful subheader — Display 2 (32px), between the 56px hero
+            and the 18px paragraph in the typographic hierarchy. */}
         <motion.p
-          className="mt-8 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]"
+          className="mt-6 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)] max-w-[780px] mx-auto"
           initial={enter.initial}
           animate={enter.animate}
           transition={
             reducedMotion
               ? undefined
-              : { duration: 0.7, delay: 0.25, ease: EASE_OUT_QUART }
+              : { duration: 0.75, delay: 0.22, ease: EASE_OUT_QUART }
           }
         >
-          A personal life-OS for people who refuse to specialize. You type
-          one sentence to JARVIS, and the right action lands in the right
-          place.
+          A personal life-OS for people who refuse to specialize.
+        </motion.p>
+
+        <motion.p
+          className="mt-5 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] max-w-[620px] mx-auto"
+          initial={enter.initial}
+          animate={enter.animate}
+          transition={
+            reducedMotion
+              ? undefined
+              : { duration: 0.7, delay: 0.36, ease: EASE_OUT_QUART }
+          }
+        >
+          Type or speak one sentence to JARVIS, and the right action lands
+          in the right place.
         </motion.p>
 
         {/* Live JARVIS line — auto-cycling typing+receipt loop. The

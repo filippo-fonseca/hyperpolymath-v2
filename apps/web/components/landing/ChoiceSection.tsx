@@ -69,7 +69,7 @@ export function ChoiceSection() {
             </a>
           </div>
           <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
-            4,200+ commits. MIT licensed. No dependencies on me.
+            MIT licensed. Built in public. No dependencies on me.
           </p>
         </div>
       </div>
