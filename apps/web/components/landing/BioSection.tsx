@@ -52,8 +52,9 @@ export function BioSection() {
         Why I built this.
       </h2>
 
+      {/* Identity card — portrait + name + credentials + social row.
+          Sits at the top; the prose flows below at full width. */}
       <div className="mt-8 flex flex-col md:flex-row md:items-start md:gap-8">
-        {/* Portrait — softer-square, frontispiece style */}
         <div className="flex-shrink-0 mx-auto md:mx-0">
           <Image
             src="/filippo.png"
@@ -63,12 +64,27 @@ export function BioSection() {
             className="rounded-2xl border border-[var(--edge)]"
             priority={false}
           />
-          <p className="mt-3 font-mono text-[14px] text-[var(--ink-muted)] text-center md:text-left">
+        </div>
+
+        <div className="mt-6 md:mt-0 flex-1 text-center md:text-left">
+          <p className="font-serif text-[28px] font-semibold leading-[1.2] text-[var(--ink)]">
             Filippo Fonseca
+          </p>
+          <p className="mt-2 font-serif text-[14px] leading-[1.55] text-[var(--ink-muted)]">
+            Yale MechE (ABET) + EECS &rsquo;28 · Engineer @ Mass General /
+            Harvard Med · President @ Yale Robotics · Entrepreneur ·
+            Biomechatronics · Polyglot · Stoic
+          </p>
+          <p className="mt-2 font-serif italic text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+            I build humanist physical intelligence w/ robotics &amp;
+            materials. 🫀🦴
+          </p>
+          <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
+            New Haven, Connecticut
           </p>
 
           {/* Social links — icon row. Hover lifts to --hud-cyan (JARVIS signature). */}
-          <ul className="mt-3 flex justify-center md:justify-start gap-3">
+          <ul className="mt-4 flex justify-center md:justify-start gap-3">
             {SOCIAL_LINKS.map(({ label, href, Icon }) => (
               <li key={href}>
                 <a
@@ -85,9 +101,11 @@ export function BioSection() {
             ))}
           </ul>
         </div>
+      </div>
 
-        {/* Prose */}
-        <div className="mt-8 md:mt-0 space-y-4">
+      {/* Prose flows below the identity card at full container width.
+          Inner max-w cap keeps the measure readable. */}
+      <div className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
             I&rsquo;m a student, a runner, a long-time builder, and someone who
             has spent most of the last decade collecting skills that don&rsquo;t
@@ -140,7 +158,6 @@ export function BioSection() {
             diary, and the world has plenty of those already.
           </p>
         </div>
-      </div>
     </section>
   );
 }

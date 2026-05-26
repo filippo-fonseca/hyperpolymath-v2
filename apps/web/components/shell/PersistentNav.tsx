@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Sparkles,
   CheckSquare,
   MessageSquare,
   Calendar,
   Settings,
   BarChart2,
+  Info,
 } from "lucide-react";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { KiwiAboutDialog } from "./KiwiAboutDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -48,7 +50,7 @@ import type { MicState } from "@/lib/voice/types";
  * 0.7 → 1 over 100ms per UI-SPEC §7a.
  */
 const items = [
-  { href: "/today", label: "JARVIS", icon: Sparkles, disabled: false, tooltip: undefined, isAgent: true },
+  { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
@@ -196,20 +198,11 @@ export function PersistentNav({ collapsed }: Props) {
           );
         })}
 
-        {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern).
-            MicIndicatorDot lives inside .agent-mode-scope (cyan HUD vocabulary).
-            DiscreetToggleButton lives outside that scope (diplomatic chrome).
-            Only renders content when voice is enabled (DiscreetToggleButton
-            gates itself; MicIndicatorDotContainer always renders the dot but
-            shows as --ink-muted at 40% in idle state when voice is off). */}
+        {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern). */}
         <div className="flex items-center gap-1 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
-          {/* Cyan dot inside agent-mode-scope per D-01 */}
           <div className="agent-mode-scope inline-flex items-center">
             <MicIndicatorDotContainer />
           </div>
-          {/* Discreet toggle + tap-to-talk outside agent-mode-scope per D-01.
-              PressToTalkButton is the Cmd+Shift+J fallback for Safari and any
-              focus context that swallows the keystroke. */}
           {!collapsed && (
             <>
               <PressToTalkButton />
@@ -217,6 +210,30 @@ export function PersistentNav({ collapsed }: Props) {
             </>
           )}
         </div>
+
+        {/* "Meet Kiwi" info trigger — opens the KiwiAboutDialog modal.
+            Small ghost button so it sits at the bottom of the sidebar
+            without competing with the primary nav. Collapsed mode shows
+            just the icon with a tooltip. */}
+        <KiwiAboutDialog>
+          <button
+            type="button"
+            className={cn(
+              "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
+              "font-serif text-[14px] tracking-tight text-[var(--ink-muted)]",
+              "transition-all duration-150 ease-out",
+              "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
+            )}
+            aria-label="About Kiwi"
+          >
+            <span className="relative shrink-0">
+              <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+            </span>
+            {!collapsed && (
+              <span className="flex-1 text-left italic">About Kiwi</span>
+            )}
+          </button>
+        </KiwiAboutDialog>
       </nav>
     </TooltipProvider>
   );
