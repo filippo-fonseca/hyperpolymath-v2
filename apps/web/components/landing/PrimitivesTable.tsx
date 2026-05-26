@@ -33,31 +33,37 @@ import { SectionEyebrow } from "./SectionEyebrow";
 const GITHUB_FRAMEWORK_BASE =
   "https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/FRAMEWORK.md";
 
-const PRIMITIVES = [
+type Primitive = {
+  name: string;
+  role: string;
+  anchor: string | null;
+};
+
+const PRIMITIVES: ReadonlyArray<Primitive> = [
   {
     name: "Areas",
-    role: "Top-level life domains (Health, School, ...)",
+    role: "Top-level life domains (Health, School, Work, …)",
     anchor: "areas",
   },
   {
     name: "Projects",
-    role: "Bounded efforts inside Areas (incl. Classes)",
+    role: "Bounded efforts inside an Area (incl. Classes)",
     anchor: "projects",
   },
   {
-    name: "Captures",
-    role: "Frictionless inbox for fleeting thoughts",
-    anchor: "captures",
-  },
-  {
-    name: "JARVIS",
-    role: "Natural-language agent · strict tool use",
-    anchor: "jarvis",
+    name: "Building Blocks",
+    role: "The atoms inside Projects: Tasks, Captures, (soon) Wiki Pages",
+    anchor: null, // FRAMEWORK.md anchor for this category to be added in a follow-up
   },
   {
     name: "Calendar",
-    role: "Google Calendar as source of truth",
+    role: "Google Calendar (external). JARVIS reads it for time context.",
     anchor: "calendar",
+  },
+  {
+    name: "JARVIS",
+    role: "The orchestrator. Routes across the hierarchy, holds full context.",
+    anchor: "jarvis",
   },
 ] as const;
 
@@ -67,7 +73,7 @@ export function PrimitivesTable() {
       <SectionEyebrow label="§ 05 · THE PRIMITIVES" />
 
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
-        Five primitives. One agent.
+        A small hierarchy. One agent.
       </h2>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
@@ -79,12 +85,13 @@ export function PrimitivesTable() {
       </p>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Five turned out to be the number. Three modes of intent (areas,
-        projects, captures), one source of time (the calendar), and one
-        router that ties them all together (the agent I call JARVIS).
-        Anything more is decoration. Anything less and you&rsquo;re back in
-        the trap. Use mine, or fork the framework. Either way, this is the
-        contract.
+        Hyperpolymath is structured as a small hierarchy. Areas at the top,
+        your life domains. Projects inside Areas, the bounded efforts (your
+        classes live here too). Inside Projects sit the Building Blocks:
+        Tasks today, Captures today, Wiki Pages soon. Time itself lives in
+        Google Calendar, which JARVIS reads directly rather than mirroring.
+        JARVIS sits over the whole structure as the orchestrator, with full
+        context from every building block on up to your top-level Areas.
       </p>
 
       {/* Structure tree — styled JSX tree with CSS-drawn connector lines.
@@ -102,7 +109,7 @@ export function PrimitivesTable() {
 
       <div className="mt-8">
         {/* Column header row */}
-        <div className="grid grid-cols-[140px_1fr_60px] items-center border-b border-[var(--edge)] pb-3">
+        <div className="grid grid-cols-[160px_1fr_60px] items-center border-b border-[var(--edge)] pb-3">
           <span className="font-mono text-[14px] font-medium uppercase tracking-[0.04em] text-[var(--ink-muted)]">
             PRIMITIVE
           </span>
@@ -117,8 +124,8 @@ export function PrimitivesTable() {
         {/* Primitive rows */}
         {PRIMITIVES.map((p) => (
           <div
-            key={p.anchor}
-            className="grid grid-cols-[140px_1fr_60px] items-center min-h-[56px] border-b border-[var(--edge)]"
+            key={p.name}
+            className="grid grid-cols-[160px_1fr_60px] items-center min-h-[56px] border-b border-[var(--edge)]"
           >
             <span className="font-mono text-[14px] font-medium tracking-[0.04em] text-[var(--ink)]">
               {p.name}
@@ -126,15 +133,19 @@ export function PrimitivesTable() {
             <span className="font-serif text-[18px] leading-[1.4] text-[var(--ink)]">
               {p.role}
             </span>
-            <a
-              href={`${GITHUB_FRAMEWORK_BASE}#${p.anchor}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Read the ${p.name} spec in FRAMEWORK.md on GitHub`}
-              className="justify-self-end text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
-            >
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </a>
+            {p.anchor ? (
+              <a
+                href={`${GITHUB_FRAMEWORK_BASE}#${p.anchor}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Read the ${p.name} spec in FRAMEWORK.md on GitHub`}
+                className="justify-self-end text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+              >
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </a>
+            ) : (
+              <span aria-hidden="true" />
+            )}
           </div>
         ))}
       </div>
@@ -159,8 +170,8 @@ function PrimitiveTree() {
         boxShadow: "var(--glow-hud-subtle)",
       }}
     >
-      {/* JARVIS envelope header — sits at the top of the container,
-          declares "everything inside is touched by the agent" */}
+      {/* JARVIS envelope header — declares "everything inside is touched
+          by the agent" */}
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--edge-hud)]">
         <span
           className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
@@ -175,34 +186,75 @@ function PrimitiveTree() {
           JARVIS
         </span>
         <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
-          natural-language agent permeating every primitive below
+          A friendly, all-knowing orchestrator across every primitive below,
+          with one eye on your Google Calendar.
         </span>
       </div>
 
-      <RootPill label="Hyperpolymath" />
+      {/* Areas is the top of the hierarchy. Projects nest one level below.
+          Building Blocks nest one level below that, with Tasks / Captures /
+          (soon) Wiki Pages as the concrete leaf types. */}
+      <RootPill label="Areas" />
       <ul className="tree-branch mt-2">
         <Branch
-          name="Areas"
-          role="top-level life domains (Health, School, Work, …)"
+          name="Projects"
+          role="bounded efforts inside an Area (incl. Classes)"
+          last
         >
           <ul className="tree-branch mt-2">
             <Branch
-              name="Projects"
-              role="bounded efforts inside an area (incl. Classes)"
+              name="Building Blocks"
+              role="the atoms inside Projects"
               last
-            />
+            >
+              <ul className="tree-branch mt-2">
+                <Branch
+                  name="Tasks"
+                  role="work items with due dates and priorities"
+                />
+                <Branch
+                  name="Captures"
+                  role="frictionless inbox notes, filed into a Project"
+                />
+                <Branch
+                  name="Wiki Pages"
+                  role="long-form notes (coming soon)"
+                  muted
+                  last
+                />
+              </ul>
+            </Branch>
           </ul>
         </Branch>
-        <Branch
-          name="Captures"
-          role="frictionless inbox for fleeting thoughts"
-        />
-        <Branch
-          name="Calendar"
-          role="Google Calendar, the source of truth for time"
-          last
-        />
       </ul>
+
+      {/* External callout for Calendar — sits outside the data hierarchy
+          because Google Calendar is the source of truth for time and is
+          never duplicated into Hyperpolymath. JARVIS reads from it. */}
+      <div className="mt-6 pt-5 border-t border-[var(--edge)]">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+          <span
+            className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+            style={{
+              color: "var(--ink-muted)",
+              border: "1px solid var(--edge)",
+              background: "var(--surface)",
+            }}
+          >
+            Calendar
+            <span
+              className="ml-2 text-[12px] uppercase tracking-[0.08em]"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              external
+            </span>
+          </span>
+          <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+            Google Calendar lives outside the hierarchy. JARVIS reads it
+            for time context; events are never duplicated here.
+          </span>
+        </div>
+      </div>
 
       {/* Connector styling — scoped inline so we don't add to globals.css */}
       <style>{`
@@ -252,18 +304,21 @@ function Branch({
   name,
   role,
   accent,
+  muted = false,
   last = false,
   children,
 }: {
   name: string;
   role: string;
   accent?: "cyan";
+  /** Renders the pill + role at reduced opacity to mark "coming soon" items. */
+  muted?: boolean;
   last?: boolean;
   children?: React.ReactNode;
 }) {
   const cyan = accent === "cyan";
   return (
-    <li className={last ? "is-last" : ""}>
+    <li className={last ? "is-last" : ""} style={muted ? { opacity: 0.55 } : undefined}>
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
         <span
           className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
@@ -277,7 +332,7 @@ function Branch({
                 }
               : {
                   color: "var(--ink)",
-                  border: "1px solid var(--edge)",
+                  border: muted ? "1px dashed var(--edge)" : "1px solid var(--edge)",
                   background: "var(--surface-raised)",
                 }
           }

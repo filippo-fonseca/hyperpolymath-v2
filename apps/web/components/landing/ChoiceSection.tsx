@@ -15,7 +15,7 @@ import { WaitlistForm } from "./WaitlistForm";
  */
 
 const REPO_URL = "https://github.com/filippo-fonseca/hyperpolymath-v2";
-const FRAMEWORK_URL = `${REPO_URL}/blob/main/FRAMEWORK.md`;
+const CONTRIBUTING_URL = `${REPO_URL}/blob/main/CONTRIBUTING.md`;
 
 export function ChoiceSection() {
   return (
@@ -50,13 +50,13 @@ export function ChoiceSection() {
           </p>
           <div className="space-y-2">
             <a
-              href={FRAMEWORK_URL}
+              href={CONTRIBUTING_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 font-mono text-[14px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
             >
               <BookOpen size={16} aria-hidden="true" />
-              <span>▶ Read the framework</span>
+              <span>▶ How to contribute</span>
             </a>
             <a
               href={REPO_URL}
