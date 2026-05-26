@@ -46,7 +46,10 @@ const SOCIAL_LINKS = [
 
 export function BioSection() {
   return (
-    <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
+    <section
+      id="why"
+      className="py-16 max-w-[920px] mx-auto px-6 md:px-10 scroll-mt-20"
+    >
       <SectionEyebrow label="§ 02 · WHO" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Why I built this.

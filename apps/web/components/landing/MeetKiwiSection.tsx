@@ -91,8 +91,9 @@ export function MeetKiwiSection() {
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
           Their one and only job is to be an{" "}
-          <span className="font-semibold">orchestrator</span>. You type or
-          speak a sentence. Kiwi reads it, decides which of your five
+          <span className="font-semibold">orchestrator</span>. You either
+          type at the prompt or hold ⌘+J and speak. Either modality is
+          first-class. Kiwi reads it, decides which of your five
           primitives it belongs to (an area, a project, a capture, a
           calendar event, or one of your tasks), and routes it to the
           right place. That&rsquo;s the whole loop. No vibes, no

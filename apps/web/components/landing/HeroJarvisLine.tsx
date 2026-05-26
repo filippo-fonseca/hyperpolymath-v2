@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { Mic, Terminal } from "lucide-react";
 
 /**
  * Auto-cycling JARVIS animation for the hero. One sentence types in,
@@ -23,27 +24,40 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
  * in the hero. This is it.
  */
 
+type Mode = "type" | "voice";
+
 type Example = {
   input: string;
   verb: string;
   body: string;
+  mode: Mode;
 };
 
+// Mix of voice + typed examples so the hero advertises both modalities.
 const EXAMPLES: readonly Example[] = [
   {
     input: "schedule a run tomorrow morning",
     verb: "scheduled",
     body: 'gcal · tomorrow 6:00 AM · "Morning run"',
+    mode: "voice",
   },
   {
     input: "#idea polymathy as competitive edge",
     verb: "captured",
     body: "capture · #idea",
+    mode: "type",
   },
   {
     input: "anth pset by fri 3pm $ANTH 2480",
     verb: "created",
     body: "task · fri 3:00 PM · P2 · linked $ANTH 2480",
+    mode: "type",
+  },
+  {
+    input: "remind me to call mom tonight at eight",
+    verb: "created",
+    body: "task · tonight 8:00 PM · reminder",
+    mode: "voice",
   },
 ] as const;
 
@@ -121,7 +135,7 @@ export function HeroJarvisLine() {
     <div className="mt-10 flex justify-center" aria-live="polite">
       <motion.div
         key={exampleIdx}
-        className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--surface-raised)] min-w-[260px] sm:min-w-[420px] max-w-[560px]"
+        className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--surface-raised)] min-w-[260px] sm:min-w-[420px] max-w-[560px] w-full"
         style={{
           border: "1px solid var(--edge-hud)",
           boxShadow: "var(--glow-hud-subtle)",
@@ -139,9 +153,38 @@ export function HeroJarvisLine() {
           ease: EASE_OUT_QUART,
         }}
       >
-        {/* Input line */}
+        {/* Mode badge — flips between TYPED ($ ) and SPOKEN (mic) so the
+            hero advertises both input modalities. */}
+        <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--edge-hud)] opacity-80">
+          <div
+            className="inline-flex items-center gap-1.5 font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: "var(--hud-cyan-light)" }}
+          >
+            {example.mode === "voice" ? (
+              <>
+                <Mic size={12} aria-hidden="true" strokeWidth={2} />
+                <span>Spoken</span>
+              </>
+            ) : (
+              <>
+                <Terminal size={12} aria-hidden="true" strokeWidth={2} />
+                <span>Typed</span>
+              </>
+            )}
+          </div>
+          <span
+            className="font-mono text-[14px] tracking-[0.14em] opacity-60"
+            style={{ color: "var(--ink-muted)" }}
+          >
+            JARVIS
+          </span>
+        </div>
+
+        {/* Input line — prefix flips between $ and a mic glyph */}
         <div className="font-mono font-mono-stats text-[14px] leading-[1.55] text-[var(--ink)] whitespace-pre-wrap break-words text-left w-full">
-          <span style={{ color: "var(--hud-cyan)" }}>$ </span>
+          <span style={{ color: "var(--hud-cyan)" }}>
+            {example.mode === "voice" ? "🎙  " : "$ "}
+          </span>
           <span>{typedText}</span>
           {showCaret && (
             <span

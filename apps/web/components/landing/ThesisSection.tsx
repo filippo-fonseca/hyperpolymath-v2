@@ -129,27 +129,37 @@ export function ThesisSection() {
         </motion.div>
       </div>
 
-      {/* ↓ scroll affordance — vanishes on first scroll, breathes per UI-SPEC §6 */}
+      {/* "Learn more" teaser — clickable, smooth-scrolls to §02 WHO.
+          Breathes gently and vanishes on first scroll (no nag).
+          Reduced motion: static opacity, instant scroll instead of smooth. */}
       {!scrolled && (
-        <motion.div
-          className="absolute bottom-12"
-          initial={{ opacity: reducedMotion ? 0.5 : 0.3 }}
+        <motion.button
+          type="button"
+          onClick={() => {
+            const target = document.getElementById("why");
+            if (!target) return;
+            target.scrollIntoView({
+              behavior: reducedMotion ? "auto" : "smooth",
+              block: "start",
+            });
+          }}
+          className="absolute bottom-12 inline-flex flex-col items-center gap-1 px-3 py-2 rounded text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+          initial={{ opacity: reducedMotion ? 0.7 : 0.5 }}
           animate={
-            reducedMotion ? { opacity: 0.5 } : { opacity: [0.3, 0.7, 0.3] }
+            reducedMotion ? { opacity: 0.7 } : { opacity: [0.45, 0.85, 0.45] }
           }
           transition={
             reducedMotion
               ? { duration: 0 }
-              : {
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }
+              : { duration: 1.8, repeat: Infinity, ease: "easeInOut" }
           }
-          aria-hidden="true"
+          aria-label="Learn more — scroll to bio"
         >
-          <ChevronDown size={16} className="text-[var(--ink-muted)]" />
-        </motion.div>
+          <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]">
+            Learn more
+          </span>
+          <ChevronDown size={18} aria-hidden="true" />
+        </motion.button>
       )}
     </section>
   );
