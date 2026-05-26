@@ -54,11 +54,16 @@ export function ThesisSection() {
             Idle but visibly alive; reduced-motion freezes the rotations.
             Pulled into the landing as the frontispiece so the visitor sees
             the actual agent visual before any prose explains it. */}
-        <div className="mx-auto flex items-center justify-center select-none -mt-8 mb-2">
+        {/* Bubble wrapper — gives the bubble its own breathing column so
+            its outward glow / drop-shadow has somewhere to fade into
+            without bleeding onto the text below. The negative top margin
+            is gone (it was pulling the bubble into the section's top
+            padding and visually crowding the pull-quote). */}
+        <div className="mx-auto flex items-center justify-center select-none mb-10">
           <HudCoreBubble state="thinking" />
         </div>
 
-        <motion.div className="mt-8" {...enter}>
+        <motion.div className="mt-4" {...enter}>
           <p className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
             &ldquo;When we can&rsquo;t take ownership of the situation, we
             can still take ownership of the process.&rdquo;
@@ -66,7 +71,7 @@ export function ThesisSection() {
           <p className="mt-2 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
             &ldquo;Play holds the key to true productivity.&rdquo;
           </p>
-          <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
+          <p className="mt-3 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
             — Ali Abdaal
           </p>
         </motion.div>

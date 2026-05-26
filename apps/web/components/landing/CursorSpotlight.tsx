@@ -97,12 +97,12 @@ export function CursorSpotlight() {
         height: 900,
         pointerEvents: "none",
         background:
-          "radial-gradient(circle, color-mix(in oklch, var(--hud-cyan) 22%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 35%, transparent 65%)",
-        filter: "blur(40px)",
-        opacity: 0.85,
+          "radial-gradient(circle, color-mix(in oklch, var(--hud-cyan) 14%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 5%, transparent) 35%, transparent 65%)",
+        filter: "blur(60px)",
+        opacity: 0.55,
         zIndex: 0,
         willChange: "transform",
-        mixBlendMode: "screen",
+        mixBlendMode: "soft-light",
       }}
     />
   );
