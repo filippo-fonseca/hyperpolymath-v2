@@ -106,7 +106,7 @@ export function BioSection() {
               href="https://zyndicate.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline decoration-[var(--edge)] decoration-1 underline-offset-2 transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+              className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
             >
               a productivity startup
             </a>{" "}

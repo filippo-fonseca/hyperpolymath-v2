@@ -73,7 +73,7 @@ export function ThesisSection() {
 
         <motion.h1
           id="thesis-headline"
-          className="mt-10 font-serif font-semibold text-[56px] leading-[1.1] text-[var(--ink)]"
+          className="mt-10 font-serif font-semibold text-[44px] leading-[1.1] text-[var(--ink)] whitespace-nowrap"
           initial={enter.initial}
           animate={enter.animate}
           transition={

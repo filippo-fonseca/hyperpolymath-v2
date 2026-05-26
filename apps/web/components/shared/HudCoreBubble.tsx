@@ -255,11 +255,13 @@ export function HudCoreBubble({
             opacity="0.06"
           />
           {/* Kiwi-bird glyph — source: apps/web/public/icons/kiwi-bird.svg.
-              Original 24×24 path scaled 3.5× to 84×84 and centered on
-              (140,140) via translate(98, 98). Fill inherits the bubble's
-              cyan stroke color so it cohabitates with the rings. */}
+              Original 24×24 path scaled 2.2× to ~53×53 and centered on
+              (140,140) via translate(114, 114). Sits inside the inner
+              glow disc (r=56) so the rings still read as instrumentation
+              chrome around the centerpiece. Fill inherits the bubble's
+              cyan stroke color. */}
           <g
-            transform="translate(98 98) scale(3.5)"
+            transform="translate(114 114) scale(2.2)"
             style={{
               filter: `drop-shadow(0 0 6px color-mix(in oklch, ${stroke} 45%, transparent))`,
             }}
