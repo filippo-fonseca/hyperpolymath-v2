@@ -30,17 +30,24 @@ import { STRICT_TOOL_USE_FIXTURE } from "../../../../packages/jarvis-core/tests/
 
 export function EngineSection() {
   return (
-    <section className="py-16 max-w-[760px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 04 · THE ENGINE" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Claude Sonnet 4.6, with a contract.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        JARVIS isn&rsquo;t an LLM with prompts taped to it. It&rsquo;s a
-        streaming agent built on Claude Sonnet 4.6 with Strict Tool Use — every
-        action is a typed, schema-validated JSON tool call. The Zod schema is
-        the source of truth; the model cannot emit a malformed action. One
-        input becomes N actions, each a different shape.
+        Most agents are LLMs with prompts taped to them. They drift. They
+        hallucinate fields. They invent tools that don&rsquo;t exist. That
+        works for a demo and breaks for a life.
+      </p>
+      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        JARVIS takes the opposite stance: the Zod schema is the source of
+        truth and the model is constrained to it. Claude Sonnet 4.6 with
+        Strict Tool Use cannot emit a malformed action — the contract is
+        enforced at generation time, not validated after the fact. One
+        sentence in; N typed JSON tool calls out, each a different shape. The
+        router stays small because the primitives stay small. The whole
+        pipeline fits in your head.
       </p>
 
       {/* Side-by-side input + JSON */}

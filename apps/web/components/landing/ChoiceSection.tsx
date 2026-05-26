@@ -19,13 +19,16 @@ const FRAMEWORK_URL = `${REPO_URL}/blob/main/FRAMEWORK.md`;
 
 export function ChoiceSection() {
   return (
-    <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 05 · THE CHOICE" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Two doors. Both open.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Use it as your life-OS, or fork the framework and build your own.
+        The framework is the artifact; the app is one implementation of it.
+        Use mine if it fits your shape, or take the contract and build the one
+        that does. Open-source is the point &mdash; if the methodology only
+        works for me, it isn&rsquo;t a methodology.
       </p>
 
       <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">

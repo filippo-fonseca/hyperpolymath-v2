@@ -37,13 +37,15 @@ export async function BuildLog() {
   const currentPhase = roadmapText ? parseCurrentPhase(roadmapText) : null;
 
   return (
-    <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06 · BUILD LOG" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Live from main.
       </h2>
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        This page is a build log. Here&rsquo;s where we are.
+        Hyperpolymath is built in public, in named phases, one wave at a time.
+        No private roadmap, no fake demos &mdash; the page below this line is
+        the source of truth.
       </p>
 
       {/* Block 1 — Currently Shipping (always renders) */}

@@ -63,7 +63,7 @@ const PRIMITIVES = [
 
 export function PrimitivesTable() {
   return (
-    <section className="py-16 max-w-[640px] mx-auto px-6 md:px-10">
+    <section className="py-16 max-w-[720px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 03 · THE PRIMITIVES" />
 
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
@@ -71,7 +71,18 @@ export function PrimitivesTable() {
       </h2>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Use mine, or fork the framework. Either way, here&rsquo;s the contract.
+        Most life-OS apps give you ten kinds of object and call it flexibility.
+        That&rsquo;s not a system &mdash; it&rsquo;s a furniture store. A
+        Renaissance mind needs the opposite: the smallest set of primitives
+        that still covers the whole surface area of a life.
+      </p>
+
+      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+        Five turned out to be that number. Three modes of intent (areas,
+        projects, captures), one source of time (calendar), and one router
+        between them all (JARVIS). Anything more is decoration. Anything less
+        forces you to specialize. Use mine, or fork the framework &mdash;
+        either way, here&rsquo;s the contract.
       </p>
 
       <div className="mt-6">

@@ -19,7 +19,7 @@ import { ChevronDown } from "lucide-react";
  *   - Vanishes on first scroll (no nag)
  *   - Reduced-motion: static opacity 0.5, no breath; still vanishes on first scroll
  *
- * Container: max-w-[640px] mx-auto, vertically centered in first 90vh.
+ * Container: max-w-[720px] mx-auto, vertically centered in first 90vh.
  *
  * Copy strings verbatim from UI-SPEC §9.
  *
@@ -42,7 +42,7 @@ export function ThesisSection() {
       className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 md:px-10"
       aria-labelledby="thesis-headline"
     >
-      <div className="max-w-[640px] mx-auto text-center">
+      <div className="max-w-[720px] mx-auto text-center">
         <p className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
           &ldquo;You don&rsquo;t have to choose between being a runner or a
           musician, a creator or a scholar. The Renaissance had it right.&rdquo;
@@ -52,15 +52,20 @@ export function ThesisSection() {
           id="thesis-headline"
           className="mt-12 font-serif font-semibold text-[56px] leading-[1.1] text-[var(--ink)]"
         >
-          Type one sentence.
+          I brought back
           <br />
-          The right action lands in the right place.
-          <br />
-          Every time.
+          the Renaissance.
         </h1>
 
         <p className="mt-8 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
-          Hyperpolymath is a personal life-OS for people who refuse to specialize.
+          A personal life-OS for people who refuse to specialize. Type one
+          sentence &mdash; the right action lands in the right place.
+        </p>
+
+        <p className="mt-6 font-serif text-[18px] leading-[1.6] text-[var(--ink)] max-w-[560px] mx-auto">
+          One brain holds five primitives &mdash; areas, projects, captures,
+          calendar, and the agent that routes between them. The whole point is
+          that you stop choosing.
         </p>
       </div>
 
