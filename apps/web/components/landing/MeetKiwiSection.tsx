@@ -64,8 +64,7 @@ export function MeetKiwiSection() {
             </span>
           </p>
           <p className="mt-2 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
-            Friendly. All-knowing within your life-OS. Orchestrator by
-            trade.
+            A friendly, all-knowing orchestrator native to your life-OS.
           </p>
           <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
             Role: orchestrator · Native to: Hyperpolymath
@@ -77,9 +76,17 @@ export function MeetKiwiSection() {
       <div className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
           Kiwi is the agent at the heart of Hyperpolymath. Friendly,
-          patient, and disarmingly literal. They are also (technically)
-          JARVIS, which is the internal name I gave them when I first
-          wired up the schema. Same bird, fancier name.
+          patient, and disarmingly literal. They are also (technically){" "}
+          <a
+            href="https://en.wikipedia.org/wiki/J.A.R.V.I.S."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+          >
+            JARVIS
+          </a>
+          , which is the internal name I gave them when I first wired up
+          the schema. Same bird, fancier name. (Yes, the Tony Stark one.)
         </p>
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">

@@ -49,6 +49,27 @@ export function LandingFooter() {
         <p className="text-center font-serif italic text-[14px] text-[var(--ink-muted)]">
           be goated. well.
         </p>
+
+        <p className="text-center font-serif text-[14px] text-[var(--ink-muted)]">
+          Made with{" "}
+          <span
+            aria-label="love"
+            style={{ color: "var(--hud-cyan)" }}
+            className="align-middle"
+          >
+            ♥
+          </span>{" "}
+          by{" "}
+          <a
+            href="https://filippofonseca.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+          >
+            Filippo Fonseca
+          </a>
+          .
+        </p>
       </div>
     </footer>
   );

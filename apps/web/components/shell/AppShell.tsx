@@ -1,6 +1,7 @@
 "use client";
 
 import { Sidebar } from "./Sidebar";
+import { LandingFooter } from "@/components/landing/LandingFooter";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -35,7 +36,10 @@ export function AppShell({
         initialAllAreas={allAreas}
         graduationYear={graduationYear}
       />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1">{children}</div>
+        <LandingFooter />
+      </main>
     </div>
   );
 }
