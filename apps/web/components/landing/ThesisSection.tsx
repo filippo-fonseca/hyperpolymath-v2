@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
-import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
+import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
 
 // --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier inference.
 const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
@@ -47,51 +47,15 @@ export function ThesisSection() {
       aria-labelledby="thesis-headline"
     >
       <div className="max-w-[920px] mx-auto text-center">
-        {/* Hero JARVIS aura — the rotating HudThinkingRing wraps the ⚜
-            ornament. The ring is the same "agent thinking" indicator the
-            app uses while JARVIS waits on a token; using it here makes
-            the hero a JARVIS surface, not just a manifesto headline.
-            Reduced motion: ring freezes at 12 o'clock per HudThinkingRing's
-            built-in handling; ornament holds a static opacity. */}
-        <div className="mx-auto relative inline-flex items-center justify-center select-none">
-          {/* Soft outer glow halo, sits behind the ring */}
-          <div
-            aria-hidden="true"
-            className="absolute"
-            style={{
-              width: "180px",
-              height: "180px",
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, var(--hud-cyan-glow) 0%, transparent 65%)",
-              filter: "blur(12px)",
-              pointerEvents: "none",
-            }}
-          />
-          <HudThinkingRing size={108} className="relative" />
-          <motion.span
-            aria-hidden="true"
-            className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: reducedMotion ? 0.95 : 0.6 }}
-            animate={
-              reducedMotion
-                ? { opacity: 0.95 }
-                : { opacity: [0.7, 1, 0.7] }
-            }
-            transition={
-              reducedMotion
-                ? { duration: 0 }
-                : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-            }
-            style={{
-              color: "var(--hud-cyan)",
-              textShadow: "0 0 16px var(--hud-cyan-glow)",
-              fontSize: "44px",
-              lineHeight: 1,
-            }}
-          >
-            ⚜
-          </motion.span>
+        {/* Hero JARVIS centerpiece — the same HudCoreBubble visual that
+            appears in the JARVIS Console when the user talks to the agent.
+            Concentric instrument rings, rotating outer scale, arc-tip
+            sweep, breathing inner glow, central Stark-signature triangle.
+            Idle but visibly alive; reduced-motion freezes the rotations.
+            Pulled into the landing as the frontispiece so the visitor sees
+            the actual agent visual before any prose explains it. */}
+        <div className="mx-auto flex items-center justify-center select-none -mt-8 mb-2">
+          <HudCoreBubble state="thinking" />
         </div>
 
         <motion.p
