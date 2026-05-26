@@ -20,7 +20,7 @@ const FRAMEWORK_URL = `${REPO_URL}/blob/main/FRAMEWORK.md`;
 export function ChoiceSection() {
   return (
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
-      <SectionEyebrow label="§ 06 · THE CHOICE" />
+      <SectionEyebrow label="§ 07 · THE CHOICE" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Two doors. Both open.
       </h2>

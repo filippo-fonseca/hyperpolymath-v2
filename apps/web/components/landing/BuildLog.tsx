@@ -38,7 +38,7 @@ export async function BuildLog() {
 
   return (
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
-      <SectionEyebrow label="§ 07 · BUILD LOG" />
+      <SectionEyebrow label="§ 08 · BUILD LOG" />
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Live from main.
       </h2>

@@ -64,7 +64,7 @@ const PRIMITIVES = [
 export function PrimitivesTable() {
   return (
     <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
-      <SectionEyebrow label="§ 04 · THE PRIMITIVES" />
+      <SectionEyebrow label="§ 05 · THE PRIMITIVES" />
 
       <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
         Five primitives. One agent.

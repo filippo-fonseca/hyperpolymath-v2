@@ -6,61 +6,66 @@ import { PrimitivesTable } from "./PrimitivesTable";
 import { JarvisDemo } from "./JarvisDemo";
 import { EngineSection } from "./EngineSection";
 import { BioSection } from "./BioSection";
+import { MeetKiwiSection } from "./MeetKiwiSection";
 import { ChoiceSection } from "./ChoiceSection";
 import { BuildLog } from "./BuildLog";
 
 /**
  * Public landing manifesto — Phase 8.
  *
- * Order (user re-pinned bio under hero in 08-06 gap closure):
- *   §01 THESIS → §02 WHO → §03 LIVE JARVIS DEMO → §04 THE PRIMITIVES
- *   → §05 THE ENGINE → §06 THE CHOICE → §07 BUILD LOG
+ * Order (MeetKiwi explainer inserted in 08-06 gap closure):
+ *   §01 THESIS → §02 WHO → §03 MEET KIWI → §04 LIVE DEMO
+ *   → §05 THE PRIMITIVES → §06 THE ENGINE → §07 THE CHOICE → §08 BUILD LOG
  *
- * Each section is separated by a SectionDivider (⚜ ⚜ ⚜ ornament row).
- * The Engine still gets the 96px breathing room before and after per
- * UI-SPEC §2 (it's the moderate-density section).
+ * Section dividers between each. Engine still gets the 96px breathing
+ * room before and after per UI-SPEC §2.
  */
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
       <LandingHeader />
       <main>
-        {/* §01 — THESIS (no eyebrow, cold open — hero with live JARVIS line) */}
+        {/* §01 — THESIS (cold open) */}
         <ThesisSection />
 
         <SectionDivider />
 
-        {/* §02 — WHO (bio sits right under the hero per user feedback) */}
+        {/* §02 — WHO (bio of the human) */}
         <BioSection />
 
         <SectionDivider />
 
-        {/* §03 — LIVE JARVIS DEMO (the full clickable demo) */}
+        {/* §03 — MEET KIWI (bio of the agent — orchestrator) */}
+        <MeetKiwiSection />
+
+        <SectionDivider />
+
+        {/* §04 — LIVE DEMO (clickable rotating demo) */}
         <JarvisDemo />
 
         <SectionDivider />
 
-        {/* §04 — THE PRIMITIVES (structure tree + spec table) */}
+        {/* §05 — THE PRIMITIVES (structure tree + spec table) */}
         <PrimitivesTable />
 
-        {/* §05 gets EXTRA 96px breathing room before AND after (UI-SPEC §2) */}
+        {/* §06 gets EXTRA 96px breathing room before AND after (UI-SPEC §2) */}
         <div className="py-12">
           <SectionDivider />
         </div>
 
-        {/* §05 — THE ENGINE (Strict Tool Use JSON contract) */}
+        {/* §06 — THE ENGINE (Strict Tool Use JSON contract) */}
         <EngineSection />
 
         <div className="py-12">
           <SectionDivider />
         </div>
 
-        {/* §06 — THE CHOICE (two doors — waitlist + fork) */}
+        {/* §07 — THE CHOICE (two doors) */}
         <ChoiceSection />
 
         <SectionDivider />
 
-        {/* §07 — BUILD LOG (hybrid live data + graceful degradation) */}
+        {/* §08 — BUILD LOG (live data + graceful degradation) */}
         <BuildLog />
       </main>
       <LandingFooter />
