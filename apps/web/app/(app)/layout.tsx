@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { getUserOrRedirect } from "@/lib/auth/get-user";
+import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
 import { db } from "@/lib/db";
@@ -7,6 +7,7 @@ import { projects } from "@/lib/db/schema";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
 import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
+import { ShortcutsCheatSheet } from "@/components/shell/ShortcutsCheatSheet";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
@@ -25,23 +26,29 @@ export default async function AppLayout({
 
   // Fetch sidebar + composer data server-side in parallel.
   // hashtags + projects feed the Cmd+K composer (single-source-of-truth per D-09).
-  const [activeAreas, allAreas, hashtagsForComposer, projectsForComposer] =
-    await Promise.all([
-      getSidebarTree(user.id, false),
-      getSidebarTree(user.id, true),
-      getHashtagSuggestions(user.id),
-      db
-        .select({
-          id: projects.id,
-          name: projects.name,
-          isClass: projects.isClass,
-          courseCode: projects.courseCode,
-        })
-        .from(projects)
-        .where(
-          and(eq(projects.userId, user.id), isNull(projects.archivedAt)),
-        ),
-    ]);
+  const [
+    activeAreas,
+    allAreas,
+    hashtagsForComposer,
+    projectsForComposer,
+    oauthAvatar,
+  ] = await Promise.all([
+    getSidebarTree(user.id, false),
+    getSidebarTree(user.id, true),
+    getHashtagSuggestions(user.id),
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        isClass: projects.isClass,
+        courseCode: projects.courseCode,
+      })
+      .from(projects)
+      .where(
+        and(eq(projects.userId, user.id), isNull(projects.archivedAt)),
+      ),
+    getAuthAvatar(),
+  ]);
 
   return (
     <NuqsAdapter>
@@ -51,6 +58,12 @@ export default async function AppLayout({
           activeAreas={activeAreas}
           allAreas={allAreas}
           graduationYear={user.graduationYear}
+          profile={{
+            displayName: user.displayName,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+            oauthAvatarUrl: oauthAvatar.avatarUrl,
+          }}
         >
           {children}
         </AppShell>
@@ -62,6 +75,8 @@ export default async function AppLayout({
           hashtags={hashtagsForComposer}
           projects={projectsForComposer}
         />
+        {/* `?` opens shortcuts cheat sheet (when no input is focused) */}
+        <ShortcutsCheatSheet />
         {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
         <Toaster position="bottom-right" duration={4000} />
         {/* Phase 7 Plan 07-03 — always-mounted voice lifecycle owner.

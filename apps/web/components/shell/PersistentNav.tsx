@@ -11,6 +11,7 @@ import {
   Settings,
   BarChart2,
   Info,
+  Repeat,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
@@ -52,8 +53,12 @@ import type { MicState } from "@/lib/voice/types";
 const items = [
   { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
+  // /areas is NOT here — the sidebar AREAS section header below acts as
+  // the link + active state, with the area tree nested under it as proper
+  // children. Putting it in both spots was duplicate plumbing.
   { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined, isAgent: false },
 ] as const;

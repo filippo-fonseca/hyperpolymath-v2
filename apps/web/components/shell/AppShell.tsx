@@ -1,7 +1,6 @@
 "use client";
 
 import { Sidebar } from "./Sidebar";
-import { LandingFooter } from "@/components/landing/LandingFooter";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -9,6 +8,13 @@ interface Props {
   activeAreas: SidebarArea[];
   allAreas: SidebarArea[];
   graduationYear?: number | null;
+  /** Profile snapshot forwarded to the sidebar chip. */
+  profile: {
+    displayName: string | null;
+    email: string;
+    avatarUrl: string | null;
+    oauthAvatarUrl: string | null;
+  };
   children: React.ReactNode;
 }
 
@@ -26,6 +32,7 @@ export function AppShell({
   activeAreas,
   allAreas,
   graduationYear,
+  profile,
   children,
 }: Props) {
   return (
@@ -35,11 +42,9 @@ export function AppShell({
         initialActiveAreas={activeAreas}
         initialAllAreas={allAreas}
         graduationYear={graduationYear}
+        profile={profile}
       />
-      <main className="flex-1 overflow-auto flex flex-col">
-        <div className="flex-1">{children}</div>
-        <LandingFooter />
-      </main>
+      <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );
 }

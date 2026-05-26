@@ -143,26 +143,68 @@ export function JarvisScrollback({
     prevHeight: number;
     prevTop: number;
   } | null>(null);
+  // Locks auto-scroll OFF when the user has intentionally scrolled up to read
+  // history mid-stream. Re-arms when they scroll back near the bottom.
+  const userScrolledUpRef = useRef(false);
 
-  // Auto-scroll-to-bottom only when turns are APPENDED (new conversation),
-  // not when they're PREPENDED (paginated history load).
+  // A signal that changes every time the LAST assistant turn grows — by token
+  // (textDelta length), by receipt landing (actions.length), or by status
+  // transition (streaming → done). Without this, the existing length-only
+  // effect would never re-fire during a stream because `turns.length` stays
+  // constant while the same turn's content fills in.
+  const lastTurn = turns[turns.length - 1];
+  const tailContentSignal =
+    lastTurn?.kind === "assistant"
+      ? `${lastTurn.id}|${lastTurn.textDelta?.length ?? 0}|${lastTurn.actions.length}|${lastTurn.status}`
+      : `user|${turns.length}`;
+
+  // Track whether the user is reading history mid-stream. If they are, we
+  // don't yank them down — they're explicitly elsewhere. Threshold is
+  // generous (160px) so a partial scroll-up isn't read as "I want to stay".
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const STICK_THRESHOLD = 160;
+    function onScroll() {
+      if (!el) return;
+      const distanceFromBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight;
+      userScrolledUpRef.current = distanceFromBottom > STICK_THRESHOLD;
+    }
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Auto-scroll-to-bottom on:
+  //   1. tail append (new turn added) — always scroll (unless prepend).
+  //   2. tail content grow (same turn streaming more tokens / new receipts /
+  //      status flip) — scroll ONLY if the user hasn't scrolled up.
+  // Prepend events (loading older history) restore the previous pixel
+  // position so the visible message doesn't jump.
   useEffect(() => {
     const grewAtTail = turns.length > prevTurnsCountRef.current;
     const isPrependEvent = preserveScrollRef.current !== null;
 
     if (isPrependEvent && containerRef.current) {
-      // Restore scroll so the previously-visible message stays put.
       const el = containerRef.current;
       const { prevHeight, prevTop } = preserveScrollRef.current!;
       const heightDelta = el.scrollHeight - prevHeight;
       el.scrollTop = prevTop + heightDelta;
       preserveScrollRef.current = null;
     } else if (grewAtTail) {
+      // New turn — always scroll. Reset the "user scrolled up" lock since
+      // this is almost always the result of the user submitting.
+      userScrolledUpRef.current = false;
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    } else if (!userScrolledUpRef.current) {
+      // Same turn, more content — keep the bottom in view. Use "auto"
+      // (instant) here instead of "smooth" so we don't queue dozens of
+      // overlapping smooth-scrolls during a fast token stream.
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
     }
 
     prevTurnsCountRef.current = turns.length;
-  }, [turns.length]);
+  }, [turns.length, tailContentSignal]);
 
   function handleLoadOlderClick() {
     if (!containerRef.current || loadingOlder) return;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,39 +50,49 @@ export function TaskCreateInline({ status, onCreateTask }: Props) {
     }
   }
 
-  if (isOpen) {
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
-        placeholder="New task title…"
-        disabled={isPending}
-        className={cn(
-          "w-full bg-card border border-border rounded-md px-3 py-2",
-          "font-sans text-[13px] text-foreground placeholder:text-muted-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring",
-          "transition-colors",
-        )}
-      />
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={openInput}
-      className={cn(
-        "flex items-center gap-1 w-full px-1 py-1",
-        "font-sans text-[13px] text-muted-foreground",
-        "hover:text-foreground transition-colors rounded",
+    <AnimatePresence mode="wait" initial={false}>
+      {isOpen ? (
+        <motion.input
+          key="input"
+          ref={inputRef}
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          placeholder="new task…  ↵ to add, esc to cancel"
+          disabled={isPending}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -2 }}
+          transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+          className={cn(
+            "w-full bg-card border border-border rounded-md px-3 py-2",
+            "font-sans text-[13px] text-foreground placeholder:text-muted-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-ring",
+            "transition-colors",
+          )}
+        />
+      ) : (
+        <motion.button
+          key="button"
+          type="button"
+          onClick={openInput}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12 }}
+          className={cn(
+            "flex items-center gap-1 w-full px-1 py-1",
+            "font-sans text-[13px] text-muted-foreground",
+            "hover:text-foreground transition-colors rounded",
+          )}
+        >
+          <Plus size={13} />
+          Add task
+        </motion.button>
       )}
-    >
-      <Plus size={13} />
-      Add task
-    </button>
+    </AnimatePresence>
   );
 }

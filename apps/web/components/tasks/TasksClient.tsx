@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useOptimistic, useTransition } from "react";
+import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useQueryState,
   useQueryStates,
@@ -92,6 +92,7 @@ export function TasksClient({
   initialFilters,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   // Phase 6 Plan 06-02: sonner Undo toast helper for delete-task flow (RES-02).
   const { show: showUndoToast } = useUndoToast();
@@ -124,6 +125,19 @@ export function TasksClient({
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
+
+  // Auto-hide completed "lesno" tasks by default (per user spec). Persisted in
+  // localStorage so the choice survives page reloads. Toggle pill sits in the
+  // toolbar next to the view switcher.
+  const [showLesno, setShowLesno] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShowLesno(localStorage.getItem("tasks-show-lesno") === "true");
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined")
+      localStorage.setItem("tasks-show-lesno", String(showLesno));
+  }, [showLesno]);
 
   // Read the SAME 4 filter dimensions TaskFilters writes — single source of truth via URL.
   const [filters] = useQueryStates(
@@ -164,6 +178,15 @@ export function TasksClient({
   // through immediately.
   const filtered = useMemo(() => {
     return optimisticTasks.filter((t) => {
+      // Auto-hide "lesno" (completed) unless the user explicitly opts in OR
+      // they've requested lesno via an explicit status filter (that filter
+      // takes precedence — the chip wouldn't make sense otherwise).
+      if (
+        !showLesno &&
+        t.status === "lesno" &&
+        !filters.status.includes("lesno")
+      )
+        return false;
       if (
         filters.priority.length > 0 &&
         !filters.priority.includes(t.priority)
@@ -208,6 +231,7 @@ export function TasksClient({
     filters.status,
     filters.due,
     filters.project,
+    showLesno,
   ]);
 
   async function handleCreateTask(input: {
@@ -245,9 +269,15 @@ export function TasksClient({
         toast.error(r.error);
         return;
       }
+      // Belt-and-suspenders: explicit invalidate so the canonical cache catches
+      // up BEFORE the transition closes (and useOptimistic reverts). Without
+      // this, a slow/failed Realtime echo means the optimistic row disappears
+      // and the user has to refresh to see their new task. Realtime stays for
+      // cross-device sync; local case is now guaranteed.
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("tasks", userId),
+      });
       toast("Task added.");
-      // Realtime echo will arrive with the same id → invalidate → refetch.
-      // useOptimistic state syncs back to the canonical refetched row.
     });
   }
 
@@ -280,7 +310,7 @@ export function TasksClient({
   return (
     // No max-w cap — kanban view needs full horizontal real estate for the
     // 5 status columns. Header + toolbar happily extend to the page edge.
-    <div className="flex flex-col min-h-0 px-8 py-10 w-full">
+    <div className="flex flex-col h-screen min-h-0 overflow-hidden px-8 py-10 w-full">
       {/* Arc-redesign page header — serif title + glance stats row. */}
       <header className="mb-6 space-y-1.5">
         <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
@@ -313,6 +343,23 @@ export function TasksClient({
         }}
       >
         <TaskFilters projects={projects} />
+        {/* Show / hide completed "lesno" tasks. Off by default per user spec —
+            the kanban + list + day views all read from `filtered`, which
+            drops lesno when this is false. */}
+        <button
+          type="button"
+          onClick={() => setShowLesno((v) => !v)}
+          aria-pressed={showLesno}
+          className={cn(
+            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border shrink-0",
+            showLesno
+              ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
+              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+          )}
+          title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
+        >
+          {showLesno ? "Hide lesno" : "Show lesno"}
+        </button>
         <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] shrink-0">
           {(["kanban", "list", "day"] as const).map((v) => (
             <button
@@ -355,16 +402,21 @@ export function TasksClient({
           }}
         />
       ) : view === "list" ? (
-        <TaskList
-          tasks={filtered}
-          onTaskClick={setOpenTaskId}
-          addOptimistic={addOptimistic}
-        />
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
+          <TaskList
+            tasks={filtered}
+            onTaskClick={setOpenTaskId}
+            addOptimistic={addOptimistic}
+          />
+        </div>
       ) : view === "day" ? (
-        <TaskDayView tasks={filtered} onTaskClick={setOpenTaskId} />
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
+          <TaskDayView tasks={filtered} onTaskClick={setOpenTaskId} />
+        </div>
       ) : (
         <KanbanBoard
           tasks={filtered}
+          userId={userId}
           onTaskClick={setOpenTaskId}
           onCreateTask={handleCreateTask}
           addOptimistic={addOptimistic}
@@ -395,8 +447,12 @@ export function TasksClient({
                 startTransition(() => {
                   addOptimistic({ type: "insert", row: task });
                 });
+                return;
               }
-              // Realtime DELETE echo invalidates → refetch → cache aligns.
+              // Belt-and-suspenders refetch (matches create/status-change).
+              await queryClient.invalidateQueries({
+                queryKey: tableKey("tasks", userId),
+              });
             },
             undo: () => {
               /* Server delete only fires on commit; nothing server-side to roll back */

@@ -41,6 +41,13 @@ interface Props {
   onOptimisticInsert?: (row: CaptureWithLinks) => void;
   onSubmitSuccess?: () => void;
   autoFocus?: boolean;
+  /**
+   * Seed value for the project multi-select. Used by `/projects/[id]` so a
+   * capture composed from a project page is auto-linked to that project
+   * (and the user can still add/remove links before submitting). When
+   * omitted, the multi-select starts empty (existing behavior).
+   */
+  defaultProjectIds?: string[];
 }
 
 /**
@@ -71,9 +78,12 @@ export function CaptureComposer({
   onOptimisticInsert,
   onSubmitSuccess,
   autoFocus,
+  defaultProjectIds,
 }: Props) {
   const [hashtags] = useState(initialHashtags);
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
+    defaultProjectIds ?? [],
+  );
   const [pending, startTransition] = useTransition();
 
   const editor = useEditor({
@@ -234,7 +244,11 @@ export function CaptureComposer({
       }
       toast("Captured.");
       editor?.commands.clearContent();
-      setSelectedProjectIds([]);
+      // Reset to the original seed so a project-scoped composer keeps that
+      // project pre-linked for the next capture (a quick-fire capture flow
+      // on /projects/[id] shouldn't make the user re-select the project each
+      // time).
+      setSelectedProjectIds(defaultProjectIds ?? []);
       onSubmitSuccess?.();
       // No manual cache busting — Realtime echo + invalidation handles it (D-12).
     });
@@ -247,6 +261,7 @@ export function CaptureComposer({
     onOptimisticInsert,
     projects,
     userId,
+    defaultProjectIds,
   ]);
 
   // Cmd+Enter submit (per UI-SPEC §Captures Composer)

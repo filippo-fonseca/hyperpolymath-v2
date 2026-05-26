@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { EB_Garamond, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -19,10 +19,66 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// `metadataBase` resolves relative URLs for OG / Twitter images. Production
+// reads from NEXT_PUBLIC_SITE_URL when set; falls back to the live origin so
+// Vercel preview deployments produce correct absolute image URLs without
+// extra config.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://hyperpolymath.com";
+
 export const metadata: Metadata = {
-  title: "Hyperpolymath",
-  description: "I brought back the Renaissance.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Hyperpolymath",
+    template: "%s · Hyperpolymath",
+  },
+  description:
+    "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place across tasks, captures, and calendar.",
+  applicationName: "Hyperpolymath",
+  authors: [{ name: "Filippo Fonseca", url: "https://filippofonseca.com" }],
+  creator: "Filippo Fonseca",
+  publisher: "Filippo Fonseca",
+  keywords: [
+    "Hyperpolymath",
+    "JARVIS",
+    "life-OS",
+    "productivity",
+    "agent",
+    "Claude",
+    "Anthropic",
+    "task manager",
+    "second brain",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "Hyperpolymath",
+    title: "Hyperpolymath",
+    description:
+      "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place.",
+    // `opengraph-image.tsx` is auto-attached by Next.js file conventions.
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hyperpolymath",
+    description:
+      "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place.",
+    creator: "@filippofonseca",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  formatDetection: { telephone: false, email: false, address: false },
+  // `icon.tsx` and `apple-icon.tsx` are auto-attached; no need to list them.
 };
+
+export const themeColor = [
+  { media: "(prefers-color-scheme: light)", color: "#f6f3ec" },
+  { media: "(prefers-color-scheme: dark)", color: "#0d0f12" },
+];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

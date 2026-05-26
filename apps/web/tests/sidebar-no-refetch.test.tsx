@@ -76,8 +76,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Minimal SidebarArea fixture
+// Minimal SidebarArea + profile fixtures
 // ---------------------------------------------------------------------------
+
+const TEST_PROFILE = {
+  displayName: null,
+  email: "test@example.com",
+  avatarUrl: null,
+  oauthAvatarUrl: null,
+};
 
 const INITIAL_AREAS: SidebarArea[] = [
   {
@@ -124,6 +131,7 @@ describe("Sidebar areas query — no incidental refetch", () => {
           initialActiveAreas={INITIAL_AREAS}
           initialAllAreas={INITIAL_AREAS}
           graduationYear={2027}
+          profile={TEST_PROFILE}
         />
       </QueryClientProvider>,
     );
@@ -168,6 +176,7 @@ describe("Sidebar areas query — no incidental refetch", () => {
           initialActiveAreas={INITIAL_AREAS}
           initialAllAreas={INITIAL_AREAS}
           graduationYear={2027}
+          profile={TEST_PROFILE}
         />
       </QueryClientProvider>,
     );
@@ -185,6 +194,7 @@ describe("Sidebar areas query — no incidental refetch", () => {
           initialActiveAreas={INITIAL_AREAS}
           initialAllAreas={INITIAL_AREAS}
           graduationYear={2027}
+          profile={TEST_PROFILE}
         />
       </QueryClientProvider>,
     );

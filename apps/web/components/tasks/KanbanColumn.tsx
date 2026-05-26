@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
@@ -82,41 +82,52 @@ export function KanbanColumn({
   onDropOnColumn,
   pendingTaskId,
 }: Props) {
-  const [isOver, setIsOver] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const accent = STATUS_ACCENT[status];
 
-  const isValidTarget =
+  const restingShadow = `inset 0 0 0 1px ${accent.rim}`;
+  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`;
+
+  // v1 pattern: drop-target affordance via direct DOM mutation, NOT React state.
+  // Setting React state on every dragover triggers a re-render of the column +
+  // its task cards, which competes with Motion's layout animation on drop and
+  // produces a visible "recoil" snap. Mutating boxShadow on the DOM node bypasses
+  // React entirely — the affordance lights up instantly, no churn on the children.
+  const isValidTarget = (): boolean =>
     draggedTaskId !== null && draggedFromStatus !== status;
-  const showDropAffordance = isOver && isValidTarget;
+
+  const lightUp = () => {
+    if (ref.current) ref.current.style.boxShadow = hoverShadow;
+  };
+  const dimDown = () => {
+    if (ref.current) ref.current.style.boxShadow = restingShadow;
+  };
 
   return (
     <div
-      className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl"
+      ref={ref}
+      className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl h-full min-h-0"
       data-status={status}
       onDragOver={(e) => {
-        if (!draggedTaskId) return;
+        if (!isValidTarget()) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (!isOver) setIsOver(true);
+        lightUp();
       }}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          setIsOver(false);
+          dimDown();
         }
       }}
       onDrop={(e) => {
         e.preventDefault();
-        setIsOver(false);
-        if (isValidTarget) onDropOnColumn(status);
+        dimDown();
+        if (isValidTarget()) onDropOnColumn(status);
       }}
       style={{
         background: accent.bg,
-        boxShadow: showDropAffordance
-          ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`
-          : `inset 0 0 0 1px ${accent.rim}`,
-        transform: showDropAffordance ? "scale(0.985)" : "scale(1)",
-        transformOrigin: "center top",
-        transition: "box-shadow 160ms ease-out, transform 160ms ease-out",
+        boxShadow: restingShadow,
+        transition: "box-shadow 140ms ease-out",
         ["--task-card-bg" as string]: accent.cardBg,
       } as React.CSSProperties}
     >
@@ -136,23 +147,28 @@ export function KanbanColumn({
         </span>
       </div>
 
-      <div className="flex flex-col gap-2.5 flex-1 px-3 pb-3 min-h-[160px]">
-        <AnimatePresence mode="popLayout" initial={false}>
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={onTaskClick}
-              draggable
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              isDragging={draggedTaskId === task.id}
-              isPending={pendingTaskId === task.id}
-            />
-          ))}
-        </AnimatePresence>
+      {/* Two-part column body: scrollable task list, pinned "Add task" footer.
+          flex-1 + min-h-0 lets the list shrink/scroll inside the column's
+          row-stretched height; the footer stays anchored at the bottom. */}
+      <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
+        <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onClick={onTaskClick}
+                draggable
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                isDragging={draggedTaskId === task.id}
+                isPending={pendingTaskId === task.id}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
 
-        <div className="mt-1">
+        <div className="mt-2 pt-2 border-t border-[color:color-mix(in_oklch,var(--edge)_50%,transparent)]">
           <TaskCreateInline status={status} onCreateTask={onCreateTask} />
         </div>
       </div>

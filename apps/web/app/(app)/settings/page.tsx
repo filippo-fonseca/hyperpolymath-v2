@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 
-import { requireOnboarded } from "@/lib/auth/get-user";
+import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
+import { ProfileSection } from "@/components/settings/ProfileSection";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { Card } from "@/components/ui/card";
@@ -42,7 +43,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const gcalStatus = await getGcalConnectionStatus(user.id);
+  const [gcalStatus, oauthAvatar] = await Promise.all([
+    getGcalConnectionStatus(user.id),
+    getAuthAvatar(),
+  ]);
 
   let calendars: GcalCalendarMeta[] = [];
   let currentDefault: string | null = null;
@@ -101,11 +105,19 @@ export default async function SettingsPage() {
 
         <Card className={tileHover}>
           <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-            Account
+            Profile
           </h2>
           <p className="font-serif text-base text-[var(--ink-muted)]">
             {user.email}
           </p>
+          <ProfileSection
+            userId={user.id}
+            email={user.email}
+            initialDisplayName={user.displayName}
+            initialBio={user.bio}
+            initialAvatarUrl={user.avatarUrl}
+            oauthAvatarUrl={oauthAvatar.avatarUrl}
+          />
         </Card>
 
         <Card className={tileHover}>

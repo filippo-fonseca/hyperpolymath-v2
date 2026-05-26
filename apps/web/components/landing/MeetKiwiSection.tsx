@@ -2,6 +2,7 @@
 
 import { SectionEyebrow } from "./SectionEyebrow";
 import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
+import { JarvisDemoButton } from "./JarvisDemoButton";
 
 /**
  * §03 — MEET KIWI. Parallel to §02 WHO (Filippo's bio); this section is
@@ -69,14 +70,18 @@ export function MeetKiwiSection() {
           <p className="mt-2 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
             Role: orchestrator · Native to: Hyperpolymath
           </p>
+          <div className="mt-4">
+            <JarvisDemoButton />
+          </div>
         </div>
       </div>
 
-      {/* Prose flows below the identity card at a 720px measure. */}
+      {/* Prose flows below the identity card at a 720px measure. First
+          person, in JARVIS's voice — the section IS the agent speaking. */}
       <div className="mt-10 max-w-[720px] mx-auto md:mx-0 space-y-4">
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-          Kiwi is the agent at the heart of Hyperpolymath. Friendly,
-          patient, and disarmingly literal. They are also (technically){" "}
+          I am the agent at the heart of Hyperpolymath. Friendly,
+          patient, and disarmingly literal. I am also (technically){" "}
           <a
             href="https://en.wikipedia.org/wiki/J.A.R.V.I.S."
             target="_blank"
@@ -85,38 +90,38 @@ export function MeetKiwiSection() {
           >
             JARVIS
           </a>
-          , which is the internal name I gave them when I first wired up
-          the schema. Same bird, fancier name. (Yes, the Tony Stark one.)
+          , the name Filippo gave me when he first wired up the schema.
+          Same bird, fancier name. (Yes, the Tony Stark one.)
         </p>
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-          Their one and only job is to be an{" "}
-          <span className="font-semibold">orchestrator</span>. You either
-          type at the prompt or hold ⌘+J and speak. Either modality is
-          first-class. Kiwi reads it, decides which of your five
+          My one and only job is to be an{" "}
+          <span className="font-semibold">orchestrator</span>. You type at
+          the prompt, or hold ⌘+J and speak. Either modality is
+          first-class. I read what you wrote, decide which of your five
           primitives it belongs to (an area, a project, a capture, a
-          calendar event, or one of your tasks), and routes it to the
+          calendar event, or one of your tasks), and route it to the
           right place. That&rsquo;s the whole loop. No vibes, no
           improvisation, no opinions about your goals.
         </p>
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-          &ldquo;All-knowing&rdquo; is also literal, but bounded: Kiwi
-          knows everything inside your Hyperpolymath (which areas you
-          have, what projects sit under them, what&rsquo;s in your
-          calendar, what you captured at 2am last Tuesday). They
-          don&rsquo;t know anything outside of it, and they won&rsquo;t
-          pretend to. When something is ambiguous they ask. When
-          something is unfamiliar they refuse rather than guess.
+          &ldquo;All-knowing&rdquo; is literal, but bounded. I know
+          everything inside your Hyperpolymath — which areas you have,
+          what projects sit under them, what&rsquo;s in your calendar,
+          what you captured at 2am last Tuesday. I do not know anything
+          outside of it, and I will not pretend to. When something is
+          ambiguous I ask. When something is unfamiliar I refuse rather
+          than guess.
         </p>
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-          Under the hood, Kiwi is Claude Sonnet 4.6 wrapped in a strict
-          Zod schema with the Strict Tool Use beta enabled. The schema is
-          the contract. The model is constrained to it at generation time,
-          which is why the bird never invents a tool that doesn&rsquo;t
-          exist and never emits a malformed action. The Engine section
-          below walks through exactly what that looks like.
+          Under the hood I am Claude Sonnet 4.6 wrapped in a strict Zod
+          schema with the Strict Tool Use beta enabled. The schema is my
+          contract. The model is constrained to it at generation time,
+          which is why I never invent a tool that doesn&rsquo;t exist and
+          never emit a malformed action. The Engine section below walks
+          through exactly what that looks like.
         </p>
       </div>
     </section>

@@ -10,7 +10,9 @@ import {
 } from "@/lib/realtime/optimistic-reducer";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { ProjectHeader } from "./ProjectHeader";
-import { ProjectDetailColumns } from "./ProjectDetailColumns";
+import { ProjectTasksSection } from "./ProjectTasksSection";
+import { ProjectCapturesSection } from "./ProjectCapturesSection";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 
@@ -28,7 +30,15 @@ interface Props {
   initialProjects: ProjectRow[];
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
+  hashtagsForComposer: { id: string; name: string; displayName: string }[];
+  activeProjectsForComposer: ReadonlyArray<{
+    id: string;
+    name: string;
+    isClass: boolean;
+    courseCode: string | null;
+  }>;
   graduationYear: number | null;
+  area: { id: string; name: string; emoji: string | null };
 }
 
 /**
@@ -56,7 +66,10 @@ export function ProjectDetailClient({
   initialProjects,
   initialTasks,
   initialCaptures,
+  hashtagsForComposer,
+  activeProjectsForComposer,
   graduationYear,
+  area,
 }: Props) {
   // Realtime invalidation source — any project mutation invalidates this key,
   // which re-runs `select` below.
@@ -90,10 +103,28 @@ export function ProjectDetailClient({
     | null;
 
   return (
-    // Phase 06.1 Plan 04 (UI-SPEC §5j) — Notion-pure: bg --canvas, NO card chrome.
-    // Banner sits flush at the top via ProjectHeader; everything else is plain
-    // document column with --ink text on --canvas.
+    // Notion-document register. Banner sits flush at top via ProjectHeader.
+    // Body is a single centered measure (max-w-[1080px]) of stacked sections
+    // with hairline dividers — no card chrome, no neumorphic shadows; depth
+    // comes from edge contrast + restraint, matching the journal aesthetic.
     <div className="flex flex-col min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+      {/* Breadcrumb strip — sits flush at the top above the banner so the
+          user always sees Areas → {area} → {project} from inside the
+          project. Live-bound to `liveProject.name` so renames refresh
+          here without a navigation. */}
+      <div className="px-8 md:px-12 pt-4">
+        <Breadcrumbs
+          items={[
+            { label: "Areas", href: "/areas" },
+            {
+              label: area.name,
+              href: `/areas/${area.id}`,
+              glyph: area.emoji ?? undefined,
+            },
+            { label: liveProject.name },
+          ]}
+        />
+      </div>
       <ProjectHeader
         project={{
           id: liveProject.id,
@@ -112,12 +143,37 @@ export function ProjectDetailClient({
         }}
         graduationYear={graduationYear}
         addOptimisticProject={addOptimisticProject}
+        area={area}
       />
-      <div className="px-8 py-6">
-        <ProjectDetailColumns
+
+      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pb-24 pt-2 flex flex-col gap-12">
+        <ProjectTasksSection
+          userId={userId}
           projectId={projectId}
-          tasks={initialTasks}
-          captures={initialCaptures}
+          projects={activeProjectsForComposer}
+          initialTasks={initialTasks}
+        />
+
+        <div
+          aria-hidden="true"
+          className="h-px w-full"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, var(--edge) 20%, var(--edge) 80%, transparent)",
+          }}
+        />
+
+        <ProjectCapturesSection
+          userId={userId}
+          projectId={projectId}
+          hashtags={hashtagsForComposer}
+          projects={activeProjectsForComposer.map((p) => ({
+            id: p.id,
+            name: p.name,
+            isClass: p.isClass,
+            courseCode: p.courseCode,
+          }))}
+          initialCaptures={initialCaptures}
         />
       </div>
     </div>

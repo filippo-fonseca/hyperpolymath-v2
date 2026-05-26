@@ -2,7 +2,15 @@
 
 import { useEffect, useOptimistic, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Eye,
+  EyeOff,
+  Settings,
+  Network,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "./Wordmark";
@@ -31,6 +39,12 @@ interface Props {
   initialActiveAreas: SidebarArea[];
   initialAllAreas: SidebarArea[];
   graduationYear?: number | null;
+  profile: {
+    displayName: string | null;
+    email: string;
+    avatarUrl: string | null;
+    oauthAvatarUrl: string | null;
+  };
 }
 
 export type AreaOptimisticDispatch = (
@@ -70,6 +84,7 @@ export function Sidebar({
   initialActiveAreas,
   initialAllAreas,
   graduationYear,
+  profile,
 }: Props) {
   // Hydration safety (Pitfall 16): Read localStorage inside useEffect, NOT during render.
   const [collapsed, setCollapsed] = useState(false);
@@ -170,13 +185,14 @@ export function Sidebar({
             removed for the cleaner Arc-style layout. */}
         <PersistentNav collapsed={collapsed} />
 
-        {/* AREAS section */}
+        {/* AREAS section — heading is now the parent link to /areas, with
+            the area tree nested beneath as proper children. Active styling
+            applies on the homepage AND any /areas/[id] detail page so the
+            user always knows the section is "current". */}
         <div className="mt-6">
           {!collapsed && (
-            <div className="flex items-center justify-between px-4 mb-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
-                Areas
-              </span>
+            <div className="flex items-center justify-between px-2 mb-1.5">
+              <AreasParentLink />
               <AreaCreateDialog
                 userId={userId}
                 addOptimisticArea={addOptimisticArea}
@@ -195,7 +211,10 @@ export function Sidebar({
           )}
 
           {collapsed && (
-            <div className="flex justify-center py-1">
+            <div className="flex flex-col items-center gap-1 py-1">
+              {/* Collapsed-mode Areas link — keeps the homepage one click
+                  away when the sidebar is narrow. */}
+              <AreasParentLink collapsed />
               <AreaCreateDialog
                 userId={userId}
                 addOptimisticArea={addOptimisticArea}
@@ -244,49 +263,307 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Footer: theme toggle + show archived toggle */}
-      <div className="border-t border-[var(--edge)] px-3 py-2 shrink-0 space-y-2">
-        {/* Phase 6 Plan 06-01 (SET-03, AES-06, D-06) — theme toggle anchored
-            in sidebar footer; renders header variant even when collapsed
-            (36px icon button fits the 16-wide collapsed sidebar). */}
-        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-start")}>
-          <ThemeToggle variant="header" />
-        </div>
+      {/* Footer — user chip, icon row, meta. Restructured for clarity:
+          identity at top (avatar + display name), icon controls in the
+          middle (eye / theme / settings, all uniform size), brand meta
+          at the bottom. */}
+      <div className="border-t border-[var(--edge)] px-3 py-3 shrink-0 space-y-3">
+        <UserChip collapsed={collapsed} profile={profile} />
+
+        <SidebarIconRow
+          collapsed={collapsed}
+          showArchived={showArchived}
+          toggleShowArchived={toggleShowArchived}
+        />
+
         {!collapsed ? (
-          <button
-            type="button"
-            onClick={toggleShowArchived}
-            className={cn(
-              "w-full text-left font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] py-1 px-1 rounded-sm transition-colors duration-100 ease-out",
-              showArchived && "text-[var(--ink)]",
-            )}
-          >
-            {showArchived ? "Hide archived" : "Show archived"}
-          </button>
+          <div className="pt-3 border-t border-[var(--edge)] space-y-2">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+              <a
+                href="https://opensource.org/licenses/MIT"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[var(--ink)] transition-colors"
+              >
+                MIT
+              </a>
+              <a
+                href="https://github.com/filippo-fonseca"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[var(--ink)] transition-colors"
+              >
+                GH
+              </a>
+              <a
+                href="https://filippofonseca.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[var(--ink)] transition-colors"
+              >
+                site →
+              </a>
+            </div>
+            <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--ink-muted)] px-1">
+              how you do one thing is how you do everything.
+            </p>
+          </div>
         ) : (
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={toggleShowArchived}
-                  className={cn(
-                    "w-full flex justify-center font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] py-1 rounded-sm transition-colors duration-100 ease-out",
-                    showArchived && "text-[var(--ink)]",
-                  )}
-                  aria-label={showArchived ? "Hide archived" : "Show archived"}
-                >
-                  <span>{showArchived ? "●" : "○"}</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {showArchived ? "Hide archived" : "Show archived"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="pt-2 border-t border-[var(--edge)] text-center">
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href="https://github.com/filippo-fonseca/hyperpolymath-v2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-[14px] text-[var(--ink-muted)] opacity-40 hover:opacity-100 hover:text-[var(--ink)] transition-all select-none"
+                    aria-label="MIT licensed · github.com/filippo-fonseca"
+                  >
+                    ⚜
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  MIT · github.com/filippo-fonseca
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Section parent link for AREAS. Replaces the static mono eyebrow with a
+ * proper clickable parent → /areas, active-styled while on the homepage or
+ * any area detail page. Visually sits between the eyebrow register (mono
+ * caps) and a nav row — it reads as a label but behaves like a link.
+ */
+function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
+  const pathname = usePathname();
+  const active = !!pathname?.startsWith("/areas");
+
+  if (collapsed) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href="/areas"
+              aria-label="Areas homepage"
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex w-7 h-7 items-center justify-center rounded-md transition-colors duration-100 cursor-pointer-always",
+                active
+                  ? "text-[var(--ink)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              )}
+            >
+              <Network size={14} strokeWidth={1.5} />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right">Areas</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <a
+      href="/areas"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-sm px-2 py-1 -mx-1",
+        "font-mono text-[10px] uppercase tracking-[0.12em]",
+        "transition-colors duration-100 cursor-pointer-always",
+        active
+          ? "text-[var(--ink)]"
+          : "text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] hover:text-[var(--ink)]",
+      )}
+    >
+      <Network
+        size={11}
+        strokeWidth={1.5}
+        className={active ? "text-[var(--hud-cyan)]" : undefined}
+      />
+      <span>Areas</span>
+    </a>
+  );
+}
+
+/**
+ * User identity chip. Avatar (uploaded → OAuth → initial fallback chain),
+ * display name (with email beneath when present), entire chip clickable
+ * → /settings. Collapsed form is just the avatar with tooltip.
+ */
+function UserChip({
+  collapsed,
+  profile,
+}: {
+  collapsed: boolean;
+  profile: Props["profile"];
+}) {
+  const src = profile.avatarUrl || profile.oauthAvatarUrl;
+  const initial =
+    (profile.displayName?.trim() || profile.email || "·")
+      .charAt(0)
+      .toUpperCase();
+  const primaryLabel = profile.displayName?.trim() || profile.email;
+
+  if (collapsed) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href="/settings"
+              aria-label={`Open settings — signed in as ${primaryLabel}`}
+              className="block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 cursor-pointer-always"
+            >
+              {src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={src} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif text-sm text-[var(--ink-muted)]">
+                  {initial}
+                </span>
+              )}
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right">{primaryLabel}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <a
+      href="/settings"
+      className="group flex items-center gap-3 -mx-1 px-2 py-1.5 rounded-md hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer-always"
+    >
+      <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors duration-150 shrink-0">
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif text-base text-[var(--ink-muted)]">
+            {initial}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col min-w-0 leading-tight">
+        <span className="font-serif text-sm text-[var(--ink)] truncate">
+          {primaryLabel}
+        </span>
+        {profile.displayName?.trim() ? (
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] truncate">
+            {profile.email}
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+            Open settings
+          </span>
+        )}
+      </div>
+    </a>
+  );
+}
+
+/**
+ * Uniform icon row — three small icon buttons (archived eye, theme, settings).
+ * All 28×28 hit targets, matching size, hairline borders on hover. Replaces
+ * the prior "Hide archived" text button + bare ThemeToggle + nothing-for-
+ * settings layout, which read as three different things side-by-side.
+ */
+function SidebarIconRow({
+  collapsed,
+  showArchived,
+  toggleShowArchived,
+}: {
+  collapsed: boolean;
+  showArchived: boolean;
+  toggleShowArchived: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        collapsed ? "flex-col" : "justify-between",
+      )}
+    >
+      <SidebarIconButton
+        label={showArchived ? "Hide archived" : "Show archived"}
+        onClick={toggleShowArchived}
+        active={showArchived}
+        side={collapsed ? "right" : "top"}
+      >
+        {showArchived ? <Eye size={14} /> : <EyeOff size={14} />}
+      </SidebarIconButton>
+
+      {/* ThemeToggle already renders its own icon at 36px; we wrap it in a
+          28px slot so the row stays visually uniform. The toggle internally
+          handles the sun/moon swap + system-pref tracking. */}
+      <div className="inline-flex">
+        <ThemeToggle variant="header" />
+      </div>
+
+      <SidebarIconButton
+        label="Settings"
+        href="/settings"
+        side={collapsed ? "right" : "top"}
+      >
+        <Settings size={14} />
+      </SidebarIconButton>
+    </div>
+  );
+}
+
+function SidebarIconButton({
+  label,
+  onClick,
+  href,
+  active = false,
+  side = "top",
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  href?: string;
+  active?: boolean;
+  side?: "top" | "right" | "bottom" | "left";
+  children: React.ReactNode;
+}) {
+  const cls = cn(
+    "inline-flex items-center justify-center w-7 h-7 rounded-md border transition-colors duration-150 cursor-pointer-always",
+    active
+      ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
+      : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)] hover:bg-[var(--surface)]",
+  );
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {href ? (
+            <a href={href} aria-label={label} className={cls}>
+              {children}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={onClick}
+              aria-label={label}
+              aria-pressed={active}
+              className={cls}
+            >
+              {children}
+            </button>
+          )}
+        </TooltipTrigger>
+        <TooltipContent side={side}>{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

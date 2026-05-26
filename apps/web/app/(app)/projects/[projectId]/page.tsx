@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
+import { areas, projects } from "@/lib/db/schema";
 import { getTasksForProject } from "@/lib/db/queries/tasks";
 import { getCapturesForProject } from "@/lib/db/queries/captures";
+import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
 import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
 
 interface Props {
@@ -27,11 +28,18 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { projectId } = await params;
   const user = await requireOnboarded();
 
-  // Cheap existence check — surfaces notFound() for invalid/foreign ids
-  // before we pay for the full hydration fetches.
+  // Cheap existence check + area lookup in one round-trip. We pull the
+  // parent area alongside the project so the header can render the
+  // hierarchy badge without a second fetch on the client.
   const [single] = await db
-    .select({ id: projects.id })
+    .select({
+      id: projects.id,
+      areaId: areas.id,
+      areaName: areas.name,
+      areaEmoji: areas.emoji,
+    })
     .from(projects)
+    .innerJoin(areas, eq(projects.areaId, areas.id))
     .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
     .limit(1);
   if (!single) notFound();
@@ -43,10 +51,29 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { getProjectsForCurrentUser } = await import(
     "@/app/actions/projects"
   );
-  const [allProjects, tasksForProject, capturesForProject] = await Promise.all([
+  const [
+    allProjects,
+    tasksForProject,
+    capturesForProject,
+    hashtagsForComposer,
+    activeProjectsForComposer,
+  ] = await Promise.all([
     getProjectsForCurrentUser(),
     getTasksForProject(user.id, projectId),
     getCapturesForProject(user.id, projectId),
+    // Composer needs the user's existing hashtag set for autocomplete.
+    getHashtagSuggestions(user.id),
+    // Composer's project multi-select uses ACTIVE projects only (archived
+    // are not link targets). Same shape as in app/(app)/layout.tsx.
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        isClass: projects.isClass,
+        courseCode: projects.courseCode,
+      })
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
   ]);
 
   return (
@@ -56,7 +83,14 @@ export default async function ProjectDetailPage({ params }: Props) {
       initialProjects={allProjects}
       initialTasks={tasksForProject}
       initialCaptures={capturesForProject}
+      hashtagsForComposer={hashtagsForComposer}
+      activeProjectsForComposer={activeProjectsForComposer}
       graduationYear={user.graduationYear}
+      area={{
+        id: single.areaId,
+        name: single.areaName,
+        emoji: single.areaEmoji,
+      }}
     />
   );
 }

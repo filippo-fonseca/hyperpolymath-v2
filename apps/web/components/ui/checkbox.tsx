@@ -6,6 +6,15 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Document-tier Checkbox — token-matched to Input.
+ *
+ *   - Unchecked: bg --surface, 1px --edge border.
+ *   - Checked:   bg --ink, check glyph in --canvas. Mimics a stamped mark on
+ *                journal paper rather than a colored toggle button.
+ *   - Focus visible: amber ring via the global :focus-visible rule.
+ *   - Aria-invalid: coral border.
+ */
 function Checkbox({
   className,
   ...props
@@ -14,8 +23,13 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer size-4 shrink-0 rounded-[4px] border border-input shadow-xs transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:bg-input/30 dark:aria-invalid:ring-destructive/40 dark:data-[state=checked]:bg-primary",
-        className
+        "peer size-4 shrink-0 rounded-[4px] border border-[var(--edge)] bg-[var(--surface)]",
+        "transition-colors duration-150 ease-out outline-none",
+        "focus-visible:outline-none",
+        "disabled:cursor-not-allowed disabled:opacity-40",
+        "aria-invalid:border-[var(--ink-coral)]",
+        "data-[state=checked]:border-[var(--ink)] data-[state=checked]:bg-[var(--ink)] data-[state=checked]:text-[var(--canvas)]",
+        className,
       )}
       {...props}
     >

@@ -1,7 +1,10 @@
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getInsightsData } from "@/lib/db/queries/insights";
-import { InsightsCharts } from "@/components/insights/InsightsCharts";
-import { EmptyState } from "@/components/shared/EmptyState";
+import {
+  getHabitCompletionsInRange,
+  getHabitsForCurrentUser,
+} from "@/app/actions/habits";
+import { InsightsTabs } from "@/components/insights/InsightsTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -29,17 +32,33 @@ export const dynamic = "force-dynamic";
  */
 export default async function InsightsPage() {
   const user = await requireOnboarded();
-  const data = await getInsightsData(user.id);
+
+  // 365-day window for the Habits tab so the range pills (7d/28d/90d/all)
+  // all have a year of completion data to work with. Volume is tiny at
+  // single-user scale (one row per habit per checked day).
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(today.getDate() - 364);
+  const toISO = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayISO = toISO(today);
+  const startISO = toISO(start);
+
+  const [data, habits, habitCompletions] = await Promise.all([
+    getInsightsData(user.id),
+    getHabitsForCurrentUser(),
+    getHabitCompletionsInRange(startISO, todayISO),
+  ]);
 
   return (
     <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-8 py-12">
-      <main className="relative z-10 max-w-5xl mx-auto space-y-10">
+      <main className="relative z-10 max-w-5xl mx-auto space-y-8">
         <header className="space-y-1.5">
           <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
             Insights
           </h1>
           <p className="font-serif text-base text-[var(--ink-muted)] flex items-center gap-2">
-            Last 7 days of JARVIS activity.
+            JARVIS activity and habit patterns.
             {data.totalTurns > 0 ? (
               <span
                 aria-hidden="true"
@@ -50,14 +69,15 @@ export default async function InsightsPage() {
           </p>
         </header>
 
-        {data.totalTurns === 0 ? (
-          <EmptyState
-            heading="Seven days of silence."
-            body="JARVIS hasn't logged any turns yet. Send it a message to populate this."
-          />
-        ) : (
-          <InsightsCharts data={data} />
-        )}
+        <InsightsTabs
+          jarvis={{ hasData: data.totalTurns > 0, data }}
+          habits={{
+            habits,
+            completions: habitCompletions,
+            today: todayISO,
+            earliestAvailable: startISO,
+          }}
+        />
       </main>
     </div>
   );

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { updateTaskStatus } from "@/app/actions/tasks";
 import { cn } from "@/lib/utils";
+import { tableKey } from "@/lib/realtime/query-keys";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
@@ -44,6 +46,7 @@ const NOT_STARTED_ACCENT = {
 
 interface Props {
   tasks: TaskWithProjects[];
+  userId: string;
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
   addOptimistic: TasksOptimisticDispatch;
@@ -51,10 +54,12 @@ interface Props {
 
 export function KanbanBoard({
   tasks,
+  userId,
   onTaskClick,
   onCreateTask,
   addOptimistic,
 }: Props) {
+  const queryClient = useQueryClient();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
@@ -114,12 +119,21 @@ export function KanbanBoard({
         toast.error(r.error);
         return;
       }
+      // Belt-and-suspenders: force a TanStack Query refetch so the canonical
+      // cache catches up to the DB write BEFORE the transition closes and
+      // useOptimistic reverts. Without this, if the Realtime echo lags (or
+      // fails — common in dev), the card snaps back to its old column and
+      // the user needs to refresh to see the move. Realtime stays as a
+      // cross-device sync path; this guarantees the local case.
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("tasks", userId),
+      });
       if (r.data.becameLesno) toast("Lesno.");
     });
   }
 
   return (
-    <div className="flex flex-col gap-4 min-h-0">
+    <div className="flex flex-col gap-4 min-h-0 flex-1">
       <NotStartedTray
         tasks={tasksByStatus["not started"]}
         expanded={trayExpanded}
@@ -133,7 +147,7 @@ export function KanbanBoard({
         onDropOnTray={() => dropTaskOnStatus("not started")}
       />
 
-      <div className="flex gap-5 overflow-x-auto pb-4 pr-2">
+      <div className="flex gap-5 overflow-x-auto pb-4 pr-2 flex-1 min-h-0 items-stretch">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}

@@ -9,6 +9,9 @@ export interface AuthenticatedUser {
   email: string;
   graduationYear: number | null;
   onboardedAt: Date | null;
+  displayName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
 }
 
 /**
@@ -64,6 +67,9 @@ export async function getUserOrRedirect(): Promise<AuthenticatedUser> {
       email: users.email,
       graduationYear: users.graduationYear,
       onboardedAt: users.onboardedAt,
+      displayName: users.displayName,
+      bio: users.bio,
+      avatarUrl: users.avatarUrl,
     })
     .from(users)
     .where(eq(users.id, userId))

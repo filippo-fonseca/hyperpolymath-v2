@@ -49,7 +49,9 @@ export function TaskCard({
       )}
     >
       <motion.div
-        layout
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
         whileHover={
           isDragging
             ? undefined
@@ -59,7 +61,7 @@ export function TaskCard({
                   "0 8px 24px rgba(0,0,0,0.18), inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent)",
               }
         }
-        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
           "relative rounded-xl px-3.5 py-2.5",
           isPending && "opacity-50",

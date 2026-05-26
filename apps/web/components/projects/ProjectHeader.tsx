@@ -30,6 +30,9 @@ interface Props {
   project: ProjectData;
   graduationYear: number | null;
   addOptimisticProject: ProjectOptimisticDispatch;
+  /** Parent area — rendered as a small pill above the title so the user
+      always knows where this project sits in the hierarchy. */
+  area: { id: string; name: string; emoji: string | null } | null;
 }
 
 function formatTerm(term: string): string {
@@ -77,6 +80,7 @@ export function ProjectHeader({
   project,
   graduationYear,
   addOptimisticProject,
+  area,
 }: Props) {
   const [, startTransition] = useTransition();
 
@@ -151,6 +155,30 @@ export function ProjectHeader({
 
       {/* Header row: icon + name + class meta — serif throughout (UI-SPEC §5j) */}
       <div className="px-8 pt-8 pb-4 flex flex-col gap-2">
+        {/* Area badge — small clickable pill above the title so the project's
+            place in the hierarchy is always one glance away. Renders nothing
+            when the area isn't supplied (e.g. server fetch failure). */}
+        {area ? (
+          <a
+            href={`/areas/${area.id}`}
+            className={cn(
+              "self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm",
+              "font-mono text-[11px] uppercase tracking-[0.08em]",
+              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              "border border-[var(--edge)] hover:border-[var(--edge-hud)]",
+              "bg-[var(--surface)] hover:bg-[var(--surface-raised)]",
+              "transition-colors duration-150 ease-out cursor-pointer-always",
+            )}
+          >
+            {area.emoji ? (
+              <span aria-hidden="true" className="leading-none">
+                {area.emoji}
+              </span>
+            ) : null}
+            <span>{area.name}</span>
+          </a>
+        ) : null}
+
         <div className="flex items-start gap-3">
           {/* Icon — Lucide at stroke 1.5 per UI-SPEC §8a, inline with title */}
           <div className="mt-1 shrink-0">

@@ -5,7 +5,7 @@
  *   3 mono columns:    MIT LICENSE   |   github.com/filippo-fonseca   |   filippofonseca.com →
  *   1 centered ⚜ ornament (24px icon dimensions — exempt from type scale,
  *     --ink-muted opacity 0.4)
- *   1 centered italic Caption 14 serif "be goated. well." (lowercase intentional)
+ *   1 centered italic Caption 14 serif sign-off (lowercase intentional)
  *   80px vertical padding above/below, 1px --edge top hairline
  *
  * Copy strings verbatim from UI-SPEC §9.
@@ -47,7 +47,7 @@ export function LandingFooter() {
         </div>
 
         <p className="text-center font-serif italic text-[14px] text-[var(--ink-muted)]">
-          be goated. well.
+          how you do one thing is how you do everything. love what you do.
         </p>
 
         <p className="text-center font-serif text-[14px] text-[var(--ink-muted)]">

@@ -55,6 +55,13 @@ export const users = pgTable("users", {
   timezone: text("timezone"), // IANA, e.g., "America/New_York" (D-08)
   // Reserved for Phase 6 (theme).
   theme: text("theme").default("light"),
+  // Profile — user-editable on /settings. avatar_url stores the public URL
+  // of the uploaded avatar in the `avatars` Supabase Storage bucket. The
+  // Google-OAuth-supplied picture on auth.users.user_metadata remains the
+  // fallback when avatar_url is null.
+  displayName: text("display_name"),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -374,4 +381,67 @@ export const waitlist = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("waitlist_email_uniq").on(t.email)],
+);
+
+// ─── HABITS ────────────────────────────────────────────────────────────────
+// Same hierarchy tier as projects: live under areas, but M:N (a habit can
+// belong to multiple areas). Frequency is a 7-bool array indexed Sun→Sat
+// matching JS Date.getDay(). See supabase/migrations/0015_habits.sql for RLS.
+
+export const habits = pgTable(
+  "habits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    icon: text("icon"),
+    daysOfWeek: boolean("days_of_week").array().notNull().default([true, true, true, true, true, true, true]),
+    orderIndex: integer("order_index").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("habits_user_idx").on(t.userId, t.orderIndex),
+  ],
+);
+
+export const habitsAreas = pgTable(
+  "habits_areas",
+  {
+    habitId: uuid("habit_id")
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    areaId: uuid("area_id")
+      .notNull()
+      .references(() => areas.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.habitId, t.areaId] }),
+    index("habits_areas_area_idx").on(t.areaId),
+    index("habits_areas_user_idx").on(t.userId),
+  ],
+);
+
+export const habitCompletions = pgTable(
+  "habit_completions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    habitId: uuid("habit_id")
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    completedDate: date("completed_date").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("habit_completions_habit_date_uniq").on(t.habitId, t.completedDate),
+    index("habit_completions_user_date_idx").on(t.userId, t.completedDate),
+  ],
 );

@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { cn } from "@/lib/utils";
 
 /**
  * §03 — The Primitives spec table.
@@ -220,6 +221,11 @@ function PrimitiveTree() {
                   name="Wiki Pages"
                   role="long-form notes (coming soon)"
                   muted
+                />
+                <Branch
+                  name="+  more"
+                  role="the schema is open — new block types plug in here as the life-OS grows"
+                  slot
                   last
                 />
               </ul>
@@ -230,8 +236,14 @@ function PrimitiveTree() {
 
       {/* External callout for Calendar — sits outside the data hierarchy
           because Google Calendar is the source of truth for time and is
-          never duplicated into Hyperpolymath. JARVIS reads from it. */}
-      <div className="mt-6 pt-5 border-t border-[var(--edge)]">
+          never duplicated into Hyperpolymath. JARVIS reads from it.
+
+          The "+ more" slot beneath signals that the external surface is
+          plug-in: Gmail, Drive, Strava, etc. attach to JARVIS the same
+          way Calendar does. Paired with the "+ more" slot under Building
+          Blocks above, this makes the modular shape of the system
+          legible without claiming any of it ships today. */}
+      <div className="mt-6 pt-5 border-t border-[var(--edge)] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
           <span
             className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
@@ -252,6 +264,32 @@ function PrimitiveTree() {
           <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
             Google Calendar lives outside the hierarchy. JARVIS reads it
             for time context; events are never duplicated here.
+          </span>
+        </div>
+
+        {/* Extensibility slot — parallels the "+ more" leaf under Building
+            Blocks. Same dashed-cyan pill so the visual reads as "open seam". */}
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+          <span
+            className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+            style={{
+              color: "var(--hud-cyan-light)",
+              border: "1px dashed var(--edge-hud)",
+              background:
+                "color-mix(in oklch, var(--hud-cyan) 6%, var(--surface-raised))",
+            }}
+          >
+            +&nbsp; more
+            <span
+              className="ml-2 text-[12px] uppercase tracking-[0.08em]"
+              style={{ color: "var(--hud-cyan-light)" }}
+            >
+              external
+            </span>
+          </span>
+          <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+            Gmail, Drive, Strava, Notion — anything JARVIS can read.
+            External systems plug in the same way Calendar does.
           </span>
         </div>
       </div>
@@ -305,6 +343,7 @@ function Branch({
   role,
   accent,
   muted = false,
+  slot = false,
   last = false,
   children,
 }: {
@@ -313,12 +352,17 @@ function Branch({
   accent?: "cyan";
   /** Renders the pill + role at reduced opacity to mark "coming soon" items. */
   muted?: boolean;
+  /** Marks the row as an open extensibility slot (dashed cyan, italic role). */
+  slot?: boolean;
   last?: boolean;
   children?: React.ReactNode;
 }) {
   const cyan = accent === "cyan";
   return (
-    <li className={last ? "is-last" : ""} style={muted ? { opacity: 0.55 } : undefined}>
+    <li
+      className={last ? "is-last" : ""}
+      style={muted && !slot ? { opacity: 0.55 } : undefined}
+    >
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
         <span
           className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
@@ -330,17 +374,31 @@ function Branch({
                   background: "var(--surface-raised)",
                   boxShadow: "var(--glow-hud-subtle)",
                 }
-              : {
-                  color: "var(--ink)",
-                  border: muted ? "1px dashed var(--edge)" : "1px solid var(--edge)",
-                  background: "var(--surface-raised)",
-                }
+              : slot
+                ? {
+                    color: "var(--hud-cyan-light)",
+                    border: "1px dashed var(--edge-hud)",
+                    background:
+                      "color-mix(in oklch, var(--hud-cyan) 6%, var(--surface-raised))",
+                  }
+                : {
+                    color: "var(--ink)",
+                    border: muted
+                      ? "1px dashed var(--edge)"
+                      : "1px solid var(--edge)",
+                    background: "var(--surface-raised)",
+                  }
           }
         >
           {cyan ? <span className="mr-1.5">⚜</span> : null}
           {name}
         </span>
-        <span className="font-serif text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
+        <span
+          className={cn(
+            "font-serif text-[18px] leading-[1.5] sm:translate-y-[1px]",
+            slot ? "italic text-[var(--ink-muted)]" : "text-[var(--ink-muted)]",
+          )}
+        >
           {role}
         </span>
       </div>
