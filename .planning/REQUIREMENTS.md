@@ -404,42 +404,51 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 5.1 (jarvis-agentic-refactor): 5 requirements
 - Phase 6 (Polish): 14 requirements
 
-### v1.1 (Milestone: Speed & Agility) — phase mapping filled by roadmap creation
+### v1.1 (Milestone: Speed & Agility) — phase mapping
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEL-01 | TBD | Pending |
-| TEL-02 | TBD | Pending |
-| TEL-03 | TBD | Pending |
-| LAT-01 | TBD | Pending |
-| LAT-02 | TBD | Pending |
-| LAT-03 | TBD | Pending |
-| LAT-04 | TBD | Pending |
-| CACHE-01 | TBD | Pending |
-| CACHE-02 | TBD | Pending |
-| CACHE-03 | TBD | Pending |
-| CACHE-04 | TBD | Pending |
-| CACHE-05 | TBD | Pending |
-| WAKE-01 | TBD | Pending |
-| WAKE-02 | TBD | Pending |
-| WAKE-03 | TBD | Pending |
-| WAKE-04 | TBD | Pending |
-| WAKE-05 | TBD | Pending |
-| WAKE-06 | TBD | Pending |
-| ROUTE-01 | TBD | Pending |
-| ROUTE-02 | TBD | Pending |
-| ROUTE-03 | TBD | Pending |
-| ROUTE-04 | TBD | Pending |
-| DESK-01 | TBD | Pending |
-| DESK-02 | TBD | Pending |
-| DESK-03 | TBD | Pending |
-| DESK-04 | TBD | Pending |
-| DESK-05 | TBD | Pending |
+| TEL-01 | Phase 9 | Pending |
+| TEL-02 | Phase 9 | Pending |
+| TEL-03 | Phase 9 | Pending |
+| LAT-01 | Phase 10 | Pending |
+| LAT-02 | Phase 10 | Pending |
+| LAT-03 | Phase 10 | Pending |
+| LAT-04 | Phase 10 | Pending |
+| CACHE-01 | Phase 11 | Pending |
+| CACHE-02 | Phase 11 | Pending |
+| CACHE-03 | Phase 11 | Pending |
+| CACHE-04 | Phase 11 | Pending |
+| CACHE-05 | Phase 11 | Pending |
+| WAKE-01 | Phase 12 | Pending |
+| WAKE-02 | Phase 12 | Pending |
+| WAKE-03 | Phase 12 | Pending |
+| WAKE-04 | Phase 12 | Pending |
+| WAKE-05 | Phase 12 | Pending |
+| WAKE-06 | Phase 12 | Pending |
+| ROUTE-01 | Phase 13 | Pending |
+| ROUTE-02 | Phase 13 | Pending |
+| ROUTE-03 | Phase 13 | Pending |
+| ROUTE-04 | Phase 13 | Pending |
+| DESK-01 | Phase 14 | Pending |
+| DESK-02 | Phase 14 | Pending |
+| DESK-03 | Phase 14 | Pending |
+| DESK-04 | Phase 14 | Pending |
+| DESK-05 | Phase 14 | Pending |
 
 **v1.1 coverage:**
 - v1.1 requirements: 27 total (across 6 categories: Telemetry, Latency, Cache, Wake, Route, Desk)
-- Mapping pending — populated by `gsd-roadmapper`
+- Mapped to phases: 27 / 27 (100%)
+- Unmapped: 0
+
+**v1.1 per-phase counts:**
+- Phase 9 (Latency Telemetry Baseline): 3 requirements (TEL-01..03)
+- Phase 10 (TTS + Route-Boundary Latency Wins): 4 requirements (LAT-01..04)
+- Phase 11 (Prompt Cache + State Priming): 5 requirements (CACHE-01..05)
+- Phase 12 (On-Device Wake-Word + Mic Gating): 6 requirements (WAKE-01..06)
+- Phase 13 (Haiku Fast-Path Routing): 4 requirements (ROUTE-01..04)
+- Phase 14 (Desktop Shell + Global Hotkey): 5 requirements (DESK-01..05)
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-28 — added v1.1 Speed & Agility requirements (TEL-, LAT-, CACHE-, WAKE-, ROUTE-, DESK-, 27 total). Roadmapper to populate phase mapping.*
+*Last updated: 2026-05-28 — v1.1 phase mapping populated by gsd-roadmapper. All 27 v1.1 requirements mapped to phases 9–14 by category prefix (TEL→9, LAT→10, CACHE→11, WAKE→12, ROUTE→13, DESK→14). Hard external deadline on Phase 12: Picovoice Porcupine free tier sunsets 2026-06-30.*

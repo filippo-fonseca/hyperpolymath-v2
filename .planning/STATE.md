@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: speed-agility
-status: defining_requirements
-stopped_at: Milestone v1.1 "Speed & Agility" opened — defining requirements + roadmap
-last_updated: "2026-05-28T20:30:00.000Z"
+status: roadmap_complete
+stopped_at: Milestone v1.1 "Speed & Agility" roadmap committed — phases 9–14 mapped, 27/27 requirements covered, ready to discuss Phase 9
+last_updated: "2026-05-28T21:15:00.000Z"
 last_activity: 2026-05-28
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,26 +18,30 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Milestone v1.1 "Speed & Agility" — defining requirements + roadmap
+**Current focus:** Milestone v1.1 "Speed & Agility" — cut p50 speech-end → first-TTS-audio under 1.5s without regressing JARVIS routing quality.
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: Not started (defining requirements + roadmap)
+Phase: 9 (Latency Telemetry Baseline) — NOT STARTED
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-28 — Milestone v1.1 opened, research synthesis committed at `.planning/research/speed-agility/`
+Status: Roadmap committed (phases 9–14, 27/27 v1.1 requirements mapped)
+Last activity: 2026-05-28 — ROADMAP.md + REQUIREMENTS.md traceability updated for v1.1; six new phases written with success criteria + dependencies
 
-Next: `/gsd:discuss-phase 09 ${GSD_WS}` after roadmap approval
+Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
-Progress: [          ] 0%
+Progress: [          ] 0% (0 of 6 v1.1 phases complete)
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
 v1.0 was never formally completed via `/gsd:complete-milestone`. Phases 1–5, 5.1, 6, 6.1, 7, 8 shipped; Phase 6.2 (anthropic-discipline-rebuild) still open in roadmap. Voice work (Phase 7) shipped 9 of 14 VOICE-* requirements; remaining (VOICE-10, 12, 13, 14) overlap heavily with v1.1 work and are folded into v1.1 phases as appropriate. v1.0 will be archived via `/gsd:complete-milestone` once v1.1 finishes or sooner if needed.
+
+### v1.1 critical-path note
+
+Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2 weeks. Phases 12, 13, 14 can follow somewhat in parallel except: **Phase 12 carries a hard external deadline (Picovoice Porcupine free-tier sunset 2026-06-30).** If Phase 11 slips, Phase 12 must jump ahead of Phase 13 to land before 2026-06-15 (2-week safety margin). Document this deviation in PROJECT.md Key Decisions if the swap becomes necessary.
 
 ## Performance Metrics
 
@@ -101,6 +105,7 @@ v1.0 was never formally completed via `/gsd:complete-milestone`. Phases 1–5, 5
 - Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
 - Phase 6.2 inserted after Phase 6.1 (2026-05-19 PM): anthropic-discipline-rebuild. User rejected Phase 6.1's cumulative HUD-heavy visual surface during 06.1-06 Task 3 walkthrough: "i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah." Then reinforced cyan-canonical via second image reference + "we are doing it jarvis-esque like in the tony stark movie." Phase 6.1 closed passed_with_deferrals on infrastructure (token cleanup, motion library substrate, focus-visible system, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility class adoption); AES-01..04,06,07 re-deferred to Phase 6.2. New discipline triumvirate for 6.2: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com) as the discipline pole, Notion as content frame, JARVIS as atmospheric mood only (cyan accent + subtle depth, no literal HUD vocabulary). Massive refactor of Phase 6.1's chrome — throw out corner crops on every surface, hex-grid background, 7-state motion machine, arc-reactor centerpiece. 6.2 is research-first via /gsd:research-phase + /gsd:ui-phase.
 - Phase 8 added (2026-05-25): public-landing-manifesto. Build-in-public stance — public-facing landing page at `/` that channels Karpathy-grade intellectual restraint through hyperpolymath's Garamond/paper/Renaissance voice. Manifesto IS the front door: thesis → live animated JARVIS demo (README ASCII block) → primitives spec (areas/projects/captures/JARVIS/calendar) → engine (Sonnet 4.6 + Strict Tool Use, one real input→JSON) → fork-or-use choice → quiet live build-log feed (last N commits, current phase, shipped-this-week). Logged-out `/` shows manifesto; logged-in `/` continues redirecting to `/today`. Independent of Phase 6.2 — landing route owns its own visual treatment derived from README voice. Inspired by Karpathy/Tan/Levels/Linear references; research pass required pre-plan. Must align with Phase 6.1 directional anchors (restraint over theatrics, JARVIS as MOOD only — not HUD-heavy). Workflow: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
+- Milestone v1.1 opened (2026-05-28): Speed & Agility. Six new phases (9–14) extending the roadmap from the previous tail (Phase 8). Phase shape locked by `.planning/research/speed-agility/` synthesis + user decisions (Haiku fast-path IN, ElevenLabs/British KEPT, desktop shell LAST). Phase numbering continues from 8 (no decimal, no reset). Backlog stubs 999.6 (hibernation), 999.7 (interrupt), 999.8 (scoped wake-word) absorbed into Phases 12 + 14. Hard external deadline: Picovoice Porcupine free-tier sunset 2026-06-30 (Phase 12 timing pressure). Critical path: 9 → 10 → 11 (telemetry → quick wins → cache) lands in ~2 weeks; 12 + 13 + 14 follow somewhat in parallel.
 
 ### Decisions
 
@@ -111,6 +116,8 @@ Recent decisions affecting current work:
 - Roadmap: SET-01 (graduation year) shipped in Phase 1 with auth/foundations because Class metadata in Phase 2 depends on it; SET-02/SET-04 (gcal status, default calendar) deferred to Phase 4; SET-03 (theme) deferred to Phase 6.
 - Roadmap: TEST-04 (RLS integration test) ships in Phase 1; TEST-01/02/03/05 (parser, contract, adversarial) ship in Phase 5 with the agent.
 - Roadmap: RES-05 (`jarvis_events` table) ships in Phase 5 with JARVIS (telemetry from first call); other RES requirements ship in Phase 6.
+- Roadmap v1.1: Phase numbering continues from 8 → 9, no reset, no decimal. Phases 9–14 each map to one research category (TEL→9, LAT→10, CACHE→11, WAKE→12, ROUTE→13, DESK→14). Hard external deadline on Phase 12 (Porcupine 2026-06-30 sunset) is the only forcing function on phase order beyond the 9→10→11 critical path.
+- Roadmap v1.1: Backlog 999.6 + 999.8 absorbed into Phase 12 (listening-mode setting + scoped-mic gating). Backlog 999.7 absorbed into Phase 14 (HUD-dismiss = interrupt). Backlog stubs preserved as ABSORBED status pointers.
 - [Phase 01-foundations]: drizzle.config.ts uses lib/db/*.ts glob so drizzle-kit picks up pgEnum declarations from enums.ts and emits CREATE TYPE in generated SQL
 - [Phase 01-foundations]: supabase/migrations/0000_init_schema.sql strips --> statement-breakpoint markers from drizzle output for Supabase CLI compatibility
 - [Phase 03]: [Phase 03-realtime P01]: useTableSubscription uses a module-level Map<`${table}::${userId}`, { channel, refcount }> singleton — two component mounts of the same (table, userId) share one Supabase RealtimeChannel (RT-01 / D-08)
@@ -247,6 +254,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- **v1.1 Phase 12 hard deadline:** Picovoice Porcupine free tier sunsets **2026-06-30**. If Phase 11 (Prompt Cache + State Priming) slips, Phase 12 must jump ahead of Phase 13 to land before 2026-06-15 (2-week safety margin) — otherwise wake-word stops working entirely. Document this deviation in PROJECT.md Key Decisions if/when the swap becomes necessary.
 - Open behavior decisions per research SUMMARY.md "Gaps to Address" should be locked in PROJECT.md "Key Decisions" before Phase 5 planning at the latest: date-only vs date-time tasks, "next Friday" semantics, hashtag normalization specifics, default calendar fallback, attendees on events, behavior when JARVIS can't resolve `$project`, Vercel AI SDK vs raw Anthropic SDK, jarvis-core ↔ Server Actions sharing pattern, calendar grid library, Louize licensing path.
 
 ### Quick Tasks Completed
@@ -257,6 +265,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T23:28:12.800Z
-Stopped at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
+Last session: 2026-05-28T21:15:00.000Z
+Stopped at: Milestone v1.1 "Speed & Agility" roadmap committed — phases 9–14 mapped, 27/27 requirements covered, ready to discuss Phase 9
 Resume file: None
