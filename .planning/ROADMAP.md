@@ -287,7 +287,7 @@ Plans:
   3. A CI regression guard (`tests/jarvis-latency.test.ts`) fails if two back-to-back identical turns do NOT show `cache_read_input_tokens > 0` on the second turn — silent prompt-cache invalidation is caught before it ships
   4. Existing `jarvis_events`-driven /insights charts (action-type distribution, latency p50/p95, error rate) continue to render unchanged — no regression on Phase 5 telemetry
 **Plans**: 2 plans
-- [ ] 09-01-PLAN.md — Schema migration 0017 + server-side LLM-stage timestamp capture in /api/jarvis + stt_done_at proxy header round-trip + TEL-03 cache-hit regression guard
+- [x] 09-01-PLAN.md — Schema migration 0017 + server-side LLM-stage timestamp capture in /api/jarvis + stt_done_at proxy header round-trip + TEL-03 cache-hit regression guard
 - [ ] 09-02-PLAN.md — UPDATE-policy migration 0018 + voice-stage beacon endpoint + client-side capture (vad_end_at, tts_first_byte_at, audio_first_play_at) + /insights Pipeline Latency panel mounted above existing tabs
 **UI hint**: yes
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: Roadmap committed (phases 9–14, 27/27 v1.1 requirements mapped)
-stopped_at: Phase 9 context gathered
-last_updated: "2026-05-29T02:41:12.781Z"
-last_activity: 2026-05-28 — ROADMAP.md + REQUIREMENTS.md traceability updated for v1.1; six new phases written with success criteria + dependencies
+status: executing
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-05-29T15:43:04.131Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 25
   completed_phases: 8
-  total_plans: 51
-  completed_plans: 42
+  total_plans: 53
+  completed_plans: 43
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Milestone v1.1 "Speed & Agility" — cut p50 speech-end → first-TTS-audio under 1.5s without regressing JARVIS routing quality.
+**Current focus:** Phase 9 — latency-telemetry-baseline
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 9 (Latency Telemetry Baseline) — NOT STARTED
-Plan: —
-Status: Roadmap committed (phases 9–14, 27/27 v1.1 requirements mapped)
-Last activity: 2026-05-28 — ROADMAP.md + REQUIREMENTS.md traceability updated for v1.1; six new phases written with success criteria + dependencies
+Phase: 9 (latency-telemetry-baseline) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-05-29
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -96,6 +96,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 08-public-landing-manifesto P03 | 4min | 3 tasks | 7 files |
 | Phase 08-public-landing-manifesto P04 | 6min | 3 tasks | 3 files |
 | Phase 08-public-landing-manifesto P05 | 6min | 3 tasks | 7 files |
+| Phase 09-latency-telemetry-baseline P01 | 13min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,10 @@ Recent decisions affecting current work:
 - [Phase 08-public-landing-manifesto]: Plan 08-05: page.tsx stays dynamic (no route-level ISR export) so getClaims() runs per-request (Pitfall 1); ISR for GitHub fetch scoped to per-call fetch hint inside BuildLog Server Component child
 - [Phase 08-public-landing-manifesto]: Plan 08-05: openGraph.url + metadataBase deferred until production URL confirmed (RESEARCH Open Question 1); Next 16 emits non-fatal localhost fallback warning, single-line edit closes once known
 - [Phase 08-public-landing-manifesto]: Plan 08-05: WaitlistForm follow-up note silently dropped at Server Action layer due to onConflictDoNothing; flagged deferred, fix is onConflictDoUpdate on note field — out of scope for UI wave
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: turnId emitted as SSE turn-start FIRST statement of start(controller) before anth.messages.stream — load-bearing ordering for Plan 09-02 beacon correlation; verified by ordering grep
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: JarvisEventInput.id added as optional field — when present, insert pins the row id (otherwise defaultRandom). Plan 09-02 beacon UPDATEs WHERE id =
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: SSE event-name regex \w+ silently dropped turn-start in production (Rule 1 bug fix) — changed to [\w-]+ in both jarvis-stream-client.ts and readSseEvents test helper for hyphen tolerance
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: TEL-03 three-layer regression net (structural byte-identity + mocked write-path + live ANTHROPIC_LIVE=true) — replaces tautological single mocked test from plan example; catches Date.now/random/unsorted-stringify at source + at wire level
 
 ### Pending Todos
 
@@ -265,6 +270,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-29T02:41:12.770Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-latency-telemetry-baseline/09-CONTEXT.md
+Last session: 2026-05-29T15:43:04.125Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
