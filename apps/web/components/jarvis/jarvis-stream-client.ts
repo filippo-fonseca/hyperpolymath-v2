@@ -54,6 +54,13 @@ export interface JarvisClarificationEvent {
   suggestedAction: { tool: string; args: Record<string, unknown> } | null;
 }
 
+/** Phase 9 / TEL-01 — emitted as the FIRST SSE event so the client can bind
+ *  activeTurnId before any LLM events. Plan 09-02 uses this id to correlate
+ *  voice-stage beacon writes (vad/tts/audio timestamps UPDATEd by row id). */
+export interface JarvisTurnStartEvent {
+  turnId: string;
+}
+
 export interface JarvisCallbacks {
   onText: (delta: string) => void;
   onAction: (data: JarvisActionEvent) => void;
@@ -63,6 +70,10 @@ export interface JarvisCallbacks {
   /** Phase 5.1 D-A2 / JARVIS-19: fires when the model emits ask_clarification.
    *  Client renders JarvisClarification inline receipt with question + chip options. */
   onClarification?: (data: JarvisClarificationEvent) => void;
+  /** Phase 9 / TEL-01: fires on the FIRST SSE event of the stream. Carries
+   *  the server-generated turnId used to correlate Plan 09-02's voice-stage
+   *  beacon (UPDATE jarvis_events SET ... WHERE id = $turnId). */
+  onTurnStart?: (data: JarvisTurnStartEvent) => void;
   onDone: (usage: Record<string, number>) => void;
   onError: (message: string) => void;
 }
@@ -76,6 +87,12 @@ export async function streamJarvis(
    *  Prior phases always passed false (or omitted); the default preserves
    *  the existing text-mode behaviour. */
   voiceActive = false,
+  /** Phase 9 / TEL-01: epoch-ms timestamp captured by /api/jarvis/stt and
+   *  forwarded by JarvisListener via the jarvis-voice-transcript CustomEvent.
+   *  Sent as X-Jarvis-Stt-Done-At so the /api/jarvis route can stamp it into
+   *  stages.sttDoneAt on the jarvis_events row. Null for typed (non-voice)
+   *  turns — header is omitted entirely in that case. */
+  sttDoneAt: number | null = null,
 ): Promise<void> {
   let response: Response;
   try {
@@ -84,6 +101,9 @@ export async function streamJarvis(
       headers: {
         "Content-Type": "application/json",
         "X-Voice-Active": voiceActive ? "true" : "false",
+        ...(sttDoneAt != null && Number.isFinite(sttDoneAt)
+          ? { "X-Jarvis-Stt-Done-At": String(sttDoneAt) }
+          : {}),
       },
       body: JSON.stringify(payload),
       signal,
@@ -113,7 +133,8 @@ export async function streamJarvis(
         buffer = buffer.slice(idx + 2);
         idx = buffer.indexOf("\n\n");
 
-        const eventName = chunk.match(/^event: (\w+)$/m)?.[1] ?? "";
+        // SSE event names may contain hyphens (e.g. `turn-start`); allow them.
+        const eventName = chunk.match(/^event: ([\w-]+)$/m)?.[1] ?? "";
         const dataRaw = chunk.match(/^data: (.+)$/m)?.[1] ?? "null";
         let data: unknown;
         try {
@@ -122,7 +143,13 @@ export async function streamJarvis(
           continue;
         }
         const obj = (data ?? {}) as Record<string, unknown>;
-        if (eventName === "text") {
+        if (eventName === "turn-start") {
+          // Phase 9 / TEL-01: first SSE frame — server-generated turn id.
+          // Plan 09-02 binds this to forthcoming voice-stage beacon writes.
+          callbacks.onTurnStart?.({
+            turnId: typeof obj.turnId === "string" ? obj.turnId : "",
+          });
+        } else if (eventName === "text") {
           callbacks.onText(typeof obj.delta === "string" ? obj.delta : "");
         } else if (eventName === "queued") {
           // Phase 5.1 D-P3: queued placeholder before executor resolves

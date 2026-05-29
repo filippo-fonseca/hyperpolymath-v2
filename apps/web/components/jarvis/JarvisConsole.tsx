@@ -184,7 +184,10 @@ export function JarvisConsole({
   );
 
   const handleSubmit = useCallback(
-    async (payload: JarvisInputPayload, opts?: { isVoice?: boolean }) => {
+    async (
+      payload: JarvisInputPayload,
+      opts?: { isVoice?: boolean; sttDoneAt?: number | null },
+    ) => {
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
       // leading text block (collected client-side from text deltas and fired
@@ -399,6 +402,9 @@ export function JarvisConsole({
         },
         ac.signal,
         voiceActive,
+        // Phase 9 / TEL-01: forward STT-done-at from the voice transcript
+        // event when the input came from voice. Null for typed turns.
+        opts?.sttDoneAt ?? null,
       );
     },
     [buildHistory, voiceCapable, voiceSettings.voiceId],
@@ -410,7 +416,13 @@ export function JarvisConsole({
   // event with { detail: { transcript: string } }.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
-      const detail = (e as CustomEvent<{ transcript: string }>).detail;
+      // Phase 9 / TEL-01: voice transcript detail now also carries the STT
+      // completion timestamp (epoch ms) read off the /api/jarvis/stt response
+      // header by JarvisListener. Forward it via handleSubmit → streamJarvis
+      // → X-Jarvis-Stt-Done-At so the route can stamp stages.sttDoneAt.
+      const detail = (
+        e as CustomEvent<{ transcript: string; sttDoneAt?: number | null }>
+      ).detail;
       if (!detail?.transcript?.trim()) return;
       void handleSubmit(
         {
@@ -421,7 +433,7 @@ export function JarvisConsole({
           projectIds: [],
           hashtags: [],
         },
-        { isVoice: true },
+        { isVoice: true, sttDoneAt: detail.sttDoneAt ?? null },
       );
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);

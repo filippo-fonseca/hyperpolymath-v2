@@ -41,8 +41,13 @@ export function GlobalJarvisHandler() {
     let abort: AbortController | null = null;
 
     function handleVoiceTranscript(e: Event) {
-      const detail = (e as CustomEvent<{ transcript: string }>).detail;
+      // Phase 9 / TEL-01: detail now also carries sttDoneAt (epoch ms or null)
+      // read off the /api/jarvis/stt response header by JarvisListener.
+      const detail = (
+        e as CustomEvent<{ transcript: string; sttDoneAt?: number | null }>
+      ).detail;
       if (!detail?.transcript?.trim()) return;
+      const sttDoneAt = detail.sttDoneAt ?? null;
 
       // Cancel any in-flight call before starting a new one.
       abort?.abort();
@@ -109,6 +114,14 @@ export function GlobalJarvisHandler() {
           },
         },
         abort.signal,
+        // voiceActive — preserve the existing GlobalJarvisHandler default
+        // (false). Phase 9 deliberately does NOT change voice-active wiring
+        // here; that's a Phase 7 polish item if it lands.
+        false,
+        // Phase 9 / TEL-01: forward the STT-done-at timestamp; null for the
+        // edge case where the header was missing/invalid (the route then
+        // records null in stages.sttDoneAt — non-fatal).
+        sttDoneAt,
       );
     }
 

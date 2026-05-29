@@ -210,7 +210,8 @@ async function readSseEvents(
     while (i !== -1) {
       const chunk = buffer.slice(0, i);
       buffer = buffer.slice(i + 2);
-      const eventName = chunk.match(/^event: (\w+)$/m)?.[1] ?? "";
+      // SSE event names may contain hyphens (e.g. `turn-start`); allow them.
+      const eventName = chunk.match(/^event: ([\w-]+)$/m)?.[1] ?? "";
       const dataLine = chunk.match(/^data: (.+)$/m)?.[1] ?? "null";
       events.push({ event: eventName, data: JSON.parse(dataLine) });
       i = buffer.indexOf("\n\n");
@@ -219,12 +220,23 @@ async function readSseEvents(
   return events;
 }
 
-function buildRequest(body: unknown, opts?: { abort?: AbortController; voiceActive?: boolean }) {
+function buildRequest(
+  body: unknown,
+  opts?: {
+    abort?: AbortController;
+    voiceActive?: boolean;
+    /** Phase 9 / TEL-01: epoch-ms forwarded as X-Jarvis-Stt-Done-At header. */
+    sttDoneAt?: number;
+  },
+) {
   const init: RequestInit = {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(opts?.voiceActive ? { "X-Voice-Active": "true" } : {}),
+      ...(opts?.sttDoneAt != null
+        ? { "X-Jarvis-Stt-Done-At": String(opts.sttDoneAt) }
+        : {}),
     },
     body: JSON.stringify(body),
   };
@@ -501,12 +513,141 @@ describe("POST /api/jarvis — telemetry", () => {
       actionTypes: string[];
       usage: { cache_read_input_tokens?: number };
       latencyMs: number;
+      // Phase 9 / TEL-01: stages block must be present with at least promptBuiltAt.
+      stages?: { promptBuiltAt?: Date };
+      id?: string;
     };
     expect(call.userId).toBe(USER_A);
     expect(call.promptText).toBe("buy stuff");
     expect(call.actionTypes).toContain("create_task");
     expect(call.usage.cache_read_input_tokens).toBe(100);
     expect(typeof call.latencyMs).toBe("number");
+    // Phase 9 / TEL-01 back-compat: stages.promptBuiltAt MUST be a Date — every
+    // turn ships the prompt-built timestamp regardless of voice/text. The id
+    // is pinned so Plan 09-02's beacon can UPDATE WHERE id = $turnId.
+    expect(call.stages).toBeDefined();
+    expect(call.stages?.promptBuiltAt).toBeInstanceOf(Date);
+    expect(typeof call.id).toBe("string");
+    expect(call.id?.length ?? 0).toBeGreaterThan(0);
+  });
+});
+
+// ===========================================================================
+// Phase 9 / TEL-01 — turn-start SSE event + stage timestamps
+// ===========================================================================
+
+describe("POST /api/jarvis — turn-start SSE event (Phase 9 / TEL-01)", () => {
+  it("first emitted SSE event is `turn-start` with a UUID turnId", async () => {
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream({
+        blocks: [{ type: "text", text: "ok" }],
+      }),
+    );
+    const res = await POST(
+      buildRequest({ input: "hi", history: [] }) as never,
+    );
+    const events = await readSseEvents(res);
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[0].event).toBe("turn-start");
+    const data = events[0].data as { turnId?: unknown };
+    expect(typeof data.turnId).toBe("string");
+    expect(data.turnId as string).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("turn-start event id matches the logJarvisEvent id (correlation key for Plan 09-02 beacon)", async () => {
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream({ blocks: [{ type: "text", text: "ok" }] }),
+    );
+    const res = await POST(
+      buildRequest({ input: "hi", history: [] }) as never,
+    );
+    const events = await readSseEvents(res);
+    await new Promise((r) => setTimeout(r, 0));
+    const turnStart = events[0].data as { turnId: string };
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as { id?: string };
+    expect(call.id).toBe(turnStart.turnId);
+  });
+});
+
+describe("POST /api/jarvis — stage timestamps (Phase 9 / TEL-01)", () => {
+  it("logJarvisEvent receives stages.promptBuiltAt + firstTokenAt + lastTokenAt + toolLoopDoneAt on a happy-path turn", async () => {
+    executorCreateTaskMock.mockResolvedValue({
+      ok: true,
+      id: "task-1",
+      receipt: {},
+    });
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream({
+        blocks: [
+          { type: "text", text: "Filing now." },
+          { type: "tool_use", name: "create_task", input: { title: "T" } },
+        ],
+      }),
+    );
+
+    const res = await POST(
+      buildRequest({ input: "buy milk", history: [] }) as never,
+    );
+    await readSseEvents(res);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as {
+      stages?: {
+        promptBuiltAt?: Date;
+        firstTokenAt?: Date;
+        lastTokenAt?: Date;
+        toolLoopDoneAt?: Date;
+      };
+    };
+    expect(call.stages?.promptBuiltAt).toBeInstanceOf(Date);
+    expect(call.stages?.firstTokenAt).toBeInstanceOf(Date);
+    expect(call.stages?.lastTokenAt).toBeInstanceOf(Date);
+    expect(call.stages?.toolLoopDoneAt).toBeInstanceOf(Date);
+    // Monotonic ordering — same Date.now() in one microtask is acceptable,
+    // hence <= rather than strict <.
+    const pb = call.stages!.promptBuiltAt!.getTime();
+    const ft = call.stages!.firstTokenAt!.getTime();
+    const lt = call.stages!.lastTokenAt!.getTime();
+    const td = call.stages!.toolLoopDoneAt!.getTime();
+    expect(pb).toBeLessThanOrEqual(ft);
+    expect(ft).toBeLessThanOrEqual(lt);
+    expect(lt).toBeLessThanOrEqual(td);
+  });
+
+  it("X-Jarvis-Stt-Done-At request header is read into stages.sttDoneAt", async () => {
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream({ blocks: [{ type: "text", text: "ok" }] }),
+    );
+    const res = await POST(
+      buildRequest(
+        { input: "hi", history: [] },
+        { sttDoneAt: 1717000000000 },
+      ) as never,
+    );
+    await readSseEvents(res);
+    await new Promise((r) => setTimeout(r, 0));
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as { stages?: { sttDoneAt?: Date } };
+    expect(call.stages?.sttDoneAt).toBeInstanceOf(Date);
+    expect(call.stages?.sttDoneAt?.getTime()).toBe(1717000000000);
+  });
+
+  it("absent X-Jarvis-Stt-Done-At header leaves stages.sttDoneAt null", async () => {
+    anthropicStreamMock.mockReturnValue(
+      buildAnthropicStream({ blocks: [{ type: "text", text: "ok" }] }),
+    );
+    const res = await POST(
+      buildRequest({ input: "hi", history: [] }) as never,
+    );
+    await readSseEvents(res);
+    await new Promise((r) => setTimeout(r, 0));
+    const callsAny = logJarvisEventMock.mock.calls as unknown as unknown[][];
+    const call = callsAny[0][0] as { stages?: { sttDoneAt?: Date | null } };
+    expect(call.stages?.sttDoneAt).toBeNull();
   });
 });
 

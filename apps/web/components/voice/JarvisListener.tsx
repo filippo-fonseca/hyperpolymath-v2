@@ -409,6 +409,15 @@ export function JarvisListener() {
 
         if (!res.ok) throw new Error(`stt ${res.status}`);
 
+        // Phase 9 / TEL-01: STT proxy returns x-jarvis-stt-done-at (epoch ms).
+        // Forward it through jarvis-voice-transcript so the /api/jarvis caller
+        // can attach it as X-Jarvis-Stt-Done-At on the next POST. Guard
+        // NaN/missing — telemetry must never break the user flow.
+        const sttDoneAtHeader = res.headers.get("x-jarvis-stt-done-at");
+        const sttDoneAtMs = sttDoneAtHeader ? Number(sttDoneAtHeader) : null;
+        const sttDoneAtSafe =
+          sttDoneAtMs != null && Number.isFinite(sttDoneAtMs) ? sttDoneAtMs : null;
+
         const { transcript } = (await res.json()) as { transcript: string };
 
         let command = transcript;
@@ -497,7 +506,9 @@ export function JarvisListener() {
         // Press-to-talk / clap: transcript IS the command, no preprocessing.
 
         window.dispatchEvent(
-          new CustomEvent("jarvis-voice-transcript", { detail: { transcript: command } }),
+          new CustomEvent("jarvis-voice-transcript", {
+            detail: { transcript: command, sttDoneAt: sttDoneAtSafe },
+          }),
         );
 
         dispatch({ type: "TRANSCRIPT_SENT" });

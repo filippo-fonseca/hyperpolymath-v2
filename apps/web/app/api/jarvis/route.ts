@@ -110,6 +110,23 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
   let firstTokenAt: number | null = null;
 
+  // Phase 9 / TEL-01: per-stage timestamps + turn correlation id.
+  //
+  //   turnId            — emitted via `event: turn-start` SSE at stream open
+  //                       so the client can correlate Plan 09-02's voice-stage
+  //                       beacon writes back to this jarvis_events row by id.
+  //   firstTokenAt_d    — Date instance backing first_token_at column.
+  //                       Distinct from the existing numeric `firstTokenAt`
+  //                       which backs the integer first_token_ms column.
+  //   lastTokenAt_d     — updated on every text delta; final value reflects
+  //                       the last text chunk the model emitted.
+  //   toolLoopDoneAt_d  — captured after `await Promise.allSettled(pendingActions)`
+  //                       so it reflects the moment the agentic loop is fully drained.
+  const turnId = crypto.randomUUID();
+  let firstTokenAt_d: Date | null = null;
+  let lastTokenAt_d: Date | null = null;
+  let toolLoopDoneAt_d: Date | null = null;
+
   // 1. Auth — re-derive userId at boundary (JARVIS-12)
   const supabase = await createClient();
   const claimsResult = await supabase.auth.getClaims();
@@ -120,6 +137,17 @@ export async function POST(req: NextRequest) {
 
   // 2. Voice header (Phase 7 forward-compat; Phase 5 always false)
   const voiceActive = req.headers.get("X-Voice-Active") === "true";
+
+  // Phase 9 / TEL-01: STT-done-at request header round-trip from the client.
+  // JarvisListener reads x-jarvis-stt-done-at off the /api/jarvis/stt response,
+  // then forwards it as X-Jarvis-Stt-Done-At on the subsequent /api/jarvis POST.
+  // Guard: a bogus/non-numeric value coerces to null. Telemetry never breaks user flow.
+  const sttDoneAtHeader = req.headers.get("X-Jarvis-Stt-Done-At");
+  const sttDoneAt_d: Date | null = sttDoneAtHeader
+    ? new Date(Number(sttDoneAtHeader))
+    : null;
+  const sttDoneAtSafe =
+    sttDoneAt_d && !Number.isNaN(sttDoneAt_d.getTime()) ? sttDoneAt_d : null;
 
   // 3. Request body
   let body: JarvisRequestBody;
@@ -286,8 +314,20 @@ export async function POST(req: NextRequest) {
     return typeof iso === "string" && parsedDateAllDayByIso.get(iso) === true;
   }
 
+  // Phase 9 / TEL-01: capture promptBuiltAt IMMEDIATELY before opening the
+  // ReadableStream. This is the moment "prompt assembly is done, we're about
+  // to talk to Anthropic" — the natural anchor for downstream stage deltas.
+  const promptBuiltAt_d = new Date();
+
   const stream = new ReadableStream({
     async start(controller) {
+      // Phase 9 / TEL-01 (CRITICAL ORDERING): emit `turn-start` as the FIRST
+      // SSE event so the client binds activeTurnId before any LLM events. The
+      // enqueue MUST run BEFORE `anth.messages.stream(...)` — otherwise a fast
+      // Anthropic response could enqueue contentBlock first and the client
+      // would see the LLM event before the turn-start handshake.
+      controller.enqueue(encoder.encode(sse("turn-start", { turnId })));
+
       const anth = getAnthropicClient();
       // Anthropic SDK 0.96: messages.stream() returns an EventEmitter-like
       // helper with .on("contentBlock"|"text", cb) + .finalMessage(). The
@@ -305,7 +345,10 @@ export async function POST(req: NextRequest) {
       );
 
       anthStream.on("contentBlock", (block: unknown) => {
-        if (firstTokenAt === null) firstTokenAt = Date.now() - startTime;
+        if (firstTokenAt === null) {
+          firstTokenAt = Date.now() - startTime;
+          firstTokenAt_d = new Date();
+        }
         const b = block as {
           type: string;
           id?: string;
@@ -452,7 +495,13 @@ export async function POST(req: NextRequest) {
       });
 
       anthStream.on("text", (delta: unknown) => {
-        if (firstTokenAt === null) firstTokenAt = Date.now() - startTime;
+        if (firstTokenAt === null) {
+          firstTokenAt = Date.now() - startTime;
+          firstTokenAt_d = new Date();
+        }
+        // Phase 9 / TEL-01: refresh lastTokenAt on every delta — final value
+        // reflects the last text chunk emitted by the model.
+        lastTokenAt_d = new Date();
         const s = String(delta);
         if (s.trim().length > 0) anyTextEmitted = true;
         controller.enqueue(encoder.encode(sse("text", { delta: s })));
@@ -464,6 +513,10 @@ export async function POST(req: NextRequest) {
         // finalMessage() resolves as soon as Anthropic finishes sending — but
         // our executors (DB inserts, gcal calls) may still be running.
         await Promise.allSettled(pendingActions);
+        // Phase 9 / TEL-01: agentic loop fully drained — anchor for tool-loop
+        // duration metrics. Captured AFTER allSettled so it reflects the true
+        // "executors done" moment, not just "model done emitting".
+        toolLoopDoneAt_d = new Date();
 
         // Inspect final.content authoritatively rather than trusting stream
         // event accounting alone — covers any race where text deltas arrive
@@ -521,7 +574,13 @@ export async function POST(req: NextRequest) {
         );
 
         // Fire-and-forget telemetry — never await from request thread.
+        // Phase 9 / TEL-01: pin `id` to turnId so Plan 09-02's beacon endpoint
+        // can UPDATE WHERE id = $turnId to attach vad/tts/audio timestamps.
+        // The stages block carries the 5 server-captured timestamps; voice-
+        // only fields (vadEndAt, ttsFirstByteAt, audioFirstPlayAt) remain null
+        // here and land via the beacon post-hoc.
         void logJarvisEvent({
+          id: turnId,
           userId,
           promptText: body.input,
           preParsedDates: body.parsedDates ?? null,
@@ -531,6 +590,15 @@ export async function POST(req: NextRequest) {
           usage: final.usage as JarvisEventUsage,
           latencyMs: Date.now() - startTime,
           firstTokenMs: firstTokenAt ?? undefined,
+          stages: {
+            sttDoneAt: sttDoneAtSafe,
+            promptBuiltAt: promptBuiltAt_d,
+            firstTokenAt: firstTokenAt_d,
+            lastTokenAt: lastTokenAt_d,
+            toolLoopDoneAt: toolLoopDoneAt_d,
+            // vadEndAt, ttsFirstByteAt, audioFirstPlayAt remain null here —
+            // Plan 09-02's beacon endpoint UPDATEs them by turn_id post-hoc.
+          },
         });
       } catch (err) {
         const errName = (err as { name?: string })?.name;
@@ -539,7 +607,13 @@ export async function POST(req: NextRequest) {
           const message =
             (err as { message?: string })?.message ?? String(err);
           controller.enqueue(encoder.encode(sse("error", { message })));
+          // Phase 9 / TEL-01: pass partial stages on the error path too.
+          // toolLoopDoneAt is intentionally absent here (the loop didn't
+          // complete); promptBuiltAt is always set since we always reach
+          // the stream open; firstTokenAt/lastTokenAt may be null if the
+          // model failed before emitting the first token.
           void logJarvisEvent({
+            id: turnId,
             userId,
             promptText: body.input,
             voiceActive,
@@ -547,6 +621,12 @@ export async function POST(req: NextRequest) {
             latencyMs: Date.now() - startTime,
             firstTokenMs: firstTokenAt ?? undefined,
             error: message,
+            stages: {
+              sttDoneAt: sttDoneAtSafe,
+              promptBuiltAt: promptBuiltAt_d,
+              firstTokenAt: firstTokenAt_d,
+              lastTokenAt: lastTokenAt_d,
+            },
           });
         }
       } finally {

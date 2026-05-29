@@ -54,7 +54,20 @@ export async function POST(req: Request): Promise<Response> {
       response_format: "json",
       language: "en",
     });
-    return Response.json({ transcript: transcription.text });
+    // Phase 9 / TEL-01: capture stt_done_at at the LAST possible server moment
+    // (transcript ready, about to return) and round-trip it through a response
+    // header. JarvisListener reads it and forwards as X-Jarvis-Stt-Done-At on
+    // the subsequent /api/jarvis POST, where the route stamps it into
+    // stages.sttDoneAt on the jarvis_events row. Header value is epoch ms.
+    const sttDoneAtMs = Date.now();
+    return Response.json(
+      { transcript: transcription.text },
+      {
+        headers: {
+          "x-jarvis-stt-done-at": String(sttDoneAtMs),
+        },
+      },
+    );
   } catch (err) {
     // Do NOT leak Groq error details to client (could expose API key in stack)
     console.error("[stt] Groq failed", err);
