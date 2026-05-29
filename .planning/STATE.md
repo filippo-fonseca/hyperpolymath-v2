@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-05-29T15:43:04.131Z"
+status: verifying
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-05-29T17:30:50.605Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 25
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 53
-  completed_plans: 43
+  completed_plans: 44
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 Milestone: v1.1 "Speed & Agility"
 Phase: 9 (latency-telemetry-baseline) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-29
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
@@ -97,6 +97,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 08-public-landing-manifesto P04 | 6min | 3 tasks | 3 files |
 | Phase 08-public-landing-manifesto P05 | 6min | 3 tasks | 7 files |
 | Phase 09-latency-telemetry-baseline P01 | 13min | 3 tasks | 9 files |
+| Phase 09 P02 | 25min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -252,6 +253,10 @@ Recent decisions affecting current work:
 - [Phase 09-latency-telemetry-baseline]: Plan 09-01: JarvisEventInput.id added as optional field — when present, insert pins the row id (otherwise defaultRandom). Plan 09-02 beacon UPDATEs WHERE id =
 - [Phase 09-latency-telemetry-baseline]: Plan 09-01: SSE event-name regex \w+ silently dropped turn-start in production (Rule 1 bug fix) — changed to [\w-]+ in both jarvis-stream-client.ts and readSseEvents test helper for hyphen tolerance
 - [Phase 09-latency-telemetry-baseline]: Plan 09-01: TEL-03 three-layer regression net (structural byte-identity + mocked write-path + live ANTHROPIC_LIVE=true) — replaces tautological single mocked test from plan example; catches Date.now/random/unsorted-stringify at source + at wire level
+- [Phase 09]: Plan 09-02: vad_end_at must be captured LOCALLY in JarvisListener.onSpeechEnd and piped through jarvis-voice-transcript event detail — deferred collectStage in consumer onTurnStart AFTER setActiveTurnId. Eager collectStage at the boundary would no-op (activeTurnId unbound until server emits SSE turn-start asynchronously) and silently drop vad_end_at on every voice turn.
+- [Phase 09]: Plan 09-02: PipelineLatencyPanel mounts as FIRST child of <main> on /insights — ABOVE both <header> and <InsightsTabs> per D-03. Existing Phase 6 tabs continue rendering unchanged (non-regression). Empty-state copy locked verbatim per must_haves.truths.
+- [Phase 09]: Plan 09-02: beacon endpoint allow-list lives at application layer (route's setPayload object literally only includes 3 columns: vadEndAt/ttsFirstByteAt/audioFirstPlayAt). Column-level RLS overkill for single-user MVP. RLS is row-level only; column-level guard via allow-list is sufficient and easier to audit.
+- [Phase 09]: Plan 09-02: Zod max bound (Date.now() + 60_000) computed PER-REQUEST inside the handler — module-level would stale on long-running serverless instances and reject legitimate recent timestamps.
 
 ### Pending Todos
 
@@ -270,6 +275,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-29T15:43:04.125Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-05-29T17:30:36.126Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None

@@ -288,7 +288,7 @@ Plans:
   4. Existing `jarvis_events`-driven /insights charts (action-type distribution, latency p50/p95, error rate) continue to render unchanged — no regression on Phase 5 telemetry
 **Plans**: 2 plans
 - [x] 09-01-PLAN.md — Schema migration 0017 + server-side LLM-stage timestamp capture in /api/jarvis + stt_done_at proxy header round-trip + TEL-03 cache-hit regression guard
-- [ ] 09-02-PLAN.md — UPDATE-policy migration 0018 + voice-stage beacon endpoint + client-side capture (vad_end_at, tts_first_byte_at, audio_first_play_at) + /insights Pipeline Latency panel mounted above existing tabs
+- [x] 09-02-PLAN.md — UPDATE-policy migration 0018 + voice-stage beacon endpoint + client-side capture (vad_end_at, tts_first_byte_at, audio_first_play_at) + /insights Pipeline Latency panel mounted above existing tabs
 **UI hint**: yes
 
 ### Phase 10: TTS + Route-Boundary Latency Wins

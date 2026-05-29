@@ -168,7 +168,7 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 ### Telemetry Baseline
 
 - [x] **TEL-01**: `jarvis_events` table extended with per-stage timestamps (`vad_end_at`, `stt_done_at`, `prompt_built_at`, `first_token_at`, `last_token_at`, `tool_loop_done_at`, `tts_first_byte_at`, `audio_first_play_at`) — populated on every voice turn
-- [ ] **TEL-02**: `/insights` renders a p50 + p95 timeline chart per pipeline stage over rolling 24h, with stage-by-stage delta annotations so regressions are obvious within one session
+- [x] **TEL-02**: `/insights` renders a p50 + p95 timeline chart per pipeline stage over rolling 24h, with stage-by-stage delta annotations so regressions are obvious within one session
 - [x] **TEL-03**: `tests/jarvis-latency.test.ts` asserts `cache_read_input_tokens > 0` on the second of two back-to-back identical turns — silent-invalidator regression guard
 
 ### Latency Quick-Wins
@@ -409,7 +409,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TEL-01 | Phase 9 | Complete |
-| TEL-02 | Phase 9 | Pending |
+| TEL-02 | Phase 9 | Complete |
 | TEL-03 | Phase 9 | Complete |
 | LAT-01 | Phase 10 | Pending |
 | LAT-02 | Phase 10 | Pending |
