@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
-last_updated: "2026-05-25T23:28:12.804Z"
-last_activity: 2026-05-25
+milestone: v1.1
+milestone_name: speed-agility
+status: defining_requirements
+stopped_at: Milestone v1.1 "Speed & Agility" opened — defining requirements + roadmap
+last_updated: "2026-05-28T20:30:00.000Z"
+last_activity: 2026-05-28
 progress:
-  total_phases: 16
-  completed_phases: 8
-  total_plans: 51
-  completed_plans: 42
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,17 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 08 — public-landing-manifesto
+**Current focus:** Milestone v1.1 "Speed & Agility" — defining requirements + roadmap
 
 ## Current Position
 
-Phase: 08 (public-landing-manifesto) — EXECUTING
-Plan: 6 of 6
-Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
-Status: Ready to execute
-Last activity: 2026-05-25
+Milestone: v1.1 "Speed & Agility"
+Phase: Not started (defining requirements + roadmap)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-28 — Milestone v1.1 opened, research synthesis committed at `.planning/research/speed-agility/`
 
-Progress: [██████████] 100%
+Next: `/gsd:discuss-phase 09 ${GSD_WS}` after roadmap approval
+
+Progress: [          ] 0%
+
+### v1.0 carryover (informational, not blocking v1.1)
+
+v1.0 was never formally completed via `/gsd:complete-milestone`. Phases 1–5, 5.1, 6, 6.1, 7, 8 shipped; Phase 6.2 (anthropic-discipline-rebuild) still open in roadmap. Voice work (Phase 7) shipped 9 of 14 VOICE-* requirements; remaining (VOICE-10, 12, 13, 14) overlap heavily with v1.1 work and are folded into v1.1 phases as appropriate. v1.0 will be archived via `/gsd:complete-milestone` once v1.1 finishes or sooner if needed.
 
 ## Performance Metrics
 
