@@ -161,6 +161,55 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TEST-04**: Vitest integration tests confirm RLS enforcement (cross-user reads return empty)
 - [x] **TEST-05**: Vitest adversarial-injection test suite for JARVIS (covers Pitfall 5 scenarios from PITFALLS.md)
 
+## v1.1 Requirements (Milestone: Speed & Agility)
+
+JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/research/speed-agility/`. Goal: p50 speech-end → first-TTS-audio under 1.5s without regressing JARVIS routing quality. Absorbs backlog stubs `999.6` (hibernation), `999.7` (interrupt), `999.8` (scoped wake-word).
+
+### Telemetry Baseline
+
+- [ ] **TEL-01**: `jarvis_events` table extended with per-stage timestamps (`vad_end_at`, `stt_done_at`, `prompt_built_at`, `first_token_at`, `last_token_at`, `tool_loop_done_at`, `tts_first_byte_at`, `audio_first_play_at`) — populated on every voice turn
+- [ ] **TEL-02**: `/insights` renders a p50 + p95 timeline chart per pipeline stage over rolling 24h, with stage-by-stage delta annotations so regressions are obvious within one session
+- [ ] **TEL-03**: `tests/jarvis-latency.test.ts` asserts `cache_read_input_tokens > 0` on the second of two back-to-back identical turns — silent-invalidator regression guard
+
+### Latency Quick-Wins
+
+- [ ] **LAT-01**: TTS streams ElevenLabs Flash with `output_format=pcm_24000`; `lib/voice/audio-queue.ts` builds `AudioBuffer`s directly from `Int16Array → Float32Array` without `AudioContext.decodeAudioData`
+- [ ] **LAT-02**: TTS dispatches per-sentence — as text deltas stream from Anthropic, each completed sentence (split on `. `, `! `, `? `, `\n\n`) fires a TTS request immediately rather than waiting for stream-close
+- [ ] **LAT-03**: `lib/voice/use-tts-player.ts` removes the full-body PCM buffer; bytes are enqueued to `AudioQueue` as they arrive
+- [ ] **LAT-04**: `app/api/jarvis/route.ts` replaces the sequential `userProjects` → `userRow` → `userFacts` queries with a single `Promise.all` batch (one round-trip wall-clock at route boundary)
+
+### Prompt Cache + State Priming
+
+- [ ] **CACHE-01**: Tools array and frozen system prompt block carry `cache_control: { type: "ephemeral", ttl: "1h" }`; user-state snapshot block carries `cache_control: { type: "ephemeral" }` (5min TTL). Three breakpoints total, one in reserve.
+- [ ] **CACHE-02**: Per-turn user-state snapshot is serialized as XML-tagged plain text (`<areas>`, `<projects status="active|upcoming">`, `<recent_captures count="N">`, `<today_calendar>`, `<active_tasks>`) with stable IDs, deterministic sort order, and capped list lengths (max 50 captures, 10 tasks, 5 projects). Target size: 800–2000 tokens.
+- [ ] **CACHE-03**: `state_version` integer per user (incremented on any user-state-changing DB write) is tracked server-side; when unchanged since last turn the prompt builder reuses the previous snapshot string byte-for-byte to preserve cache hit
+- [ ] **CACHE-04**: Predictive cache-warmer fires a 1-token no-op Anthropic request when the user opens the app, focuses the JARVIS input, or arms the mic — keeping the cache inside its TTL window without a background heartbeat
+- [ ] **CACHE-05**: Audit + grep gate prevents `Date.now()` / `new Date()` / unsorted `JSON.stringify` from appearing inside system prompt or tool-def construction; all volatile content lives strictly AFTER the cached prefix in the per-turn messages
+
+### Wake-Word + Mic Gating
+
+- [ ] **WAKE-01**: openWakeWord (`onnxruntime-web` + Silero VAD + `hey_jarvis_v0.1.onnx`) runs in a dedicated Web Worker, lazy-loaded on first "enable voice" toggle (~3–4 MB ONNX/WASM assets); first paint never blocks on it
+- [ ] **WAKE-02**: Audio capture is mic-gated — `AudioWorklet` writes to a ~3-second in-memory ring buffer; raw audio never leaves the device until the wake-word classifier fires (score > 0.5 over 2 consecutive 80ms frames)
+- [ ] **WAKE-03**: On wake-fire, the captured command audio includes ~500ms of pre-roll spliced from the ring buffer so the user's command is not clipped when the wake phrase runs into the command
+- [ ] **WAKE-04**: `stripWakeWordAnywhere` remains as belt-and-braces defense — wake-fire transcripts that do not actually start with a wake phrase are dropped before reaching the agent
+- [ ] **WAKE-05**: Settings → Voice exposes three mutually-exclusive listening modes: **wake-word** (default), **push-to-talk only** (no mic until `Cmd+Shift+J`), **hibernate** (no mic at all, all voice off). Absorbs backlog `999.6` + `999.8`.
+- [ ] **WAKE-06**: All Picovoice Porcupine code paths and the `NEXT_PUBLIC_PICOVOICE_ACCESS_KEY` env reference are removed; the @picovoice/porcupine-web dependency is dropped from `package.json` (free-tier sunset 2026-06-30 hard deadline)
+
+### Routing (Haiku Fast-Path)
+
+- [ ] **ROUTE-01**: A deterministic classifier (input length + trigger-word heuristics + presence of `$project`/`#hashtag` chips + time-math signals) routes each JARVIS turn to either Sonnet 4.6 ("complex") or Haiku 4.5 ("simple"); decision is logged to `jarvis_events.model_used`
+- [ ] **ROUTE-02**: `tests/jarvis-routing.test.ts` maintains a ≥50-fixture ground-truth eval set (input → expected tool calls + expected model tier); the test fails if Haiku misroute rate exceeds Sonnet baseline by more than 2 percentage points on the same fixtures
+- [ ] **ROUTE-03**: When Haiku produces a low-confidence tool call (heuristics: `ask_clarification` invoked OR `validate-references` fails OR no tool emitted at all), the turn auto-escalates to Sonnet for a single retry before any user-visible result is rendered
+- [ ] **ROUTE-04**: `/insights` renders model-tier distribution (% Sonnet vs % Haiku) over rolling 24h alongside per-tier p50 first-token latency
+
+### Desktop Shell + Global Hotkey
+
+- [ ] **DESK-01**: A Tauri 2.x macOS menu-bar app at `apps/desktop/` ships with a hidden HUD window, tray icon, and `Cmd+Shift+Space` global shortcut (via `tauri-plugin-global-shortcut`) that toggles HUD visibility; HUD points at the deployed Next.js web app (no SSR rewrite needed)
+- [ ] **DESK-02**: FN-double-tap (~1000ms window) summons the HUD via `tauri-plugin-macos-input-monitor` (CGEventTap); first launch walks the user through granting Input Monitoring permission in macOS System Settings
+- [ ] **DESK-03**: In Tauri mode (`window.__TAURI__` detected), microphone is acquired only after the HUD is summoned and released when the HUD is dismissed; `Cmd+Shift+J` press-to-talk still works inside the HUD
+- [ ] **DESK-04**: Dismissing the HUD (Esc, blur, hotkey re-press) cancels any in-flight Anthropic stream + TTS playback (absorbs backlog `999.7` interrupt/stop control)
+- [ ] **DESK-05**: Browser tab version of the app continues to work in parallel without code changes; same Supabase session shared via WKWebView cookie persistence per-origin
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -355,6 +404,42 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 5.1 (jarvis-agentic-refactor): 5 requirements
 - Phase 6 (Polish): 14 requirements
 
+### v1.1 (Milestone: Speed & Agility) — phase mapping filled by roadmap creation
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TEL-01 | TBD | Pending |
+| TEL-02 | TBD | Pending |
+| TEL-03 | TBD | Pending |
+| LAT-01 | TBD | Pending |
+| LAT-02 | TBD | Pending |
+| LAT-03 | TBD | Pending |
+| LAT-04 | TBD | Pending |
+| CACHE-01 | TBD | Pending |
+| CACHE-02 | TBD | Pending |
+| CACHE-03 | TBD | Pending |
+| CACHE-04 | TBD | Pending |
+| CACHE-05 | TBD | Pending |
+| WAKE-01 | TBD | Pending |
+| WAKE-02 | TBD | Pending |
+| WAKE-03 | TBD | Pending |
+| WAKE-04 | TBD | Pending |
+| WAKE-05 | TBD | Pending |
+| WAKE-06 | TBD | Pending |
+| ROUTE-01 | TBD | Pending |
+| ROUTE-02 | TBD | Pending |
+| ROUTE-03 | TBD | Pending |
+| ROUTE-04 | TBD | Pending |
+| DESK-01 | TBD | Pending |
+| DESK-02 | TBD | Pending |
+| DESK-03 | TBD | Pending |
+| DESK-04 | TBD | Pending |
+| DESK-05 | TBD | Pending |
+
+**v1.1 coverage:**
+- v1.1 requirements: 27 total (across 6 categories: Telemetry, Latency, Cache, Wake, Route, Desk)
+- Mapping pending — populated by `gsd-roadmapper`
+
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-17 — Phase 5.1 planning registered JARVIS-18..22*
+*Last updated: 2026-05-28 — added v1.1 Speed & Agility requirements (TEL-, LAT-, CACHE-, WAKE-, ROUTE-, DESK-, 27 total). Roadmapper to populate phase mapping.*
