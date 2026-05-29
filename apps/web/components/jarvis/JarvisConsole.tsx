@@ -27,6 +27,13 @@ import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
 } from "@/app/actions/jarvis-turns";
+// Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
+// turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
+// then lands the LOCALLY-captured timestamp piped through the transcript event.
+import {
+  collectStage,
+  setActiveTurnId,
+} from "@/lib/voice/voice-stage-collector";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -186,7 +193,15 @@ export function JarvisConsole({
   const handleSubmit = useCallback(
     async (
       payload: JarvisInputPayload,
-      opts?: { isVoice?: boolean; sttDoneAt?: number | null },
+      opts?: {
+        isVoice?: boolean;
+        sttDoneAt?: number | null;
+        /** Phase 9 / TEL-01 — VAD end timestamp captured LOCALLY in
+         *  JarvisListener.onSpeechEnd, piped via jarvis-voice-transcript
+         *  CustomEvent detail, forwarded here, and collectStage-d inside the
+         *  onTurnStart callback AFTER setActiveTurnId binds the row. */
+        vadEndAt?: number;
+      },
     ) => {
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
@@ -251,9 +266,26 @@ export function JarvisConsole({
         linkedHashtags: payload.hashtags, // M6
       };
 
+      // Phase 9 / TEL-01 — capture for use inside onTurnStart (below). The
+      // collectStage MUST run AFTER setActiveTurnId (binding asynchronously
+      // resolves when the server emits its first SSE turn-start frame), so
+      // eager collectStage here would no-op and silently drop vad_end_at.
+      const vadEndAt = opts?.vadEndAt;
+
       await streamJarvis(
         request,
         {
+          // Phase 9 / TEL-01 — first SSE frame; server-generated turnId. Bind
+          // the collector to THIS turn FIRST, THEN collectStage(vad_end_at)
+          // so the locally-captured timestamp lands against the now-bound row.
+          // (stt_done_at is captured server-side via the X-Jarvis-Stt-Done-At
+          // request header at stream start — Plan 09-01. Don't double-write.)
+          onTurnStart: (data) => {
+            setActiveTurnId(data.turnId);
+            if (vadEndAt != null && Number.isFinite(vadEndAt)) {
+              collectStage("vad_end_at", new Date(vadEndAt));
+            }
+          },
           onText: (delta) => {
             setTurns((prev) =>
               prev.map((t) =>
@@ -416,12 +448,19 @@ export function JarvisConsole({
   // event with { detail: { transcript: string } }.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
-      // Phase 9 / TEL-01: voice transcript detail now also carries the STT
-      // completion timestamp (epoch ms) read off the /api/jarvis/stt response
-      // header by JarvisListener. Forward it via handleSubmit → streamJarvis
-      // → X-Jarvis-Stt-Done-At so the route can stamp stages.sttDoneAt.
+      // Phase 9 / TEL-01: voice transcript detail carries:
+      //   - sttDoneAt — STT completion epoch ms (forwarded via X-Jarvis-Stt-Done-At
+      //     so /api/jarvis stamps stages.sttDoneAt at INSERT time)
+      //   - vadEndAt  — VAD end epoch ms captured LOCALLY in onSpeechEnd, piped
+      //     through here for deferred collectStage in onTurnStart (cannot be
+      //     collectStage-d earlier — activeTurnId is unbound until the server
+      //     emits its first SSE turn-start frame)
       const detail = (
-        e as CustomEvent<{ transcript: string; sttDoneAt?: number | null }>
+        e as CustomEvent<{
+          transcript: string;
+          sttDoneAt?: number | null;
+          vadEndAt?: number;
+        }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
       void handleSubmit(
@@ -433,7 +472,11 @@ export function JarvisConsole({
           projectIds: [],
           hashtags: [],
         },
-        { isVoice: true, sttDoneAt: detail.sttDoneAt ?? null },
+        {
+          isVoice: true,
+          sttDoneAt: detail.sttDoneAt ?? null,
+          vadEndAt: detail.vadEndAt,
+        },
       );
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);

@@ -1,5 +1,7 @@
 "use client";
 
+import { collectStage } from "@/lib/voice/voice-stage-collector";
+
 /**
  * Phase 7 Plan 07-04 — AudioBufferSourceNode chain for streaming TTS chunks.
  *
@@ -18,6 +20,10 @@ export class AudioQueue {
   private nodes: AudioBufferSourceNode[] = [];
   private analyserNode: AnalyserNode | null = null;
   private onEndedCallbacks: Set<() => void> = new Set();
+  // Phase 9 / TEL-01 — one-shot guard for audio_first_play_at. use-tts-player
+  // creates a fresh AudioQueue per turn, so "first node in this queue" ==
+  // "first audio of this turn". Reset by stopAll() for defensive re-use.
+  private firstPlayCaptured = false;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -50,6 +56,14 @@ export class AudioQueue {
 
     const startAt = Math.max(this.ctx.currentTime, this.scheduledEnd);
     node.start(startAt);
+    // Phase 9 / TEL-01 — first audio-out moment per AudioQueue lifecycle.
+    // use-tts-player creates a fresh AudioQueue per turn, so "first node in
+    // this queue instance" == "first audio of this turn". One-shot via the
+    // firstPlayCaptured flag so subsequent chunks don't re-fire the stage.
+    if (!this.firstPlayCaptured) {
+      this.firstPlayCaptured = true;
+      collectStage("audio_first_play_at", new Date());
+    }
     this.scheduledEnd = startAt + buffer.duration;
     this.nodes.push(node);
 
@@ -69,6 +83,10 @@ export class AudioQueue {
    * Called for barge-in (VOICE-12) and on component unmount.
    */
   stopAll() {
+    // Phase 9 / TEL-01 — reset the first-play guard so a re-used AudioQueue
+    // (defensive — shouldn't happen with current use-tts-player but covers
+    // future paths) captures audio_first_play_at on the next enqueue chain.
+    this.firstPlayCaptured = false;
     const toStop = [...this.nodes];
     this.nodes = [];
     this.scheduledEnd = 0;

@@ -4,6 +4,11 @@ import { useRef, useCallback } from "react";
 import { AudioQueue } from "./audio-queue";
 import { DEFAULT_VOICE_ID } from "./constants";
 import type { VoiceSettings } from "./types";
+// Phase 9 / TEL-01 — TTFB capture for tts_first_byte_at. Fires once per
+// /api/jarvis/tts response, AFTER fetch resolves (headers + first chunk
+// landed) and BEFORE the upstream status check. No-op when activeTurnId
+// is unbound (text-only turns).
+import { collectStage } from "@/lib/voice/voice-stage-collector";
 
 interface PlayParams {
   text: string;
@@ -84,6 +89,13 @@ export function useTtsPlayer() {
           signal: abort.signal,
         });
         clearTimeout(timeout);
+
+        // Phase 9 / TEL-01 — TTFB capture. First response chunk has arrived;
+        // body is now readable. Even if status is non-2xx and we fall back,
+        // we still record this as the moment the proxy responded. TTFB
+        // (not TTLB — `await res.arrayBuffer()` below waits for the WHOLE
+        // body, which would be wrong for this stage's semantics).
+        collectStage("tts_first_byte_at", new Date());
 
         // 502 is the upstream-failed sentinel (Pitfall 7 / CRITICAL_PHASE7_CONCERNS #6).
         // Any 5xx or non-OK response triggers SpeechSynthesis fallback.

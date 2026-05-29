@@ -20,6 +20,13 @@ import {
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { publishMicState } from "@/lib/voice/mic-state-bus";
+// Phase 9 / TEL-01 — flushNow is the TTS_END safety net for partial telemetry
+// (e.g. barge-in before audio_first_play_at). NOTE: do NOT import collectStage
+// here — vad_end_at is captured LOCALLY in onSpeechEnd and piped through the
+// jarvis-voice-transcript event detail. Calling collectStage in onSpeechEnd
+// would no-op (activeTurnId is unbound until onTurnStart fires after the
+// /api/jarvis stream opens) and silently drop vad_end_at on every turn.
+import { flushNow } from "@/lib/voice/voice-stage-collector";
 import { stripWakeWord, stripWakeWordAnywhere } from "@/lib/voice/wake-word";
 import {
   getSharedAudioContext,
@@ -364,6 +371,15 @@ export function JarvisListener() {
       // startOnLoad=true, so this fires constantly. Ignore.
     },
     onSpeechEnd: async (audio: Float32Array) => {
+      // Phase 9 / TEL-01 — vad_end_at boundary. Captured BEFORE any branch so
+      // it fires for every voice-mode onSpeechEnd, including early returns.
+      // NOT collectStage-d here: activeTurnId is not yet bound (binding
+      // happens in onTurnStart, fired asynchronously after streamJarvis →
+      // /api/jarvis emits its first SSE frame). Eager collectStage would
+      // silently no-op and drop the timestamp on every turn. Pipe through
+      // the jarvis-voice-transcript event detail; the consumer collectStage's
+      // it inside onTurnStart, AFTER setActiveTurnId.
+      const vadEndAt = Date.now();
       const s = micStateRef.current;
       // Two entry states are meaningful here:
       //   "recording" — explicit channel (press-to-talk, clap, follow-up).
@@ -507,7 +523,14 @@ export function JarvisListener() {
 
         window.dispatchEvent(
           new CustomEvent("jarvis-voice-transcript", {
-            detail: { transcript: command, sttDoneAt: sttDoneAtSafe },
+            detail: {
+              transcript: command,
+              sttDoneAt: sttDoneAtSafe,
+              // Phase 9 / TEL-01 — locally-captured VAD end timestamp
+              // piped through for deferred collectStage in the consumer's
+              // onTurnStart callback (after setActiveTurnId binds the turn).
+              vadEndAt,
+            },
           }),
         );
 
@@ -660,6 +683,11 @@ export function JarvisListener() {
         }
         dispatch({ type: "TTS_START" });
         dispatch({ type: "TTS_END" });
+        // Phase 9 / TEL-01 — silent-branch flush: even when TTS is muted
+        // (discreet mode / provider=off / locked AudioContext), partial
+        // voice-stage telemetry (e.g. vad_end_at from this turn) should
+        // still beacon so the row gets back-filled. Idempotent.
+        flushNow();
         if (turnWasVoice) {
           followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
         }
@@ -674,6 +702,12 @@ export function JarvisListener() {
         onStart: () => dispatch({ type: "TTS_START" }),
         onEnd: () => {
           dispatch({ type: "TTS_END" });
+          // Phase 9 / TEL-01 — audio queue drained; if all 3 voice stages
+          // (vad_end_at + tts_first_byte_at + audio_first_play_at) already
+          // collected naturally, the collector auto-flushed and this is a
+          // no-op. If barge-in cut things short before audio_first_play_at,
+          // partial telemetry still beacons here.
+          flushNow();
           if (turnWasVoice) {
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
           }

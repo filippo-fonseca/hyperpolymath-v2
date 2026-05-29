@@ -6,6 +6,13 @@ import { toast } from "sonner";
 import { streamJarvis } from "@/components/jarvis/jarvis-stream-client";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+// Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
+// turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
+// then lands the LOCALLY-captured timestamp piped through the transcript event.
+import {
+  collectStage,
+  setActiveTurnId,
+} from "@/lib/voice/voice-stage-collector";
 
 /**
  * GlobalJarvisHandler — voice transcript pipeline for pages WITHOUT the
@@ -42,12 +49,19 @@ export function GlobalJarvisHandler() {
 
     function handleVoiceTranscript(e: Event) {
       // Phase 9 / TEL-01: detail now also carries sttDoneAt (epoch ms or null)
-      // read off the /api/jarvis/stt response header by JarvisListener.
+      // read off the /api/jarvis/stt response header by JarvisListener, AND
+      // vadEndAt (epoch ms) captured LOCALLY in JarvisListener.onSpeechEnd
+      // and piped through here for deferred collectStage inside onTurnStart.
       const detail = (
-        e as CustomEvent<{ transcript: string; sttDoneAt?: number | null }>
+        e as CustomEvent<{
+          transcript: string;
+          sttDoneAt?: number | null;
+          vadEndAt?: number;
+        }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
       const sttDoneAt = detail.sttDoneAt ?? null;
+      const vadEndAt = detail.vadEndAt;
 
       // Cancel any in-flight call before starting a new one.
       abort?.abort();
@@ -68,6 +82,17 @@ export function GlobalJarvisHandler() {
         {
           onText: (delta) => {
             accumulatedText += delta;
+          },
+          // Phase 9 / TEL-01 — first SSE frame; server-generated turnId. Bind
+          // the collector to THIS turn FIRST, THEN collectStage(vad_end_at)
+          // so the locally-captured timestamp lands against the now-bound row.
+          // (stt_done_at is captured server-side via the X-Jarvis-Stt-Done-At
+          // request header at stream start — Plan 09-01. Don't double-write.)
+          onTurnStart: (data) => {
+            setActiveTurnId(data.turnId);
+            if (vadEndAt != null && Number.isFinite(vadEndAt)) {
+              collectStage("vad_end_at", new Date(vadEndAt));
+            }
           },
           onQueued: () => {
             // No-op — receipts surface via onAction (with the real result).
