@@ -352,19 +352,6 @@ export function JarvisListener() {
       // of this speech segment. Cleared at the head of onSpeechEnd.
       vadSpeakingRef.current = true;
       const s = micStateRef.current;
-      // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-      const _now = Date.now();
-      const _expiry = followUpUntilRef.current;
-      // eslint-disable-next-line no-console
-      console.log("[DEBUG-LEAK] onSpeechStart entry", {
-        s,
-        now: _now,
-        followUpExpiry: _expiry,
-        deltaMs: _expiry - _now,
-        inFollowUp: _expiry > _now,
-        hasPorcupineWakeWord,
-        activationSource: activationSourceRef.current,
-      });
       if (s === "listening") {
         // Three sub-cases now:
         //   1. In follow-up window (≤5s after JARVIS's last TTS_END): user
@@ -382,18 +369,8 @@ export function JarvisListener() {
           activationSourceRef.current = "follow-up";
           window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
           dispatch({ type: "SPEECH_START" }); // → recording
-          // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-          // eslint-disable-next-line no-console
-          console.log("[DEBUG-LEAK] onSpeechStart → branch=follow-up");
         } else if (!hasPorcupineWakeWord) {
           activationSourceRef.current = "wake-word";
-          // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-          // eslint-disable-next-line no-console
-          console.log("[DEBUG-LEAK] onSpeechStart → branch=passive-listen (wake-word source set)");
-        } else {
-          // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-          // eslint-disable-next-line no-console
-          console.log("[DEBUG-LEAK] onSpeechStart → branch=porcupine-rest (no source set)");
         }
         // else: Porcupine handles wake — leave activationSource null and
         //       skip STT entirely in onSpeechEnd.
@@ -431,16 +408,6 @@ export function JarvisListener() {
       // post-utterance clap (in silence) can fire normally.
       vadSpeakingRef.current = false;
       const s = micStateRef.current;
-      // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-      // eslint-disable-next-line no-console
-      console.log("[DEBUG-LEAK] onSpeechEnd entry", {
-        s,
-        activationSource: activationSourceRef.current,
-        followUpExpiry: followUpUntilRef.current,
-        now: Date.now(),
-        deltaMs: followUpUntilRef.current - Date.now(),
-        willEarlyReturn: s !== "recording" && s !== "listening",
-      });
       // Two entry states are meaningful here:
       //   "recording" — explicit channel (press-to-talk, clap, follow-up).
       //                 We're already glowing; transition to thinking now.
@@ -459,15 +426,8 @@ export function JarvisListener() {
       // no UI change. This is the "completely off/idle" path the user
       // expects when no wake word is active and >5s have passed.
       if (s === "listening" && !source) {
-        // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-        // eslint-disable-next-line no-console
-        console.log("[DEBUG-LEAK] onSpeechEnd → rest-state bail (no STT)");
         return;
       }
-
-      // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-      // eslint-disable-next-line no-console
-      console.log("[DEBUG-LEAK] onSpeechEnd → WILL CALL STT", { s, source });
 
       const isPassiveListen = s === "listening" && source === "wake-word";
       const isFollowUp = source === "follow-up";
@@ -505,17 +465,6 @@ export function JarvisListener() {
 
         const { transcript } = (await res.json()) as { transcript: string };
 
-        // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-        // eslint-disable-next-line no-console
-        console.log("[DEBUG-LEAK] STT result", {
-          transcript: JSON.stringify(transcript),
-          isPassiveListen,
-          isFollowUp,
-          isPorcupineWake,
-          source,
-          s,
-        });
-
         let command = transcript;
 
         if (isPassiveListen) {
@@ -525,14 +474,6 @@ export function JarvisListener() {
             JSON.stringify(transcript),
           );
           const stripped = stripWakeWord(transcript);
-          // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-          // eslint-disable-next-line no-console
-          console.log("[DEBUG-LEAK] stripWakeWord result", {
-            transcript: JSON.stringify(transcript),
-            stripped: JSON.stringify(stripped),
-            wasNull: stripped === null,
-            wouldDispatchAsCommand: stripped !== null && stripped !== "",
-          });
           if (stripped === null) {
             // No wake phrase — ambient speech. No state change needed
             // (we're still in "listening"). Silent discard.
@@ -813,17 +754,6 @@ export function JarvisListener() {
           dispatch({ type: "TTS_END" });
           // Phase 9 / TEL-01 — flush any partial telemetry (idempotent).
           flushNow();
-          // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-          const _opening = turnIsVoiceRef.current;
-          const _newExpiry = _opening ? Date.now() + FOLLOW_UP_MS : followUpUntilRef.current;
-          // eslint-disable-next-line no-console
-          console.log("[DEBUG-LEAK] handleSentence onEnd (TTS_END)", {
-            turnIsVoice: _opening,
-            willOpenWindow: _opening,
-            newExpiry: _newExpiry,
-            now: Date.now(),
-            windowDurationMs: _opening ? FOLLOW_UP_MS : 0,
-          });
           if (turnIsVoiceRef.current) {
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
           }
@@ -848,15 +778,6 @@ export function JarvisListener() {
       const detail = (
         e as CustomEvent<{ isVoice?: boolean }>
       ).detail;
-      // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-      // eslint-disable-next-line no-console
-      console.log("[DEBUG-LEAK] handleEndOfTurn entry", {
-        detailIsVoice: detail?.isVoice,
-        turnIsVoiceRef: turnIsVoiceRef.current,
-        silentCycled: silentCycledRef.current,
-        currentFollowUpExpiry: followUpUntilRef.current,
-        now: Date.now(),
-      });
       // Honor isVoice from the end-of-turn event in case no sentence ever
       // fired (e.g., the model emitted only a tool call and the butler-ack
       // fallback path was never triggered — defensive).
@@ -869,11 +790,6 @@ export function JarvisListener() {
       // NEXT turn starts clean.
       if (silentCycledRef.current) {
         silentCycledRef.current = false;
-        // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-        // eslint-disable-next-line no-console
-        console.log("[DEBUG-LEAK] handleEndOfTurn → silent branch", {
-          willOpenWindow: turnIsVoiceRef.current,
-        });
         if (turnIsVoiceRef.current) {
           followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
         }

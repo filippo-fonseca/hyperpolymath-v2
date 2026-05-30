@@ -67,15 +67,6 @@ function normalize(transcript: string): string {
 export function stripWakeWord(transcript: string): string | null {
   const normalized = normalize(transcript);
   const match = normalized.match(WAKE_PATTERN);
-  // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
-  // eslint-disable-next-line no-console
-  console.log("[DEBUG-LEAK] stripWakeWord internal", {
-    rawTranscript: JSON.stringify(transcript),
-    normalized: JSON.stringify(normalized),
-    matched: !!match,
-    matchedText: match ? JSON.stringify(match[0]) : null,
-    pattern: WAKE_PATTERN.source,
-  });
   if (!match) return null;
   return normalized.slice(match[0].length).trim();
 }
