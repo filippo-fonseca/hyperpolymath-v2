@@ -318,7 +318,13 @@ Plans:
   3. User-state snapshot is XML-tagged plain text, deterministic-sort, capped at 800–2000 tokens regardless of project/capture/task volume (asserted by serializer unit test against fixtures of varying sizes)
   4. Audit/grep gate (CACHE-05) blocks any PR that introduces `Date.now()`, `new Date()`, or unsorted `JSON.stringify()` inside system-prompt or tool-def construction — silent cache invalidators cannot regress in
   5. Median TTFA (time-to-first-audio) for warm sessions stays under the Phase 10 target and degrades gracefully (not catastrophically) on cold cache
-**Plans**: TBD — defined by /gsd:plan-phase 11 (rough estimate: 2–3 plans — 3-tier cache_control + XML state block builder + state_version tracking + predictive warmer + grep gate)
+**Plans**: 6 plans
+- [ ] 11-01-PLAN.md — Wave 1: Pure XML state serializer + serializer test fixtures (CACHE-02)
+- [ ] 11-02-PLAN.md — Wave 1: Schema migration — users.state_version + bump_user_state_version() + 6 triggers (CACHE-03)
+- [ ] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
+- [ ] 11-04-PLAN.md — Wave 2: Snapshot reuse cache + route boundary integration + extended-cache-ttl beta header + extend TEL-03 (CACHE-01, CACHE-03)
+- [ ] 11-05-PLAN.md — Wave 2: CI grep gate + Husky pre-commit hook (shared scanner) (CACHE-05)
+- [ ] 11-06-PLAN.md — Wave 3: /api/jarvis/warm endpoint + JarvisWarmer client component + UX-signal wiring (CACHE-04)
 
 ### Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)
 **Goal**: Wake-word detection runs entirely on-device via openWakeWord (no audio leaves the machine until the wake phrase fires), wake-word listening is fully gated by an explicit user setting (wake-word / push-to-talk / hibernate), and the Picovoice Porcupine dependency is fully removed before the free-tier sunsets and JARVIS goes silent. Absorbs backlog 999.6 (hibernation) and 999.8 (scoped wake-word).
