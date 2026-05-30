@@ -303,7 +303,7 @@ Plans:
   5. No regression in JARVIS routing quality — all Phase 5 + 5.1 adversarial + implicit-intent tests still pass
 **Plans**: 4 plans
 - [ ] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
-- [ ] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
+- [x] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
 - [ ] 10-03-PLAN.md — Wave 1: TTS proxy output_format=pcm_24000 + AudioQueue PCM-direct rewrite (drop decodeAudioData) + byte-order sanity test (LAT-01)
 - [ ] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
 **Wave structure**: Plans 01 + 02 + 03 (Wave 1, parallel — file-disjoint: route.ts, sentence-splitter.ts, tts/route.ts+audio-queue.ts) → Plan 04 (Wave 2, integration; depends on 10-02 splitDeltas contract + 10-03 AudioQueue PCM contract)

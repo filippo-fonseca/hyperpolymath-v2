@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: verifying
-stopped_at: Phase 10 context gathered
-last_updated: "2026-05-30T14:46:07.528Z"
-last_activity: 2026-05-29
+status: executing
+stopped_at: Completed 10-02-PLAN.md (parallel wave 1)
+last_updated: "2026-05-30T15:15:43.915Z"
+last_activity: 2026-05-30 -- Phase 10 execution started
 progress:
   total_phases: 25
   completed_phases: 9
-  total_plans: 53
-  completed_plans: 44
+  total_plans: 57
+  completed_plans: 45
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 9 — latency-telemetry-baseline
+**Current focus:** Phase 10 — tts-route-boundary-latency-wins
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 9 (latency-telemetry-baseline) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-05-29
+Phase: 10 (tts-route-boundary-latency-wins) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 10
+Last activity: 2026-05-30 -- Phase 10 execution started
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -98,6 +98,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 08-public-landing-manifesto P05 | 6min | 3 tasks | 7 files |
 | Phase 09-latency-telemetry-baseline P01 | 13min | 3 tasks | 9 files |
 | Phase 09 P02 | 25min | 3 tasks | 14 files |
+| Phase 10-tts-route-boundary-latency-wins P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -257,6 +258,8 @@ Recent decisions affecting current work:
 - [Phase 09]: Plan 09-02: PipelineLatencyPanel mounts as FIRST child of <main> on /insights — ABOVE both <header> and <InsightsTabs> per D-03. Existing Phase 6 tabs continue rendering unchanged (non-regression). Empty-state copy locked verbatim per must_haves.truths.
 - [Phase 09]: Plan 09-02: beacon endpoint allow-list lives at application layer (route's setPayload object literally only includes 3 columns: vadEndAt/ttsFirstByteAt/audioFirstPlayAt). Column-level RLS overkill for single-user MVP. RLS is row-level only; column-level guard via allow-list is sufficient and easier to audit.
 - [Phase 09]: Plan 09-02: Zod max bound (Date.now() + 60_000) computed PER-REQUEST inside the handler — module-level would stale on long-running serverless instances and reject legitimate recent timestamps.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: splitDeltas implemented as pure caller-owned-buffer function with literal regex /([.!?] |\n\n+)/g — no class, no closure state, no min-length gate per D-02; Mr./Dr. abbreviation false-positive documented in test 14 as accepted per <deferred>.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: terminator is captured as part of the emitted sentence (not stripped) — downstream TTS prosody benefits from natural punctuation/space cadence; consumer pattern is 'let buffer = ""; const { sentences, remainder } = splitDeltas(buffer, delta); buffer = remainder;' documented verbatim in the file's JSDoc so 10-04 can import without re-deriving.
 
 ### Pending Todos
 
@@ -275,6 +278,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T14:46:07.515Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-tts-route-boundary-latency-wins/10-CONTEXT.md
+Last session: 2026-05-30T15:15:43.910Z
+Stopped at: Completed 10-02-PLAN.md (parallel wave 1)
+Resume file: None
