@@ -477,3 +477,22 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 ### Phase 999.8: ~~JARVIS wake-word scoped, no ambient transcription~~ (ABSORBED → Phase 12, 2026-05-28)
 
 **Status:** Absorbed into **Phase 12: On-Device Wake-Word + Mic Gating** (WAKE-02 audio never leaves the device until the wake-word classifier fires; WAKE-04 belt-and-braces transcript filter). Exactly the behavior this backlog asked for. Original backlog entry preserved at `.planning/phases/999.8-jarvis-wake-word-scoped-no-ambient-transcription/` for context.
+
+### Phase 999.9: JARVIS — Gmail integration (very extended future) (BACKLOG)
+
+**Goal:** Let JARVIS read, draft, label, and search Gmail via natural language ("Reply to Filippo's last email", "What did mom send yesterday?", "Draft a follow-up to the Stripe thread"). Composes with the existing JARVIS read-layer (backlog 999.3) and CRUD tool family.
+**Requirements:** TBD
+**Depends on:** Phase 999.3 (JARVIS read-layer must exist first — Gmail is a structurally similar read surface, just with a different provider) + multi-user readiness (Gmail OAuth scope per user; persisted refresh tokens encrypted at rest like Google Calendar).
+**Plans:** 0 plans
+
+**Sketch (not contract — for future discussion):**
+- Gmail OAuth scope (`gmail.readonly` + `gmail.modify` + `gmail.compose`) added to the existing Google OAuth flow alongside Calendar scopes
+- New JARVIS tool family: `search_threads`, `get_thread`, `create_draft`, `label_message`, `label_thread`, `unlabel_*`, `list_labels` (mirrors Anthropic strict tool use pattern from Phase 5/5.1)
+- Privacy-mode gate: in Discreet mode, Gmail content is NEVER spoken aloud — JARVIS replies in text only ("3 unread from Stripe — switching to text") even if the user asked by voice
+- Composition with read-layer: "What did mom send yesterday?" → `search_threads({ from: "mom_alias", after: "yesterday" })` → `get_thread` → spoken summary (only in non-Discreet mode)
+- Composition with calendar: "Reply to the Stripe thread and propose Thursday at 3pm" → drafts email + checks calendar conflict + offers send (capture-first defense per JARVIS-06 still applies)
+
+**Why backlog and not active:** Not for v1.x. Sits behind the JARVIS read-layer landing (999.3 still backlog) and the multi-user storage substrate. v1.1 (Speed & Agility) and v1.2 / v1.3 (whatever those bring) ship before this is even research-worthy. Captured 2026-05-30 to make sure the idea doesn't get lost.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
