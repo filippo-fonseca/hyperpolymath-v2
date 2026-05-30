@@ -302,7 +302,7 @@ Plans:
   4. Route-boundary DB cold-start (first turn after backend cold boot) drops from sequential 3-query wall-clock to single Promise.all round-trip (confirmable via `prompt_built_at - request_received_at` delta on `jarvis_events`)
   5. No regression in JARVIS routing quality — all Phase 5 + 5.1 adversarial + implicit-intent tests still pass
 **Plans**: 4 plans
-- [ ] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
+- [x] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
 - [x] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
 - [ ] 10-03-PLAN.md — Wave 1: TTS proxy output_format=pcm_24000 + AudioQueue PCM-direct rewrite (drop decodeAudioData) + byte-order sanity test (LAT-01)
 - [ ] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
@@ -380,7 +380,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 7. JARVIS Voice + Ambient | 3/4 | In Progress|  |
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
 | 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
-| 10. TTS + Route-Boundary Latency Wins | 0/TBD | Not started | - |
+| 10. TTS + Route-Boundary Latency Wins | 2/4 | In Progress|  |
 | 11. Prompt Cache + State Priming | 0/TBD | Not started | - |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
@@ -400,7 +400,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 3/4 plans executed
+**Plans:** 2/4 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

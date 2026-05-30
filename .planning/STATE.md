@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 10-02-PLAN.md (parallel wave 1)
-last_updated: "2026-05-30T15:15:43.915Z"
-last_activity: 2026-05-30 -- Phase 10 execution started
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-05-30T15:17:46.791Z"
+last_activity: 2026-05-30
 progress:
   total_phases: 25
   completed_phases: 9
   total_plans: 57
-  completed_plans: 45
+  completed_plans: 46
   percent: 0
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 10 (tts-route-boundary-latency-wins) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 10
-Last activity: 2026-05-30 -- Phase 10 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-30
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -99,6 +99,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 09-latency-telemetry-baseline P01 | 13min | 3 tasks | 9 files |
 | Phase 09 P02 | 25min | 3 tasks | 14 files |
 | Phase 10-tts-route-boundary-latency-wins P02 | 2min | 2 tasks | 2 files |
+| Phase 10-tts-route-boundary-latency-wins P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -260,6 +261,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Plan 09-02: Zod max bound (Date.now() + 60_000) computed PER-REQUEST inside the handler — module-level would stale on long-running serverless instances and reject legitimate recent timestamps.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: splitDeltas implemented as pure caller-owned-buffer function with literal regex /([.!?] |\n\n+)/g — no class, no closure state, no min-length gate per D-02; Mr./Dr. abbreviation false-positive documented in test 14 as accepted per <deferred>.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: terminator is captured as part of the emitted sentence (not stripped) — downstream TTS prosody benefits from natural punctuation/space cadence; consumer pattern is 'let buffer = ""; const { sentences, remainder } = splitDeltas(buffer, delta); buffer = remainder;' documented verbatim in the file's JSDoc so 10-04 can import without re-deriving.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01 (LAT-04): Route-boundary parallelization held to D-05 narrow scope — only the 3 named queries (userProjects, userRows, getJarvisFactsForUser) collapsed into one Promise.all. promptBuiltAt_d capture preserved AFTER Promise.all (Phase 9 D-07 invariant). 25-line localized diff in route.ts + 334-line regression suite at tests/jarvis-route-boundary-parallel.test.ts (3 tests: timing, destructure-order, source-level grep).
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Test 1 timing ceiling set at 100ms (sequential floor would be 150ms with 3×50ms-stalled mocks; parallel block ≈ 50ms + ≤50ms jitter for jsdom/SSE setup). Inline comment forbids raising past ~120ms without locking rationale — flakiness past that ceiling signals the parallel guarantee is broken, not test instability.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Source-level regression guard pattern established — Test 3 reads route.ts off disk via readFileSync + regex match. Catches structural regressions (e.g., a future PR splitting Promise.all back into sequential awaits) that mocked behavior tests would miss. Reusable pattern for any future plan that needs to lock in a load-bearing code shape.
 
 ### Pending Todos
 
@@ -278,6 +282,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T15:15:43.910Z
-Stopped at: Completed 10-02-PLAN.md (parallel wave 1)
+Last session: 2026-05-30T15:17:46.787Z
+Stopped at: Completed 10-01-PLAN.md
 Resume file: None

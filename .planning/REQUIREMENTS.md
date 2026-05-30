@@ -176,7 +176,7 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [ ] **LAT-01**: TTS streams ElevenLabs Flash with `output_format=pcm_24000`; `lib/voice/audio-queue.ts` builds `AudioBuffer`s directly from `Int16Array → Float32Array` without `AudioContext.decodeAudioData`
 - [x] **LAT-02**: TTS dispatches per-sentence — as text deltas stream from Anthropic, each completed sentence (split on `. `, `! `, `? `, `\n\n`) fires a TTS request immediately rather than waiting for stream-close
 - [ ] **LAT-03**: `lib/voice/use-tts-player.ts` removes the full-body PCM buffer; bytes are enqueued to `AudioQueue` as they arrive
-- [ ] **LAT-04**: `app/api/jarvis/route.ts` replaces the sequential `userProjects` → `userRow` → `userFacts` queries with a single `Promise.all` batch (one round-trip wall-clock at route boundary)
+- [x] **LAT-04**: `app/api/jarvis/route.ts` replaces the sequential `userProjects` → `userRow` → `userFacts` queries with a single `Promise.all` batch (one round-trip wall-clock at route boundary)
 
 ### Prompt Cache + State Priming
 
@@ -414,7 +414,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LAT-01 | Phase 10 | Pending |
 | LAT-02 | Phase 10 | Complete |
 | LAT-03 | Phase 10 | Pending |
-| LAT-04 | Phase 10 | Pending |
+| LAT-04 | Phase 10 | Complete |
 | CACHE-01 | Phase 11 | Pending |
 | CACHE-02 | Phase 11 | Pending |
 | CACHE-03 | Phase 11 | Pending |
