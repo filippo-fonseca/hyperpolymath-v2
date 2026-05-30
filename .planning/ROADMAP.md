@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keeping every existing JARVIS capability intact. Critical path: **9 → 10 → 11** (telemetry → quick wins → prompt cache). Phases 12, 13, 14 can run somewhat in parallel after Phase 11 lands, except that Phase 12 carries a hard external deadline (**Picovoice Porcupine free-tier sunset 2026-06-30**) that may force it to jump ahead of Phase 13 if the date becomes blocking.
 
 - [ ] **Phase 9: Latency Telemetry Baseline** - Per-stage timestamps on every voice turn + p50/p95 timeline chart + silent-invalidator regression guard. The "you can't fix what you can't measure" floor for the rest of v1.1.
-- [ ] **Phase 10: TTS + Route-Boundary Latency Wins** - Per-sentence TTS dispatch + `pcm_24000` direct-decode + drop the full-body MP3 buffer + parallelize sequential route-boundary DB queries. Biggest perceived-speed jump in the milestone with the smallest code footprint.
+- [x] **Phase 10: TTS + Route-Boundary Latency Wins** - Per-sentence TTS dispatch + `pcm_24000` direct-decode + drop the full-body MP3 buffer + parallelize sequential route-boundary DB queries. Biggest perceived-speed jump in the milestone with the smallest code footprint. (completed 2026-05-30)
 - [ ] **Phase 11: Prompt Cache + State Priming** - 3-tier `cache_control` (tools + frozen system at 1h, user-state snapshot at 5min, per-turn outside cache) + XML-tagged state block + `state_version` byte-stable reuse + predictive warm on app-focus/mic-arm + grep gate against silent invalidators.
 - [ ] **Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)** - openWakeWord (ONNX + Silero VAD + `hey_jarvis_v0.1.onnx`) in a Web Worker + AudioWorklet ring buffer + 500ms pre-roll + listening-mode setting (wake / push-to-talk / hibernate). Absorbs backlog 999.6 (hibernation) + 999.8 (scoped wake-word). **Hard deadline: 2026-06-30** (Picovoice Porcupine free tier sunsets — agent goes silent if missed).
 - [ ] **Phase 13: Haiku Fast-Path Routing** - Deterministic classifier routes unambiguous CRUD to Haiku 4.5 and ambiguous/multi-action to Sonnet 4.6 + ≥50-fixture eval set as the misroute gate + auto-escalate-to-Sonnet on low-confidence Haiku turns + tier distribution on /insights.
@@ -305,7 +305,7 @@ Plans:
 - [x] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
 - [x] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
 - [x] 10-03-PLAN.md — Wave 1: TTS proxy output_format=pcm_24000 + AudioQueue PCM-direct rewrite (drop decodeAudioData) + byte-order sanity test (LAT-01)
-- [ ] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
+- [x] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
 **Wave structure**: Plans 01 + 02 + 03 (Wave 1, parallel — file-disjoint: route.ts, sentence-splitter.ts, tts/route.ts+audio-queue.ts) → Plan 04 (Wave 2, integration; depends on 10-02 splitDeltas contract + 10-03 AudioQueue PCM contract)
 
 ### Phase 11: Prompt Cache + State Priming
@@ -380,7 +380,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 7. JARVIS Voice + Ambient | 3/4 | In Progress|  |
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
 | 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
-| 10. TTS + Route-Boundary Latency Wins | 3/4 | In Progress|  |
+| 10. TTS + Route-Boundary Latency Wins | 4/4 | Complete   | 2026-05-30 |
 | 11. Prompt Cache + State Priming | 0/TBD | Not started | - |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
@@ -400,7 +400,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

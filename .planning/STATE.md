@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 10-03-PLAN.md (LAT-01)
-last_updated: "2026-05-30T15:20:03.476Z"
+stopped_at: Completed 10-04-PLAN.md (LAT-02 + LAT-03 final wave)
+last_updated: "2026-05-30T15:34:51.993Z"
 last_activity: 2026-05-30
 progress:
-  total_phases: 25
-  completed_phases: 9
+  total_phases: 26
+  completed_phases: 10
   total_plans: 57
-  completed_plans: 47
+  completed_plans: 48
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 10 (tts-route-boundary-latency-wins) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-30
 
@@ -101,6 +101,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 10-tts-route-boundary-latency-wins P02 | 2min | 2 tasks | 2 files |
 | Phase 10-tts-route-boundary-latency-wins P01 | 3min | 2 tasks | 2 files |
 | Phase 10-tts-route-boundary-latency-wins P03 | 10min | 2 tasks | 4 files |
+| Phase 10-tts-route-boundary-latency-wins P04 | 9min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -266,6 +267,7 @@ Recent decisions affecting current work:
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Test 1 timing ceiling set at 100ms (sequential floor would be 150ms with 3×50ms-stalled mocks; parallel block ≈ 50ms + ≤50ms jitter for jsdom/SSE setup). Inline comment forbids raising past ~120ms without locking rationale — flakiness past that ceiling signals the parallel guarantee is broken, not test instability.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Source-level regression guard pattern established — Test 3 reads route.ts off disk via readFileSync + regex match. Catches structural regressions (e.g., a future PR splitting Promise.all back into sequential awaits) that mocked behavior tests would miss. Reusable pattern for any future plan that needs to lock in a load-bearing code shape.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-03: TTS proxy emits pcm_24000 + Content-Type application/octet-stream; AudioQueue.enqueue builds AudioBuffer via createBuffer(1, sampleCount, 24000) + Int16->Float32 with literal 32768.0 divisor; leftoverByte Uint8Array spill retained across enqueue calls within an AudioQueue lifecycle, cleared on stopAll for barge-in safety; Phase 7 invariants (analyserNode tap, scheduledEnd gapless chain, onAllEnded, stopAll) + Phase 9 firstPlayCaptured one-shot for audio_first_play_at preserved verbatim
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-04 (LAT-02 + LAT-03): TurnPlaybackController class held in useRef inside use-tts-player (no global stores per CLAUDE.md); enqueueGate Map<seq, Promise> enforces strict in-order playback while permitting pipelined fetches per D-01; D-04 stop-all + fallback policy (seq 0 fail → SpeechSynthesis whole turn, seq ≥ 1 fail → silent drop + console.warn); D-06 tts_first_byte_at fires once per turn on FIRST sentence (firstByteCaptured guard); res.body.getReader() streams chunk-by-chunk into AudioQueue (no full-body arrayBuffer); JarvisConsole + GlobalJarvisHandler dispatch jarvis-voice-speak-sentence per splitDeltas boundary + jarvis-voice-end-of-turn on SSE close
 
 ### Pending Todos
 
@@ -284,6 +286,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T15:20:03.471Z
-Stopped at: Completed 10-03-PLAN.md (LAT-01)
+Last session: 2026-05-30T15:34:36.640Z
+Stopped at: Completed 10-04-PLAN.md (LAT-02 + LAT-03 final wave)
 Resume file: None
