@@ -157,26 +157,33 @@ export async function POST(req: NextRequest) {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  // 4. Load user context (project list for system prompt + tz + default cal)
-  const userProjects = await db
-    .select({ id: projects.id, name: projects.name, icon: projects.icon })
-    .from(projects)
-    .where(eq(projects.userId, userId));
-  const userRows = await db
-    .select({
-      timezone: users.timezone,
-      defaultCalendarId: users.gcalDefaultCalendarId,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const userRow = userRows[0];
-
-  // Phase 5.1 (D-M4 / JARVIS-18): load facts for whole-blob injection into
-  // the cached system prompt. Loaded once per turn at the route boundary.
+  // 4. Load user context (projects + tz/default cal + facts in parallel for LAT-04)
+  //
+  // Phase 10 / LAT-04 (D-05 narrow scope): three independent reads — projects
+  // list, user-row (tz + default cal), and facts — are fired concurrently via
+  // a single Promise.all so the route-boundary wall-clock collapses from
+  // sum-of-three to max-of-three. No other awaits in this handler are touched.
+  //
+  // Phase 5.1 (D-M4 / JARVIS-18): facts are loaded for whole-blob injection
+  // into the cached system prompt. Loaded once per turn at the route boundary.
   // When jarvis_facts changes, the cache key rotates on next turn (D-M4 —
   // one cold-cache turn is acceptable). Returns [] for new users.
-  const userFacts = await getJarvisFactsForUser(userId);
+  const [userProjects, userRows, userFacts] = await Promise.all([
+    db
+      .select({ id: projects.id, name: projects.name, icon: projects.icon })
+      .from(projects)
+      .where(eq(projects.userId, userId)),
+    db
+      .select({
+        timezone: users.timezone,
+        defaultCalendarId: users.gcalDefaultCalendarId,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
+    getJarvisFactsForUser(userId),
+  ]);
+  const userRow = userRows[0];
 
   const projectSummaries: ProjectSummary[] = userProjects.map((p) => ({
     id: p.id,
