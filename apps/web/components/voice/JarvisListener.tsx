@@ -107,6 +107,21 @@ export function JarvisListener() {
   const noSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const NO_SPEECH_TIMEOUT_MS = 8000;
 
+  // True while VAD is currently detecting speech (between onSpeechStart and
+  // onSpeechEnd). Gates the clap detector: plosive consonants ('t', 'p', 'k',
+  // 'b', 'd') in normal speech produce transient amplitude peaks that satisfy
+  // the AudioWorklet clap-onset thresholds, and with the 250-650ms inter-clap
+  // window two adjacent plosives in one utterance routinely trip onDoubleClap.
+  // Claps are silence-gated by definition — if VAD is currently speaking, the
+  // "clap" is a plosive, not a clap. Suppress.
+  //
+  // Discovered via debug session jarvis-follow-up-window-leak: spurious clap
+  // dispatches were overwriting activationSource "wake-word" → "clap" mid-
+  // utterance, moving the FSM to recording, and causing onSpeechEnd to fall
+  // through to the press-to-talk default (no wake-word gate) — turning every
+  // post-window utterance into a command.
+  const vadSpeakingRef = useRef(false);
+
   // Whether on-device wake-word (Porcupine) is configured. When it is, the
   // Whisper-keyword fallback path is OFF — ambient speech in "listening"
   // outside the follow-up window does NOT hit Groq STT. Porcupine fires
@@ -333,6 +348,9 @@ export function JarvisListener() {
       ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
     },
     onSpeechStart: () => {
+      // Gate the clap detector against plosive consonants for the duration
+      // of this speech segment. Cleared at the head of onSpeechEnd.
+      vadSpeakingRef.current = true;
       const s = micStateRef.current;
       // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
       const _now = Date.now();
@@ -409,6 +427,9 @@ export function JarvisListener() {
       // the jarvis-voice-transcript event detail; the consumer collectStage's
       // it inside onTurnStart, AFTER setActiveTurnId.
       const vadEndAt = Date.now();
+      // Speech segment ended — release the clap-detector gate so a real
+      // post-utterance clap (in silence) can fire normally.
+      vadSpeakingRef.current = false;
       const s = micStateRef.current;
       // DEBUG-FOLLOW-UP-LEAK: REMOVE BEFORE SHIPPING
       // eslint-disable-next-line no-console
@@ -654,6 +675,16 @@ export function JarvisListener() {
     audioContext: audioContextRef.current,
     stream: streamRef.current,
     onDoubleClap: () => {
+      // Suppress if VAD is currently mid-speech — the worklet tripped on
+      // plosive consonants ('t', 'p', 'k', 'b', 'd'), not actual claps.
+      // Real claps happen in silence; this gate has no false negatives for
+      // genuine clap activations. See vadSpeakingRef declaration for the
+      // full debug-session rationale.
+      if (vadSpeakingRef.current) {
+        // eslint-disable-next-line no-console
+        console.warn("[clap] suppressed: VAD currently detecting speech");
+        return;
+      }
       activationSourceRef.current = "clap";
       dispatch({ type: "DOUBLE_CLAP" });
     },
