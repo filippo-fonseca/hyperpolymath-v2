@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-05-30T15:17:46.791Z"
+stopped_at: Completed 10-03-PLAN.md (LAT-01)
+last_updated: "2026-05-30T15:20:03.476Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 25
   completed_phases: 9
   total_plans: 57
-  completed_plans: 46
+  completed_plans: 47
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 10 (tts-route-boundary-latency-wins) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-30
 
@@ -100,6 +100,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 09 P02 | 25min | 3 tasks | 14 files |
 | Phase 10-tts-route-boundary-latency-wins P02 | 2min | 2 tasks | 2 files |
 | Phase 10-tts-route-boundary-latency-wins P01 | 3min | 2 tasks | 2 files |
+| Phase 10-tts-route-boundary-latency-wins P03 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -264,6 +265,7 @@ Recent decisions affecting current work:
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01 (LAT-04): Route-boundary parallelization held to D-05 narrow scope — only the 3 named queries (userProjects, userRows, getJarvisFactsForUser) collapsed into one Promise.all. promptBuiltAt_d capture preserved AFTER Promise.all (Phase 9 D-07 invariant). 25-line localized diff in route.ts + 334-line regression suite at tests/jarvis-route-boundary-parallel.test.ts (3 tests: timing, destructure-order, source-level grep).
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Test 1 timing ceiling set at 100ms (sequential floor would be 150ms with 3×50ms-stalled mocks; parallel block ≈ 50ms + ≤50ms jitter for jsdom/SSE setup). Inline comment forbids raising past ~120ms without locking rationale — flakiness past that ceiling signals the parallel guarantee is broken, not test instability.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Source-level regression guard pattern established — Test 3 reads route.ts off disk via readFileSync + regex match. Catches structural regressions (e.g., a future PR splitting Promise.all back into sequential awaits) that mocked behavior tests would miss. Reusable pattern for any future plan that needs to lock in a load-bearing code shape.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-03: TTS proxy emits pcm_24000 + Content-Type application/octet-stream; AudioQueue.enqueue builds AudioBuffer via createBuffer(1, sampleCount, 24000) + Int16->Float32 with literal 32768.0 divisor; leftoverByte Uint8Array spill retained across enqueue calls within an AudioQueue lifecycle, cleared on stopAll for barge-in safety; Phase 7 invariants (analyserNode tap, scheduledEnd gapless chain, onAllEnded, stopAll) + Phase 9 firstPlayCaptured one-shot for audio_first_play_at preserved verbatim
 
 ### Pending Todos
 
@@ -282,6 +284,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T15:17:46.787Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-05-30T15:20:03.471Z
+Stopped at: Completed 10-03-PLAN.md (LAT-01)
 Resume file: None
