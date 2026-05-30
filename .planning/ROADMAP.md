@@ -301,7 +301,12 @@ Plans:
   3. ElevenLabs Flash British voice still sounds identical to the user (no audible artifacts from `pcm_24000` direct-decode vs MP3); voice ID + accent unchanged
   4. Route-boundary DB cold-start (first turn after backend cold boot) drops from sequential 3-query wall-clock to single Promise.all round-trip (confirmable via `prompt_built_at - request_received_at` delta on `jarvis_events`)
   5. No regression in JARVIS routing quality — all Phase 5 + 5.1 adversarial + implicit-intent tests still pass
-**Plans**: TBD — defined by /gsd:plan-phase 10 (rough estimate: 2 plans — TTS pipeline rewrite (LAT-01/02/03) + route-boundary parallelization (LAT-04))
+**Plans**: 4 plans
+- [ ] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
+- [ ] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
+- [ ] 10-03-PLAN.md — Wave 1: TTS proxy output_format=pcm_24000 + AudioQueue PCM-direct rewrite (drop decodeAudioData) + byte-order sanity test (LAT-01)
+- [ ] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
+**Wave structure**: Plans 01 + 02 + 03 (Wave 1, parallel — file-disjoint: route.ts, sentence-splitter.ts, tts/route.ts+audio-queue.ts) → Plan 04 (Wave 2, integration; depends on 10-02 splitDeltas contract + 10-03 AudioQueue PCM contract)
 
 ### Phase 11: Prompt Cache + State Priming
 **Goal**: JARVIS first-token latency stays near warm-cache numbers across the day, not just within 5-minute bursts — a 3-tier cache (tools+frozen system at 1h, user-state at 5min, per-turn outside cache) plus state-versioning plus predictive warm-up means the user almost never pays cold-cache cost on a real session.
