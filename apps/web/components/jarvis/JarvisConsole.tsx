@@ -23,6 +23,11 @@ import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatu
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+// Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
+// splitDeltas accumulates streaming text deltas into a rolling buffer; each
+// completed sentence is dispatched immediately via 'jarvis-voice-speak-sentence'
+// so its TTS fetch can fire while later sentences are still being generated.
+import { splitDeltas } from "@/lib/voice/sentence-splitter";
 import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
@@ -256,6 +261,13 @@ export function JarvisConsole({
       const ac = new AbortController();
       abortRef.current = ac;
 
+      // Phase 10 Plan 10-04 (LAT-02) — per-turn sentence dispatch state.
+      // Local to this handleSubmit closure so every turn starts with a fresh
+      // buffer + seq counter. ttsBuffer is the rolling unfinished tail; ttsSeq
+      // is the monotonic sentence index dispatched so far this turn.
+      let ttsBuffer = "";
+      let ttsSeq = 0;
+
       const request: JarvisRequest = {
         input: payload.input,
         history,
@@ -294,6 +306,27 @@ export function JarvisConsole({
                   : t,
               ),
             );
+            // Phase 10 Plan 10-04 (LAT-02) — per-sentence TTS dispatch as
+            // text deltas arrive. The splitter accumulates the rolling
+            // buffer; each complete sentence dispatches a separate event so
+            // its TTS fetch fires before the SSE stream closes.
+            const { sentences, remainder } = splitDeltas(ttsBuffer, delta);
+            ttsBuffer = remainder;
+            for (const s of sentences) {
+              const cleaned = stripSystemTags(s).trim();
+              if (!cleaned) continue;
+              const seq = ttsSeq++;
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-speak-sentence", {
+                  detail: {
+                    text: cleaned,
+                    seq,
+                    voiceId: voiceSettings.voiceId,
+                    isVoice: turnIsVoice,
+                  },
+                }),
+              );
+            }
           },
           // Phase 5.1 D-P3: pre-push a queued placeholder when the route
           // acknowledges a tool_use block (before executor resolves). The
@@ -385,30 +418,50 @@ export function JarvisConsole({
               return next;
             });
 
-            // Phase 7 — ALWAYS dispatch on response completion so the
-            // JarvisListener FSM cycles thinking → speaking → listening
-            // regardless of (a) whether the model emitted leading text or
-            // only a tool call and (b) whether voice is muted. Without this
-            // the FSM gets stuck at "thinking" and subsequent utterances
-            // are discarded.
-            // Fallback when no leading text: a short butler ack. Kept literal
-            // so we don't depend on a separate voice_summary contract.
-            const turn = turnsRef.current.find((t) => t.id === assistantId);
-            const spoken =
-              turn?.kind === "assistant"
-                ? stripSystemTags(turn.textDelta)
-                : "";
+            // Phase 10 Plan 10-04 (LAT-02) — final flush: emit any
+            // unfinished tail in the rolling buffer as the last sentence.
+            if (ttsBuffer.trim()) {
+              const cleaned = stripSystemTags(ttsBuffer).trim();
+              if (cleaned) {
+                const seq = ttsSeq++;
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-voice-speak-sentence", {
+                    detail: {
+                      text: cleaned,
+                      seq,
+                      voiceId: voiceSettings.voiceId,
+                      isVoice: turnIsVoice,
+                    },
+                  }),
+                );
+              }
+              ttsBuffer = "";
+            }
+
+            // If NO sentences were emitted at all (text-only ack like a pure
+            // tool-call turn), fire the butler-ack on the per-sentence
+            // channel so the FSM still cycles thinking → speaking → listening.
+            // Without this, the listener stays in "thinking" forever and
+            // subsequent wake-word utterances get discarded.
+            if (ttsSeq === 0) {
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-speak-sentence", {
+                  detail: {
+                    text: "Done, sir.",
+                    seq: 0,
+                    voiceId: voiceSettings.voiceId,
+                    isVoice: turnIsVoice,
+                  },
+                }),
+              );
+              ttsSeq = 1;
+            }
+
+            // Signal end-of-turn so the controller drains in-flight fetches
+            // and fires onEnd once the AudioQueue empties.
             window.dispatchEvent(
-              new CustomEvent("jarvis-voice-speak", {
-                detail: {
-                  text: spoken.length > 0 ? spoken : "Done, sir.",
-                  voiceId: voiceSettings.voiceId,
-                  // Bug fix: only open the 5s follow-up window when the
-                  // user's input was voice. Typed turns must NOT open the
-                  // window (otherwise the listener stays armed indefinitely
-                  // after each typed message).
-                  isVoice: turnIsVoice,
-                },
+              new CustomEvent("jarvis-voice-end-of-turn", {
+                detail: { isVoice: turnIsVoice },
               }),
             );
 
