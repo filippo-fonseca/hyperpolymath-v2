@@ -1,11 +1,17 @@
 /**
  * POST /api/jarvis/tts — ElevenLabs Flash TTS streaming proxy.
  *
- * Phase 7 Plan 07-01 Task 3.
+ * Phase 7 Plan 07-01 Task 3 (original MP3 transport).
+ * Phase 10 Plan 10-03 Task 1 (LAT-01) — switched to raw 16-bit signed LE
+ * PCM @ 24kHz mono via output_format=pcm_24000. Same ElevenLabs voice and
+ * synthesis; only transport encoding differs. PCM removes the per-chunk
+ * decodeAudioData tax on the client (~15-30ms) and is frame-aligned
+ * trivially (2 bytes/sample) so arbitrary-size chunks flow gaplessly.
  *
  * Accepts { text: string, voiceId?: string }, opens an ElevenLabs
  * convertAsStream session for the given (or default) voice, and streams
- * the resulting audio/mpeg chunks back to the client via a ReadableStream.
+ * the resulting raw 16-bit PCM bytes (24kHz mono, signed LE) per LAT-01
+ * (Phase 10) back to the client via a ReadableStream.
  *
  * Returns 502 (NOT 500) on ElevenLabs failure — the 502 status signals to
  * the client "upstream failed; use SpeechSynthesis fallback" (Pitfall 7).
@@ -54,7 +60,7 @@ export async function POST(req: Request): Promise<Response> {
     const audioStream = await client.textToSpeech.convertAsStream(voiceId, {
       text,
       model_id: "eleven_flash_v2_5",
-      output_format: "mp3_44100_128",
+      output_format: "pcm_24000", // LAT-01: raw 16-bit signed LE @ 24kHz mono, no decodeAudioData tax
       voice_settings: { stability: 0.5, similarity_boost: 0.75 },
     });
 
@@ -75,7 +81,7 @@ export async function POST(req: Request): Promise<Response> {
 
     return new Response(readable, {
       headers: {
-        "Content-Type": "audio/mpeg",
+        "Content-Type": "application/octet-stream", // LAT-01: raw PCM bytes — no container, no codec
         "X-Accel-Buffering": "no",
         "Transfer-Encoding": "chunked",
         "Cache-Control": "no-store",
