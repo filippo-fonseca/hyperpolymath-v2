@@ -13,11 +13,14 @@ function readStoredValue(): boolean {
 export function usePhysicalExtensionSetting(): {
   enabled: boolean;
   setEnabled: (value: boolean) => void;
+  mounted: boolean;
 } {
   const [enabled, setEnabledState] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
     setEnabledState(readStoredValue());
+    setMounted(true);
 
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<boolean>).detail;
@@ -33,5 +36,5 @@ export function usePhysicalExtensionSetting(): {
     setEnabledState(value);
   }, []);
 
-  return { enabled, setEnabled };
+  return { enabled, setEnabled, mounted };
 }

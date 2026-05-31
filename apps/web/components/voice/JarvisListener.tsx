@@ -10,7 +10,6 @@ import { usePorcupine } from "@picovoice/porcupine-react";
 import { useMicVAD } from "@ricky0123/vad-react";
 import { toast } from "sonner";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
-import { usePhysicalExtensionSetting } from "@/lib/voice/physical-extension/use-physical-extension-setting";
 import { micReducer, type MicState } from "@/lib/voice/mic-state";
 import { useClapDetector } from "@/lib/voice/use-clap-detector";
 import { usePressToTalk } from "@/lib/voice/use-press-to-talk";
@@ -59,36 +58,7 @@ import {
 
 export function JarvisListener() {
   const { settings, mounted } = useVoiceSettings();
-  const { enabled: physicalExtensionEnabled } = usePhysicalExtensionSetting();
   const [micState, dispatch] = useReducer(micReducer, "idle");
-
-  // Physical Extension hook — when the Arduino + DF2301Q wake-word fires
-  // (via Node bridge → /api/jarvis/physical/trigger → SSE → window event),
-  // route through the SAME path as the on-device Porcupine wake-word:
-  //   - tag activationSource = "porcupine" (the existing
-  //     "external wake-word detector confirmed" sentinel)
-  //   - fire jarvis-wake-burst for visual feedback
-  //   - DO NOT change FSM state — stay in "listening"
-  //
-  // VAD will fire onSpeechEnd when the user finishes speaking. The
-  // onSpeechEnd handler sees source = "porcupine" + state = "listening",
-  // runs STT on the captured audio (which contains the user's voice
-  // saying "Jarvis [command]" via the laptop mic since the laptop mic is
-  // unfortunately still on — see VAD architectural constraint), and
-  // `stripWakeWordAnywhere` strips the wake word, leaving just the
-  // command to send to JARVIS. If the user said only "Jarvis" with no
-  // command, the follow-up window opens for 5s so the next utterance is
-  // treated as the command without re-saying the wake phrase.
-  //
-  // See tools/jarvis-physical/ for the full chain.
-  useEffect(() => {
-    const handler = () => {
-      activationSourceRef.current = "porcupine";
-      window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
-    };
-    window.addEventListener("jarvis-wake-fire", handler);
-    return () => window.removeEventListener("jarvis-wake-fire", handler);
-  }, []);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -216,16 +186,10 @@ export function JarvisListener() {
   //   discreetMode  = mute — silences TTS playback only
   // Listening is gated on voiceEnabled alone. Discreet does NOT stop the mic.
   // The TTS gate lives in handleVoiceSpeak (settings.discreetMode short-circuit).
-  // Physical Extension Mode short-circuits ambient listening:
-  //  - listenActive false → raw mic stream not acquired, Whisper-keyword
-  //    fallback path in VAD onSpeechStart/End is guarded (see VAD callbacks)
-  //  - wakeWordActive false → Porcupine not initialized (no "Hey Jarvis")
-  //  - pressToTalkActive stays true → Cmd+Shift+J still works
-  // The mic only acquires when the Arduino fires jarvis-wake-fire and the
-  // FSM transitions to "recording".
-  const listenActive =
-    mounted && settings.voiceEnabled && !physicalExtensionEnabled;
+  const listenActive = mounted && settings.voiceEnabled;
   const pressToTalkActive = mounted && settings.voiceEnabled;
+  // wakeWordActive is kept for the Porcupine gate (separate engine, not used in
+  // the Whisper-keyword path); only relevant when a Picovoice key is configured.
   const wakeWordActive = listenActive && !settings.discreetMode;
 
   // ─── Voice enabled/disabled FSM transition ───────────────────────────────
