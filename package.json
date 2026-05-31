@@ -11,6 +11,7 @@
     "build": "pnpm --filter web build",
     "typecheck": "pnpm --filter web typecheck",
     "test": "pnpm --filter web test",
+    "cache-gate": "node apps/web/scripts/cache-invalidator-gate.mjs --all",
     "lint": "pnpm --filter web lint",
     "db:generate": "pnpm --filter web db:generate",
     "db:migrate": "pnpm --filter web db:migrate",
