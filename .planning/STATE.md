@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: verifying
-stopped_at: Phase 12 context gathered
-last_updated: "2026-05-31T17:12:15.381Z"
+status: executing
+stopped_at: Completed 12-on-device-wake-word-mic-gating-deadline-bound-01-PLAN.md
+last_updated: "2026-05-31T18:43:59.358Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 27
   completed_phases: 11
-  total_plans: 63
-  completed_plans: 54
+  total_plans: 66
+  completed_plans: 55
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 11 — prompt-cache-state-priming
+**Current focus:** Phase 12 — on-device-wake-word-mic-gating-deadline-bound
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 999.1
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 12 (on-device-wake-word-mic-gating-deadline-bound) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-05-31
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
@@ -108,6 +108,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 11-prompt-cache-state-priming P05 | 3min | 2 tasks | 4 files |
 | Phase 11-prompt-cache-state-priming P04 | 20min | 3 tasks | 11 files |
 | Phase 11-prompt-cache-state-priming P06 | 5min | 3 tasks | 7 files |
+| Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -289,6 +290,11 @@ Recent decisions affecting current work:
 - [Phase 11-prompt-cache-state-priming]: Plan 11-06: JarvisWarmer uses per-trigger debounce Map<WarmTrigger, lastFiredAt> in useRef — three slots (mount / input-focus / mic-arm) × 30s debounce each. Cross-trigger isolation per D-03 (one trigger's window does NOT block another).
 - [Phase 11-prompt-cache-state-priming]: Plan 11-06: mic-arm edge detection via prevMicStateRef — fires window CustomEvent only on the prev !== 'listening' && micState === 'listening' transition (the EDGE into listening). Without edge gating, every micState change while remaining in listening would chew through the 30s debounce.
 - [Phase 11-prompt-cache-state-priming]: Plan 11-06: window CustomEvent broadcast for publisher→warmer signal (jarvis-input-focus / mic-arm) — JarvisInput / JarvisListener never import JarvisWarmer. Matches existing Phase 7 cross-cutting pattern (jarvis-cancel, jarvis-wake-burst, jarvis-voice-transcript).
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: postMessage + transferable Float32Array chosen over SharedArrayBuffer — 64 KB/sec GC pressure is negligible on desktop and we avoid breaking Stripe / Google OAuth / ElevenLabs embeds. No COOP/COEP in next.config.ts.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: WAKE_THRESHOLD = 0.5 hardcoded in constants.ts per D-05 — no Settings UI knob; reversible via 999.x backlog if real-world tuning needed.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: prefetchWakeWordAssets() exported as SEPARATE pure HTTP-cache warmup from spawnWakeWordWorker() — Plan 12-03 EnableVoiceModal MUST call prefetch, NOT spawn, or its no-op onWake binds to the singleton and JarvisListener's later spawn silently ignores real wakes.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: Tensor-shape introspection (melSession.handler._inputs[0].shape) wrapped in try/catch with empty-array fallback — diagnostic-only, three ort.InferenceSession.create calls are the actual readiness gate; empty shapes payload acceptable on ORT version drift.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: AudioWorklet sandbox test pattern — readFileSync + new Function('sampleRate','AudioWorkletProcessor','registerProcessor',source) with stubbed globals — deterministically verifies 12.5 frames/sec cadence + transferable contract without a real AudioContext. Reusable for any future worklet.
 
 ### Pending Todos
 
@@ -307,6 +313,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T17:12:15.367Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-on-device-wake-word-mic-gating-deadline-bound/12-CONTEXT.md
+Last session: 2026-05-31T18:43:45.626Z
+Stopped at: Completed 12-on-device-wake-word-mic-gating-deadline-bound-01-PLAN.md
+Resume file: None

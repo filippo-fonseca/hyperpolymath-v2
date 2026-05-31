@@ -188,9 +188,9 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 
 ### Wake-Word + Mic Gating
 
-- [ ] **WAKE-01**: openWakeWord (`onnxruntime-web` + Silero VAD + `hey_jarvis_v0.1.onnx`) runs in a dedicated Web Worker, lazy-loaded on first "enable voice" toggle (~3–4 MB ONNX/WASM assets); first paint never blocks on it
-- [ ] **WAKE-02**: Audio capture is mic-gated — `AudioWorklet` writes to a ~3-second in-memory ring buffer; raw audio never leaves the device until the wake-word classifier fires (score > 0.5 over 2 consecutive 80ms frames)
-- [ ] **WAKE-03**: On wake-fire, the captured command audio includes ~500ms of pre-roll spliced from the ring buffer so the user's command is not clipped when the wake phrase runs into the command
+- [x] **WAKE-01**: openWakeWord (`onnxruntime-web` + Silero VAD + `hey_jarvis_v0.1.onnx`) runs in a dedicated Web Worker, lazy-loaded on first "enable voice" toggle (~3–4 MB ONNX/WASM assets); first paint never blocks on it
+- [x] **WAKE-02**: Audio capture is mic-gated — `AudioWorklet` writes to a ~3-second in-memory ring buffer; raw audio never leaves the device until the wake-word classifier fires (score > 0.5 over 2 consecutive 80ms frames)
+- [x] **WAKE-03**: On wake-fire, the captured command audio includes ~500ms of pre-roll spliced from the ring buffer so the user's command is not clipped when the wake phrase runs into the command
 - [ ] **WAKE-04**: `stripWakeWordAnywhere` remains as belt-and-braces defense — wake-fire transcripts that do not actually start with a wake phrase are dropped before reaching the agent
 - [ ] **WAKE-05**: Settings → Voice exposes three mutually-exclusive listening modes: **wake-word** (default), **push-to-talk only** (no mic until `Cmd+Shift+J`), **hibernate** (no mic at all, all voice off). Absorbs backlog `999.6` + `999.8`.
 - [ ] **WAKE-06**: All Picovoice Porcupine code paths and the `NEXT_PUBLIC_PICOVOICE_ACCESS_KEY` env reference are removed; the @picovoice/porcupine-web dependency is dropped from `package.json` (free-tier sunset 2026-06-30 hard deadline)
@@ -420,9 +420,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CACHE-03 | Phase 11 | Complete |
 | CACHE-04 | Phase 11 | Complete |
 | CACHE-05 | Phase 11 | Complete |
-| WAKE-01 | Phase 12 | Pending |
-| WAKE-02 | Phase 12 | Pending |
-| WAKE-03 | Phase 12 | Pending |
+| WAKE-01 | Phase 12 | Complete |
+| WAKE-02 | Phase 12 | Complete |
+| WAKE-03 | Phase 12 | Complete |
 | WAKE-04 | Phase 12 | Pending |
 | WAKE-05 | Phase 12 | Pending |
 | WAKE-06 | Phase 12 | Pending |
