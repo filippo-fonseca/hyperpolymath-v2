@@ -130,10 +130,28 @@ export function JarvisListener() {
     process.env.NEXT_PUBLIC_PICOVOICE_ACCESS_KEY,
   );
 
+  // Tracks the prior FSM state so we can detect the transition INTO
+  // "listening" — Phase 11 / CACHE-04 uses this edge as the "mic-arm"
+  // signal for the predictive cache warmer.
+  const prevMicStateRef = useRef<MicState | null>(null);
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
+    const prev = prevMicStateRef.current;
     micStateRef.current = micState;
     publishMicState(micState);
+    // Phase 11 / CACHE-04 — emit a window event on the edge into "listening"
+    // so JarvisWarmer can prime the Anthropic cache. The publishMicState bus
+    // only carries app-internal FSM updates; the window event is the
+    // cross-cutting cache signal. Edge-only (prev !== "listening") so a long
+    // stay in "listening" doesn't exhaust the JarvisWarmer 30s debounce in
+    // vain.
+    if (prev !== "listening" && micState === "listening") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mic-arm"));
+      }
+    }
+    prevMicStateRef.current = micState;
   }, [micState]);
 
   // Start an 8s no-speech timer on every entry into "recording" — that's
