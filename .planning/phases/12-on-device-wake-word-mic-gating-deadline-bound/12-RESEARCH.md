@@ -1063,6 +1063,7 @@ useEffect(() => {
    - What we know: openWakeWord docs cite 80 ms / 1280-sample frames, 5 mel frames per chunk, 76-frame mel window, 8-frame stride, 16-embedding classifier input.
    - What's unclear: The exact mel-bin count (32? 40?) and embedding dim (96 confirmed in Deep Core Labs writeup but not in primary docs).
    - Recommendation: First task of Plan 12-01 is a 10-LOC smoke test: `await ort.InferenceSession.create(...)` for each model, log `session.inputNames`, `session.outputNames`, and `session.getInputs()[0].dims`. Document the actual dims in code comments; treat the worker pseudo-code in this RESEARCH.md as a starting point, not a final spec.
+   - **Verify via runtime introspection — fallback to empty arrays is acceptable.** The worker reads ORT private internals (`session.handler._inputs[0].shape`) for the diagnostic `shapes` postMessage. ORT may rename or remove this accessor between versions; the introspection is wrapped in try/catch with fallback to `[]`. An empty payload does NOT block wake-word inference — the three `InferenceSession.create` calls are the actual readiness gate. See Plan 12-01 Task 3 for the canonical implementation.
 
 2. **`stripWakeWordAnywhere` behavior when there's no Whisper transcript pass**
    - What we know: Phase 7 calls `stripWakeWordAnywhere` AFTER Groq STT confirms the audio. The current code path (passive-listen with Porcupine) relies on Whisper.
