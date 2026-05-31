@@ -251,9 +251,22 @@ describe("renderUserState", () => {
     const block = output.slice(startIdx, endIdx);
 
     expect(block).toMatch(/\b\d{2}:\d{2}-\d{2}:\d{2}\b/);
-    // No second-precision or TZ offset.
+    // No second-precision (HH:MM:SS). Also no `+`-sign TZ offset (a `-`
+    // sign TZ would collide with the HH:MM-HH:MM range form, so we
+    // assert structurally: every line matches exactly the
+    // `- HH:MM-HH:MM "title"` shape — anything richer (TZ, seconds,
+    // `Z`-suffix) would extend it.
     expect(block).not.toMatch(/\d{2}:\d{2}:\d{2}/);
-    expect(block).not.toMatch(/[+-]\d{2}:\d{2}/);
+    expect(block).not.toContain("+");
+    expect(block).not.toMatch(/\d{2}:\d{2}Z/);
+    // Structural shape lock: every event line is exactly
+    // `- HH:MM-HH:MM "..."` with no time-zone trailer before the quote.
+    const eventLines = block
+      .split("\n")
+      .filter((line) => line.startsWith("- "));
+    for (const line of eventLines) {
+      expect(line).toMatch(/^- \d{2}:\d{2}-\d{2}:\d{2} "[^"]*"$/);
+    }
   });
 
   it("renders — for null task due", () => {
