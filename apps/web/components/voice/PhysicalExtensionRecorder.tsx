@@ -4,6 +4,9 @@ import { useEffect, useRef } from "react";
 
 import { AUDIO_CONSTRAINTS } from "@/lib/voice/constants";
 import { encodeWav } from "@/lib/voice/encode-wav";
+import { getSharedAudioContext, unlockAudioContext } from "@/lib/voice/audio-context";
+import { useTtsPlayer } from "@/lib/voice/use-tts-player";
+import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 
 const HARD_CAP_MS = 8_000;
 const MIN_RECORDING_MS = 1_500;
@@ -44,6 +47,73 @@ const STT_SAMPLE_RATE = 16_000;
  */
 export function PhysicalExtensionRecorder() {
   const recordingRef = useRef<boolean>(false);
+  const { settings } = useVoiceSettings();
+  const ttsPlayer = useTtsPlayer();
+
+  // First-gesture audio unlock — mirrors Phase 7's pattern. Browsers
+  // require a user-gesture AudioContext.resume() before any decoded audio
+  // will play. Without this, ttsPlayer.playSentence runs silently.
+  useEffect(() => {
+    if (!settings.voiceEnabled) return;
+    if (getSharedAudioContext()) return;
+
+    let unlocked = false;
+    const unlock = () => {
+      if (unlocked) return;
+      unlocked = true;
+      void unlockAudioContext().catch(() => {});
+    };
+    window.addEventListener("click", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, [settings.voiceEnabled]);
+
+  // TTS playback — subscribes to the same jarvis-voice-speak-sentence /
+  // jarvis-voice-end-of-turn events that JarvisListener consumes when PE
+  // mode is OFF. Mirrors JarvisListener's TTS handler but stripped of FSM
+  // dispatch (no mic state machine here) and follow-up-window logic.
+  useEffect(() => {
+    const handleSentence = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{
+          text: string;
+          seq: number;
+          voiceId?: string;
+        }>
+      ).detail;
+      if (!detail?.text?.trim()) return;
+
+      const audioContext = getSharedAudioContext();
+
+      const silent =
+        !audioContext ||
+        settings.discreetMode ||
+        settings.ttsProvider === "off";
+      if (silent) return;
+
+      ttsPlayer.playSentence(detail.text, detail.seq, {
+        voiceId: detail.voiceId ?? settings.voiceId,
+        ttsProvider: settings.ttsProvider,
+        audioContext,
+        onStart: () => {
+          // No FSM in PE mode — nothing to dispatch.
+        },
+        onEnd: () => {
+          // No follow-up window in PE mode — every command starts with a
+          // fresh Arduino wake-fire.
+        },
+      });
+    };
+
+    window.addEventListener("jarvis-voice-speak-sentence", handleSentence);
+    return () =>
+      window.removeEventListener("jarvis-voice-speak-sentence", handleSentence);
+  }, [settings.discreetMode, settings.ttsProvider, settings.voiceId, ttsPlayer]);
 
   useEffect(() => {
     let activeCleanup: (() => void) | null = null;
