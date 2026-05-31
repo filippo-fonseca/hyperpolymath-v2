@@ -1,118 +1,54 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useMicVAD } from "@ricky0123/vad-react";
 
-import { VAD_BASE_ASSET_PATH } from "@/lib/voice/constants";
+import { AUDIO_CONSTRAINTS } from "@/lib/voice/constants";
 import { encodeWav } from "@/lib/voice/encode-wav";
 
-const RECORDING_HARD_CAP_MS = 15_000;
+const HARD_CAP_MS = 8_000;
+const MIN_RECORDING_MS = 1_500;
+const SILENCE_THRESHOLD = 0.015;
+const SILENCE_DURATION_MS = 1_000;
+const POLL_INTERVAL_MS = 80;
+const STT_SAMPLE_RATE = 16_000;
 
 /**
  * Physical Extension mode listener — replaces JarvisListener when the
  * Physical Extension Mode toggle is ON.
  *
- * Lifecycle (event-driven, no ambient listening):
- *   1. Component mounts → VAD model loads but mic is NOT yet acquired
- *      (startOnLoad: false).
- *   2. Arduino fires its wake-word → POST hits /api/jarvis/physical/trigger
- *      → SSE fans out to the browser → window dispatches "jarvis-wake-fire".
- *   3. Handler runs vad.start() — VAD acquires the laptop mic NOW.
- *      Visual burst fires for feedback.
- *   4. User speaks their command. VAD detects end-of-speech and calls
- *      onSpeechEnd with the captured Float32Array audio.
- *   5. Handler: vad.pause() to release the mic. Encode WAV. POST to
- *      /api/jarvis/stt. Dispatch jarvis-voice-transcript with the
- *      transcript — GlobalJarvisHandler (or JarvisConsole on /today)
- *      picks it up and runs the existing JARVIS → TTS pipeline.
- *   6. Mic is OFF again until the next Arduino wake-fire.
+ * Uses raw Web Audio APIs (NOT vad-react) so mic acquisition is truly
+ * event-driven. vad-react's hook lifecycle doesn't survive React
+ * StrictMode's destroy/remount cycle with startOnLoad:false — the
+ * "MicVAD has null stream" error.
  *
- * Safety net: a 15-second hard-cap timer terminates a stuck recording so
- * the mic doesn't stay open forever if VAD never sees end-of-speech.
+ * Lifecycle:
+ *   1. Component mounts — nothing happens. No mic, no audio context, no
+ *      browser tab mic indicator.
+ *   2. Arduino fires wake-word → SSE arrives → jarvis-wake-fire event.
+ *   3. Handler:
+ *        a. getUserMedia → mic acquires NOW.
+ *        b. Wire MediaStreamSource → AnalyserNode for silence detection
+ *           AND MediaRecorder for audio capture.
+ *        c. Poll RMS every 80ms. After MIN_RECORDING_MS (1.5s) of grace
+ *           period, if RMS stays below threshold for SILENCE_DURATION_MS
+ *           (1s), stop. Or hit the HARD_CAP_MS (8s) ceiling.
+ *   4. Stop:
+ *        a. recorder.stop() → assemble blob.
+ *        b. stream.getTracks().forEach(t => t.stop()) → mic releases,
+ *           tab mic indicator goes off.
+ *        c. Decode the captured webm/opus blob → PCM Float32Array →
+ *           resample to 16kHz → encode WAV → POST to /api/jarvis/stt.
+ *        d. Dispatch jarvis-voice-transcript with the transcript so
+ *           GlobalJarvisHandler / JarvisConsole runs the JARVIS turn.
+ *   5. Back to step 1. Mic OFF until next wake-fire.
  */
 export function PhysicalExtensionRecorder() {
   const recordingRef = useRef<boolean>(false);
-  const hardCapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const vad = useMicVAD({
-    startOnLoad: false,
-    baseAssetPath: VAD_BASE_ASSET_PATH,
-    ortConfig: (ort) => {
-      ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
-    },
-    onSpeechEnd: async (audio: Float32Array) => {
-      if (!recordingRef.current) return;
-      recordingRef.current = false;
-
-      if (hardCapTimerRef.current) {
-        clearTimeout(hardCapTimerRef.current);
-        hardCapTimerRef.current = null;
-      }
-
-      // Release the mic immediately — we have the audio buffer.
-      try {
-        vad.pause();
-      } catch {
-        // ignore
-      }
-
-      const vadEndAt = Date.now();
-
-      try {
-        const wav = encodeWav(audio, 16000);
-        const res = await fetch("/api/jarvis/stt", {
-          method: "POST",
-          body: wav,
-          headers: { "Content-Type": "audio/wav" },
-        });
-
-        if (!res.ok) {
-          // eslint-disable-next-line no-console
-          console.error(`[physical-extension-recorder] stt failed: ${res.status}`);
-          return;
-        }
-
-        const sttDoneAtHeader = res.headers.get("x-jarvis-stt-done-at");
-        const sttDoneAtMs = sttDoneAtHeader ? Number(sttDoneAtHeader) : null;
-        const sttDoneAtSafe =
-          sttDoneAtMs != null && Number.isFinite(sttDoneAtMs) ? sttDoneAtMs : null;
-
-        const { transcript } = (await res.json()) as { transcript: string };
-        const command = transcript?.trim() ?? "";
-
-        if (!command) {
-          // eslint-disable-next-line no-console
-          console.log("[physical-extension-recorder] empty transcript — silent drop");
-          return;
-        }
-
-        // eslint-disable-next-line no-console
-        console.log(
-          "[physical-extension-recorder] command:",
-          JSON.stringify(command),
-        );
-
-        // Hand off to the existing pipeline. JarvisConsole on /today AND
-        // GlobalJarvisHandler everywhere else listen for this event and
-        // run the JARVIS turn + TTS.
-        window.dispatchEvent(
-          new CustomEvent("jarvis-voice-transcript", {
-            detail: {
-              transcript: command,
-              sttDoneAt: sttDoneAtSafe,
-              vadEndAt,
-            },
-          }),
-        );
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[physical-extension-recorder] stt error", err);
-      }
-    },
-  });
 
   useEffect(() => {
-    const handleWakeFire = () => {
+    let activeCleanup: (() => void) | null = null;
+
+    const handleWakeFire = async () => {
       if (recordingRef.current) {
         // eslint-disable-next-line no-console
         console.log("[physical-extension-recorder] already recording — ignoring re-trigger");
@@ -120,45 +56,248 @@ export function PhysicalExtensionRecorder() {
       }
       recordingRef.current = true;
 
-      try {
-        vad.start();
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[physical-extension-recorder] vad.start failed", err);
-        recordingRef.current = false;
-        return;
-      }
-
-      // Visual feedback — flashes the mic bubble briefly even though we
-      // never enter the formal "recording" FSM state.
       window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
 
-      if (hardCapTimerRef.current) clearTimeout(hardCapTimerRef.current);
-      hardCapTimerRef.current = setTimeout(() => {
-        if (!recordingRef.current) return;
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[physical-extension-recorder] hard-cap ${RECORDING_HARD_CAP_MS}ms reached — releasing mic`,
-        );
-        recordingRef.current = false;
-        try {
-          vad.pause();
-        } catch {
-          // ignore
+      let stream: MediaStream | null = null;
+      let audioCtx: AudioContext | null = null;
+      let recorder: MediaRecorder | null = null;
+      let pollTimer: ReturnType<typeof setTimeout> | null = null;
+      let stopped = false;
+
+      const cleanup = () => {
+        stopped = true;
+        if (pollTimer) {
+          clearTimeout(pollTimer);
+          pollTimer = null;
         }
-        hardCapTimerRef.current = null;
-      }, RECORDING_HARD_CAP_MS);
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+        }
+        if (audioCtx && audioCtx.state !== "closed") {
+          audioCtx.close().catch(() => {});
+          audioCtx = null;
+        }
+        recordingRef.current = false;
+        activeCleanup = null;
+      };
+
+      activeCleanup = cleanup;
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: AUDIO_CONSTRAINTS,
+        });
+
+        audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        const sampleBuffer = new Float32Array(analyser.fftSize);
+
+        recorder = new MediaRecorder(stream);
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        const startTime = Date.now();
+        let silenceStart: number | null = null;
+
+        const finishAndProcess = async () => {
+          if (stopped) return;
+          stopped = true;
+          if (pollTimer) {
+            clearTimeout(pollTimer);
+            pollTimer = null;
+          }
+
+          const recorderStopPromise = new Promise<void>((resolve) => {
+            if (!recorder) return resolve();
+            recorder.addEventListener("stop", () => resolve(), { once: true });
+          });
+          try {
+            recorder?.stop();
+          } catch {
+            // already stopped
+          }
+          await recorderStopPromise;
+
+          // Release the mic — tab indicator goes off NOW.
+          stream?.getTracks().forEach((t) => t.stop());
+          stream = null;
+
+          try {
+            if (chunks.length === 0) {
+              // eslint-disable-next-line no-console
+              console.log("[physical-extension-recorder] no audio captured");
+              return;
+            }
+
+            const blob = new Blob(chunks);
+            const arrayBuffer = await blob.arrayBuffer();
+
+            // Decode the captured codec (typically webm/opus) -> PCM
+            const decodeCtx = new AudioContext();
+            const audioBuffer = await decodeCtx.decodeAudioData(arrayBuffer);
+            await decodeCtx.close();
+
+            const sourcePcm = audioBuffer.getChannelData(0);
+            const pcm =
+              audioBuffer.sampleRate === STT_SAMPLE_RATE
+                ? sourcePcm
+                : resamplePCM(
+                    sourcePcm,
+                    audioBuffer.sampleRate,
+                    STT_SAMPLE_RATE,
+                  );
+
+            const wav = encodeWav(pcm, STT_SAMPLE_RATE);
+            const res = await fetch("/api/jarvis/stt", {
+              method: "POST",
+              body: wav,
+              headers: { "Content-Type": "audio/wav" },
+            });
+
+            if (!res.ok) {
+              // eslint-disable-next-line no-console
+              console.error(
+                `[physical-extension-recorder] stt failed: ${res.status}`,
+              );
+              return;
+            }
+
+            const sttDoneAtHeader = res.headers.get("x-jarvis-stt-done-at");
+            const sttDoneAtMs = sttDoneAtHeader
+              ? Number(sttDoneAtHeader)
+              : Date.now();
+            const sttDoneAt =
+              sttDoneAtMs != null && Number.isFinite(sttDoneAtMs)
+                ? sttDoneAtMs
+                : Date.now();
+
+            const { transcript } = (await res.json()) as { transcript: string };
+            const command = transcript?.trim() ?? "";
+
+            if (!command) {
+              // eslint-disable-next-line no-console
+              console.log("[physical-extension-recorder] empty transcript — silent drop");
+              return;
+            }
+
+            // eslint-disable-next-line no-console
+            console.log(
+              "[physical-extension-recorder] command:",
+              JSON.stringify(command),
+            );
+
+            window.dispatchEvent(
+              new CustomEvent("jarvis-voice-transcript", {
+                detail: {
+                  transcript: command,
+                  sttDoneAt,
+                  vadEndAt: Date.now(),
+                },
+              }),
+            );
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error("[physical-extension-recorder] processing error", err);
+          } finally {
+            if (audioCtx && audioCtx.state !== "closed") {
+              audioCtx.close().catch(() => {});
+              audioCtx = null;
+            }
+            recordingRef.current = false;
+            activeCleanup = null;
+          }
+        };
+
+        const pollSilence = () => {
+          if (stopped) return;
+
+          analyser.getFloatTimeDomainData(sampleBuffer);
+          let sumSquares = 0;
+          for (let i = 0; i < sampleBuffer.length; i++) {
+            const v = sampleBuffer[i];
+            sumSquares += v * v;
+          }
+          const rms = Math.sqrt(sumSquares / sampleBuffer.length);
+
+          const now = Date.now();
+          const elapsed = now - startTime;
+
+          if (elapsed >= HARD_CAP_MS) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[physical-extension-recorder] hard-cap ${HARD_CAP_MS}ms reached`,
+            );
+            void finishAndProcess();
+            return;
+          }
+
+          // Only allow silence-based stop after the grace period — gives
+          // the user time to actually start talking after the wake-fire.
+          if (elapsed > MIN_RECORDING_MS) {
+            if (rms < SILENCE_THRESHOLD) {
+              if (silenceStart === null) {
+                silenceStart = now;
+              } else if (now - silenceStart > SILENCE_DURATION_MS) {
+                // eslint-disable-next-line no-console
+                console.log(
+                  "[physical-extension-recorder] silence detected — stopping",
+                );
+                void finishAndProcess();
+                return;
+              }
+            } else {
+              silenceStart = null;
+            }
+          }
+
+          pollTimer = setTimeout(pollSilence, POLL_INTERVAL_MS);
+        };
+
+        recorder.start();
+        pollTimer = setTimeout(pollSilence, POLL_INTERVAL_MS);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[physical-extension-recorder] mic acquisition error", err);
+        cleanup();
+      }
     };
 
     window.addEventListener("jarvis-wake-fire", handleWakeFire);
     return () => {
       window.removeEventListener("jarvis-wake-fire", handleWakeFire);
-      if (hardCapTimerRef.current) {
-        clearTimeout(hardCapTimerRef.current);
-        hardCapTimerRef.current = null;
-      }
+      if (activeCleanup) activeCleanup();
     };
-  }, [vad]);
+  }, []);
 
   return null;
+}
+
+/**
+ * Linear-interpolation resample. Good enough for speech STT; Whisper
+ * tolerates the mild artifacts. For high-fidelity audio you'd want a
+ * proper polyphase filter.
+ */
+function resamplePCM(
+  input: Float32Array,
+  fromRate: number,
+  toRate: number,
+): Float32Array {
+  if (fromRate === toRate) return input;
+  const ratio = fromRate / toRate;
+  const outLength = Math.floor(input.length / ratio);
+  const output = new Float32Array(outLength);
+  for (let i = 0; i < outLength; i++) {
+    const srcIdx = i * ratio;
+    const srcIdxFloor = Math.floor(srcIdx);
+    const srcIdxCeil = Math.min(srcIdxFloor + 1, input.length - 1);
+    const frac = srcIdx - srcIdxFloor;
+    output[i] = input[srcIdxFloor] * (1 - frac) + input[srcIdxCeil] * frac;
+  }
+  return output;
 }
