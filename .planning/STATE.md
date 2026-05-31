@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Phase 11 context gathered
-last_updated: "2026-05-30T17:51:04.981Z"
-last_activity: 2026-05-30
+stopped_at: Completed 11-02-PLAN.md (parallel wave 1)
+last_updated: "2026-05-31T14:34:15.172Z"
+last_activity: 2026-05-31 -- Phase 11 execution started
 progress:
-  total_phases: 26
+  total_phases: 27
   completed_phases: 10
-  total_plans: 57
-  completed_plans: 48
+  total_plans: 63
+  completed_plans: 49
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 10 — tts-route-boundary-latency-wins
+**Current focus:** Phase 11 — prompt-cache-state-priming
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 999.1
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-30
+Phase: 11 (prompt-cache-state-priming) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 11
+Last activity: 2026-05-31 -- Phase 11 execution started
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -102,6 +102,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 10-tts-route-boundary-latency-wins P01 | 3min | 2 tasks | 2 files |
 | Phase 10-tts-route-boundary-latency-wins P03 | 10min | 2 tasks | 4 files |
 | Phase 10-tts-route-boundary-latency-wins P04 | 9min | 3 tasks | 7 files |
+| Phase 11-prompt-cache-state-priming P02 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -268,6 +269,7 @@ Recent decisions affecting current work:
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Source-level regression guard pattern established — Test 3 reads route.ts off disk via readFileSync + regex match. Catches structural regressions (e.g., a future PR splitting Promise.all back into sequential awaits) that mocked behavior tests would miss. Reusable pattern for any future plan that needs to lock in a load-bearing code shape.
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-03: TTS proxy emits pcm_24000 + Content-Type application/octet-stream; AudioQueue.enqueue builds AudioBuffer via createBuffer(1, sampleCount, 24000) + Int16->Float32 with literal 32768.0 divisor; leftoverByte Uint8Array spill retained across enqueue calls within an AudioQueue lifecycle, cleared on stopAll for barge-in safety; Phase 7 invariants (analyserNode tap, scheduledEnd gapless chain, onAllEnded, stopAll) + Phase 9 firstPlayCaptured one-shot for audio_first_play_at preserved verbatim
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-04 (LAT-02 + LAT-03): TurnPlaybackController class held in useRef inside use-tts-player (no global stores per CLAUDE.md); enqueueGate Map<seq, Promise> enforces strict in-order playback while permitting pipelined fetches per D-01; D-04 stop-all + fallback policy (seq 0 fail → SpeechSynthesis whole turn, seq ≥ 1 fail → silent drop + console.warn); D-06 tts_first_byte_at fires once per turn on FIRST sentence (firstByteCaptured guard); res.body.getReader() streams chunk-by-chunk into AudioQueue (no full-body arrayBuffer); JarvisConsole + GlobalJarvisHandler dispatch jarvis-voice-speak-sentence per splitDeltas boundary + jarvis-voice-end-of-turn on SSE close
+- [Phase 11-prompt-cache-state-priming]: Plan 11-02: Postgres BEFORE triggers + bump_user_state_version() on tasks/captures/projects/areas/habits/jarvis_facts — tamper-proof per-user freshness counter for snapshot cache key; BIGINT, NULL-user_id silent return, SECURITY DEFINER + locked search_path; migration idempotent via IF NOT EXISTS + CREATE OR REPLACE + DROP TRIGGER IF EXISTS
 
 ### Pending Todos
 
@@ -286,6 +288,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T17:51:04.967Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-prompt-cache-state-priming/11-CONTEXT.md
+Last session: 2026-05-31T14:34:15.167Z
+Stopped at: Completed 11-02-PLAN.md (parallel wave 1)
+Resume file: None
