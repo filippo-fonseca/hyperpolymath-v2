@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: verifying
-stopped_at: Completed 11-06-PLAN.md (wave 3) — Phase 11 ready for verification
-last_updated: "2026-05-31T15:23:12.174Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-05-31T17:12:15.381Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 27
@@ -307,6 +307,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T15:16:08.462Z
-Stopped at: Completed 11-06-PLAN.md (wave 3) — Phase 11 ready for verification
-Resume file: None
+Last session: 2026-05-31T17:12:15.367Z
+Stopped at: Phase 12 context gathered
+Resume file: .planning/phases/12-on-device-wake-word-mic-gating-deadline-bound/12-CONTEXT.md
