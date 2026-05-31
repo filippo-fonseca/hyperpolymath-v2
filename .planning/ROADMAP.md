@@ -338,7 +338,10 @@ Plans:
   4. The app no longer references Picovoice — `NEXT_PUBLIC_PICOVOICE_ACCESS_KEY` is removed from env files, `@picovoice/porcupine-web` is dropped from `package.json`, and `npm ls @picovoice/porcupine-web` returns empty
   5. First app paint never blocks on wake-word assets (3–4 MB ONNX/WASM lazy-loaded on first "enable voice" toggle, not at module load)
   6. `stripWakeWordAnywhere` belt-and-braces defense still drops wake-fire transcripts that don't actually start with a wake phrase, so false positives never reach the agent
-**Plans**: TBD — defined by /gsd:plan-phase 12 (rough estimate: 3–4 plans — openWakeWord worker integration + AudioWorklet ring buffer + listening-mode settings UI + Porcupine deprecation + verification)
+**Plans**: 3 plans
+- [ ] 12-01-PLAN.md — Wave 1: openWakeWord asset hosting + AudioWorklet ring buffer + Web Worker 3-stage ONNX pipeline + main-thread client (WAKE-01, WAKE-02, WAKE-03)
+- [ ] 12-02-PLAN.md — Wave 2: JarvisListener rewire (spawnWakeWordWorker replaces usePorcupine) + WAKE-06 hard cut-over (remove package, asset, env vars, scrub source) (WAKE-04, WAKE-06)
+- [ ] 12-03-PLAN.md — Wave 3: VoiceSettings migration + 3-mode picker (Wake-word/Push-to-talk/Discreet) + EnableVoiceModal D-04 spinner + DiscreetToggleButton previousModeRef + JarvisListenerMount mode-awareness (WAKE-05)
 **UI hint**: yes (Settings → Voice listening-mode picker)
 
 ### Phase 13: Haiku Fast-Path Routing
