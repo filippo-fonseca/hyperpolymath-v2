@@ -8,8 +8,8 @@ import { getSharedAudioContext, unlockAudioContext } from "@/lib/voice/audio-con
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 
-const HARD_CAP_MS = 8_000;
-const MIN_RECORDING_MS = 1_500;
+const HARD_CAP_MS = 10_000;
+const WAIT_FOR_SPEECH_MS = 5_000;
 const SILENCE_THRESHOLD = 0.015;
 const SILENCE_DURATION_MS = 1_000;
 const POLL_INTERVAL_MS = 80;
@@ -104,8 +104,16 @@ export function PhysicalExtensionRecorder() {
           // No FSM in PE mode — nothing to dispatch.
         },
         onEnd: () => {
-          // No follow-up window in PE mode — every command starts with a
-          // fresh Arduino wake-fire.
+          // Follow-up window — fire a synthetic wake-fire so the recorder
+          // re-acquires the mic and waits up to WAIT_FOR_SPEECH_MS for the
+          // user's next command. Matches the 5s follow-up the JarvisListener
+          // path opens via followUpUntilRef. The recorder will release the
+          // mic if no speech is detected within the window.
+          window.dispatchEvent(
+            new CustomEvent("jarvis-wake-fire", {
+              detail: { followUp: true },
+            }),
+          );
         },
       });
     };
@@ -118,7 +126,10 @@ export function PhysicalExtensionRecorder() {
   useEffect(() => {
     let activeCleanup: (() => void) | null = null;
 
-    const handleWakeFire = async () => {
+    const handleWakeFire = async (e: Event) => {
+      const isFollowUp =
+        (e as CustomEvent<{ followUp?: boolean }>).detail?.followUp === true;
+
       if (recordingRef.current) {
         // eslint-disable-next-line no-console
         console.log("[physical-extension-recorder] already recording — ignoring re-trigger");
@@ -126,7 +137,12 @@ export function PhysicalExtensionRecorder() {
       }
       recordingRef.current = true;
 
-      window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
+      // Wake-burst is the user-visible "I'm listening" flash. Fire it on
+      // Arduino-originated wake-fires but skip on follow-ups so the bubble
+      // doesn't flash twice for a single conversational exchange.
+      if (!isFollowUp) {
+        window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
+      }
 
       let stream: MediaStream | null = null;
       let audioCtx: AudioContext | null = null;
@@ -174,6 +190,7 @@ export function PhysicalExtensionRecorder() {
 
         const startTime = Date.now();
         let silenceStart: number | null = null;
+        let hasSpoken = false;
 
         const finishAndProcess = async () => {
           if (stopped) return;
@@ -307,23 +324,32 @@ export function PhysicalExtensionRecorder() {
             return;
           }
 
-          // Only allow silence-based stop after the grace period — gives
-          // the user time to actually start talking after the wake-fire.
-          if (elapsed > MIN_RECORDING_MS) {
-            if (rms < SILENCE_THRESHOLD) {
-              if (silenceStart === null) {
-                silenceStart = now;
-              } else if (now - silenceStart > SILENCE_DURATION_MS) {
-                // eslint-disable-next-line no-console
-                console.log(
-                  "[physical-extension-recorder] silence detected — stopping",
-                );
-                void finishAndProcess();
-                return;
-              }
-            } else {
-              silenceStart = null;
+          if (rms >= SILENCE_THRESHOLD) {
+            hasSpoken = true;
+            silenceStart = null;
+          } else if (hasSpoken) {
+            // Speech-then-silence: normal end-of-speech detection.
+            if (silenceStart === null) {
+              silenceStart = now;
+            } else if (now - silenceStart > SILENCE_DURATION_MS) {
+              // eslint-disable-next-line no-console
+              console.log(
+                "[physical-extension-recorder] end-of-speech detected — stopping",
+              );
+              void finishAndProcess();
+              return;
             }
+          } else if (elapsed > WAIT_FOR_SPEECH_MS) {
+            // Waited the full window without the user starting to speak —
+            // release the mic. For Arduino fires this is rare (you usually
+            // fire right when you're about to speak); for follow-ups this
+            // is the natural close of the 5-second window.
+            // eslint-disable-next-line no-console
+            console.log(
+              `[physical-extension-recorder] no speech within ${WAIT_FOR_SPEECH_MS}ms — releasing`,
+            );
+            void finishAndProcess();
+            return;
           }
 
           pollTimer = setTimeout(pollSilence, POLL_INTERVAL_MS);
