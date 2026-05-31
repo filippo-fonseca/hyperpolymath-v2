@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-05-31T14:44:08.580Z"
+stopped_at: Completed 11-05-PLAN.md
+last_updated: "2026-05-31T14:52:51.627Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 27
   completed_phases: 10
   total_plans: 63
-  completed_plans: 51
+  completed_plans: 52
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 11 (prompt-cache-state-priming) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-05-31
 
@@ -105,6 +105,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 11-prompt-cache-state-priming P02 | 2min | 1 tasks | 1 files |
 | Phase 11-prompt-cache-state-priming P01 | 5 min | 2 tasks | 2 files |
 | Phase 11 P03 | 10 min | 3 tasks | 7 files |
+| Phase 11-prompt-cache-state-priming P05 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -275,6 +276,8 @@ Recent decisions affecting current work:
 - [Phase 11]: Phase 11: SystemBlock + JarvisToolDefinition cache_control widened to optional ttl: '5m' | '1h' (backward-compat)
 - [Phase 11]: Phase 11: tier-1 (tools) + tier-2 (frozen system) breakpoints upgraded to 1h TTL — requires extended-cache-ttl-2025-04-11 beta header on stream call (wired in Plan 11-04)
 - [Phase 11]: Phase 11: CACHE-CRITICAL file-header copy phrased without literal Date.now/new Date/toISOString tokens so the CACHE-05 grep gate self-test returns zero matches on documentation
+- [Phase 11-prompt-cache-state-priming]: Plan 11-05: 9-file CACHE-05 allowlist (D-04 named 4 surfaces but tools/** expands to index.ts + 5 tool files — every tool file flows into the cached tools array and must be screened); shared .mjs scanner imported by both Vitest test and Husky hook so the regex set + escape semantics cannot drift between layers
+- [Phase 11-prompt-cache-state-priming]: Plan 11-05: dynamic per-file Vitest tests via for-of over ALLOWLIST (15 runtime tests = 2 stability + 9 per-file + 4 sanity) — keeps the test surface in sync with the script automatically; planted-violation smoke (Date.now() in prompt-builder.ts) confirmed hook exits 1 with formatted error
 
 ### Pending Todos
 
@@ -293,6 +296,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T14:44:08.575Z
-Stopped at: Completed 11-03-PLAN.md
+Last session: 2026-05-31T14:52:51.621Z
+Stopped at: Completed 11-05-PLAN.md
 Resume file: None
