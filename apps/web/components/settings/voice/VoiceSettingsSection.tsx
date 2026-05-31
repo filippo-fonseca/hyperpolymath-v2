@@ -8,6 +8,7 @@ import { AUDIO_CONSTRAINTS } from "@/lib/voice/constants";
 import { unlockAudioContext } from "@/lib/voice/audio-context";
 import { MicDevicePicker } from "./MicDevicePicker";
 import { VoiceIdPicker } from "./VoiceIdPicker";
+import { usePhysicalExtensionSetting } from "@/lib/voice/physical-extension/use-physical-extension-setting";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,8 @@ import { cn } from "@/lib/utils";
 export function VoiceSettingsSection() {
   const { settings, mounted, update } = useVoiceSettings();
   const [modalOpen, setModalOpen] = useState(false);
+  const { enabled: physicalExtensionEnabled, setEnabled: setPhysicalExtensionEnabled } =
+    usePhysicalExtensionSetting();
 
   // SSR skeleton — prevents hydration mismatch.
   // Same pattern as ThemeToggle.tsx (ThemeToggle mount-guard, lines 35-45).
@@ -347,6 +350,38 @@ export function VoiceSettingsSection() {
             value={settings.micDeviceId}
             onChange={(deviceId) => update({ micDeviceId: deviceId })}
             disabled={voiceDisabled}
+          />
+        </div>
+
+        <div className="border-t border-[var(--edge)]" />
+
+        {/* 8. Physical Extension Mode — hardware wake-word proxy
+            (Arduino + DF2301Q via Node bridge). When ON, the browser
+            does not ambiently listen; the mic only acquires when the
+            external device fires its wake-word. Cmd+Shift+J PTT still
+            works. See tools/jarvis-physical/ for setup. */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <label
+              htmlFor="physical-extension-toggle"
+              className="block font-serif text-base text-[var(--ink)]"
+            >
+              Physical Extension Mode
+            </label>
+            <p className="font-serif text-sm text-[var(--ink-muted)]">
+              Use an external hardware wake-word device (Arduino + DF2301Q) as
+              the trigger. When on, the browser stops ambient listening — the
+              mic only acquires when the physical device fires.{" "}
+              <kbd className="font-mono text-xs">⌘⇧J</kbd> still works.
+            </p>
+          </div>
+          <input
+            id="physical-extension-toggle"
+            type="checkbox"
+            checked={physicalExtensionEnabled}
+            onChange={(e) => setPhysicalExtensionEnabled(e.target.checked)}
+            className="h-5 w-5 cursor-pointer"
+            aria-label="Toggle physical extension mode"
           />
         </div>
       </Card>

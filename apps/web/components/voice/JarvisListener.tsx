@@ -59,6 +59,19 @@ import {
 export function JarvisListener() {
   const { settings, mounted } = useVoiceSettings();
   const [micState, dispatch] = useReducer(micReducer, "idle");
+
+  // Physical Extension hook — when the Arduino + DF2301Q wake-word fires
+  // (via Node bridge → /api/jarvis/physical/trigger → SSE → window event),
+  // dispatch WAKE_WORD_DETECTED into the same FSM the browser wake-word uses.
+  // See tools/jarvis-physical/ for the full chain.
+  useEffect(() => {
+    const handler = () => {
+      activationSourceRef.current = "wake-word";
+      dispatch({ type: "WAKE_WORD_DETECTED" });
+    };
+    window.addEventListener("jarvis-wake-fire", handler);
+    return () => window.removeEventListener("jarvis-wake-fire", handler);
+  }, []);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
