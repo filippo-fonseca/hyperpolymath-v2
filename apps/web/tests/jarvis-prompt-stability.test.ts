@@ -105,7 +105,7 @@ describe("TEL-03 — buildToolDefinitions byte-identity (structural-identity / p
     expect(JSON.stringify(call1), AUDIT_HINT).toBe(JSON.stringify(call2));
   });
 
-  it("returns tools in stable order (cache_control breakpoint on the LAST tool — ask_clarification per Phase 5.1)", () => {
+  it("returns tools in stable order (cache_control breakpoint with 1h TTL on the LAST tool — ask_clarification per Phase 11)", () => {
     const tools = buildToolDefinitions({ voiceActive: false });
     const names = tools.map((t) => t.name);
     // Snapshot the canonical order. If this ever changes, the prompt
@@ -120,6 +120,8 @@ describe("TEL-03 — buildToolDefinitions byte-identity (structural-identity / p
     // The cache_control breakpoint MUST live on the LAST tool (Phase 5.1
     // D-A1 — ask_clarification). If a future plan adds a 6th tool, the
     // breakpoint must move with it (D-M5 / D-A1 in 05.1-CONTEXT.md).
-    expect(tools[tools.length - 1].cache_control).toEqual({ type: "ephemeral" });
+    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so tier-1
+    // (tools) amortizes the 2× write cost over a full hour of turns.
+    expect(tools[tools.length - 1].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 });
