@@ -57,9 +57,12 @@ describe("buildSystemPrompt", () => {
     expect(blocks[0]?.text).toContain("JARVIS would");
   });
 
-  it("cache_control: ephemeral set on the LAST block (project context)", () => {
+  it("cache_control: ephemeral with 1h TTL set on the LAST block (project context)", () => {
+    // Phase 11 / CACHE-01 (D-06): tier-2 (frozen system) cache_control upgraded
+    // from default 5-min TTL to 1h. ttl: "1h" is required, or warm-cache turns
+    // degrade silently back to 5-min coverage.
     const blocks = buildSystemPrompt({ projects: [] });
-    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral" });
+    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     // Inner blocks must NOT have cache_control set
     for (let i = 0; i < blocks.length - 1; i++) {
       expect(blocks[i]?.cache_control).toBeUndefined();
