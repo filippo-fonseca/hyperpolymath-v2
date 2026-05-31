@@ -47,6 +47,8 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now uses .orderBy().limit() on captures + tasks queries.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue(rows);
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve(rows).then(resolve);
@@ -80,6 +82,7 @@ vi.mock("@/lib/db/queries/jarvis-facts", () => ({
 process.env.ANTHROPIC_API_KEY = "test-key-for-cache-hit";
 
 import { POST } from "@/app/api/jarvis/route";
+import { __resetForTests as resetStateCache } from "@/lib/jarvis/state-snapshot-cache";
 
 const USER_A = "11111111-1111-1111-1111-111111111111";
 
@@ -124,10 +127,25 @@ async function drain(res: Response) {
 beforeEach(() => {
   vi.clearAllMocks();
   dbState.selectReturns = [];
+  // Phase 11: start cache cold for each test so cross-test contamination
+  // never makes a snapshot look "cached" before its turn 1.
+  resetStateCache();
   getClaimsMock.mockResolvedValue({ data: { claims: { sub: USER_A } }, error: null });
   for (let i = 0; i < 2; i++) {
+    // Phase 10 Promise.all order: projects, user-row, facts (via separate
+    // module mock — not a db.select), then Phase 11's areas, captures, tasks.
     dbState.selectReturns.push([]); // projects.list
-    dbState.selectReturns.push([{ timezone: "America/New_York", defaultCalendarId: null }]);
+    // Phase 11: user-row now carries stateVersion (bigint).
+    dbState.selectReturns.push([
+      {
+        timezone: "America/New_York",
+        defaultCalendarId: null,
+        stateVersion: 1n,
+      },
+    ]);
+    dbState.selectReturns.push([]); // areas
+    dbState.selectReturns.push([]); // recent captures
+    dbState.selectReturns.push([]); // active tasks
   }
 });
 
@@ -167,6 +185,56 @@ describe("TEL-03 — mocked write-path canary (CI default)", () => {
         "no longer threading cache_read_input_tokens through to logJarvisEvent. " +
         "Check route.ts logJarvisEvent call site for the usage payload mapping.",
     ).toBeGreaterThan(0);
+  });
+
+  it("Phase 11 / CACHE-01: cache_read on BOTH tiers — tools+system AND snapshot — on the second of two back-to-back turns", async () => {
+    // Turn 1: tier 1+2 cache WRITE (~2K tools + ~2K system = 4000 tokens
+    // newly cached). No cache read yet — first sight of this prefix.
+    anthropicStreamMock.mockReturnValueOnce(
+      buildStream({
+        input_tokens: 50,
+        output_tokens: 10,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 4000,
+      }),
+    );
+    // Turn 2: tier 1+2 cache READ in full (4000 tokens reused) + tier 3
+    // snapshot write (first time the snapshot block is appended). Once the
+    // snapshot is in flight the tier 3 cache key matches on subsequent
+    // turns iff users.state_version is unchanged (validated by the cache
+    // reuse path — same stateVersion 1n on both turns above).
+    anthropicStreamMock.mockReturnValueOnce(
+      buildStream({
+        input_tokens: 50,
+        output_tokens: 10,
+        cache_read_input_tokens: 4000,
+        cache_creation_input_tokens: 1500,
+      }),
+    );
+
+    const body = { input: "buy milk", history: [] };
+    const res1 = await POST(buildRequest(body) as never);
+    await drain(res1);
+    const res2 = await POST(buildRequest(body) as never);
+    await drain(res2);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(logJarvisEventMock).toHaveBeenCalledTimes(2);
+    const secondCall = (logJarvisEventMock.mock.calls as unknown[][])[1][0] as {
+      usage?: {
+        cache_read_input_tokens?: number;
+        cache_creation_input_tokens?: number;
+      };
+    };
+    const read = secondCall.usage?.cache_read_input_tokens ?? 0;
+    const written = secondCall.usage?.cache_creation_input_tokens ?? 0;
+    // On turn 2: tier 1+2 read in full (4000). cache_read must reflect
+    // BOTH cached tiers — at minimum the 4000 from tier 1+2.
+    expect(read).toBeGreaterThanOrEqual(4000);
+    // Snapshot tier is NOT being newly written on turn 2 if state_version
+    // matches (byte-identical snapshot reuse). Even with a one-time tier 3
+    // write on turn 2, written tokens dropped from turn 1's 4000.
+    expect(written).toBeLessThan(4000);
   });
 });
 

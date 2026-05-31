@@ -30,16 +30,18 @@
  *   event: error  data: { message: string }
  */
 
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { projects, users } from "@/lib/db/schema";
+import { areas, captures, projects, tasks, users } from "@/lib/db/schema";
 import {
   getAnthropicClient,
   JARVIS_MODEL,
 } from "@/lib/jarvis/anthropic-client";
 import { createServerExecutor } from "@/lib/jarvis/executor";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
+import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
+import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
 import { validateTurnReferences } from "@/lib/jarvis/validate-references";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -89,6 +91,25 @@ void zAskClarification;
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+// Phase 11 / CACHE-03 — request-time UTC date stamp for the snapshot block.
+// Module-scope helper hoisted so it lives once per process. UTC components
+// keep the stamp Vercel-region-agnostic.
+//
+// CACHE-OK: this Date.now() call lives OUTSIDE the cached prefix — it
+// contributes to the snapshot block which is the volatile (5-min) tier.
+// The state_version reuse logic in lib/jarvis/state-snapshot-cache.ts
+// prevents per-turn cache misses on the snapshot tier: when state_version
+// is unchanged, the cached snapshot is reused byte-for-byte and todayDate
+// is NOT re-derived. Snapshot block is the 5-min tier; todayDate is part
+// of the byte-identity that state_version reuse pins.
+function formatTodayDateUtc(): string {
+  const d = new Date();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 interface JarvisRequestBody {
@@ -168,20 +189,69 @@ export async function POST(req: NextRequest) {
   // into the cached system prompt. Loaded once per turn at the route boundary.
   // When jarvis_facts changes, the cache key rotates on next turn (D-M4 —
   // one cold-cache turn is acceptable). Returns [] for new users.
-  const [userProjects, userRows, userFacts] = await Promise.all([
+  //
+  // Phase 11 / CACHE-03 (D-01): adds state_version as the 4th element of the
+  // user-row select (one query, three columns). The bigint is normalized to
+  // a JS bigint via Drizzle's mode: "bigint" — the snapshot cache normalizes
+  // either form. Phase 11 also adds 3 more parallel reads (areasRows,
+  // recentCapturesRows, activeTasksRows) feeding the snapshot block. All
+  // share the same Promise.all so wall-clock stays max-of-N (never sequential).
+  const [
+    userProjects,
+    userRows,
+    userFacts,
+    areasRows,
+    recentCapturesRows,
+    activeTasksRows,
+  ] = await Promise.all([
     db
-      .select({ id: projects.id, name: projects.name, icon: projects.icon })
+      .select({
+        id: projects.id,
+        name: projects.name,
+        icon: projects.icon,
+        areaId: projects.areaId,
+        startDate: projects.startDate,
+        archivedAt: projects.archivedAt,
+      })
       .from(projects)
       .where(eq(projects.userId, userId)),
     db
       .select({
         timezone: users.timezone,
         defaultCalendarId: users.gcalDefaultCalendarId,
+        stateVersion: users.stateVersion,
       })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1),
     getJarvisFactsForUser(userId),
+    // Snapshot block reads — single-user-scoped, indexed columns. Each query
+    // is small (≤50 rows) and uses an existing (user_id, ordered-column) idx.
+    db
+      .select({ id: areas.id, name: areas.name })
+      .from(areas)
+      .where(eq(areas.userId, userId)),
+    db
+      .select({
+        id: captures.id,
+        createdAt: captures.createdAt,
+        content: captures.content,
+      })
+      .from(captures)
+      .where(eq(captures.userId, userId))
+      .orderBy(desc(captures.createdAt))
+      .limit(50),
+    db
+      .select({
+        id: tasks.id,
+        status: tasks.status,
+        dueDate: tasks.dueDate,
+        title: tasks.title,
+      })
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), ne(tasks.status, "lesno")))
+      .orderBy(asc(tasks.dueDate))
+      .limit(10),
   ]);
   const userRow = userRows[0];
 
@@ -197,6 +267,71 @@ export async function POST(req: NextRequest) {
     projects: projectSummaries,
     facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
     voiceActive,
+  });
+
+  // Phase 11 / CACHE-01 (D-06 BREAKPOINT 3) — tier 3 snapshot block.
+  // Uses module-level cache: when users.state_version is unchanged since the
+  // previous turn, the snapshot string is reused byte-for-byte and Anthropic
+  // cache-reads on the 5-min ephemeral breakpoint.
+  //
+  // Active vs upcoming project split (JS-side, no extra query): active = not
+  // archived AND (no start date OR start date ≤ today). Upcoming = not
+  // archived AND start date > today. Date comparison uses string compare on
+  // YYYY-MM-DD which is correct because both sides are date-stamped.
+  const stateVersion = userRow?.stateVersion ?? 1n;
+  const todayDate = formatTodayDateUtc();
+  const activeProjectsForSnapshot: SnapshotInputs["projectsActive"] = [];
+  const upcomingProjectsForSnapshot: SnapshotInputs["projectsUpcoming"] = [];
+  for (const p of userProjects) {
+    if (p.archivedAt) continue;
+    const item = { id: p.id, name: p.name, areaId: p.areaId };
+    if (p.startDate && p.startDate > todayDate) {
+      upcomingProjectsForSnapshot.push(item);
+    } else {
+      activeProjectsForSnapshot.push(item);
+    }
+  }
+  // todayCalendar deferred: gcal token round-trip + auth wiring is a larger
+  // change than the snapshot needs. Ships empty for this plan; the snapshot
+  // block STRUCTURE remains stable (tier 3 byte-identity preserved) and
+  // future Phase 11.1 follow-up can wire getTodayEvents(userId).
+  // TODO(phase-11.1): wire today_calendar via lib/gcal/events helper.
+  const todayCalendarForSnapshot: SnapshotInputs["todayCalendar"] = [];
+  const snapshotInputs: SnapshotInputs = {
+    areas: areasRows.map((a) => ({ id: a.id, name: a.name })),
+    projectsActive: activeProjectsForSnapshot,
+    projectsUpcoming: upcomingProjectsForSnapshot,
+    recentCaptures: recentCapturesRows.map((c) => ({
+      id: c.id,
+      createdAt: c.createdAt,
+      content: c.content,
+    })),
+    todayCalendar: todayCalendarForSnapshot,
+    todayDate,
+    activeTasks: activeTasksRows.map((t) => ({
+      id: t.id,
+      status: t.status,
+      // tasks.dueDate is a YYYY-MM-DD string from Drizzle's `date` type; wrap
+      // in Date so renderUserState's formatDateOnly can read UTC components.
+      // null stays null (em-dash rendered).
+      dueAt: t.dueDate ? new Date(t.dueDate) : null,
+      title: t.title,
+      // tasks_projects junction join intentionally omitted — N+1 cost not
+      // worth it for snapshot. projectId stays null (em-dash rendered).
+      projectId: null,
+    })),
+  };
+  const snapshotString = stateCache.getOrBuild(
+    userId,
+    stateVersion,
+    snapshotInputs,
+  );
+  system.push({
+    type: "text",
+    text: snapshotString,
+    // 5-min default tier — NO ttl: "1h". State_version reuse pins
+    // byte-identity across turns; per-turn miss only when user mutates state.
+    cache_control: { type: "ephemeral" },
   });
   const tools = buildToolDefinitions({ voiceActive });
   const toolValidators = buildToolValidators(voiceActive);

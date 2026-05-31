@@ -6,6 +6,7 @@ import {
   integer,
   boolean,
   date,
+  bigint,
   primaryKey,
   check,
   index,
@@ -63,6 +64,13 @@ export const users = pgTable("users", {
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  // Phase 11 / CACHE-03 (D-01) — tamper-proof freshness counter bumped by
+  // Postgres BEFORE-triggers on tasks/captures/projects/areas/habits/jarvis_facts
+  // (migration 0019). Read once per JARVIS turn at the route boundary; used as
+  // the in-memory snapshot cache key by lib/jarvis/state-snapshot-cache.ts.
+  stateVersion: bigint("state_version", { mode: "bigint" })
+    .notNull()
+    .default(1n),
 });
 
 export const areas = pgTable(

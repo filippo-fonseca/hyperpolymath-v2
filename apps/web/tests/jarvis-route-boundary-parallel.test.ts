@@ -44,7 +44,7 @@ const {
   getClaimsMock: vi.fn(),
   anthropicStreamMock: vi.fn(),
   logJarvisEventMock: vi.fn(async () => undefined),
-  buildSystemPromptMock: vi.fn(() => "stubbed-system-prompt"),
+  buildSystemPromptMock: vi.fn(() => [{ type: "text", text: "stubbed-system-prompt" }]),
   buildToolDefinitionsMock: vi.fn(() => []),
   getJarvisFactsForUserMock: vi.fn(),
   dbState: {
@@ -91,6 +91,8 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now uses .orderBy().limit() on captures + tasks queries.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn(() => settle());
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       settle().then(resolve);
@@ -221,7 +223,7 @@ beforeEach(() => {
     error: null,
   });
   anthropicStreamMock.mockReturnValue(buildEmptyStream());
-  buildSystemPromptMock.mockReturnValue("stubbed-system-prompt");
+  buildSystemPromptMock.mockReturnValue([{ type: "text", text: "stubbed-system-prompt" }]);
   buildToolDefinitionsMock.mockReturnValue([]);
 });
 
@@ -236,12 +238,24 @@ afterEach(() => {
 describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
   it("fires user-context queries concurrently (Promise.all) — wall-clock < sequential floor", async () => {
     const DELAY_MS = 50;
-    // Queue: projects query → users query (each delayed 50ms in the DB mock).
-    dbState.selectQueue.push({ delayMs: DELAY_MS, rows: [] });
+    // Phase 10 + Phase 11 Promise.all order:
+    //   projects, user-row, areas, recent captures, active tasks (5 SELECTs)
+    //   + facts (separate module mock)
+    // Each delayed 50ms in the DB mock so we can verify max-of-N (not sum-of-N).
+    dbState.selectQueue.push({ delayMs: DELAY_MS, rows: [] }); // projects
     dbState.selectQueue.push({
       delayMs: DELAY_MS,
-      rows: [{ timezone: "America/New_York", defaultCalendarId: null }],
+      rows: [
+        {
+          timezone: "America/New_York",
+          defaultCalendarId: null,
+          stateVersion: 1n,
+        },
+      ],
     });
+    dbState.selectQueue.push({ delayMs: DELAY_MS, rows: [] }); // areas
+    dbState.selectQueue.push({ delayMs: DELAY_MS, rows: [] }); // recent captures
+    dbState.selectQueue.push({ delayMs: DELAY_MS, rows: [] }); // active tasks
     // Facts query also delayed 50ms.
     getJarvisFactsForUserMock.mockImplementation(
       () => new Promise((r) => setTimeout(() => r([]), DELAY_MS)),
@@ -252,8 +266,8 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
     await drain(res);
     const elapsed = Date.now() - start;
 
-    // Sequential floor (pre-LAT-04): 3 × 50ms = 150ms minimum just for the
-    // three user-context awaits. Promise.all should land near 50ms; allow
+    // Sequential floor (pre-LAT-04, pre-Phase-11): 6 × 50ms = 300ms minimum
+    // if anyone splits these awaits. Promise.all should land near 50ms; allow
     // a 100ms ceiling for jsdom + Anthropic-stub + SSE setup jitter. If this
     // test starts failing the parallel guarantee has been broken — DO NOT
     // raise the ceiling past ~120ms without locking the rationale inline.
@@ -262,10 +276,30 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
 
   it("destructure order matches downstream consumers (projects → projects, facts → facts)", async () => {
     const PROJECTS = [
-      { id: "p1", name: "Project One", icon: null },
-      { id: "p2", name: "Project Two", icon: "📚" },
+      {
+        id: "p1",
+        name: "Project One",
+        icon: null,
+        areaId: "a1",
+        startDate: null,
+        archivedAt: null,
+      },
+      {
+        id: "p2",
+        name: "Project Two",
+        icon: "📚",
+        areaId: "a1",
+        startDate: null,
+        archivedAt: null,
+      },
     ];
-    const USERS = [{ timezone: "Europe/Paris", defaultCalendarId: "cal-xyz" }];
+    const USERS = [
+      {
+        timezone: "Europe/Paris",
+        defaultCalendarId: "cal-xyz",
+        stateVersion: 1n,
+      },
+    ];
     const FACTS = [
       { type: "preference", key: "voice", value: "butler" },
       { type: "identity", key: "name", value: "Filippo" },
@@ -273,6 +307,10 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
 
     dbState.selectQueue.push({ rows: PROJECTS });
     dbState.selectQueue.push({ rows: USERS });
+    // Phase 11: 3 additional empty SELECTs (areas, captures, tasks).
+    dbState.selectQueue.push({ rows: [] }); // areas
+    dbState.selectQueue.push({ rows: [] }); // recent captures
+    dbState.selectQueue.push({ rows: [] }); // active tasks
     getJarvisFactsForUserMock.mockResolvedValueOnce(FACTS);
 
     const res = await POST(buildRequest({ input: "hi", history: [] }) as never);
@@ -307,11 +345,13 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
       join(process.cwd(), "app/api/jarvis/route.ts"),
       "utf8",
     );
-    // The exact destructure shape produced by Plan 10-01 Task 1. Anyone who
-    // splits this back into sequential awaits would delete this line and
-    // this assertion would fail.
+    // Plan 10-01 originally locked the 3-name destructure; Phase 11 (Plan
+    // 11-04 / CACHE-03 D-01) extended it to 6 names (adds areasRows,
+    // recentCapturesRows, activeTasksRows + stateVersion read off userRow).
+    // The Promise.all wrapper is what matters — anyone who splits it back
+    // into sequential awaits would have to delete this destructure entirely.
     const promiseAllMatches = src.match(
-      /const \[userProjects, userRows, userFacts\] = await Promise\.all/g,
+      /const \[\s*userProjects,\s*userRows,\s*userFacts,\s*areasRows,\s*recentCapturesRows,\s*activeTasksRows,?\s*\] = await Promise\.all/g,
     );
     expect(promiseAllMatches).not.toBeNull();
     expect(promiseAllMatches?.length).toBe(1);
