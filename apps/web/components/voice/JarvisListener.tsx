@@ -10,6 +10,7 @@ import { usePorcupine } from "@picovoice/porcupine-react";
 import { useMicVAD } from "@ricky0123/vad-react";
 import { toast } from "sonner";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
+import { usePhysicalExtensionSetting } from "@/lib/voice/physical-extension/use-physical-extension-setting";
 import { micReducer, type MicState } from "@/lib/voice/mic-state";
 import { useClapDetector } from "@/lib/voice/use-clap-detector";
 import { usePressToTalk } from "@/lib/voice/use-press-to-talk";
@@ -58,15 +59,28 @@ import {
 
 export function JarvisListener() {
   const { settings, mounted } = useVoiceSettings();
+  const { enabled: physicalExtensionEnabled } = usePhysicalExtensionSetting();
   const [micState, dispatch] = useReducer(micReducer, "idle");
+
+  // Ref mirror of physicalExtensionEnabled so VAD callbacks (set up once
+  // at hook init, capture stale closures) can read the current value.
+  const physicalExtensionEnabledRef = useRef<boolean>(false);
+  useEffect(() => {
+    physicalExtensionEnabledRef.current = physicalExtensionEnabled;
+  }, [physicalExtensionEnabled]);
 
   // Physical Extension hook — when the Arduino + DF2301Q wake-word fires
   // (via Node bridge → /api/jarvis/physical/trigger → SSE → window event),
   // dispatch WAKE_WORD_DETECTED into the same FSM the browser wake-word uses.
+  //
+  // Source is set to "press-to-talk" (not "wake-word") because the Arduino
+  // ALREADY consumed the wake word — the audio captured here is pure
+  // command. onSpeechEnd's wake-word-stripping path would mangle it.
+  //
   // See tools/jarvis-physical/ for the full chain.
   useEffect(() => {
     const handler = () => {
-      activationSourceRef.current = "wake-word";
+      activationSourceRef.current = "press-to-talk";
       dispatch({ type: "WAKE_WORD_DETECTED" });
     };
     window.addEventListener("jarvis-wake-fire", handler);
@@ -199,10 +213,16 @@ export function JarvisListener() {
   //   discreetMode  = mute — silences TTS playback only
   // Listening is gated on voiceEnabled alone. Discreet does NOT stop the mic.
   // The TTS gate lives in handleVoiceSpeak (settings.discreetMode short-circuit).
-  const listenActive = mounted && settings.voiceEnabled;
+  // Physical Extension Mode short-circuits ambient listening:
+  //  - listenActive false → raw mic stream not acquired, Whisper-keyword
+  //    fallback path in VAD onSpeechStart/End is guarded (see VAD callbacks)
+  //  - wakeWordActive false → Porcupine not initialized (no "Hey Jarvis")
+  //  - pressToTalkActive stays true → Cmd+Shift+J still works
+  // The mic only acquires when the Arduino fires jarvis-wake-fire and the
+  // FSM transitions to "recording".
+  const listenActive =
+    mounted && settings.voiceEnabled && !physicalExtensionEnabled;
   const pressToTalkActive = mounted && settings.voiceEnabled;
-  // wakeWordActive is kept for the Porcupine gate (separate engine, not used in
-  // the Whisper-keyword path); only relevant when a Picovoice key is configured.
   const wakeWordActive = listenActive && !settings.discreetMode;
 
   // ─── Voice enabled/disabled FSM transition ───────────────────────────────
@@ -383,6 +403,13 @@ export function JarvisListener() {
       // of this speech segment. Cleared at the head of onSpeechEnd.
       vadSpeakingRef.current = true;
       const s = micStateRef.current;
+      // Physical Extension Mode: the Arduino is the wake-word source.
+      // Ambient browser speech must NOT arm anything. Only when state is
+      // already "recording" (because jarvis-wake-fire dispatched
+      // WAKE_WORD_DETECTED) should VAD do its normal speech-start work.
+      if (physicalExtensionEnabledRef.current && s !== "recording") {
+        return;
+      }
       if (s === "listening") {
         // Three sub-cases now:
         //   1. In follow-up window (≤5s after JARVIS's last TTS_END): user
@@ -439,6 +466,12 @@ export function JarvisListener() {
       // post-utterance clap (in silence) can fire normally.
       vadSpeakingRef.current = false;
       const s = micStateRef.current;
+      // Physical Extension Mode: ambient speech in "listening" must NOT
+      // hit STT. Only "recording" state (armed by Arduino wake-fire) is
+      // a valid entry point.
+      if (physicalExtensionEnabledRef.current && s !== "recording") {
+        return;
+      }
       // Two entry states are meaningful here:
       //   "recording" — explicit channel (press-to-talk, clap, follow-up).
       //                 We're already glowing; transition to thinking now.

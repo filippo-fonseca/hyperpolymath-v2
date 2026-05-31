@@ -50,19 +50,31 @@ port.on("error", (err) => {
   console.error(`[bridge] serial error:`, err.message);
 });
 
+// Suppress this debug line if older sketches print it every loop iteration.
+const NOISE_PATTERNS = [/^loop running$/i];
+
+// Accept both sketch formats:
+//   "ID=N NAME=..."           (tools/jarvis-physical/arduino/jarvis-mic-prototype.ino)
+//   "Heard -> ID N : ..."     (legacy / other-AI's sketch)
+const ID_PATTERNS = [
+  /^ID=(\d+)\s+NAME=(.+)$/,
+  /^Heard\s*->\s*ID\s+(\d+)\s*:\s*(.+)$/i,
+];
+
 parser.on("data", (raw) => {
   const line = raw.toString().trim();
   if (!line) return;
+  if (NOISE_PATTERNS.some((p) => p.test(line))) return;
 
-  // Pass-through debug lines (e.g., "DF2301Q ready.").
-  if (!line.startsWith("ID=")) {
-    console.log(`[serial] ${line}`);
-    return;
+  let match = null;
+  for (const pattern of ID_PATTERNS) {
+    match = line.match(pattern);
+    if (match) break;
   }
 
-  const match = line.match(/^ID=(\d+)\s+NAME=(.+)$/);
   if (!match) {
-    console.log(`[serial] (unparsed) ${line}`);
+    // Pass-through debug lines (e.g., "DF2301Q ready.").
+    console.log(`[serial] ${line}`);
     return;
   }
 
