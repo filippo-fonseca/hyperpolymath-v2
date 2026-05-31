@@ -39,7 +39,7 @@ Phase 12 replaces Phase 7's Picovoice Porcupine wake-word with on-device openWak
 
   Reasoning: deadline-bound (30 days, 2-week safety margin to 2026-06-15) — the dual-stack alternative would add ~2× wiring code for code we'd remove before the deadline anyway. Accept the loss of A/B against Porcupine's pre-trained model; if openWakeWord accuracy regresses, tune via the confidence threshold (D-05) post-ship or swap the ONNX model file without re-architecting.
 
-- **D-04:** **First-enable spinner** during the 3-4 MB ONNX/WASM lazy-load. Inline spinner + "Loading voice assets…" copy inside the existing Enable Voice modal (D-02 from Phase 7's eager modal flow). No background preload — voice assets only download when the user actually opts in, which keeps first paint untouched for users who never enable voice.
+- **D-04:** **First-enable spinner** during the **~8.5-14.5 MB** ONNX/WASM lazy-load (per 12-RESEARCH.md §Asset Weight — `hey_jarvis_v0.1.onnx` 1.27 MB + `melspectrogram.onnx` 1.09 MB + `embedding_model.onnx` 1.33 MB + `silero_vad.onnx` 1.81 MB + ORT WASM 3-9 MB). Inline spinner + "Loading voice assets…" copy inside the existing Enable Voice modal (D-02 from Phase 7's eager modal flow). No background preload — voice assets only download when the user actually opts in, which keeps first paint untouched for users who never enable voice. Browser cache makes second-load instant; first-load on slow networks may take 5-15s, so the spinner copy should set expectation.
 
 ### Wake-Word Sensitivity
 
