@@ -56,6 +56,24 @@ export const VAD_BASE_ASSET_PATH = "/voice/";
 /** @deprecated Use VAD_BASE_ASSET_PATH with useMicVAD({ baseAssetPath }). */
 export const VAD_MODEL_URL = "/voice/vad.onnx";
 
+// ─── Phase 12 — On-device wake-word (openWakeWord v0.5.1) ─────────────
+/** openWakeWord ONNX asset directory (lazy-loaded; see Plan 12-01). */
+export const WAKE_WORD_ASSETS_PATH = "/wake-word/";
+/** Web Worker module URL — module worker, served raw from public/. */
+export const WAKE_WORD_WORKER_URL = "/workers/wake-word.worker.js";
+/** AudioWorklet URL — mic tap + 16 kHz downsample + 80 ms frame emit. */
+export const WAKE_WORD_WORKLET_URL = "/worklets/wake-word-tap.js";
+/** Confidence threshold per CONTEXT D-05 (locked, NOT user-tunable). */
+export const WAKE_THRESHOLD = 0.5;
+/** 80 ms @ 16 kHz = 1280 samples per inference frame. */
+export const WAKE_FRAME_SAMPLES = 1280;
+/** Target sample rate for the ONNX models. AudioWorklet downsamples to this. */
+export const WAKE_TARGET_SAMPLE_RATE = 16000;
+/** 3-second ring buffer mirror on the main thread. */
+export const WAKE_RING_BUFFER_SAMPLES = 48000;
+/** 500 ms pre-roll spliced on wake-fire (WAKE-03). */
+export const WAKE_PREROLL_SAMPLES = 8000;
+
 /** Default state for useVoiceSettings on first mount (no localStorage). */
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   // "Aware mode" — wake-word listening starts as soon as mic permission is
