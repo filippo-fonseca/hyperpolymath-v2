@@ -62,26 +62,29 @@ export function JarvisListener() {
   const { enabled: physicalExtensionEnabled } = usePhysicalExtensionSetting();
   const [micState, dispatch] = useReducer(micReducer, "idle");
 
-  // Ref mirror of physicalExtensionEnabled so VAD callbacks (set up once
-  // at hook init, capture stale closures) can read the current value.
-  const physicalExtensionEnabledRef = useRef<boolean>(false);
-  useEffect(() => {
-    physicalExtensionEnabledRef.current = physicalExtensionEnabled;
-  }, [physicalExtensionEnabled]);
-
   // Physical Extension hook — when the Arduino + DF2301Q wake-word fires
   // (via Node bridge → /api/jarvis/physical/trigger → SSE → window event),
-  // dispatch WAKE_WORD_DETECTED into the same FSM the browser wake-word uses.
+  // route through the SAME path as the on-device Porcupine wake-word:
+  //   - tag activationSource = "porcupine" (the existing
+  //     "external wake-word detector confirmed" sentinel)
+  //   - fire jarvis-wake-burst for visual feedback
+  //   - DO NOT change FSM state — stay in "listening"
   //
-  // Source is set to "press-to-talk" (not "wake-word") because the Arduino
-  // ALREADY consumed the wake word — the audio captured here is pure
-  // command. onSpeechEnd's wake-word-stripping path would mangle it.
+  // VAD will fire onSpeechEnd when the user finishes speaking. The
+  // onSpeechEnd handler sees source = "porcupine" + state = "listening",
+  // runs STT on the captured audio (which contains the user's voice
+  // saying "Jarvis [command]" via the laptop mic since the laptop mic is
+  // unfortunately still on — see VAD architectural constraint), and
+  // `stripWakeWordAnywhere` strips the wake word, leaving just the
+  // command to send to JARVIS. If the user said only "Jarvis" with no
+  // command, the follow-up window opens for 5s so the next utterance is
+  // treated as the command without re-saying the wake phrase.
   //
   // See tools/jarvis-physical/ for the full chain.
   useEffect(() => {
     const handler = () => {
-      activationSourceRef.current = "press-to-talk";
-      dispatch({ type: "WAKE_WORD_DETECTED" });
+      activationSourceRef.current = "porcupine";
+      window.dispatchEvent(new CustomEvent("jarvis-wake-burst"));
     };
     window.addEventListener("jarvis-wake-fire", handler);
     return () => window.removeEventListener("jarvis-wake-fire", handler);
@@ -403,13 +406,6 @@ export function JarvisListener() {
       // of this speech segment. Cleared at the head of onSpeechEnd.
       vadSpeakingRef.current = true;
       const s = micStateRef.current;
-      // Physical Extension Mode: the Arduino is the wake-word source.
-      // Ambient browser speech must NOT arm anything. Only when state is
-      // already "recording" (because jarvis-wake-fire dispatched
-      // WAKE_WORD_DETECTED) should VAD do its normal speech-start work.
-      if (physicalExtensionEnabledRef.current && s !== "recording") {
-        return;
-      }
       if (s === "listening") {
         // Three sub-cases now:
         //   1. In follow-up window (≤5s after JARVIS's last TTS_END): user
@@ -466,12 +462,6 @@ export function JarvisListener() {
       // post-utterance clap (in silence) can fire normally.
       vadSpeakingRef.current = false;
       const s = micStateRef.current;
-      // Physical Extension Mode: ambient speech in "listening" must NOT
-      // hit STT. Only "recording" state (armed by Arduino wake-fire) is
-      // a valid entry point.
-      if (physicalExtensionEnabledRef.current && s !== "recording") {
-        return;
-      }
       // Two entry states are meaningful here:
       //   "recording" — explicit channel (press-to-talk, clap, follow-up).
       //                 We're already glowing; transition to thinking now.
