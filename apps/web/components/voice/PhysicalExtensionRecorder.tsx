@@ -107,13 +107,17 @@ export function PhysicalExtensionRecorder() {
           // Follow-up window — fire a synthetic wake-fire so the recorder
           // re-acquires the mic and waits up to WAIT_FOR_SPEECH_MS for the
           // user's next command. Matches the 5s follow-up the JarvisListener
-          // path opens via followUpUntilRef. The recorder will release the
-          // mic if no speech is detected within the window.
-          window.dispatchEvent(
-            new CustomEvent("jarvis-wake-fire", {
-              detail: { followUp: true },
-            }),
-          );
+          // path opens via followUpUntilRef.
+          //
+          // Deferred so we never dispatch inside a TTS callback that may
+          // still be inside a React commit phase.
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent("jarvis-wake-fire", {
+                detail: { followUp: true },
+              }),
+            );
+          }, 0);
         },
       });
     };
@@ -279,15 +283,23 @@ export function PhysicalExtensionRecorder() {
               JSON.stringify(command),
             );
 
-            window.dispatchEvent(
-              new CustomEvent("jarvis-voice-transcript", {
-                detail: {
-                  transcript: command,
-                  sttDoneAt,
-                  vadEndAt: Date.now(),
-                },
-              }),
-            );
+            // Defer to a fresh task. Otherwise the synchronous fan-out
+            // through JarvisConsole's transcript handler can land inside
+            // a React commit phase and trigger the "Cannot update a
+            // component while rendering" warning when the downstream
+            // server action calls dispatchAppRouterAction.
+            const vadEndAt = Date.now();
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-transcript", {
+                  detail: {
+                    transcript: command,
+                    sttDoneAt,
+                    vadEndAt,
+                  },
+                }),
+              );
+            }, 0);
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error("[physical-extension-recorder] processing error", err);
