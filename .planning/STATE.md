@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-05-31T14:39:17.752Z"
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-05-31T14:44:08.580Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 27
   completed_phases: 10
   total_plans: 63
-  completed_plans: 50
+  completed_plans: 51
   percent: 0
 ---
 
@@ -104,6 +104,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 10-tts-route-boundary-latency-wins P04 | 9min | 3 tasks | 7 files |
 | Phase 11-prompt-cache-state-priming P02 | 2min | 1 tasks | 1 files |
 | Phase 11-prompt-cache-state-priming P01 | 5 min | 2 tasks | 2 files |
+| Phase 11 P03 | 10 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,9 @@ Recent decisions affecting current work:
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-03: TTS proxy emits pcm_24000 + Content-Type application/octet-stream; AudioQueue.enqueue builds AudioBuffer via createBuffer(1, sampleCount, 24000) + Int16->Float32 with literal 32768.0 divisor; leftoverByte Uint8Array spill retained across enqueue calls within an AudioQueue lifecycle, cleared on stopAll for barge-in safety; Phase 7 invariants (analyserNode tap, scheduledEnd gapless chain, onAllEnded, stopAll) + Phase 9 firstPlayCaptured one-shot for audio_first_play_at preserved verbatim
 - [Phase 10-tts-route-boundary-latency-wins]: Plan 10-04 (LAT-02 + LAT-03): TurnPlaybackController class held in useRef inside use-tts-player (no global stores per CLAUDE.md); enqueueGate Map<seq, Promise> enforces strict in-order playback while permitting pipelined fetches per D-01; D-04 stop-all + fallback policy (seq 0 fail → SpeechSynthesis whole turn, seq ≥ 1 fail → silent drop + console.warn); D-06 tts_first_byte_at fires once per turn on FIRST sentence (firstByteCaptured guard); res.body.getReader() streams chunk-by-chunk into AudioQueue (no full-body arrayBuffer); JarvisConsole + GlobalJarvisHandler dispatch jarvis-voice-speak-sentence per splitDeltas boundary + jarvis-voice-end-of-turn on SSE close
 - [Phase 11-prompt-cache-state-priming]: Plan 11-02: Postgres BEFORE triggers + bump_user_state_version() on tasks/captures/projects/areas/habits/jarvis_facts — tamper-proof per-user freshness counter for snapshot cache key; BIGINT, NULL-user_id silent return, SECURITY DEFINER + locked search_path; migration idempotent via IF NOT EXISTS + CREATE OR REPLACE + DROP TRIGGER IF EXISTS
+- [Phase 11]: Phase 11: SystemBlock + JarvisToolDefinition cache_control widened to optional ttl: '5m' | '1h' (backward-compat)
+- [Phase 11]: Phase 11: tier-1 (tools) + tier-2 (frozen system) breakpoints upgraded to 1h TTL — requires extended-cache-ttl-2025-04-11 beta header on stream call (wired in Plan 11-04)
+- [Phase 11]: Phase 11: CACHE-CRITICAL file-header copy phrased without literal Date.now/new Date/toISOString tokens so the CACHE-05 grep gate self-test returns zero matches on documentation
 
 ### Pending Todos
 
@@ -289,6 +293,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T14:39:17.748Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-05-31T14:44:08.575Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None

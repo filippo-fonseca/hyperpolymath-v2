@@ -321,7 +321,7 @@ Plans:
 **Plans**: 6 plans
 - [x] 11-01-PLAN.md — Wave 1: Pure XML state serializer + serializer test fixtures (CACHE-02)
 - [x] 11-02-PLAN.md — Wave 1: Schema migration — users.state_version + bump_user_state_version() + 6 triggers (CACHE-03)
-- [ ] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
+- [x] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
 - [ ] 11-04-PLAN.md — Wave 2: Snapshot reuse cache + route boundary integration + extended-cache-ttl beta header + extend TEL-03 (CACHE-01, CACHE-03)
 - [ ] 11-05-PLAN.md — Wave 2: CI grep gate + Husky pre-commit hook (shared scanner) (CACHE-05)
 - [ ] 11-06-PLAN.md — Wave 3: /api/jarvis/warm endpoint + JarvisWarmer client component + UX-signal wiring (CACHE-04)
@@ -387,7 +387,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
 | 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
 | 10. TTS + Route-Boundary Latency Wins | 4/4 | Complete    | 2026-05-30 |
-| 11. Prompt Cache + State Priming | 0/TBD | Not started | - |
+| 11. Prompt Cache + State Priming | 3/6 | In Progress|  |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. Desktop Shell + Global Hotkey | 0/TBD | Not started | - |
@@ -406,7 +406,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 4/4 plans complete
+**Plans:** 3/6 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
