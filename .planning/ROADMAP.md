@@ -387,7 +387,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
 | 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
 | 10. TTS + Route-Boundary Latency Wins | 4/4 | Complete    | 2026-05-30 |
-| 11. Prompt Cache + State Priming | 6/6 | Complete   | 2026-05-31 |
+| 11. Prompt Cache + State Priming | 6/6 | Complete    | 2026-05-31 |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. Desktop Shell + Global Hotkey | 0/TBD | Not started | - |
