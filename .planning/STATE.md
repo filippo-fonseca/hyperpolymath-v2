@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: executing
-stopped_at: Completed 11-04-PLAN.md (parallel wave 2)
-last_updated: "2026-05-31T15:04:44.036Z"
+status: verifying
+stopped_at: Completed 11-06-PLAN.md (wave 3) — Phase 11 ready for verification
+last_updated: "2026-05-31T15:16:08.467Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 27
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 63
-  completed_plans: 53
+  completed_plans: 54
   percent: 0
 ---
 
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 11 (prompt-cache-state-priming) — EXECUTING
-Plan: 4 of 6
-Status: Ready to execute
+Plan: 6 of 6
+Status: Phase complete — ready for verification
 Last activity: 2026-05-31
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
@@ -107,6 +107,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 11 P03 | 10 min | 3 tasks | 7 files |
 | Phase 11-prompt-cache-state-priming P05 | 3min | 2 tasks | 4 files |
 | Phase 11-prompt-cache-state-priming P04 | 20min | 3 tasks | 11 files |
+| Phase 11-prompt-cache-state-priming P06 | 5min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -284,6 +285,10 @@ Recent decisions affecting current work:
 - [Phase 11]: Plan 11-04: route Promise.all expanded 3→6 reads (projects + user-row+stateVersion + facts + areas + recent captures + active tasks); all-in-one-batch invariant preserved; jarvis-perf-budget ≤ 5
 - [Phase 11]: Plan 11-04: snapshot block 5-min default cache_control (NO ttl literal) — state_version reuse pins byte-identity; per-turn miss only on state mutation (11-02 BEFORE-triggers bump)
 - [Phase 11]: Plan 11-04: todayCalendar ships [] per <Acceptable scope-trim>; getTodayEvents helper deferred to Phase 11.1 — tier 3 byte-identity preserved
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: Predictive cache warmer endpoint uses messages.create + max_tokens=1 + tool_choice:none + literal 'warm' user message — single-token no-op against same tools+system as /api/jarvis with NO snapshot block (warms tier 1+2 only). D-03 50min server age-gate via getLastWarmAt/setLastWarmAt.
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: JarvisWarmer uses per-trigger debounce Map<WarmTrigger, lastFiredAt> in useRef — three slots (mount / input-focus / mic-arm) × 30s debounce each. Cross-trigger isolation per D-03 (one trigger's window does NOT block another).
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: mic-arm edge detection via prevMicStateRef — fires window CustomEvent only on the prev !== 'listening' && micState === 'listening' transition (the EDGE into listening). Without edge gating, every micState change while remaining in listening would chew through the 30s debounce.
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: window CustomEvent broadcast for publisher→warmer signal (jarvis-input-focus / mic-arm) — JarvisInput / JarvisListener never import JarvisWarmer. Matches existing Phase 7 cross-cutting pattern (jarvis-cancel, jarvis-wake-burst, jarvis-voice-transcript).
 
 ### Pending Todos
 
@@ -302,6 +307,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T15:04:44.031Z
-Stopped at: Completed 11-04-PLAN.md (parallel wave 2)
+Last session: 2026-05-31T15:16:08.462Z
+Stopped at: Completed 11-06-PLAN.md (wave 3) — Phase 11 ready for verification
 Resume file: None

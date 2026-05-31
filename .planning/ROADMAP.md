@@ -32,7 +32,7 @@ Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keep
 
 - [ ] **Phase 9: Latency Telemetry Baseline** - Per-stage timestamps on every voice turn + p50/p95 timeline chart + silent-invalidator regression guard. The "you can't fix what you can't measure" floor for the rest of v1.1.
 - [x] **Phase 10: TTS + Route-Boundary Latency Wins** - Per-sentence TTS dispatch + `pcm_24000` direct-decode + drop the full-body MP3 buffer + parallelize sequential route-boundary DB queries. Biggest perceived-speed jump in the milestone with the smallest code footprint. (completed 2026-05-30)
-- [ ] **Phase 11: Prompt Cache + State Priming** - 3-tier `cache_control` (tools + frozen system at 1h, user-state snapshot at 5min, per-turn outside cache) + XML-tagged state block + `state_version` byte-stable reuse + predictive warm on app-focus/mic-arm + grep gate against silent invalidators.
+- [x] **Phase 11: Prompt Cache + State Priming** - 3-tier `cache_control` (tools + frozen system at 1h, user-state snapshot at 5min, per-turn outside cache) + XML-tagged state block + `state_version` byte-stable reuse + predictive warm on app-focus/mic-arm + grep gate against silent invalidators. (completed 2026-05-31)
 - [ ] **Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)** - openWakeWord (ONNX + Silero VAD + `hey_jarvis_v0.1.onnx`) in a Web Worker + AudioWorklet ring buffer + 500ms pre-roll + listening-mode setting (wake / push-to-talk / hibernate). Absorbs backlog 999.6 (hibernation) + 999.8 (scoped wake-word). **Hard deadline: 2026-06-30** (Picovoice Porcupine free tier sunsets — agent goes silent if missed).
 - [ ] **Phase 13: Haiku Fast-Path Routing** - Deterministic classifier routes unambiguous CRUD to Haiku 4.5 and ambiguous/multi-action to Sonnet 4.6 + ≥50-fixture eval set as the misroute gate + auto-escalate-to-Sonnet on low-confidence Haiku turns + tier distribution on /insights.
 - [ ] **Phase 14: Desktop Shell + Global Hotkey** - Tauri 2.x macOS menu-bar app pointing at the deployed Next.js web app + `Cmd+Shift+Space` global shortcut + FN-double-tap via CGEventTap + mic-only-when-summoned + HUD-dismiss as interrupt. Absorbs backlog 999.7 (interrupt/stop control).
@@ -324,7 +324,7 @@ Plans:
 - [x] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
 - [x] 11-04-PLAN.md — Wave 2: Snapshot reuse cache + route boundary integration + extended-cache-ttl beta header + extend TEL-03 (CACHE-01, CACHE-03)
 - [x] 11-05-PLAN.md — Wave 2: CI grep gate + Husky pre-commit hook (shared scanner) (CACHE-05)
-- [ ] 11-06-PLAN.md — Wave 3: /api/jarvis/warm endpoint + JarvisWarmer client component + UX-signal wiring (CACHE-04)
+- [x] 11-06-PLAN.md — Wave 3: /api/jarvis/warm endpoint + JarvisWarmer client component + UX-signal wiring (CACHE-04)
 
 ### Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)
 **Goal**: Wake-word detection runs entirely on-device via openWakeWord (no audio leaves the machine until the wake phrase fires), wake-word listening is fully gated by an explicit user setting (wake-word / push-to-talk / hibernate), and the Picovoice Porcupine dependency is fully removed before the free-tier sunsets and JARVIS goes silent. Absorbs backlog 999.6 (hibernation) and 999.8 (scoped wake-word).
@@ -387,7 +387,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
 | 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
 | 10. TTS + Route-Boundary Latency Wins | 4/4 | Complete    | 2026-05-30 |
-| 11. Prompt Cache + State Priming | 5/6 | In Progress|  |
+| 11. Prompt Cache + State Priming | 6/6 | Complete   | 2026-05-31 |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. Desktop Shell + Global Hotkey | 0/TBD | Not started | - |
@@ -406,7 +406,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

@@ -183,7 +183,7 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [x] **CACHE-01**: Tools array and frozen system prompt block carry `cache_control: { type: "ephemeral", ttl: "1h" }`; user-state snapshot block carries `cache_control: { type: "ephemeral" }` (5min TTL). Three breakpoints total, one in reserve.
 - [x] **CACHE-02**: Per-turn user-state snapshot is serialized as XML-tagged plain text (`<areas>`, `<projects status="active|upcoming">`, `<recent_captures count="N">`, `<today_calendar>`, `<active_tasks>`) with stable IDs, deterministic sort order, and capped list lengths (max 50 captures, 10 tasks, 5 projects). Target size: 800–2000 tokens.
 - [x] **CACHE-03**: `state_version` integer per user (incremented on any user-state-changing DB write) is tracked server-side; when unchanged since last turn the prompt builder reuses the previous snapshot string byte-for-byte to preserve cache hit
-- [ ] **CACHE-04**: Predictive cache-warmer fires a 1-token no-op Anthropic request when the user opens the app, focuses the JARVIS input, or arms the mic — keeping the cache inside its TTL window without a background heartbeat
+- [x] **CACHE-04**: Predictive cache-warmer fires a 1-token no-op Anthropic request when the user opens the app, focuses the JARVIS input, or arms the mic — keeping the cache inside its TTL window without a background heartbeat
 - [x] **CACHE-05**: Audit + grep gate prevents `Date.now()` / `new Date()` / unsorted `JSON.stringify` from appearing inside system prompt or tool-def construction; all volatile content lives strictly AFTER the cached prefix in the per-turn messages
 
 ### Wake-Word + Mic Gating
@@ -418,7 +418,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CACHE-01 | Phase 11 | Complete |
 | CACHE-02 | Phase 11 | Complete |
 | CACHE-03 | Phase 11 | Complete |
-| CACHE-04 | Phase 11 | Pending |
+| CACHE-04 | Phase 11 | Complete |
 | CACHE-05 | Phase 11 | Complete |
 | WAKE-01 | Phase 12 | Pending |
 | WAKE-02 | Phase 12 | Pending |
