@@ -319,8 +319,8 @@ Plans:
   4. Audit/grep gate (CACHE-05) blocks any PR that introduces `Date.now()`, `new Date()`, or unsorted `JSON.stringify()` inside system-prompt or tool-def construction — silent cache invalidators cannot regress in
   5. Median TTFA (time-to-first-audio) for warm sessions stays under the Phase 10 target and degrades gracefully (not catastrophically) on cold cache
 **Plans**: 6 plans
-- [ ] 11-01-PLAN.md — Wave 1: Pure XML state serializer + serializer test fixtures (CACHE-02)
-- [ ] 11-02-PLAN.md — Wave 1: Schema migration — users.state_version + bump_user_state_version() + 6 triggers (CACHE-03)
+- [x] 11-01-PLAN.md — Wave 1: Pure XML state serializer + serializer test fixtures (CACHE-02)
+- [x] 11-02-PLAN.md — Wave 1: Schema migration — users.state_version + bump_user_state_version() + 6 triggers (CACHE-03)
 - [ ] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
 - [ ] 11-04-PLAN.md — Wave 2: Snapshot reuse cache + route boundary integration + extended-cache-ttl beta header + extend TEL-03 (CACHE-01, CACHE-03)
 - [ ] 11-05-PLAN.md — Wave 2: CI grep gate + Husky pre-commit hook (shared scanner) (CACHE-05)
