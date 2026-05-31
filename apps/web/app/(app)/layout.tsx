@@ -12,6 +12,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
+import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -90,6 +91,12 @@ export default async function AppLayout({
         {/* Phase 7 voice-everywhere — bottom-right HUD pill showing current
             mic FSM state. Always visible when voice is enabled. */}
         <FloatingJarvisStatus />
+        {/* Phase 11 / CACHE-04 (D-03) — predictive cache warmer.
+            Fires fire-and-forget POST /api/jarvis/warm on app open + JARVIS
+            input focus + mic arm. Server-side age-gate (50min) in
+            /api/jarvis/warm prevents over-firing; client-side debounce is
+            30s per trigger. Renders null. */}
+        <JarvisWarmer />
       </QueryProvider>
     </NuqsAdapter>
   );
