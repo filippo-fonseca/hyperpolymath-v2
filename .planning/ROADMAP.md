@@ -370,7 +370,7 @@ Plans:
   5. The desktop app's Settings window exposes (and persists across restarts): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle — all changes apply live without restart
   6. `hyperpolymath` (the dev stack boot tool) gains a `desktop` service that launches `pnpm --filter desktop tauri dev`; the boot-script status bar reflects desktop state (◌/●/✗); the existing serial bridge service continues to start and forward wake triggers unchanged
 **Plans**: 5 plans
-- [ ] 14-01-PLAN.md — Rust toolchain + Tauri 2 scaffold + Info.plist mic permission + workspace wiring
+- [x] 14-01-PLAN.md — Rust toolchain + Tauri 2 scaffold + Info.plist mic permission + workspace wiring
 - [ ] 14-02-PLAN.md — Voice-source claim API + transcript dispatch route + browser desktopClaimed guard
 - [ ] 14-03-PLAN.md — Rust cpal capture + TS VAD/WAV pipeline + Physical Extender SSE subscriber + end-to-end smoke
 - [ ] 14-04-PLAN.md — Standalone wake-word (openWakeWord port) + Settings window + tray menu + live-apply
@@ -400,7 +400,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 11. Prompt Cache + State Priming | 6/6 | Complete    | 2026-05-31 |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
-| 14. JARVIS Desktop Mic Middleman | 0/5 | Not started | - |
+| 14. JARVIS Desktop Mic Middleman | 1/5 | In Progress|  |
 
 ## Backlog
 
@@ -416,7 +416,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 6/6 plans complete
+**Plans:** 1/5 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

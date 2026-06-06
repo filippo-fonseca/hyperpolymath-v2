@@ -4,7 +4,5 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>JARVIS listens for your voice commands so you do not have to grant Safari microphone access every session.</string>
-  <key>LSUIElement</key>
-  <true/>
 </dict>
 </plist>

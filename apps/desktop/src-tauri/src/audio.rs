@@ -19,10 +19,11 @@ pub fn start(app: AppHandle) -> Result<(), String> {
                 return;
             }
         };
+
         let config = match device.default_input_config() {
             Ok(c) => c,
             Err(e) => {
-                let _ = ready_tx.send(Err(e.to_string()));
+                let _ = ready_tx.send(Err(format!("config: {e}")));
                 return;
             }
         };
@@ -40,13 +41,13 @@ pub fn start(app: AppHandle) -> Result<(), String> {
         let stream = match stream_result {
             Ok(s) => s,
             Err(e) => {
-                let _ = ready_tx.send(Err(e.to_string()));
+                let _ = ready_tx.send(Err(format!("build_input_stream: {e}")));
                 return;
             }
         };
 
         if let Err(e) = stream.play() {
-            let _ = ready_tx.send(Err(e.to_string()));
+            let _ = ready_tx.send(Err(format!("play: {e}")));
             return;
         }
 

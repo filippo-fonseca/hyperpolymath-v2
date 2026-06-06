@@ -22,7 +22,6 @@
       .label { color: var(--muted); }
       .value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg); }
       footer { color: var(--muted); font-size: 11px; margin-top: 24px; }
-      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5px; background: var(--rule); border-radius: 3px; }
     </style>
   </head>
   <body>
@@ -33,7 +32,7 @@
       <div class="row"><span class="label">Mic permission</span><span class="value" id="mic-state">requesting…</span></div>
       <div class="row"><span class="label">Audio chunks received</span><span class="value" id="chunks">0</span></div>
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
-      <footer>Phase 14 · Plan 14-01 scaffold. Wake → capture → transcript pipeline lands in subsequent plans.</footer>
+      <footer>Phase 14 · Plan 14-01 scaffold complete. Wake → capture → transcript pipeline lands in subsequent plans.</footer>
     </main>
     <script>
       (async () => {
@@ -56,7 +55,6 @@
           await invoke('start_capture');
         } catch (err) {
           micEl.textContent = 'error: ' + String(err);
-          console.error('[boot]', err);
         }
       })();
     </script>
