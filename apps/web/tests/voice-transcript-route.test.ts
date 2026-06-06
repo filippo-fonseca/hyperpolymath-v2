@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCreate } = vi.hoisted(() => ({
+const { mockCreate, mockFindSingleUserId, mockRunTurnStream } = vi.hoisted(() => ({
   mockCreate: vi.fn().mockResolvedValue({ text: "hello world" }),
+  mockFindSingleUserId: vi.fn().mockResolvedValue("user-id-abc"),
+  mockRunTurnStream: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("groq-sdk", () => ({
@@ -12,6 +14,14 @@ vi.mock("groq-sdk", () => ({
       },
     },
   })),
+}));
+
+vi.mock("@/lib/jarvis/find-single-user", () => ({
+  findSingleUserId: mockFindSingleUserId,
+}));
+
+vi.mock("@/lib/jarvis/run-turn", () => ({
+  runJarvisTurnStream: mockRunTurnStream,
 }));
 
 import { physicalBus } from "@/lib/voice/physical-extension/bus";
@@ -26,6 +36,8 @@ describe("POST /api/jarvis/voice/transcript", () => {
     vi.stubEnv("PHYSICAL_TRIGGER_SECRET", "test-secret");
     vi.stubEnv("GROQ_API_KEY", "test-groq-key");
     mockCreate.mockResolvedValue({ text: "hello world" });
+    mockFindSingleUserId.mockResolvedValue("user-id-abc");
+    mockRunTurnStream.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -33,6 +45,8 @@ describe("POST /api/jarvis/voice/transcript", () => {
     vi.unstubAllEnvs();
     mockCreate.mockReset();
     mockCreate.mockResolvedValue({ text: "hello world" });
+    mockFindSingleUserId.mockReset();
+    mockRunTurnStream.mockReset();
   });
 
   it("returns 401 without x-trigger-secret and does not emit", async () => {
@@ -57,7 +71,7 @@ describe("POST /api/jarvis/voice/transcript", () => {
     expect(emitSpy).not.toHaveBeenCalledWith("transcript", expect.anything());
   });
 
-  it("returns 200 with transcript and emits on physicalBus on success", async () => {
+  it("returns 200 with transcript and turnId; emits transcript on physicalBus on success", async () => {
     const audioData = new Uint8Array(1000).fill(1);
     const req = new Request("http://localhost/api/jarvis/voice/transcript", {
       method: "POST",
@@ -68,7 +82,7 @@ describe("POST /api/jarvis/voice/transcript", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.transcript).toBe("hello world");
-    expect(typeof body.sttDoneAt).toBe("number");
+    expect(typeof body.turnId).toBe("string");
     expect(emitSpy).toHaveBeenCalledWith(
       "transcript",
       expect.objectContaining({

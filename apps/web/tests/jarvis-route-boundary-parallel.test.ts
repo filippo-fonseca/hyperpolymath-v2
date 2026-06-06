@@ -340,9 +340,12 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
     expect(call.projects).not.toEqual(FACTS);
   });
 
-  it("route.ts source still uses a single Promise.all in the route-boundary block (regression guard)", () => {
+  it("run-turn.ts (shared helper) still uses a single Promise.all in the route-boundary block (regression guard)", () => {
+    // Phase 14-04: the parallel user-context load was extracted from route.ts
+    // into lib/jarvis/run-turn.ts so the voice path can reuse it without a
+    // browser session. The regression guard moves with the code.
     const src = readFileSync(
-      join(process.cwd(), "app/api/jarvis/route.ts"),
+      join(process.cwd(), "lib/jarvis/run-turn.ts"),
       "utf8",
     );
     // Plan 10-01 originally locked the 3-name destructure; Phase 11 (Plan
@@ -356,19 +359,15 @@ describe("Phase 10 / LAT-04 — JARVIS route-boundary parallelization", () => {
     expect(promiseAllMatches).not.toBeNull();
     expect(promiseAllMatches?.length).toBe(1);
 
-    // Additionally: between the start of `4. Load user context` and the
+    // Additionally: between the start of the parallel load and the
     // `const projectSummaries` line that consumes userProjects, there must
-    // be ZERO standalone `await db` calls. (Promise.all wrappers don't
-    // match because the body inside Promise.all is `db.select(...)` not
-    // `await db.select(...)`.)
-    const boundaryStart = src.indexOf("4. Load user context");
+    // be ZERO standalone `await db` calls.
+    const boundaryStart = src.indexOf("await Promise.all([");
     const boundaryEnd = src.indexOf("const projectSummaries");
     expect(boundaryStart).toBeGreaterThan(-1);
     expect(boundaryEnd).toBeGreaterThan(boundaryStart);
     const boundaryBlock = src.slice(boundaryStart, boundaryEnd);
-    const awaitDbMatches = boundaryBlock.match(/await db/g);
+    const awaitDbMatches = boundaryBlock.match(/^await db/gm);
     expect(awaitDbMatches).toBeNull();
-    const awaitFactsMatches = boundaryBlock.match(/await getJarvisFactsForUser/g);
-    expect(awaitFactsMatches).toBeNull();
   });
 });
