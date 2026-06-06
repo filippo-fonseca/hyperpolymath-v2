@@ -508,16 +508,16 @@ export function JarvisConsole({
     [buildHistory, voiceCapable, voiceSettings.voiceId],
   );
 
-  // Phase 7 Plan 07-04: listen for voice transcripts dispatched by JarvisListener
-  // after STT completes. The transcript is treated identically to typed input —
-  // voice is just another input channel. JarvisListener dispatches the custom
-  // event with { detail: { transcript: string } }.
+  // Voice surface migration (Phase 14 follow-up): voice never originates
+  // from the browser anymore. The desktop app captures audio, the server
+  // transcribes + runs the JARVIS turn, and the response is streamed back
+  // through jarvis-response-* SSE events (handled by the next effect).
   //
-  // Phase 14-04: when desktopClaimed === true, the server is running the JARVIS
-  // turn itself and streaming response chunks via the physicalBus SSE channel.
-  // We must NOT call handleSubmit (which would double-execute the turn via the
-  // browser's /api/jarvis route). Instead, we render the response by subscribing
-  // to jarvis-response-* SSE events on the same physical events channel.
+  // We still surface the transcript text as a synthetic user turn so the
+  // browser shows what JARVIS heard. The transcript arrives via the same
+  // jarvis-voice-transcript window event the use-physical-extension hook
+  // dispatches off the `transcript` SSE event — we just stop calling
+  // handleSubmit on it.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
       const detail = (
@@ -530,42 +530,14 @@ export function JarvisConsole({
       ).detail;
       if (!detail?.transcript?.trim()) return;
 
-      if (desktopClaimed) {
-        // Server owns the JARVIS turn. Add a user turn to scrollback so the
-        // user can see what was heard, but do NOT call handleSubmit.
-        const userTurn: ScrollbackTurn = {
-          kind: "user",
-          id: crypto.randomUUID(),
-          text: detail.transcript,
-          createdAt: new Date(),
-        };
-        setTurns([userTurn]);
-        turnsRef.current = [userTurn];
-        return;
-      }
-
-      // Phase 14-03: voice transcripts (especially desktop-originated ones)
-      // are treated as FRESH conversations — JARVIS should not see prior
-      // turns as context for the current command. Without this clear,
-      // multiple desktop wake-fires accumulate into one giant prompt and
-      // JARVIS dumps the whole history into captures.
-      setTurns([]);
-      turnsRef.current = [];
-      void handleSubmit(
-        {
-          input: detail.transcript,
-          parsedDates: [],
-          parsedPriority: null,
-          slashCommand: null,
-          projectIds: [],
-          hashtags: [],
-        },
-        {
-          isVoice: true,
-          sttDoneAt: detail.sttDoneAt ?? null,
-          vadEndAt: detail.vadEndAt,
-        },
-      );
+      const userTurn: ScrollbackTurn = {
+        kind: "user",
+        id: crypto.randomUUID(),
+        text: detail.transcript,
+        createdAt: new Date(),
+      };
+      setTurns([userTurn]);
+      turnsRef.current = [userTurn];
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
@@ -574,7 +546,7 @@ export function JarvisConsole({
         handleVoiceTranscript,
       );
     };
-  }, [handleSubmit, desktopClaimed]);
+  }, []);
 
   // Phase 14-04: when desktopClaimed === true, subscribe to the server-side
   // JARVIS response events forwarded through the physicalBus SSE channel.
@@ -583,8 +555,6 @@ export function JarvisConsole({
   // assistant turn in the scrollback so the browser is a "view" of the server
   // turn rather than the executor of it.
   useEffect(() => {
-    if (!desktopClaimed) return;
-
     const activeTurnMap = new Map<string, string>();
 
     function handleResponseStart(e: Event) {
@@ -674,7 +644,7 @@ export function JarvisConsole({
       window.removeEventListener("jarvis-tool-call", handleToolCall);
       window.removeEventListener("jarvis-response-end", handleResponseEnd);
     };
-  }, [desktopClaimed]);
+  }, []);
 
   // Phase 7 voice-everywhere: jarvis-cancel aborts the in-flight /api/jarvis
   // request so the user can stop the run before the model finishes.
