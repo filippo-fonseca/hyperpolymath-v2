@@ -173,3 +173,44 @@ Commits: dce6c66, 02a2439, 23b3a70, c3e757e, 7aa66e8
 Test suite: 76 files, 506 tests, 0 failures.
 pnpm typecheck (apps/web): only pre-existing errors (validator.ts, insights/page.tsx).
 pnpm typecheck (apps/desktop): 0 errors.
+
+---
+
+## Follow-up: full voice surface migration
+
+User direction (paraphrased): "I want to transition entirely off of the browser. The browser itself will not have a microphone at all. It will always be through the desktop app. … On the browser, it should log everything as usual. It's just like a whole feed of Jarvis, but let's do all the voice interaction through the desktop app because it's super simple and much better."
+
+Five tightly-coupled pieces shipped on top of the receipt slice:
+
+### Piece 1 — server-side persistence of voice turns (commit `833d99e`)
+Voice turns are now persisted via Drizzle from `runJarvisTurnStream` directly on the server. Previously the persistence happened in `JarvisConsole.persistTurn`, which never fired when the browser was closed. Both `userTurn` and `assistantTurn` rows land in `jarvis_turns` with the same shape the browser path writes. Re-opening the browser now shows the desktop-only turns in scrollback.
+
+### Piece 2 — desktop TTS playback via 11Labs (commit `d560ff9`)
+- `apps/desktop/src/audio/tts-player.ts`: single-flight ordered queue. Fetches `/api/jarvis/tts` (raw 24kHz PCM), wraps in WAV header, decodes with AudioContext, plays via BufferSource. Exposes `enqueueSentence`, `stop`, `setEnabled`, `setVoiceId`, `onStateChange`.
+- `apps/desktop/src/audio/sentence-splitter.ts`: port of `splitDeltas` from the web TTS pipeline.
+- `apps/desktop/src/jarvis-response.ts`: feeds response-chunk deltas into the splitter and enqueues each completed sentence.
+
+### Piece 3 + 5 — desktop settings UI + global hotkey when PE off (commit `030c9c6`)
+- `apps/desktop/src/settings.ts`: persistent settings via `@tauri-apps/plugin-store` (`jarvis-desktop-settings.json`). Keys: `tts.enabled`, `tts.voiceId`, `tts.provider`, `physicalExtender.enabled`.
+- `apps/desktop/index.html`: TTS toggle, voice-provider dropdown (ElevenLabs / Off), Stop-speaking button (visible only while playing — driven by `ttsPlayer.onStateChange`), PE-mode toggle, hotkey status row.
+- `apps/desktop/src/main.ts`: all settings loaded on boot, applied live, persisted on change.
+- `apps/desktop/src/physical-extender/sse-client.ts`: `setPeEnabled(false)` makes SSE trigger events no-op.
+- `apps/desktop/src-tauri/Cargo.toml` + `lib.rs` + `capabilities/default.json`: `tauri-plugin-global-shortcut` v2 registered with `global-shortcut:default` permission.
+- `apps/desktop/src/main.ts` `wireGlobalShortcut()`: registers `Cmd+Shift+J` when PE is OFF, releases when PE is ON. Press calls `startCaptureTurn()` directly.
+
+### Piece 4 — browser becomes read-only feed (commit `c3224f8`)
+- `apps/web/components/voice/JarvisListenerMount.tsx`: collapsed to `return null`. All dynamic mic-component imports removed.
+- `apps/web/components/jarvis/JarvisConsole.tsx`: voice-transcript handler no longer calls `handleSubmit`; transcript is rendered as a synthetic user turn. `jarvis-response-*` subscriber is always active (no longer gated on `desktopClaimed`).
+- `desktopClaimed` is still read for the informational "Voice via desktop" pill.
+- Typed input via `JarvisInput` still works via the cookie-auth `/api/jarvis` path — voice never originates from the browser.
+
+### Verification
+
+- `pnpm typecheck` in apps/desktop: 0 errors.
+- `cargo check` in apps/desktop/src-tauri: 0 errors after the plugin add.
+- `pnpm typecheck` in apps/web: only pre-existing errors in `tests/api-jarvis-tts.test.ts` and `app/(app)/insights/page.tsx` — none in my files.
+- Safari mic permission will never fire on `localhost:3000` regardless of desktop state.
+- When PE mode toggles OFF in desktop, Cmd+Shift+J becomes the wake. When PE mode toggles ON, the shortcut is released and ESP32 SSE triggers handle wake.
+
+### Commits in this slice
+`833d99e` (persistence) → `d560ff9` (TTS) → `030c9c6` (settings + hotkey) → `c3224f8` (browser readonly).
