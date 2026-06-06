@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>JARVIS Desktop</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        --bg: light-dark(#fff, #161616);
+        --fg: light-dark(#111, #ececec);
+        --muted: light-dark(#6b6b6b, #8a8a8a);
+        --rule: light-dark(#e6e6e6, #2a2a2a);
+        --accent: #2ec27e;
+      }
+      body { margin: 0; padding: 28px 32px; background: var(--bg); color: var(--fg); }
+      h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+      .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+      .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+      .row:last-child { border-bottom: none; }
+      .label { color: var(--muted); }
+      .value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg); }
+      footer { color: var(--muted); font-size: 11px; margin-top: 24px; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5px; background: var(--rule); border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1><span class="dot"></span>JARVIS Desktop</h1>
+      <p class="subtitle">Microphone middleman — owns the mic so Safari doesn't have to prompt every session.</p>
+      <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
+      <div class="row"><span class="label">Mic permission</span><span class="value" id="mic-state">requesting…</span></div>
+      <div class="row"><span class="label">Audio chunks received</span><span class="value" id="chunks">0</span></div>
+      <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
+      <footer>Phase 14 · Plan 14-01 scaffold. Wake → capture → transcript pipeline lands in subsequent plans.</footer>
+    </main>
+    <script>
+      (async () => {
+        const T = window.__TAURI__;
+        if (!T) {
+          document.getElementById('mic-state').textContent = 'tauri runtime missing';
+          return;
+        }
+        const { invoke } = T.core;
+        const { listen } = T.event;
+        const chunksEl = document.getElementById('chunks');
+        const micEl = document.getElementById('mic-state');
+        let count = 0;
+        await listen('audio-chunk', ({ payload }) => {
+          count++;
+          if (count === 1) micEl.textContent = 'granted';
+          if (count % 20 === 0) chunksEl.textContent = String(count);
+        });
+        try {
+          await invoke('start_capture');
+        } catch (err) {
+          micEl.textContent = 'error: ' + String(err);
+          console.error('[boot]', err);
+        }
+      })();
+    </script>
+  </body>
+</html>

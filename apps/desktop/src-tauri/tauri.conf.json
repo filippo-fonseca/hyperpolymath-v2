@@ -4,13 +4,26 @@
   "version": "0.0.0",
   "identifier": "io.hyperpolymath.jarvis-desktop",
   "build": {
-    "frontendDist": "../",
+    "frontendDist": "../web",
     "devUrl": null,
     "beforeDevCommand": null,
     "beforeBuildCommand": null
   },
   "app": {
-    "windows": [],
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "JARVIS Desktop",
+        "width": 480,
+        "height": 360,
+        "minWidth": 360,
+        "minHeight": 240,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
     "macOSPrivateApi": false,
     "security": {
       "csp": null
@@ -20,7 +33,7 @@
     "active": true,
     "targets": "app",
     "category": "Utility",
-    "shortDescription": "JARVIS voice middleman daemon",
+    "shortDescription": "JARVIS microphone middleman",
     "longDescription": "Owns the microphone for JARVIS voice commands so the browser does not have to prompt per session.",
     "macOS": {
       "frameworks": [],
