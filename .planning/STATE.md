@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 14-02-PLAN.md (voice-source claim + transcript dispatch)
-last_updated: "2026-06-06T19:04:14.646Z"
+stopped_at: "Paused at 14-03 Task 3 checkpoint (human-verify: e2e smoke — ESP32/curl wake → desktop capture → browser transcript)"
+last_updated: "2026-06-06T19:04:44.153Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 28
   completed_phases: 11
   total_plans: 71
-  completed_plans: 57
+  completed_plans: 58
   percent: 0
 ---
 
@@ -320,6 +320,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-06T19:04:14.641Z
-Stopped at: Completed 14-02-PLAN.md (voice-source claim + transcript dispatch)
+Last session: 2026-06-06T19:04:44.148Z
+Stopped at: Paused at 14-03 Task 3 checkpoint (human-verify: e2e smoke — ESP32/curl wake → desktop capture → browser transcript)
 Resume file: None

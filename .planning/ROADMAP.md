@@ -372,7 +372,7 @@ Plans:
 **Plans**: 5 plans
 - [x] 14-01-PLAN.md — Rust toolchain + Tauri 2 scaffold + Info.plist mic permission + workspace wiring
 - [x] 14-02-PLAN.md — Voice-source claim API + transcript dispatch route + browser desktopClaimed guard
-- [ ] 14-03-PLAN.md — Rust cpal capture + TS VAD/WAV pipeline + Physical Extender SSE subscriber + end-to-end smoke
+- [x] 14-03-PLAN.md — Rust cpal capture + TS VAD/WAV pipeline + Physical Extender SSE subscriber + end-to-end smoke
 - [ ] 14-04-PLAN.md — Standalone wake-word (openWakeWord port) + Settings window + tray menu + live-apply
 - [ ] 14-05-PLAN.md — hyperpolymath desktop service + Phase 14 Success Criteria verification
 **UI hint**: yes (tray icon + Settings window with tunable knobs)
@@ -400,7 +400,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 11. Prompt Cache + State Priming | 6/6 | Complete    | 2026-05-31 |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
-| 14. JARVIS Desktop Mic Middleman | 2/5 | In Progress|  |
+| 14. JARVIS Desktop Mic Middleman | 3/5 | In Progress|  |
 
 ## Backlog
 
@@ -416,7 +416,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
