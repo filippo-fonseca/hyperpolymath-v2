@@ -23,9 +23,11 @@ import { postClaim } from "@/api/client";
 import {
   cancelCaptureTurn,
   onCaptureState,
+  onExtendedChange,
   onTranscriptReceived,
   setVadSilenceMs,
   startCaptureTurn,
+  toggleExtended,
   type CaptureState,
 } from "@/audio/capture";
 import {
@@ -57,22 +59,41 @@ function paintSseStatus(status: SseStatus): void {
     : "connecting…";
 }
 
-function paintCaptureState(state: CaptureState): void {
+// Local cache so paintExtendedState can re-render the recording label
+// without losing context about the current capture state.
+let _captureState: CaptureState = "idle";
+let _extended = false;
+
+function renderLivePanel(): void {
   const panel = document.getElementById("live-panel");
   const text = document.getElementById("live-text");
   const cancelBtn = document.getElementById("cancel-btn") as HTMLButtonElement | null;
   if (!panel || !text || !cancelBtn) return;
 
-  panel.setAttribute("data-state", state);
-  if (state === "recording") {
-    text.textContent = "Recording — speak now";
+  panel.setAttribute("data-state", _captureState);
+  panel.setAttribute("data-extended", _extended ? "true" : "false");
+
+  if (_captureState === "recording") {
+    text.textContent = _extended
+      ? "Extended — press Ctrl+Option+E to send"
+      : "Recording — speak now";
     cancelBtn.disabled = false;
     cancelBtn.textContent = "Cancel";
-  } else if (state === "uploading") {
+  } else if (_captureState === "uploading") {
     text.textContent = "Transcribing…";
     cancelBtn.disabled = true;
     cancelBtn.textContent = "Sent";
   }
+}
+
+function paintCaptureState(state: CaptureState): void {
+  _captureState = state;
+  renderLivePanel();
+}
+
+function paintExtended(active: boolean): void {
+  _extended = active;
+  renderLivePanel();
 }
 
 function paintTranscript(text: string): void {
@@ -148,7 +169,9 @@ function paintTtsState(playing: boolean): void {
 function paintHotkeyStatus(peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  el.textContent = peEnabled ? "PE active — using ESP32" : "disabled — using Cmd+Shift+J";
+  el.textContent = peEnabled
+    ? "PE active — ESP32 wake · ⌃⌥E to extend"
+    : "⌃⌥J wake · ⌃⌥E extend";
 }
 
 function wireCancelButton(): void {
@@ -168,40 +191,70 @@ function wireStopButton(): void {
   });
 }
 
-const HOTKEY = "CommandOrControl+Shift+J";
+// Hotkey strings use the electron-accelerator format that
+// tauri-plugin-global-shortcut accepts. Avoided Cmd+Shift+J because Chrome,
+// Safari, and several extensions claim it on macOS (opens Downloads, etc.) —
+// even when "registration" appears to succeed, the OS routes the key to the
+// other app first. Ctrl+Option combos are rarely grabbed by user-facing apps.
+const WAKE_HOTKEY = "Ctrl+Alt+J";   // wake (only when PE mode is OFF)
+const EXTEND_HOTKEY = "Ctrl+Alt+E"; // toggle extend (always available)
 
-/**
- * Register or unregister the global wake-word hotkey based on PE mode.
- * When PE is OFF, Cmd+Shift+J fires startCaptureTurn directly (the keyboard
- * hotkey IS the wake word). When PE is ON, the shortcut is released so
- * ESP32 SSE triggers are the sole wake source.
- */
-async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
+async function safeRegister(
+  hotkey: string,
+  label: string,
+  handler: () => void,
+): Promise<boolean> {
   try {
-    const alreadyRegistered = await isShortcutRegistered(HOTKEY);
-    if (peEnabled) {
-      if (alreadyRegistered) {
-        await unregisterShortcut(HOTKEY);
-        // eslint-disable-next-line no-console
-        console.log("[hotkey] PE enabled — Cmd+Shift+J released");
-      }
-      return;
-    }
-    if (!alreadyRegistered) {
-      await registerShortcut(HOTKEY, (event) => {
-        // event.state can be "Pressed" | "Released" on Tauri 2; only act on press.
-        if (event.state !== "Pressed") return;
-        // eslint-disable-next-line no-console
-        console.log("[hotkey] Cmd+Shift+J pressed — firing capture");
-        void startCaptureTurn();
-      });
+    if (await isShortcutRegistered(hotkey)) {
       // eslint-disable-next-line no-console
-      console.log("[hotkey] PE disabled — Cmd+Shift+J registered");
+      console.log(`[hotkey] ${label} (${hotkey}) already registered`);
+      return true;
+    }
+    await registerShortcut(hotkey, (event) => {
+      if (event.state !== "Pressed") return;
+      // eslint-disable-next-line no-console
+      console.log(`[hotkey] ${label} (${hotkey}) pressed`);
+      handler();
+    });
+    // eslint-disable-next-line no-console
+    console.log(`[hotkey] ${label} (${hotkey}) registered`);
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[hotkey] failed to register ${label} (${hotkey})`, err);
+    return false;
+  }
+}
+
+async function safeUnregister(hotkey: string, label: string): Promise<void> {
+  try {
+    if (await isShortcutRegistered(hotkey)) {
+      await unregisterShortcut(hotkey);
+      // eslint-disable-next-line no-console
+      console.log(`[hotkey] ${label} (${hotkey}) released`);
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn("[hotkey] failed to wire global shortcut", err);
+    console.warn(`[hotkey] failed to unregister ${label} (${hotkey})`, err);
   }
+}
+
+/**
+ * Register or unregister the wake hotkey based on PE mode.
+ * When PE is OFF, Ctrl+Option+J fires startCaptureTurn directly.
+ * When PE is ON, the wake hotkey is released — ESP32 SSE triggers handle wake.
+ * The extend hotkey is always registered regardless of PE mode.
+ */
+async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
+  if (peEnabled) {
+    await safeUnregister(WAKE_HOTKEY, "wake");
+    return;
+  }
+  await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
+}
+
+async function wireExtendShortcut(): Promise<void> {
+  await safeRegister(EXTEND_HOTKEY, "extend", () => toggleExtended());
 }
 
 async function boot(): Promise<void> {
@@ -224,7 +277,7 @@ async function boot(): Promise<void> {
   if (peEnabledEl) peEnabledEl.checked = settings.physicalExtenderEnabled;
   if (vadSilenceEl) vadSilenceEl.value = String(settings.vadSilenceMs);
   if (modeEl) {
-    modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (Cmd+Shift+J)";
+    modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (⌃⌥J)";
   }
   paintHotkeyStatus(settings.physicalExtenderEnabled);
 
@@ -264,7 +317,7 @@ async function boot(): Promise<void> {
       const peOn = peEnabledEl.checked;
       setPeEnabled(peOn);
       if (modeEl) {
-        modeEl.textContent = peOn ? "physical extender" : "hotkey (Cmd+Shift+J)";
+        modeEl.textContent = peOn ? "physical extender" : "hotkey (⌃⌥J)";
       }
       paintHotkeyStatus(peOn);
       void saveSetting("physicalExtenderEnabled", peOn);
@@ -276,6 +329,7 @@ async function boot(): Promise<void> {
   // 5. Register SSE + capture listeners
   onSseStatusChange(paintSseStatus);
   onCaptureState(paintCaptureState);
+  onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
 
   // TTS state drives the Stop button visibility.
@@ -302,6 +356,7 @@ async function boot(): Promise<void> {
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
+  await wireExtendShortcut();
 
   void postClaim();
   setInterval(() => {

@@ -46,6 +46,15 @@
         background: color-mix(in srgb, var(--upload) 10%, transparent);
         border-color: color-mix(in srgb, var(--upload) 35%, var(--rule));
       }
+      .live-panel[data-state="recording"][data-extended="true"] {
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+      .live-panel[data-state="recording"][data-extended="true"] .pulse-dot {
+        background: var(--accent);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+        animation-duration: 2s;
+      }
       .live-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: var(--fg); }
       .pulse-dot {
         width: 10px; height: 10px; border-radius: 50%; background: var(--rec);

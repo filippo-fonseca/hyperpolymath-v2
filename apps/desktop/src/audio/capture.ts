@@ -7,8 +7,11 @@
 //   5. On VAD end-of-speech (or user cancel): stop capture, encode WAV, POST to /voice/transcript
 //
 // Cancel: if the user clicks Cancel during a turn, the captured audio is
-// discarded — no transcript POST, nothing reaches the web app. This is the
-// safety valve for misfires or accidental wake events.
+// discarded — no transcript POST, nothing reaches the web app.
+//
+// Extend: a manual "keep mic open" toggle (hotkey Ctrl+Option+E). When ON,
+// VAD silence-end + hard-cap are both suppressed. Toggle OFF to release —
+// the captured buffer is sent immediately (acts as a manual end-of-turn).
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -33,17 +36,32 @@ interface AudioChunkPayload {
 export type CaptureState = "idle" | "recording" | "uploading";
 type StateListener = (state: CaptureState) => void;
 type TranscriptListener = (text: string) => void;
+type ExtendedListener = (active: boolean) => void;
 
 const stateListeners = new Set<StateListener>();
 const transcriptListeners = new Set<TranscriptListener>();
+const extendedListeners = new Set<ExtendedListener>();
 
 let currentState: CaptureState = "idle";
 let activeUnlisten: UnlistenFn | null = null;
 let cancelled = false;
 
+// Extend mode — when true, audio-chunk listener ignores VAD end-of-speech.
+// Set via toggleExtended() from the Ctrl+Option+E global shortcut OR from
+// an Extend button in the UI. Reset to false on every turn boundary.
+let extended = false;
+
+// Hoisted so toggleExtended can reach into the active turn.
+let activeVad: VadSilenceDetector | null = null;
+let activeTurnFinished = false;
+
 function setState(next: CaptureState): void {
   currentState = next;
   for (const fn of stateListeners) fn(next);
+}
+
+function emitExtended(active: boolean): void {
+  for (const fn of extendedListeners) fn(active);
 }
 
 export function onCaptureState(fn: StateListener): () => void {
@@ -61,9 +79,18 @@ export function onTranscriptReceived(fn: TranscriptListener): () => void {
   };
 }
 
+export function onExtendedChange(fn: ExtendedListener): () => void {
+  extendedListeners.add(fn);
+  fn(extended);
+  return () => {
+    extendedListeners.delete(fn);
+  };
+}
+
 /**
  * Start a capture turn. Idempotent — calling while a turn is active is a no-op.
- * Called by the SSE subscriber on every `trigger` event.
+ * Called by the SSE subscriber on every `trigger` event (or by the global
+ * keyboard hotkey when PE mode is off).
  */
 export async function startCaptureTurn(): Promise<void> {
   if (activeUnlisten) {
@@ -72,26 +99,63 @@ export async function startCaptureTurn(): Promise<void> {
     return;
   }
   cancelled = false;
+  extended = false;
+  emitExtended(false);
+  activeTurnFinished = false;
 
   await postClaim();
 
-  const vad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
-  vad.start();
-
-  let finished = false;
+  activeVad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
+  activeVad.start();
 
   activeUnlisten = await listen<AudioChunkPayload>("audio-chunk", (event) => {
-    if (finished) return;
+    if (activeTurnFinished || !activeVad) return;
     const chunk = new Float32Array(event.payload.samples);
-    const ended = vad.push(chunk);
-    if (ended) {
-      finished = true;
-      void finishTurn(vad);
+    const ended = activeVad.push(chunk);
+    // Extend mode suppresses VAD end-of-speech AND hard cap. The user
+    // explicitly chose to keep the mic open; trust their judgment.
+    if (ended && !extended) {
+      activeTurnFinished = true;
+      void finishTurn(activeVad);
     }
   });
 
   await invoke("start_capture");
   setState("recording");
+}
+
+/**
+ * Toggle extend mode. Only meaningful during an active recording.
+ *
+ *   Press 1 (recording, not extended) → extended ON. VAD silence + hard cap
+ *     are now suppressed. The mic stays open until either the user toggles
+ *     extend OFF, or cancels.
+ *   Press 2 (recording, extended)     → extended OFF. The current buffer is
+ *     sent immediately as the end-of-turn (manual end-of-speech).
+ *   Press while idle / uploading      → no-op.
+ */
+export function toggleExtended(): void {
+  if (currentState !== "recording") {
+    // eslint-disable-next-line no-console
+    console.log("[capture] toggleExtended ignored — not recording");
+    return;
+  }
+  if (extended) {
+    // Releasing extend → fire end-of-turn immediately.
+    extended = false;
+    emitExtended(false);
+    if (!activeTurnFinished && activeVad) {
+      activeTurnFinished = true;
+      // eslint-disable-next-line no-console
+      console.log("[capture] extend released — flushing buffer");
+      void finishTurn(activeVad);
+    }
+    return;
+  }
+  extended = true;
+  emitExtended(true);
+  // eslint-disable-next-line no-console
+  console.log("[capture] extend ON — VAD silence + hard cap suppressed");
 }
 
 /**
@@ -101,11 +165,14 @@ export async function startCaptureTurn(): Promise<void> {
 export async function cancelCaptureTurn(): Promise<void> {
   if (currentState === "idle") return;
   cancelled = true;
+  extended = false;
+  emitExtended(false);
   if (activeUnlisten) {
     activeUnlisten();
     activeUnlisten = null;
   }
   await invoke("stop_capture");
+  activeVad = null;
   setState("idle");
   // eslint-disable-next-line no-console
   console.log("[capture] cancelled by user — no transcript will be sent");
@@ -116,6 +183,9 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
   await stopCaptureTurn();
 
   if (cancelled) {
+    activeVad = null;
+    extended = false;
+    emitExtended(false);
     setState("idle");
     return;
   }
@@ -124,6 +194,9 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
   if (samples.length === 0) {
     // eslint-disable-next-line no-console
     console.log("[capture] no audio captured — silent drop");
+    activeVad = null;
+    extended = false;
+    emitExtended(false);
     setState("idle");
     return;
   }
@@ -138,6 +211,9 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
     );
     for (const fn of transcriptListeners) fn(result.transcript);
   }
+  activeVad = null;
+  extended = false;
+  emitExtended(false);
   setState("idle");
 }
 
