@@ -1,14 +1,39 @@
 // apps/desktop/src/main.ts
-// Webview entrypoint. Boots the Physical Extender SSE listener so the
-// desktop starts capturing on ESP32 wake events immediately on launch.
+// Webview entrypoint.
 //
-// Plan 14-04 will add the persistent 10s background heartbeat here
-// (CONTEXT.md Decision #6 — covers idle + active states).
+// On boot:
+//   1. Subscribe to physical SSE so wake events route into cpal capture
+//   2. Fire an immediate voice-source claim so the browser sees `desktopClaimed=true` BEFORE any trigger arrives (closes the first-trigger race — RESEARCH Pitfall 7)
+//   3. Re-post the claim every 10 s for the daemon's lifetime — keeps the claim alive across idle gaps (CONTEXT.md Decision #6, planner iteration 1 fix)
+//   4. Reflect SSE connection state in the UI
 
-import { startPhysicalExtenderListener } from "@/physical-extender/sse-client";
+import { postClaim } from "@/api/client";
+import {
+  onSseStatusChange,
+  startPhysicalExtenderListener,
+  type SseStatus,
+} from "@/physical-extender/sse-client";
+
+const CLAIM_HEARTBEAT_MS = 10_000;
+
+function paintStatus(status: SseStatus): void {
+  const el = document.getElementById("sse-status");
+  if (!el) return;
+  el.textContent =
+    status === "connected" ? "connected"
+    : status === "error" ? "reconnecting…"
+    : "connecting…";
+}
 
 async function boot(): Promise<void> {
+  onSseStatusChange(paintStatus);
   startPhysicalExtenderListener();
+
+  void postClaim();
+  setInterval(() => {
+    void postClaim();
+  }, CLAIM_HEARTBEAT_MS);
+
   // eslint-disable-next-line no-console
   console.log(
     "[boot] JARVIS Desktop ready — Physical Extender mode active",

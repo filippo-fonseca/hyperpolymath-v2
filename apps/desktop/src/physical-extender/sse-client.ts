@@ -19,6 +19,19 @@ interface PhysicalTriggerPayload {
   desktopClaimed?: boolean;
 }
 
+export type SseStatus = "connecting" | "connected" | "error";
+type StatusListener = (status: SseStatus) => void;
+const statusListeners = new Set<StatusListener>();
+
+export function onSseStatusChange(fn: StatusListener): () => void {
+  statusListeners.add(fn);
+  return () => statusListeners.delete(fn);
+}
+
+function emitStatus(status: SseStatus): void {
+  for (const fn of statusListeners) fn(status);
+}
+
 /**
  * Open the SSE connection and start listening for `trigger` events.
  * Idempotent — calling while already connected is a no-op.
@@ -29,6 +42,16 @@ export function startPhysicalExtenderListener(): void {
 
   const { apiBaseUrl } = getEnv();
   source = new EventSource(`${apiBaseUrl}/api/jarvis/physical/events`);
+  emitStatus("connecting");
+
+  source.addEventListener("open", () => {
+    emitStatus("connected");
+    // eslint-disable-next-line no-console
+    console.log("[sse] open");
+  });
+
+  // Server sends `event: hello` once on the stream opening — also signals open.
+  source.addEventListener("hello", () => emitStatus("connected"));
 
   source.addEventListener("trigger", (e) => {
     const messageEvent = e as MessageEvent<string>;
@@ -46,7 +69,7 @@ export function startPhysicalExtenderListener(): void {
   });
 
   source.onerror = () => {
-    // Non-fatal. EventSource will automatically attempt reconnection.
+    emitStatus("error");
     // eslint-disable-next-line no-console
     console.warn("[sse] connection error — EventSource will auto-reconnect");
   };
