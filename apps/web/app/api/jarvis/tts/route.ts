@@ -16,13 +16,20 @@
  * Returns 502 (NOT 500) on ElevenLabs failure — the 502 status signals to
  * the client "upstream failed; use SpeechSynthesis fallback" (Pitfall 7).
  *
- * Auth pattern identical to /api/jarvis/route.ts (getClaims).
+ * Auth:
+ *   - Browser path: getClaims() (Supabase cookie JWT — per CLAUDE.md).
+ *   - Desktop path: X-Trigger-Secret header (same secret used by
+ *     voice/transcript and physical/trigger). Desktop can't hold a cookie
+ *     session, so it reuses the shared daemon secret already in env.
+ *     The two paths are mutually exclusive — X-Trigger-Secret is only set
+ *     by the desktop process, never by the browser.
  */
 
 import { ElevenLabsClient } from "elevenlabs";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
 import type { TtsRequest } from "@/lib/voice/types";
+import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -31,12 +38,22 @@ const MAX_TEXT_LEN = 5000;
 
 const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 
-export async function POST(req: Request): Promise<Response> {
-  // 1. Auth (getClaims() per CLAUDE.md Critical Pattern 1)
-  const supabase = await createClient();
-  const claimsResult = await supabase.auth.getClaims();
-  if (claimsResult.error || !claimsResult.data?.claims?.sub) {
-    return new Response("Unauthorized", { status: 401 });
+export async function POST(req: NextRequest): Promise<Response> {
+  // 1. Auth — desktop daemon sends X-Trigger-Secret; browsers send Supabase cookie.
+  const triggerSecret = req.headers.get("x-trigger-secret");
+  if (triggerSecret) {
+    // Desktop path: validate against PHYSICAL_TRIGGER_SECRET.
+    const expected = process.env.PHYSICAL_TRIGGER_SECRET;
+    if (!expected || triggerSecret !== expected) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+  } else {
+    // Browser path: getClaims() per CLAUDE.md Critical Pattern 1.
+    const supabase = await createClient();
+    const claimsResult = await supabase.auth.getClaims();
+    if (claimsResult.error || !claimsResult.data?.claims?.sub) {
+      return new Response("Unauthorized", { status: 401 });
+    }
   }
 
   // 2. Parse body

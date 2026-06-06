@@ -35,6 +35,37 @@ export async function postClaim(): Promise<void> {
 }
 
 /**
+ * POST /api/jarvis/tts
+ * Fetches raw PCM audio (16-bit signed LE @ 24kHz mono) from ElevenLabs
+ * via the server proxy. The desktop auth path sends X-Trigger-Secret
+ * instead of the Supabase cookie used by the browser.
+ *
+ * Returns the raw PCM blob, or null on failure.
+ */
+export async function postTts(args: {
+  text: string;
+  voiceId?: string;
+}): Promise<Blob | null> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/tts`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-trigger-secret": triggerSecret,
+    },
+    body: JSON.stringify({ text: args.text, voiceId: args.voiceId }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[tts] ${res.status}`);
+    return null;
+  }
+  // tauri plugin-http returns ArrayBuffer via res.arrayBuffer()
+  const buf = await res.arrayBuffer();
+  return new Blob([buf], { type: "application/octet-stream" });
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.
