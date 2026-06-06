@@ -206,8 +206,8 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 
 - [ ] **DESK-01**: A Tauri 2.x macOS menu-bar app at `apps/desktop/` ships with a tray icon and a Settings window (no main HUD window in this phase). The bundle's `Info.plist` declares `NSMicrophoneUsageDescription` so macOS grants the app bundle ID persistent microphone access (one prompt at first launch, persisted forever in System Settings → Privacy & Security → Microphone across reboots — Safari never re-prompts during desktop-mediated turns)
 - [ ] **DESK-02**: Desktop supports two wake-trigger modes, toggleable from Settings and able to run independently or concurrently. **Physical Extender** subscribes to the existing `/api/jarvis/physical/trigger` SSE stream — when the ESP32 fires the wake event, the desktop opens its mic. **Standalone** runs on-device wake-word detection on the desktop's own microphone (openWakeWord ONNX + Silero VAD pipeline shared with Phase 12) — when the wake-word classifier scores > threshold, the desktop opens its mic
-- [ ] **DESK-03**: On wake event from either mode, desktop captures audio via raw Web Audio + VAD silence detection (port the on-demand mic logic from `apps/web/components/jarvis/JarvisConsole.tsx` commit `27125ac`), uploads audio to the existing JARVIS transcribe endpoint, and POSTs the final transcript to a new `/api/jarvis/voice/transcript` route; the server SSEs the transcript event to open browser tabs, which feed it into the existing JARVIS pipeline as if user-typed
-- [ ] **DESK-04**: Desktop registers as the active voice source via `POST /api/jarvis/voice/source/claim` with a heartbeat (TTL ~30s); browser checks the claim on every wake event and **skips its own mic activation while the heartbeat is fresh** — eliminating the Safari per-session mic prompt. When the heartbeat lapses (desktop quit/crash), browser falls back to its existing mic flow within ~1s — non-desktop users see zero regressions from today's behavior on `main`
+- [x] **DESK-03**: On wake event from either mode, desktop captures audio via raw Web Audio + VAD silence detection (port the on-demand mic logic from `apps/web/components/jarvis/JarvisConsole.tsx` commit `27125ac`), uploads audio to the existing JARVIS transcribe endpoint, and POSTs the final transcript to a new `/api/jarvis/voice/transcript` route; the server SSEs the transcript event to open browser tabs, which feed it into the existing JARVIS pipeline as if user-typed
+- [x] **DESK-04**: Desktop registers as the active voice source via `POST /api/jarvis/voice/source/claim` with a heartbeat (TTL ~30s); browser checks the claim on every wake event and **skips its own mic activation while the heartbeat is fresh** — eliminating the Safari per-session mic prompt. When the heartbeat lapses (desktop quit/crash), browser falls back to its existing mic flow within ~1s — non-desktop users see zero regressions from today's behavior on `main`
 - [ ] **DESK-05**: A Settings window inside the desktop app exposes (and persists across restarts, in the app's data dir): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model selector + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle. All changes apply live without restarting the daemon
 - [ ] **DESK-06**: `hyperpolymath` (the dev stack boot tool at `tools/hyperpolymath/hyperpolymath.mjs`) gains a `desktop` service entry in its `SERVICES` array that spawns `pnpm --filter desktop tauri dev` (idempotent — attaches to an already-running tray instance), with status reflected in the boot-script's bottom status bar (◌/●/✗ + port label). The existing `tools/jarvis-physical/bridge/` serial bridge continues to fire wake triggers unchanged
 
@@ -433,8 +433,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROUTE-04 | Phase 13 | Pending |
 | DESK-01 | Phase 14 | Pending |
 | DESK-02 | Phase 14 | Pending |
-| DESK-03 | Phase 14 | Pending |
-| DESK-04 | Phase 14 | Pending |
+| DESK-03 | Phase 14 | Complete |
+| DESK-04 | Phase 14 | Complete |
 | DESK-05 | Phase 14 | Pending |
 | DESK-06 | Phase 14 | Pending |
 

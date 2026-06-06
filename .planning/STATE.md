@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: "Paused at 14-01 Task 3 checkpoint (human-verify: tauri dev mic prompt)"
-last_updated: "2026-06-06T17:17:18.709Z"
-last_activity: 2026-06-06 -- Phase 14 execution started
+stopped_at: Completed 14-02-PLAN.md (voice-source claim + transcript dispatch)
+last_updated: "2026-06-06T19:04:14.646Z"
+last_activity: 2026-06-06
 progress:
   total_phases: 28
   completed_phases: 11
   total_plans: 71
-  completed_plans: 56
+  completed_plans: 57
   percent: 0
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 14
-Last activity: 2026-06-06 -- Phase 14 execution started
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-06-06
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -109,6 +109,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 11-prompt-cache-state-priming P04 | 20min | 3 tasks | 11 files |
 | Phase 11-prompt-cache-state-priming P06 | 5min | 3 tasks | 7 files |
 | Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
+| Phase 14-jarvis-desktop-mic-middleman P02 | 5 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -298,6 +299,9 @@ Recent decisions affecting current work:
 - [Phase 14-jarvis-desktop-mic-middleman]: ActivationPolicy::Accessory set programmatically in lib.rs (tauri.conf.json does not support it in Tauri 2)
 - [Phase 14-jarvis-desktop-mic-middleman]: Cargo [workspace] self-contained marker in src-tauri/Cargo.toml prevents root workspace absorption (Pitfall 4)
 - [Phase 14-jarvis-desktop-mic-middleman]: cpal::Stream dedicated thread pattern — CoreAudio thread affinity, mpsc channel for lifetime management
+- [Phase 14-jarvis-desktop-mic-middleman]: voice-source claim uses globalThis scalar (not struct) — single-user app has one valid owner
+- [Phase 14-jarvis-desktop-mic-middleman]: physicalBus extended with transcript event type; no new SSE channel (RESEARCH Pattern 4)
+- [Phase 14-jarvis-desktop-mic-middleman]: desktopClaimed embedded in trigger SSE payload (atomic, no browser poll round-trip)
 
 ### Pending Todos
 
@@ -316,6 +320,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-06T17:17:12.002Z
-Stopped at: Paused at 14-01 Task 3 checkpoint (human-verify: tauri dev mic prompt)
+Last session: 2026-06-06T19:04:14.641Z
+Stopped at: Completed 14-02-PLAN.md (voice-source claim + transcript dispatch)
 Resume file: None
