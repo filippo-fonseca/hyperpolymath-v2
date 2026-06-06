@@ -39,6 +39,7 @@ import {
   collectStage,
   setActiveTurnId,
 } from "@/lib/voice/voice-stage-collector";
+import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -146,6 +147,13 @@ export function JarvisConsole({
   const { settings: voiceSettings } = useVoiceSettings();
   const voiceCapable =
     voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
+
+  // Phase 14-03: hard browser mic guard. When the desktop daemon holds a
+  // fresh voice-source claim, the browser mic is fully suppressed at the
+  // JarvisListenerMount level (it returns null). Here we only read the
+  // status to render the "Voice via desktop" indicator pill so the user
+  // knows the browser mic is intentionally disabled, not broken.
+  const { desktopClaimed } = useVoiceSourceStatus();
 
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
@@ -403,20 +411,24 @@ export function JarvisConsole({
             // in. See onDone for the dispatch logic.
           },
           onDone: () => {
+            // Capture the post-update snapshot from inside the updater, then
+            // persist AFTER setTurns returns. Calling persistTurn (a Server
+            // Action) inside the updater triggers a router transition that
+            // can fire during render and crash with "Cannot update Router
+            // while rendering JarvisConsole".
+            let completed: ScrollbackTurn | undefined;
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, status: "done" as const }
                   : t,
               );
-              // Persist the completed assistant turn — text + final actions
-              // committed via the SSE stream.
-              const completed = next.find(
+              completed = next.find(
                 (t) => t.id === assistantId && t.kind === "assistant",
               );
-              if (completed) persistTurn(completed);
               return next;
             });
+            if (completed) persistTurn(completed);
 
             // Phase 10 Plan 10-04 (LAT-02) — final flush: emit any
             // unfinished tail in the rolling buffer as the last sentence.
@@ -469,18 +481,19 @@ export function JarvisConsole({
             abortRef.current = null;
           },
           onError: (message) => {
+            let errored: ScrollbackTurn | undefined;
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, status: "error" as const, errorMessage: message }
                   : t,
               );
-              const errored = next.find(
+              errored = next.find(
                 (t) => t.id === assistantId && t.kind === "assistant",
               );
-              if (errored) persistTurn(errored);
               return next;
             });
+            if (errored) persistTurn(errored);
             setStreaming(false);
             abortRef.current = null;
           },
@@ -592,6 +605,7 @@ export function JarvisConsole({
       }
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
+      let updated: ScrollbackTurn | undefined;
       setTurns((prev) => {
         const next = prev.map((t) =>
           t.id === turnId && t.kind === "assistant"
@@ -603,18 +617,19 @@ export function JarvisConsole({
               }
             : t,
         );
-        // Persist the undone state so it survives reload.
-        const updated = next.find(
-          (t) => t.id === turnId && t.kind === "assistant",
-        );
-        if (updated) persistTurn(updated);
+        updated = next.find((t) => t.id === turnId && t.kind === "assistant");
         return next;
       });
+      // Persist the undone state so it survives reload. Calling outside the
+      // updater avoids triggering a Server Action (router transition) during
+      // a React render replay.
+      if (updated) persistTurn(updated);
 
       const result = await undoJarvisAction(target);
       if (!result.ok) {
         toast.error(`Couldn't undo: ${result.error}`);
         // Revert the optimistic flag.
+        let reverted: ScrollbackTurn | undefined;
         setTurns((prev) => {
           const next = prev.map((t) =>
             t.id === turnId && t.kind === "assistant"
@@ -628,14 +643,14 @@ export function JarvisConsole({
                 }
               : t,
           );
-          // Re-persist with the reverted state so reload doesn't show a stale
-          // "undone" badge.
-          const reverted = next.find(
+          reverted = next.find(
             (t) => t.id === turnId && t.kind === "assistant",
           );
-          if (reverted) persistTurn(reverted);
           return next;
         });
+        // Re-persist with the reverted state so reload doesn't show a stale
+        // "undone" badge.
+        if (reverted) persistTurn(reverted);
       } else {
         toast.success("Undone");
       }
@@ -741,6 +756,32 @@ export function JarvisConsole({
       {/* Phase 6.1 Plan 02: top-right status pill. Positioned absolute so it
           doesn't displace the scrollback layout. */}
       <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
+
+      {/* Phase 14-03: desktop mic active indicator. Shown when the desktop
+          daemon holds the voice-source claim, so the user knows the browser
+          mic is intentionally suppressed (not broken). Subtle pill matching
+          the HUD aesthetic: muted cyan text, edge border, desktop icon prefix.
+          Positioned top-left, aria-live="polite" for screen-reader announce. */}
+      {desktopClaimed && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Voice input via desktop app"
+          className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em]"
+          style={{
+            color: "var(--hud-cyan)",
+            border: "1px solid var(--edge-hud)",
+            backgroundColor: "transparent",
+          }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: "var(--hud-cyan)" }}
+            aria-hidden="true"
+          />
+          <span>Voice via desktop</span>
+        </div>
+      )}
 
       {/* Phase 6.1 — Arc-reactor centerpiece. Sits behind scrollback at z-0;
           dominant in empty state, ambient when conversation begins.
