@@ -1,5 +1,9 @@
 import { physicalBus } from "@/lib/voice/physical-extension/bus";
 import type {
+  PhysicalJarvisResponseChunk,
+  PhysicalJarvisResponseEnd,
+  PhysicalJarvisResponseStart,
+  PhysicalJarvisToolCall,
   PhysicalTranscript,
   PhysicalTrigger,
 } from "@/lib/voice/physical-extension/types";
@@ -25,9 +29,17 @@ export async function GET(req: Request): Promise<Response> {
 
       const triggerHandler = (data: PhysicalTrigger) => send("trigger", data);
       const transcriptHandler = (data: PhysicalTranscript) => send("transcript", data);
+      const responseStartHandler = (data: PhysicalJarvisResponseStart) => send("jarvis-response-start", data);
+      const responseChunkHandler = (data: PhysicalJarvisResponseChunk) => send("jarvis-response-chunk", data);
+      const toolCallHandler = (data: PhysicalJarvisToolCall) => send("jarvis-tool-call", data);
+      const responseEndHandler = (data: PhysicalJarvisResponseEnd) => send("jarvis-response-end", data);
 
       physicalBus.on("trigger", triggerHandler);
       physicalBus.on("transcript", transcriptHandler);
+      physicalBus.on("jarvis-response-start", responseStartHandler);
+      physicalBus.on("jarvis-response-chunk", responseChunkHandler);
+      physicalBus.on("jarvis-tool-call", toolCallHandler);
+      physicalBus.on("jarvis-response-end", responseEndHandler);
 
       const heartbeat = setInterval(() => {
         try {
@@ -40,6 +52,10 @@ export async function GET(req: Request): Promise<Response> {
       const cleanup = () => {
         physicalBus.off("trigger", triggerHandler);
         physicalBus.off("transcript", transcriptHandler);
+        physicalBus.off("jarvis-response-start", responseStartHandler);
+        physicalBus.off("jarvis-response-chunk", responseChunkHandler);
+        physicalBus.off("jarvis-tool-call", toolCallHandler);
+        physicalBus.off("jarvis-response-end", responseEndHandler);
         clearInterval(heartbeat);
         try {
           controller.close();

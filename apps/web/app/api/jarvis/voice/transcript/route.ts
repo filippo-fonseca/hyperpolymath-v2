@@ -1,7 +1,15 @@
 import Groq from "groq-sdk";
 import type { NextRequest } from "next/server";
 
-import { emitPhysicalTranscript } from "@/lib/voice/physical-extension/bus";
+import {
+  emitJarvisResponseChunk,
+  emitJarvisResponseEnd,
+  emitJarvisResponseStart,
+  emitJarvisToolCall,
+  emitPhysicalTranscript,
+} from "@/lib/voice/physical-extension/bus";
+import { findSingleUserId } from "@/lib/jarvis/find-single-user";
+import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +51,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const file = new File([audioBuffer], "audio.wav", { type: "audio/wav" });
 
+  let transcript: string;
+  let sttDoneAt: number;
+
   try {
     const transcription = await groq.audio.transcriptions.create({
       file,
@@ -50,18 +61,52 @@ export async function POST(req: NextRequest): Promise<Response> {
       response_format: "json",
       language: "en",
     });
-    const sttDoneAt = Date.now();
-    emitPhysicalTranscript({
-      transcript: transcription.text,
-      sttDoneAt,
-      vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
-      at: sttDoneAt,
-    });
-    return Response.json({ transcript: transcription.text, sttDoneAt }, { headers: CORS });
+    sttDoneAt = Date.now();
+    transcript = transcription.text;
   } catch (err) {
     console.error("[voice/transcript] Groq failed", err);
     return Response.json({ error: "STT failed" }, { status: 500, headers: CORS });
   }
+
+  emitPhysicalTranscript({
+    transcript,
+    sttDoneAt,
+    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+    at: sttDoneAt,
+  });
+
+  const userId = await findSingleUserId();
+  if (!userId) {
+    return Response.json(
+      { error: "voice turn requires single-user mode" },
+      { status: 409, headers: CORS },
+    );
+  }
+
+  const turnId = crypto.randomUUID();
+  emitJarvisResponseStart({ turnId, at: Date.now() });
+
+  void runJarvisTurnStream({
+    userId,
+    input: transcript,
+    isVoice: true,
+    sttDoneAt,
+    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+    onTextDelta: (delta) => {
+      emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+    },
+    onAction: (toolUseId, name, result) => {
+      emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
+    },
+    onDone: () => {
+      emitJarvisResponseEnd({ turnId, at: Date.now() });
+    },
+    onError: () => {
+      emitJarvisResponseEnd({ turnId, at: Date.now() });
+    },
+  });
+
+  return Response.json({ transcript, turnId }, { headers: CORS });
 }
 
 export function OPTIONS(): Response {
