@@ -512,23 +512,38 @@ export function JarvisConsole({
   // after STT completes. The transcript is treated identically to typed input —
   // voice is just another input channel. JarvisListener dispatches the custom
   // event with { detail: { transcript: string } }.
+  //
+  // Phase 14-04: when desktopClaimed === true, the server is running the JARVIS
+  // turn itself and streaming response chunks via the physicalBus SSE channel.
+  // We must NOT call handleSubmit (which would double-execute the turn via the
+  // browser's /api/jarvis route). Instead, we render the response by subscribing
+  // to jarvis-response-* SSE events on the same physical events channel.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
-      // Phase 9 / TEL-01: voice transcript detail carries:
-      //   - sttDoneAt — STT completion epoch ms (forwarded via X-Jarvis-Stt-Done-At
-      //     so /api/jarvis stamps stages.sttDoneAt at INSERT time)
-      //   - vadEndAt  — VAD end epoch ms captured LOCALLY in onSpeechEnd, piped
-      //     through here for deferred collectStage in onTurnStart (cannot be
-      //     collectStage-d earlier — activeTurnId is unbound until the server
-      //     emits its first SSE turn-start frame)
       const detail = (
         e as CustomEvent<{
           transcript: string;
           sttDoneAt?: number | null;
           vadEndAt?: number;
+          turnId?: string;
         }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
+
+      if (desktopClaimed) {
+        // Server owns the JARVIS turn. Add a user turn to scrollback so the
+        // user can see what was heard, but do NOT call handleSubmit.
+        const userTurn: ScrollbackTurn = {
+          kind: "user",
+          id: crypto.randomUUID(),
+          text: detail.transcript,
+          createdAt: new Date(),
+        };
+        setTurns([userTurn]);
+        turnsRef.current = [userTurn];
+        return;
+      }
+
       // Phase 14-03: voice transcripts (especially desktop-originated ones)
       // are treated as FRESH conversations — JARVIS should not see prior
       // turns as context for the current command. Without this clear,
@@ -559,7 +574,107 @@ export function JarvisConsole({
         handleVoiceTranscript,
       );
     };
-  }, [handleSubmit]);
+  }, [handleSubmit, desktopClaimed]);
+
+  // Phase 14-04: when desktopClaimed === true, subscribe to the server-side
+  // JARVIS response events forwarded through the physicalBus SSE channel.
+  // These arrive as jarvis-response-{start,chunk,tool-call,end} window events
+  // dispatched by use-physical-extension.ts. We render them as a synthetic
+  // assistant turn in the scrollback so the browser is a "view" of the server
+  // turn rather than the executor of it.
+  useEffect(() => {
+    if (!desktopClaimed) return;
+
+    const activeTurnMap = new Map<string, string>();
+
+    function handleResponseStart(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = crypto.randomUUID();
+      activeTurnMap.set(detail.turnId, assistantId);
+      const assistantTurn: ScrollbackTurn = {
+        kind: "assistant",
+        id: assistantId,
+        textDelta: "",
+        actions: [],
+        createdAt: new Date(),
+        status: "streaming",
+      };
+      setTurns((prev) => [...prev, assistantTurn]);
+      setStreaming(true);
+    }
+
+    function handleResponseChunk(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string; delta: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? { ...t, textDelta: t.textDelta + detail.delta }
+            : t,
+        ),
+      );
+    }
+
+    function handleToolCall(e: Event) {
+      const detail = (e as CustomEvent<{
+        turnId: string;
+        toolUseId: string;
+        name: string;
+        result: unknown;
+      }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? {
+                ...t,
+                actions: [
+                  ...t.actions,
+                  {
+                    toolUseId: detail.toolUseId,
+                    name: detail.name as ScrollbackAction["name"],
+                    status: "done" as const,
+                    result: detail.result as ScrollbackAction["result"],
+                  },
+                ],
+              }
+            : t,
+        ),
+      );
+    }
+
+    function handleResponseEnd(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      activeTurnMap.delete(detail.turnId);
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? { ...t, status: "done" as const }
+            : t,
+        ),
+      );
+      setStreaming(false);
+    }
+
+    window.addEventListener("jarvis-response-start", handleResponseStart);
+    window.addEventListener("jarvis-response-chunk", handleResponseChunk);
+    window.addEventListener("jarvis-tool-call", handleToolCall);
+    window.addEventListener("jarvis-response-end", handleResponseEnd);
+    return () => {
+      window.removeEventListener("jarvis-response-start", handleResponseStart);
+      window.removeEventListener("jarvis-response-chunk", handleResponseChunk);
+      window.removeEventListener("jarvis-tool-call", handleToolCall);
+      window.removeEventListener("jarvis-response-end", handleResponseEnd);
+    };
+  }, [desktopClaimed]);
 
   // Phase 7 voice-everywhere: jarvis-cancel aborts the in-flight /api/jarvis
   // request so the user can stop the run before the model finishes.
