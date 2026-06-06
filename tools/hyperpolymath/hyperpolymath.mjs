@@ -1,0 +1,540 @@
+#!/usr/bin/env node
+// hyperpolymath — bring up the full Hyperpolymath / JARVIS dev stack with one command.
+//
+// Services (in order):
+//   1. supabase   local Supabase stack (idempotent — `supabase start`)
+//   2. web        Next.js dev server on :3000
+//   3. bridge     ESP32 → HTTP wake-word serial bridge
+//
+// Flags:
+//   --no-supabase           skip Supabase (e.g. when using a remote project)
+//   --no-web                skip Next.js dev server
+//   --no-bridge             skip serial bridge (no ESP32 plugged in)
+//   --only=name[,name...]   start only listed services
+//   --help                  print usage and exit
+//
+// ── Extending ───────────────────────────────────────────────────────────────
+// To add a new service (desktop app, worker, etc), append an entry to the
+// SERVICES array. Each service is { name, color, preflight?, start, ready,
+// keepAlive? }. preflight returns { skip } / { skipStart } to opt out per run.
+// ────────────────────────────────────────────────────────────────────────────
+
+import { spawn, execSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const WEB_DIR = resolve(REPO_ROOT, "apps/web");
+const BRIDGE_DIR = resolve(REPO_ROOT, "tools/jarvis-physical/bridge");
+
+const FLAGS = parseFlags(process.argv.slice(2));
+
+// ── ANSI ────────────────────────────────────────────────────────────────────
+const C = {
+  cyan: (s) => `\x1b[36m${s}\x1b[0m`,
+  magenta: (s) => `\x1b[35m${s}\x1b[0m`,
+  yellow: (s) => `\x1b[33m${s}\x1b[0m`,
+  green: (s) => `\x1b[32m${s}\x1b[0m`,
+  blue: (s) => `\x1b[34m${s}\x1b[0m`,
+  red: (s) => `\x1b[31m${s}\x1b[0m`,
+  dim: (s) => `\x1b[2m${s}\x1b[0m`,
+  bold: (s) => `\x1b[1m${s}\x1b[0m`,
+};
+
+const PREFIX_WIDTH = 11;
+const fmtPrefix = (name, color) =>
+  C[color](`[${name}]`.padEnd(PREFIX_WIDTH));
+
+const log = (name, msg, color = "blue") =>
+  console.log(`${fmtPrefix(name, color)} ${msg}`);
+const warn = (name, msg) =>
+  console.log(`${fmtPrefix(name, "yellow")} ${C.yellow("⚠")} ${msg}`);
+const errorLog = (name, msg) =>
+  console.log(`${fmtPrefix(name, "red")} ${C.red("✗")} ${msg}`);
+
+if (FLAGS.help) {
+  printUsage();
+  process.exit(0);
+}
+
+// ── Services ────────────────────────────────────────────────────────────────
+const SERVICES = [
+  {
+    name: "supabase",
+    color: "green",
+    port: ":54321",
+    async preflight() {
+      try {
+        execSync("docker info", { stdio: "ignore" });
+      } catch {
+        warn("supabase", "Docker isn't running. Start Docker Desktop and re-run.");
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("supabase", ["start"], {
+        cwd: WEB_DIR,
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    // `supabase start` bootstraps Docker containers and then exits. We don't
+    // hold the process; we just wait for the REST endpoint to answer.
+    keepAlive: false,
+    ready: () => waitForHttp("http://127.0.0.1:54321/rest/v1/", 90_000),
+  },
+
+  {
+    name: "web",
+    color: "cyan",
+    port: ":3000",
+    async preflight() {
+      if (await isPortListening(3000)) {
+        warn("web", "port 3000 already in use — assuming an existing dev server");
+        return { skipStart: true };
+      }
+    },
+    start: () =>
+      spawn("pnpm", ["dev"], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    keepAlive: true,
+    ready: () => waitForHttp("http://localhost:3000/", 60_000),
+  },
+
+  {
+    name: "bridge",
+    color: "magenta",
+    async preflight() {
+      const port = findUsbmodemPort();
+      if (!port) {
+        warn("bridge", "no /dev/cu.usbmodem* device — is the ESP32 plugged in?");
+        return { skip: true };
+      }
+      log("bridge", `found device ${C.bold(port)}`, "magenta");
+
+      const holder = findPortHolder(port);
+      if (holder) {
+        if (/jarvis-serial-bridge/.test(holder.command)) {
+          log("bridge", `killing stale bridge pid ${holder.pid}`, "magenta");
+          try { process.kill(holder.pid); } catch {}
+          await sleep(600);
+        } else if (/serial-mo|arduino/i.test(holder.command)) {
+          warn("bridge", `Arduino IDE Serial Monitor (pid ${holder.pid}) is holding ${port}.`);
+          warn("bridge", "Close the Serial Monitor in Arduino IDE, then re-run.");
+          return { skip: true };
+        } else {
+          warn("bridge", `port ${port} held by ${holder.command} (pid ${holder.pid}). Close it and re-run.`);
+          return { skip: true };
+        }
+      }
+
+      return { env: { SERIAL_PORT: port }, port: port.replace(/^\/dev\//, "") };
+    },
+    start: (pre) =>
+      spawn("npm", ["start"], {
+        cwd: BRIDGE_DIR,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, ...(pre?.env ?? {}) },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /\[bridge\] listening on/, 30_000),
+  },
+];
+
+// ── Status bar ──────────────────────────────────────────────────────────────
+const STATUS_BAR_LINES = 3;
+
+const STATUS_ICON = {
+  idle:      () => C.dim("○"),
+  preflight: () => C.yellow("◌"),
+  starting:  () => C.yellow("◌"),
+  ready:     () => C.green("●"),
+  error:     () => C.red("✗"),
+  skipped:   () => C.dim("—"),
+};
+
+const OVERALL = {
+  booting:  () => C.yellow("◌ booting…"),
+  ready:    () => C.green("✓ all systems go"),
+  error:    () => C.red("✗ degraded"),
+  stopping: () => C.yellow("◌ shutting down…"),
+};
+
+const state = {
+  startedAt: Date.now(),
+  overall: "booting",
+  services: Object.fromEntries(
+    SERVICES.map((s) => [s.name, { status: "idle", port: s.port ?? null }]),
+  ),
+};
+
+let statusInterval = null;
+let statusBarActive = false;
+
+function setStatus(name, status, port) {
+  const svc = state.services[name];
+  if (!svc) return;
+  svc.status = status;
+  if (port !== undefined) svc.port = port;
+  recomputeOverall();
+  drawStatusBar();
+}
+
+function recomputeOverall() {
+  if (state.overall === "stopping") return;
+  const active = Object.values(state.services)
+    .map((s) => s.status)
+    .filter((s) => s !== "skipped");
+  if (active.some((s) => s === "error")) state.overall = "error";
+  else if (active.length > 0 && active.every((s) => s === "ready")) state.overall = "ready";
+  else state.overall = "booting";
+}
+
+function setupStatusBar() {
+  if (!process.stdout.isTTY) return;
+  statusBarActive = true;
+  const rows = process.stdout.rows;
+  // Reserve bottom STATUS_BAR_LINES rows: scroll region is rows 1..(rows - STATUS_BAR_LINES).
+  process.stdout.write(`\x1b[1;${rows - STATUS_BAR_LINES}r`);
+  // Park cursor at the bottom of the scroll region so the next log line lands there.
+  process.stdout.write(`\x1b[${rows - STATUS_BAR_LINES};1H`);
+  drawStatusBar();
+  statusInterval = setInterval(drawStatusBar, 1000);
+  process.stdout.on("resize", () => {
+    if (!statusBarActive) return;
+    const r = process.stdout.rows;
+    process.stdout.write(`\x1b[1;${r - STATUS_BAR_LINES}r`);
+    drawStatusBar();
+  });
+}
+
+function teardownStatusBar() {
+  if (statusInterval) clearInterval(statusInterval);
+  statusInterval = null;
+  if (!statusBarActive) return;
+  statusBarActive = false;
+  // Reset scroll region, drop cursor below reserved area so the shell prompt lands cleanly.
+  process.stdout.write("\x1b[r");
+  process.stdout.write(`\x1b[${process.stdout.rows};1H\n`);
+}
+
+function drawStatusBar() {
+  if (!statusBarActive) return;
+  const cols = process.stdout.columns ?? 80;
+  const rows = process.stdout.rows;
+  const top = rows - STATUS_BAR_LINES + 1;
+
+  const services = Object.entries(state.services).map(([name, s]) => {
+    const icon = STATUS_ICON[s.status]();
+    const port = s.port ? "  " + C.dim(s.port) : "";
+    return `${icon} ${name}${port}`;
+  });
+
+  const overall = OVERALL[state.overall]();
+  const elapsed = formatElapsed(Date.now() - state.startedAt);
+
+  const separator = C.dim("─".repeat(cols));
+  const line1 = "  " + services.join("   " + C.dim("·") + "   ");
+  const line2 = "  " + overall + "   " + C.dim(`uptime ${elapsed}`);
+
+  // Single atomic write: save cursor → jump to bottom → clear+write 3 lines → restore.
+  let out = "\x1b[s";
+  out += `\x1b[${top};1H\x1b[2K${separator}`;
+  out += `\x1b[${top + 1};1H\x1b[2K${line1}`;
+  out += `\x1b[${top + 2};1H\x1b[2K${line2}`;
+  out += "\x1b[u";
+  process.stdout.write(out);
+}
+
+function formatElapsed(ms) {
+  const t = Math.floor(ms / 1000);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = t % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+// ── Orchestration ───────────────────────────────────────────────────────────
+const live = []; // { name, color, proc }
+let shuttingDown = false;
+
+async function shutdown(code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  state.overall = "stopping";
+  drawStatusBar();
+  console.log();
+  log("boot", "shutting down...");
+  for (const { proc } of live) {
+    if (proc && !proc.killed) {
+      try { proc.kill("SIGTERM"); } catch {}
+    }
+  }
+  await sleep(2500);
+  for (const { proc } of live) {
+    if (proc && proc.exitCode === null) {
+      try { proc.kill("SIGKILL"); } catch {}
+    }
+  }
+  teardownStatusBar();
+  log("boot", "bye 👋");
+  process.exit(code);
+}
+
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
+
+async function main() {
+  printBanner();
+
+  const onlyFilter = FLAGS.only
+    ? new Set(FLAGS.only.split(",").map((s) => s.trim()).filter(Boolean))
+    : null;
+  const selected = SERVICES.filter((s) => {
+    if (onlyFilter) return onlyFilter.has(s.name);
+    return !FLAGS[`no-${s.name}`];
+  });
+
+  if (selected.length === 0) {
+    errorLog("boot", "no services selected.");
+    process.exit(1);
+  }
+
+  // Mark unselected services as skipped up-front so the bar reflects reality.
+  for (const svc of SERVICES) {
+    if (!selected.includes(svc)) setStatus(svc.name, "skipped");
+  }
+
+  setupStatusBar();
+
+  for (const svc of selected) {
+    setStatus(svc.name, "preflight");
+    log(svc.name, "preflight…", svc.color);
+    let pre = {};
+    try {
+      pre = (await svc.preflight?.()) ?? {};
+    } catch (err) {
+      setStatus(svc.name, "error");
+      errorLog(svc.name, `preflight failed: ${err.message}`);
+      return shutdown(1);
+    }
+    if (pre.port) setStatus(svc.name, "preflight", pre.port);
+    if (pre.skip) {
+      setStatus(svc.name, "skipped");
+      continue;
+    }
+
+    let proc = null;
+    if (!pre.skipStart) {
+      setStatus(svc.name, "starting");
+      log(svc.name, "starting…", svc.color);
+      proc = svc.start(pre);
+      pipeOutput(proc, svc.name, svc.color);
+      if (svc.keepAlive) live.push({ name: svc.name, color: svc.color, proc });
+
+      proc.on("exit", (code, signal) => {
+        if (shuttingDown) return;
+        if (svc.keepAlive) {
+          setStatus(svc.name, "error");
+          errorLog(svc.name, `exited unexpectedly (code=${code} signal=${signal})`);
+          return shutdown(1);
+        }
+      });
+    }
+
+    try {
+      await svc.ready(proc);
+      setStatus(svc.name, "ready");
+      log(svc.name, C.bold(C.green("ready ✓")), svc.color);
+    } catch (err) {
+      setStatus(svc.name, "error");
+      errorLog(svc.name, `not ready: ${err.message}`);
+      return shutdown(1);
+    }
+  }
+
+  console.log();
+  log("boot", C.bold(C.green("all services up.")) + C.dim(" Ctrl+C to stop."));
+  console.log();
+
+  await new Promise(() => {}); // park forever
+}
+
+main().catch((err) => {
+  errorLog("boot", err.stack ?? err.message);
+  shutdown(1);
+});
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function parseFlags(argv) {
+  const out = {};
+  for (const arg of argv) {
+    if (!arg.startsWith("--")) continue;
+    const eq = arg.indexOf("=");
+    if (eq === -1) out[arg.slice(2)] = true;
+    else out[arg.slice(2, eq)] = arg.slice(eq + 1);
+  }
+  return out;
+}
+
+function pipeOutput(proc, name, color) {
+  const prefix = fmtPrefix(name, color);
+  for (const stream of [proc.stdout, proc.stderr]) {
+    if (!stream) continue;
+    let buf = "";
+    stream.on("data", (chunk) => {
+      buf += chunk.toString();
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.trim()) console.log(`${prefix} ${line}`);
+      }
+    });
+  }
+}
+
+function waitForLog(proc, regex, timeoutMs) {
+  return new Promise((res, rej) => {
+    let buf = "";
+    const timer = setTimeout(() => {
+      cleanup();
+      rej(new Error(`timeout waiting for log ${regex}`));
+    }, timeoutMs);
+    function onData(chunk) {
+      buf += chunk.toString();
+      if (regex.test(buf)) {
+        cleanup();
+        res();
+      }
+    }
+    function cleanup() {
+      clearTimeout(timer);
+      proc.stdout?.off("data", onData);
+      proc.stderr?.off("data", onData);
+    }
+    proc.stdout?.on("data", onData);
+    proc.stderr?.on("data", onData);
+  });
+}
+
+async function waitForHttp(url, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(url, { signal: AbortSignal.timeout(2000) });
+      return; // any response (even 4xx/5xx) means the server is alive
+    } catch {
+      await sleep(500);
+    }
+  }
+  throw new Error(`timed out waiting for ${url}`);
+}
+
+async function isPortListening(port) {
+  try {
+    await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(400) });
+    return true;
+  } catch (err) {
+    return err.name === "TimeoutError";
+  }
+}
+
+function findUsbmodemPort() {
+  try {
+    const devs = readdirSync("/dev").filter((f) => /^cu\.usbmodem/.test(f));
+    return devs.length ? `/dev/${devs[0]}` : null;
+  } catch {
+    return null;
+  }
+}
+
+function findPortHolder(devPath) {
+  try {
+    const pids = execSync(`lsof -t ${devPath}`, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    if (pids.length === 0) return null;
+    const pid = Number(pids[0]);
+    const command = execSync(`ps -p ${pid} -o command=`, { encoding: "utf8" }).trim();
+    return { pid, command };
+  } catch {
+    return null;
+  }
+}
+
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+function printBanner() {
+  const rgb = (r, g, b, s) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
+
+  // Warm vertical gradient — top highlight → bottom shadow.
+  const tones = [
+    [245, 185, 120],
+    [235, 175, 110],
+    [225, 165, 100],
+    [215, 155, 90],
+    [195, 135, 75],
+    [150, 100, 55],
+  ];
+
+  const hyper = [
+    "██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ",
+    "██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗",
+    "███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝",
+    "██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗",
+    "██║  ██║   ██║   ██║     ███████╗██║  ██║",
+    "╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝",
+  ];
+
+  const polymath = [
+    "██████╗  ██████╗ ██╗     ██╗   ██╗███╗   ███╗ █████╗ ████████╗██╗  ██╗",
+    "██╔══██╗██╔═══██╗██║     ╚██╗ ██╔╝████╗ ████║██╔══██╗╚══██╔══╝██║  ██║",
+    "██████╔╝██║   ██║██║      ╚████╔╝ ██╔████╔██║███████║   ██║   ███████║",
+    "██╔═══╝ ██║   ██║██║       ╚██╔╝  ██║╚██╔╝██║██╔══██║   ██║   ██╔══██║",
+    "██║     ╚██████╔╝███████╗   ██║   ██║ ╚═╝ ██║██║  ██║   ██║   ██║  ██║",
+    "╚═╝      ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝",
+  ];
+
+  const PAD = "  ";
+  console.log();
+  hyper.forEach((row, i) => {
+    const [r, g, b] = tones[i];
+    console.log(PAD + rgb(r, g, b, row));
+  });
+  polymath.forEach((row, i) => {
+    const [r, g, b] = tones[i];
+    console.log(PAD + rgb(r, g, b, row));
+  });
+  console.log();
+  console.log(PAD + C.dim("life-OS · bringing the stack online…"));
+  console.log();
+}
+
+function printUsage() {
+  console.log(`
+${C.bold("hyperpolymath")} — bring up the Hyperpolymath / JARVIS dev stack.
+
+${C.bold("Services")}
+  supabase   local Supabase (Docker)
+  web        Next.js dev server on :3000
+  bridge     ESP32 → HTTP wake-word serial bridge
+
+${C.bold("Flags")}
+  --no-supabase           skip Supabase
+  --no-web                skip web dev server
+  --no-bridge             skip serial bridge
+  --only=name[,name...]   start only listed services
+  --help                  show this message
+
+${C.bold("Examples")}
+  hyperpolymath
+  hyperpolymath --no-bridge
+  hyperpolymath --only=web,supabase
+`);
+}
