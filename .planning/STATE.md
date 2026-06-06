@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 12-on-device-wake-word-mic-gating-deadline-bound-01-PLAN.md
-last_updated: "2026-05-31T18:43:59.358Z"
-last_activity: 2026-05-31
+stopped_at: "Paused at 14-01 Task 3 checkpoint (human-verify: tauri dev mic prompt)"
+last_updated: "2026-06-06T17:17:18.709Z"
+last_activity: 2026-06-06 -- Phase 14 execution started
 progress:
-  total_phases: 27
+  total_phases: 28
   completed_phases: 11
-  total_plans: 66
-  completed_plans: 55
+  total_plans: 71
+  completed_plans: 56
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 12 — on-device-wake-word-mic-gating-deadline-bound
+**Current focus:** Phase 14 — jarvis-desktop-mic-middleman
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 12 (on-device-wake-word-mic-gating-deadline-bound) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-05-31
+Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 14
+Last activity: 2026-06-06 -- Phase 14 execution started
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -295,6 +295,9 @@ Recent decisions affecting current work:
 - [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: prefetchWakeWordAssets() exported as SEPARATE pure HTTP-cache warmup from spawnWakeWordWorker() — Plan 12-03 EnableVoiceModal MUST call prefetch, NOT spawn, or its no-op onWake binds to the singleton and JarvisListener's later spawn silently ignores real wakes.
 - [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: Tensor-shape introspection (melSession.handler._inputs[0].shape) wrapped in try/catch with empty-array fallback — diagnostic-only, three ort.InferenceSession.create calls are the actual readiness gate; empty shapes payload acceptable on ORT version drift.
 - [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: AudioWorklet sandbox test pattern — readFileSync + new Function('sampleRate','AudioWorkletProcessor','registerProcessor',source) with stubbed globals — deterministically verifies 12.5 frames/sec cadence + transferable contract without a real AudioContext. Reusable for any future worklet.
+- [Phase 14-jarvis-desktop-mic-middleman]: ActivationPolicy::Accessory set programmatically in lib.rs (tauri.conf.json does not support it in Tauri 2)
+- [Phase 14-jarvis-desktop-mic-middleman]: Cargo [workspace] self-contained marker in src-tauri/Cargo.toml prevents root workspace absorption (Pitfall 4)
+- [Phase 14-jarvis-desktop-mic-middleman]: cpal::Stream dedicated thread pattern — CoreAudio thread affinity, mpsc channel for lifetime management
 
 ### Pending Todos
 
@@ -313,6 +316,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-31T18:43:45.626Z
-Stopped at: Completed 12-on-device-wake-word-mic-gating-deadline-bound-01-PLAN.md
+Last session: 2026-06-06T17:17:12.002Z
+Stopped at: Paused at 14-01 Task 3 checkpoint (human-verify: tauri dev mic prompt)
 Resume file: None
