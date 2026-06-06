@@ -89,11 +89,13 @@ function renderLivePanel(): void {
 function paintCaptureState(state: CaptureState): void {
   _captureState = state;
   renderLivePanel();
+  paintActionRow(state, _extended);
 }
 
 function paintExtended(active: boolean): void {
   _extended = active;
   renderLivePanel();
+  paintActionRow(_captureState, active);
 }
 
 function paintTranscript(text: string): void {
@@ -166,12 +168,19 @@ function paintTtsState(playing: boolean): void {
   }
 }
 
+let _wakeRegistered = false;
+let _extendRegistered = false;
+
 function paintHotkeyStatus(peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  el.textContent = peEnabled
-    ? "PE active — ESP32 wake · ⌃⌥E to extend"
-    : "⌃⌥J wake · ⌃⌥E extend";
+  const extLabel = _extendRegistered ? "✓ ⌘⌥E extend" : "✗ ⌘⌥E extend";
+  if (peEnabled) {
+    el.textContent = `PE active · ${extLabel}`;
+    return;
+  }
+  const wakeLabel = _wakeRegistered ? "✓ ⌘⌥Space wake" : "✗ ⌘⌥Space wake";
+  el.textContent = `${wakeLabel} · ${extLabel}`;
 }
 
 function wireCancelButton(): void {
@@ -180,6 +189,41 @@ function wireCancelButton(): void {
   btn.addEventListener("click", () => {
     void cancelCaptureTurn();
   });
+}
+
+function wireWakeButton(): void {
+  const btn = document.getElementById("wake-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    void startCaptureTurn();
+  });
+}
+
+function wireExtendButton(): void {
+  const btn = document.getElementById("extend-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    toggleExtended();
+  });
+}
+
+function paintActionRow(state: CaptureState, isExtended: boolean): void {
+  const wakeBtn = document.getElementById("wake-btn") as HTMLButtonElement | null;
+  const extendBtn = document.getElementById("extend-btn") as HTMLButtonElement | null;
+  if (wakeBtn) {
+    wakeBtn.disabled = state !== "idle";
+  }
+  if (extendBtn) {
+    if (state === "recording") {
+      extendBtn.classList.add("visible");
+      extendBtn.dataset.extended = isExtended ? "true" : "false";
+      extendBtn.innerHTML = isExtended
+        ? '✓ Holding — tap to send <span class="shortcut-label">⌘⌥E</span>'
+        : '⏸ Hold mic open <span class="shortcut-label">⌘⌥E</span>';
+    } else {
+      extendBtn.classList.remove("visible");
+    }
+  }
 }
 
 function wireStopButton(): void {
@@ -192,12 +236,21 @@ function wireStopButton(): void {
 }
 
 // Hotkey strings use the electron-accelerator format that
-// tauri-plugin-global-shortcut accepts. Avoided Cmd+Shift+J because Chrome,
-// Safari, and several extensions claim it on macOS (opens Downloads, etc.) —
-// even when "registration" appears to succeed, the OS routes the key to the
-// other app first. Ctrl+Option combos are rarely grabbed by user-facing apps.
-const WAKE_HOTKEY = "Ctrl+Alt+J";   // wake (only when PE mode is OFF)
-const EXTEND_HOTKEY = "Ctrl+Alt+E"; // toggle extend (always available)
+// tauri-plugin-global-shortcut accepts.
+//
+// Iteration history:
+//   - "Cmd+Shift+J" — broken: Chrome/Safari claim it (opens Downloads).
+//   - "Ctrl+Alt+J" — broken on macOS: VoiceOver / accessibility services
+//     can swallow Ctrl+Alt combos, the plugin reports register success but
+//     the keystroke never reaches the handler.
+//   - "Cmd+Alt+Space" + "Cmd+Alt+E" — chosen. ⌘⌥Space is rarely claimed by
+//     apps; ⌘⌥E matches "Extend" as a mnemonic. Both register reliably in
+//     bundled .app and (usually) `tauri dev`.
+//
+// Manual buttons in the UI exist as a guaranteed fallback — global shortcuts
+// are nice-to-have, button clicks are the contract.
+const WAKE_HOTKEY = "Cmd+Alt+Space";  // wake (only when PE mode is OFF)
+const EXTEND_HOTKEY = "Cmd+Alt+E";    // toggle extend (always available)
 
 async function safeRegister(
   hotkey: string,
@@ -248,13 +301,15 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
   if (peEnabled) {
     await safeUnregister(WAKE_HOTKEY, "wake");
-    return;
+    _wakeRegistered = false;
+  } else {
+    _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
   }
-  await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
+  paintHotkeyStatus(peEnabled);
 }
 
 async function wireExtendShortcut(): Promise<void> {
-  await safeRegister(EXTEND_HOTKEY, "extend", () => toggleExtended());
+  _extendRegistered = await safeRegister(EXTEND_HOTKEY, "extend", () => toggleExtended());
 }
 
 async function boot(): Promise<void> {
@@ -351,6 +406,8 @@ async function boot(): Promise<void> {
 
   wireCancelButton();
   wireStopButton();
+  wireWakeButton();
+  wireExtendButton();
 
   startPhysicalExtenderListener();
 

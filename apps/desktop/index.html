@@ -80,6 +80,43 @@
       .cancel-btn:hover { background: color-mix(in srgb, var(--rec) 15%, transparent); }
       .cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+      /* Manual action row at the top — always-works fallback to global hotkeys. */
+      .action-row {
+        display: flex; gap: 8px; margin-top: 4px; margin-bottom: 18px;
+      }
+      .action-btn {
+        flex: 1;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--rule));
+        color: var(--fg);
+        padding: 10px 14px; border-radius: 8px;
+        font-size: 13px; font-weight: 500; cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s, transform 0.05s;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+      }
+      .action-btn:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+      .action-btn:active { transform: scale(0.98); }
+      .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .action-btn.extend-btn {
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+        border-color: color-mix(in srgb, var(--accent) 25%, var(--rule));
+        color: var(--muted);
+        display: none;
+      }
+      .action-btn.extend-btn.visible { display: flex; }
+      .action-btn.extend-btn[data-extended="true"] {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .action-btn .shortcut-label {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px; color: var(--muted);
+        padding: 1px 5px; background: color-mix(in srgb, var(--fg) 8%, transparent);
+        border-radius: 3px;
+      }
+
       .transcript-panel {
         margin-top: 16px;
         padding: 12px 14px;
@@ -197,6 +234,18 @@
     <main>
       <h1><span class="dot"></span>JARVIS Desktop</h1>
       <p class="subtitle">Physical Extender mode — desktop owns the mic.</p>
+
+      <div class="action-row">
+        <button class="action-btn" id="wake-btn" type="button">
+          🎤 Talk to JARVIS
+          <span class="shortcut-label">⌘⌥Space</span>
+        </button>
+        <button class="action-btn extend-btn" id="extend-btn" type="button">
+          ⏸ Hold
+          <span class="shortcut-label">⌘⌥E</span>
+        </button>
+      </div>
+
       <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
       <div class="row"><span class="label">SSE status</span><span class="value" id="sse-status">connecting…</span></div>
       <div class="row">
