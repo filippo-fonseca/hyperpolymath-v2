@@ -369,7 +369,12 @@ Plans:
   4. The desktop registers as the active voice source via a heartbeat (TTL ~30s); the browser checks this on every wake event and skips its own mic activation while a heartbeat is fresh, then falls back to the browser-mic flow within ~1s of heartbeat lapse — no double-mic conflicts
   5. The desktop app's Settings window exposes (and persists across restarts): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle — all changes apply live without restart
   6. `hyperpolymath` (the dev stack boot tool) gains a `desktop` service that launches `pnpm --filter desktop tauri dev`; the boot-script status bar reflects desktop state (◌/●/✗); the existing serial bridge service continues to start and forward wake triggers unchanged
-**Plans**: TBD — defined by /gsd:plan-phase 14 (rough estimate: 5–6 plans — Tauri 2 scaffold + Info.plist mic entitlement + voice-source claim/heartbeat API + Extender SSE subscriber + Standalone wake-word worker + capture/VAD/transcribe pipeline + browser-side coordination (skip mic when desktop active) + Settings UI + hyperpolymath integration + end-to-end verification)
+**Plans**: 5 plans
+- [ ] 14-01-PLAN.md — Rust toolchain + Tauri 2 scaffold + Info.plist mic permission + workspace wiring
+- [ ] 14-02-PLAN.md — Voice-source claim API + transcript dispatch route + browser desktopClaimed guard
+- [ ] 14-03-PLAN.md — Rust cpal capture + TS VAD/WAV pipeline + Physical Extender SSE subscriber + end-to-end smoke
+- [ ] 14-04-PLAN.md — Standalone wake-word (openWakeWord port) + Settings window + tray menu + live-apply
+- [ ] 14-05-PLAN.md — hyperpolymath desktop service + Phase 14 Success Criteria verification
 **UI hint**: yes (tray icon + Settings window with tunable knobs)
 
 ## Progress
