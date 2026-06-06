@@ -527,3 +527,26 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.11: Mobile app for JARVIS — voice, quick-capture, and text/SMS interface (BACKLOG)
+
+**Goal:** A native/mobile companion to the web app so JARVIS is reachable on the go. Three core surfaces: (1) **voice-first JARVIS** — the same one-sentence → right-action routing, hands-free from a phone; (2) **Quick Capture** — a fast mobile inbox dump (thought / task / note → lands in captures) with mobile-native ergonomics (share-sheet capture, lock-screen / home-screen widget quick-add); (3) **text / SMS interface** — text JARVIS a sentence and have it route the action exactly like typing into the web app, with push notifications for follow-ups.
+
+**Why:** Captured 2026-06-06 by user during milestone v1.1 (Speed & Agility) execution. The web app assumes you're at a desk; the highest-frequency JARVIS moments (a fleeting thought, a task to capture, a quick command) happen away from the keyboard. A mobile surface — especially the SMS path, which works from any device with no app open — closes the "capture it before it's gone" gap that the web-only experience leaves open.
+
+**Likely shape (sketch, not contract):**
+- Decide native vs PWA vs Expo/React Native during research — reuse `packages/kiwi-core` routing + Anthropic tool definitions across web and mobile (matches the CLI-variant factoring already noted in PROJECT.md)
+- SMS path: inbound webhook (Twilio or similar) → existing JARVIS route handler → reply with the receipt as a text; auth-bound to the single user's verified number. Note: PROJECT.md "What NOT to use" listed Twilio as out-of-scope for v1 — revisit that decision explicitly when promoting
+- Quick Capture: share-sheet target + iOS/Android home-screen widget → POST to captures with `userId` scoping; offline-queue + sync
+- Voice: reuse the on-device wake-word + TTS pipeline (Phases 7, 10, 12) where the mobile runtime allows; otherwise push-to-talk first
+- Push notifications for JARVIS follow-ups (the 5s follow-up window / clarifications) and reminders
+- Open questions: native-vs-PWA tradeoff, SMS provider + cost, how much of the voice substrate survives the mobile runtime, auth handoff from Supabase session to a long-lived mobile token
+
+**Reminder trigger:** Surface when v1.1 (Phases 9–14) completes and a mobile/anywhere-access milestone is being scoped. Run `/gsd:review-backlog` and decide promote vs defer; likely its own milestone given native-app + SMS-provider surface area.
+
+**Requirements:** TBD (define when promoting — likely `MOBILE-*` and `SMS-*` families)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
