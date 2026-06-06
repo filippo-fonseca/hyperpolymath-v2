@@ -174,12 +174,12 @@ let _extendRegistered = false;
 function paintHotkeyStatus(peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  const extLabel = _extendRegistered ? "✓ ⌘⌥E extend" : "✗ ⌘⌥E extend";
+  const extLabel = _extendRegistered ? "✓ ⌘⌃E extend" : "✗ ⌘⌃E extend";
   if (peEnabled) {
     el.textContent = `PE active · ${extLabel}`;
     return;
   }
-  const wakeLabel = _wakeRegistered ? "✓ ⌘⌥Space wake" : "✗ ⌘⌥Space wake";
+  const wakeLabel = _wakeRegistered ? "✓ ⌘⌃J wake" : "✗ ⌘⌃J wake";
   el.textContent = `${wakeLabel} · ${extLabel}`;
 }
 
@@ -218,8 +218,8 @@ function paintActionRow(state: CaptureState, isExtended: boolean): void {
       extendBtn.classList.add("visible");
       extendBtn.dataset.extended = isExtended ? "true" : "false";
       extendBtn.innerHTML = isExtended
-        ? '✓ Holding — tap to send <span class="shortcut-label">⌘⌥E</span>'
-        : '⏸ Hold mic open <span class="shortcut-label">⌘⌥E</span>';
+        ? '✓ Holding — tap to send <span class="shortcut-label">⌘⌃E</span>'
+        : '⏸ Hold mic open <span class="shortcut-label">⌘⌃E</span>';
     } else {
       extendBtn.classList.remove("visible");
     }
@@ -238,19 +238,18 @@ function wireStopButton(): void {
 // Hotkey strings use the electron-accelerator format that
 // tauri-plugin-global-shortcut accepts.
 //
-// Iteration history:
-//   - "Cmd+Shift+J" — broken: Chrome/Safari claim it (opens Downloads).
-//   - "Ctrl+Alt+J" — broken on macOS: VoiceOver / accessibility services
-//     can swallow Ctrl+Alt combos, the plugin reports register success but
-//     the keystroke never reaches the handler.
-//   - "Cmd+Alt+Space" + "Cmd+Alt+E" — chosen. ⌘⌥Space is rarely claimed by
-//     apps; ⌘⌥E matches "Extend" as a mnemonic. Both register reliably in
-//     bundled .app and (usually) `tauri dev`.
+// Iteration history (lessons in macOS shortcut conflicts):
+//   - "Cmd+Shift+J" — Chrome/Safari claim it (opens Downloads).
+//   - "Ctrl+Alt+J" — VoiceOver / accessibility can swallow Ctrl+Alt combos.
+//   - "Cmd+Alt+Space" — reserved by Finder (opens Finder window with search).
+//   - "Cmd+Ctrl+J" / "Cmd+Ctrl+E" — chosen. ⌘⌃ combinations are essentially
+//     unclaimed: macOS itself doesn't use Cmd+Control for any system shortcut,
+//     and very few apps bind it. Verified against the standard macOS shortcut
+//     list and common productivity apps.
 //
-// Manual buttons in the UI exist as a guaranteed fallback — global shortcuts
-// are nice-to-have, button clicks are the contract.
-const WAKE_HOTKEY = "Cmd+Alt+Space";  // wake (only when PE mode is OFF)
-const EXTEND_HOTKEY = "Cmd+Alt+E";    // toggle extend (always available)
+// Manual buttons in the UI remain as the guaranteed fallback regardless.
+const WAKE_HOTKEY = "Cmd+Ctrl+J";   // wake (only when PE mode is OFF)
+const EXTEND_HOTKEY = "Cmd+Ctrl+E"; // toggle extend (always available)
 
 async function safeRegister(
   hotkey: string,
