@@ -28,6 +28,49 @@ export function setVadSilenceMs(ms: number): void {
   vadSilenceMs = ms;
 }
 
+// Manual mode — when true, every turn starts in extend mode (VAD silence +
+// hard cap suppressed). Only the manual-mode toggle (set to false) OR the
+// ⌘⌃E shortcut closes the mic. Persisted as `capture.manualMode`.
+let manualMode = false;
+
+type ManualModeListener = (active: boolean) => void;
+const manualModeListeners = new Set<ManualModeListener>();
+
+export function onManualModeChange(fn: ManualModeListener): () => void {
+  manualModeListeners.add(fn);
+  fn(manualMode);
+  return () => {
+    manualModeListeners.delete(fn);
+  };
+}
+
+function emitManualMode(active: boolean): void {
+  for (const fn of manualModeListeners) fn(active);
+}
+
+/** Toggle manual mode. If currently recording AND turning OFF, flush the
+ *  active buffer immediately (acts as a "send" — the user has signaled
+ *  end-of-turn by exiting manual mode). */
+export function setManualMode(active: boolean): void {
+  if (manualMode === active) return;
+  manualMode = active;
+  emitManualMode(active);
+  if (!active && currentState === "recording" && extended && activeVad && !activeTurnFinished) {
+    extended = false;
+    emitExtended(false);
+    activeTurnFinished = true;
+    void finishTurn(activeVad);
+  } else if (active && currentState === "recording" && !extended) {
+    // Mid-turn enable: keep the current turn open from here on.
+    extended = true;
+    emitExtended(true);
+  }
+}
+
+export function isManualMode(): boolean {
+  return manualMode;
+}
+
 interface AudioChunkPayload {
   samples: number[];
   sample_rate: number;
@@ -99,8 +142,8 @@ export async function startCaptureTurn(): Promise<void> {
     return;
   }
   cancelled = false;
-  extended = false;
-  emitExtended(false);
+  extended = manualMode;
+  emitExtended(extended);
   activeTurnFinished = false;
 
   await postClaim();

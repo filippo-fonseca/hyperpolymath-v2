@@ -21,6 +21,9 @@ export interface DesktopSettings {
   physicalExtenderEnabled: boolean;
   /** Milliseconds of continuous silence before VAD declares end-of-turn. */
   vadSilenceMs: number;
+  /** When true, every capture turn starts in extend mode — VAD silence + hard cap
+   *  are suppressed. Only the manual-mode toggle OR the ⌘⌃E shortcut can close the mic. */
+  manualMode: boolean;
 }
 
 const DEFAULTS: DesktopSettings = {
@@ -29,6 +32,7 @@ const DEFAULTS: DesktopSettings = {
   ttsProvider: "elevenlabs",
   physicalExtenderEnabled: true,
   vadSilenceMs: 1_500,
+  manualMode: false,
 };
 
 let _store: Store | null = null;
@@ -43,6 +47,7 @@ async function getStore(): Promise<Store> {
         "tts.provider": DEFAULTS.ttsProvider,
         "physicalExtender.enabled": DEFAULTS.physicalExtenderEnabled,
         "vad.silenceMs": DEFAULTS.vadSilenceMs,
+        "capture.manualMode": DEFAULTS.manualMode,
       },
     });
   }
@@ -58,6 +63,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const ttsProvider = await store.get<"elevenlabs" | "off">("tts.provider");
   const physicalExtenderEnabled = await store.get<boolean>("physicalExtender.enabled");
   const vadSilenceMs = await store.get<number>("vad.silenceMs");
+  const manualMode = await store.get<boolean>("capture.manualMode");
 
   return {
     ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
@@ -65,6 +71,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
     ttsProvider: ttsProvider ?? DEFAULTS.ttsProvider,
     physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULTS.physicalExtenderEnabled,
     vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
+    manualMode: manualMode ?? DEFAULTS.manualMode,
   };
 }
 
@@ -80,6 +87,7 @@ export async function saveSetting<K extends keyof DesktopSettings>(
     : key === "ttsVoiceId" ? "tts.voiceId"
     : key === "ttsProvider" ? "tts.provider"
     : key === "physicalExtenderEnabled" ? "physicalExtender.enabled"
-    : "vad.silenceMs";
+    : key === "vadSilenceMs" ? "vad.silenceMs"
+    : "capture.manualMode";
   await store.set(storeKey, value);
 }

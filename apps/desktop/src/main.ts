@@ -24,7 +24,9 @@ import {
   cancelCaptureTurn,
   onCaptureState,
   onExtendedChange,
+  onManualModeChange,
   onTranscriptReceived,
+  setManualMode,
   setVadSilenceMs,
   startCaptureTurn,
   toggleExtended,
@@ -90,6 +92,7 @@ function paintCaptureState(state: CaptureState): void {
   _captureState = state;
   renderLivePanel();
   paintActionRow(state, _extended);
+  document.body.dataset.jarvisState = state;
 }
 
 function paintExtended(active: boolean): void {
@@ -318,6 +321,7 @@ async function boot(): Promise<void> {
   ttsPlayer.setVoiceId(settings.ttsVoiceId);
   setPeEnabled(settings.physicalExtenderEnabled);
   setVadSilenceMs(settings.vadSilenceMs);
+  setManualMode(settings.manualMode);
 
   // Reflect initial state in UI
   const ttsEnabledEl = document.getElementById("tts-enabled") as HTMLInputElement | null;
@@ -355,6 +359,26 @@ async function boot(): Promise<void> {
     });
   }
 
+  // 3a. Wire manual-mode toggle + body[data-jarvis-state] for orb animation
+  const manualModeEl = document.getElementById("manual-mode") as HTMLInputElement | null;
+  if (manualModeEl) {
+    manualModeEl.checked = settings.manualMode;
+    manualModeEl.addEventListener("change", () => {
+      setManualMode(manualModeEl.checked);
+      void saveSetting("manualMode", manualModeEl.checked);
+    });
+  }
+  onManualModeChange((active) => {
+    if (manualModeEl) manualModeEl.checked = active;
+  });
+
+  // Drive the kiwi orb state from capture state — idle → recording → uploading → idle.
+  // TTS playing is mapped to "speaking" via ttsPlayer.onStateChange below.
+  function setJarvisState(s: "idle" | "recording" | "uploading" | "speaking"): void {
+    document.body.dataset.jarvisState = s;
+  }
+  setJarvisState("idle");
+
   // 3b. Wire VAD silence dropdown
   if (vadSilenceEl) {
     vadSilenceEl.addEventListener("change", () => {
@@ -386,8 +410,15 @@ async function boot(): Promise<void> {
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
 
-  // TTS state drives the Stop button visibility.
-  ttsPlayer.onStateChange((state) => paintTtsState(state === "playing"));
+  // TTS state drives the Stop button visibility + the kiwi orb's "speaking" hue.
+  ttsPlayer.onStateChange((state) => {
+    paintTtsState(state === "playing");
+    if (state === "playing" && _captureState === "idle") {
+      setJarvisState("speaking");
+    } else if (state === "idle" && _captureState === "idle") {
+      setJarvisState("idle");
+    }
+  });
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
