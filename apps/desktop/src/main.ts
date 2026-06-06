@@ -24,6 +24,7 @@ import {
   cancelCaptureTurn,
   onCaptureState,
   onTranscriptReceived,
+  setVadSilenceMs,
   startCaptureTurn,
   type CaptureState,
 } from "@/audio/capture";
@@ -209,16 +210,19 @@ async function boot(): Promise<void> {
   ttsPlayer.setEnabled(settings.ttsEnabled && settings.ttsProvider !== "off");
   ttsPlayer.setVoiceId(settings.ttsVoiceId);
   setPeEnabled(settings.physicalExtenderEnabled);
+  setVadSilenceMs(settings.vadSilenceMs);
 
   // Reflect initial state in UI
   const ttsEnabledEl = document.getElementById("tts-enabled") as HTMLInputElement | null;
   const ttsProviderEl = document.getElementById("tts-provider") as HTMLSelectElement | null;
   const peEnabledEl = document.getElementById("pe-enabled") as HTMLInputElement | null;
+  const vadSilenceEl = document.getElementById("vad-silence") as HTMLSelectElement | null;
   const modeEl = document.getElementById("mode");
 
   if (ttsEnabledEl) ttsEnabledEl.checked = settings.ttsEnabled;
   if (ttsProviderEl) ttsProviderEl.value = settings.ttsProvider;
   if (peEnabledEl) peEnabledEl.checked = settings.physicalExtenderEnabled;
+  if (vadSilenceEl) vadSilenceEl.value = String(settings.vadSilenceMs);
   if (modeEl) {
     modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (Cmd+Shift+J)";
   }
@@ -241,6 +245,16 @@ async function boot(): Promise<void> {
       const enabled = ttsEnabledEl?.checked ?? true;
       ttsPlayer.setEnabled(enabled && provider !== "off");
       void saveSetting("ttsProvider", provider);
+    });
+  }
+
+  // 3b. Wire VAD silence dropdown
+  if (vadSilenceEl) {
+    vadSilenceEl.addEventListener("change", () => {
+      const ms = Number(vadSilenceEl.value);
+      if (!Number.isFinite(ms)) return;
+      setVadSilenceMs(ms);
+      void saveSetting("vadSilenceMs", ms);
     });
   }
 

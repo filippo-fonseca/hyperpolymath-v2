@@ -19,6 +19,8 @@ export interface DesktopSettings {
   ttsVoiceId: string;
   ttsProvider: "elevenlabs" | "off";
   physicalExtenderEnabled: boolean;
+  /** Milliseconds of continuous silence before VAD declares end-of-turn. */
+  vadSilenceMs: number;
 }
 
 const DEFAULTS: DesktopSettings = {
@@ -26,6 +28,7 @@ const DEFAULTS: DesktopSettings = {
   ttsVoiceId: DEFAULT_VOICE_ID,
   ttsProvider: "elevenlabs",
   physicalExtenderEnabled: true,
+  vadSilenceMs: 1_500,
 };
 
 let _store: Store | null = null;
@@ -39,6 +42,7 @@ async function getStore(): Promise<Store> {
         "tts.voiceId": DEFAULTS.ttsVoiceId,
         "tts.provider": DEFAULTS.ttsProvider,
         "physicalExtender.enabled": DEFAULTS.physicalExtenderEnabled,
+        "vad.silenceMs": DEFAULTS.vadSilenceMs,
       },
     });
   }
@@ -53,12 +57,14 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const ttsVoiceId = await store.get<string>("tts.voiceId");
   const ttsProvider = await store.get<"elevenlabs" | "off">("tts.provider");
   const physicalExtenderEnabled = await store.get<boolean>("physicalExtender.enabled");
+  const vadSilenceMs = await store.get<number>("vad.silenceMs");
 
   return {
     ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
     ttsVoiceId: ttsVoiceId ?? DEFAULTS.ttsVoiceId,
     ttsProvider: ttsProvider ?? DEFAULTS.ttsProvider,
     physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULTS.physicalExtenderEnabled,
+    vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
   };
 }
 
@@ -73,6 +79,7 @@ export async function saveSetting<K extends keyof DesktopSettings>(
     key === "ttsEnabled" ? "tts.enabled"
     : key === "ttsVoiceId" ? "tts.voiceId"
     : key === "ttsProvider" ? "tts.provider"
-    : "physicalExtender.enabled";
+    : key === "physicalExtenderEnabled" ? "physicalExtender.enabled"
+    : "vad.silenceMs";
   await store.set(storeKey, value);
 }

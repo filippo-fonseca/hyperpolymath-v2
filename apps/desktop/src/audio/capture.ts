@@ -15,7 +15,15 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { postClaim, postTranscript } from "@/api/client";
 import { encodeWav } from "@/audio/encode-wav";
-import { VadSilenceDetector } from "@/audio/vad";
+import { VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
+
+// Live-mutable VAD params — `main.ts` calls `setVadSilenceMs` when the user
+// adjusts the Settings "Silence wait" dropdown so the next capture turn
+// picks up the new value without restarting the daemon.
+let vadSilenceMs = VAD_DEFAULTS.silenceEndMs;
+export function setVadSilenceMs(ms: number): void {
+  vadSilenceMs = ms;
+}
 
 interface AudioChunkPayload {
   samples: number[];
@@ -67,7 +75,7 @@ export async function startCaptureTurn(): Promise<void> {
 
   await postClaim();
 
-  const vad = new VadSilenceDetector();
+  const vad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
   vad.start();
 
   let finished = false;

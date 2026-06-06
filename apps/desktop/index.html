@@ -208,6 +208,18 @@
         </span>
       </div>
       <div class="row"><span class="label">Hotkey</span><span class="value" id="hotkey-status" style="color:var(--muted);font-size:12px;">PE active — using ESP32</span></div>
+      <div class="row">
+        <span class="label">Silence wait</span>
+        <span class="value">
+          <select id="vad-silence">
+            <option value="800">snappy (0.8s)</option>
+            <option value="1200">quick (1.2s)</option>
+            <option value="1500">default (1.5s)</option>
+            <option value="2000">relaxed (2s)</option>
+            <option value="2500">patient (2.5s)</option>
+          </select>
+        </span>
+      </div>
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
 
       <div class="live-panel" id="live-panel" data-state="idle">

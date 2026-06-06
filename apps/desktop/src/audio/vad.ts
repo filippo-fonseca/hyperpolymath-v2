@@ -21,7 +21,7 @@ export const VAD_DEFAULTS: VadParams = {
   sampleRate: 16_000,
   pollIntervalMs: 80,
   gracePeriodMs: 1_500,
-  silenceEndMs: 1_000,
+  silenceEndMs: 1_500,
   hardCapMs: 8_000,
   rmsThreshold: 0.01,
 };
