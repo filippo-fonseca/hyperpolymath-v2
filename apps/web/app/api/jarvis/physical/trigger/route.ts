@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { emitPhysicalTrigger } from "@/lib/voice/physical-extension/bus";
 import type { PhysicalTrigger } from "@/lib/voice/physical-extension/types";
+import { getVoiceSourceStatus } from "@/lib/voice/source-claim";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     commandId: typeof body.commandId === "number" ? body.commandId : -1,
     commandName: body.commandName,
     at: Date.now(),
+    desktopClaimed: getVoiceSourceStatus().claimed,
   };
 
   emitPhysicalTrigger(payload);

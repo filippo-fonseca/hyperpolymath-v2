@@ -1,5 +1,8 @@
 import { physicalBus } from "@/lib/voice/physical-extension/bus";
-import type { PhysicalTrigger } from "@/lib/voice/physical-extension/types";
+import type {
+  PhysicalTranscript,
+  PhysicalTrigger,
+} from "@/lib/voice/physical-extension/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +24,10 @@ export async function GET(req: Request): Promise<Response> {
       };
 
       const triggerHandler = (data: PhysicalTrigger) => send("trigger", data);
+      const transcriptHandler = (data: PhysicalTranscript) => send("transcript", data);
+
       physicalBus.on("trigger", triggerHandler);
+      physicalBus.on("transcript", transcriptHandler);
 
       const heartbeat = setInterval(() => {
         try {
@@ -33,6 +39,7 @@ export async function GET(req: Request): Promise<Response> {
 
       const cleanup = () => {
         physicalBus.off("trigger", triggerHandler);
+        physicalBus.off("transcript", transcriptHandler);
         clearInterval(heartbeat);
         try {
           controller.close();

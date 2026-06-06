@@ -1,6 +1,9 @@
 import { EventEmitter } from "node:events";
 
-import type { PhysicalTrigger } from "@/lib/voice/physical-extension/types";
+import type {
+  PhysicalTranscript,
+  PhysicalTrigger,
+} from "@/lib/voice/physical-extension/types";
 
 const g = globalThis as unknown as { __jarvisPhysicalBus?: EventEmitter };
 
@@ -11,4 +14,8 @@ physicalBus.setMaxListeners(0);
 
 export function emitPhysicalTrigger(payload: PhysicalTrigger): void {
   physicalBus.emit("trigger", payload);
+}
+
+export function emitPhysicalTranscript(payload: PhysicalTranscript): void {
+  physicalBus.emit("transcript", payload);
 }
