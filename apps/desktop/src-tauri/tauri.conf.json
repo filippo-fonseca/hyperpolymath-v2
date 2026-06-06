@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "identifier": "io.hyperpolymath.jarvis-desktop",
   "build": {
-    "frontendDist": "../web",
-    "devUrl": null,
-    "beforeDevCommand": null,
-    "beforeBuildCommand": null
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm vite",
+    "beforeBuildCommand": "pnpm vite build"
   },
   "app": {
     "withGlobalTauri": true,
