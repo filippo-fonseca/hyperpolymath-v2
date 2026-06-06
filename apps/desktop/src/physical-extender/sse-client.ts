@@ -1,6 +1,8 @@
 // apps/desktop/src/physical-extender/sse-client.ts
 // Subscribes to the existing Next.js SSE stream at /api/jarvis/physical/events.
-// On `trigger` events, starts a cpal capture turn.
+// On `trigger` events, starts a cpal capture turn (unless PE mode is disabled
+// via setPeEnabled(false), in which case the event is ignored — keyboard hotkey
+// is used instead).
 // On `jarvis-response-*` events, forwards them to registered listeners so
 // the desktop UI can render the server-side JARVIS response without the browser.
 
@@ -8,6 +10,14 @@ import { startCaptureTurn } from "@/audio/capture";
 import { getEnv } from "@/env";
 
 let source: EventSource | null = null;
+
+/** When false, incoming `trigger` SSE events are ignored. The global
+ *  keyboard hotkey (Cmd+Shift+J) fires startCaptureTurn() directly. */
+let _peEnabled = true;
+
+export function setPeEnabled(enabled: boolean): void {
+  _peEnabled = enabled;
+}
 
 interface PhysicalTriggerPayload {
   source: string;
@@ -113,6 +123,12 @@ export function startPhysicalExtenderListener(): void {
   source.addEventListener("hello", () => emitStatus("connected"));
 
   source.addEventListener("trigger", (e) => {
+    if (!_peEnabled) {
+      // PE mode disabled — ignore SSE trigger; hotkey handles wake instead.
+      // eslint-disable-next-line no-console
+      console.log("[trigger] PE disabled — ignoring SSE trigger (use Cmd+Shift+J)");
+      return;
+    }
     const messageEvent = e as MessageEvent<string>;
     const payload = parseJson<PhysicalTriggerPayload>(messageEvent.data);
     if (!payload) return;

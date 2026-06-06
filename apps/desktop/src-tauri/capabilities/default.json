@@ -7,6 +7,7 @@
     "core:default",
     "core:event:default",
     "store:default",
+    "global-shortcut:default",
     {
       "identifier": "http:default",
       "allow": [

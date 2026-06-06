@@ -36,10 +36,26 @@ export class TtsPlayer {
   private audioCtx: AudioContext | null = null;
   private currentSource: AudioBufferSourceNode | null = null;
   private abortController: AbortController | null = null;
+  private stateListeners = new Set<(state: TtsPlayerState) => void>();
 
   constructor(voiceId = DEFAULT_VOICE_ID, enabled = true) {
     this.voiceId = voiceId;
     this.enabled = enabled;
+  }
+
+  /** Subscribe to state transitions (idle ↔ playing). */
+  onStateChange(fn: (state: TtsPlayerState) => void): () => void {
+    this.stateListeners.add(fn);
+    fn(this.state);
+    return () => {
+      this.stateListeners.delete(fn);
+    };
+  }
+
+  private setState(next: TtsPlayerState): void {
+    if (next === this.state) return;
+    this.state = next;
+    for (const fn of this.stateListeners) fn(next);
   }
 
   /** Update whether TTS is active. When disabled, all enqueues become no-ops. */
@@ -88,7 +104,7 @@ export class TtsPlayer {
     }
     this.queue = [];
     this.nextSeq = 0;
-    this.state = "idle";
+    this.setState("idle");
   }
 
   /** Reset between turns — clears the seq counter for the next turn. */
@@ -107,11 +123,11 @@ export class TtsPlayer {
 
     this.queue.shift();
     this.nextSeq++;
-    this.state = "playing";
+    this.setState("playing");
 
     void this.playSentence(head.text).finally(() => {
-      this.state = "idle";
       this.currentSource = null;
+      if (this.queue.length === 0) this.setState("idle");
       this.drain();
     });
   }

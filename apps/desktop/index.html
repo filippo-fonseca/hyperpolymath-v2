@@ -135,6 +135,38 @@
         border-radius: 4px;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
+
+      /* Settings controls */
+      select {
+        background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+        border-radius: 5px; padding: 3px 6px; font-size: 12px; font-family: inherit;
+        cursor: pointer; outline: none;
+      }
+      select:focus { border-color: var(--accent); }
+      .toggle-pill {
+        display: inline-flex; align-items: center; cursor: pointer; gap: 6px;
+        font-size: 12px; color: var(--fg);
+      }
+      .toggle-pill input[type=checkbox] {
+        appearance: none; width: 32px; height: 18px; background: var(--rule);
+        border-radius: 9px; position: relative; cursor: pointer; transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle-pill input[type=checkbox]:checked { background: var(--accent); }
+      .toggle-pill input[type=checkbox]::after {
+        content: ""; position: absolute; top: 2px; left: 2px;
+        width: 14px; height: 14px; border-radius: 50%; background: #fff;
+        transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      }
+      .toggle-pill input[type=checkbox]:checked::after { transform: translateX(14px); }
+      .stop-btn {
+        background: transparent; border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--rule));
+        color: var(--accent); padding: 4px 12px; border-radius: 6px;
+        font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit;
+        display: none;
+      }
+      .stop-btn.visible { display: inline-flex; }
+      .stop-btn:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
     </style>
   </head>
   <body>
@@ -143,6 +175,39 @@
       <p class="subtitle">Physical Extender mode — desktop owns the mic.</p>
       <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
       <div class="row"><span class="label">SSE status</span><span class="value" id="sse-status">connecting…</span></div>
+      <div class="row">
+        <span class="label">Speak responses</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="tts-enabled" checked />
+          </label>
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Voice provider</span>
+        <span class="value">
+          <select id="tts-provider">
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="off">Off</option>
+          </select>
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Speaking</span>
+        <span class="value">
+          <button class="stop-btn" id="stop-btn">Stop speaking</button>
+          <span id="stop-btn-idle" style="color:var(--muted);font-size:12px;">idle</span>
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Physical Extender</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="pe-enabled" checked />
+          </label>
+        </span>
+      </div>
+      <div class="row"><span class="label">Hotkey</span><span class="value" id="hotkey-status" style="color:var(--muted);font-size:12px;">PE active — using ESP32</span></div>
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
 
       <div class="live-panel" id="live-panel" data-state="idle">
@@ -164,7 +229,7 @@
         <div class="tool-calls" id="tool-calls"></div>
       </div>
 
-      <footer>Phase 14 · Plan 14-04 — server-side JARVIS turn + receipt panel active.</footer>
+      <footer>Phase 14 · voice surface migration — desktop owns mic + TTS.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
