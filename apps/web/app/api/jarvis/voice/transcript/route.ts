@@ -10,26 +10,32 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Trigger-Secret, X-Jarvis-Vad-End-At",
+};
+
 export async function POST(req: NextRequest): Promise<Response> {
   const expected = process.env.PHYSICAL_TRIGGER_SECRET;
   if (!expected) {
     return Response.json(
       { error: "PHYSICAL_TRIGGER_SECRET not configured on server" },
-      { status: 500 },
+      { status: 500, headers: CORS },
     );
   }
 
   const provided = req.headers.get("x-trigger-secret");
   if (!provided || provided !== expected) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: CORS });
   }
 
   const audioBuffer = await req.arrayBuffer();
   if (audioBuffer.byteLength === 0) {
-    return Response.json({ error: "Empty audio body" }, { status: 400 });
+    return Response.json({ error: "Empty audio body" }, { status: 400, headers: CORS });
   }
   if (audioBuffer.byteLength > MAX_AUDIO_BYTES) {
-    return Response.json({ error: "Audio too large (max 25MB)" }, { status: 413 });
+    return Response.json({ error: "Audio too large (max 25MB)" }, { status: 413, headers: CORS });
   }
 
   const vadEndAtHeader = req.headers.get("x-jarvis-vad-end-at");
@@ -51,9 +57,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
       at: sttDoneAt,
     });
-    return Response.json({ transcript: transcription.text, sttDoneAt });
+    return Response.json({ transcript: transcription.text, sttDoneAt }, { headers: CORS });
   } catch (err) {
     console.error("[voice/transcript] Groq failed", err);
-    return Response.json({ error: "STT failed" }, { status: 500 });
+    return Response.json({ error: "STT failed" }, { status: 500, headers: CORS });
   }
+}
+
+export function OPTIONS(): Response {
+  return new Response(null, { status: 204, headers: CORS });
 }
