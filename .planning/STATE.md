@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: "Paused at 14-03 Task 3 checkpoint (human-verify: e2e smoke — ESP32/curl wake → desktop capture → browser transcript)"
-last_updated: "2026-06-06T19:04:44.153Z"
+stopped_at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
+last_updated: "2026-06-06T20:28:55.493Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 28
   completed_phases: 11
   total_plans: 71
-  completed_plans: 58
+  completed_plans: 59
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-06
 
@@ -110,6 +110,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 11-prompt-cache-state-priming P06 | 5min | 3 tasks | 7 files |
 | Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
 | Phase 14-jarvis-desktop-mic-middleman P02 | 5 | 2 tasks | 11 files |
+| Phase 14 P04 | 40 | 7 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -302,6 +303,9 @@ Recent decisions affecting current work:
 - [Phase 14-jarvis-desktop-mic-middleman]: voice-source claim uses globalThis scalar (not struct) — single-user app has one valid owner
 - [Phase 14-jarvis-desktop-mic-middleman]: physicalBus extended with transcript event type; no new SSE channel (RESEARCH Pattern 4)
 - [Phase 14-jarvis-desktop-mic-middleman]: desktopClaimed embedded in trigger SSE payload (atomic, no browser poll round-trip)
+- [Phase 14]: voiceActive=false for tool schema in run-turn.ts (voice_summary is browser-TTS concern; server-side voice turns skip it)
+- [Phase 14]: turnId pre-generated in route.ts and passed to runJarvisTurnStream so Plan 09-02 beacon correlation is preserved
+- [Phase 14]: runJarvisTurnStream fires void after returning 200 to voice/transcript; response chunks stream via SSE asynchronously
 
 ### Pending Todos
 
@@ -320,6 +324,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-06T19:04:44.148Z
-Stopped at: Paused at 14-03 Task 3 checkpoint (human-verify: e2e smoke — ESP32/curl wake → desktop capture → browser transcript)
+Last session: 2026-06-06T20:28:55.489Z
+Stopped at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
 Resume file: None

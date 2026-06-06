@@ -400,7 +400,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 11. Prompt Cache + State Priming | 6/6 | Complete    | 2026-05-31 |
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
-| 14. JARVIS Desktop Mic Middleman | 3/5 | In Progress|  |
+| 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 
 ## Backlog
 
@@ -416,7 +416,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
