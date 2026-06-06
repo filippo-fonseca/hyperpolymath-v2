@@ -12,16 +12,83 @@
         --muted: light-dark(#6b6b6b, #8a8a8a);
         --rule: light-dark(#e6e6e6, #2a2a2a);
         --accent: #00d4ff;
+        --rec: #e54b4b;
+        --upload: #f6b03e;
       }
       body { margin: 0; padding: 28px 32px; background: var(--bg); color: var(--fg); }
       h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
       .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
-      .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
-      .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+      .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+      .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
       .row:last-child { border-bottom: none; }
-      .label { color: var(--muted); }
-      .value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg); }
+      .label { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+      .value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg); text-align: right; max-width: 60%; word-break: break-word; }
       footer { color: var(--muted); font-size: 11px; margin-top: 24px; }
+
+      .live-panel {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--rec) 8%, transparent);
+        border: 1px solid color-mix(in srgb, var(--rec) 30%, var(--rule));
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .live-panel[data-state="recording"] {
+        display: flex;
+        background: color-mix(in srgb, var(--rec) 8%, transparent);
+        border-color: color-mix(in srgb, var(--rec) 35%, var(--rule));
+      }
+      .live-panel[data-state="uploading"] {
+        display: flex;
+        background: color-mix(in srgb, var(--upload) 10%, transparent);
+        border-color: color-mix(in srgb, var(--upload) 35%, var(--rule));
+      }
+      .live-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: var(--fg); }
+      .pulse-dot {
+        width: 10px; height: 10px; border-radius: 50%; background: var(--rec);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 60%, transparent);
+        animation: pulse 1.2s ease-out infinite;
+      }
+      .live-panel[data-state="uploading"] .pulse-dot {
+        background: var(--upload);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--upload) 60%, transparent);
+        animation-duration: 0.8s;
+      }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 70%, transparent); transform: scale(1); }
+        50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--rec) 0%, transparent); transform: scale(1.1); }
+        100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 0%, transparent); transform: scale(1); }
+      }
+      .cancel-btn {
+        background: transparent; border: 1px solid color-mix(in srgb, var(--rec) 50%, var(--rule));
+        color: var(--rec); padding: 4px 12px; border-radius: 6px;
+        font-size: 11px; cursor: pointer; font-weight: 500;
+        font-family: inherit;
+      }
+      .cancel-btn:hover { background: color-mix(in srgb, var(--rec) 15%, transparent); }
+      .cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .transcript-panel {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: var(--rule);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--fg);
+        display: none;
+      }
+      .transcript-panel.visible { display: block; }
+      .transcript-panel .transcript-label {
+        color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+        margin-bottom: 4px;
+      }
+      .transcript-panel .transcript-text {
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      }
     </style>
   </head>
   <body>
@@ -31,6 +98,20 @@
       <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
       <div class="row"><span class="label">SSE status</span><span class="value" id="sse-status">connecting…</span></div>
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
+
+      <div class="live-panel" id="live-panel" data-state="idle">
+        <div class="live-label">
+          <span class="pulse-dot"></span>
+          <span id="live-text">Recording</span>
+        </div>
+        <button class="cancel-btn" id="cancel-btn">Cancel</button>
+      </div>
+
+      <div class="transcript-panel" id="transcript-panel">
+        <div class="transcript-label">Last transcript sent</div>
+        <div class="transcript-text" id="transcript-text"></div>
+      </div>
+
       <footer>Phase 14 · Plan 14-03 — wake → capture → transcript pipeline active.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>

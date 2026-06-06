@@ -4,7 +4,11 @@
 //   2. Register audio-chunk event listener
 //   3. invoke("start_capture") → Rust opens cpal stream
 //   4. Feed chunks to VadSilenceDetector
-//   5. On VAD end-of-speech: stop capture, encode WAV, POST to /voice/transcript
+//   5. On VAD end-of-speech (or user cancel): stop capture, encode WAV, POST to /voice/transcript
+//
+// Cancel: if the user clicks Cancel during a turn, the captured audio is
+// discarded — no transcript POST, nothing reaches the web app. This is the
+// safety valve for misfires or accidental wake events.
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -18,8 +22,36 @@ interface AudioChunkPayload {
   sample_rate: number;
 }
 
-// Module-level guard: only one active capture turn at a time.
+export type CaptureState = "idle" | "recording" | "uploading";
+type StateListener = (state: CaptureState) => void;
+type TranscriptListener = (text: string) => void;
+
+const stateListeners = new Set<StateListener>();
+const transcriptListeners = new Set<TranscriptListener>();
+
+let currentState: CaptureState = "idle";
 let activeUnlisten: UnlistenFn | null = null;
+let cancelled = false;
+
+function setState(next: CaptureState): void {
+  currentState = next;
+  for (const fn of stateListeners) fn(next);
+}
+
+export function onCaptureState(fn: StateListener): () => void {
+  stateListeners.add(fn);
+  fn(currentState);
+  return () => {
+    stateListeners.delete(fn);
+  };
+}
+
+export function onTranscriptReceived(fn: TranscriptListener): () => void {
+  transcriptListeners.add(fn);
+  return () => {
+    transcriptListeners.delete(fn);
+  };
+}
 
 /**
  * Start a capture turn. Idempotent — calling while a turn is active is a no-op.
@@ -27,16 +59,12 @@ let activeUnlisten: UnlistenFn | null = null;
  */
 export async function startCaptureTurn(): Promise<void> {
   if (activeUnlisten) {
-    // Already recording — ignore re-trigger (matches PhysicalExtensionRecorder guard).
     // eslint-disable-next-line no-console
     console.log("[capture] already recording — ignoring re-trigger");
     return;
   }
+  cancelled = false;
 
-  // Refresh source claim immediately on wake — belt-and-braces alongside the
-  // persistent 10s background heartbeat in main.ts (Plan 14-04). The persistent
-  // heartbeat covers idle + active states; this extra immediate POST guarantees
-  // a fresh claim is on file the instant we open the mic.
   await postClaim();
 
   const vad = new VadSilenceDetector();
@@ -44,8 +72,6 @@ export async function startCaptureTurn(): Promise<void> {
 
   let finished = false;
 
-  // Register the audio-chunk listener BEFORE invoking start_capture to avoid
-  // a race where the first chunks arrive before the listener is attached.
   activeUnlisten = await listen<AudioChunkPayload>("audio-chunk", (event) => {
     if (finished) return;
     const chunk = new Float32Array(event.payload.samples);
@@ -57,19 +83,44 @@ export async function startCaptureTurn(): Promise<void> {
   });
 
   await invoke("start_capture");
+  setState("recording");
 }
 
-/** Capture `vadEndAt` BEFORE awaiting stop so the timestamp reflects the
- *  moment VAD declared silence end (matches PhysicalExtensionRecorder pattern). */
+/**
+ * User-initiated cancel. Stops the cpal stream and discards captured audio.
+ * No transcript POST — nothing reaches the web app.
+ */
+export async function cancelCaptureTurn(): Promise<void> {
+  if (currentState === "idle") return;
+  cancelled = true;
+  if (activeUnlisten) {
+    activeUnlisten();
+    activeUnlisten = null;
+  }
+  await invoke("stop_capture");
+  setState("idle");
+  // eslint-disable-next-line no-console
+  console.log("[capture] cancelled by user — no transcript will be sent");
+}
+
 async function finishTurn(vad: VadSilenceDetector): Promise<void> {
   const vadEndAt = Date.now();
   await stopCaptureTurn();
+
+  if (cancelled) {
+    setState("idle");
+    return;
+  }
+
   const samples = vad.flush();
   if (samples.length === 0) {
     // eslint-disable-next-line no-console
     console.log("[capture] no audio captured — silent drop");
+    setState("idle");
     return;
   }
+
+  setState("uploading");
   const wav = encodeWav(samples, 16_000);
   const result = await postTranscript({ wav, vadEndAt });
   if (result) {
@@ -77,7 +128,9 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
     console.log(
       `[capture] transcript received (sttDoneAt=${result.sttDoneAt}): ${result.transcript.slice(0, 80)}`,
     );
+    for (const fn of transcriptListeners) fn(result.transcript);
   }
+  setState("idle");
 }
 
 /**

@@ -21,6 +21,14 @@ const PhysicalExtensionRecorder = dynamic(
   { ssr: false },
 );
 
+const JarvisVoicePlayer = dynamic(
+  () =>
+    import("@/components/voice/JarvisVoicePlayer").then((m) => ({
+      default: m.JarvisVoicePlayer,
+    })),
+  { ssr: false },
+);
+
 /**
  * Routes between the two voice-listener implementations:
  *
@@ -60,7 +68,10 @@ export function JarvisListenerMount() {
   if (!mounted || isLoading) return null;
 
   // Hard guard: desktop owns the mic — do NOT mount any browser mic path.
-  if (desktopClaimed) return null;
+  // BUT still mount the TTS-only JarvisVoicePlayer so JARVIS can talk back
+  // when it responds to a desktop-captured turn (without it, the user gets
+  // text-only replies in physical extender mode).
+  if (desktopClaimed) return <JarvisVoicePlayer />;
 
   if (physicalExtensionEnabled) {
     return <PhysicalExtensionRecorder />;
