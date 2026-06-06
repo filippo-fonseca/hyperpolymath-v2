@@ -89,6 +89,52 @@
       .transcript-panel .transcript-text {
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       }
+
+      .response-panel {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--rule));
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--fg);
+        display: none;
+      }
+      .response-panel.visible { display: block; }
+      .response-panel.streaming {
+        display: block;
+        border-color: color-mix(in srgb, var(--accent) 35%, var(--rule));
+      }
+      .response-panel .response-label {
+        color: var(--accent); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+        margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+      }
+      .response-panel.streaming .response-label::after {
+        content: "";
+        display: inline-block;
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--accent);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      .response-panel .response-text {
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        white-space: pre-wrap;
+      }
+      .response-panel .tool-calls {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .response-panel .tool-call-item {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 4px 8px;
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+        border-radius: 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
     </style>
   </head>
   <body>
@@ -112,7 +158,13 @@
         <div class="transcript-text" id="transcript-text"></div>
       </div>
 
-      <footer>Phase 14 · Plan 14-03 — wake → capture → transcript pipeline active.</footer>
+      <div class="response-panel" id="response-panel">
+        <div class="response-label">JARVIS</div>
+        <div class="response-text" id="response-text"></div>
+        <div class="tool-calls" id="tool-calls"></div>
+      </div>
+
+      <footer>Phase 14 · Plan 14-04 — server-side JARVIS turn + receipt panel active.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
