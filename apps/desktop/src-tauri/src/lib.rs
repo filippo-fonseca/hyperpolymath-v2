@@ -15,10 +15,16 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(ActivationPolicy::Accessory);
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let icon = app
+                .default_window_icon()
+                .cloned()
+                .ok_or("no default_window_icon — bundle.icon must list at least one PNG")?;
+            TrayIconBuilder::with_id("jarvis-tray")
+                .icon(icon)
+                .icon_as_template(true)
                 .tooltip("JARVIS Desktop")
                 .build(app)?;
+            eprintln!("[jarvis-desktop] tray icon created");
 
             Ok(())
         })
