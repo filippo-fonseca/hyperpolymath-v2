@@ -529,6 +529,13 @@ export function JarvisConsole({
         }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
+      // Phase 14-03: voice transcripts (especially desktop-originated ones)
+      // are treated as FRESH conversations — JARVIS should not see prior
+      // turns as context for the current command. Without this clear,
+      // multiple desktop wake-fires accumulate into one giant prompt and
+      // JARVIS dumps the whole history into captures.
+      setTurns([]);
+      turnsRef.current = [];
       void handleSubmit(
         {
           input: detail.transcript,
