@@ -202,13 +202,14 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [ ] **ROUTE-03**: When Haiku produces a low-confidence tool call (heuristics: `ask_clarification` invoked OR `validate-references` fails OR no tool emitted at all), the turn auto-escalates to Sonnet for a single retry before any user-visible result is rendered
 - [ ] **ROUTE-04**: `/insights` renders model-tier distribution (% Sonnet vs % Haiku) over rolling 24h alongside per-tier p50 first-token latency
 
-### Desktop Shell + Global Hotkey
+### JARVIS Desktop Mic Middleman
 
-- [ ] **DESK-01**: A Tauri 2.x macOS menu-bar app at `apps/desktop/` ships with a hidden HUD window, tray icon, and `Cmd+Shift+Space` global shortcut (via `tauri-plugin-global-shortcut`) that toggles HUD visibility; HUD points at the deployed Next.js web app (no SSR rewrite needed)
-- [ ] **DESK-02**: FN-double-tap (~1000ms window) summons the HUD via `tauri-plugin-macos-input-monitor` (CGEventTap); first launch walks the user through granting Input Monitoring permission in macOS System Settings
-- [ ] **DESK-03**: In Tauri mode (`window.__TAURI__` detected), microphone is acquired only after the HUD is summoned and released when the HUD is dismissed; `Cmd+Shift+J` press-to-talk still works inside the HUD
-- [ ] **DESK-04**: Dismissing the HUD (Esc, blur, hotkey re-press) cancels any in-flight Anthropic stream + TTS playback (absorbs backlog `999.7` interrupt/stop control)
-- [ ] **DESK-05**: Browser tab version of the app continues to work in parallel without code changes; same Supabase session shared via WKWebView cookie persistence per-origin
+- [ ] **DESK-01**: A Tauri 2.x macOS menu-bar app at `apps/desktop/` ships with a tray icon and a Settings window (no main HUD window in this phase). The bundle's `Info.plist` declares `NSMicrophoneUsageDescription` so macOS grants the app bundle ID persistent microphone access (one prompt at first launch, persisted forever in System Settings → Privacy & Security → Microphone across reboots — Safari never re-prompts during desktop-mediated turns)
+- [ ] **DESK-02**: Desktop supports two wake-trigger modes, toggleable from Settings and able to run independently or concurrently. **Physical Extender** subscribes to the existing `/api/jarvis/physical/trigger` SSE stream — when the ESP32 fires the wake event, the desktop opens its mic. **Standalone** runs on-device wake-word detection on the desktop's own microphone (openWakeWord ONNX + Silero VAD pipeline shared with Phase 12) — when the wake-word classifier scores > threshold, the desktop opens its mic
+- [ ] **DESK-03**: On wake event from either mode, desktop captures audio via raw Web Audio + VAD silence detection (port the on-demand mic logic from `apps/web/components/jarvis/JarvisConsole.tsx` commit `27125ac`), uploads audio to the existing JARVIS transcribe endpoint, and POSTs the final transcript to a new `/api/jarvis/voice/transcript` route; the server SSEs the transcript event to open browser tabs, which feed it into the existing JARVIS pipeline as if user-typed
+- [ ] **DESK-04**: Desktop registers as the active voice source via `POST /api/jarvis/voice/source/claim` with a heartbeat (TTL ~30s); browser checks the claim on every wake event and **skips its own mic activation while the heartbeat is fresh** — eliminating the Safari per-session mic prompt. When the heartbeat lapses (desktop quit/crash), browser falls back to its existing mic flow within ~1s — non-desktop users see zero regressions from today's behavior on `main`
+- [ ] **DESK-05**: A Settings window inside the desktop app exposes (and persists across restarts, in the app's data dir): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model selector + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle. All changes apply live without restarting the daemon
+- [ ] **DESK-06**: `hyperpolymath` (the dev stack boot tool at `tools/hyperpolymath/hyperpolymath.mjs`) gains a `desktop` service entry in its `SERVICES` array that spawns `pnpm --filter desktop tauri dev` (idempotent — attaches to an already-running tray instance), with status reflected in the boot-script's bottom status bar (◌/●/✗ + port label). The existing `tools/jarvis-physical/bridge/` serial bridge continues to fire wake triggers unchanged
 
 ## v2 Requirements
 
@@ -435,10 +436,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESK-03 | Phase 14 | Pending |
 | DESK-04 | Phase 14 | Pending |
 | DESK-05 | Phase 14 | Pending |
+| DESK-06 | Phase 14 | Pending |
 
 **v1.1 coverage:**
-- v1.1 requirements: 27 total (across 6 categories: Telemetry, Latency, Cache, Wake, Route, Desk)
-- Mapped to phases: 27 / 27 (100%)
+- v1.1 requirements: 28 total (across 6 categories: Telemetry, Latency, Cache, Wake, Route, Desk)
+- Mapped to phases: 28 / 28 (100%)
 - Unmapped: 0
 
 **v1.1 per-phase counts:**
@@ -447,8 +449,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 11 (Prompt Cache + State Priming): 5 requirements (CACHE-01..05)
 - Phase 12 (On-Device Wake-Word + Mic Gating): 6 requirements (WAKE-01..06)
 - Phase 13 (Haiku Fast-Path Routing): 4 requirements (ROUTE-01..04)
-- Phase 14 (Desktop Shell + Global Hotkey): 5 requirements (DESK-01..05)
+- Phase 14 (JARVIS Desktop Mic Middleman): 6 requirements (DESK-01..06)
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-28 — v1.1 phase mapping populated by gsd-roadmapper. All 27 v1.1 requirements mapped to phases 9–14 by category prefix (TEL→9, LAT→10, CACHE→11, WAKE→12, ROUTE→13, DESK→14). Hard external deadline on Phase 12: Picovoice Porcupine free tier sunsets 2026-06-30.*
+*Last updated: 2026-06-06 — Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration).*

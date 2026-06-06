@@ -35,7 +35,7 @@ Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keep
 - [x] **Phase 11: Prompt Cache + State Priming** - 3-tier `cache_control` (tools + frozen system at 1h, user-state snapshot at 5min, per-turn outside cache) + XML-tagged state block + `state_version` byte-stable reuse + predictive warm on app-focus/mic-arm + grep gate against silent invalidators. (completed 2026-05-31)
 - [ ] **Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)** - openWakeWord (ONNX + Silero VAD + `hey_jarvis_v0.1.onnx`) in a Web Worker + AudioWorklet ring buffer + 500ms pre-roll + listening-mode setting (wake / push-to-talk / hibernate). Absorbs backlog 999.6 (hibernation) + 999.8 (scoped wake-word). **Hard deadline: 2026-06-30** (Picovoice Porcupine free tier sunsets — agent goes silent if missed).
 - [ ] **Phase 13: Haiku Fast-Path Routing** - Deterministic classifier routes unambiguous CRUD to Haiku 4.5 and ambiguous/multi-action to Sonnet 4.6 + ≥50-fixture eval set as the misroute gate + auto-escalate-to-Sonnet on low-confidence Haiku turns + tier distribution on /insights.
-- [ ] **Phase 14: Desktop Shell + Global Hotkey** - Tauri 2.x macOS menu-bar app pointing at the deployed Next.js web app + `Cmd+Shift+Space` global shortcut + FN-double-tap via CGEventTap + mic-only-when-summoned + HUD-dismiss as interrupt. Absorbs backlog 999.7 (interrupt/stop control).
+- [ ] **Phase 14: JARVIS Desktop Mic Middleman** - Tauri 2.x macOS menu-bar daemon owns the microphone with persistent OS-level permission (one prompt at first launch, ever — no more Safari per-session prompts) and routes wake events from either the existing ESP32 physical extender OR an on-device standalone wake-word detector; captures audio with raw Web Audio + VAD, transcribes via the existing endpoint, and dispatches the final transcript to the browser JARVIS pipeline as if user-typed. Browser-only flow continues to work unchanged as a fallback when desktop is not running. Tunable from a Settings window inside the desktop app.
 
 ## Phase Details
 
@@ -357,18 +357,20 @@ Plans:
 **Plans**: TBD — defined by /gsd:plan-phase 13 (rough estimate: 2–3 plans — deterministic classifier + per-tier Anthropic config + eval-set fixtures + escalation loop + telemetry chart)
 **UI hint**: yes (/insights model-tier chart)
 
-### Phase 14: Desktop Shell + Global Hotkey
-**Goal**: JARVIS is one global hotkey away from anywhere on macOS — Tauri 2.x menu-bar shell points at the deployed Next.js app, `Cmd+Shift+Space` toggles the HUD, FN-double-tap is an alternative summoner, mic acquires only when summoned and releases on dismiss, and dismissing the HUD cancels any in-flight stream + TTS. Absorbs backlog 999.7 (interrupt/stop control).
-**Depends on**: Phase 12 (mic-gating settings + on-device wake-word must be in place before the desktop shell takes over mic lifecycle), Phase 10 (TTS pipeline must be the new architecture before AbortController-on-dismiss can cleanly cancel it)
-**Requirements**: DESK-01, DESK-02, DESK-03, DESK-04, DESK-05
+### Phase 14: JARVIS Desktop Mic Middleman
+**Goal**: A Tauri 2.x macOS menu-bar daemon at `apps/desktop/` owns the microphone with persistent OS-level permission (one `NSMicrophoneUsageDescription` prompt at first launch, then persisted forever in System Settings → Privacy & Security → Microphone — Safari never prompts during desktop-mediated voice turns). The daemon supports two wake-trigger modes that can run independently or concurrently: **Physical Extender** subscribes to the existing `/api/jarvis/physical/trigger` SSE stream (ESP32 fires wake), and **Standalone** runs on-device wake-word detection on the desktop's own mic (openWakeWord pipeline). On wake, the daemon captures audio via raw Web Audio + VAD silence detection, transcribes via the existing endpoint, and POSTs the final transcript to a new `/api/jarvis/voice/transcript` route; the browser receives it via SSE and feeds it into the JARVIS pipeline as if the user had typed it. Browser-only flow continues to work unchanged when the desktop app is not running — zero regressions for non-desktop users. All knobs (mode, VAD threshold, debounce, transcribe endpoint, wake-word score) are tunable from a Settings window inside the desktop app, and the `hyperpolymath` boot script launches the daemon alongside supabase + web + serial-bridge.
+**Depends on**: Phase 7 (mic-state FSM, AudioContext unlock, current physical-extension wake flow); existing `/api/jarvis/physical/trigger` SSE (already in `feature/jarvis-physical-extension`)
+**Note**: The previous Phase 14 scope (`Cmd+Shift+Space` global hotkey + FN-double-tap CGEventTap + HUD chrome + HUD-dismiss interrupt) is deferred — see Phase 999.7 (interrupt/stop returned to backlog) and a future "Desktop Shell + Global Hotkey" phase that will extend this Tauri scaffold.
+**Requirements**: DESK-01, DESK-02, DESK-03, DESK-04, DESK-05, DESK-06
 **Success Criteria** (what must be TRUE):
-  1. With the Tauri app installed, pressing `Cmd+Shift+Space` from any other macOS application toggles the JARVIS HUD into view; pressing it again or pressing Esc hides it. Tray icon shows running state
-  2. Double-tapping the FN key within ~1000ms also summons the HUD; first launch walks the user through granting Input Monitoring permission in System Settings (so the FN tap is detectable)
-  3. In Tauri mode, the microphone is acquired only after the HUD is summoned and released when the HUD is dismissed — Activity Monitor confirms no mic activity while the HUD is hidden. `Cmd+Shift+J` press-to-talk still works inside the HUD
-  4. Dismissing the HUD mid-stream cancels any in-flight Anthropic SSE + TTS playback within ~100ms (AbortController fires, AudioQueue clears, server-side turn marked status=`cancelled` in `jarvis_events`) — interrupt UX from backlog 999.7 satisfied
-  5. The browser tab version of the app continues to work in parallel without code changes — same Supabase session shared, same routing, same JARVIS Console
-**Plans**: TBD — defined by /gsd:plan-phase 14 (rough estimate: 3–4 plans — Tauri 2.x menu-bar scaffold + global shortcut + FN-double-tap CGEventTap + mic-on-summon wiring + HUD-dismiss interrupt + verification)
-**UI hint**: yes (HUD chrome + tray icon + permission walkthrough)
+  1. With the desktop daemon running and Physical Extender mode enabled, the user says "Jarvis …" near the ESP32, the desktop's microphone opens within ~200ms, the user speaks a command, VAD detects silence, the transcript appears in the browser JARVIS Console — and Safari does NOT prompt for microphone permission at any point during the flow (verifiable: open DevTools, observe no `prompt-permission` calls; confirm in macOS System Settings → Privacy & Security → Microphone that the desktop app bundle ID is granted)
+  2. With Standalone mode enabled, the user says "Jarvis …" into the laptop microphone (no ESP32 needed), the desktop's on-device wake-word detector fires (score > threshold), the desktop opens its mic, captures + transcribes, and the transcript reaches the browser identically to mode 1
+  3. With the desktop daemon NOT running (user quits the tray app), the existing browser-tab JARVIS continues to work exactly as it does on `main` today — the browser receives the physical-extension trigger via SSE and activates its own mic flow (verifiable: kill desktop process, replay an ESP32 wake, confirm browser mic activates and transcript pipeline still completes)
+  4. The desktop registers as the active voice source via a heartbeat (TTL ~30s); the browser checks this on every wake event and skips its own mic activation while a heartbeat is fresh, then falls back to the browser-mic flow within ~1s of heartbeat lapse — no double-mic conflicts
+  5. The desktop app's Settings window exposes (and persists across restarts): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle — all changes apply live without restart
+  6. `hyperpolymath` (the dev stack boot tool) gains a `desktop` service that launches `pnpm --filter desktop tauri dev`; the boot-script status bar reflects desktop state (◌/●/✗); the existing serial bridge service continues to start and forward wake triggers unchanged
+**Plans**: TBD — defined by /gsd:plan-phase 14 (rough estimate: 5–6 plans — Tauri 2 scaffold + Info.plist mic entitlement + voice-source claim/heartbeat API + Extender SSE subscriber + Standalone wake-word worker + capture/VAD/transcribe pipeline + browser-side coordination (skip mic when desktop active) + Settings UI + hyperpolymath integration + end-to-end verification)
+**UI hint**: yes (tray icon + Settings window with tunable knobs)
 
 ## Progress
 
@@ -481,7 +483,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 ### Phase 999.7: ~~JARVIS interrupt / stop control~~ (ABSORBED → Phase 14, 2026-05-28)
 
-**Status:** Absorbed into **Phase 14: Desktop Shell + Global Hotkey** (DESK-04 dismissing the HUD cancels any in-flight Anthropic stream + TTS playback within ~100ms). Browser-tab stop-control may emerge as a Phase 10 stretch if barge-in ships there. Original backlog entry preserved at `.planning/phases/999.7-jarvis-interrupt-stop-control/` for context.
+**Status:** Originally absorbed into Phase 14 as DESK-04 (HUD-dismiss interrupt). 2026-06-06: Phase 14 scope rewritten to focus on the desktop mic middleman; the global hotkey / HUD chrome / dismiss-interrupt scope is deferred to a future phase, and interrupt/stop control is back in this backlog slot. Browser-tab stop-control may also emerge as a Phase 10 stretch if barge-in ships there. Original backlog entry preserved at `.planning/phases/999.7-jarvis-interrupt-stop-control/` for context.
 
 ### Phase 999.8: ~~JARVIS wake-word scoped, no ambient transcription~~ (ABSORBED → Phase 12, 2026-05-28)
 
