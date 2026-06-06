@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JARVIS Desktop",
+  "version": "0.0.0",
+  "identifier": "io.hyperpolymath.jarvis-desktop",
+  "build": {
+    "frontendDist": "../",
+    "devUrl": null,
+    "beforeDevCommand": null,
+    "beforeBuildCommand": null
+  },
+  "app": {
+    "windows": [],
+    "macOSPrivateApi": false,
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/tray-icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "app",
+    "category": "Utility",
+    "shortDescription": "JARVIS voice middleman daemon",
+    "longDescription": "Owns the microphone for JARVIS voice commands so the browser does not have to prompt per session.",
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "12.0",
+      "entitlements": null
+    },
+    "icon": ["icons/tray-icon.png"]
+  }
+}
