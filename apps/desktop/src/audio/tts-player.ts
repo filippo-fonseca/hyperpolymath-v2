@@ -114,21 +114,26 @@ export class TtsPlayer {
 
   private drain(): void {
     if (this.state === "playing") return;
+    this.playNextIfReady();
+  }
 
+  /** Always-callable: starts the next sentence if one is ready, otherwise
+   *  transitions to idle. Called from drain() AND from the .finally() of
+   *  the previous playSentence (the previous version's `drain()` returned
+   *  early there because `state` was still "playing" — sentences 2+ were
+   *  silently dropped). */
+  private playNextIfReady(): void {
     const head = this.queue[0];
-    if (!head) return;
-
-    // Wait for the next in-order sentence.
-    if (head.seq !== this.nextSeq) return;
-
+    if (!head || head.seq !== this.nextSeq) {
+      if (this.queue.length === 0) this.setState("idle");
+      return;
+    }
     this.queue.shift();
     this.nextSeq++;
     this.setState("playing");
-
     void this.playSentence(head.text).finally(() => {
       this.currentSource = null;
-      if (this.queue.length === 0) this.setState("idle");
-      this.drain();
+      this.playNextIfReady();
     });
   }
 
