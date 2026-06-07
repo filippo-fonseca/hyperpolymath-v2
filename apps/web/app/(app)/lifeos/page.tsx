@@ -1,5 +1,6 @@
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
+import { LifeOsWidgetGrid } from "@/components/lifeos/LifeOsWidgetGrid";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
@@ -9,9 +10,9 @@ export const dynamic = "force-dynamic";
 /**
  * /lifeos — candidate canonical homepage for the life-OS view.
  *
- * Composition (filled in across subsequent commits in 260607-fgb):
- *   1. Notion-style banner block (emoji + title + cover affordance)  ← live
- *   2. AreasTree as the centerpiece (mirrors /areas data fetch)      ← live
+ * Composition top-to-bottom:
+ *   1. Notion-style banner block (emoji + title + cover affordance)
+ *   2. AreasTree as the centerpiece (mirrors /areas data fetch)
  *   3. At-a-glance widget grid: Recent captures · Today's habits · Upcoming tasks
  *
  * Each section component owns its own auth gate via requireOnboarded() so
@@ -29,11 +30,11 @@ export default async function LifeOsPage() {
           subtitle="One canvas for areas, captures, habits, and tasks."
         />
         <LifeOsAreasSection />
-        {/* Temporary single-column mount — Task 7 wraps the three widgets
-            in LifeOsWidgetGrid for the responsive 3-col layout. */}
-        <RecentCapturesWidget />
-        <TodayHabitsWidget />
-        <UpcomingTasksWidget />
+        <LifeOsWidgetGrid>
+          <RecentCapturesWidget />
+          <TodayHabitsWidget />
+          <UpcomingTasksWidget />
+        </LifeOsWidgetGrid>
       </div>
     </main>
   );
