@@ -5,6 +5,7 @@ import { ThesisSection } from "./ThesisSection";
 import { PrimitivesTable } from "./PrimitivesTable";
 import { JarvisDemo } from "./JarvisDemo";
 import { EngineSection } from "./EngineSection";
+import { SurfaceSection } from "./SurfaceSection";
 import { BioSection } from "./BioSection";
 import { MeetKiwiSection } from "./MeetKiwiSection";
 import { ChoiceSection } from "./ChoiceSection";
@@ -67,12 +68,17 @@ export function LandingPage() {
           <SectionDivider />
         </div>
 
-        {/* §07 — THE CHOICE (two doors) */}
+        {/* §07 — THE SURFACE (LifeOS canvas + desktop app + Polypad) */}
+        <SurfaceSection />
+
+        <SectionDivider />
+
+        {/* §08 — THE CHOICE (two doors) */}
         <ChoiceSection />
 
         <SectionDivider />
 
-        {/* §08 — BUILD LOG (live data + graceful degradation) */}
+        {/* §09 — BUILD LOG (live data + graceful degradation) */}
         <BuildLog />
       </main>
       <LandingFooter />
