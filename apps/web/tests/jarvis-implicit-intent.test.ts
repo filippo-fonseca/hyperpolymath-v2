@@ -67,6 +67,8 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now uses .orderBy().limit() on captures + tasks queries.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue(returnRows);
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve(returnRows).then(resolve);

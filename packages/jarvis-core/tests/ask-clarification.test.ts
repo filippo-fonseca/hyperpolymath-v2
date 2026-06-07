@@ -96,12 +96,14 @@ describe("buildToolDefinitions — 5 tools after Plan 04 (D-A1)", () => {
     expect(tools[4]?.name).toBe("ask_clarification");
   });
 
-  it("cache_control: ephemeral is set ONLY on ask_clarification (new LAST tool — moved from remember_fact)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on ask_clarification (new LAST tool — moved from remember_fact)", () => {
+    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so tier-1
+    // (tools) amortizes the 2× write cost over a full hour of turns.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
     expect(cached[0]?.name).toBe("ask_clarification");
-    expect(cached[0]?.cache_control).toEqual({ type: "ephemeral" });
+    expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     // remember_fact must NOT carry cache_control anymore
     const rememberFact = tools.find((t) => t.name === "remember_fact");
     expect(rememberFact?.cache_control).toBeUndefined();

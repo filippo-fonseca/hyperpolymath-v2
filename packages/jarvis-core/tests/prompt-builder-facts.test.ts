@@ -28,10 +28,11 @@ describe("buildSystemPrompt with facts param", () => {
     expect(lastBlock.text).toContain("JARVIS MEMORY");
   });
 
-  it("facts block carries cache_control: ephemeral (new cache boundary)", () => {
+  it("facts block carries cache_control: ephemeral with 1h TTL (new cache boundary)", () => {
+    // Phase 11 / CACHE-01 (D-06): tier-2 frozen system cache now uses 1h TTL.
     const blocks = buildSystemPrompt({ projects: [], facts: SAMPLE_FACTS });
     const lastBlock = blocks[blocks.length - 1]!;
-    expect(lastBlock.cache_control).toEqual({ type: "ephemeral" });
+    expect(lastBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
   it("project-list block does NOT carry cache_control when facts block is present", () => {
@@ -78,21 +79,23 @@ describe("buildSystemPrompt with facts param", () => {
     expect(lastBlock.text).toContain("[WORKFLOW] gym: Mon/Wed/Fri 6am");
   });
 
-  it("with facts empty array: backward-compatible (cache_control on projectListContext, 3 blocks)", () => {
+  it("with facts empty array: backward-compatible (1h-TTL cache_control on projectListContext, 3 blocks)", () => {
+    // Phase 11 / CACHE-01 (D-06): tier-2 frozen system cache uses 1h TTL
+    // regardless of which block ends up last (facts or project-list).
     const blocks = buildSystemPrompt({ projects: [], facts: [] });
     expect(blocks).toHaveLength(3);
     const lastBlock = blocks[blocks.length - 1]!;
-    expect(lastBlock.cache_control).toEqual({ type: "ephemeral" });
+    expect(lastBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     expect(lastBlock.text).toContain("USER PROJECTS");
   });
 
-  it("with facts omitted: backward-compatible (same as empty array, 3 blocks)", () => {
+  it("with facts omitted: backward-compatible (same as empty array, 3 blocks, 1h TTL)", () => {
     const blocks = buildSystemPrompt({ projects: [] });
     expect(blocks).toHaveLength(3);
-    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral" });
+    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("voiceActive=true + facts: returns 5 blocks [voice, personality, rules, projects, facts]", () => {
+  it("voiceActive=true + facts: returns 5 blocks [voice, personality, rules, projects, facts] with 1h TTL", () => {
     const blocks = buildSystemPrompt({
       projects: [],
       voiceActive: true,
@@ -101,6 +104,6 @@ describe("buildSystemPrompt with facts param", () => {
     expect(blocks).toHaveLength(5);
     expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[blocks.length - 1]?.text).toContain("JARVIS MEMORY");
-    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral" });
+    expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 });

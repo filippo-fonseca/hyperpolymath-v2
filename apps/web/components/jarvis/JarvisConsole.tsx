@@ -23,10 +23,23 @@ import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatu
 import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+// Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
+// splitDeltas accumulates streaming text deltas into a rolling buffer; each
+// completed sentence is dispatched immediately via 'jarvis-voice-speak-sentence'
+// so its TTS fetch can fire while later sentences are still being generated.
+import { splitDeltas } from "@/lib/voice/sentence-splitter";
 import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
 } from "@/app/actions/jarvis-turns";
+// Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
+// turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
+// then lands the LOCALLY-captured timestamp piped through the transcript event.
+import {
+  collectStage,
+  setActiveTurnId,
+} from "@/lib/voice/voice-stage-collector";
+import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -135,6 +148,13 @@ export function JarvisConsole({
   const voiceCapable =
     voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
 
+  // Phase 14-03: hard browser mic guard. When the desktop daemon holds a
+  // fresh voice-source claim, the browser mic is fully suppressed at the
+  // JarvisListenerMount level (it returns null). Here we only read the
+  // status to render the "Voice via desktop" indicator pill so the user
+  // knows the browser mic is intentionally disabled, not broken.
+  const { desktopClaimed } = useVoiceSourceStatus();
+
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
   // turn because React 18+ doesn't guarantee the functional updater fires
@@ -184,7 +204,18 @@ export function JarvisConsole({
   );
 
   const handleSubmit = useCallback(
-    async (payload: JarvisInputPayload, opts?: { isVoice?: boolean }) => {
+    async (
+      payload: JarvisInputPayload,
+      opts?: {
+        isVoice?: boolean;
+        sttDoneAt?: number | null;
+        /** Phase 9 / TEL-01 — VAD end timestamp captured LOCALLY in
+         *  JarvisListener.onSpeechEnd, piped via jarvis-voice-transcript
+         *  CustomEvent detail, forwarded here, and collectStage-d inside the
+         *  onTurnStart callback AFTER setActiveTurnId binds the row. */
+        vadEndAt?: number;
+      },
+    ) => {
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
       // leading text block (collected client-side from text deltas and fired
@@ -238,6 +269,13 @@ export function JarvisConsole({
       const ac = new AbortController();
       abortRef.current = ac;
 
+      // Phase 10 Plan 10-04 (LAT-02) — per-turn sentence dispatch state.
+      // Local to this handleSubmit closure so every turn starts with a fresh
+      // buffer + seq counter. ttsBuffer is the rolling unfinished tail; ttsSeq
+      // is the monotonic sentence index dispatched so far this turn.
+      let ttsBuffer = "";
+      let ttsSeq = 0;
+
       const request: JarvisRequest = {
         input: payload.input,
         history,
@@ -248,9 +286,26 @@ export function JarvisConsole({
         linkedHashtags: payload.hashtags, // M6
       };
 
+      // Phase 9 / TEL-01 — capture for use inside onTurnStart (below). The
+      // collectStage MUST run AFTER setActiveTurnId (binding asynchronously
+      // resolves when the server emits its first SSE turn-start frame), so
+      // eager collectStage here would no-op and silently drop vad_end_at.
+      const vadEndAt = opts?.vadEndAt;
+
       await streamJarvis(
         request,
         {
+          // Phase 9 / TEL-01 — first SSE frame; server-generated turnId. Bind
+          // the collector to THIS turn FIRST, THEN collectStage(vad_end_at)
+          // so the locally-captured timestamp lands against the now-bound row.
+          // (stt_done_at is captured server-side via the X-Jarvis-Stt-Done-At
+          // request header at stream start — Plan 09-01. Don't double-write.)
+          onTurnStart: (data) => {
+            setActiveTurnId(data.turnId);
+            if (vadEndAt != null && Number.isFinite(vadEndAt)) {
+              collectStage("vad_end_at", new Date(vadEndAt));
+            }
+          },
           onText: (delta) => {
             setTurns((prev) =>
               prev.map((t) =>
@@ -259,6 +314,27 @@ export function JarvisConsole({
                   : t,
               ),
             );
+            // Phase 10 Plan 10-04 (LAT-02) — per-sentence TTS dispatch as
+            // text deltas arrive. The splitter accumulates the rolling
+            // buffer; each complete sentence dispatches a separate event so
+            // its TTS fetch fires before the SSE stream closes.
+            const { sentences, remainder } = splitDeltas(ttsBuffer, delta);
+            ttsBuffer = remainder;
+            for (const s of sentences) {
+              const cleaned = stripSystemTags(s).trim();
+              if (!cleaned) continue;
+              const seq = ttsSeq++;
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-speak-sentence", {
+                  detail: {
+                    text: cleaned,
+                    seq,
+                    voiceId: voiceSettings.voiceId,
+                    isVoice: turnIsVoice,
+                  },
+                }),
+              );
+            }
           },
           // Phase 5.1 D-P3: pre-push a queued placeholder when the route
           // acknowledges a tool_use block (before executor resolves). The
@@ -335,45 +411,69 @@ export function JarvisConsole({
             // in. See onDone for the dispatch logic.
           },
           onDone: () => {
+            // Capture the post-update snapshot from inside the updater, then
+            // persist AFTER setTurns returns. Calling persistTurn (a Server
+            // Action) inside the updater triggers a router transition that
+            // can fire during render and crash with "Cannot update Router
+            // while rendering JarvisConsole".
+            let completed: ScrollbackTurn | undefined;
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, status: "done" as const }
                   : t,
               );
-              // Persist the completed assistant turn — text + final actions
-              // committed via the SSE stream.
-              const completed = next.find(
+              completed = next.find(
                 (t) => t.id === assistantId && t.kind === "assistant",
               );
-              if (completed) persistTurn(completed);
               return next;
             });
+            if (completed) persistTurn(completed);
 
-            // Phase 7 — ALWAYS dispatch on response completion so the
-            // JarvisListener FSM cycles thinking → speaking → listening
-            // regardless of (a) whether the model emitted leading text or
-            // only a tool call and (b) whether voice is muted. Without this
-            // the FSM gets stuck at "thinking" and subsequent utterances
-            // are discarded.
-            // Fallback when no leading text: a short butler ack. Kept literal
-            // so we don't depend on a separate voice_summary contract.
-            const turn = turnsRef.current.find((t) => t.id === assistantId);
-            const spoken =
-              turn?.kind === "assistant"
-                ? stripSystemTags(turn.textDelta)
-                : "";
+            // Phase 10 Plan 10-04 (LAT-02) — final flush: emit any
+            // unfinished tail in the rolling buffer as the last sentence.
+            if (ttsBuffer.trim()) {
+              const cleaned = stripSystemTags(ttsBuffer).trim();
+              if (cleaned) {
+                const seq = ttsSeq++;
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-voice-speak-sentence", {
+                    detail: {
+                      text: cleaned,
+                      seq,
+                      voiceId: voiceSettings.voiceId,
+                      isVoice: turnIsVoice,
+                    },
+                  }),
+                );
+              }
+              ttsBuffer = "";
+            }
+
+            // If NO sentences were emitted at all (text-only ack like a pure
+            // tool-call turn), fire the butler-ack on the per-sentence
+            // channel so the FSM still cycles thinking → speaking → listening.
+            // Without this, the listener stays in "thinking" forever and
+            // subsequent wake-word utterances get discarded.
+            if (ttsSeq === 0) {
+              window.dispatchEvent(
+                new CustomEvent("jarvis-voice-speak-sentence", {
+                  detail: {
+                    text: "Done, sir.",
+                    seq: 0,
+                    voiceId: voiceSettings.voiceId,
+                    isVoice: turnIsVoice,
+                  },
+                }),
+              );
+              ttsSeq = 1;
+            }
+
+            // Signal end-of-turn so the controller drains in-flight fetches
+            // and fires onEnd once the AudioQueue empties.
             window.dispatchEvent(
-              new CustomEvent("jarvis-voice-speak", {
-                detail: {
-                  text: spoken.length > 0 ? spoken : "Done, sir.",
-                  voiceId: voiceSettings.voiceId,
-                  // Bug fix: only open the 5s follow-up window when the
-                  // user's input was voice. Typed turns must NOT open the
-                  // window (otherwise the listener stays armed indefinitely
-                  // after each typed message).
-                  isVoice: turnIsVoice,
-                },
+              new CustomEvent("jarvis-voice-end-of-turn", {
+                detail: { isVoice: turnIsVoice },
               }),
             );
 
@@ -381,48 +481,63 @@ export function JarvisConsole({
             abortRef.current = null;
           },
           onError: (message) => {
+            let errored: ScrollbackTurn | undefined;
             setTurns((prev) => {
               const next = prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, status: "error" as const, errorMessage: message }
                   : t,
               );
-              const errored = next.find(
+              errored = next.find(
                 (t) => t.id === assistantId && t.kind === "assistant",
               );
-              if (errored) persistTurn(errored);
               return next;
             });
+            if (errored) persistTurn(errored);
             setStreaming(false);
             abortRef.current = null;
           },
         },
         ac.signal,
         voiceActive,
+        // Phase 9 / TEL-01: forward STT-done-at from the voice transcript
+        // event when the input came from voice. Null for typed turns.
+        opts?.sttDoneAt ?? null,
       );
     },
     [buildHistory, voiceCapable, voiceSettings.voiceId],
   );
 
-  // Phase 7 Plan 07-04: listen for voice transcripts dispatched by JarvisListener
-  // after STT completes. The transcript is treated identically to typed input —
-  // voice is just another input channel. JarvisListener dispatches the custom
-  // event with { detail: { transcript: string } }.
+  // Voice surface migration (Phase 14 follow-up): voice never originates
+  // from the browser anymore. The desktop app captures audio, the server
+  // transcribes + runs the JARVIS turn, and the response is streamed back
+  // through jarvis-response-* SSE events (handled by the next effect).
+  //
+  // We still surface the transcript text as a synthetic user turn so the
+  // browser shows what JARVIS heard. The transcript arrives via the same
+  // jarvis-voice-transcript window event the use-physical-extension hook
+  // dispatches off the `transcript` SSE event — we just stop calling
+  // handleSubmit on it.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
-      const detail = (e as CustomEvent<{ transcript: string }>).detail;
+      const detail = (
+        e as CustomEvent<{
+          transcript: string;
+          sttDoneAt?: number | null;
+          vadEndAt?: number;
+          turnId?: string;
+        }>
+      ).detail;
       if (!detail?.transcript?.trim()) return;
-      void handleSubmit(
-        {
-          input: detail.transcript,
-          parsedDates: [],
-          parsedPriority: null,
-          slashCommand: null,
-          projectIds: [],
-          hashtags: [],
-        },
-        { isVoice: true },
-      );
+
+      const userTurn: ScrollbackTurn = {
+        kind: "user",
+        id: crypto.randomUUID(),
+        text: detail.transcript,
+        createdAt: new Date(),
+      };
+      setTurns([userTurn]);
+      turnsRef.current = [userTurn];
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
@@ -431,7 +546,105 @@ export function JarvisConsole({
         handleVoiceTranscript,
       );
     };
-  }, [handleSubmit]);
+  }, []);
+
+  // Phase 14-04: when desktopClaimed === true, subscribe to the server-side
+  // JARVIS response events forwarded through the physicalBus SSE channel.
+  // These arrive as jarvis-response-{start,chunk,tool-call,end} window events
+  // dispatched by use-physical-extension.ts. We render them as a synthetic
+  // assistant turn in the scrollback so the browser is a "view" of the server
+  // turn rather than the executor of it.
+  useEffect(() => {
+    const activeTurnMap = new Map<string, string>();
+
+    function handleResponseStart(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = crypto.randomUUID();
+      activeTurnMap.set(detail.turnId, assistantId);
+      const assistantTurn: ScrollbackTurn = {
+        kind: "assistant",
+        id: assistantId,
+        textDelta: "",
+        actions: [],
+        createdAt: new Date(),
+        status: "streaming",
+      };
+      setTurns((prev) => [...prev, assistantTurn]);
+      setStreaming(true);
+    }
+
+    function handleResponseChunk(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string; delta: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? { ...t, textDelta: t.textDelta + detail.delta }
+            : t,
+        ),
+      );
+    }
+
+    function handleToolCall(e: Event) {
+      const detail = (e as CustomEvent<{
+        turnId: string;
+        toolUseId: string;
+        name: string;
+        result: unknown;
+      }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? {
+                ...t,
+                actions: [
+                  ...t.actions,
+                  {
+                    toolUseId: detail.toolUseId,
+                    name: detail.name as ScrollbackAction["name"],
+                    status: "done" as const,
+                    result: detail.result as ScrollbackAction["result"],
+                  },
+                ],
+              }
+            : t,
+        ),
+      );
+    }
+
+    function handleResponseEnd(e: Event) {
+      const detail = (e as CustomEvent<{ turnId: string }>).detail;
+      if (!detail?.turnId) return;
+      const assistantId = activeTurnMap.get(detail.turnId);
+      if (!assistantId) return;
+      activeTurnMap.delete(detail.turnId);
+      setTurns((prev) =>
+        prev.map((t) =>
+          t.id === assistantId && t.kind === "assistant"
+            ? { ...t, status: "done" as const }
+            : t,
+        ),
+      );
+      setStreaming(false);
+    }
+
+    window.addEventListener("jarvis-response-start", handleResponseStart);
+    window.addEventListener("jarvis-response-chunk", handleResponseChunk);
+    window.addEventListener("jarvis-tool-call", handleToolCall);
+    window.addEventListener("jarvis-response-end", handleResponseEnd);
+    return () => {
+      window.removeEventListener("jarvis-response-start", handleResponseStart);
+      window.removeEventListener("jarvis-response-chunk", handleResponseChunk);
+      window.removeEventListener("jarvis-tool-call", handleToolCall);
+      window.removeEventListener("jarvis-response-end", handleResponseEnd);
+    };
+  }, []);
 
   // Quick 260607-g56: consume sessionStorage('jarvis-prefill') on mount. Set by
   // LifeOsQuickSend and GlobalJarvisDialog when they hand off a seed turn to
@@ -511,6 +724,7 @@ export function JarvisConsole({
       }
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
+      let updated: ScrollbackTurn | undefined;
       setTurns((prev) => {
         const next = prev.map((t) =>
           t.id === turnId && t.kind === "assistant"
@@ -522,18 +736,19 @@ export function JarvisConsole({
               }
             : t,
         );
-        // Persist the undone state so it survives reload.
-        const updated = next.find(
-          (t) => t.id === turnId && t.kind === "assistant",
-        );
-        if (updated) persistTurn(updated);
+        updated = next.find((t) => t.id === turnId && t.kind === "assistant");
         return next;
       });
+      // Persist the undone state so it survives reload. Calling outside the
+      // updater avoids triggering a Server Action (router transition) during
+      // a React render replay.
+      if (updated) persistTurn(updated);
 
       const result = await undoJarvisAction(target);
       if (!result.ok) {
         toast.error(`Couldn't undo: ${result.error}`);
         // Revert the optimistic flag.
+        let reverted: ScrollbackTurn | undefined;
         setTurns((prev) => {
           const next = prev.map((t) =>
             t.id === turnId && t.kind === "assistant"
@@ -547,14 +762,14 @@ export function JarvisConsole({
                 }
               : t,
           );
-          // Re-persist with the reverted state so reload doesn't show a stale
-          // "undone" badge.
-          const reverted = next.find(
+          reverted = next.find(
             (t) => t.id === turnId && t.kind === "assistant",
           );
-          if (reverted) persistTurn(reverted);
           return next;
         });
+        // Re-persist with the reverted state so reload doesn't show a stale
+        // "undone" badge.
+        if (reverted) persistTurn(reverted);
       } else {
         toast.success("Undone");
       }
@@ -660,6 +875,32 @@ export function JarvisConsole({
       {/* Phase 6.1 Plan 02: top-right status pill. Positioned absolute so it
           doesn't displace the scrollback layout. */}
       <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
+
+      {/* Phase 14-03: desktop mic active indicator. Shown when the desktop
+          daemon holds the voice-source claim, so the user knows the browser
+          mic is intentionally suppressed (not broken). Subtle pill matching
+          the HUD aesthetic: muted cyan text, edge border, desktop icon prefix.
+          Positioned top-left, aria-live="polite" for screen-reader announce. */}
+      {desktopClaimed && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Voice input via desktop app"
+          className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em]"
+          style={{
+            color: "var(--hud-cyan)",
+            border: "1px solid var(--edge-hud)",
+            backgroundColor: "transparent",
+          }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: "var(--hud-cyan)" }}
+            aria-hidden="true"
+          />
+          <span>Voice via desktop</span>
+        </div>
+      )}
 
       {/* Phase 6.1 — Arc-reactor centerpiece. Sits behind scrollback at z-0;
           dominant in empty state, ambient when conversation begins.

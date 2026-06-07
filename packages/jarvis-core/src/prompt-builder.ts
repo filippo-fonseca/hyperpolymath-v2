@@ -1,3 +1,8 @@
+// CACHE-CRITICAL FILE — see CACHE-05 grep gate allowlist.
+// NO time-of-day reads (Date now, new-Date, toISOString) or unsorted JSON
+// stringify allowed — any such call invalidates the 1h cache. Per-line
+// CACHE-OK: <reason> escape honored but must be justified.
+//
 // System-prompt builder for the JARVIS Anthropic call.
 //
 // Returns an array of text blocks compatible with Anthropic's `system` field
@@ -16,6 +21,13 @@
 // cache_control (it's no longer the last block). When facts is empty or
 // omitted, cache_control stays on the project-list block — backward-
 // compatible, no behavioral change.
+//
+// Phase 11 (CACHE-01 / D-06): the LAST block's cache_control upgrades to
+// { type: "ephemeral", ttl: "1h" } so tier 2 (frozen system) caches for
+// 1 hour instead of the 5-min default. The new snapshot block (tier 3)
+// is appended at the route boundary (NOT here) and uses default 5-min.
+// Three breakpoints total: tools (last) + system (this block) at 1h,
+// snapshot at 5m. See apps/web/app/api/jarvis/route.ts.
 
 import {
   JARVIS_PERSONALITY,
@@ -27,7 +39,12 @@ import type { JarvisFact, ProjectSummary } from "./types";
 export interface SystemBlock {
   type: "text";
   text: string;
-  cache_control?: { type: "ephemeral" };
+  // Phase 11 / CACHE-01: ttl widened to "5m" | "1h". Anthropic SDK
+  // accepts an optional ttl on ephemeral cache_control; default is "5m".
+  // Setting "1h" requires the `extended-cache-ttl-2025-04-11` beta header
+  // on the messages.stream call (wired at the route boundary, see
+  // apps/web/app/api/jarvis/route.ts Plan 11-04).
+  cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" };
 }
 
 export function buildProjectListContext(projects: ProjectSummary[]): string {
@@ -74,7 +91,7 @@ export function buildSystemPrompt(opts: {
   blocks.push({
     type: "text",
     text: buildProjectListContext(opts.projects),
-    ...(hasFacts ? {} : { cache_control: { type: "ephemeral" } }),
+    ...(hasFacts ? {} : { cache_control: { type: "ephemeral" as const, ttl: "1h" as const } }),
   });
 
   // Facts block (D-M4): appended LAST when present, carrying the cache breakpoint.
@@ -82,7 +99,7 @@ export function buildSystemPrompt(opts: {
     blocks.push({
       type: "text",
       text: buildFactsBlock(opts.facts!),
-      cache_control: { type: "ephemeral" },
+      cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     });
   }
 

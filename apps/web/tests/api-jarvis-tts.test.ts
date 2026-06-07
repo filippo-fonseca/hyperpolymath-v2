@@ -1,11 +1,14 @@
 /**
  * POST /api/jarvis/tts — ElevenLabs Flash TTS streaming proxy route.
  *
- * Phase 7 Plan 07-01 Task 3 (TDD RED phase).
+ * Phase 7 Plan 07-01 Task 3 (original mp3_44100_128 transport).
+ * Phase 10 Plan 10-03 Task 1 (LAT-01) — Content-Type updated to
+ * application/octet-stream + ElevenLabs called with output_format=pcm_24000.
  *
  * Verifies:
- *   1. Returns 200 + Content-Type: audio/mpeg on valid request with default voiceId.
- *      ElevenLabs mock called with model_id 'eleven_flash_v2_5' and DEFAULT_VOICE_ID.
+ *   1. Returns 200 + Content-Type: application/octet-stream on valid request
+ *      with default voiceId. ElevenLabs mock called with model_id
+ *      'eleven_flash_v2_5', output_format 'pcm_24000', and DEFAULT_VOICE_ID.
  *   2. Explicit voiceId in body overrides DEFAULT_VOICE_ID.
  *   3. Returns 401 without auth.
  *   4. Returns 400 when text is empty/missing.
@@ -60,7 +63,7 @@ describe("POST /api/jarvis/tts", () => {
     convertMock.mockResolvedValue(makeAudioStream());
   });
 
-  it("returns 200 + audio/mpeg using DEFAULT_VOICE_ID when voiceId omitted", async () => {
+  it("returns 200 + application/octet-stream using DEFAULT_VOICE_ID when voiceId omitted", async () => {
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
       new Request("http://localhost/api/jarvis/tts", {
@@ -71,13 +74,18 @@ describe("POST /api/jarvis/tts", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Content-Type")).toBe("audio/mpeg");
+    // LAT-01: raw PCM bytes, no container — no audio/mpeg.
+    expect(res.headers.get("Content-Type")).toBe("application/octet-stream");
 
-    // Default voice ID (George) used when voiceId not provided
+    // Default voice ID (George) used when voiceId not provided.
+    // LAT-01: output_format must be pcm_24000 (was mp3_44100_128 in Phase 7).
     expect(convertMock).toHaveBeenCalledOnce();
     expect(convertMock).toHaveBeenCalledWith(
       "JBFqnCBsd6RMkjVDRZzb",
-      expect.objectContaining({ model_id: "eleven_flash_v2_5" }),
+      expect.objectContaining({
+        model_id: "eleven_flash_v2_5",
+        output_format: "pcm_24000",
+      }),
     );
   });
 

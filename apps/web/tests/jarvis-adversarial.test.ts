@@ -73,6 +73,8 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now uses .orderBy().limit() on captures + tasks queries.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue(rows);
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve(rows).then(resolve);
@@ -223,11 +225,20 @@ beforeEach(() => {
     id: "ev-fake",
     receipt: {},
   });
-  // Two SELECT calls per request: projects list + user row
-  dbState.selectReturns.push([]);
+  // Phase 10 + Phase 11 Promise.all order:
+  //   1. projects list, 2. user row (with stateVersion), 3. areas,
+  //   4. recent captures, 5. active tasks
+  dbState.selectReturns.push([]); // projects.list
   dbState.selectReturns.push([
-    { timezone: "America/New_York", defaultCalendarId: null },
+    {
+      timezone: "America/New_York",
+      defaultCalendarId: null,
+      stateVersion: 1n,
+    },
   ]);
+  dbState.selectReturns.push([]); // areas
+  dbState.selectReturns.push([]); // recent captures
+  dbState.selectReturns.push([]); // active tasks
 });
 
 afterEach(() => {

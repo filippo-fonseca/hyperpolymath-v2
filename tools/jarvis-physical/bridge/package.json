@@ -1,0 +1,20 @@
+{
+  "name": "jarvis-physical-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "USB-serial -> HTTP bridge: reads command IDs from the Arduino + DF2301Q, POSTs to Jarvis web app's /api/jarvis/physical/trigger.",
+  "main": "jarvis-serial-bridge.mjs",
+  "scripts": {
+    "start": "node jarvis-serial-bridge.mjs",
+    "list-ports": "node -e \"import('serialport').then(({SerialPort}) => SerialPort.list().then(ps => ps.forEach(p => console.log(p.path, p.manufacturer ?? '', p.serialNumber ?? ''))))\""
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^12.0.0",
+    "dotenv": "^16.4.5",
+    "serialport": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

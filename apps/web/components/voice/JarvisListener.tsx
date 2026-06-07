@@ -20,6 +20,13 @@ import {
 import { encodeWav } from "@/lib/voice/encode-wav";
 import { useTtsPlayer } from "@/lib/voice/use-tts-player";
 import { publishMicState } from "@/lib/voice/mic-state-bus";
+// Phase 9 / TEL-01 — flushNow is the TTS_END safety net for partial telemetry
+// (e.g. barge-in before audio_first_play_at). NOTE: do NOT import collectStage
+// here — vad_end_at is captured LOCALLY in onSpeechEnd and piped through the
+// jarvis-voice-transcript event detail. Calling collectStage in onSpeechEnd
+// would no-op (activeTurnId is unbound until onTurnStart fires after the
+// /api/jarvis stream opens) and silently drop vad_end_at on every turn.
+import { flushNow } from "@/lib/voice/voice-stage-collector";
 import { stripWakeWord, stripWakeWordAnywhere } from "@/lib/voice/wake-word";
 import {
   getSharedAudioContext,
@@ -87,12 +94,33 @@ export function JarvisListener() {
   // toast on every TTS attempt while the user hasn't clicked anything.
   const audioLockWarnedRef = useRef(false);
 
+  // Phase 10 Plan 10-04 — per-turn isVoice flag. Tracks whether the user's
+  // input for THIS turn was voice (vs typed). Set on the first per-sentence
+  // dispatch and read by handleEndOfTurn to decide whether to open the 5s
+  // follow-up window. Default false until the first sentence asserts it.
+  const turnIsVoiceRef = useRef(false);
+
   // Auto-shutoff timer — if the user triggers an activation (press-to-talk,
   // clap, follow-up enter) but no speech is detected within 8s, return to
   // listening. Prevents the bubble from glowing forever after an accidental
   // tap or a Porcupine misfire that the user doesn't follow up on.
   const noSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const NO_SPEECH_TIMEOUT_MS = 8000;
+
+  // True while VAD is currently detecting speech (between onSpeechStart and
+  // onSpeechEnd). Gates the clap detector: plosive consonants ('t', 'p', 'k',
+  // 'b', 'd') in normal speech produce transient amplitude peaks that satisfy
+  // the AudioWorklet clap-onset thresholds, and with the 250-650ms inter-clap
+  // window two adjacent plosives in one utterance routinely trip onDoubleClap.
+  // Claps are silence-gated by definition — if VAD is currently speaking, the
+  // "clap" is a plosive, not a clap. Suppress.
+  //
+  // Discovered via debug session jarvis-follow-up-window-leak: spurious clap
+  // dispatches were overwriting activationSource "wake-word" → "clap" mid-
+  // utterance, moving the FSM to recording, and causing onSpeechEnd to fall
+  // through to the press-to-talk default (no wake-word gate) — turning every
+  // post-window utterance into a command.
+  const vadSpeakingRef = useRef(false);
 
   // Whether on-device wake-word (Porcupine) is configured. When it is, the
   // Whisper-keyword fallback path is OFF — ambient speech in "listening"
@@ -102,10 +130,28 @@ export function JarvisListener() {
     process.env.NEXT_PUBLIC_PICOVOICE_ACCESS_KEY,
   );
 
+  // Tracks the prior FSM state so we can detect the transition INTO
+  // "listening" — Phase 11 / CACHE-04 uses this edge as the "mic-arm"
+  // signal for the predictive cache warmer.
+  const prevMicStateRef = useRef<MicState | null>(null);
+
   // Publish FSM state changes so MicIndicatorDot (separate tree) stays in sync.
   useEffect(() => {
+    const prev = prevMicStateRef.current;
     micStateRef.current = micState;
     publishMicState(micState);
+    // Phase 11 / CACHE-04 — emit a window event on the edge into "listening"
+    // so JarvisWarmer can prime the Anthropic cache. The publishMicState bus
+    // only carries app-internal FSM updates; the window event is the
+    // cross-cutting cache signal. Edge-only (prev !== "listening") so a long
+    // stay in "listening" doesn't exhaust the JarvisWarmer 30s debounce in
+    // vain.
+    if (prev !== "listening" && micState === "listening") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mic-arm"));
+      }
+    }
+    prevMicStateRef.current = micState;
   }, [micState]);
 
   // Start an 8s no-speech timer on every entry into "recording" — that's
@@ -320,6 +366,9 @@ export function JarvisListener() {
       ort.env.wasm.wasmPaths = VAD_BASE_ASSET_PATH;
     },
     onSpeechStart: () => {
+      // Gate the clap detector against plosive consonants for the duration
+      // of this speech segment. Cleared at the head of onSpeechEnd.
+      vadSpeakingRef.current = true;
       const s = micStateRef.current;
       if (s === "listening") {
         // Three sub-cases now:
@@ -364,6 +413,18 @@ export function JarvisListener() {
       // startOnLoad=true, so this fires constantly. Ignore.
     },
     onSpeechEnd: async (audio: Float32Array) => {
+      // Phase 9 / TEL-01 — vad_end_at boundary. Captured BEFORE any branch so
+      // it fires for every voice-mode onSpeechEnd, including early returns.
+      // NOT collectStage-d here: activeTurnId is not yet bound (binding
+      // happens in onTurnStart, fired asynchronously after streamJarvis →
+      // /api/jarvis emits its first SSE frame). Eager collectStage would
+      // silently no-op and drop the timestamp on every turn. Pipe through
+      // the jarvis-voice-transcript event detail; the consumer collectStage's
+      // it inside onTurnStart, AFTER setActiveTurnId.
+      const vadEndAt = Date.now();
+      // Speech segment ended — release the clap-detector gate so a real
+      // post-utterance clap (in silence) can fire normally.
+      vadSpeakingRef.current = false;
       const s = micStateRef.current;
       // Two entry states are meaningful here:
       //   "recording" — explicit channel (press-to-talk, clap, follow-up).
@@ -382,7 +443,9 @@ export function JarvisListener() {
       // the wake word on-device. Skip STT entirely — no log, no API call,
       // no UI change. This is the "completely off/idle" path the user
       // expects when no wake word is active and >5s have passed.
-      if (s === "listening" && !source) return;
+      if (s === "listening" && !source) {
+        return;
+      }
 
       const isPassiveListen = s === "listening" && source === "wake-word";
       const isFollowUp = source === "follow-up";
@@ -408,6 +471,15 @@ export function JarvisListener() {
         });
 
         if (!res.ok) throw new Error(`stt ${res.status}`);
+
+        // Phase 9 / TEL-01: STT proxy returns x-jarvis-stt-done-at (epoch ms).
+        // Forward it through jarvis-voice-transcript so the /api/jarvis caller
+        // can attach it as X-Jarvis-Stt-Done-At on the next POST. Guard
+        // NaN/missing — telemetry must never break the user flow.
+        const sttDoneAtHeader = res.headers.get("x-jarvis-stt-done-at");
+        const sttDoneAtMs = sttDoneAtHeader ? Number(sttDoneAtHeader) : null;
+        const sttDoneAtSafe =
+          sttDoneAtMs != null && Number.isFinite(sttDoneAtMs) ? sttDoneAtMs : null;
 
         const { transcript } = (await res.json()) as { transcript: string };
 
@@ -497,7 +569,16 @@ export function JarvisListener() {
         // Press-to-talk / clap: transcript IS the command, no preprocessing.
 
         window.dispatchEvent(
-          new CustomEvent("jarvis-voice-transcript", { detail: { transcript: command } }),
+          new CustomEvent("jarvis-voice-transcript", {
+            detail: {
+              transcript: command,
+              sttDoneAt: sttDoneAtSafe,
+              // Phase 9 / TEL-01 — locally-captured VAD end timestamp
+              // piped through for deferred collectStage in the consumer's
+              // onTurnStart callback (after setActiveTurnId binds the turn).
+              vadEndAt,
+            },
+          }),
         );
 
         dispatch({ type: "TRANSCRIPT_SENT" });
@@ -553,6 +634,16 @@ export function JarvisListener() {
     audioContext: audioContextRef.current,
     stream: streamRef.current,
     onDoubleClap: () => {
+      // Suppress if VAD is currently mid-speech — the worklet tripped on
+      // plosive consonants ('t', 'p', 'k', 'b', 'd'), not actual claps.
+      // Real claps happen in silence; this gate has no false negatives for
+      // genuine clap activations. See vadSpeakingRef declaration for the
+      // full debug-session rationale.
+      if (vadSpeakingRef.current) {
+        // eslint-disable-next-line no-console
+        console.warn("[clap] suppressed: VAD currently detecting speech");
+        return;
+      }
       activationSourceRef.current = "clap";
       dispatch({ type: "DOUBLE_CLAP" });
     },
@@ -583,57 +674,68 @@ export function JarvisListener() {
     return () => window.removeEventListener("jarvis-press-to-talk", handler);
   }, [pressToTalkActive, onPressToTalk]);
 
-  // ─── TTS speak event listener (Phase 7 Plan 07-04) ───────────────────────
-  // JarvisConsole dispatches 'jarvis-voice-speak' when an action receipt with
-  // voice_summary arrives. We play it back via useTtsPlayer, dispatching
-  // TTS_START (→ speaking state) and TTS_END (→ listening state) to the FSM.
+  // ─── TTS speak event listeners (Phase 10 Plan 10-04 — per-sentence wiring) ─
+  // Phase 7's single per-turn voice-speak event (one fire per turn carrying
+  // the accumulated text) is replaced by two events:
   //
-  // Discreet mode gate (VOICE-07): when discreetMode is on, TTS provider is
-  // effectively 'off' — we instantly cycle TTS_START/TTS_END so the FSM
-  // transitions correctly but no audio plays.
+  //   - 'jarvis-voice-speak-sentence' — fires PER sentence boundary as
+  //     Anthropic text deltas stream. detail.seq is the monotonic sentence
+  //     index within the turn (0, 1, 2, ...). Dispatched by JarvisConsole
+  //     and GlobalJarvisHandler from inside their splitDeltas() consumer.
+  //
+  //   - 'jarvis-voice-end-of-turn' — fires on SSE close after the final
+  //     sentence has been dispatched. Signals the controller to drain
+  //     in-flight fetches and fire onEnd.
+  //
+  // Silent branches (locked AudioContext, discreetMode, ttsProvider='off')
+  // must still cycle the FSM via TTS_START/TTS_END, but only ONCE per
+  // turn — silentCycledRef guards against re-cycling on each sentence in
+  // a multi-sentence silent turn. Reset on end-of-turn.
+
+  // Track whether we have already cycled the silent-branch FSM for the
+  // current turn so multi-sentence silent turns don't bounce the FSM N
+  // times. Reset on jarvis-voice-end-of-turn.
+  const silentCycledRef = useRef(false);
+
   useEffect(() => {
-    function handleVoiceSpeak(e: Event) {
+    function handleSentence(e: Event) {
       const detail = (
-        e as CustomEvent<{ text: string; voiceId?: string; isVoice?: boolean }>
+        e as CustomEvent<{
+          text: string;
+          seq: number;
+          voiceId?: string;
+          isVoice?: boolean;
+        }>
       ).detail;
       if (!detail?.text?.trim()) return;
-      // Bug fix: the 5s wake-word-free follow-up window must only open when
-      // the user's turn was voice. Typed turns dispatch this event too (for
-      // FSM cycling correctness), but they must NOT arm the listener — that
-      // was making the mic stay armed indefinitely after every typed turn.
-      const turnWasVoice = detail.isVoice === true;
+      // The 5s follow-up window opens only for voice turns. We don't open
+      // it per-sentence — only on end-of-turn. Stash isVoice on a ref so
+      // handleEndOfTurn can read it without coupling to the closure.
+      turnIsVoiceRef.current = detail.isVoice === true;
 
-      // Read the shared AudioContext lazily on every event so we pick it up
-      // even if it was unlocked AFTER this effect mounted (modal unlock
-      // happens before the user navigates to /today, but PressToTalkButton
-      // unlock can happen anytime).
+      // Read the shared AudioContext lazily — modal unlock can happen
+      // anytime; we need to pick it up on whichever sentence first finds it.
       const audioContext =
         audioContextRef.current ?? getSharedAudioContext();
       audioContextRef.current = audioContext;
 
-      // FSM MUST cycle regardless of whether we can actually play audio.
-      // If we bail early, the listener stays in "thinking" forever and
-      // subsequent wake-word utterances get discarded. The three silent
-      // cases:
-      //   1. No AudioContext yet (Safari needs a user gesture to unlock)
-      //   2. Discreet mode (user muted TTS)
-      //   3. ttsProvider === 'off'
+      // Silent-branch cases: no AudioContext (Safari pre-gesture), discreet
+      // mode (user muted), ttsProvider === 'off'. FSM must still cycle so
+      // subsequent wake-word utterances aren't discarded — but only ONCE per
+      // turn (not once per sentence).
       const silent =
         !audioContext ||
         settings.discreetMode ||
         settings.ttsProvider === "off";
 
       if (silent) {
-        // If the user has voice enabled and isn't in discreet mode but
-        // we still can't play (AudioContext locked, no user gesture yet
-        // this page load), surface a one-shot toast prompting interaction.
-        // Clicking the toast (or anywhere on the page) triggers the
-        // first-gesture unlock listener and the next TTS will play.
+        // One-shot "audio locked" toast on the first sentence of a turn
+        // where the only barrier is the unlocked AudioContext.
         const audioLocked =
           !audioContext &&
           !settings.discreetMode &&
           settings.ttsProvider !== "off";
-        if (audioLocked && !audioLockWarnedRef.current) {
+        if (audioLocked && !audioLockWarnedRef.current && detail.seq === 0) {
           audioLockWarnedRef.current = true;
           toast("JARVIS audio locked.", {
             description:
@@ -647,37 +749,82 @@ export function JarvisListener() {
             },
           });
         }
-        dispatch({ type: "TTS_START" });
-        dispatch({ type: "TTS_END" });
-        if (turnWasVoice) {
-          followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+        if (!silentCycledRef.current) {
+          silentCycledRef.current = true;
+          dispatch({ type: "TTS_START" });
+          dispatch({ type: "TTS_END" });
+          // Phase 9 / TEL-01 — silent-branch flush even when muted.
+          flushNow();
         }
         return;
       }
 
-      void ttsPlayer.play({
-        text: detail.text,
+      // ElevenLabs / browser-fallback path — controller handles fallback
+      // policy internally per D-04.
+      ttsPlayer.playSentence(detail.text, detail.seq, {
         voiceId: detail.voiceId ?? settings.voiceId,
         ttsProvider: settings.ttsProvider,
         audioContext,
         onStart: () => dispatch({ type: "TTS_START" }),
         onEnd: () => {
+          // The controller fires onEnd once per turn (after all in-flight
+          // fetches drain + AudioQueue empties + endOfTurn() was called).
           dispatch({ type: "TTS_END" });
-          if (turnWasVoice) {
+          // Phase 9 / TEL-01 — flush any partial telemetry (idempotent).
+          flushNow();
+          if (turnIsVoiceRef.current) {
             followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
           }
         },
       });
     }
 
-    window.addEventListener("jarvis-voice-speak", handleVoiceSpeak);
+    window.addEventListener("jarvis-voice-speak-sentence", handleSentence);
     return () => {
-      window.removeEventListener("jarvis-voice-speak", handleVoiceSpeak);
+      window.removeEventListener(
+        "jarvis-voice-speak-sentence",
+        handleSentence,
+      );
     };
   // settings changes are intentionally included — discreetMode / ttsProvider
-  // changes should be reflected immediately on the next speak event.
-  // ttsPlayer is stable (useCallback refs in useTtsPlayer).
+  // changes reflect on the next sentence dispatch. ttsPlayer is stable
+  // (useCallback refs internally).
   }, [settings.discreetMode, settings.ttsProvider, settings.voiceId, ttsPlayer]);
+
+  useEffect(() => {
+    function handleEndOfTurn(e: Event) {
+      const detail = (
+        e as CustomEvent<{ isVoice?: boolean }>
+      ).detail;
+      // Honor isVoice from the end-of-turn event in case no sentence ever
+      // fired (e.g., the model emitted only a tool call and the butler-ack
+      // fallback path was never triggered — defensive).
+      if (typeof detail?.isVoice === "boolean") {
+        turnIsVoiceRef.current = detail.isVoice;
+      }
+
+      // Silent-branch turns already cycled the FSM in handleSentence; just
+      // close the follow-up window check and reset the per-turn flag so the
+      // NEXT turn starts clean.
+      if (silentCycledRef.current) {
+        silentCycledRef.current = false;
+        if (turnIsVoiceRef.current) {
+          followUpUntilRef.current = Date.now() + FOLLOW_UP_MS;
+        }
+        return;
+      }
+
+      // ElevenLabs / browser-fallback path — controller will fire its onEnd
+      // (which lands in handleSentence's onEnd closure) once all in-flight
+      // fetches drain + AudioQueue empties.
+      ttsPlayer.endOfTurn();
+    }
+
+    window.addEventListener("jarvis-voice-end-of-turn", handleEndOfTurn);
+    return () => {
+      window.removeEventListener("jarvis-voice-end-of-turn", handleEndOfTurn);
+    };
+  }, [ttsPlayer]);
 
   // JarvisListener renders nothing — it is a pure lifecycle owner.
   return null;

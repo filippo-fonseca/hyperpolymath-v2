@@ -13,6 +13,8 @@ import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { GlobalJarvisDialog } from "@/components/jarvis/GlobalJarvisDialog";
 import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
+import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
+import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
 import { Toaster } from "sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -94,6 +96,18 @@ export default async function AppLayout({
         {/* Phase 7 voice-everywhere — bottom-right HUD pill showing current
             mic FSM state. Always visible when voice is enabled. */}
         <FloatingJarvisStatus />
+        {/* Phase 11 / CACHE-04 (D-03) — predictive cache warmer.
+            Fires fire-and-forget POST /api/jarvis/warm on app open + JARVIS
+            input focus + mic arm. Server-side age-gate (50min) in
+            /api/jarvis/warm prevents over-firing; client-side debounce is
+            30s per trigger. Renders null. */}
+        <JarvisWarmer />
+        {/* Physical Extension — when enabled, opens an SSE connection to
+            /api/jarvis/physical/events and dispatches a jarvis-wake-fire
+            window event when the external hardware wake-word fires.
+            JarvisListener listens for that event and dispatches
+            WAKE_WORD_DETECTED into the mic FSM. */}
+        <PhysicalExtensionListener />
       </QueryProvider>
     </NuqsAdapter>
   );

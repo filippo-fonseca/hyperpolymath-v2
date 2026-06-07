@@ -69,6 +69,8 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now uses .orderBy().limit() on captures + tasks queries.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue(returnRows);
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve(returnRows).then(resolve);
@@ -228,9 +230,23 @@ beforeEach(() => {
     error: null,
   });
 
-  // Route pre-loads: (1) project list SELECT, (2) user-row SELECT
+  // Route pre-loads (Phase 10 + Phase 11 Promise.all):
+  //   1. projects list SELECT
+  //   2. user-row SELECT (now includes stateVersion per Phase 11)
+  //   3. areas SELECT (Phase 11 snapshot block)
+  //   4. recent captures SELECT (Phase 11 snapshot block)
+  //   5. active tasks SELECT (Phase 11 snapshot block)
   dbState.selectReturns.push([]); // projects list
-  dbState.selectReturns.push([{ timezone: "America/New_York", defaultCalendarId: null }]);
+  dbState.selectReturns.push([
+    {
+      timezone: "America/New_York",
+      defaultCalendarId: null,
+      stateVersion: 1n,
+    },
+  ]);
+  dbState.selectReturns.push([]); // areas
+  dbState.selectReturns.push([]); // recent captures
+  dbState.selectReturns.push([]); // active tasks
 });
 
 afterEach(() => {
@@ -311,10 +327,13 @@ describe("validateTurnReferences — batch validation", () => {
 });
 
 describe("JARVIS perf budget — DB roundtrips per turn", () => {
-  it("single-action turn (mocked executor) fires ≤ 2 DB roundtrips (projects list + user-row load)", async () => {
-    // The route pre-loads project list + user-row BEFORE dispatching executors.
-    // These are the 2 allowed SELECTs for a single-action turn. The executor
-    // is mocked here (no additional DB queries from executor).
+  it("single-action turn (mocked executor) fires ≤ 5 DB roundtrips (Phase 10 projects + user-row + Phase 11 areas + captures + tasks — all batched in one Promise.all)", async () => {
+    // Phase 10 / LAT-04 + Phase 11 / CACHE-03: the route pre-loads in a
+    // single Promise.all — 5 parallel SELECTs (projects, user-row,
+    // areas, recent captures, active tasks) + 1 facts read via separate
+    // module mock. All 5 SELECTs land concurrently → wall-clock max-of-N
+    // (single roundtrip latency floor) even though SELECT count is 5.
+    // The executor is mocked → no additional DB queries from executor.
     executorCreateCaptureMock.mockResolvedValue({
       ok: true,
       id: "cap-1",
@@ -347,9 +366,14 @@ describe("JARVIS perf budget — DB roundtrips per turn", () => {
 
     const routeDbQueries = dbQueryCount.value - countBefore;
 
-    // Route pre-loads 2 SELECT queries: (1) project list, (2) user-row.
+    // Route pre-loads 5 SELECT queries (all in one Promise.all per
+    // Phase 10 LAT-04 D-05 + Phase 11 CACHE-03 D-01): (1) projects list,
+    // (2) user-row+stateVersion, (3) areas, (4) recent captures, (5) active
+    // tasks. Wall-clock floor stays single-roundtrip via concurrency.
     // Executor is mocked → no additional DB queries.
-    // ≤ 2 roundtrips enforced by JARVIS-21 / D-P1.
-    expect(routeDbQueries).toBeLessThanOrEqual(2);
+    // ≤ 5 SELECTs enforced by JARVIS-21 / D-P1 (Phase 11 raised from 2 to 5
+    // — invariant preserved is "all reads in one Promise.all", not the
+    // literal count).
+    expect(routeDbQueries).toBeLessThanOrEqual(5);
   });
 });

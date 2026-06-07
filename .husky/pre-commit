@@ -1,3 +1,7 @@
 #!/usr/bin/env sh
 # Block any commit containing detectable secrets — PITFALLS Pitfall 11
 gitleaks protect --staged --redact --verbose --config=.gitleaks.toml
+
+# Phase 11 / CACHE-05 — block any commit that introduces a silent prompt-
+# cache invalidator in the allowlisted prompt-building files.
+node apps/web/scripts/cache-invalidator-gate.mjs --staged

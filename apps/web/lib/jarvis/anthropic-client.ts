@@ -11,6 +11,9 @@
  * Model ID is the canonical Sonnet 4.6 identifier per the CLAUDE.md tech-stack
  * table — `claude-sonnet-4-6`. Phase 7 may bump this when a successor lands;
  * single-source pinning keeps the swap one-file.
+ *
+ * Phase 11 (CACHE-01): defaultHeaders includes `extended-cache-ttl-2025-04-11`
+ * so 1h TTL on tier 1 (tools) + tier 2 (system) breakpoints is honored.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -22,7 +25,17 @@ export function getAnthropicClient(): Anthropic {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error("ANTHROPIC_API_KEY required");
     }
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      // Phase 11 / CACHE-01 — extended-cache-ttl-2025-04-11 beta header.
+      // Required for the SDK to honor `cache_control: { ttl: "1h" }` on
+      // tools and system blocks (default TTL is 5min). Without this header
+      // the 1h literals from packages/jarvis-core silently fall back to
+      // 5min and the cache window degrades.
+      defaultHeaders: {
+        "anthropic-beta": "extended-cache-ttl-2025-04-11",
+      },
+    });
   }
   return client;
 }
