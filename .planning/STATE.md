@@ -29,7 +29,7 @@ Phase: 08 (public-landing-manifesto) — EXECUTING
 Plan: 6 of 6
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
-Last activity: 2026-05-25
+Last activity: 2026-06-07 - Completed quick task 260607-fgb: Build LifeOS tab — /lifeos route centered on Areas tree with three homepage widgets
 
 Progress: [██████████] 100%
 
@@ -248,6 +248,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
+| 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
 
 ## Session Continuity
 
