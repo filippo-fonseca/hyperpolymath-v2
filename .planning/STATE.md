@@ -1,37 +1,47 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.1
+milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
-last_updated: "2026-05-25T23:28:12.804Z"
-last_activity: 2026-05-25
+stopped_at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
+last_updated: "2026-06-06T20:28:55.493Z"
+last_activity: 2026-06-06
 progress:
-  total_phases: 16
-  completed_phases: 8
-  total_plans: 51
-  completed_plans: 42
-  percent: 100
+  total_phases: 28
+  completed_phases: 11
+  total_plans: 71
+  completed_plans: 59
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 08 — public-landing-manifesto
+**Current focus:** Phase 14 — jarvis-desktop-mic-middleman
 
 ## Current Position
 
-Phase: 08 (public-landing-manifesto) — EXECUTING
-Plan: 6 of 6
-Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
+Milestone: v1.1 "Speed & Agility"
+Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-05-25
+Last activity: 2026-06-06
 
-Progress: [██████████] 100%
+Next: `/gsd:discuss-phase 9 ${GSD_WS}`
+
+Progress: [          ] 0% (0 of 6 v1.1 phases complete)
+
+### v1.0 carryover (informational, not blocking v1.1)
+
+v1.0 was never formally completed via `/gsd:complete-milestone`. Phases 1–5, 5.1, 6, 6.1, 7, 8 shipped; Phase 6.2 (anthropic-discipline-rebuild) still open in roadmap. Voice work (Phase 7) shipped 9 of 14 VOICE-* requirements; remaining (VOICE-10, 12, 13, 14) overlap heavily with v1.1 work and are folded into v1.1 phases as appropriate. v1.0 will be archived via `/gsd:complete-milestone` once v1.1 finishes or sooner if needed.
+
+### v1.1 critical-path note
+
+Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2 weeks. Phases 12, 13, 14 can follow somewhat in parallel except: **Phase 12 carries a hard external deadline (Picovoice Porcupine free-tier sunset 2026-06-30).** If Phase 11 slips, Phase 12 must jump ahead of Phase 13 to land before 2026-06-15 (2-week safety margin). Document this deviation in PROJECT.md Key Decisions if the swap becomes necessary.
 
 ## Performance Metrics
 
@@ -86,6 +96,21 @@ Progress: [██████████] 100%
 | Phase 08-public-landing-manifesto P03 | 4min | 3 tasks | 7 files |
 | Phase 08-public-landing-manifesto P04 | 6min | 3 tasks | 3 files |
 | Phase 08-public-landing-manifesto P05 | 6min | 3 tasks | 7 files |
+| Phase 09-latency-telemetry-baseline P01 | 13min | 3 tasks | 9 files |
+| Phase 09 P02 | 25min | 3 tasks | 14 files |
+| Phase 10-tts-route-boundary-latency-wins P02 | 2min | 2 tasks | 2 files |
+| Phase 10-tts-route-boundary-latency-wins P01 | 3min | 2 tasks | 2 files |
+| Phase 10-tts-route-boundary-latency-wins P03 | 10min | 2 tasks | 4 files |
+| Phase 10-tts-route-boundary-latency-wins P04 | 9min | 3 tasks | 7 files |
+| Phase 11-prompt-cache-state-priming P02 | 2min | 1 tasks | 1 files |
+| Phase 11-prompt-cache-state-priming P01 | 5 min | 2 tasks | 2 files |
+| Phase 11 P03 | 10 min | 3 tasks | 7 files |
+| Phase 11-prompt-cache-state-priming P05 | 3min | 2 tasks | 4 files |
+| Phase 11-prompt-cache-state-priming P04 | 20min | 3 tasks | 11 files |
+| Phase 11-prompt-cache-state-priming P06 | 5min | 3 tasks | 7 files |
+| Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
+| Phase 14-jarvis-desktop-mic-middleman P02 | 5 | 2 tasks | 11 files |
+| Phase 14 P04 | 40 | 7 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -95,6 +120,7 @@ Progress: [██████████] 100%
 - Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
 - Phase 6.2 inserted after Phase 6.1 (2026-05-19 PM): anthropic-discipline-rebuild. User rejected Phase 6.1's cumulative HUD-heavy visual surface during 06.1-06 Task 3 walkthrough: "i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah." Then reinforced cyan-canonical via second image reference + "we are doing it jarvis-esque like in the tony stark movie." Phase 6.1 closed passed_with_deferrals on infrastructure (token cleanup, motion library substrate, focus-visible system, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility class adoption); AES-01..04,06,07 re-deferred to Phase 6.2. New discipline triumvirate for 6.2: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com) as the discipline pole, Notion as content frame, JARVIS as atmospheric mood only (cyan accent + subtle depth, no literal HUD vocabulary). Massive refactor of Phase 6.1's chrome — throw out corner crops on every surface, hex-grid background, 7-state motion machine, arc-reactor centerpiece. 6.2 is research-first via /gsd:research-phase + /gsd:ui-phase.
 - Phase 8 added (2026-05-25): public-landing-manifesto. Build-in-public stance — public-facing landing page at `/` that channels Karpathy-grade intellectual restraint through hyperpolymath's Garamond/paper/Renaissance voice. Manifesto IS the front door: thesis → live animated JARVIS demo (README ASCII block) → primitives spec (areas/projects/captures/JARVIS/calendar) → engine (Sonnet 4.6 + Strict Tool Use, one real input→JSON) → fork-or-use choice → quiet live build-log feed (last N commits, current phase, shipped-this-week). Logged-out `/` shows manifesto; logged-in `/` continues redirecting to `/today`. Independent of Phase 6.2 — landing route owns its own visual treatment derived from README voice. Inspired by Karpathy/Tan/Levels/Linear references; research pass required pre-plan. Must align with Phase 6.1 directional anchors (restraint over theatrics, JARVIS as MOOD only — not HUD-heavy). Workflow: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
+- Milestone v1.1 opened (2026-05-28): Speed & Agility. Six new phases (9–14) extending the roadmap from the previous tail (Phase 8). Phase shape locked by `.planning/research/speed-agility/` synthesis + user decisions (Haiku fast-path IN, ElevenLabs/British KEPT, desktop shell LAST). Phase numbering continues from 8 (no decimal, no reset). Backlog stubs 999.6 (hibernation), 999.7 (interrupt), 999.8 (scoped wake-word) absorbed into Phases 12 + 14. Hard external deadline: Picovoice Porcupine free-tier sunset 2026-06-30 (Phase 12 timing pressure). Critical path: 9 → 10 → 11 (telemetry → quick wins → cache) lands in ~2 weeks; 12 + 13 + 14 follow somewhat in parallel.
 
 ### Decisions
 
@@ -105,6 +131,8 @@ Recent decisions affecting current work:
 - Roadmap: SET-01 (graduation year) shipped in Phase 1 with auth/foundations because Class metadata in Phase 2 depends on it; SET-02/SET-04 (gcal status, default calendar) deferred to Phase 4; SET-03 (theme) deferred to Phase 6.
 - Roadmap: TEST-04 (RLS integration test) ships in Phase 1; TEST-01/02/03/05 (parser, contract, adversarial) ship in Phase 5 with the agent.
 - Roadmap: RES-05 (`jarvis_events` table) ships in Phase 5 with JARVIS (telemetry from first call); other RES requirements ship in Phase 6.
+- Roadmap v1.1: Phase numbering continues from 8 → 9, no reset, no decimal. Phases 9–14 each map to one research category (TEL→9, LAT→10, CACHE→11, WAKE→12, ROUTE→13, DESK→14). Hard external deadline on Phase 12 (Porcupine 2026-06-30 sunset) is the only forcing function on phase order beyond the 9→10→11 critical path.
+- Roadmap v1.1: Backlog 999.6 + 999.8 absorbed into Phase 12 (listening-mode setting + scoped-mic gating). Backlog 999.7 absorbed into Phase 14 (HUD-dismiss = interrupt). Backlog stubs preserved as ABSORBED status pointers.
 - [Phase 01-foundations]: drizzle.config.ts uses lib/db/*.ts glob so drizzle-kit picks up pgEnum declarations from enums.ts and emits CREATE TYPE in generated SQL
 - [Phase 01-foundations]: supabase/migrations/0000_init_schema.sql strips --> statement-breakpoint markers from drizzle output for Supabase CLI compatibility
 - [Phase 03]: [Phase 03-realtime P01]: useTableSubscription uses a module-level Map<`${table}::${userId}`, { channel, refcount }> singleton — two component mounts of the same (table, userId) share one Supabase RealtimeChannel (RT-01 / D-08)
@@ -234,6 +262,50 @@ Recent decisions affecting current work:
 - [Phase 08-public-landing-manifesto]: Plan 08-05: page.tsx stays dynamic (no route-level ISR export) so getClaims() runs per-request (Pitfall 1); ISR for GitHub fetch scoped to per-call fetch hint inside BuildLog Server Component child
 - [Phase 08-public-landing-manifesto]: Plan 08-05: openGraph.url + metadataBase deferred until production URL confirmed (RESEARCH Open Question 1); Next 16 emits non-fatal localhost fallback warning, single-line edit closes once known
 - [Phase 08-public-landing-manifesto]: Plan 08-05: WaitlistForm follow-up note silently dropped at Server Action layer due to onConflictDoNothing; flagged deferred, fix is onConflictDoUpdate on note field — out of scope for UI wave
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: turnId emitted as SSE turn-start FIRST statement of start(controller) before anth.messages.stream — load-bearing ordering for Plan 09-02 beacon correlation; verified by ordering grep
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: JarvisEventInput.id added as optional field — when present, insert pins the row id (otherwise defaultRandom). Plan 09-02 beacon UPDATEs WHERE id =
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: SSE event-name regex \w+ silently dropped turn-start in production (Rule 1 bug fix) — changed to [\w-]+ in both jarvis-stream-client.ts and readSseEvents test helper for hyphen tolerance
+- [Phase 09-latency-telemetry-baseline]: Plan 09-01: TEL-03 three-layer regression net (structural byte-identity + mocked write-path + live ANTHROPIC_LIVE=true) — replaces tautological single mocked test from plan example; catches Date.now/random/unsorted-stringify at source + at wire level
+- [Phase 09]: Plan 09-02: vad_end_at must be captured LOCALLY in JarvisListener.onSpeechEnd and piped through jarvis-voice-transcript event detail — deferred collectStage in consumer onTurnStart AFTER setActiveTurnId. Eager collectStage at the boundary would no-op (activeTurnId unbound until server emits SSE turn-start asynchronously) and silently drop vad_end_at on every voice turn.
+- [Phase 09]: Plan 09-02: PipelineLatencyPanel mounts as FIRST child of <main> on /insights — ABOVE both <header> and <InsightsTabs> per D-03. Existing Phase 6 tabs continue rendering unchanged (non-regression). Empty-state copy locked verbatim per must_haves.truths.
+- [Phase 09]: Plan 09-02: beacon endpoint allow-list lives at application layer (route's setPayload object literally only includes 3 columns: vadEndAt/ttsFirstByteAt/audioFirstPlayAt). Column-level RLS overkill for single-user MVP. RLS is row-level only; column-level guard via allow-list is sufficient and easier to audit.
+- [Phase 09]: Plan 09-02: Zod max bound (Date.now() + 60_000) computed PER-REQUEST inside the handler — module-level would stale on long-running serverless instances and reject legitimate recent timestamps.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: splitDeltas implemented as pure caller-owned-buffer function with literal regex /([.!?] |\n\n+)/g — no class, no closure state, no min-length gate per D-02; Mr./Dr. abbreviation false-positive documented in test 14 as accepted per <deferred>.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-02: terminator is captured as part of the emitted sentence (not stripped) — downstream TTS prosody benefits from natural punctuation/space cadence; consumer pattern is 'let buffer = ""; const { sentences, remainder } = splitDeltas(buffer, delta); buffer = remainder;' documented verbatim in the file's JSDoc so 10-04 can import without re-deriving.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01 (LAT-04): Route-boundary parallelization held to D-05 narrow scope — only the 3 named queries (userProjects, userRows, getJarvisFactsForUser) collapsed into one Promise.all. promptBuiltAt_d capture preserved AFTER Promise.all (Phase 9 D-07 invariant). 25-line localized diff in route.ts + 334-line regression suite at tests/jarvis-route-boundary-parallel.test.ts (3 tests: timing, destructure-order, source-level grep).
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Test 1 timing ceiling set at 100ms (sequential floor would be 150ms with 3×50ms-stalled mocks; parallel block ≈ 50ms + ≤50ms jitter for jsdom/SSE setup). Inline comment forbids raising past ~120ms without locking rationale — flakiness past that ceiling signals the parallel guarantee is broken, not test instability.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-01: Source-level regression guard pattern established — Test 3 reads route.ts off disk via readFileSync + regex match. Catches structural regressions (e.g., a future PR splitting Promise.all back into sequential awaits) that mocked behavior tests would miss. Reusable pattern for any future plan that needs to lock in a load-bearing code shape.
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-03: TTS proxy emits pcm_24000 + Content-Type application/octet-stream; AudioQueue.enqueue builds AudioBuffer via createBuffer(1, sampleCount, 24000) + Int16->Float32 with literal 32768.0 divisor; leftoverByte Uint8Array spill retained across enqueue calls within an AudioQueue lifecycle, cleared on stopAll for barge-in safety; Phase 7 invariants (analyserNode tap, scheduledEnd gapless chain, onAllEnded, stopAll) + Phase 9 firstPlayCaptured one-shot for audio_first_play_at preserved verbatim
+- [Phase 10-tts-route-boundary-latency-wins]: Plan 10-04 (LAT-02 + LAT-03): TurnPlaybackController class held in useRef inside use-tts-player (no global stores per CLAUDE.md); enqueueGate Map<seq, Promise> enforces strict in-order playback while permitting pipelined fetches per D-01; D-04 stop-all + fallback policy (seq 0 fail → SpeechSynthesis whole turn, seq ≥ 1 fail → silent drop + console.warn); D-06 tts_first_byte_at fires once per turn on FIRST sentence (firstByteCaptured guard); res.body.getReader() streams chunk-by-chunk into AudioQueue (no full-body arrayBuffer); JarvisConsole + GlobalJarvisHandler dispatch jarvis-voice-speak-sentence per splitDeltas boundary + jarvis-voice-end-of-turn on SSE close
+- [Phase 11-prompt-cache-state-priming]: Plan 11-02: Postgres BEFORE triggers + bump_user_state_version() on tasks/captures/projects/areas/habits/jarvis_facts — tamper-proof per-user freshness counter for snapshot cache key; BIGINT, NULL-user_id silent return, SECURITY DEFINER + locked search_path; migration idempotent via IF NOT EXISTS + CREATE OR REPLACE + DROP TRIGGER IF EXISTS
+- [Phase 11]: Phase 11: SystemBlock + JarvisToolDefinition cache_control widened to optional ttl: '5m' | '1h' (backward-compat)
+- [Phase 11]: Phase 11: tier-1 (tools) + tier-2 (frozen system) breakpoints upgraded to 1h TTL — requires extended-cache-ttl-2025-04-11 beta header on stream call (wired in Plan 11-04)
+- [Phase 11]: Phase 11: CACHE-CRITICAL file-header copy phrased without literal Date.now/new Date/toISOString tokens so the CACHE-05 grep gate self-test returns zero matches on documentation
+- [Phase 11-prompt-cache-state-priming]: Plan 11-05: 9-file CACHE-05 allowlist (D-04 named 4 surfaces but tools/** expands to index.ts + 5 tool files — every tool file flows into the cached tools array and must be screened); shared .mjs scanner imported by both Vitest test and Husky hook so the regex set + escape semantics cannot drift between layers
+- [Phase 11-prompt-cache-state-priming]: Plan 11-05: dynamic per-file Vitest tests via for-of over ALLOWLIST (15 runtime tests = 2 stability + 9 per-file + 4 sanity) — keeps the test surface in sync with the script automatically; planted-violation smoke (Date.now() in prompt-builder.ts) confirmed hook exits 1 with formatted error
+- [Phase 11]: Plan 11-04: state-snapshot-cache.ts module-level Map<userId, CacheEntry> (D-02 / CLAUDE.md compliant) with bigint|number version normalization + fall-through on renderUserState exception (returns <user_state /> empty snapshot)
+- [Phase 11]: Plan 11-04: anthropic-client defaultHeaders { 'anthropic-beta': 'extended-cache-ttl-2025-04-11' } — single-source application across every messages.stream call activates Plan 11-03's ttl: '1h' on tier 1+2
+- [Phase 11]: Plan 11-04: route Promise.all expanded 3→6 reads (projects + user-row+stateVersion + facts + areas + recent captures + active tasks); all-in-one-batch invariant preserved; jarvis-perf-budget ≤ 5
+- [Phase 11]: Plan 11-04: snapshot block 5-min default cache_control (NO ttl literal) — state_version reuse pins byte-identity; per-turn miss only on state mutation (11-02 BEFORE-triggers bump)
+- [Phase 11]: Plan 11-04: todayCalendar ships [] per <Acceptable scope-trim>; getTodayEvents helper deferred to Phase 11.1 — tier 3 byte-identity preserved
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: Predictive cache warmer endpoint uses messages.create + max_tokens=1 + tool_choice:none + literal 'warm' user message — single-token no-op against same tools+system as /api/jarvis with NO snapshot block (warms tier 1+2 only). D-03 50min server age-gate via getLastWarmAt/setLastWarmAt.
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: JarvisWarmer uses per-trigger debounce Map<WarmTrigger, lastFiredAt> in useRef — three slots (mount / input-focus / mic-arm) × 30s debounce each. Cross-trigger isolation per D-03 (one trigger's window does NOT block another).
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: mic-arm edge detection via prevMicStateRef — fires window CustomEvent only on the prev !== 'listening' && micState === 'listening' transition (the EDGE into listening). Without edge gating, every micState change while remaining in listening would chew through the 30s debounce.
+- [Phase 11-prompt-cache-state-priming]: Plan 11-06: window CustomEvent broadcast for publisher→warmer signal (jarvis-input-focus / mic-arm) — JarvisInput / JarvisListener never import JarvisWarmer. Matches existing Phase 7 cross-cutting pattern (jarvis-cancel, jarvis-wake-burst, jarvis-voice-transcript).
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: postMessage + transferable Float32Array chosen over SharedArrayBuffer — 64 KB/sec GC pressure is negligible on desktop and we avoid breaking Stripe / Google OAuth / ElevenLabs embeds. No COOP/COEP in next.config.ts.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: WAKE_THRESHOLD = 0.5 hardcoded in constants.ts per D-05 — no Settings UI knob; reversible via 999.x backlog if real-world tuning needed.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: prefetchWakeWordAssets() exported as SEPARATE pure HTTP-cache warmup from spawnWakeWordWorker() — Plan 12-03 EnableVoiceModal MUST call prefetch, NOT spawn, or its no-op onWake binds to the singleton and JarvisListener's later spawn silently ignores real wakes.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: Tensor-shape introspection (melSession.handler._inputs[0].shape) wrapped in try/catch with empty-array fallback — diagnostic-only, three ort.InferenceSession.create calls are the actual readiness gate; empty shapes payload acceptable on ORT version drift.
+- [Phase 12-on-device-wake-word-mic-gating-deadline-bound]: Plan 12-01: AudioWorklet sandbox test pattern — readFileSync + new Function('sampleRate','AudioWorkletProcessor','registerProcessor',source) with stubbed globals — deterministically verifies 12.5 frames/sec cadence + transferable contract without a real AudioContext. Reusable for any future worklet.
+- [Phase 14-jarvis-desktop-mic-middleman]: ActivationPolicy::Accessory set programmatically in lib.rs (tauri.conf.json does not support it in Tauri 2)
+- [Phase 14-jarvis-desktop-mic-middleman]: Cargo [workspace] self-contained marker in src-tauri/Cargo.toml prevents root workspace absorption (Pitfall 4)
+- [Phase 14-jarvis-desktop-mic-middleman]: cpal::Stream dedicated thread pattern — CoreAudio thread affinity, mpsc channel for lifetime management
+- [Phase 14-jarvis-desktop-mic-middleman]: voice-source claim uses globalThis scalar (not struct) — single-user app has one valid owner
+- [Phase 14-jarvis-desktop-mic-middleman]: physicalBus extended with transcript event type; no new SSE channel (RESEARCH Pattern 4)
+- [Phase 14-jarvis-desktop-mic-middleman]: desktopClaimed embedded in trigger SSE payload (atomic, no browser poll round-trip)
+- [Phase 14]: voiceActive=false for tool schema in run-turn.ts (voice_summary is browser-TTS concern; server-side voice turns skip it)
+- [Phase 14]: turnId pre-generated in route.ts and passed to runJarvisTurnStream so Plan 09-02 beacon correlation is preserved
+- [Phase 14]: runJarvisTurnStream fires void after returning 200 to voice/transcript; response chunks stream via SSE asynchronously
 
 ### Pending Todos
 
@@ -241,6 +313,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- **v1.1 Phase 12 hard deadline:** Picovoice Porcupine free tier sunsets **2026-06-30**. If Phase 11 (Prompt Cache + State Priming) slips, Phase 12 must jump ahead of Phase 13 to land before 2026-06-15 (2-week safety margin) — otherwise wake-word stops working entirely. Document this deviation in PROJECT.md Key Decisions if/when the swap becomes necessary.
 - Open behavior decisions per research SUMMARY.md "Gaps to Address" should be locked in PROJECT.md "Key Decisions" before Phase 5 planning at the latest: date-only vs date-time tasks, "next Friday" semantics, hashtag normalization specifics, default calendar fallback, attendees on events, behavior when JARVIS can't resolve `$project`, Vercel AI SDK vs raw Anthropic SDK, jarvis-core ↔ Server Actions sharing pattern, calendar grid library, Louize licensing path.
 
 ### Quick Tasks Completed
@@ -251,6 +324,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-25T23:28:12.800Z
-Stopped at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
+Last session: 2026-06-06T20:28:55.489Z
+Stopped at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
 Resume file: None

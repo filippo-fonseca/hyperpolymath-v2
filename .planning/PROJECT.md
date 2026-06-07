@@ -128,6 +128,25 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 | Calendar events not persisted locally | gcal is source of truth; avoids dual-write consistency bugs | — Pending |
 | MIT license, public repo from day one | Filippo's open-source commitment | — Pending |
 
+## Current Milestone: v1.1 Speed & Agility
+
+**Goal:** Cut p50 speech-end-to-first-TTS-audio under 1.5s (today ~3–5s) without regressing JARVIS routing quality or shedding current functionality. Treat reliability gains as a side-effect of doing each pipeline stage *once and well*.
+
+**Target features:**
+- Latency telemetry baseline — instrument every stage (VAD → STT → first-token → tool-loop → TTS first byte → audio first play) so "faster" stops being anecdote
+- TTS quick wins — per-sentence dispatch (don't wait for stream close), ElevenLabs `output_format = pcm_24000` (no voice change, drops MP3 decode), drop the full-body buffer, parallelize sequential DB queries at route boundary
+- Prompt cache + state priming — 3-tier `cache_control` (tools + frozen system at 1h TTL, user-state snapshot at 5min TTL, per-turn outside cache), XML-tagged state block (areas / active projects / recent captures / today calendar / active tasks), `state_version` tracking to skip regeneration on read-only turns, predictive warm on app-focus / mic-arm
+- On-device wake-word + mic gating — replace the Whisper-regex / Porcupine path with openWakeWord (`onnxruntime-web` + Silero VAD + `hey_jarvis_v0.1.onnx` in a Web Worker), ring buffer for ~500ms pre-roll, audio never leaves device until wake fires, settings: wake-word / push-to-talk / hibernate (absorbs backlog 999.6 + 999.8)
+- Haiku fast-path routing — cheap classifier sends unambiguous CRUD to Haiku 4.5, ambiguous / multi-action stays on Sonnet 4.6, 50-turn ground-truth eval set gates misroute regressions
+- Desktop shell + global hotkey — Tauri 2.x menu-bar app pointing at the deployed Next.js web app, `Cmd+Shift+Space` via `tauri-plugin-global-shortcut`, FN-double-tap via `tauri-plugin-macos-input-monitor` (CGEventTap, no Swift companion), mic-only-when-summoned in Tauri mode (absorbs backlog 999.7)
+
+**Key context:**
+- Picovoice Porcupine's free tier sunsets **2026-06-30** — wake-word migration is time-sensitive, not just a polish item
+- User locked: Haiku fast-path IN, keep ElevenLabs British voice (no Cartesia switch), desktop shell last
+- Inference provider swap (Groq / Cerebras / SambaNova for primary agent path) considered and **rejected** — multi-tool agentic-loop quality on Llama 3.3 70B / Llama 4 Maverick lags Sonnet 4.6 on τ-bench by 10–20 pts, violates "if JARVIS misroutes, v2 has failed" bar. Reserve those providers for non-routing sub-tasks only
+- Research artefacts live at `.planning/research/speed-agility/` (SUMMARY.md + 6 topic docs)
+- Backlog stubs `999.6` (hibernation), `999.7` (interrupt), `999.8` (scoped wake-word) are absorbed into Phases 12 + 14
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -146,4 +165,8 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
+*Last updated: 2026-05-31 — Phase 11 complete (prompt-cache-state-priming). Three-tier prompt cache live end-to-end: tier-1 tools + tier-2 frozen system at 1h TTL, tier-3 user-state snapshot at 5min keyed on `users.state_version` (BIGINT column + 6 BEFORE INSERT/UPDATE/DELETE triggers on tasks/captures/projects/areas/habits/jarvis_facts), per-turn ephemera outside cache. Wired via `renderUserState()` pure XML serializer, `state-snapshot-cache.ts` in-memory map, `extended-cache-ttl-2025-04-11` beta header, and snapshot block in `/api/jarvis` route's existing Promise.all. Predictive warmer at `/api/jarvis/warm` fired by 3 UX signals (app open / input focus / mic arm) with 30s client debounce + 50min server age gate (~$0.01-0.03/day vs heartbeat's $0.90/day). CACHE-05 silent-invalidator grep gate (`cache-invalidator-gate.mjs`) wired into Husky pre-commit + Vitest CI. 426 web + 207/209 jarvis-core tests pass; 5/5 CACHE-* requirements verified. Live TTFA measurement deferred to Phase 11/12/13 joint UAT pass. **Active milestone:** v1.1 Speed & Agility. **Next active phase candidates:** Phase 12 (deadline-bound — Picovoice sunset 2026-06-30), Phase 13 (Haiku fast-path), Phase 14 (desktop shell). Carry-over from earlier milestones: Phases 2, 3, 6.2, 7, 8 still open.*
+
+*Last updated: 2026-05-28 — Milestone v1.1 "Speed & Agility" opened. Six phases scoped (9–14) targeting p50 speech→first-audio under 1.5s. Research already complete (`.planning/research/speed-agility/`). Hard deadline pressure on Phase 12: Picovoice Porcupine free tier sunsets 2026-06-30. Previous note retained below for v1.0 context.*
+
 *Last updated: 2026-05-15 after Phase 5 (jarvis) completion — The Core Value of v2 ("Type one sentence into Kiwi → the right action lands in the right place every time") is live. Pure `@hyperpolymath/jarvis-core` package (zero React/Next/Supabase imports, 152/152 tests including DST Mar 8 + Nov 1 fixtures), Anthropic SDK 0.96 with Sonnet 4.6 + zod 4 strict tool use, deterministic chrono pre-parser + priority regex pipeline (3-stage belt-and-suspenders: client → server hint → executor override), SSE Node-runtime route handler with prompt caching + AbortController, JARVIS Console at /today (TipTap dual-Mention composer for `$project` + `#hashtag` siblings, Motion 12 thinking-word indicator, intent-badged streaming receipts, 5-command slash popover including `/ask`, bare-meta-question heuristic, session memory from scrollback). Plan 05-04 closes the user-facing loop: 5s undo countdown on every receipt with hard-delete (B5 pattern) + gcal 404/410 tolerance per D-04, "Convert to task" affordance gated on `captures.createdVia === 'jarvis'`, `getLatencyStats(userId, sinceMinutes)` helper for the Phase 6 /insights chart. 16-fixture adversarial defense holds via structural `tool_choice` constraints. Read-back via JARVIS (`list_tasks`/`list_events`/`search_captures`) intentionally deferred — captured as backlog 999.3 per PROJECT.md create-only MVP scope. apps/web 177/177 tests + jarvis-core 152/152 + typecheck + build green; 36/36 must-haves verified end-to-end against the codebase.*

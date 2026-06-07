@@ -66,8 +66,10 @@ vi.mock("@/lib/db", () => {
     const chain: Record<string, unknown> = {};
     chain.from = vi.fn().mockReturnValue(chain);
     chain.where = vi.fn().mockReturnValue(chain);
+    // Phase 11: route now chains .orderBy().limit(). orderBy returns chain
+    // (NOT the rows directly) so .limit() can still resolve.
+    chain.orderBy = vi.fn().mockReturnValue(chain);
     chain.limit = vi.fn().mockResolvedValue(rows);
-    chain.orderBy = vi.fn().mockResolvedValue(rows);
     (chain as { then?: unknown }).then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve(rows).then(resolve);
     return chain;
@@ -219,9 +221,20 @@ beforeEach(() => {
     id: "fact:entity:Anna",
     receipt: { type: "entity", key: "Anna", value: "my partner", source: "user_explicit", factId: "abc-fact-id" },
   });
-  // Three SELECT calls per request: projects list + user row + facts (via getJarvisFactsForUser mock)
+  // Phase 10 + Phase 11 Promise.all order:
+  //   1. projects, 2. user row (with stateVersion), 3. areas,
+  //   4. recent captures, 5. active tasks (facts via separate module mock)
   dbState.selectReturns.push([]); // projects
-  dbState.selectReturns.push([{ timezone: "America/New_York", defaultCalendarId: null }]); // user row
+  dbState.selectReturns.push([
+    {
+      timezone: "America/New_York",
+      defaultCalendarId: null,
+      stateVersion: 1n,
+    },
+  ]); // user row
+  dbState.selectReturns.push([]); // areas
+  dbState.selectReturns.push([]); // recent captures
+  dbState.selectReturns.push([]); // active tasks
 });
 
 afterEach(() => {

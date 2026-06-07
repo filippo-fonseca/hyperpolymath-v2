@@ -1,3 +1,8 @@
+// CACHE-CRITICAL FILE — see CACHE-05 grep gate allowlist.
+// NO time-of-day reads (Date now, new-Date, toISOString) or unsorted JSON
+// stringify allowed — any such call invalidates the 1h cache. Per-line
+// CACHE-OK: <reason> escape honored but must be justified.
+//
 // JARVIS Anthropic tool definitions (D-08 / D-09 / research §1.3).
 //
 // Strict tool use is per-tool now (`strict: true`); the previous
@@ -10,6 +15,11 @@
 // Phase 5.1 (D-M5 / JARVIS-18): `remember_fact` added as the 4th tool.
 // Phase 5.1 (D-A1 / JARVIS-19): `ask_clarification` added as the 5th tool.
 // cache_control moves from remember_fact to ask_clarification (new LAST tool).
+//
+// Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so the
+// tools tier amortizes the 2× write cost over a full hour of turns
+// instead of paying 5-min rewrites. Requires the route to pass the
+// `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
 
 import { z } from "zod";
 import { zCreateCaptureFor, zCreateCapture } from "./create-capture";
@@ -30,8 +40,11 @@ export interface JarvisToolDefinition {
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header). */
   strict: true;
-  /** Present ONLY on the LAST tool to mark the cache breakpoint. */
-  cache_control?: { type: "ephemeral" };
+  /** Present ONLY on the LAST tool to mark the cache breakpoint.
+   *  Phase 11 / CACHE-01: ttl widened to "5m" | "1h". Default is "5m";
+   *  setting "1h" requires the `extended-cache-ttl-2025-04-11` beta
+   *  header on the messages.stream call (wired at the route boundary). */
+  cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" };
 }
 
 function toJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
@@ -95,7 +108,11 @@ export function buildToolDefinitions(
       input_schema: clarifySchema,
       strict: true,
       // Phase 5.1: ask_clarification is now the LAST tool — cache_control breakpoint here.
-      cache_control: { type: "ephemeral" },
+      // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so the
+      // tools tier amortizes the 2× write cost over a full hour of turns
+      // instead of paying 5-min rewrites. Requires the route to pass the
+      // `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
+      cache_control: { type: "ephemeral", ttl: "1h" },
     },
   ];
 }

@@ -303,7 +303,15 @@ export function JarvisInput({
   // applies only when focusedIdle (focused && !hasContent).
   useEffect(() => {
     if (!editor) return;
-    const onFocus = () => setIsFocused(true);
+    const onFocus = () => {
+      setIsFocused(true);
+      // Phase 11 / CACHE-04 — dispatch warm signal so JarvisWarmer can fire
+      // a predictive Anthropic cache-prime call. Cheap CustomEvent broadcast;
+      // listener lives in app/(app)/layout.tsx via <JarvisWarmer />.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("jarvis-input-focus"));
+      }
+    };
     const onBlur = () => setIsFocused(false);
     const onUpdate = () => {
       const has = !editor.isEmpty;

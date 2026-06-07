@@ -4,6 +4,8 @@
 
 Hyperpolymath v2 ships in six dependency-shaped phases. Foundations come first because RLS, connection pooling, secret hygiene, and migration discipline cannot be safely retrofitted — five of the most severe pitfalls collapse here. Manual CRUD per domain follows so every primitive JARVIS will eventually route to is proven via UI before the agent touches it. Realtime is its own phase because subscription patterns infect every page and getting them right once prevents per-feature bugs that compound. Google Calendar precedes JARVIS so OAuth refresh edge cases are debugged outside the agent. JARVIS is intentionally the second-to-last phase — by the time it ships, every primitive is battle-tested. Polish is explicit (not implicit) because "Be goated. Well." requires a deliberate pass on typography, error states, motion, copy, and edge cases.
 
+**Milestone v1.1 — Speed & Agility (2026-05-28 → ongoing):** Six new phases (9–14) extend the roadmap to cut p50 speech-end → first-TTS-audio under 1.5s (currently ~3–5s) without regressing JARVIS routing quality. The critical path is **9 → 10 → 11** (telemetry baseline → TTS+route-boundary wins → prompt cache + state priming) and lands the perceived-speed win in ~2 weeks. Phases 12 (wake-word migration), 13 (Haiku fast-path), and 14 (desktop shell) can follow somewhat in parallel. **Hard external deadline:** Picovoice Porcupine's free tier sunsets **2026-06-30**, which time-boxes Phase 12 — see Phase 12 detail for the deviation option.
+
 ## Phases
 
 **Phase Numbering:**
@@ -23,6 +25,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6.2: Anthropic-Discipline Rebuild (INSERTED)** - Third visual rebuild after two rejections ("clunky and blah" both times). New discipline pole: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com). Notion content frame. JARVIS as atmospheric mood only — cyan accent + subtle depth, NO literal HUD vocabulary. Massive refactor of Phase 6.1's chrome.
 - [ ] **Phase 7: JARVIS Voice + Ambient** - "Hey Jarvis" + clap-clap wake, Groq Whisper STT, ElevenLabs Flash British TTS, discreet mode toggle, mic-active indicator. Text Console remains fallback for public spaces.
 - [ ] **Phase 8: Public Landing Manifesto** - Public-facing landing page at `/` as a printed-manifesto-in-scroll. Karpathy-grade restraint expressed through hyperpolymath's Garamond/paper/Renaissance voice. Build-in-public stance — manifesto IS the front door. Live JARVIS demo, named primitives spec, fork-or-use choice, quiet live build-log feed.
+
+## Milestone v1.1 — Speed & Agility
+
+Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keeping every existing JARVIS capability intact. Critical path: **9 → 10 → 11** (telemetry → quick wins → prompt cache). Phases 12, 13, 14 can run somewhat in parallel after Phase 11 lands, except that Phase 12 carries a hard external deadline (**Picovoice Porcupine free-tier sunset 2026-06-30**) that may force it to jump ahead of Phase 13 if the date becomes blocking.
+
+- [ ] **Phase 9: Latency Telemetry Baseline** - Per-stage timestamps on every voice turn + p50/p95 timeline chart + silent-invalidator regression guard. The "you can't fix what you can't measure" floor for the rest of v1.1.
+- [x] **Phase 10: TTS + Route-Boundary Latency Wins** - Per-sentence TTS dispatch + `pcm_24000` direct-decode + drop the full-body MP3 buffer + parallelize sequential route-boundary DB queries. Biggest perceived-speed jump in the milestone with the smallest code footprint. (completed 2026-05-30)
+- [x] **Phase 11: Prompt Cache + State Priming** - 3-tier `cache_control` (tools + frozen system at 1h, user-state snapshot at 5min, per-turn outside cache) + XML-tagged state block + `state_version` byte-stable reuse + predictive warm on app-focus/mic-arm + grep gate against silent invalidators. (completed 2026-05-31)
+- [ ] **Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)** - openWakeWord (ONNX + Silero VAD + `hey_jarvis_v0.1.onnx`) in a Web Worker + AudioWorklet ring buffer + 500ms pre-roll + listening-mode setting (wake / push-to-talk / hibernate). Absorbs backlog 999.6 (hibernation) + 999.8 (scoped wake-word). **Hard deadline: 2026-06-30** (Picovoice Porcupine free tier sunsets — agent goes silent if missed).
+- [ ] **Phase 13: Haiku Fast-Path Routing** - Deterministic classifier routes unambiguous CRUD to Haiku 4.5 and ambiguous/multi-action to Sonnet 4.6 + ≥50-fixture eval set as the misroute gate + auto-escalate-to-Sonnet on low-confidence Haiku turns + tier distribution on /insights.
+- [ ] **Phase 14: JARVIS Desktop Mic Middleman** - Tauri 2.x macOS menu-bar daemon owns the microphone with persistent OS-level permission (one prompt at first launch, ever — no more Safari per-session prompts) and routes wake events from either the existing ESP32 physical extender OR an on-device standalone wake-word detector; captures audio with raw Web Audio + VAD, transcribes via the existing endpoint, and dispatches the final transcript to the browser JARVIS pipeline as if user-typed. Browser-only flow continues to work unchanged as a fallback when desktop is not running. Tunable from a Settings window inside the desktop app.
 
 ## Phase Details
 
@@ -264,10 +277,110 @@ Plans:
 
 **Wave structure**: Plans 01 + 02 (Wave 1, parallel — file-disjoint: 01 owns FRAMEWORK.md + jarvis-core fixture + OG image; 02 owns lib/db/schema.ts + drizzle/0008 + supabase/migrations/0012 + actions/waitlist.ts + next.config.ts + .env.example) → Plan 03 (Wave 2, depends on 01 for FRAMEWORK.md anchors; builds the sparse document chrome) → Plan 04 (Wave 3, depends on 01 + 03 — imports fixture + extends LandingPage) → Plan 05 (Wave 4, depends on 02 + 03 + 04 — wires data layer + page.tsx) → Plan 06 (Wave 5, autonomous=false — gates the user the way Phase 6/6.1/6.2 did not)
 
+### Phase 9: Latency Telemetry Baseline
+**Goal**: Make every stage of the voice-end-to-audio-out pipeline individually measurable in production, so the rest of v1.1 is engineering rather than guesswork.
+**Depends on**: Phase 7 (load-bearing — telemetry instruments the Phase 7 voice pipeline: JarvisListener → /api/jarvis/stt → /api/jarvis → useTtsPlayer → AudioQueue) and Phase 5 (jarvis_events table)
+**Requirements**: TEL-01, TEL-02, TEL-03
+**Success Criteria** (what must be TRUE):
+  1. After speaking a command, the resulting `jarvis_events` row carries 8 per-stage timestamps (vad_end, stt_done, prompt_built, first_token, last_token, tool_loop_done, tts_first_byte, audio_first_play) and the user can see them on `/insights`
+  2. The `/insights` page renders a p50 + p95 timeline chart per stage over rolling 24h with stage-delta annotations, so a regression in any single stage is visible within one session
+  3. A CI regression guard (`tests/jarvis-latency.test.ts`) fails if two back-to-back identical turns do NOT show `cache_read_input_tokens > 0` on the second turn — silent prompt-cache invalidation is caught before it ships
+  4. Existing `jarvis_events`-driven /insights charts (action-type distribution, latency p50/p95, error rate) continue to render unchanged — no regression on Phase 5 telemetry
+**Plans**: 2 plans
+- [x] 09-01-PLAN.md — Schema migration 0017 + server-side LLM-stage timestamp capture in /api/jarvis + stt_done_at proxy header round-trip + TEL-03 cache-hit regression guard
+- [x] 09-02-PLAN.md — UPDATE-policy migration 0018 + voice-stage beacon endpoint + client-side capture (vad_end_at, tts_first_byte_at, audio_first_play_at) + /insights Pipeline Latency panel mounted above existing tabs
+**UI hint**: yes
+
+### Phase 10: TTS + Route-Boundary Latency Wins
+**Goal**: User hears JARVIS start speaking noticeably sooner — per-sentence dispatch + raw PCM playback + parallelized route-boundary DB queries collapse the audible "thinking pause" without changing the model, the voice, or the routing logic.
+**Depends on**: Phase 9 (telemetry baseline required to verify the wins are real; relies on TEL-01 per-stage timestamps to confirm the deltas), Phase 7 (TTS + AudioQueue infrastructure), Phase 5 (route handler)
+**Requirements**: LAT-01, LAT-02, LAT-03, LAT-04
+**Success Criteria** (what must be TRUE):
+  1. User speaks a typical single-action command ("add buy milk") and hears the first TTS syllable within 1.5s of speech-end (p50, voice-mode telemetry); previously ~3–5s — measurable in `/insights` Phase-9 timeline
+  2. For multi-sentence assistant responses, audio of sentence 1 starts playing while the model is still streaming sentence 2 (per-sentence dispatch verifiable in browser DevTools network waterfall: multiple `/api/jarvis/tts` requests fire before `/api/jarvis` SSE closes)
+  3. ElevenLabs Flash British voice still sounds identical to the user (no audible artifacts from `pcm_24000` direct-decode vs MP3); voice ID + accent unchanged
+  4. Route-boundary DB cold-start (first turn after backend cold boot) drops from sequential 3-query wall-clock to single Promise.all round-trip (confirmable via `prompt_built_at - request_received_at` delta on `jarvis_events`)
+  5. No regression in JARVIS routing quality — all Phase 5 + 5.1 adversarial + implicit-intent tests still pass
+**Plans**: 4 plans
+- [x] 10-01-PLAN.md — Wave 1: Route-boundary 3-query Promise.all + parallelization regression test (LAT-04)
+- [x] 10-02-PLAN.md — Wave 1: splitDeltas pure sentence-splitter function + 14-case unit test corpus (LAT-02)
+- [x] 10-03-PLAN.md — Wave 1: TTS proxy output_format=pcm_24000 + AudioQueue PCM-direct rewrite (drop decodeAudioData) + byte-order sanity test (LAT-01)
+- [x] 10-04-PLAN.md — Wave 2: TurnPlaybackController class + use-tts-player rewrite + JarvisConsole + GlobalJarvisHandler per-sentence wiring + 10-case controller test (LAT-02, LAT-03)
+**Wave structure**: Plans 01 + 02 + 03 (Wave 1, parallel — file-disjoint: route.ts, sentence-splitter.ts, tts/route.ts+audio-queue.ts) → Plan 04 (Wave 2, integration; depends on 10-02 splitDeltas contract + 10-03 AudioQueue PCM contract)
+
+### Phase 11: Prompt Cache + State Priming
+**Goal**: JARVIS first-token latency stays near warm-cache numbers across the day, not just within 5-minute bursts — a 3-tier cache (tools+frozen system at 1h, user-state at 5min, per-turn outside cache) plus state-versioning plus predictive warm-up means the user almost never pays cold-cache cost on a real session.
+**Depends on**: Phase 10 (TTS wins already removed the easy seconds; cache work is where the remaining first-token latency lives), Phase 9 (cache-hit verification via TEL-03 regression guard), Phase 5 (existing prompt caching foundation)
+**Requirements**: CACHE-01, CACHE-02, CACHE-03, CACHE-04, CACHE-05
+**Success Criteria** (what must be TRUE):
+  1. After opening the app, focusing the JARVIS input, or arming the mic, the next user turn shows `cache_read_input_tokens > 0` on the tools+frozen-system block AND on the user-state snapshot block (verifiable in `jarvis_events`) — predictive warm keeps the cache inside its TTL window without a background heartbeat
+  2. Two back-to-back turns issued >5min apart but with `state_version` unchanged still hit the user-state snapshot cache byte-for-byte (CACHE-03 reuse); turns issued after a CRUD write (state_version bumped) correctly miss the snapshot tier but still hit the tools+system tier
+  3. User-state snapshot is XML-tagged plain text, deterministic-sort, capped at 800–2000 tokens regardless of project/capture/task volume (asserted by serializer unit test against fixtures of varying sizes)
+  4. Audit/grep gate (CACHE-05) blocks any PR that introduces `Date.now()`, `new Date()`, or unsorted `JSON.stringify()` inside system-prompt or tool-def construction — silent cache invalidators cannot regress in
+  5. Median TTFA (time-to-first-audio) for warm sessions stays under the Phase 10 target and degrades gracefully (not catastrophically) on cold cache
+**Plans**: 6 plans
+- [x] 11-01-PLAN.md — Wave 1: Pure XML state serializer + serializer test fixtures (CACHE-02)
+- [x] 11-02-PLAN.md — Wave 1: Schema migration — users.state_version + bump_user_state_version() + 6 triggers (CACHE-03)
+- [x] 11-03-PLAN.md — Wave 1: Upgrade jarvis-core cache_control TTL to 1h on tools+system + regression test (CACHE-01)
+- [x] 11-04-PLAN.md — Wave 2: Snapshot reuse cache + route boundary integration + extended-cache-ttl beta header + extend TEL-03 (CACHE-01, CACHE-03)
+- [x] 11-05-PLAN.md — Wave 2: CI grep gate + Husky pre-commit hook (shared scanner) (CACHE-05)
+- [x] 11-06-PLAN.md — Wave 3: /api/jarvis/warm endpoint + JarvisWarmer client component + UX-signal wiring (CACHE-04)
+
+### Phase 12: On-Device Wake-Word + Mic Gating (DEADLINE-BOUND)
+**Goal**: Wake-word detection runs entirely on-device via openWakeWord (no audio leaves the machine until the wake phrase fires), wake-word listening is fully gated by an explicit user setting (wake-word / push-to-talk / hibernate), and the Picovoice Porcupine dependency is fully removed before the free-tier sunsets and JARVIS goes silent. Absorbs backlog 999.6 (hibernation) and 999.8 (scoped wake-word).
+**Depends on**: Phase 7 (replaces the Phase 7 Porcupine + Whisper-fallback wake path; reuses Phase 7's mic-state FSM, AudioContext unlock, Cmd+Shift+J shortcut)
+**Hard deadline / risk**: **Picovoice Porcupine free tier sunsets 2026-06-30.** If Phase 11 slips, this phase must jump ahead of Phase 13 to land before the sunset — wake-word stops working entirely the day Porcupine goes paid-only. Treat 2026-06-15 as the internal cut-over deadline so there is a 2-week safety margin.
+**Requirements**: WAKE-01, WAKE-02, WAKE-03, WAKE-04, WAKE-05, WAKE-06
+**Success Criteria** (what must be TRUE):
+  1. User says "Hey Jarvis" with no command and observes nothing about the audio leaving the device — no network request fires until the wake-word classifier scores > 0.5 on 2 consecutive 80ms frames (verifiable in DevTools Network)
+  2. User says "Hey Jarvis add buy milk" in one breath and the command transcript includes "add buy milk" intact (pre-roll spliced from the 3-second ring buffer prevents clipping the leading syllables)
+  3. User opens Settings → Voice, switches to **push-to-talk only**, and the wake-word worker tears down (mic permission released, no ambient ONNX inference); only `Cmd+Shift+J` triggers a turn. Switching to **hibernate** disables voice entirely
+  4. The app no longer references Picovoice — `NEXT_PUBLIC_PICOVOICE_ACCESS_KEY` is removed from env files, `@picovoice/porcupine-web` is dropped from `package.json`, and `npm ls @picovoice/porcupine-web` returns empty
+  5. First app paint never blocks on wake-word assets (3–4 MB ONNX/WASM lazy-loaded on first "enable voice" toggle, not at module load)
+  6. `stripWakeWordAnywhere` belt-and-braces defense still drops wake-fire transcripts that don't actually start with a wake phrase, so false positives never reach the agent
+**Plans**: 3 plans
+- [x] 12-01-PLAN.md — Wave 1: openWakeWord asset hosting + AudioWorklet ring buffer + Web Worker 3-stage ONNX pipeline + main-thread client (WAKE-01, WAKE-02, WAKE-03)
+- [ ] 12-02-PLAN.md — Wave 2: JarvisListener rewire (spawnWakeWordWorker replaces usePorcupine) + WAKE-06 hard cut-over (remove package, asset, env vars, scrub source) (WAKE-04, WAKE-06)
+- [ ] 12-03-PLAN.md — Wave 3: VoiceSettings migration + 3-mode picker (Wake-word/Push-to-talk/Discreet) + EnableVoiceModal D-04 spinner + DiscreetToggleButton previousModeRef + JarvisListenerMount mode-awareness (WAKE-05)
+**UI hint**: yes (Settings → Voice listening-mode picker)
+
+### Phase 13: Haiku Fast-Path Routing
+**Goal**: ~50% of JARVIS turns (the unambiguous CRUD ones) execute at Haiku 4.5 speed (~2–3× faster than Sonnet 4.6), while ambiguous/multi-action turns stay on Sonnet 4.6 with no routing-quality regression measured against a ≥50-fixture eval set.
+**Depends on**: Phase 11 (prompt cache must be solid before splitting traffic across two models — each tier needs its own cache lifecycle), Phase 9 (per-tier telemetry visualizes the win)
+**Requirements**: ROUTE-01, ROUTE-02, ROUTE-03, ROUTE-04
+**Success Criteria** (what must be TRUE):
+  1. User submits "add buy milk" and the turn routes to Haiku 4.5 with first-token latency noticeably lower than the same turn on Sonnet (verifiable on `/insights` per-tier latency chart); user submits "schedule dinner with anna 8pm sat + book reading p1 friday" and it routes to Sonnet 4.6
+  2. The eval set (`tests/jarvis-routing.test.ts`, ≥50 fixtures) measures Haiku's misroute rate against Sonnet's baseline on the same fixtures; CI fails if Haiku exceeds Sonnet by more than 2 percentage points — the "if JARVIS misroutes, v2 has failed" bar from PROJECT.md is preserved
+  3. When Haiku fires `ask_clarification`, fails reference validation, or emits no tool, the turn auto-escalates to Sonnet for a single retry before any receipt or prose renders for the user — user never sees a low-confidence Haiku result
+  4. `/insights` renders model-tier distribution (% Sonnet vs % Haiku) on a rolling 24h window alongside per-tier p50 first-token latency, so routing health is observable
+  5. Every existing Phase 5 + 5.1 must-have continues to pass — capture-first, persistent memory, adversarial defense, implicit-intent fidelity all work identically across both tiers
+**Plans**: TBD — defined by /gsd:plan-phase 13 (rough estimate: 2–3 plans — deterministic classifier + per-tier Anthropic config + eval-set fixtures + escalation loop + telemetry chart)
+**UI hint**: yes (/insights model-tier chart)
+
+### Phase 14: JARVIS Desktop Mic Middleman
+**Goal**: A Tauri 2.x macOS menu-bar daemon at `apps/desktop/` owns the microphone with persistent OS-level permission (one `NSMicrophoneUsageDescription` prompt at first launch, then persisted forever in System Settings → Privacy & Security → Microphone — Safari never prompts during desktop-mediated voice turns). The daemon supports two wake-trigger modes that can run independently or concurrently: **Physical Extender** subscribes to the existing `/api/jarvis/physical/trigger` SSE stream (ESP32 fires wake), and **Standalone** runs on-device wake-word detection on the desktop's own mic (openWakeWord pipeline). On wake, the daemon captures audio via raw Web Audio + VAD silence detection, transcribes via the existing endpoint, and POSTs the final transcript to a new `/api/jarvis/voice/transcript` route; the browser receives it via SSE and feeds it into the JARVIS pipeline as if the user had typed it. Browser-only flow continues to work unchanged when the desktop app is not running — zero regressions for non-desktop users. All knobs (mode, VAD threshold, debounce, transcribe endpoint, wake-word score) are tunable from a Settings window inside the desktop app, and the `hyperpolymath` boot script launches the daemon alongside supabase + web + serial-bridge.
+**Depends on**: Phase 7 (mic-state FSM, AudioContext unlock, current physical-extension wake flow); existing `/api/jarvis/physical/trigger` SSE (already in `feature/jarvis-physical-extension`)
+**Note**: The previous Phase 14 scope (`Cmd+Shift+Space` global hotkey + FN-double-tap CGEventTap + HUD chrome + HUD-dismiss interrupt) is deferred — see Phase 999.7 (interrupt/stop returned to backlog) and a future "Desktop Shell + Global Hotkey" phase that will extend this Tauri scaffold.
+**Requirements**: DESK-01, DESK-02, DESK-03, DESK-04, DESK-05, DESK-06
+**Success Criteria** (what must be TRUE):
+  1. With the desktop daemon running and Physical Extender mode enabled, the user says "Jarvis …" near the ESP32, the desktop's microphone opens within ~200ms, the user speaks a command, VAD detects silence, the transcript appears in the browser JARVIS Console — and Safari does NOT prompt for microphone permission at any point during the flow (verifiable: open DevTools, observe no `prompt-permission` calls; confirm in macOS System Settings → Privacy & Security → Microphone that the desktop app bundle ID is granted)
+  2. With Standalone mode enabled, the user says "Jarvis …" into the laptop microphone (no ESP32 needed), the desktop's on-device wake-word detector fires (score > threshold), the desktop opens its mic, captures + transcribes, and the transcript reaches the browser identically to mode 1
+  3. With the desktop daemon NOT running (user quits the tray app), the existing browser-tab JARVIS continues to work exactly as it does on `main` today — the browser receives the physical-extension trigger via SSE and activates its own mic flow (verifiable: kill desktop process, replay an ESP32 wake, confirm browser mic activates and transcript pipeline still completes)
+  4. The desktop registers as the active voice source via a heartbeat (TTL ~30s); the browser checks this on every wake event and skips its own mic activation while a heartbeat is fresh, then falls back to the browser-mic flow within ~1s of heartbeat lapse — no double-mic conflicts
+  5. The desktop app's Settings window exposes (and persists across restarts): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle — all changes apply live without restart
+  6. `hyperpolymath` (the dev stack boot tool) gains a `desktop` service that launches `pnpm --filter desktop tauri dev`; the boot-script status bar reflects desktop state (◌/●/✗); the existing serial bridge service continues to start and forward wake triggers unchanged
+**Plans**: 5 plans
+- [x] 14-01-PLAN.md — Rust toolchain + Tauri 2 scaffold + Info.plist mic permission + workspace wiring
+- [x] 14-02-PLAN.md — Voice-source claim API + transcript dispatch route + browser desktopClaimed guard
+- [x] 14-03-PLAN.md — Rust cpal capture + TS VAD/WAV pipeline + Physical Extender SSE subscriber + end-to-end smoke
+- [ ] 14-04-PLAN.md — Standalone wake-word (openWakeWord port) + Settings window + tray menu + live-apply
+- [ ] 14-05-PLAN.md — hyperpolymath desktop service + Phase 14 Success Criteria verification
+**UI hint**: yes (tray icon + Settings window with tunable knobs)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -282,6 +395,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 6.2. Anthropic-Discipline Rebuild | 0/7 | Not started | - |
 | 7. JARVIS Voice + Ambient | 3/4 | In Progress|  |
 | 8. Public Landing Manifesto | 0/6 | Not started | - |
+| 9. Latency Telemetry Baseline | 0/TBD | Not started | - |
+| 10. TTS + Route-Boundary Latency Wins | 4/4 | Complete    | 2026-05-30 |
+| 11. Prompt Cache + State Priming | 6/6 | Complete    | 2026-05-31 |
+| 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
+| 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
+| 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 
 ## Backlog
 
@@ -297,7 +416,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/5 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
@@ -363,3 +482,78 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
+### Phase 999.6: ~~JARVIS hibernation mode — full off-switch~~ (ABSORBED → Phase 12, 2026-05-28)
+
+**Status:** Absorbed into **Phase 12: On-Device Wake-Word + Mic Gating** (WAKE-05 listening-mode setting includes a "hibernate" option that fully releases the mic and tears down the wake-word worker). Original backlog entry preserved at `.planning/phases/999.6-jarvis-hibernation-mode-full-off-switch/` for context.
+
+### Phase 999.7: ~~JARVIS interrupt / stop control~~ (ABSORBED → Phase 14, 2026-05-28)
+
+**Status:** Originally absorbed into Phase 14 as DESK-04 (HUD-dismiss interrupt). 2026-06-06: Phase 14 scope rewritten to focus on the desktop mic middleman; the global hotkey / HUD chrome / dismiss-interrupt scope is deferred to a future phase, and interrupt/stop control is back in this backlog slot. Browser-tab stop-control may also emerge as a Phase 10 stretch if barge-in ships there. Original backlog entry preserved at `.planning/phases/999.7-jarvis-interrupt-stop-control/` for context.
+
+### Phase 999.8: ~~JARVIS wake-word scoped, no ambient transcription~~ (ABSORBED → Phase 12, 2026-05-28)
+
+**Status:** Absorbed into **Phase 12: On-Device Wake-Word + Mic Gating** (WAKE-02 audio never leaves the device until the wake-word classifier fires; WAKE-04 belt-and-braces transcript filter). Exactly the behavior this backlog asked for. Original backlog entry preserved at `.planning/phases/999.8-jarvis-wake-word-scoped-no-ambient-transcription/` for context.
+
+### Phase 999.9: JARVIS — Gmail integration (very extended future) (BACKLOG)
+
+**Goal:** Let JARVIS read, draft, label, and search Gmail via natural language ("Reply to Filippo's last email", "What did mom send yesterday?", "Draft a follow-up to the Stripe thread"). Composes with the existing JARVIS read-layer (backlog 999.3) and CRUD tool family.
+**Requirements:** TBD
+**Depends on:** Phase 999.3 (JARVIS read-layer must exist first — Gmail is a structurally similar read surface, just with a different provider) + multi-user readiness (Gmail OAuth scope per user; persisted refresh tokens encrypted at rest like Google Calendar).
+**Plans:** 0 plans
+
+**Sketch (not contract — for future discussion):**
+- Gmail OAuth scope (`gmail.readonly` + `gmail.modify` + `gmail.compose`) added to the existing Google OAuth flow alongside Calendar scopes
+- New JARVIS tool family: `search_threads`, `get_thread`, `create_draft`, `label_message`, `label_thread`, `unlabel_*`, `list_labels` (mirrors Anthropic strict tool use pattern from Phase 5/5.1)
+- Privacy-mode gate: in Discreet mode, Gmail content is NEVER spoken aloud — JARVIS replies in text only ("3 unread from Stripe — switching to text") even if the user asked by voice
+- Composition with read-layer: "What did mom send yesterday?" → `search_threads({ from: "mom_alias", after: "yesterday" })` → `get_thread` → spoken summary (only in non-Discreet mode)
+- Composition with calendar: "Reply to the Stripe thread and propose Thursday at 3pm" → drafts email + checks calendar conflict + offers send (capture-first defense per JARVIS-06 still applies)
+
+**Why backlog and not active:** Not for v1.x. Sits behind the JARVIS read-layer landing (999.3 still backlog) and the multi-user storage substrate. v1.1 (Speed & Agility) and v1.2 / v1.3 (whatever those bring) ship before this is even research-worthy. Captured 2026-05-30 to make sure the idea doesn't get lost.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.10: Markdown writing surface — freeform "Mem"-style scratchpad (BACKLOG)
+
+**Goal:** A dedicated space inside the app where you can just go and write freely in Markdown — a long-form scratchpad / notes surface that lives alongside captures/tasks/projects but is its own primitive. Think Mem-style or Bear-style: open the page, start typing in Markdown, autosave, get out. Distinct from Quick Captures (short, list-shaped) and Projects (structured) — this is the "give me a blank Markdown canvas" surface.
+
+**Why:** Captured 2026-05-31 by user during milestone v1.1 (Speed & Agility) execution. Reminder requested: surface this when all current phases are done. The current primitives (areas, projects, tasks, captures, calendar) don't cover long-form freeform thinking — there's no "open a notebook page and write" affordance, which is a recurring shape in personal life-OS use.
+
+**Likely shape (sketch, not contract):**
+- New top-level primitive (e.g., `notes` or `mem`) with its own table — Drizzle schema, RLS, Realtime subscription, same `userId` scoping as other primitives
+- Markdown editor (likely CodeMirror 6 or Tiptap with Markdown serializer — decide during research) with EB Garamond / Louize body matching the journal-paper aesthetic
+- Autosave on idle; per-note history if cheap
+- Searchable from JARVIS + global command palette; JARVIS read-layer (999.3) would naturally extend to cover it
+- Open question: one big rolling document vs many discrete notes vs daily-note pattern — likely many discrete notes with optional daily-note shortcut
+
+**Reminder trigger:** Surface this entry when the active v1.1 milestone phases (currently 9–14) are all complete, before starting the next milestone. Run `/gsd:review-backlog` at that point and decide promote vs defer.
+
+**Requirements:** TBD (define when promoting — likely a new `NOTES-*` family)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.11: Mobile app for JARVIS — voice, quick-capture, and text/SMS interface (BACKLOG)
+
+**Goal:** A native/mobile companion to the web app so JARVIS is reachable on the go. Three core surfaces: (1) **voice-first JARVIS** — the same one-sentence → right-action routing, hands-free from a phone; (2) **Quick Capture** — a fast mobile inbox dump (thought / task / note → lands in captures) with mobile-native ergonomics (share-sheet capture, lock-screen / home-screen widget quick-add); (3) **text / SMS interface** — text JARVIS a sentence and have it route the action exactly like typing into the web app, with push notifications for follow-ups.
+
+**Why:** Captured 2026-06-06 by user during milestone v1.1 (Speed & Agility) execution. The web app assumes you're at a desk; the highest-frequency JARVIS moments (a fleeting thought, a task to capture, a quick command) happen away from the keyboard. A mobile surface — especially the SMS path, which works from any device with no app open — closes the "capture it before it's gone" gap that the web-only experience leaves open.
+
+**Likely shape (sketch, not contract):**
+- Decide native vs PWA vs Expo/React Native during research — reuse `packages/kiwi-core` routing + Anthropic tool definitions across web and mobile (matches the CLI-variant factoring already noted in PROJECT.md)
+- SMS path: inbound webhook (Twilio or similar) → existing JARVIS route handler → reply with the receipt as a text; auth-bound to the single user's verified number. Note: PROJECT.md "What NOT to use" listed Twilio as out-of-scope for v1 — revisit that decision explicitly when promoting
+- Quick Capture: share-sheet target + iOS/Android home-screen widget → POST to captures with `userId` scoping; offline-queue + sync
+- Voice: reuse the on-device wake-word + TTS pipeline (Phases 7, 10, 12) where the mobile runtime allows; otherwise push-to-talk first
+- Push notifications for JARVIS follow-ups (the 5s follow-up window / clarifications) and reminders
+- Open questions: native-vs-PWA tradeoff, SMS provider + cost, how much of the voice substrate survives the mobile runtime, auth handoff from Supabase session to a long-lived mobile token
+
+**Reminder trigger:** Surface when v1.1 (Phases 9–14) completes and a mobile/anywhere-access milestone is being scoped. Run `/gsd:review-backlog` and decide promote vs defer; likely its own milestone given native-app + SMS-provider surface area.
+
+**Requirements:** TBD (define when promoting — likely `MOBILE-*` and `SMS-*` families)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)

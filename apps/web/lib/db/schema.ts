@@ -6,6 +6,7 @@ import {
   integer,
   boolean,
   date,
+  bigint,
   primaryKey,
   check,
   index,
@@ -63,6 +64,13 @@ export const users = pgTable("users", {
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  // Phase 11 / CACHE-03 (D-01) — tamper-proof freshness counter bumped by
+  // Postgres BEFORE-triggers on tasks/captures/projects/areas/habits/jarvis_facts
+  // (migration 0019). Read once per JARVIS turn at the route boundary; used as
+  // the in-memory snapshot cache key by lib/jarvis/state-snapshot-cache.ts.
+  stateVersion: bigint("state_version", { mode: "bigint" })
+    .notNull()
+    .default(1n),
 });
 
 export const areas = pgTable(
@@ -350,6 +358,19 @@ export const jarvisEvents = pgTable(
     latencyMs: integer("latency_ms"),
     firstTokenMs: integer("first_token_ms"),
     error: text("error"),
+    // Phase 9 / TEL-01 — per-stage timestamps. Nullable; populated at
+    // their natural capture sites (see migration 0017 header). LLM-stage
+    // columns (promptBuiltAt/firstTokenAt/lastTokenAt/toolLoopDoneAt)
+    // populate on every turn; voice-pipeline columns (vadEndAt/sttDoneAt/
+    // ttsFirstByteAt/audioFirstPlayAt) populate only when voiceActive=true.
+    vadEndAt: timestamp("vad_end_at", { withTimezone: true }),
+    sttDoneAt: timestamp("stt_done_at", { withTimezone: true }),
+    promptBuiltAt: timestamp("prompt_built_at", { withTimezone: true }),
+    firstTokenAt: timestamp("first_token_at", { withTimezone: true }),
+    lastTokenAt: timestamp("last_token_at", { withTimezone: true }),
+    toolLoopDoneAt: timestamp("tool_loop_done_at", { withTimezone: true }),
+    ttsFirstByteAt: timestamp("tts_first_byte_at", { withTimezone: true }),
+    audioFirstPlayAt: timestamp("audio_first_play_at", { withTimezone: true }),
   },
   (t) => [index("jarvis_events_user_created_idx").on(t.userId, sql`created_at DESC`)],
 );
@@ -439,6 +460,9 @@ export const habitCompletions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     completedDate: date("completed_date").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow().notNull(),
+    // 'in_progress' | 'almost_done' | 'done'. Row absence = not started.
+    // CHECK constraint enforced in migration 0016.
+    status: text("status").notNull().default("done"),
   },
   (t) => [
     uniqueIndex("habit_completions_habit_date_uniq").on(t.habitId, t.completedDate),
