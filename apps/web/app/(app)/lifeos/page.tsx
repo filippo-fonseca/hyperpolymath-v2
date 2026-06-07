@@ -1,6 +1,7 @@
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
+import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function LifeOsPage() {
         {/* Temporary single-column mount — Task 7 wraps the three widgets
             in LifeOsWidgetGrid for the responsive 3-col layout. */}
         <RecentCapturesWidget />
+        <TodayHabitsWidget />
       </div>
     </main>
   );
