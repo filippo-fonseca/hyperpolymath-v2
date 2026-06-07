@@ -4,10 +4,18 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { InsightsCharts } from "./InsightsCharts";
 import { HabitsInsightsPanel } from "./HabitsInsightsPanel";
+import { LifeTabPanel } from "./life/LifeTabPanel";
 import { EmptyState } from "@/components/shared/EmptyState";
 import type { HabitWithAreas } from "@/app/actions/habits";
+import type { Result } from "@/lib/integrations/result";
+import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
+import type {
+  Activity,
+  WeeklyStats,
+} from "@/lib/integrations/strava/activities";
+import type { Session } from "@/lib/integrations/flow/sessions";
 
-type Tab = "jarvis" | "habits";
+type Tab = "jarvis" | "habits" | "life";
 
 interface Props {
   jarvis: {
@@ -24,6 +32,11 @@ interface Props {
     today: string;
     earliestAvailable: string;
   };
+  life: {
+    claudeCode: Result<DailyUsage[]>;
+    strava: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
+    flow: Result<Session[]>;
+  };
 }
 
 /**
@@ -31,7 +44,7 @@ interface Props {
  * picks which panel is currently visible. Tab state is in URL? — no, kept
  * local since neither panel deep-links into.
  */
-export function InsightsTabs({ jarvis, habits }: Props) {
+export function InsightsTabs({ jarvis, habits, life }: Props) {
   const [tab, setTab] = useState<Tab>("jarvis");
 
   return (
@@ -51,6 +64,11 @@ export function InsightsTabs({ jarvis, habits }: Props) {
           onClick={() => setTab("habits")}
           label="Habits"
         />
+        <TabButton
+          active={tab === "life"}
+          onClick={() => setTab("life")}
+          label="Life"
+        />
       </div>
 
       {tab === "jarvis" ? (
@@ -62,12 +80,18 @@ export function InsightsTabs({ jarvis, habits }: Props) {
             body="JARVIS hasn't logged any turns yet. Send it a message to populate this."
           />
         )
-      ) : (
+      ) : tab === "habits" ? (
         <HabitsInsightsPanel
           habits={habits.habits}
           completions={habits.completions}
           today={habits.today}
           earliestAvailable={habits.earliestAvailable}
+        />
+      ) : (
+        <LifeTabPanel
+          claudeCode={life.claudeCode}
+          strava={life.strava}
+          flow={life.flow}
         />
       )}
     </div>
