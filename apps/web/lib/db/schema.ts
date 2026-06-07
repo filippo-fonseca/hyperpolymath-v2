@@ -448,6 +448,29 @@ export const habitsAreas = pgTable(
   ],
 );
 
+// integration_tokens — third-party OAuth tokens (Strava, etc.) that rotate
+// across exchanges. Composite PK (user_id, provider) gives one row per user
+// per provider. Required because `strava-v3` does NOT auto-persist rotated
+// refresh_tokens; we own the write (see 260607-h2k plan D-03).
+// Single-user MVP — RLS deferred; column-level user_id is the boundary.
+export const integrationTokens = pgTable(
+  "integration_tokens",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.provider] }),
+  ],
+);
+
 export const habitCompletions = pgTable(
   "habit_completions",
   {
