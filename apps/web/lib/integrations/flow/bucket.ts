@@ -6,10 +6,17 @@
  * node:fs into the client bundle.
  */
 
+// Dates may arrive as ISO strings after RSC Flight serialization (the wire
+// format coerces Date instances to strings on the boundary). Accept both
+// and normalize via toDate() before use.
 export interface Session {
-  started: Date;
-  completed: Date;
+  started: Date | string;
+  completed: Date | string;
   durationMs: number;
+}
+
+function toDate(v: Date | string): Date {
+  return v instanceof Date ? v : new Date(v);
 }
 
 export interface DayBucket {
@@ -56,9 +63,10 @@ export function bucketByDayForWeek(
   const weekEndMs = weekStartMs + 7 * 86400 * 1000;
 
   for (const s of sessions) {
-    const t = s.started.getTime();
+    const started = toDate(s.started);
+    const t = started.getTime();
     if (t < weekStartMs || t >= weekEndMs) continue;
-    const idx = isoMondayIndex(s.started);
+    const idx = isoMondayIndex(started);
     const bucket = buckets[idx];
     if (!bucket) continue;
     bucket.minutes += s.durationMs / 60000;
