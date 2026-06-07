@@ -1,74 +1,96 @@
-# Contributing to Hyperpolymath
+# Contributing
 
-Thanks for your interest. Hyperpolymath is open source under MIT, built in public by [Filippo Fonseca](https://filippofonseca.com). There are two equally welcome ways to engage: **fork it** and adapt the framework to your own life, or **contribute upstream** with focused changes that fit the existing scope.
+Hyperpolymath is a personal life-OS built in public by [Filippo Fonseca](https://filippofonseca.com). It's MIT-licensed, single-maintainer, and pre-1.0. Most of the codebase changes in a given week, so issues and PRs get triaged in batches, not in real time.
 
-If you came here from the landing page's "Fork it" door, you're in the right place.
+There are two ways to use the repo:
 
-## Two paths
-
-**Fork it.** The framework is the artifact. The same five primitives (Areas, Projects, Building Blocks, Calendar, JARVIS) are documented in [FRAMEWORK.md](./FRAMEWORK.md). Take them as-is, rename them, restructure them, or rip them out and build your own. MIT means whatever-you-want.
-
-**Contribute upstream.** Issues, bug reports, small fixes, and focused PRs are all welcome. Be patient — this is a single-maintainer project during the build-in-public phase, so triage will not be instant.
+1. **Fork it.** Take the framework, rename the primitives, rip out what you don't want, build your own thing. The five primitives are documented in [FRAMEWORK.md](./FRAMEWORK.md). MIT means whatever you want.
+2. **Contribute upstream.** Bug reports, small focused fixes, and tightly scoped features are welcome. Read the rest of this file first.
 
 ## Local setup
+
+You need Node 20.9+, pnpm 9.12+, Docker (for local Supabase), and an Anthropic API key. Google Calendar and the voice stack are optional.
 
 ```bash
 git clone https://github.com/filippo-fonseca/hyperpolymath-v2.git
 cd hyperpolymath-v2
 pnpm install
-pnpm --filter web dev
+
+# env
+cp .env.example apps/web/.env.local
+# then fill in real values. see comments in the file.
+
+# local supabase (postgres + auth + realtime in docker)
+cd apps/web
+pnpm dlx supabase start
+pnpm db:migrate
+
+# run
+pnpm dev    # http://localhost:3000
 ```
 
-You'll need:
-- A Supabase project (Postgres + Auth + Realtime)
-- An Anthropic API key (for JARVIS)
-- Google OAuth credentials (for Calendar integration)
+If `supabase start` fails, it's almost always Docker. Make sure Docker Desktop is running and you have ~4GB free.
 
-See `.env.example` at the repo root for the full list of environment variables.
+## Project layout
+
+```
+apps/web                Next.js 16 app (the main thing)
+apps/desktop            Tauri shell (in flight; not needed to run the web app)
+packages/jarvis-core    shared agent logic
+tools/jarvis-physical   macropad bridge (hardware-side, optional)
+supabase                local config + edge functions
+.planning               GSD workflow artifacts. roadmap and per-phase plans.
+```
+
+Most contributions touch `apps/web`. The rest is in active development and changes shape week to week.
 
 ## Filing a bug
 
-1. Search existing issues first. Most things are already known.
-2. If it's new, open an issue with:
-   - **What you tried** (the input or the interaction).
-   - **What you expected** to happen.
-   - **What actually happened**.
-   - Browser, OS, and commit SHA (`git rev-parse HEAD`).
-3. If JARVIS is involved, paste the receipt or the error message verbatim.
+Search existing issues first. If it's new, include:
+
+- What you did, what you expected, what happened.
+- Browser, OS, commit SHA (`git rev-parse HEAD`).
+- If JARVIS misrouted, paste the input verbatim and the resulting actions.
+
+If you found something a screenshot would explain in two seconds, attach the screenshot.
 
 ## Proposing a feature
 
-Hyperpolymath has a tight scope on purpose. The five primitives are deliberately the smallest set that covers a life without forcing specialization. Most feature requests that broaden the scope will be politely declined — that's the methodology, not gatekeeping.
+The five primitives (Areas, Projects, Building Blocks, Calendar, JARVIS) are the smallest set that covers a life without forcing specialization. Most feature requests that broaden scope get declined. That's the methodology, not gatekeeping.
 
-Best path for a new idea:
-
-1. Open an issue describing the **use case** (not the implementation).
-2. Tag it `proposal`.
-3. We discuss whether it belongs in the framework or as a personal fork.
+Open an issue describing the use case (not the implementation) and tag it `proposal`. We can decide together whether it belongs upstream or in a fork.
 
 ## Pull requests
 
-- **One change per PR.** Keep it focused.
-- Match the existing code style. The web app is TypeScript strict + Biome.
-- Run `pnpm tsc --noEmit` and `pnpm --filter web test --run` before submitting.
-- Reference the related issue in the PR description.
-- The landing page in particular has a strict typography discipline (canonical text sizes, no scroll-reveal animations, restrained motion). If you're touching the landing, read the existing component docstrings first.
+- One change per PR. If your diff touches three unrelated things, it's three PRs.
+- Match the existing style. The web app is TypeScript strict with Biome.
+- Before opening: `pnpm typecheck && pnpm --filter web test --run && pnpm lint`.
+- Reference the issue you're closing.
+- The landing page has a strict typography discipline (canonical text sizes, no scroll-reveal animations, restrained motion). Read the component docstrings before editing it.
 
-## Commit conventions
+I rebase-merge most PRs, so a clean linear history matters. Squash before requesting review.
 
-Conventional Commits with phase-aware prefixes:
+## Commits
 
-- `feat(<scope>): …` — new functionality
-- `fix(<scope>): …` — bug fix
-- `docs(<scope>): …` — docs only
-- `refactor(<scope>): …` — code change with no feature or fix
+Conventional Commits with scoped prefixes:
 
-`<scope>` is usually a phase number (`08-06`) or a domain (`jarvis`, `voice`, `auth`).
+```
+feat(jarvis):    new functionality
+fix(voice):      bug fix
+refactor(db):    no behaviour change
+docs(readme):    docs only
+```
+
+Scope is usually a domain (`jarvis`, `voice`, `auth`, `landing`) or a phase number (`08-06`). Look at recent `git log` for the local style.
+
+## Security
+
+Don't file public issues for security bugs. See [SECURITY.md](./SECURITY.md) for the disclosure flow.
 
 ## Code of conduct
 
-Be kind, be specific, and assume the other person is reading carefully. That's it.
+Be specific, be kind, assume the other person is reading carefully. That's the whole thing.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE) for the full text.
+MIT. See [LICENSE](./LICENSE).
