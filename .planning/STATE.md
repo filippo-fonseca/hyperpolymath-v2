@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
-last_updated: "2026-05-25T23:28:12.804Z"
-last_activity: 2026-05-25
+stopped_at: Completed quick 260607-gox — LifeOS widgets are interactive (habits toggle, captures hover-reveal Convert-to-task, tasks checkoff with slide-out)
+last_updated: "2026-06-07T12:09:00.000Z"
+last_activity: 2026-06-07
 progress:
   total_phases: 16
   completed_phases: 8
@@ -29,7 +29,7 @@ Phase: 08 (public-landing-manifesto) — EXECUTING
 Plan: 6 of 6
 Next: Phase 6.2 (anthropic-discipline-rebuild) — insert via /gsd:insert-phase 06.1, then /gsd:research-phase 06.2, then /gsd:ui-phase 06.2
 Status: Ready to execute
-Last activity: 2026-06-07 - Completed quick task 260607-fgb: Build LifeOS tab — /lifeos route centered on Areas tree with three homepage widgets
+Last activity: 2026-06-07 - Completed quick task 260607-gox: LifeOS widgets are interactive — habits toggle, JARVIS-capture Convert-to-task hover affordance, task checkoff with slide-out
 
 Progress: [██████████] 100%
 
@@ -250,9 +250,10 @@ None yet.
 | 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
 | 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
 | 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |
+| 260607-gox | Make LifeOS widgets interactive — habit toggle, hover-reveal Convert-to-task on JARVIS captures, task checkoff with motion slide-out; reuses existing Server Actions + TanStack Query keys so /habits, /captures, /tasks stay in sync | 2026-06-07 | 175e3ac | [260607-gox-make-lifeos-widgets-interactive-habits-t](./quick/260607-gox-make-lifeos-widgets-interactive-habits-t/) |
 
 ## Session Continuity
 
-Last session: 2026-05-25T23:28:12.800Z
-Stopped at: Completed 08-05-PLAN.md — landing live at / for signed-out visitors (ChoiceSection + BuildLog wired, page.tsx conditional render, page metadata)
+Last session: 2026-06-07T12:09:00.000Z
+Stopped at: Completed quick 260607-gox — LifeOS widgets are interactive (habits toggle, captures hover-reveal Convert-to-task, tasks checkoff with slide-out)
 Resume file: None
