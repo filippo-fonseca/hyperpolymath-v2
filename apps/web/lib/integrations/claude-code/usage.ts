@@ -45,6 +45,23 @@ interface CachedResult {
 let cache: CachedResult | null = null;
 const CACHE_TTL_MS = 60 * 1000;
 
+let globalCcusageProbed = false;
+let globalCcusageAvailable = false;
+function hasGlobalCcusage(): boolean {
+  if (globalCcusageProbed) return globalCcusageAvailable;
+  globalCcusageProbed = true;
+  try {
+    require('node:child_process').execFileSync('ccusage', ['--version'], {
+      stdio: 'ignore',
+      timeout: 2000,
+    });
+    globalCcusageAvailable = true;
+  } catch {
+    globalCcusageAvailable = false;
+  }
+  return globalCcusageAvailable;
+}
+
 function ymd(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -62,7 +79,9 @@ function toNum(v: unknown): number {
 }
 
 function mapRow(row: Record<string, unknown>): DailyUsage | null {
-  const date = typeof row.date === 'string' ? row.date : null;
+  // ccusage v20 returns `period` (YYYY-MM-DD); older shapes used `date`.
+  const dateRaw = row.period ?? row.date;
+  const date = typeof dateRaw === 'string' ? dateRaw : null;
   if (!date) return null;
   const inputTokens = toNum(row.inputTokens ?? row.input_tokens);
   const outputTokens = toNum(row.outputTokens ?? row.output_tokens);
@@ -95,18 +114,15 @@ export async function getClaudeCodeUsage(): Promise<Result<DailyUsage[]>> {
   since.setDate(now.getDate() - 30);
 
   try {
-    // `pnpm exec ccusage` would also work but is slower; resolve the bin
-    // from node_modules directly via npx, falling back to PATH lookup.
-    const args = [
-      'ccusage',
-      'daily',
-      '--json',
-      '--since',
-      ymd(since),
-      '--until',
-      ymd(now),
-    ];
-    const { stdout } = await execFileP('npx', args, {
+    // Prefer the globally-installed `ccusage` binary on PATH; fall back to
+    // `npx ccusage` if not found. npx has a ~1s bootstrap that we skip when
+    // a global install exists (npm i -g ccusage).
+    const useNpx = !process.env.CCUSAGE_BIN && !hasGlobalCcusage();
+    const bin = process.env.CCUSAGE_BIN ?? (useNpx ? 'npx' : 'ccusage');
+    const args = useNpx
+      ? ['ccusage', 'daily', '--json', '--since', ymd(since), '--until', ymd(now)]
+      : ['daily', '--json', '--since', ymd(since), '--until', ymd(now)];
+    const { stdout } = await execFileP(bin, args, {
       // Buffer up to 32 MB — 30 days of usage is well under this in practice.
       maxBuffer: 32 * 1024 * 1024,
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
