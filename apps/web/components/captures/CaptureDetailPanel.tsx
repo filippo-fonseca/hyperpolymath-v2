@@ -622,8 +622,8 @@ export function CaptureDetailPanel({
                     size="sm"
                     className="font-sans text-[13px]"
                     onClick={handleCancelClick}
-                    disabled={!dirty || isPending}
-                    title={dirty ? "Discard unsaved changes" : undefined}
+                    disabled={isPending}
+                    title={dirty ? "Discard unsaved changes" : "Close"}
                   >
                     Cancel
                   </Button>
