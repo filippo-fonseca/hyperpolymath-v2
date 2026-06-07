@@ -1,5 +1,6 @@
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
+import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
 import { LifeOsWallpaper } from "@/components/lifeos/LifeOsWallpaper";
 import { LifeOsWidgetGrid } from "@/components/lifeos/LifeOsWidgetGrid";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
@@ -33,6 +34,7 @@ export default async function LifeOsPage() {
           emoji="◈"
           subtitle="One canvas for areas, captures, habits, and tasks."
         />
+        <LifeOsQuickSend />
         <LifeOsAreasSection />
         <LifeOsWidgetGrid>
           <RecentCapturesWidget />
