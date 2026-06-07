@@ -492,6 +492,30 @@ export const flowSessions = pgTable(
   ],
 );
 
+// claude_code_usage — daily Claude Code token totals.
+// Populated by a local cron (tools/claude-code-sync.mjs) that runs ccusage
+// on the user's laptop and POSTs to /api/integrations/claude-code/sync.
+// PK (user_id, date) so re-syncs upsert in place.
+export const claudeCodeUsage = pgTable(
+  "claude_code_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    costUsd: integer("cost_usd_micros"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date] }),
+  ],
+);
+
 export const habitCompletions = pgTable(
   "habit_completions",
   {
