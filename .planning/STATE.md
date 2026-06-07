@@ -249,6 +249,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
 | 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
+| 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |
 
 ## Session Continuity
 
