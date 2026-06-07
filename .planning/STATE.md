@@ -324,6 +324,7 @@ None yet.
 | 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
 | 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |
 | 260607-gox | Make LifeOS widgets interactive — habit toggle, hover-reveal Convert-to-task on JARVIS captures, task checkoff with motion slide-out; reuses existing Server Actions + TanStack Query keys so /habits, /captures, /tasks stay in sync | 2026-06-07 | 175e3ac | [260607-gox-make-lifeos-widgets-interactive-habits-t](./quick/260607-gox-make-lifeos-widgets-interactive-habits-t/) |
+| 260607-h2k | Life analytics tab on /insights — third tab with GitHub heatmap (react-github-calendar + jogruber proxy), Claude Code usage (ccusage CLI subprocess — v20 dropped lib API), Strava (strava-v3 with refresh rotation persistence to integration_tokens), Flow Pomodoro week-flip chart; shared Result<T> contract for per-panel error isolation | 2026-06-07 | 5312cad | [260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow](./quick/260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow/) |
 
 ## Session Continuity
 
