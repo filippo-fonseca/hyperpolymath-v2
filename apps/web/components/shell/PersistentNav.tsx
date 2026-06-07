@@ -12,6 +12,7 @@ import {
   BarChart2,
   Info,
   Repeat,
+  LayoutDashboard,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
@@ -52,6 +53,7 @@ import type { MicState } from "@/lib/voice/types";
  */
 const items = [
   { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
+  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
