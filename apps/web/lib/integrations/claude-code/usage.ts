@@ -106,12 +106,103 @@ function mapRow(row: Record<string, unknown>): DailyUsage | null {
   };
 }
 
+/**
+ * Anthropic Admin API fetcher — works in deployed environments where the
+ * local ~/.claude/projects/ jsonl files don't exist. Set ANTHROPIC_ADMIN_KEY
+ * (mint at console.anthropic.com → Settings → Admin keys) to enable.
+ *
+ * Returns org-level totals per day, not per-project granularity. Cost is
+ * not included in this endpoint — would require a second call to
+ * /v1/organizations/cost_report; deferred until ccusage parity matters.
+ */
+async function getViaAdminApi(
+  adminKey: string,
+  since: Date,
+  until: Date,
+): Promise<Result<DailyUsage[]>> {
+  const url = new URL('https://api.anthropic.com/v1/organizations/usage_report/messages');
+  url.searchParams.set('starting_at', since.toISOString());
+  url.searchParams.set('ending_at', until.toISOString());
+  url.searchParams.set('bucket_width', '1d');
+  url.searchParams.set('limit', '31');
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'anthropic-version': '2023-06-01',
+        'X-Api-Key': adminKey,
+      },
+      // 1h cache — same TTL as the in-memory cache, but persists across
+      // serverless cold starts on Vercel.
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return err(`Admin API ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as {
+      data?: Array<{
+        starting_at: string;
+        results: Array<{
+          uncached_input_tokens?: number;
+          output_tokens?: number;
+          cache_read_input_tokens?: number;
+          cache_creation?: {
+            ephemeral_1h_input_tokens?: number;
+            ephemeral_5m_input_tokens?: number;
+          };
+        }>;
+      }>;
+    };
+
+    const data: DailyUsage[] = [];
+    for (const bucket of json.data ?? []) {
+      const date = bucket.starting_at.slice(0, 10);
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let cacheReadTokens = 0;
+      let cacheCreationTokens = 0;
+      for (const r of bucket.results ?? []) {
+        inputTokens += toNum(r.uncached_input_tokens);
+        outputTokens += toNum(r.output_tokens);
+        cacheReadTokens += toNum(r.cache_read_input_tokens);
+        cacheCreationTokens +=
+          toNum(r.cache_creation?.ephemeral_1h_input_tokens) +
+          toNum(r.cache_creation?.ephemeral_5m_input_tokens);
+      }
+      data.push({
+        date,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheCreationTokens,
+        totalTokens: inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens,
+        costUsd: null,
+      });
+    }
+    data.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return ok(data);
+  } catch (e) {
+    return err(`Admin API: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 export async function getClaudeCodeUsage(): Promise<Result<DailyUsage[]>> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.data;
 
   const now = new Date();
   const since = new Date(now);
   since.setDate(now.getDate() - 30);
+
+  // Prefer the Admin API when an admin key is configured — works anywhere
+  // (Vercel, prod, anywhere with outbound HTTPS). Falls back to ccusage CLI
+  // for local dev, which surfaces richer per-project session data.
+  const adminKey = process.env.ANTHROPIC_ADMIN_KEY;
+  if (adminKey) {
+    const result = await getViaAdminApi(adminKey, since, now);
+    cache = { at: Date.now(), data: result };
+    return result;
+  }
 
   try {
     // Prefer the globally-installed `ccusage` binary on PATH; fall back to
