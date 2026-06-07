@@ -25,7 +25,9 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, quick captures, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, habits, captures, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage built around the areas tree.
+
+It runs in three places: the **web app**, a **desktop app** (the primary interaction hub — keyboard-shortcut driven, no always-on mic), and an optional **physical extender** I'm building on the side — a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake.
 
 Type one sentence. The right action lands in the right place. Every time.
 
@@ -67,7 +69,9 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 - **Capture-first.** Ambiguous input becomes a capture. JARVIS never asks a clarifying question for non-destructive actions.
 - **Inline references.** `$projectname` resolves to project IDs, `#hashtag` to tags. Highlighted in the input bar, normalized before reaching the model.
 - **Native date/time.** "tomorrow", "next thursday", "8pm sat", "M/D", time ranges. All parsed.
-- **Personality.** British register, formal, concise, dry, never sycophantic. Voice, wake-word ("Hey Jarvis"), and clap-detection ship in Phase 7.
+- **Personality.** British register, formal, concise, dry, never sycophantic.
+- **Voice.** "Hey Jarvis" wake-word + ambient follow-up window shipped in Phase 7. On desktop, voice is gated by the physical extender — no extender on, no mic on.
+- **Agentic CRUD.** Full update / delete via natural language (Phase 5.1) — JARVIS can edit and remove records, not just create.
 
 ---
 
@@ -133,14 +137,51 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 ## ⚜  Surfaces
 
 ```
-   /                       JARVIS console, the homescreen
+   /                       LifeOS · areas tree + today's widgets (homepage)
+   /jarvis                 JARVIS console · streaming agent · history
    /today                  today's tasks + today's gcal
    /tasks                  all tasks (kanban · list · filters)
+   /habits                 daily habits primitive
    /captures               quick-capture feed (hashtag-filterable, searchable)
    /projects               area tree → project pages (Notion-style breadcrumb)
    /calendar               gcal operator · full CRUD, never persisted locally
    /settings               profile · graduation year · gcal connection · defaults
 ```
+
+**LifeOS** is the new homepage and the system's center of gravity. It's built around the areas tree (the spine of everything — every project, task, habit, and capture is scoped to an area) with widgets stacked underneath: recent quick-captures, today's habits, incoming tasks. Notion-style banner on top, document discipline throughout. Areas govern, widgets surface, JARVIS routes.
+
+---
+
+## ⚜  Where You Use It
+
+Three surfaces, one backend. The desktop app is the real daily driver; the web app is for anywhere you're not at your machine; the physical extender is a fun side-project for voice-without-always-on-mic.
+
+```
+        ┌───────────────────────────┐
+        │   jarvis · physical       │   optional macropad i'm building
+        │   ────────────────────    │   • on-device wake-word module
+        │   ◉  ◉  ◉  ◉  ◉  ◉        │   • only listens when device is awake
+        │   ◉  ◉  ◉  ◉  ◉  ◉        │   • no extender on  →  no wake word, no mic
+        └─────────────┬─────────────┘
+                      │  BLE / USB (when awake)
+                      ▼
+   ┌────────────────────────────────┐        ┌──────────────────────────┐
+   │   Desktop App   (Tauri · Rust) │        │   Web App   (Next.js 16) │
+   │   ────────────────────────────  │        │   ──────────────────────  │
+   │   ⌘K · keyboard-first hub       │        │   browser anywhere       │
+   │   no ambient mic                │        │   same auth, same data   │
+   │   primary interaction surface   │        │   for laptops, phones    │
+   └─────────────────┬──────────────┘        └────────────┬─────────────┘
+                     │                                     │
+                     └─────────────────┬───────────────────┘
+                                       ▼
+                          ┌──────────────────────────┐
+                          │  hyperpolymath backend   │
+                          │  Supabase · Drizzle · gc │
+                          └──────────────────────────┘
+```
+
+**Why the desktop app is the hub.** No browser tab to hunt for, system-level `⌘`-shortcut to summon JARVIS, no microphone permission to live with. Voice mode is opt-in via the physical extender — when it's off, JARVIS is text-only and silent. The web app is the fallback surface, not the primary one.
 
 ---
 
@@ -149,14 +190,20 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 ```
 hyperpolymath-v2/
 ├── apps/
-│   └── web/                   Next.js 16 app: UI, API routes, server actions
-│       ├── app/               App Router (RSC + server actions)
-│       ├── components/        shadcn primitives + feature components
-│       ├── drizzle/           SQL migrations (numbered, generated)
-│       ├── lib/               db · auth · gcal · jarvis · realtime · utils
-│       └── tests/             Vitest specs (agent contract, parsers, executors)
+│   ├── web/                   Next.js 16 app: UI, API routes, server actions
+│   │   ├── app/               App Router (RSC + server actions)
+│   │   ├── components/        shadcn primitives + feature components
+│   │   ├── drizzle/           SQL migrations (numbered, generated)
+│   │   ├── lib/               db · auth · gcal · jarvis · realtime · utils
+│   │   └── tests/             Vitest specs (agent contract, parsers, executors)
+│   └── desktop/               Tauri shell · keyboard-first JARVIS hub
+│       └── src-tauri/         Rust side (global shortcut, window mgmt, IPC)
 ├── packages/
-│   └── jarvis-core/           agent logic, sharable with a future CLI
+│   └── jarvis-core/           agent logic, shared by web + desktop + CLI
+├── tools/
+│   └── jarvis-physical/       physical extender (macropad)
+│       └── bridge/            host-side bridge: BLE/USB → desktop app
+├── supabase/                  local Supabase config + edge functions
 ├── .planning/                 GSD workflow artifacts (roadmap, phases, state)
 └── resources/                 vision docs (core.md, handoff, idea archive)
 ```
@@ -200,18 +247,26 @@ pnpm db:migrate     apply pending migrations
 ## ⚜  Roadmap
 
 ```
-  ✓  phase 0 ─ scaffolding · auth · tooling
-  ✓  phase 1 ─ areas / projects / tasks / captures · manual CRUD
-  ✓  phase 2 ─ project pages · tree sidebar · realtime
-  ✓  phase 3 ─ today · captures feed · search
-  ✓  phase 4 ─ Google Calendar bi-directional sync
-  ▶  phase 5 ─ JARVIS console · streaming · strict tool use   ← we are here
-  ◯  phase 6 ─ polish · motion · empty states · onboarding
-  ◯  phase 7 ─ JARVIS voice + wake-word ("Hey Jarvis")
-  ◯  phase 8 ─ public beta
+  ✓  phase 0   ─ scaffolding · auth · tooling
+  ✓  phase 1   ─ areas / projects / tasks / captures · manual CRUD
+  ✓  phase 2   ─ project pages · tree sidebar · realtime
+  ✓  phase 3   ─ today · captures feed · search
+  ✓  phase 4   ─ Google Calendar bi-directional sync
+  ✓  phase 5   ─ JARVIS console · streaming · strict tool use
+  ✓  phase 5.1 ─ JARVIS agentic refactor · multi-step CRUD
+  ✓  phase 6   ─ polish · motion · empty states · onboarding
+  ✓  phase 6.1 ─ visual redesign · JARVIS × Notion
+  ✓  phase 6.2 ─ Anthropic-discipline rebuild
+  ✓  phase 7   ─ JARVIS voice + wake-word ("Hey Jarvis") · ambient mode
+  ✓  phase 8   ─ public landing + manifesto
+  ✓  phase 9   ─ habits primitive · areas tree · profile · chrome polish
+  ▶  phase 10  ─ LifeOS homepage · areas-centered widgets   ← we are here
+  ◯  phase 11  ─ desktop app (Tauri) · ⌘-driven JARVIS hub
+  ◯  phase 12  ─ jarvis-physical extender · onboard wake-word
+  ◯  phase 13  ─ public beta
 ```
 
-Detailed phase plans live in [`.planning/`](./.planning).
+Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ideas (markdown surfaces, hibernation mode, interrupt control, wake-word scoping, etc.) live under [`.planning/phases/999.*`](./.planning/phases/).
 
 ---
 
