@@ -8,6 +8,9 @@
  * Confined to /lifeos: only this route renders <LifeOsWallpaper />, so it
  * unmounts on navigation to /tasks, /captures, etc. No global wrapper.
  *
+ * Positioned `absolute` (not `fixed`) so the wallpaper paints inside the
+ * route's <main> element and never paints over the persistent sidebar.
+ *
  * Static wallpaper — no motion. If a future plan adds drift, gate via
  * useReducedMotion or @media (prefers-reduced-motion: reduce).
  */
@@ -15,7 +18,7 @@ export function LifeOsWallpaper() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0"
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
     >
       {/* Solid floor — canvas color so the wallpaper has a base layer even if
           the gradient stack fails to composite. */}
