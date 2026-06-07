@@ -37,18 +37,81 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const execFileP = promisify(execFile);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, '..');
+const WEB_ENV_DIR = path.join(REPO_ROOT, 'apps', 'web');
 
-async function readConfigFile() {
-  const p = path.join(homedir(), '.hyperpolymath-sync.json');
+// Tiny dotenv parser — handles KEY=value, comments, blank lines, and
+// optional surrounding quotes. No deps; the script must stay zero-install.
+function parseDotenv(raw) {
+  const out = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    const k = trimmed.slice(0, eq).trim();
+    let v = trimmed.slice(eq + 1).trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+async function readEnvFile(p) {
   try {
     const raw = await readFile(p, 'utf8');
-    return JSON.parse(raw);
+    return parseDotenv(raw);
   } catch {
     return {};
   }
+}
+
+/**
+ * Resolve config from the same env files the web app already uses, so the
+ * deployment URL + sync token + user id live in ONE place
+ * (apps/web/.env.local) and flip from localhost to prod by changing one line.
+ *
+ * Precedence (highest first):
+ *   1. process.env — explicit override at invoke time
+ *   2. apps/web/.env.local — your real config (gitignored)
+ *   3. apps/web/.env — repo-tracked defaults
+ *   4. ~/.hyperpolymath-sync.json — legacy fallback (still honored)
+ */
+async function loadConfig() {
+  const repoEnv = await readEnvFile(path.join(WEB_ENV_DIR, '.env'));
+  const repoEnvLocal = await readEnvFile(path.join(WEB_ENV_DIR, '.env.local'));
+  let legacy = {};
+  try {
+    const raw = await readFile(path.join(homedir(), '.hyperpolymath-sync.json'), 'utf8');
+    legacy = JSON.parse(raw);
+  } catch { /* no legacy file — fine */ }
+  const merged = { ...repoEnv, ...repoEnvLocal };
+  // URL: explicit override wins; otherwise the canonical NEXT_PUBLIC_SITE_URL
+  // already used by app/layout.tsx for OG metadata; otherwise localhost.
+  const url =
+    process.env.HYPERPOLYMATH_URL ??
+    merged.HYPERPOLYMATH_URL ??
+    merged.NEXT_PUBLIC_SITE_URL ??
+    legacy.url ??
+    'http://localhost:3000';
+  const token =
+    process.env.CLAUDE_SYNC_TOKEN ?? merged.CLAUDE_SYNC_TOKEN ?? legacy.token;
+  const userId =
+    process.env.HYPERPOLYMATH_USER_ID ??
+    merged.HYPERPOLYMATH_USER_ID ??
+    process.env.USER_ID ??
+    legacy.userId;
+  const daysBack = Number(
+    process.env.DAYS_BACK ?? merged.CLAUDE_SYNC_DAYS_BACK ?? legacy.daysBack ?? 35,
+  );
+  return { url, token, userId, daysBack };
 }
 
 function ymdNoDash(d) {
@@ -116,14 +179,19 @@ function mapRow(row) {
 }
 
 async function main() {
-  const fileConfig = await readConfigFile();
-  const url = process.env.HYPERPOLYMATH_URL ?? fileConfig.url ?? 'http://localhost:3000';
-  const token = process.env.CLAUDE_SYNC_TOKEN ?? fileConfig.token;
-  const userId = process.env.USER_ID ?? fileConfig.userId;
-  const daysBack = Number(process.env.DAYS_BACK ?? fileConfig.daysBack ?? 35);
+  const { url, token, userId, daysBack } = await loadConfig();
 
-  if (!token) throw new Error('CLAUDE_SYNC_TOKEN missing (env or ~/.hyperpolymath-sync.json)');
-  if (!userId) throw new Error('USER_ID missing (env or ~/.hyperpolymath-sync.json)');
+  if (!token) {
+    throw new Error(
+      'CLAUDE_SYNC_TOKEN missing — set it in apps/web/.env.local (server reads it from there too)',
+    );
+  }
+  if (!userId) {
+    throw new Error(
+      'HYPERPOLYMATH_USER_ID missing — set your Hyperpolymath users.id (uuid) in apps/web/.env.local',
+    );
+  }
+  console.log(`[claude-code-sync] target ${url}`);
 
   const now = new Date();
   const since = new Date(now);
