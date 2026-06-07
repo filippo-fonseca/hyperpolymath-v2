@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
  * page.tsx stays a thin orchestrator. The root redirect from `/` for
  * signed-in users is intentionally deferred — the user wants to live with
  * /lifeos as an opt-in tab before flipping the canonical-home switch.
+ *
+ * TODO(lifeos-root-redirect): user confirmation pending — see Quick 260607-fgb step 9.
  */
 export default async function LifeOsPage() {
   return (

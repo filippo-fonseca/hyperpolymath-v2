@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { AreasTree } from "@/components/areas/AreasTree";
@@ -41,12 +42,12 @@ export async function LifeOsAreasSection() {
         <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
           Areas
         </h2>
-        <a
+        <Link
           href="/areas"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
         >
           Open full view →
-        </a>
+        </Link>
       </header>
       <AreasTree
         areas={areas}
