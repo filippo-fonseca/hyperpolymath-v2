@@ -65,7 +65,6 @@ export default async function InsightsPage() {
         </header>
 
         <InsightsTabs
-          analytics={analytics}
           jarvis={{ hasData: jarvisLegacy.totalTurns > 0, data: jarvisLegacy }}
           habits={{
             habits,
