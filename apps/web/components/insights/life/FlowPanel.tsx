@@ -15,6 +15,7 @@ import {
 import type { Result } from '@/lib/integrations/result';
 import type { Session } from '@/lib/integrations/flow/bucket';
 import { bucketByDayForWeek } from '@/lib/integrations/flow/bucket';
+import { FlowUploadButton } from './FlowUploadButton';
 
 const ACCENT = '#7c3aed'; // violet-600
 // const ACCENT_DIM = '#5b21b6';
@@ -59,17 +60,14 @@ export function FlowPanel({ result }: Props) {
   const canGoNext = isBefore(weekStart, thisMonday);
 
   if (!result.ok) {
-    const isMissing = /not found/i.test(result.error);
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
           <h3 className="font-serif text-lg text-[var(--ink)]">Flow</h3>
+          <FlowUploadButton />
         </header>
         <p className="font-mono text-xs text-[var(--ink-muted)]">
           Couldn&apos;t load Flow — {result.error}
-          {isMissing
-            ? ' Make sure the Flow app is writing to ~/Desktop/Flow-Stats.csv.'
-            : ''}
         </p>
       </PanelChrome>
     );
@@ -89,7 +87,10 @@ export function FlowPanel({ result }: Props) {
   return (
     <PanelChrome>
       <header className="mb-4 flex items-baseline justify-between gap-4">
-        <h3 className="font-serif text-lg text-[var(--ink)]">Flow</h3>
+        <div className="flex items-baseline gap-3">
+          <h3 className="font-serif text-lg text-[var(--ink)]">Flow</h3>
+          <FlowUploadButton />
+        </div>
         <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
           <button
             type="button"

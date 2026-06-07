@@ -471,6 +471,27 @@ export const integrationTokens = pgTable(
   ],
 );
 
+// flow_sessions — Pomodoro sessions imported from Flow app CSV exports.
+// Unique on (user_id, started_at) so re-uploading the same CSV is a no-op
+// upsert (existing rows update completed_at + duration; new rows insert).
+export const flowSessions = pgTable(
+  "flow_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("flow_sessions_user_started_uniq").on(t.userId, t.startedAt),
+    index("flow_sessions_user_started_idx").on(t.userId, t.startedAt),
+  ],
+);
+
 export const habitCompletions = pgTable(
   "habit_completions",
   {
