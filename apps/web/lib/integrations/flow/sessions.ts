@@ -4,27 +4,17 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { err, ok, type Result } from '@/lib/integrations/result';
+import type { Session } from '@/lib/integrations/flow/bucket';
+
+export type { Session, DayBucket } from '@/lib/integrations/flow/bucket';
+export { bucketByDayForWeek } from '@/lib/integrations/flow/bucket';
 
 /**
  * Flow Pomodoro sessions data layer (260607-h2k, Task 8 + D-04 + D-07).
  *
  * Path: $FLOW_STATS_PATH ?? ~/Desktop/Flow-Stats.csv. Local fs only.
- * Pure helper `bucketByDayForWeek` is exported separately for the panel
- * to call from a useMemo (the panel owns weekStart as local useState per D-07).
+ * Types + bucketByDayForWeek live in ./bucket.ts (client-safe).
  */
-
-export interface Session {
-  started: Date;
-  completed: Date;
-  durationMs: number;
-}
-
-export interface DayBucket {
-  date: string; // YYYY-MM-DD
-  weekday: number; // 0=Mon ... 6=Sun (ISO)
-  minutes: number;
-  sessionCount: number;
-}
 
 interface Cached {
   at: number;
@@ -37,19 +27,6 @@ function resolvePath(): string {
   return (
     process.env.FLOW_STATS_PATH ?? path.join(homedir(), 'Desktop', 'Flow-Stats.csv')
   );
-}
-
-function ymdLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function isoMondayIndex(d: Date): number {
-  // JS: 0=Sun..6=Sat → ISO: 0=Mon..6=Sun.
-  const js = d.getDay();
-  return js === 0 ? 6 : js - 1;
 }
 
 export async function getFlowSessions(): Promise<Result<Session[]>> {
@@ -97,44 +74,4 @@ export async function getFlowSessions(): Promise<Result<Session[]>> {
   const result = ok(sessions);
   cache = { at: Date.now(), data: result };
   return result;
-}
-
-/**
- * Pure helper — bucket sessions into 7 day-buckets Mon..Sun starting at weekStart.
- * Sessions are attributed to their `started`-day bucket.
- */
-export function bucketByDayForWeek(
-  sessions: Session[],
-  weekStart: Date,
-): DayBucket[] {
-  const buckets: DayBucket[] = [];
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(weekStart);
-    day.setHours(0, 0, 0, 0);
-    day.setDate(weekStart.getDate() + i);
-    buckets.push({
-      date: ymdLocal(day),
-      weekday: i,
-      minutes: 0,
-      sessionCount: 0,
-    });
-  }
-
-  const weekStartMs = (() => {
-    const x = new Date(weekStart);
-    x.setHours(0, 0, 0, 0);
-    return x.getTime();
-  })();
-  const weekEndMs = weekStartMs + 7 * 86400 * 1000;
-
-  for (const s of sessions) {
-    const t = s.started.getTime();
-    if (t < weekStartMs || t >= weekEndMs) continue;
-    const idx = isoMondayIndex(s.started);
-    const bucket = buckets[idx];
-    if (!bucket) continue;
-    bucket.minutes += s.durationMs / 60000;
-    bucket.sessionCount += 1;
-  }
-  return buckets;
 }

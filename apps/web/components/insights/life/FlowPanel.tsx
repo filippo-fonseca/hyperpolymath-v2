@@ -13,8 +13,8 @@ import {
   YAxis,
 } from 'recharts';
 import type { Result } from '@/lib/integrations/result';
-import type { Session } from '@/lib/integrations/flow/sessions';
-import { bucketByDayForWeek } from '@/lib/integrations/flow/sessions';
+import type { Session } from '@/lib/integrations/flow/bucket';
+import { bucketByDayForWeek } from '@/lib/integrations/flow/bucket';
 
 const ACCENT = '#7c3aed'; // violet-600
 // const ACCENT_DIM = '#5b21b6';
