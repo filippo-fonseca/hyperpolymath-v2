@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import {
   Dialog,
@@ -15,10 +15,12 @@ import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
  * (app) route EXCEPT /today, where JarvisConsole's focus path already owns
  * Cmd+K via the existing GlobalHotkeys focusJarvis() flow.
  *
- * On submit, the text is stashed in sessionStorage('jarvis-prefill') and we
- * navigate to /today; JarvisConsole's mount-time effect consumes the prefill
- * and fires it through the normal /api/jarvis pipeline. No new endpoint, no
- * duplicated streaming logic.
+ * On submit, we dispatch a `jarvis-voice-transcript` CustomEvent — the same
+ * event JarvisListener fires for voice. On /today, JarvisConsole picks it up
+ * and runs the full scrollback flow. Everywhere else (where this dialog
+ * actually opens) GlobalJarvisHandler catches it and runs streamJarvis with
+ * toast receipts — identical to how voice-on-any-page works today. No nav,
+ * no sessionStorage hop, no duplicated pipeline. Stay-on-page UX.
  *
  * Coexistence with GlobalHotkeys (Quick 260607-g56):
  *   - On /today the dialog handler returns early so GlobalHotkeys → focusJarvis()
@@ -29,7 +31,6 @@ import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
  */
 export function GlobalJarvisDialog() {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
@@ -50,13 +51,12 @@ export function GlobalJarvisDialog() {
   }, [pathname]);
 
   function handleSubmit(text: string) {
-    try {
-      sessionStorage.setItem("jarvis-prefill", text);
-    } catch {
-      // sessionStorage unavailable — fall through and navigate.
-    }
     setOpen(false);
-    router.push("/today");
+    window.dispatchEvent(
+      new CustomEvent("jarvis-voice-transcript", {
+        detail: { transcript: text },
+      }),
+    );
   }
 
   return (
