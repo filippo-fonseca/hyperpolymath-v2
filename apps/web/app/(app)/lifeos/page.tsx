@@ -1,3 +1,13 @@
+import { and, eq, isNull } from "drizzle-orm";
+import { requireOnboarded } from "@/lib/auth/get-user";
+import { db } from "@/lib/db";
+import { projects } from "@/lib/db/schema";
+import {
+  getHabitsForCurrentUser,
+  getHabitCompletionsInRange,
+} from "@/app/actions/habits";
+import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
@@ -10,21 +20,53 @@ import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
 export const dynamic = "force-dynamic";
 
 /**
- * /lifeos — candidate canonical homepage for the life-OS view.
+ * /lifeos — canonical homepage for the life-OS view.
  *
  * Composition top-to-bottom:
  *   1. Notion-style banner block (emoji + title + cover affordance)
  *   2. AreasTree as the centerpiece (mirrors /areas data fetch)
  *   3. At-a-glance widget grid: Recent captures · Today's habits · Upcoming tasks
  *
- * Each section component owns its own auth gate via requireOnboarded() so
- * page.tsx stays a thin orchestrator. The root redirect from `/` for
- * signed-in users is intentionally deferred — the user wants to live with
- * /lifeos as an opt-in tab before flipping the canonical-home switch.
+ * The three widgets are interactive client islands (quick task 260607-gox):
+ * page.tsx is now the orchestrator that fetches initial data in one
+ * Promise.all and hydrates each widget. They reuse existing TanStack Query
+ * keys + Supabase Realtime subscriptions so toggles on /lifeos sync to
+ * /habits / /captures / /tasks without manual refresh.
  *
  * TODO(lifeos-root-redirect): user confirmation pending — see Quick 260607-fgb step 9.
  */
 export default async function LifeOsPage() {
+  const user = await requireOnboarded();
+
+  const today = new Date();
+  const toISODate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+  const todayISO = toISODate(today);
+
+  const [
+    initialHabits,
+    initialCompletions,
+    initialCaptures,
+    availableProjects,
+    initialTasks,
+  ] = await Promise.all([
+    getHabitsForCurrentUser(),
+    getHabitCompletionsInRange(todayISO, todayISO),
+    getCapturesForUser(user.id),
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        isClass: projects.isClass,
+        courseCode: projects.courseCode,
+      })
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+    getAllTasksForUser(user.id),
+  ]);
+
   return (
     <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <LifeOsWallpaper />
@@ -37,9 +79,21 @@ export default async function LifeOsPage() {
         <LifeOsQuickSend />
         <LifeOsAreasSection />
         <LifeOsWidgetGrid>
-          <RecentCapturesWidget />
-          <TodayHabitsWidget />
-          <UpcomingTasksWidget />
+          <RecentCapturesWidget
+            userId={user.id}
+            initialCaptures={initialCaptures}
+            availableProjects={availableProjects}
+          />
+          <TodayHabitsWidget
+            userId={user.id}
+            initialHabits={initialHabits}
+            initialCompletions={initialCompletions}
+            todayISO={todayISO}
+          />
+          <UpcomingTasksWidget
+            userId={user.id}
+            initialTasks={initialTasks}
+          />
         </LifeOsWidgetGrid>
       </div>
     </main>
