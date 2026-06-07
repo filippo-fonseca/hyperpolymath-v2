@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
 
 /**
@@ -14,6 +15,7 @@ import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
  */
 export function LifeOsQuickSend() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
 
   function handleSubmit(text: string) {
     try {
@@ -25,10 +27,22 @@ export function LifeOsQuickSend() {
     router.push("/today");
   }
 
+  const animProps = prefersReducedMotion
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        transition: {
+          duration: 0.36,
+          delay: 0.08,
+          ease: [0.25, 1, 0.5, 1] as const,
+        },
+      };
+
   return (
-    <section className="mb-10">
+    <motion.section className="mb-10" {...animProps}>
       <LiteJarvisComposer onSubmit={handleSubmit} />
-    </section>
+    </motion.section>
   );
 }
 

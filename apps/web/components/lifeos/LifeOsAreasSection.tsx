@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { AreasTree } from "@/components/areas/AreasTree";
+import { LifeOsAreasShell } from "@/components/lifeos/LifeOsAreasShell";
 
 /**
  * LifeOsAreasSection — the centerpiece of /lifeos.
@@ -37,24 +37,13 @@ export async function LifeOsAreasSection() {
     .toUpperCase();
 
   return (
-    <section className="mb-12">
-      <header className="mb-4 flex items-baseline justify-between">
-        <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
-          Areas
-        </h2>
-        <Link
-          href="/areas"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          Open full view →
-        </Link>
-      </header>
+    <LifeOsAreasShell>
       <AreasTree
         areas={areas}
         rootAvatarUrl={rootAvatarUrl}
         rootInitial={rootInitial}
         rootLabel={rootLabel}
       />
-    </section>
+    </LifeOsAreasShell>
   );
 }

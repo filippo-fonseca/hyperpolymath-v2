@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export function GlobalJarvisDialog() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -61,15 +63,32 @@ export function GlobalJarvisDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[640px] border-[var(--edge-hud)] bg-[var(--surface-raised)] p-0">
         <DialogTitle className="sr-only">JARVIS</DialogTitle>
-        <div className="p-4">
-          <LiteJarvisComposer
-            autoFocus
-            placeholder="JARVIS — type and ⌘⏎ to send"
-            onSubmit={handleSubmit}
-            onCancel={() => setOpen(false)}
-            className="border-transparent bg-transparent shadow-none"
-          />
-        </div>
+        {prefersReducedMotion ? (
+          <div className="p-4">
+            <LiteJarvisComposer
+              autoFocus
+              placeholder="JARVIS — type and ⌘⏎ to send"
+              onSubmit={handleSubmit}
+              onCancel={() => setOpen(false)}
+              className="border-transparent bg-transparent shadow-none"
+            />
+          </div>
+        ) : (
+          <motion.div
+            className="p-4"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
+          >
+            <LiteJarvisComposer
+              autoFocus
+              placeholder="JARVIS — type and ⌘⏎ to send"
+              onSubmit={handleSubmit}
+              onCancel={() => setOpen(false)}
+              className="border-transparent bg-transparent shadow-none"
+            />
+          </motion.div>
+        )}
       </DialogContent>
     </Dialog>
   );

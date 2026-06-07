@@ -1,3 +1,7 @@
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
+
 /**
  * LifeOsBanner — Notion-style page header.
  *
@@ -8,7 +12,9 @@
  * "JARVIS as MOOD only" guidance: cyan is present but the surface still
  * reads as a journal page, not a dashboard.
  *
- * Presentational only. Server-safe (no client hooks).
+ * Motion (Quick 260607-g56): on mount, fade+y(8) over 360ms. Reduced-motion
+ * → snap to final state. This is the first visible surface on /lifeos, so it
+ * leads the staggered sequence (banner → quick-send → areas → widgets).
  */
 interface Props {
   title: string;
@@ -17,8 +23,17 @@ interface Props {
 }
 
 export function LifeOsBanner({ title, emoji, subtitle }: Props) {
+  const prefersReducedMotion = useReducedMotion();
+  const animProps = prefersReducedMotion
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.36, ease: [0.25, 1, 0.5, 1] as const },
+      };
+
   return (
-    <section className="mb-10">
+    <motion.section className="mb-10" {...animProps}>
       {/* Cover placeholder — Notion-style strip. Static for now; a future
           plan can wire image upload + crop. The very low-alpha cyan tint
           in the gradient is the only atmospheric touch on this surface. */}
@@ -49,6 +64,6 @@ export function LifeOsBanner({ title, emoji, subtitle }: Props) {
           ) : null}
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

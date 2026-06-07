@@ -18,7 +18,7 @@ export async function RecentCapturesWidget() {
   const recent = allCaptures.slice(0, 5);
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full">
+    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
       <header className="mb-4 flex items-baseline justify-between">
         <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
           Recent captures
