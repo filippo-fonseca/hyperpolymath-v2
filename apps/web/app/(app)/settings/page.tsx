@@ -16,6 +16,7 @@ import { DefaultCalendarPicker } from "@/components/settings/DefaultCalendarPick
 import { VisibleCalendarsCheckboxList } from "@/components/settings/VisibleCalendarsCheckboxList";
 import { TimezoneOverrideRow } from "@/components/settings/TimezoneOverrideRow";
 import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
+import { DistanceUnitToggle } from "@/components/training/settings/DistanceUnitToggle";
 import {
   getValidGcalToken,
   GcalNotConnectedError,
@@ -44,10 +45,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const [gcalStatus, oauthAvatar] = await Promise.all([
+  const [gcalStatus, oauthAvatar, distanceUnitRow] = await Promise.all([
     getGcalConnectionStatus(user.id),
     getAuthAvatar(),
+    db
+      .select({ unit: users.distanceUnit })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
   ]);
+  const currentDistanceUnit: "km" | "mi" =
+    distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
 
   let calendars: GcalCalendarMeta[] = [];
   let currentDefault: string | null = null;
@@ -142,6 +150,22 @@ export default async function SettingsPage() {
             </p>
           </div>
           <ThemeToggle variant="settings" />
+        </Card>
+
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Units
+          </h2>
+          <div className="space-y-1">
+            <p className="font-serif text-base text-[var(--ink)]">
+              Distance unit
+            </p>
+            <p className="font-serif text-base text-[var(--ink-muted)]">
+              Used across the training planner, completion dialog, and stats.
+              Stored data stays in kilometers; only the display converts.
+            </p>
+          </div>
+          <DistanceUnitToggle value={currentDistanceUnit} />
         </Card>
 
         <Card className={tileHover}>
