@@ -387,7 +387,7 @@ Plans:
 - [x] 15-02-PLAN.md — OKLCH color-blend + palette + distance + week libraries + Drizzle queries + Server Actions
 - [x] 15-03-PLAN.md — Weekly planner: route + TrainingBoard + @dnd-kit drag-between-days + ActivityCard + inline create + sidebar nav
 - [x] 15-04-PLAN.md — Manage Types Sheet (batches + types sortable CRUD) + ColorPicker + CompleteActivityDialog + ActivityEditDialog wiring
-- [ ] 15-05-PLAN.md — Stats surface: OKLCH-blended heatmap + DayPopover + AdherenceCard + BatchTotalsTable + DurationTrendChart + TimeWindowToggle
+- [x] 15-05-PLAN.md — Stats surface: OKLCH-blended heatmap + DayPopover + AdherenceCard + BatchTotalsTable + DurationTrendChart + TimeWindowToggle
 - [x] 15-06-PLAN.md — TodayTrainingWidget on LifeOS (Rest day state) + /settings distance_unit toggle
 **UI hint**: yes (new top-level surface with planner + management + stats sub-views)
 
@@ -415,7 +415,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
-| 15. Training — fitness activity planner | 5/6 | In Progress|  |
+| 15. Training — fitness activity planner | 6/6 | Complete   | 2026-06-08 |
 
 ## Backlog
 
@@ -431,7 +431,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
