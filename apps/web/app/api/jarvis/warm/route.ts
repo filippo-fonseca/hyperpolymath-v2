@@ -71,13 +71,13 @@ export async function POST(_req: NextRequest) {
   //    snapshot is the whole point: the warmer is for the slow-changing
   //    tiers; the 5-min snapshot tier follows the user's real CRUD
   //    activity and naturally stays warm through normal use.
-  const [userProjects, _userRows, userFacts] = await Promise.all([
+  const [userProjects, userRows, userFacts] = await Promise.all([
     db
       .select({ id: projects.id, name: projects.name, icon: projects.icon })
       .from(projects)
       .where(eq(projects.userId, userId)),
     db
-      .select({ timezone: users.timezone })
+      .select({ timezone: users.timezone, displayName: users.displayName })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1),
@@ -95,6 +95,7 @@ export async function POST(_req: NextRequest) {
     // user will hit on first real voice turn anyway. Keeping the warmer
     // non-voice avoids ambiguity about which variant the next turn uses.
     voiceActive: false,
+    userDisplayName: userRows[0]?.displayName ?? null,
   });
   const tools = buildToolDefinitions({ voiceActive: false });
 

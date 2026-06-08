@@ -47,6 +47,23 @@ export interface SystemBlock {
   cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" };
 }
 
+/**
+ * Per-user context block — preferred name + address rule.
+ *
+ * Kept short and stable so it sits inside the tier-2 (1h) cached system blocks
+ * without invalidating the cache often. Names rarely change.
+ *
+ * When `displayName` is null/empty, we emit a generic block (still useful as a
+ * deterministic marker; falls back to "sir" address).
+ */
+export function buildUserContextBlock(displayName: string | null | undefined): string {
+  const name = displayName?.trim();
+  if (!name) {
+    return `USER CONTEXT:\nThe user has not set a preferred name. Address them as "sir" by default.`;
+  }
+  return `USER CONTEXT:\nThe user's preferred name is "${name}". Address them as "sir" by default, or use their name sparingly (e.g. as a single direct address per turn, never repeatedly).`;
+}
+
 export function buildProjectListContext(projects: ProjectSummary[]): string {
   const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
   const lines = sorted.map((p) => `${p.id}\t${p.name}`);
@@ -76,6 +93,13 @@ export function buildSystemPrompt(opts: {
   voiceActive?: boolean;
   /** Phase 5.1 (D-M4): compiled facts for the JARVIS MEMORY block. */
   facts?: JarvisFact[];
+  /**
+   * Multi-user (2026-06): the user's preferred name (from users.display_name).
+   * Threaded into a USER CONTEXT block so JARVIS_PERSONALITY can stay
+   * user-agnostic + shareable across users at the prefix-cache level.
+   * Pass null/undefined for users who haven't set a name yet.
+   */
+  userDisplayName?: string | null;
 }): SystemBlock[] {
   const blocks: SystemBlock[] = [];
   if (opts.voiceActive) {
@@ -83,6 +107,7 @@ export function buildSystemPrompt(opts: {
   }
   blocks.push({ type: "text", text: JARVIS_PERSONALITY });
   blocks.push({ type: "text", text: TOOL_USE_RULES });
+  blocks.push({ type: "text", text: buildUserContextBlock(opts.userDisplayName) });
 
   const hasFacts = opts.facts && opts.facts.length > 0;
 
