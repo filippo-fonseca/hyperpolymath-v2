@@ -35,3 +35,6 @@ Thumbs.db
 # Testing
 coverage/
 .vitest-cache/
+
+# Local-only deployment notes (keys, URL flips, etc. — not for sharing)
+DEPLOYMENT.md
