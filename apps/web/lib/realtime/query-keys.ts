@@ -16,7 +16,11 @@ export type RealtimeTable =
   | "jarvis_facts" // Phase 5.1 (D-M6 — Settings → Memory live updates)
   | "habits"
   | "habits_areas"
-  | "habit_completions";
+  | "habit_completions"
+  // Phase 15 — training (TRN-17)
+  | "training_batches"
+  | "training_activity_types"
+  | "training_activities";
 
 export function tableKey(
   table: RealtimeTable,
