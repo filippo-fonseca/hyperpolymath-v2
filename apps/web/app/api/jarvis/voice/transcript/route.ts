@@ -79,10 +79,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     at: sttDoneAt,
   });
 
-  const userId = await findSingleUserId();
+  // 2026-06 multi-user fix: when a desktop bearer authenticated the request,
+  // that token is BOUND to a specific user — always honor it. Only the
+  // headless ESP32 path (validated via PHYSICAL_TRIGGER_SECRET, with no per-
+  // device identity) falls back to findSingleUserId, which keeps the legacy
+  // hardware bridge working on personal single-user installs.
+  const userId = desktopUserId ?? (await findSingleUserId());
   if (!userId) {
     return Response.json(
-      { error: "voice turn requires single-user mode" },
+      {
+        error:
+          "no user identity for this voice turn — pair the desktop app at /settings/desktop",
+      },
       { status: 409, headers: CORS },
     );
   }
