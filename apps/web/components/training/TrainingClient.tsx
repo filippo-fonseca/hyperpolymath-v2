@@ -13,6 +13,9 @@ import type {
   TypeWithBatch,
 } from "@/lib/db/queries/training";
 import type { DistanceUnit } from "@/lib/training/distance";
+import { ActivityEditDialog } from "./ActivityEditDialog";
+import { CompleteActivityDialog } from "./CompleteActivityDialog";
+import { ManageTypesSheet } from "./ManageTypesSheet";
 import { PlannerHeader } from "./PlannerHeader";
 import { TrainingBoard } from "./TrainingBoard";
 
@@ -57,6 +60,15 @@ export function TrainingClient({
   // this level (Pitfall 8) so Realtime invalidations don't close the sheet.
   const [manageOpen, setManageOpen] = useState<boolean>(
     initialTypes.length === 0,
+  );
+
+  // 15-04 dialogs: card check-off opens completion; kebab → Edit opens edit.
+  // State lives here (Pitfall 8) so Realtime invalidations of the underlying
+  // data don't toggle the dialogs closed mid-interaction.
+  const [completionActivity, setCompletionActivity] =
+    useState<ActivityWithType | null>(null);
+  const [editActivity, setEditActivity] = useState<ActivityWithType | null>(
+    null,
   );
 
   // Realtime subscriptions.
@@ -118,9 +130,6 @@ export function TrainingClient({
     queryFn: async () => initialBatches,
     initialData: initialBatches,
   });
-  // Reference batches so unused-var lints stay quiet until 15-04 wires the sheet body.
-  void batches;
-
   // D-07 — re-trigger auto-open when realtime makes the types list go empty
   // (e.g. user wipes everything from another tab). Don't auto-close on populate.
   useEffect(() => {
@@ -165,20 +174,36 @@ export function TrainingClient({
         activities={activities}
         types={types}
         distanceUnit={distanceUnit}
+        onCheckOff={setCompletionActivity}
+        onEdit={setEditActivity}
       />
 
-      {/*
-        Manage-Types Sheet body ships in plan 15-04. The `manageOpen` boolean
-        is already lifted to this client island so its lifecycle is independent
-        of Realtime invalidations on the underlying data (Pitfall 8). For now
-        we keep the prop wired so 15-04 can drop the sheet in without touching
-        TrainingClient's data layer.
-      */}
-      {manageOpen ? (
-        <div hidden aria-hidden data-pending-sheet="15-04">
-          {/* placeholder — 15-04 mounts ManageTypesSheet here */}
-        </div>
-      ) : null}
+      <ManageTypesSheet
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        userId={userId}
+        batches={batches}
+        types={types}
+      />
+
+      <CompleteActivityDialog
+        activity={completionActivity}
+        distanceUnit={distanceUnit}
+        open={!!completionActivity}
+        onOpenChange={(o) => {
+          if (!o) setCompletionActivity(null);
+        }}
+      />
+
+      <ActivityEditDialog
+        activity={editActivity}
+        types={types}
+        distanceUnit={distanceUnit}
+        open={!!editActivity}
+        onOpenChange={(o) => {
+          if (!o) setEditActivity(null);
+        }}
+      />
     </div>
   );
 }

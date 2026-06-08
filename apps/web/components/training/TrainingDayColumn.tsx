@@ -20,6 +20,10 @@ interface Props {
   distanceUnit: DistanceUnit;
   /** True while any card in the board is being dragged — used for drop highlight. */
   isAnyDragging: boolean;
+  /** Opens the CompleteActivityDialog (15-04) for the clicked card. */
+  onCheckOff?: (activity: ActivityWithType) => void;
+  /** Opens the ActivityEditDialog (15-04) for the clicked card's kebab → Edit. */
+  onEdit?: (activity: ActivityWithType) => void;
 }
 
 /**
@@ -34,6 +38,8 @@ export function TrainingDayColumn({
   types,
   distanceUnit,
   isAnyDragging,
+  onCheckOff,
+  onEdit,
 }: Props) {
   const { isOver, setNodeRef } = useDroppable({ id: dateISO });
 
@@ -76,6 +82,8 @@ export function TrainingDayColumn({
             key={a.id}
             activity={a}
             distanceUnit={distanceUnit}
+            onCheckOff={onCheckOff}
+            onEdit={onEdit}
           />
         ))}
 

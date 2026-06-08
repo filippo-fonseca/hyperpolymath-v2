@@ -25,6 +25,10 @@ interface Props {
   activities: ActivityWithType[];
   types: TypeWithBatch[];
   distanceUnit: DistanceUnit;
+  /** Threaded through to ActivityCard — opens CompleteActivityDialog. */
+  onCheckOff?: (activity: ActivityWithType) => void;
+  /** Threaded through to ActivityCard — opens ActivityEditDialog. */
+  onEdit?: (activity: ActivityWithType) => void;
 }
 
 /**
@@ -44,6 +48,8 @@ export function TrainingBoard({
   activities,
   types,
   distanceUnit,
+  onCheckOff,
+  onEdit,
 }: Props) {
   void userId; // accepted for callback parity; mutations run via Server Actions.
 
@@ -108,6 +114,8 @@ export function TrainingBoard({
               types={types}
               distanceUnit={distanceUnit}
               isAnyDragging={isDragging}
+              onCheckOff={onCheckOff}
+              onEdit={onEdit}
             />
           );
         })}

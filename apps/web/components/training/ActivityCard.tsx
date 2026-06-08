@@ -30,6 +30,10 @@ interface Props {
    * kebab menu still lets the user mark cancelled/skipped/delete.
    */
   onCheckOff?: (activity: ActivityWithType) => void;
+  /**
+   * Opens the ActivityEditDialog (Plan 15-04) for the kebab-menu "Edit" item.
+   */
+  onEdit?: (activity: ActivityWithType) => void;
 }
 
 /**
@@ -42,7 +46,12 @@ interface Props {
  * Drag handle is the whole card (no separate grip). Motion `layoutId` lets the
  * card slide smoothly when the underlying list reorders after a drag.
  */
-export function ActivityCard({ activity, distanceUnit, onCheckOff }: Props) {
+export function ActivityCard({
+  activity,
+  distanceUnit,
+  onCheckOff,
+  onEdit,
+}: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: activity.id });
 
@@ -164,6 +173,12 @@ export function ActivityCard({ activity, distanceUnit, onCheckOff }: Props) {
           >
             <Check size={12} strokeWidth={1.5} className="mr-2" />
             Mark done
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!onEdit}
+            onSelect={() => onEdit?.(activity)}
+          >
+            Edit
           </DropdownMenuItem>
           <DropdownMenuItem disabled={isCancelled} onSelect={handleCancel}>
             <X size={12} strokeWidth={1.5} className="mr-2" />
