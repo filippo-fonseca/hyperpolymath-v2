@@ -257,8 +257,12 @@ function wireStopButton(): void {
 //     list and common productivity apps.
 //
 // Manual buttons in the UI remain as the guaranteed fallback regardless.
-const WAKE_HOTKEY = "Cmd+Ctrl+J";   // wake (only when PE mode is OFF)
-const EXTEND_HOTKEY = "Cmd+Ctrl+E"; // toggle extend (always available)
+// Use Tauri's canonical accelerator format from the plugin docs:
+// https://v2.tauri.app/plugin/global-shortcut/  — modifiers spelled out,
+// key as KeyX literal. The earlier "Cmd+Ctrl+J" form was getting
+// rejected (silent failure) because the parser ambiguates Cmd vs Ctrl.
+const WAKE_HOTKEY = "Command+Control+KeyJ";
+const EXTEND_HOTKEY = "Command+Control+KeyE";
 
 async function safeRegister(
   hotkey: string,
