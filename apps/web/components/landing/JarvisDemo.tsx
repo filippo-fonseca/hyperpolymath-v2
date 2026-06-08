@@ -41,10 +41,10 @@ type Example = {
 const EXAMPLES: readonly Example[] = [
   {
     // Example A: multi-action (the canonical README example, ships as default)
-    input: "dinner with anna 8pm saturday. buy her flowers friday afternoon",
+    input: "coffee with brian 4pm saturday. send the brief friday afternoon",
     receipts: [
-      { verb: "scheduled", body: 'gcal · sat 8:00pm · "Dinner with Anna"' },
-      { verb: "created", body: 'task · fri afternoon · P2 · "Buy flowers"' },
+      { verb: "scheduled", body: 'gcal · sat 4:00pm · "Coffee with Brian"' },
+      { verb: "created", body: 'task · fri afternoon · P2 · "Send the brief"' },
     ],
   },
   {

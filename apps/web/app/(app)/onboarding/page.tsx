@@ -12,12 +12,16 @@ export default async function OnboardingPage() {
   const initial = await getOnboardingInitialValues();
   const initialDisplayName = user.displayName ?? initial.displayName;
 
+  // No bare full-bleed centering — the page renders inside (app)/layout's
+  // AppShell, so the sidebar is visible and the canvas/ink tokens already
+  // match the rest of the app. We just pad like any other page and pin
+  // content to a comfortable reading width near the top.
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-16">
+    <div className="flex justify-center px-6 pt-20 pb-16">
       <OnboardingFlow
         initialDisplayName={initialDisplayName}
         email={user.email}
       />
-    </main>
+    </div>
   );
 }

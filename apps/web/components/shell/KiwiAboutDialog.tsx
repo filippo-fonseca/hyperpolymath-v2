@@ -75,8 +75,8 @@ export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
             can&rsquo;t drift even if I tried.
           </p>
           <p className="text-[var(--ink-muted)] italic">
-            Find me on the JARVIS tab. Try typing &ldquo;dinner with anna
-            8pm saturday, buy her flowers friday afternoon.&rdquo;
+            Find me on the JARVIS tab. Try typing &ldquo;coffee with brian
+            4pm saturday, send the brief friday afternoon.&rdquo;
           </p>
         </div>
       </DialogContent>

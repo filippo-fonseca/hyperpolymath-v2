@@ -251,40 +251,14 @@ export function JarvisScrollback({
       ) : null}
 
       {turns.length === 0 ? (
-        <div className="flex h-full items-end justify-center pb-24">
-          <div className="flex flex-col items-center text-center max-w-[520px] gap-3 select-none">
-            {/* Mono uppercase eyebrow — same brand grammar as the landing's
-                section eyebrows. Cyan-tinted to signal agent-mode surface. */}
-            <p
-              className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
-              style={{ color: "var(--hud-cyan-light)" }}
-            >
-              § JARVIS · READY
-            </p>
-            <p className="font-serif text-[28px] font-semibold leading-[1.2] text-[var(--ink)]">
-              Good evening, sir.
-            </p>
-            <p className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
-              Type at the prompt below, or hold ⌘+J and speak. I&rsquo;ll
-              route it.
-            </p>
-            {/* Three example chips — non-interactive inspirations matching the
-                landing's hero examples. Mono caption so it reads as system text. */}
-            <ul className="mt-4 flex flex-col gap-2 items-center font-mono font-mono-stats text-[14px] text-[var(--ink-muted)]">
-              <li>
-                <span style={{ color: "var(--hud-cyan)" }}>$ </span>
-                dinner with anna 8pm saturday
-              </li>
-              <li>
-                <span style={{ color: "var(--hud-cyan)" }}>$ </span>
-                #idea polymathy as competitive edge
-              </li>
-              <li>
-                <span style={{ color: "var(--hud-cyan)" }}>$ </span>
-                anth pset by fri 3pm $ANTH 2480
-              </li>
-            </ul>
-          </div>
+        // Empty state: the HudCoreBubble centerpiece (rendered behind in
+        // JarvisConsole) carries the visual weight. We add only a quiet
+        // bottom-anchored hint above the input so the bubble stays uncovered
+        // and the surface doesn't feel like a stack of competing greetings.
+        <div className="flex h-full items-end justify-center pb-24 pointer-events-none">
+          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--ink-muted)] opacity-70 select-none">
+            Type below, or hold ⌘+J and speak.
+          </p>
         </div>
       ) : null}
 

@@ -394,6 +394,46 @@ function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
 }
 
 /**
+ * Avatar image with onError → initial fallback. Handles three cases:
+ *   1. `src` is null/empty (no uploaded avatar AND no OAuth avatar URL).
+ *   2. `src` is a string but the remote image fails to load (Google avatar
+ *      404, CORS block, dead cache URL, signed-out OAuth picture, etc.).
+ *   3. `src` loads successfully — shown normally.
+ * In cases (1) and (2), we render the user's first initial in a serif span.
+ */
+function AvatarOrInitial({
+  src,
+  initial,
+  textSize,
+}: {
+  src: string | null | undefined;
+  initial: string;
+  textSize: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const showInitial = !src || failed;
+  if (showInitial) {
+    return (
+      <span
+        className={`w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif ${textSize} text-[var(--ink-muted)]`}
+      >
+        {initial}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src!}
+      alt=""
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className="w-full h-full object-cover"
+    />
+  );
+}
+
+/**
  * User identity chip. Avatar (uploaded → OAuth → initial fallback chain),
  * display name (with email beneath when present), entire chip clickable
  * → /settings. Collapsed form is just the avatar with tooltip.
@@ -422,14 +462,7 @@ function UserChip({
               aria-label={`Open settings — signed in as ${primaryLabel}`}
               className="block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 cursor-pointer-always"
             >
-              {src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif text-sm text-[var(--ink-muted)]">
-                  {initial}
-                </span>
-              )}
+              <AvatarOrInitial src={src} initial={initial} textSize="text-sm" />
             </a>
           </TooltipTrigger>
           <TooltipContent side="right">{primaryLabel}</TooltipContent>
@@ -444,14 +477,7 @@ function UserChip({
       className="group flex items-center gap-3 -mx-1 px-2 py-1.5 rounded-md hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer-always"
     >
       <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors duration-150 shrink-0">
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif text-base text-[var(--ink-muted)]">
-            {initial}
-          </span>
-        )}
+        <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
         <span className="font-serif text-sm text-[var(--ink)] truncate">

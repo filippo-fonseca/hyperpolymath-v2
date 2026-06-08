@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { PenLine, ListChecks, CalendarDays, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { completeOnboarding } from "@/app/(app)/onboarding/actions";
@@ -24,13 +25,12 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  // Detect timezone on mount — Intl resolution runs once client-side.
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) setTimezone(tz);
     } catch {
-      // Some older browsers throw; UTC fallback is fine.
+      // Older browsers throw; UTC fallback is fine.
     }
   }, []);
 
@@ -44,7 +44,6 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
       try {
         await completeOnboarding(fd);
       } catch (e) {
-        // redirect() throws NEXT_REDIRECT — surface only real errors.
         if (e instanceof Error && !/NEXT_REDIRECT/.test(e.message)) {
           setError(e.message);
         }
@@ -53,228 +52,260 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
   }
 
   return (
-    <div className="w-full max-w-xl space-y-10">
-      {/* Progress dots */}
-      <div
-        className="flex items-center justify-center gap-2"
-        aria-label={`Step ${STEP_INDEX[step] + 1} of ${TOTAL_STEPS}`}
-      >
-        {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-          <span
-            key={i}
-            className={
-              i <= STEP_INDEX[step]
-                ? "h-1.5 w-6 rounded-full bg-[var(--ink-amber)] transition-colors"
-                : "h-1.5 w-6 rounded-full bg-[var(--edge)] transition-colors"
-            }
-          />
-        ))}
+    <div className="w-full max-w-2xl">
+      {/* Eyebrow + step counter, mono caption so it reads as system chrome. */}
+      <div className="flex items-center justify-between mb-6">
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          § Onboarding
+        </p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          {String(STEP_INDEX[step] + 1).padStart(2, "0")} / {String(TOTAL_STEPS).padStart(2, "0")}
+        </p>
       </div>
 
-      {step === "welcome" && (
-        <section className="space-y-8 text-center">
-          <div className="space-y-3">
-            <h1 className="font-serif text-4xl text-[var(--ink)]">
-              Welcome to Hyperpolymath.
-            </h1>
-            <p className="font-serif text-lg text-[var(--ink-muted)] leading-relaxed">
-              A single sentence into JARVIS routes to the right place — task,
-              capture, or calendar. Let&rsquo;s get you set up.
-            </p>
-          </div>
-          <Button
-            size="lg"
-            className="px-10"
-            onClick={() => setStep("you")}
-          >
-            Begin
-          </Button>
-        </section>
-      )}
+      {/* Progress bar */}
+      <div
+        className="h-px w-full bg-[var(--edge)] mb-10 relative"
+        aria-hidden="true"
+      >
+        <span
+          className="absolute inset-y-0 left-0 bg-[var(--ink-amber)] transition-all duration-300"
+          style={{ width: `${((STEP_INDEX[step] + 1) / TOTAL_STEPS) * 100}%` }}
+        />
+      </div>
 
-      {step === "you" && (
-        <section className="space-y-8">
-          <div className="space-y-2 text-center">
-            <h2 className="font-serif text-3xl text-[var(--ink)]">
-              About you.
-            </h2>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
-              How JARVIS should address you, and a few details so things land
-              in your timezone.
-            </p>
-          </div>
+      <div className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-10">
+        {step === "welcome" && (
+          <section className="space-y-8">
+            <div className="space-y-3">
+              <h1 className="font-serif text-4xl text-[var(--ink)]">
+                Welcome to Hyperpolymath.
+              </h1>
+              <p className="font-serif text-lg text-[var(--ink-muted)] leading-relaxed">
+                One line in. It lands in the right place: a task, a capture, or
+                a calendar event.
+              </p>
+            </div>
+            <Button size="lg" className="px-10" onClick={() => setStep("you")}>
+              Begin
+            </Button>
+          </section>
+        )}
 
-          <div className="space-y-5">
-            <div className="space-y-1.5">
-              <label
+        {step === "you" && (
+          <section className="space-y-8">
+            <div className="space-y-2">
+              <h2 className="font-serif text-3xl text-[var(--ink)]">
+                About you.
+              </h2>
+              <p className="font-serif text-sm text-[var(--ink-muted)]">
+                How JARVIS should address you.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              <Field
+                label="Preferred name"
                 htmlFor="display_name"
-                className="font-serif text-sm text-[var(--ink-muted)]"
               >
-                Preferred name
-              </label>
-              <Input
-                id="display_name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Filippo"
-                autoFocus
-                required
-                maxLength={60}
-              />
-            </div>
+                <Input
+                  id="display_name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Filippo"
+                  autoFocus
+                  required
+                  maxLength={60}
+                />
+              </Field>
 
-            <div className="space-y-1.5">
-              <label
+              <Field
+                label="Graduation year (optional)"
                 htmlFor="graduation_year"
-                className="font-serif text-sm text-[var(--ink-muted)]"
               >
-                Graduation year{" "}
-                <span className="text-[var(--ink-muted)] italic">
-                  &mdash; optional
-                </span>
-              </label>
-              <Input
-                id="graduation_year"
-                inputMode="numeric"
-                pattern="\d{4}"
-                value={graduationYear}
-                onChange={(e) =>
-                  setGraduationYear(e.target.value.replace(/\D/g, "").slice(0, 4))
-                }
-                placeholder="e.g. 2028"
-                maxLength={4}
+                <Input
+                  id="graduation_year"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  value={graduationYear}
+                  onChange={(e) =>
+                    setGraduationYear(
+                      e.target.value.replace(/\D/g, "").slice(0, 4),
+                    )
+                  }
+                  placeholder="e.g. 2028"
+                  maxLength={4}
+                />
+              </Field>
+
+              <Field label="Timezone">
+                <div className="flex h-9 items-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] px-3 font-serif text-base text-[var(--ink)]">
+                  {timezone}
+                  <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+                    auto-detected
+                  </span>
+                </div>
+              </Field>
+
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+                Signed in as {email}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <BackButton onClick={() => setStep("welcome")} />
+              <Button
+                size="lg"
+                disabled={!canAdvanceFromYou}
+                onClick={() => setStep("glimpse")}
+              >
+                Continue
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {step === "glimpse" && (
+          <section className="space-y-8">
+            <div className="space-y-2">
+              <h2 className="font-serif text-3xl text-[var(--ink)]">
+                Examples.
+              </h2>
+              <p className="font-serif text-sm text-[var(--ink-muted)]">
+                A few lines to try first.
+              </p>
+            </div>
+
+            <ul className="space-y-3">
+              <Showcase
+                icon={PenLine}
+                label="Capture"
+                example='"i&rsquo;m tired"'
+                description="Lands in your capture log, verbatim. JARVIS never paraphrases captures."
               />
-            </div>
+              <Showcase
+                icon={ListChecks}
+                label="Plan"
+                example='"remind me to send the brief friday"'
+                description="A task in the right area, due Friday, at the right priority."
+              />
+              <Showcase
+                icon={CalendarDays}
+                label="Schedule"
+                example='"coffee 4pm saturday with brian"'
+                description="Lands on your default Google Calendar."
+              />
+            </ul>
 
-            <div className="space-y-1.5">
-              <label className="font-serif text-sm text-[var(--ink-muted)]">
-                Timezone
-              </label>
-              <div className="flex h-9 items-center rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 font-serif text-base text-[var(--ink)]">
-                {timezone}
-                <span className="ml-auto font-mono text-xs text-[var(--ink-muted)]">
-                  auto-detected
-                </span>
-              </div>
-            </div>
+            {error && (
+              <p className="font-serif text-sm text-[var(--ink-coral)]">
+                {error}
+              </p>
+            )}
 
-            <p className="font-serif text-xs text-[var(--ink-muted)] italic">
-              Signed in as {email}.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setStep("welcome")}
-              className="font-serif text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            <form
+              ref={formRef}
+              action={completeOnboarding}
+              className="flex items-center justify-between pt-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSubmit();
+              }}
             >
-              ← Back
-            </button>
-            <Button
-              size="lg"
-              disabled={!canAdvanceFromYou}
-              onClick={() => setStep("glimpse")}
-            >
-              Continue
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {step === "glimpse" && (
-        <section className="space-y-8">
-          <div className="space-y-2 text-center">
-            <h2 className="font-serif text-3xl text-[var(--ink)]">
-              What you can do.
-            </h2>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
-              Three things to try once you&rsquo;re in.
-            </p>
-          </div>
-
-          <ul className="space-y-4">
-            <Showcase
-              label="Capture"
-              example='"i&rsquo;m tired"'
-              description="Anything ambiguous lands in your capture log — verbatim, never paraphrased."
-            />
-            <Showcase
-              label="Plan"
-              example='"remind me to buy flowers friday"'
-              description="A new task in the right area, due Friday, with the right priority."
-            />
-            <Showcase
-              label="Schedule"
-              example='"dinner 8pm saturday with anna"'
-              description="Goes straight onto your Google Calendar on your default calendar."
-            />
-          </ul>
-
-          {error && (
-            <p className="font-serif text-sm text-[var(--ink-coral)] text-center">
-              {error}
-            </p>
-          )}
-
-          <form
-            ref={formRef}
-            action={completeOnboarding}
-            className="flex items-center justify-between"
-            onSubmit={(e) => {
-              // Use the transition path so isPending reflects the action call.
-              e.preventDefault();
-              handleSubmit();
-            }}
-          >
-            <input type="hidden" name="display_name" value={displayName} />
-            <input type="hidden" name="timezone" value={timezone} />
-            <input
-              type="hidden"
-              name="graduation_year"
-              value={graduationYear}
-            />
-            <button
-              type="button"
-              onClick={() => setStep("you")}
-              className="font-serif text-sm text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              disabled={isPending}
-            >
-              ← Back
-            </button>
-            <Button type="submit" size="lg" disabled={isPending}>
-              {isPending ? "Setting up…" : "Begin"}
-            </Button>
-          </form>
-        </section>
-      )}
+              <input type="hidden" name="display_name" value={displayName} />
+              <input type="hidden" name="timezone" value={timezone} />
+              <input
+                type="hidden"
+                name="graduation_year"
+                value={graduationYear}
+              />
+              <BackButton
+                onClick={() => setStep("you")}
+                disabled={isPending}
+              />
+              <Button type="submit" size="lg" disabled={isPending}>
+                {isPending ? "Saving" : "Begin"}
+              </Button>
+            </form>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
 
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label
+        htmlFor={htmlFor}
+        className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] block"
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function BackButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-40 transition-colors"
+    >
+      <ArrowLeft className="w-3.5 h-3.5" />
+      Back
+    </button>
+  );
+}
+
 function Showcase({
+  icon: Icon,
   label,
   example,
   description,
 }: {
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   example: string;
   description: string;
 }) {
   return (
-    <li className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4 space-y-1">
-      <div className="flex items-baseline gap-3">
-        <span className="font-mono text-xs uppercase tracking-wider text-[var(--ink-amber)]">
-          {label}
-        </span>
-        <span
-          className="font-serif italic text-[var(--ink)]"
-          dangerouslySetInnerHTML={{ __html: example }}
-        />
+    <li className="flex items-start gap-4 rounded-md border border-[var(--edge)] bg-[var(--canvas)] p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-amber)]">
+        <Icon className="w-4 h-4" />
       </div>
-      <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
-        {description}
-      </p>
+      <div className="min-w-0 space-y-1">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            {label}
+          </span>
+          <span
+            className="font-serif italic text-[var(--ink)]"
+            dangerouslySetInnerHTML={{ __html: example }}
+          />
+        </div>
+        <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
+          {description}
+        </p>
+      </div>
     </li>
   );
 }
