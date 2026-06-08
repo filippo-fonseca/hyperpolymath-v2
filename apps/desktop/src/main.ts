@@ -175,16 +175,21 @@ function paintTtsState(playing: boolean): void {
 let _wakeRegistered = false;
 let _extendRegistered = false;
 
-function paintHotkeyStatus(peEnabled: boolean): void {
+function paintHotkeyStatus(_peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  const extLabel = _extendRegistered ? "✓ ⌘⌃E extend" : "✗ ⌘⌃E extend";
-  if (peEnabled) {
-    el.textContent = `PE active · ${extLabel}`;
-    return;
+  // Both hotkeys register unconditionally now. Color-code so a silent
+  // registration failure is visually loud.
+  const wakeOk = _wakeRegistered;
+  const extOk = _extendRegistered;
+  const wakeLabel = `<span style="color:${wakeOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${wakeOk ? "✓" : "✗"} ⌘⌃J wake</span>`;
+  const extLabel = `<span style="color:${extOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${extOk ? "✓" : "✗"} ⌘⌃E extend</span>`;
+  el.innerHTML = `${wakeLabel} · ${extLabel}`;
+  if (!wakeOk || !extOk) {
+    el.title =
+      "If either shortcut shows ✗ after restart, another app has claimed it. " +
+      "Check System Settings → Keyboard → Keyboard Shortcuts.";
   }
-  const wakeLabel = _wakeRegistered ? "✓ ⌘⌃J wake" : "✗ ⌘⌃J wake";
-  el.textContent = `${wakeLabel} · ${extLabel}`;
 }
 
 function wireCancelButton(): void {
@@ -296,18 +301,15 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
 }
 
 /**
- * Register or unregister the wake hotkey based on PE mode.
- * When PE is OFF, Ctrl+Option+J fires startCaptureTurn directly.
- * When PE is ON, the wake hotkey is released — ESP32 SSE triggers handle wake.
- * The extend hotkey is always registered regardless of PE mode.
+ * Always register the wake hotkey. Previously this gated on PE mode, which
+ * meant new users (default: PE ON) had no working hotkey — the only path
+ * was the ESP32, which most laptops don't have plugged in. Now the hotkey
+ * fires startCaptureTurn() in both modes; when PE is ON the ESP32 still
+ * works through its own SSE trigger path, so the hotkey is just an extra
+ * input surface, not a replacement.
  */
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
-  if (peEnabled) {
-    await safeUnregister(WAKE_HOTKEY, "wake");
-    _wakeRegistered = false;
-  } else {
-    _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
-  }
+  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
   paintHotkeyStatus(peEnabled);
 }
 
