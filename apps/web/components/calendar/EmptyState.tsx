@@ -27,7 +27,7 @@ export function EmptyState() {
         </h2>
         <p className="font-serif text-sm text-muted-foreground mt-1 max-w-md">
           See your week here. Drag to create. All events live in Google
-          Calendar — Hyperpolymath is the writing desk over it.
+          Calendar. Hyperpolymath is the writing desk over it.
         </p>
       </div>
       <Button asChild>
