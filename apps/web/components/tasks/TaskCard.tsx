@@ -38,10 +38,11 @@ export function TaskCard({
 }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // Parse YMD as LOCAL midnight (not UTC midnight) so a 2026-06-08 due
+  // date doesn't read as 2026-06-07 in negative-UTC timezones.
+  const dueLocal = task.dueDate ? new Date(task.dueDate + "T00:00:00") : null;
   const isOverdue =
-    task.dueDate !== null &&
-    task.status !== "lesno" &&
-    new Date(task.dueDate) < today;
+    dueLocal !== null && task.status !== "lesno" && dueLocal < today;
   const isLesno = task.status === "lesno";
 
   // Tailwind's group-hover modifier on the checkbox keys off this class.

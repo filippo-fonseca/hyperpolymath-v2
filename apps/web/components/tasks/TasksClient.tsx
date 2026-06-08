@@ -271,13 +271,17 @@ export function TasksClient({
   // Day-scoped slice of `filtered` for the kanban (default view). Tasks
   // with a due date matching `dateYmd` show in the columns; undated tasks
   // accumulate in the Inbox tray and never appear in column bodies.
+  // Compare YMD strings directly: t.dueDate from the DB is already a
+  // YYYY-MM-DD string (drizzle `date` column), and dateYmd is the URL
+  // YMD string. Round-tripping through Date introduces UTC-midnight
+  // drift in negative-UTC timezones (a task created today as "today" in
+  // EDT would parse to UTC midnight, which is yesterday in EDT, and
+  // never match the day filter — that's why new tasks were falling
+  // through to the Inbox tray instead of landing in the active column).
   const activeDate = useMemo(() => fromYmd(dateYmd), [dateYmd]);
   const dayFilteredTasks = useMemo(
-    () =>
-      filtered.filter(
-        (t) => t.dueDate && isSameDay(new Date(t.dueDate), activeDate),
-      ),
-    [filtered, activeDate],
+    () => filtered.filter((t) => t.dueDate === dateYmd),
+    [filtered, dateYmd],
   );
   const inboxTasks = useMemo(
     () => filtered.filter((t) => !t.dueDate && t.status !== "lesno"),
@@ -355,7 +359,7 @@ export function TasksClient({
       setDraggedTaskId(null);
       if (!t) return;
       const needsStatus = t.status !== targetStatus;
-      const needsDate = !t.dueDate || !isSameDay(new Date(t.dueDate), activeDate);
+      const needsDate = t.dueDate !== dateYmd;
       if (!needsStatus && !needsDate) return;
       startTransition(() => {
         addOptimistic({
