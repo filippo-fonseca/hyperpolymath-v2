@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Brain, Laptop } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -168,9 +169,14 @@ export default async function SettingsPage() {
 
         {/* Phase 5.1 (D-M6 / JARVIS-18) — Memory settings link */}
         <Card className={tileHover}>
-          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-            JARVIS Memory
-          </h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <Brain className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              JARVIS Memory
+            </h2>
+          </div>
           <p className="font-serif text-base text-[var(--ink-muted)]">
             Review, edit, or remove facts JARVIS has remembered about you.
           </p>
@@ -179,6 +185,28 @@ export default async function SettingsPage() {
             className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
           >
             Manage memory →
+          </Link>
+        </Card>
+
+        {/* Desktop devices — bearer tokens for the Tauri desktop app. */}
+        <Card className={tileHover}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <Laptop className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              Desktop devices
+            </h2>
+          </div>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
+            Mint a bearer token for the desktop app, then paste it once into
+            the device to pair it. Revoke any device at any time.
+          </p>
+          <Link
+            href="/settings/desktop"
+            className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
+            Manage devices →
           </Link>
         </Card>
 
