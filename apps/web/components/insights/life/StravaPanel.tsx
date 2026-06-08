@@ -14,6 +14,7 @@ import type {
   Activity,
   WeeklyStats,
 } from '@/lib/integrations/strava/activities';
+import { StravaDisconnectButton } from './StravaConnectionControl';
 
 const ACCENT = '#FC4C02';
 // const ACCENT_DIM = '#c43d02'; // reserved for hover/secondary use
@@ -111,8 +112,11 @@ export function StravaPanel({ result }: Props) {
 
   return (
     <PanelChrome>
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
+      <header className="mb-4 flex items-baseline justify-between gap-4">
+        <div className="flex items-baseline gap-3">
+          <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
+          <StravaDisconnectButton />
+        </div>
         {currentWeek ? (
           <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
             <span className="text-[var(--ink)]">{formatKm(currentWeek.distanceMeters)}</span>{' '}
