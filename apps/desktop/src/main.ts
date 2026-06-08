@@ -401,16 +401,43 @@ async function boot(): Promise<void> {
     });
   }
   if (tokenSaveEl && tokenInputEl) {
-    tokenSaveEl.addEventListener("click", async () => {
-      const value = tokenInputEl.value.trim();
-      if (!value || !value.startsWith("hpd_")) {
+    const trySaveToken = async (rawValue: string): Promise<boolean> => {
+      const value = rawValue.trim();
+      if (!value) return false;
+      if (!value.startsWith("hpd_")) {
+        if (tokenStatusEl) {
+          tokenStatusEl.textContent =
+            "invalid token — expected one starting with hpd_";
+          tokenStatusEl.style.color = "var(--err, #c45a4a)";
+        }
         // eslint-disable-next-line no-console
         console.warn("[device-token] token must start with hpd_");
-        return;
+        return false;
       }
       await setDeviceToken(value);
       tokenInputEl.value = "";
       paintTokenStatus(value);
+      return true;
+    };
+
+    tokenSaveEl.addEventListener("click", async () => {
+      await trySaveToken(tokenInputEl.value);
+    });
+
+    // Auto-save on paste so the user doesn't have to chase a second button.
+    // Tiny timeout lets the pasted content land in `.value` first.
+    tokenInputEl.addEventListener("paste", () => {
+      setTimeout(() => {
+        void trySaveToken(tokenInputEl.value);
+      }, 0);
+    });
+
+    // Enter-to-save while the input has focus.
+    tokenInputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void trySaveToken(tokenInputEl.value);
+      }
     });
   }
   if (tokenClearEl) {
