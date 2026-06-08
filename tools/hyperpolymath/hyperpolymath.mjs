@@ -4,11 +4,13 @@
 // Services (in order):
 //   1. supabase   local Supabase stack (idempotent — `supabase start`)
 //   2. web        Next.js dev server on :3000
-//   3. bridge     ESP32 → HTTP wake-word serial bridge
+//   3. desktop    Tauri desktop app (global hotkey + composer; no hardware)
+//   4. bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
 //
 // Flags:
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
 //   --no-web                skip Next.js dev server
+//   --no-desktop            skip Tauri desktop app (default input layer)
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
 //   --only=name[,name...]   start only listed services
 //   --help                  print usage and exit
@@ -26,6 +28,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB_DIR = resolve(REPO_ROOT, "apps/web");
+const DESKTOP_DIR = resolve(REPO_ROOT, "apps/desktop");
 const BRIDGE_DIR = resolve(REPO_ROOT, "tools/jarvis-physical/bridge");
 
 const FLAGS = parseFlags(process.argv.slice(2));
@@ -100,6 +103,35 @@ const SERVICES = [
       }),
     keepAlive: true,
     ready: () => waitForHttp("http://localhost:3000/", 60_000),
+  },
+
+  {
+    name: "desktop",
+    color: "blue",
+    async preflight() {
+      // Tauri needs cargo on PATH. If Rust isn't installed, skip cleanly —
+      // user shouldn't be blocked from the rest of the stack.
+      try {
+        await new Promise((resolveP, rejectP) => {
+          const proc = spawn("cargo", ["--version"], { stdio: "ignore" });
+          proc.on("exit", (code) => (code === 0 ? resolveP() : rejectP(new Error("cargo failed"))));
+          proc.on("error", rejectP);
+        });
+      } catch {
+        warn("desktop", "cargo not on PATH — install Rust to run the Tauri app");
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("pnpm", ["dev"], {
+        cwd: DESKTOP_DIR,
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    keepAlive: true,
+    // Tauri's first-build can take 2-5 minutes (cargo compile). Be patient.
+    // The "App listening" pattern is what tauri emits once the webview window
+    // is up; fall back to the dev-server "ready" if Tauri renames it later.
+    ready: (proc) => waitForLog(proc, /App listening|Running BeforeDevCommand|Built/i, 600_000),
   },
 
   {
@@ -523,11 +555,13 @@ ${C.bold("hyperpolymath")} — bring up the Hyperpolymath / JARVIS dev stack.
 ${C.bold("Services")}
   supabase   local Supabase (Docker)
   web        Next.js dev server on :3000
-  bridge     ESP32 → HTTP wake-word serial bridge
+  desktop    Tauri desktop app (global hotkey + composer; no hardware)
+  bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
 
 ${C.bold("Flags")}
   --no-supabase           skip Supabase
   --no-web                skip web dev server
+  --no-desktop            skip Tauri desktop app
   --no-bridge             skip serial bridge
   --only=name[,name...]   start only listed services
   --help                  show this message
