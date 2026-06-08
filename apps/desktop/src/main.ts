@@ -182,8 +182,8 @@ function paintHotkeyStatus(_peEnabled: boolean): void {
   // registration failure is visually loud.
   const wakeOk = _wakeRegistered;
   const extOk = _extendRegistered;
-  const wakeLabel = `<span style="color:${wakeOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${wakeOk ? "✓" : "✗"} ⌘⌃J wake</span>`;
-  const extLabel = `<span style="color:${extOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${extOk ? "✓" : "✗"} ⌘⌃E extend</span>`;
+  const wakeLabel = `<span style="color:${wakeOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${wakeOk ? "✓" : "✗"} ${prettyHotkey(WAKE_HOTKEY)} wake</span>`;
+  const extLabel = `<span style="color:${extOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${extOk ? "✓" : "✗"} ${prettyHotkey(_activeExtendHotkey)} extend</span>`;
   el.innerHTML = `${wakeLabel} · ${extLabel}`;
   if (!wakeOk || !extOk) {
     el.title =
@@ -226,9 +226,10 @@ function paintActionRow(state: CaptureState, isExtended: boolean): void {
     if (state === "recording") {
       extendBtn.classList.add("visible");
       extendBtn.dataset.extended = isExtended ? "true" : "false";
+      const extLabel = prettyHotkey(_activeExtendHotkey);
       extendBtn.innerHTML = isExtended
-        ? '✓ Holding — tap to send <span class="shortcut-label">⌘⌃E</span>'
-        : '⏸ Hold mic open <span class="shortcut-label">⌘⌃E</span>';
+        ? `✓ Holding — tap to send <span class="shortcut-label">${extLabel}</span>`
+        : `⏸ Hold mic open <span class="shortcut-label">${extLabel}</span>`;
     } else {
       extendBtn.classList.remove("visible");
     }
@@ -262,7 +263,32 @@ function wireStopButton(): void {
 // key as KeyX literal. The earlier "Cmd+Ctrl+J" form was getting
 // rejected (silent failure) because the parser ambiguates Cmd vs Ctrl.
 const WAKE_HOTKEY = "Command+Control+KeyJ";
-const EXTEND_HOTKEY = "Command+Control+KeyE";
+// Fallback chain — try each in order until one registers. Cmd+Ctrl+E is
+// claimed by Slack / Logic / various other apps on common Mac setups; the
+// rest are very rarely bound by anything. Whichever wins shows in the
+// status row so the user knows which chord to press.
+const EXTEND_HOTKEY_CANDIDATES = [
+  "Command+Control+KeyE",
+  "Command+Control+KeyK",
+  "Command+Control+Semicolon",
+  "Command+Control+Backslash",
+  "Command+Control+Period",
+];
+let _activeExtendHotkey: string = EXTEND_HOTKEY_CANDIDATES[0] ?? "Command+Control+KeyE";
+
+// Pretty label for a Tauri accelerator — for UI display.
+function prettyHotkey(accel: string): string {
+  return accel
+    .replace(/Command/g, "⌘")
+    .replace(/Control/g, "⌃")
+    .replace(/Shift/g, "⇧")
+    .replace(/Option|Alt/g, "⌥")
+    .replace(/Key([A-Z])/g, "$1")
+    .replace(/Semicolon/g, ";")
+    .replace(/Backslash/g, "\\")
+    .replace(/Period/g, ".")
+    .replace(/\+/g, "");
+}
 
 async function safeRegister(
   hotkey: string,
@@ -318,7 +344,17 @@ async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
 }
 
 async function wireExtendShortcut(): Promise<void> {
-  _extendRegistered = await safeRegister(EXTEND_HOTKEY, "extend", () => toggleExtended());
+  // Try each candidate in order; first one to register wins. Surface the
+  // actually-active chord in the status row so the user knows what to press.
+  for (const candidate of EXTEND_HOTKEY_CANDIDATES) {
+    const ok = await safeRegister(candidate, "extend", () => toggleExtended());
+    if (ok) {
+      _activeExtendHotkey = candidate;
+      _extendRegistered = true;
+      return;
+    }
+  }
+  _extendRegistered = false;
 }
 
 async function boot(): Promise<void> {

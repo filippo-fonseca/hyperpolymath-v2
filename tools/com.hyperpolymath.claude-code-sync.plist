@@ -23,7 +23,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/local/bin/node</string>
+    <string>/opt/homebrew/bin/node</string>
     <string>/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/tools/claude-code-sync.mjs</string>
   </array>
 
