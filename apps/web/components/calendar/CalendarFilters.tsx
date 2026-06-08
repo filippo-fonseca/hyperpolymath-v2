@@ -25,7 +25,9 @@
  */
 
 import { useQueryState } from "nuqs";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
 
 interface Props {
@@ -46,7 +48,6 @@ export function CalendarFilters({ calendars }: Props) {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     if (next.size === calendars.length) {
-      // "Show all" — clear the URL so future-added calendars stay visible.
       void setCals("");
     } else {
       void setCals(Array.from(next).join(","));
@@ -55,44 +56,81 @@ export function CalendarFilters({ calendars }: Props) {
 
   if (calendars.length === 0) return null;
 
+  const visibleCount = visibleSet.size;
+  const total = calendars.length;
+  const allVisible = visibleCount === total;
+  const triggerLabel = allVisible
+    ? "All calendars"
+    : `${visibleCount} of ${total}`;
+
   return (
-    <div
-      className="flex flex-wrap gap-1.5 items-center"
-      role="group"
-      aria-label="Calendar visibility filters"
-    >
-      {calendars.map((c) => {
-        const active = visibleSet.has(c.id);
-        return (
-          // Phase 6.1 Plan 06.1-05 (UI-SPEC §5g + §9 chip register):
-          // Diplomatic-tier chip. Inactive renders with 1px --edge border at
-          // --ink-muted; active picks up --ink-amber tint per UI-SPEC §3f
-          // ("amber for active filter chips" carries from /tasks). Mono 11px
-          // register matches the calendar-time-label family — these chips
-          // are metadata chrome, not document body.
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => toggle(c.id)}
-            aria-pressed={active}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-0.5 rounded-sm border font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-              "transition-colors duration-150 ease-out",
-              active
-                ? "border-[var(--edge)] text-[var(--ink)] bg-[var(--surface)]"
-                : "border-[var(--edge)] text-[var(--ink-muted)] opacity-60 hover:opacity-100 hover:text-[var(--ink)]",
-            )}
-            title={`${active ? "Hide" : "Show"} ${c.summary}`}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              aria-hidden
-              style={{ backgroundColor: c.backgroundColor }}
-            />
-            <span>{c.summary}</span>
-          </button>
-        );
-      })}
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          aria-label="Calendar visibility filter"
+        >
+          <span className="flex items-center gap-1.5">
+            {/* Stacked dots preview — only show colors of visible calendars
+                (max 4 before the +N pill) so the trigger telegraphs current
+                state at a glance. */}
+            <span className="flex -space-x-1">
+              {calendars
+                .filter((c) => visibleSet.has(c.id))
+                .slice(0, 4)
+                .map((c) => (
+                  <span
+                    key={c.id}
+                    className="h-2 w-2 rounded-full ring-1 ring-[var(--surface)]"
+                    style={{ backgroundColor: c.backgroundColor }}
+                    aria-hidden
+                  />
+                ))}
+            </span>
+            {triggerLabel}
+          </span>
+          <ChevronDown size={12} strokeWidth={1.5} aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-64 p-1.5 border-[var(--edge)] bg-[var(--surface-raised)]"
+      >
+        <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          Show calendars
+        </p>
+        <ul className="space-y-0.5">
+          {calendars.map((c) => {
+            const active = visibleSet.has(c.id);
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => toggle(c.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 font-sans text-[13px] cursor-pointer-always",
+                    "transition-colors duration-150 ease-out",
+                    "hover:bg-[var(--surface)]",
+                    active ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
+                  )}
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    aria-hidden
+                    style={{ backgroundColor: c.backgroundColor }}
+                  />
+                  <span className="flex-1 text-left truncate">{c.summary}</span>
+                  {active ? (
+                    <Check size={12} strokeWidth={2} className="text-[var(--ink-muted)] flex-shrink-0" />
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
