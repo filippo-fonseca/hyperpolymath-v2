@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 15-03-PLAN.md (planner UI + sidebar nav)
-last_updated: "2026-06-08T16:12:31.418Z"
+stopped_at: Completed 15-04-PLAN.md (manage sheet + completion + edit dialogs)
+last_updated: "2026-06-08T16:24:56.167Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 29
   completed_phases: 11
   total_plans: 77
-  completed_plans: 63
+  completed_plans: 64
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 15 (training-fitness-activity-planner) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-06-08
 
@@ -115,6 +115,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 15 P02 | 12m | 3 tasks | 8 files |
 | Phase 15 P06 | 8 | 2 tasks | 5 files |
 | Phase 15 P03 | 9 | 3 tasks | 8 files |
+| Phase 15-training-fitness-activity-planner P04 | ~25min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -316,6 +317,8 @@ Recent decisions affecting current work:
 - [Phase 15]: deleteType blocks deletion when ANY activities reference the type (not just non-archived); matches Open Q4 'Archive instead?' UX
 - [Phase 15]: Sidebar nav entry lives in PersistentNav.tsx (not SidebarTree.tsx); SidebarTree owns the areas/projects tree only
 - [Phase 15]: manageOpen state lifted to TrainingClient (Pitfall 8); ManageTypesSheet body slots into the lifted state in plan 15-04
+- [Phase 15-training-fitness-activity-planner]: [15-04] Use ad-hoc input checkbox for type distance toggle (no shadcn Switch in repo)
+- [Phase 15-training-fitness-activity-planner]: [15-04] Two-click inline delete confirm on ActivityEditDialog (avoid nested AlertDialog focus-trap)
 
 ### Pending Todos
 
@@ -338,6 +341,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-08T16:12:22.404Z
-Stopped at: Completed 15-03-PLAN.md (planner UI + sidebar nav)
+Last session: 2026-06-08T16:24:56.163Z
+Stopped at: Completed 15-04-PLAN.md (manage sheet + completion + edit dialogs)
 Resume file: None
