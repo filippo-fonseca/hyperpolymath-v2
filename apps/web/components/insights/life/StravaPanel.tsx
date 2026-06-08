@@ -77,13 +77,17 @@ export function StravaPanel({ result }: Props) {
           <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
         </header>
         {isDisconnected ? (
-          <p className="font-mono text-xs text-[var(--ink-muted)]">
-            Strava not connected. Run{' '}
-            <code className="rounded bg-[var(--surface-raised)] px-1.5 py-0.5 text-[var(--ink)]">
-              node tools/strava-mint.mjs
-            </code>{' '}
-            to connect.
-          </p>
+          <div className="flex flex-col gap-3">
+            <p className="font-serif text-sm text-[var(--ink-muted)]">
+              Strava not connected.
+            </p>
+            <a
+              href="/api/integrations/strava/connect"
+              className="inline-flex items-center gap-1.5 self-start rounded-md bg-[var(--panel-accent,#FC4C02)] px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-white hover:opacity-90 transition-opacity"
+            >
+              Connect Strava →
+            </a>
+          </div>
         ) : (
           <p className="font-mono text-xs text-[var(--ink-muted)]">
             Couldn&apos;t load Strava — {result.error}
