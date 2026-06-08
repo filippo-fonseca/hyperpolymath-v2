@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
+import { createPublicKey, createHash, verify, timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { claudeCodeUsage } from "@/lib/db/schema";
+
+const REPLAY_WINDOW_MS = 5 * 60 * 1000;
+
+function pemFromEnv(raw: string): string {
+  // .env.local stores the PEM as a single-line string with literal \n
+  // escapes. Restore newlines before passing to crypto.
+  return raw.replace(/\\n/g, "\n").trim();
+}
+
+function eqBuffersConstantTime(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,20 +77,69 @@ function toInt(v: unknown): number {
 
 export async function POST(req: Request) {
   const expected = process.env.CLAUDE_SYNC_TOKEN;
+  const publicKeyRaw = process.env.CLAUDE_SYNC_PUBLIC_KEY;
   if (!expected) {
     return NextResponse.json(
       { error: "CLAUDE_SYNC_TOKEN not configured on server" },
       { status: 500 },
     );
   }
+  if (!publicKeyRaw) {
+    return NextResponse.json(
+      { error: "CLAUDE_SYNC_PUBLIC_KEY not configured on server" },
+      { status: 500 },
+    );
+  }
+
+  // Gate 1: bearer token (defense in depth — bearer alone isn't sufficient).
   const auth = req.headers.get("authorization");
-  if (!auth || !auth.startsWith("Bearer ") || auth.slice(7) !== expected) {
+  if (!auth || !auth.startsWith("Bearer ")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!eqBuffersConstantTime(auth.slice(7), expected)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Read raw body BEFORE JSON.parse — signature is over the exact bytes
+  // the client signed, not a re-serialized version.
+  const rawBody = await req.text();
+
+  // Gate 2: Ed25519 signature over `${timestamp}.${sha256(body)}` proves
+  // the request came from a holder of the private key (your laptop). Server
+  // never sees the private key — only the public key from env.
+  const signatureB64 = req.headers.get("x-sync-signature");
+  const timestamp = req.headers.get("x-sync-timestamp");
+  if (!signatureB64 || !timestamp) {
+    return NextResponse.json({ error: "missing signature" }, { status: 401 });
+  }
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > REPLAY_WINDOW_MS) {
+    return NextResponse.json(
+      { error: "stale signature (replay protection)" },
+      { status: 401 },
+    );
+  }
+  const bodyHash = createHash("sha256").update(rawBody).digest("hex");
+  const signedPayload = `${timestamp}.${bodyHash}`;
+  let signatureOk = false;
+  try {
+    const publicKey = createPublicKey(pemFromEnv(publicKeyRaw));
+    signatureOk = verify(
+      null,
+      Buffer.from(signedPayload),
+      publicKey,
+      Buffer.from(signatureB64, "base64"),
+    );
+  } catch {
+    signatureOk = false;
+  }
+  if (!signatureOk) {
+    return NextResponse.json({ error: "bad signature" }, { status: 401 });
   }
 
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
