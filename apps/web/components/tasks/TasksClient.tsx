@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import {
   createTask,
   getTasksForCurrentUser,
+  bulkUpdateTaskDueDate,
 } from "@/app/actions/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -33,6 +34,11 @@ import { TaskList } from "./TaskList";
 import { TaskDayView } from "./TaskDayView";
 import { TaskFilters } from "./TaskFilters";
 import { TaskDetailPanel } from "./TaskDetailPanel";
+import { KanbanDayHeader } from "./KanbanDayHeader";
+import { TaskSelectionBar } from "./TaskSelectionBar";
+import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { AnimatePresence, motion } from "motion/react";
+import { TaskCard } from "./TaskCard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -122,6 +128,24 @@ export function TasksClient({
     "view",
     parseAsString.withDefault("kanban"),
   );
+
+  // Day-aware kanban — URL ?date=YYYY-MM-DD, defaults to today.
+  const [dateYmd, setDateYmd] = useQueryState(
+    "date",
+    parseAsString.withDefault(toYmd(new Date())),
+  );
+
+  // Selection state (kanban day view). Cleared on view/date change.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Inbox tray (undated tasks) — collapsed by default.
+  const [inboxOpen, setInboxOpen] = useState(false);
+
+  // Reset selection when the active date or view changes — selections are
+  // scoped to "what's visible on this surface now."
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setInboxOpen(false);
+  }, [dateYmd, view]);
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
@@ -233,6 +257,81 @@ export function TasksClient({
     filters.project,
     showLesno,
   ]);
+
+  // Day-scoped slice of `filtered` for the kanban (default view). Tasks
+  // with a due date matching `dateYmd` show in the columns; undated tasks
+  // accumulate in the Inbox tray and never appear in column bodies.
+  const activeDate = useMemo(() => fromYmd(dateYmd), [dateYmd]);
+  const dayFilteredTasks = useMemo(
+    () =>
+      filtered.filter(
+        (t) => t.dueDate && isSameDay(new Date(t.dueDate), activeDate),
+      ),
+    [filtered, activeDate],
+  );
+  const inboxTasks = useMemo(
+    () => filtered.filter((t) => !t.dueDate && t.status !== "lesno"),
+    [filtered],
+  );
+
+  // Multi-select helpers
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const toggleColumnSelection = useCallback(
+    (_status: TaskStatus, taskIds: string[]) => {
+      setSelectedIds((prev) => {
+        const allSelected = taskIds.every((id) => prev.has(id));
+        const next = new Set(prev);
+        if (allSelected) {
+          for (const id of taskIds) next.delete(id);
+        } else {
+          for (const id of taskIds) next.add(id);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleBulkMove = useCallback(
+    async (newDueDate: string | null) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0) return;
+      // Optimistic — update each row's dueDate immediately so the cards
+      // disappear from the current day view (or land in Inbox if cleared).
+      startTransition(() => {
+        for (const id of ids) {
+          addOptimistic({
+            type: "update",
+            id,
+            patch: { dueDate: newDueDate },
+          });
+        }
+      });
+      const r = await bulkUpdateTaskDueDate({ ids, dueDate: newDueDate });
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("tasks", userId),
+      });
+      const tail =
+        newDueDate === null
+          ? "moved to Inbox"
+          : `moved to ${newDueDate}`;
+      toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} ${tail}`);
+      clearSelection();
+    },
+    [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition],
+  );
 
   async function handleCreateTask(input: {
     title: string;
@@ -414,14 +513,85 @@ export function TasksClient({
           <TaskDayView tasks={filtered} onTaskClick={setOpenTaskId} />
         </div>
       ) : (
-        <KanbanBoard
-          tasks={filtered}
-          userId={userId}
-          onTaskClick={setOpenTaskId}
-          onCreateTask={handleCreateTask}
-          addOptimistic={addOptimistic}
-        />
+        <div className="flex flex-1 min-h-0 flex-col">
+          <KanbanDayHeader
+            dateYmd={dateYmd}
+            onDateChange={(ymd) => void setDateYmd(ymd)}
+            inboxCount={inboxTasks.length}
+            inboxOpen={inboxOpen}
+            onInboxToggle={() => setInboxOpen((v) => !v)}
+          />
+          <AnimatePresence initial={false}>
+            {inboxOpen ? (
+              <motion.div
+                key="inbox-tray"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
+                className="overflow-hidden"
+              >
+                <div
+                  className="mb-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-3"
+                  role="region"
+                  aria-label="Tasks without a due date"
+                >
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+                      Inbox · undated
+                    </p>
+                    <p className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
+                      {inboxTasks.length}
+                    </p>
+                  </div>
+                  {inboxTasks.length === 0 ? (
+                    <p className="px-1 pb-1 font-serif text-sm text-[var(--ink-muted)]">
+                      Inbox is empty.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {inboxTasks.slice(0, 24).map((t) => (
+                        <div key={t.id} className="min-w-[220px] max-w-[260px] flex-1">
+                          <TaskCard
+                            task={t}
+                            onClick={setOpenTaskId}
+                            selectionActive={selectedIds.size > 0}
+                            isSelected={selectedIds.has(t.id)}
+                            onToggleSelected={(id) => toggleSelected(id)}
+                          />
+                        </div>
+                      ))}
+                      {inboxTasks.length > 24 ? (
+                        <p className="self-center font-mono text-[11px] text-[var(--ink-muted)]">
+                          +{inboxTasks.length - 24} more — open the List view to see all.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+          <KanbanBoard
+            tasks={dayFilteredTasks}
+            userId={userId}
+            onTaskClick={setOpenTaskId}
+            onCreateTask={handleCreateTask}
+            addOptimistic={addOptimistic}
+            selectionActive={selectedIds.size > 0}
+            selectedIds={selectedIds}
+            onToggleSelected={(id) => toggleSelected(id)}
+            onToggleColumnSelection={toggleColumnSelection}
+          />
+        </div>
       )}
+
+      <TaskSelectionBar
+        count={selectedIds.size}
+        onMoveTo={(d) => void handleBulkMove(d)}
+        onClear={clearSelection}
+        pending={false}
+      />
 
       {/* Detail panel — RES-02: delete passes through useUndoToast for 5s Undo */}
       <TaskDetailPanel

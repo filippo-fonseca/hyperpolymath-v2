@@ -53,6 +53,10 @@ interface Props {
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
   addOptimistic: TasksOptimisticDispatch;
+  selectionActive?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
+  onToggleColumnSelection?: (status: Status, taskIds: string[]) => void;
 }
 
 export function KanbanBoard({
@@ -61,6 +65,10 @@ export function KanbanBoard({
   onTaskClick,
   onCreateTask,
   addOptimistic,
+  selectionActive,
+  selectedIds,
+  onToggleSelected,
+  onToggleColumnSelection,
 }: Props) {
   const queryClient = useQueryClient();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -164,6 +172,10 @@ export function KanbanBoard({
             onDragEnd={() => setDraggedTaskId(null)}
             onDropOnColumn={dropTaskOnStatus}
             pendingTaskId={null}
+            selectionActive={selectionActive}
+            selectedIds={selectedIds}
+            onToggleSelected={onToggleSelected}
+            onToggleColumnSelection={onToggleColumnSelection}
           />
         ))}
       </div>

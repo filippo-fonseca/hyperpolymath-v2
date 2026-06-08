@@ -238,6 +238,42 @@ export async function updateTaskStatus(
   };
 }
 
+/**
+ * Bulk update due-date — used by the kanban day view's "Move to tomorrow",
+ * "This Sunday", "Next week", and "Custom date" affordances. Single
+ * transaction so partial failures revert. `dueDate: null` clears the date
+ * (moves the tasks back to the Inbox tray).
+ */
+const BulkUpdateDueDateSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+});
+
+export async function bulkUpdateTaskDueDate(
+  input: unknown,
+): Promise<ActionResult<{ updated: number }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = BulkUpdateDueDateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  const result = await db
+    .update(tasks)
+    .set({ dueDate: parsed.data.dueDate, updatedAt: sql`now()` })
+    .where(and(inArray(tasks.id, parsed.data.ids), eq(tasks.userId, userId)))
+    .returning({ id: tasks.id });
+
+  return { success: true, data: { updated: result.length } };
+}
+
 export async function deleteTask(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
