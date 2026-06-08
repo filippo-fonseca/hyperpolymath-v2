@@ -13,6 +13,7 @@ import {
   Info,
   Repeat,
   LayoutDashboard,
+  Dumbbell,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
@@ -61,6 +62,7 @@ const items = [
   { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
   // /areas is NOT here — the sidebar AREAS section header below acts as
