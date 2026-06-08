@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/schema";
 import {
   getActivitiesInRange,
+  getAllActivities,
   type ActivityWithType,
 } from "@/lib/db/queries/training";
 
@@ -762,4 +763,16 @@ export async function listActivitiesInRange(
   const parsed = RangeSchema.safeParse({ fromISO, toISO });
   if (!parsed.success) return [];
   return getActivitiesInRange(userId, parsed.data.fromISO, parsed.data.toISO);
+}
+
+/**
+ * Server-action wrapper around `getAllActivities` (Phase 15-05 stats page).
+ * Returns every activity the user owns — heatmap + time-window aggregates
+ * all derive from this single all-time array so Realtime invalidation only
+ * has one query key to refresh.
+ */
+export async function listAllActivities(): Promise<ActivityWithType[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  return getAllActivities(userId);
 }

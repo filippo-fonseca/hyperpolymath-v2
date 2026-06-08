@@ -1,7 +1,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { WeekRange } from "@/lib/training/week";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,18 @@ export function PlannerHeader({
             ? "— %"
             : `${adherencePct}% · ${doneCount}/${plannedCount}`}
         </span>
+        <Button
+          asChild
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
+        >
+          <Link href="/training/stats" aria-label="Open training stats">
+            <BarChart3 size={13} strokeWidth={1.5} />
+            Stats
+          </Link>
+        </Button>
         <Button
           type="button"
           variant="ghost"
