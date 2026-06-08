@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Merged feature/jarvis-physical-extension into feature/lifeos-tab — voice surface + physical extension + LifeOS now on one branch
-last_updated: "2026-06-07T14:30:00.000Z"
-last_activity: 2026-06-07
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-08T15:19:38.880Z"
+last_activity: 2026-06-07 - Merged feature/jarvis-physical-extension into feature/lifeos-tab (voice surface, physical extension bridge, latency telemetry phases 09-14 + LifeOS work consolidated on one branch)
 progress:
-  total_phases: 28
+  total_phases: 29
   completed_phases: 11
   total_plans: 71
   completed_plans: 59
@@ -120,6 +120,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 - Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
 - Phase 6.2 inserted after Phase 6.1 (2026-05-19 PM): anthropic-discipline-rebuild. User rejected Phase 6.1's cumulative HUD-heavy visual surface during 06.1-06 Task 3 walkthrough: "i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah." Then reinforced cyan-canonical via second image reference + "we are doing it jarvis-esque like in the tony stark movie." Phase 6.1 closed passed_with_deferrals on infrastructure (token cleanup, motion library substrate, focus-visible system, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility class adoption); AES-01..04,06,07 re-deferred to Phase 6.2. New discipline triumvirate for 6.2: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com) as the discipline pole, Notion as content frame, JARVIS as atmospheric mood only (cyan accent + subtle depth, no literal HUD vocabulary). Massive refactor of Phase 6.1's chrome — throw out corner crops on every surface, hex-grid background, 7-state motion machine, arc-reactor centerpiece. 6.2 is research-first via /gsd:research-phase + /gsd:ui-phase.
 - Phase 8 added (2026-05-25): public-landing-manifesto. Build-in-public stance — public-facing landing page at `/` that channels Karpathy-grade intellectual restraint through hyperpolymath's Garamond/paper/Renaissance voice. Manifesto IS the front door: thesis → live animated JARVIS demo (README ASCII block) → primitives spec (areas/projects/captures/JARVIS/calendar) → engine (Sonnet 4.6 + Strict Tool Use, one real input→JSON) → fork-or-use choice → quiet live build-log feed (last N commits, current phase, shipped-this-week). Logged-out `/` shows manifesto; logged-in `/` continues redirecting to `/today`. Independent of Phase 6.2 — landing route owns its own visual treatment derived from README voice. Inspired by Karpathy/Tan/Levels/Linear references; research pass required pre-plan. Must align with Phase 6.1 directional anchors (restraint over theatrics, JARVIS as MOOD only — not HUD-heavy). Workflow: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
+- Phase 15 added (2026-06-08): Training — user-agnostic fitness activity planner. Custom sport/activity types (name + color + optional has_distance), user-defined batches grouping types (e.g. Cardio: Running+Biking; Gym: Push/Pull/Legs), weekly planner with drag-drop between days, check-off / reschedule / cancel / update, completion logging including actual distance when type supports it, stats aggregated by type and by batch. Stack: Supabase Realtime + Drizzle + TanStack Query per existing conventions. Out of scope for MVP: wearables, GPS, social, templates/programs. Note: gsd-tools CLI initially assigned 1000 because of 999.x backlog entries; manually corrected to 15 (next sequential active-milestone integer after Phase 14) and directory renamed accordingly.
 - Milestone v1.1 opened (2026-05-28): Speed & Agility. Six new phases (9–14) extending the roadmap from the previous tail (Phase 8). Phase shape locked by `.planning/research/speed-agility/` synthesis + user decisions (Haiku fast-path IN, ElevenLabs/British KEPT, desktop shell LAST). Phase numbering continues from 8 (no decimal, no reset). Backlog stubs 999.6 (hibernation), 999.7 (interrupt), 999.8 (scoped wake-word) absorbed into Phases 12 + 14. Hard external deadline: Picovoice Porcupine free-tier sunset 2026-06-30 (Phase 12 timing pressure). Critical path: 9 → 10 → 11 (telemetry → quick wins → cache) lands in ~2 weeks; 12 + 13 + 14 follow somewhat in parallel.
 
 ### Decisions
@@ -328,6 +329,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-07T14:30:00.000Z
-Stopped at: Merged feature/jarvis-physical-extension into feature/lifeos-tab
-Resume file: None
+Last session: 2026-06-08T15:19:38.875Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-training-fitness-activity-planner/15-CONTEXT.md
