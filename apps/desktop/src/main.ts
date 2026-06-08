@@ -178,18 +178,10 @@ let _extendRegistered = false;
 function paintHotkeyStatus(_peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  // Both hotkeys register unconditionally now. Color-code so a silent
-  // registration failure is visually loud.
-  const wakeOk = _wakeRegistered;
-  const extOk = _extendRegistered;
-  const wakeLabel = `<span style="color:${wakeOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${wakeOk ? "✓" : "✗"} ${prettyHotkey(WAKE_HOTKEY)} wake</span>`;
-  const extLabel = `<span style="color:${extOk ? "var(--ok,#5b9d6a)" : "var(--err,#c43d3d)"}">${extOk ? "✓" : "✗"} ${prettyHotkey(_activeExtendHotkey)} extend</span>`;
-  el.innerHTML = `${wakeLabel} · ${extLabel}`;
-  if (!wakeOk || !extOk) {
-    el.title =
-      "If either shortcut shows ✗ after restart, another app has claimed it. " +
-      "Check System Settings → Keyboard → Keyboard Shortcuts.";
-  }
+  // Plain labels — no status glyphs. The fallback chain picks a chord
+  // that actually registers, so visual ✓/✗ feedback is just noise.
+  el.innerHTML = `${prettyHotkey(WAKE_HOTKEY)} wake · ${prettyHotkey(_activeExtendHotkey)} extend`;
+  el.removeAttribute("title");
 }
 
 function wireCancelButton(): void {
