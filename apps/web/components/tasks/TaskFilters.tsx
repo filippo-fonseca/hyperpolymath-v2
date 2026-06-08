@@ -23,10 +23,12 @@ const STATUSES = [
   "almost done",
   "lesno",
 ] as const;
+// "today"/"this-week"/"this-month" removed — the kanban day view now
+// owns the date dimension via its arrow + date-picker header, so a chip
+// filter on those buckets is redundant (and would double-filter inside
+// the column body). Overdue + No date stay because they cut across the
+// active day's slice (overdue ⊂ "any past day"; no date ⊂ Inbox).
 const DUE_OPTIONS = [
-  { value: "today", label: "Due today" },
-  { value: "this-week", label: "Due this week" },
-  { value: "this-month", label: "Due this month" },
   { value: "overdue", label: "Overdue" },
   { value: "no-date", label: "No date" },
 ] as const;

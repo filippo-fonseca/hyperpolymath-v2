@@ -57,6 +57,15 @@ interface Props {
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
   onToggleColumnSelection?: (status: Status, taskIds: string[]) => void;
+  /** Drag state lifted to the parent so cards outside the kanban (e.g.
+   * the Inbox tray) can also be dragged INTO the columns. When supplied,
+   * the board uses the parent's drag handlers + drop dispatcher instead
+   * of its own internal state. */
+  externalDraggedTaskId?: string | null;
+  externalDraggedFromStatus?: Status | null;
+  onExternalDragStart?: (id: string) => void;
+  onExternalDragEnd?: () => void;
+  onExternalDropOnStatus?: (target: Status) => void;
 }
 
 export function KanbanBoard({
@@ -69,9 +78,21 @@ export function KanbanBoard({
   selectedIds,
   onToggleSelected,
   onToggleColumnSelection,
+  externalDraggedTaskId,
+  externalDraggedFromStatus,
+  onExternalDragStart,
+  onExternalDragEnd,
+  onExternalDropOnStatus,
 }: Props) {
   const queryClient = useQueryClient();
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [internalDraggedTaskId, setInternalDraggedTaskId] = useState<string | null>(null);
+  const draggedTaskId = externalDraggedTaskId ?? internalDraggedTaskId;
+  const setDraggedTaskId = onExternalDragStart
+    ? (id: string | null) => {
+        if (id) onExternalDragStart(id);
+        else onExternalDragEnd?.();
+      }
+    : setInternalDraggedTaskId;
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
 
@@ -103,11 +124,17 @@ export function KanbanBoard({
   const draggedTask = draggedTaskId
     ? tasks.find((t) => t.id === draggedTaskId) ?? null
     : null;
-  const draggedFromStatus: Status | null = draggedTask
+  const internalDraggedFromStatus: Status | null = draggedTask
     ? (draggedTask.status as Status)
     : null;
+  const draggedFromStatus = externalDraggedFromStatus ?? internalDraggedFromStatus;
 
   function dropTaskOnStatus(targetStatus: Status) {
+    // External drop pipe — parent owns task lookup + dueDate side-effects.
+    if (onExternalDropOnStatus) {
+      onExternalDropOnStatus(targetStatus);
+      return;
+    }
     if (!draggedTask) return;
     if (draggedTask.status === targetStatus) {
       setDraggedTaskId(null);

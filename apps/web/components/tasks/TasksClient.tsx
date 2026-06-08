@@ -22,6 +22,7 @@ import {
   createTask,
   getTasksForCurrentUser,
   bulkUpdateTaskDueDate,
+  updateTask,
 } from "@/app/actions/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -146,6 +147,15 @@ export function TasksClient({
     setSelectedIds(new Set());
     setInboxOpen(false);
   }, [dateYmd, view]);
+
+  // Cross-surface drag (Inbox tray → kanban columns + Not-Started tray
+  // within KanbanBoard). Lifted to this component so the drag source
+  // (Inbox cards rendered here, OUTSIDE KanbanBoard) and the drop target
+  // (kanban columns INSIDE KanbanBoard) share state. On drop:
+  //   - status → target column
+  //   - dueDate → the active day (so a previously-undated inbox task lands
+  //     on today's board)
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
@@ -333,6 +343,46 @@ export function TasksClient({
     [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition],
   );
 
+  const draggedTask = useMemo(
+    () => (draggedTaskId ? optimisticTasks.find((t) => t.id === draggedTaskId) ?? null : null),
+    [draggedTaskId, optimisticTasks],
+  );
+  const draggedFromStatus = draggedTask ? (draggedTask.status as TaskStatus) : null;
+
+  const handleKanbanDrop = useCallback(
+    async (targetStatus: TaskStatus) => {
+      const t = draggedTask;
+      setDraggedTaskId(null);
+      if (!t) return;
+      const needsStatus = t.status !== targetStatus;
+      const needsDate = !t.dueDate || !isSameDay(new Date(t.dueDate), activeDate);
+      if (!needsStatus && !needsDate) return;
+      startTransition(() => {
+        addOptimistic({
+          type: "update",
+          id: t.id,
+          patch: {
+            ...(needsStatus ? { status: targetStatus } : {}),
+            ...(needsDate ? { dueDate: dateYmd } : {}),
+          },
+        });
+      });
+      const r = await updateTask({
+        id: t.id,
+        ...(needsStatus ? { status: targetStatus } : {}),
+        ...(needsDate ? { dueDate: dateYmd } : {}),
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("tasks", userId),
+      });
+    },
+    [draggedTask, dateYmd, activeDate, addOptimistic, queryClient, userId],
+  );
+
   async function handleCreateTask(input: {
     title: string;
     status: TaskStatus;
@@ -340,6 +390,12 @@ export function TasksClient({
     // RT-05: client-generated UUID flows through to the server so the
     // Realtime echo arrives with the same id (no-op in the reducer).
     const newId = crypto.randomUUID();
+    // Default the new task's due date to the day shown in the kanban
+    // header AND the status to whichever column the inline composer was
+    // in. Both come from props/state and require no extra UI affordance —
+    // matches the muscle-memory expectation that "the column I click is
+    // the column it lands in" and "today's tasks land on today."
+    const defaultedDueDate = dateYmd;
     startTransition(async () => {
       // Optimistic insert FIRST — UI flips instantly
       addOptimistic({
@@ -350,7 +406,7 @@ export function TasksClient({
           notes: null,
           priority: "P3",
           status: input.status,
-          dueDate: null,
+          dueDate: defaultedDueDate,
           kanbanPosition: 0,
           completedAt: null,
           createdAt: new Date(),
@@ -361,6 +417,7 @@ export function TasksClient({
         id: newId,
         title: input.title,
         status: input.status,
+        dueDate: defaultedDueDate,
         projectIds: [],
       });
       if (!r.success) {
@@ -555,6 +612,10 @@ export function TasksClient({
                           <TaskCard
                             task={t}
                             onClick={setOpenTaskId}
+                            draggable
+                            onDragStart={(id) => setDraggedTaskId(id)}
+                            onDragEnd={() => setDraggedTaskId(null)}
+                            isDragging={draggedTaskId === t.id}
                             selectionActive={selectedIds.size > 0}
                             isSelected={selectedIds.has(t.id)}
                             onToggleSelected={(id) => toggleSelected(id)}
@@ -582,6 +643,11 @@ export function TasksClient({
             selectedIds={selectedIds}
             onToggleSelected={(id) => toggleSelected(id)}
             onToggleColumnSelection={toggleColumnSelection}
+            externalDraggedTaskId={draggedTaskId}
+            externalDraggedFromStatus={draggedFromStatus}
+            onExternalDragStart={(id) => setDraggedTaskId(id)}
+            onExternalDragEnd={() => setDraggedTaskId(null)}
+            onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
           />
         </div>
       )}
