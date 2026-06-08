@@ -9,6 +9,10 @@ import {
   trainingActivityTypes,
   trainingBatches,
 } from "@/lib/db/schema";
+import {
+  getActivitiesInRange,
+  type ActivityWithType,
+} from "@/lib/db/queries/training";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -731,4 +735,31 @@ export async function deleteActivity(
       ),
     );
   return { success: true, data: null };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Read wrappers (for client TanStack Query refetch via Realtime invalidation)
+// ──────────────────────────────────────────────────────────────────────────
+
+const RangeSchema = z.object({
+  fromISO: IsoDateSchema,
+  toISO: IsoDateSchema,
+});
+
+/**
+ * Server-action wrapper around `getActivitiesInRange` so client useQuery
+ * refetches go through a "use server" RPC (no Drizzle in the bundle).
+ *
+ * The client passes the range string explicitly so the query key remains
+ * the source of truth for what window is being read.
+ */
+export async function listActivitiesInRange(
+  fromISO: string,
+  toISO: string,
+): Promise<ActivityWithType[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const parsed = RangeSchema.safeParse({ fromISO, toISO });
+  if (!parsed.success) return [];
+  return getActivitiesInRange(userId, parsed.data.fromISO, parsed.data.toISO);
 }
