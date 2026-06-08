@@ -116,6 +116,7 @@ export default async function SettingsPage() {
             initialDisplayName={user.displayName}
             initialBio={user.bio}
             initialAvatarUrl={user.avatarUrl}
+            initialGithubUsername={user.githubUsername}
             oauthAvatarUrl={oauthAvatar.avatarUrl}
           />
         </Card>

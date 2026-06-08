@@ -22,13 +22,19 @@ interface Props {
   claudeCode: Result<DailyUsage[]>;
   strava: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
   flow: Result<Session[]>;
+  githubUsername: string | null;
 }
 
-export function LifeTabPanel({ claudeCode, strava, flow }: Props) {
+export function LifeTabPanel({
+  claudeCode,
+  strava,
+  flow,
+  githubUsername,
+}: Props) {
   return (
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
       <div className="lg:col-span-2">
-        <GithubHeatmapPanel />
+        <GithubHeatmapPanel username={githubUsername} />
       </div>
       <ClaudeCodePanel result={claudeCode} />
       <StravaPanel result={strava} />

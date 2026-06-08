@@ -100,7 +100,7 @@ export default async function InsightsPage() {
             today: todayISO,
             earliestAvailable: startISO,
           }}
-          life={{ claudeCode, strava, flow }}
+          life={{ claudeCode, strava, flow, githubUsername: user.githubUsername }}
         />
       </main>
     </div>

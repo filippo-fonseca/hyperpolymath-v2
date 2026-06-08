@@ -63,6 +63,11 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  // GitHub handle (no @, just the username) for the Life-tab contributions
+  // heatmap and any future GitHub-backed surface. Null = not connected; the
+  // heatmap renders a "connect in settings" placeholder. User-editable from
+  // /settings and from the onboarding flow.
+  githubUsername: text("github_username"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   // Phase 11 / CACHE-03 (D-01) — tamper-proof freshness counter bumped by
   // Postgres BEFORE-triggers on tasks/captures/projects/areas/habits/jarvis_facts

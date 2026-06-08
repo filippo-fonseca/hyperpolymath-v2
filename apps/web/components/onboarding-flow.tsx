@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { PenLine, ListChecks, CalendarDays, ArrowLeft } from "lucide-react";
+import {
+  PenLine,
+  ListChecks,
+  CalendarDays,
+  ArrowLeft,
+  Github,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { completeOnboarding } from "@/app/(app)/onboarding/actions";
@@ -20,6 +26,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
   const [step, setStep] = useState<Step>("welcome");
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [graduationYear, setGraduationYear] = useState<string>("");
+  const [githubUsername, setGithubUsername] = useState<string>("");
   const [timezone, setTimezone] = useState<string>("UTC");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +145,31 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 />
               </Field>
 
+              <Field label="GitHub username (optional)" htmlFor="github_username">
+                <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--canvas)] focus-within:border-[var(--ink-amber)] transition-colors">
+                  <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--edge)] text-[var(--ink-muted)]">
+                    <Github className="h-3.5 w-3.5" />
+                    <span className="font-mono text-[12px]">@</span>
+                  </span>
+                  <input
+                    id="github_username"
+                    type="text"
+                    value={githubUsername}
+                    onChange={(e) =>
+                      setGithubUsername(
+                        e.target.value.replace(/^@/, "").trim(),
+                      )
+                    }
+                    placeholder="octocat"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    maxLength={39}
+                    className="flex-1 h-9 px-3 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                  />
+                </div>
+              </Field>
+
               <Field label="Timezone">
                 <div className="flex h-9 items-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] px-3 font-serif text-base text-[var(--ink)]">
                   {timezone}
@@ -218,6 +250,11 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 type="hidden"
                 name="graduation_year"
                 value={graduationYear}
+              />
+              <input
+                type="hidden"
+                name="github_username"
+                value={githubUsername}
               />
               <BackButton
                 onClick={() => setStep("you")}

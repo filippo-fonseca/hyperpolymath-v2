@@ -36,6 +36,7 @@ interface Props {
     claudeCode: Result<DailyUsage[]>;
     strava: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
     flow: Result<Session[]>;
+    githubUsername: string | null;
   };
 }
 
@@ -92,6 +93,7 @@ export function InsightsTabs({ jarvis, habits, life }: Props) {
           claudeCode={life.claudeCode}
           strava={life.strava}
           flow={life.flow}
+          githubUsername={life.githubUsername}
         />
       )}
     </div>

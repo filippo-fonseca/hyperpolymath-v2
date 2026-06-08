@@ -17,6 +17,10 @@ const DEFAULT_AREAS: Array<{ name: string; emoji: string }> = [
   { name: "Studies", emoji: "📚" },
 ];
 
+// GitHub usernames: 1-39 chars, alphanumeric + single hyphens (no leading/
+// trailing). Matches the same rule used by the settings updateProfile action.
+const GITHUB_USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
 const OnboardingSchema = z.object({
   displayName: z.string().trim().min(1, "Please enter a name").max(60),
   timezone: z.string().trim().min(1).max(80),
@@ -24,6 +28,9 @@ const OnboardingSchema = z.object({
   graduationYear: z
     .union([z.string().length(0), z.string().regex(/^\d{4}$/)])
     .optional(),
+  // Optional — user may not have a GitHub or may want to add one later
+  // from /settings. Empty string accepted and normalized to null.
+  githubUsername: z.string().max(40).optional(),
 });
 
 export interface OnboardingInitialValues {
@@ -56,9 +63,25 @@ export async function completeOnboarding(formData: FormData): Promise<void> {
     displayName: formData.get("display_name"),
     timezone: formData.get("timezone"),
     graduationYear: formData.get("graduation_year") ?? undefined,
+    githubUsername: formData.get("github_username") ?? undefined,
   });
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid input");
+  }
+
+  // Sanitize the GitHub handle: strip leading @ + trailing slash, validate
+  // against the regex. Invalid input becomes null (rather than throwing)
+  // so a typo here doesn't block the whole onboarding submission — the
+  // user can still set it from /settings later.
+  let githubUsername: string | null = null;
+  if (parsed.data.githubUsername && parsed.data.githubUsername.trim() !== "") {
+    const cleaned = parsed.data.githubUsername
+      .trim()
+      .replace(/^@/, "")
+      .replace(/\/$/, "");
+    if (GITHUB_USERNAME_RE.test(cleaned)) {
+      githubUsername = cleaned;
+    }
   }
 
   const supabase = await createClient();
@@ -78,6 +101,7 @@ export async function completeOnboarding(formData: FormData): Promise<void> {
       displayName: parsed.data.displayName,
       timezone: parsed.data.timezone,
       graduationYear: gradYear,
+      githubUsername,
       onboardedAt: sql`now()`,
     })
     .where(eq(users.id, userId));
