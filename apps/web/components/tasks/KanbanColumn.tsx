@@ -21,41 +21,31 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   lesno: "Lesno",
 };
 
-const STATUS_ACCENT: Record<
-  TaskStatus,
-  { dot: string; bg: string; rim: string; cardBg: string }
-> = {
-  "not started": {
-    dot: "oklch(0.72 0.02 80)",
-    bg: "oklch(0.21 0.02 80 / 0.55)",
-    rim: "oklch(0.42 0.04 80 / 0.6)",
-    cardBg: "oklch(0.27 0.03 80 / 0.8)",
-  },
-  "up next": {
-    dot: "oklch(0.78 0.16 80)",
-    bg: "oklch(0.22 0.04 75 / 0.75)",
-    rim: "oklch(0.55 0.13 75 / 0.6)",
-    cardBg: "oklch(0.30 0.07 60 / 0.85)",
-  },
-  "in progress": {
-    dot: "oklch(0.74 0.16 240)",
-    bg: "oklch(0.22 0.05 245 / 0.78)",
-    rim: "oklch(0.52 0.13 245 / 0.6)",
-    cardBg: "oklch(0.30 0.08 260 / 0.85)",
-  },
-  "almost done": {
-    dot: "oklch(0.78 0.16 305)",
-    bg: "oklch(0.22 0.05 295 / 0.78)",
-    rim: "oklch(0.55 0.13 295 / 0.6)",
-    cardBg: "oklch(0.30 0.08 290 / 0.85)",
-  },
-  lesno: {
-    dot: "oklch(0.78 0.18 160)",
-    bg: "oklch(0.22 0.05 175 / 0.78)",
-    rim: "oklch(0.52 0.12 175 / 0.6)",
-    cardBg: "oklch(0.30 0.07 180 / 0.85)",
-  },
+// Each status gets a vibrant hue (the dot). bg, rim, and cardBg are
+// derived from the dot via color-mix against canvas/surface tokens so
+// they adapt automatically to light vs dark mode — no hardcoded dark
+// OKLCH lightness values (which were the previous design and turned
+// into murky dark blocks on the light parchment canvas).
+const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
+  "not started": { dot: "oklch(0.72 0.02 80)" },
+  "up next":     { dot: "oklch(0.78 0.16 80)" },
+  "in progress": { dot: "oklch(0.74 0.16 240)" },
+  "almost done": { dot: "oklch(0.78 0.16 305)" },
+  lesno:         { dot: "oklch(0.78 0.18 160)" },
 };
+
+function deriveAccent(dot: string) {
+  return {
+    dot,
+    // Light wash of the hue against the canvas. ~12% hue mix gives a
+    // tint you can read but doesn't drown the cards.
+    bg: `color-mix(in oklch, var(--canvas) 88%, ${dot})`,
+    // Slightly more saturated for the inset border.
+    rim: `color-mix(in oklch, var(--edge) 55%, ${dot})`,
+    // Card background sits just above the column wash.
+    cardBg: `color-mix(in oklch, var(--surface-raised) 90%, ${dot})`,
+  };
+}
 
 interface Props {
   status: TaskStatus;
@@ -83,7 +73,7 @@ export function KanbanColumn({
   pendingTaskId,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const accent = STATUS_ACCENT[status];
+  const accent = deriveAccent(STATUS_ACCENT[status].dot);
 
   const restingShadow = `inset 0 0 0 1px ${accent.rim}`;
   const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`;
