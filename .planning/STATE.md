@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-06-08T15:19:38.880Z"
-last_activity: 2026-06-07 - Merged feature/jarvis-physical-extension into feature/lifeos-tab (voice surface, physical extension bridge, latency telemetry phases 09-14 + LifeOS work consolidated on one branch)
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-06-08T15:57:59.437Z"
+last_activity: 2026-06-08
 progress:
   total_phases: 29
   completed_phases: 11
-  total_plans: 71
-  completed_plans: 59
+  total_plans: 77
+  completed_plans: 60
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 14 — jarvis-desktop-mic-middleman
+**Current focus:** Phase 15 — training-fitness-activity-planner
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
-Plan: 3 of 5
+Phase: 15 (training-fitness-activity-planner) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-06-07 - Merged feature/jarvis-physical-extension into feature/lifeos-tab (voice surface, physical extension bridge, latency telemetry phases 09-14 + LifeOS work consolidated on one branch)
+Last activity: 2026-06-08
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -111,6 +111,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
 | Phase 14-jarvis-desktop-mic-middleman P02 | 5 | 2 tasks | 11 files |
 | Phase 14 P04 | 40 | 7 tasks | 19 files |
+| Phase 15 P01 | 3 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -307,6 +308,7 @@ Recent decisions affecting current work:
 - [Phase 14]: voiceActive=false for tool schema in run-turn.ts (voice_summary is browser-TTS concern; server-side voice turns skip it)
 - [Phase 14]: turnId pre-generated in route.ts and passed to runJarvisTurnStream so Plan 09-02 beacon correlation is preserved
 - [Phase 14]: runJarvisTurnStream fires void after returning 200 to voice/transcript; response chunks stream via SSE asynchronously
+- [Phase 15]: Plan 15-01: training migration numbered 0022 (0021 was taken); activity_type FK uses ON DELETE RESTRICT
 
 ### Pending Todos
 
@@ -329,6 +331,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-08T15:19:38.875Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-training-fitness-activity-planner/15-CONTEXT.md
+Last session: 2026-06-08T15:57:59.433Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

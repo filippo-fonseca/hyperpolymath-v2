@@ -383,7 +383,7 @@ Plans:
 **Requirements**: TRN-01 through TRN-18 (defined during /gsd:plan-phase 15)
 **Out of scope for this phase**: wearable integration, GPS tracking, social features, workout templates/programs — capture as backlog if needed
 **Plans**: 6 plans
-- [ ] 15-01-PLAN.md — Schema + 0021 migration + RLS + state_version triggers + RealtimeTable union extension
+- [x] 15-01-PLAN.md — Schema + 0021 migration + RLS + state_version triggers + RealtimeTable union extension
 - [ ] 15-02-PLAN.md — OKLCH color-blend + palette + distance + week libraries + Drizzle queries + Server Actions
 - [ ] 15-03-PLAN.md — Weekly planner: route + TrainingBoard + @dnd-kit drag-between-days + ActivityCard + inline create + sidebar nav
 - [ ] 15-04-PLAN.md — Manage Types Sheet (batches + types sortable CRUD) + ColorPicker + CompleteActivityDialog + ActivityEditDialog wiring
@@ -415,7 +415,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
-| 15. Training — fitness activity planner | 0/TBD | Not started | - |
+| 15. Training — fitness activity planner | 1/6 | In Progress|  |
 
 ## Backlog
 
@@ -431,7 +431,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 4/5 plans executed
+**Plans:** 1/6 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
