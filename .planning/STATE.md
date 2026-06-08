@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-06-08T16:07:44.929Z"
+stopped_at: Completed 15-03-PLAN.md (planner UI + sidebar nav)
+last_updated: "2026-06-08T16:12:31.418Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 29
   completed_phases: 11
   total_plans: 77
-  completed_plans: 62
+  completed_plans: 63
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 15 (training-fitness-activity-planner) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-06-08
 
@@ -114,6 +114,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 15 P01 | 3 | 3 tasks | 3 files |
 | Phase 15 P02 | 12m | 3 tasks | 8 files |
 | Phase 15 P06 | 8 | 2 tasks | 5 files |
+| Phase 15 P03 | 9 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -313,6 +314,8 @@ Recent decisions affecting current work:
 - [Phase 15]: Plan 15-01: training migration numbered 0022 (0021 was taken); activity_type FK uses ON DELETE RESTRICT
 - [Phase 15]: OKLCH circular hue averaging (atan2) is the right blend math — verified by warm-red+magenta test landing in warm range not cyan
 - [Phase 15]: deleteType blocks deletion when ANY activities reference the type (not just non-archived); matches Open Q4 'Archive instead?' UX
+- [Phase 15]: Sidebar nav entry lives in PersistentNav.tsx (not SidebarTree.tsx); SidebarTree owns the areas/projects tree only
+- [Phase 15]: manageOpen state lifted to TrainingClient (Pitfall 8); ManageTypesSheet body slots into the lifted state in plan 15-04
 
 ### Pending Todos
 
@@ -335,6 +338,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-08T16:03:25.049Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-06-08T16:12:22.404Z
+Stopped at: Completed 15-03-PLAN.md (planner UI + sidebar nav)
 Resume file: None
