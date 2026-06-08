@@ -8,6 +8,10 @@ import {
 } from "@/app/actions/habits";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
+import {
+  getActivitiesInRange,
+  getDistanceUnit,
+} from "@/lib/db/queries/training";
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
@@ -15,6 +19,7 @@ import { LifeOsWallpaper } from "@/components/lifeos/LifeOsWallpaper";
 import { LifeOsWidgetGrid } from "@/components/lifeos/LifeOsWidgetGrid";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
+import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +56,8 @@ export default async function LifeOsPage() {
     initialCaptures,
     availableProjects,
     initialTasks,
+    initialTrainingActivities,
+    distanceUnit,
   ] = await Promise.all([
     getHabitsForCurrentUser(),
     getHabitCompletionsInRange(todayISO, todayISO),
@@ -65,6 +72,8 @@ export default async function LifeOsPage() {
       .from(projects)
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     getAllTasksForUser(user.id),
+    getActivitiesInRange(user.id, todayISO, todayISO),
+    getDistanceUnit(user.id),
   ]);
 
   return (
@@ -93,6 +102,12 @@ export default async function LifeOsPage() {
           <UpcomingTasksWidget
             userId={user.id}
             initialTasks={initialTasks}
+          />
+          <TodayTrainingWidget
+            userId={user.id}
+            initialActivities={initialTrainingActivities}
+            distanceUnit={distanceUnit}
+            todayISO={todayISO}
           />
         </LifeOsWidgetGrid>
       </div>
