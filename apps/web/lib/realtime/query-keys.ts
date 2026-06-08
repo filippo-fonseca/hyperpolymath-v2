@@ -14,6 +14,11 @@ export type RealtimeTable =
   | "tasks_projects"
   | "captures_projects"
   | "jarvis_facts" // Phase 5.1 (D-M6 — Settings → Memory live updates)
+  // 2026-06 multi-tenancy / live-tail — JARVIS turns + per-stage events
+  // broadcast on every desktop-driven voice run so the browser scrollback
+  // stays in sync without depending on the per-tab SSE pipe.
+  | "jarvis_turns"
+  | "jarvis_events"
   | "habits"
   | "habits_areas"
   | "habit_completions"

@@ -536,8 +536,15 @@ export function JarvisConsole({
         text: detail.transcript,
         createdAt: new Date(),
       };
-      setTurns([userTurn]);
-      turnsRef.current = [userTurn];
+      // 2026-06 fix: previously `setTurns([userTurn])` wiped the entire
+      // scrollback on every voice transcript so the conversation history
+      // vanished the moment the desktop spoke. Append instead so the
+      // browser shows a real running conversation.
+      setTurns((prev) => {
+        const next = [...prev, userTurn];
+        turnsRef.current = next;
+        return next;
+      });
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
