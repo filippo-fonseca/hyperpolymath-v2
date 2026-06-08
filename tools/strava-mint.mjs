@@ -26,19 +26,46 @@
  * FIRST one. The web app (lib/integrations/strava/activities.ts) handles
  * subsequent rotations transparently.
  */
-import 'dotenv/config';
 import http from 'node:http';
 import { exec } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import postgres from 'postgres';
-import dotenv from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Also load apps/web/.env.local explicitly — that's the canonical env file.
-dotenv.config({ path: path.resolve(__dirname, '..', 'apps', 'web', '.env.local') });
+const REPO_ROOT = path.resolve(__dirname, '..');
+const WEB_DIR = path.join(REPO_ROOT, 'apps', 'web');
+
+// Resolve `postgres` from the web workspace's node_modules so this script
+// stays zero-install — no top-level deps to maintain just for tooling.
+const requireFromWeb = createRequire(path.join(WEB_DIR, 'package.json'));
+const postgres = requireFromWeb('postgres');
+
+// Minimal dotenv loader (matches the parser in tools/claude-code-sync.mjs).
+// Loads apps/web/.env then apps/web/.env.local (the canonical env files).
+function loadEnvFile(p) {
+  try {
+    const raw = readFileSync(p, 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq < 0) continue;
+      const k = trimmed.slice(0, eq).trim();
+      let v = trimmed.slice(eq + 1).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1);
+      }
+      // process.env takes precedence over file values.
+      if (process.env[k] === undefined) process.env[k] = v;
+    }
+  } catch { /* file missing — fine */ }
+}
+loadEnvFile(path.join(WEB_DIR, '.env'));
+loadEnvFile(path.join(WEB_DIR, '.env.local'));
 
 const REDIRECT_URI = 'http://localhost:53682/callback';
 const SCOPE = 'activity:read_all';
