@@ -492,6 +492,30 @@ export const flowSessions = pgTable(
   ],
 );
 
+// desktop_devices — per-device auth tokens for the Tauri desktop app.
+// Pasted once into the desktop's settings (minted from /settings/desktop on
+// the web) and sent as `Authorization: Bearer hpd_...` on every API call.
+// Only the hash is stored; the plaintext token is returned to the user once
+// at mint time and never persisted.
+export const desktopDevices = pgTable(
+  "desktop_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // sha256 hex of the plaintext token (64 chars).
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("desktop_devices_user_idx").on(t.userId),
+  ],
+);
+
 // claude_code_usage — daily Claude Code token totals.
 // Populated by a local cron (tools/claude-code-sync.mjs) that runs ccusage
 // on the user's laptop and POSTs to /api/integrations/claude-code/sync.

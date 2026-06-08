@@ -49,6 +49,7 @@ import {
   type JarvisResponseComplete,
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
+import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -338,6 +339,52 @@ async function boot(): Promise<void> {
     modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (⌃⌥J)";
   }
   paintHotkeyStatus(settings.physicalExtenderEnabled);
+
+  // 1b. Wire device token (Authorization: Bearer hpd_...) for prod auth.
+  const tokenInputEl = document.getElementById("device-token-input") as HTMLInputElement | null;
+  const tokenStatusEl = document.getElementById("token-status");
+  const tokenSaveEl = document.getElementById("device-token-save");
+  const tokenClearEl = document.getElementById("device-token-clear");
+  const tokenMintLinkEl = document.getElementById("device-token-mint-link") as HTMLAnchorElement | null;
+  const paintTokenStatus = (token: string | null) => {
+    if (!tokenStatusEl) return;
+    if (token) {
+      tokenStatusEl.textContent = `✓ ${token.slice(0, 8)}…`;
+      tokenStatusEl.style.color = "var(--ok, #5b9d6a)";
+    } else {
+      tokenStatusEl.textContent = "unauthenticated — paste a token below";
+      tokenStatusEl.style.color = "var(--muted)";
+    }
+  };
+  paintTokenStatus(await getDeviceToken());
+  if (tokenMintLinkEl) {
+    const { apiBaseUrl } = (await import("@/env")).getEnv();
+    const mintUrl = `${apiBaseUrl}/settings/desktop`;
+    tokenMintLinkEl.href = mintUrl;
+    tokenMintLinkEl.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.open(mintUrl, "_blank");
+    });
+  }
+  if (tokenSaveEl && tokenInputEl) {
+    tokenSaveEl.addEventListener("click", async () => {
+      const value = tokenInputEl.value.trim();
+      if (!value || !value.startsWith("hpd_")) {
+        // eslint-disable-next-line no-console
+        console.warn("[device-token] token must start with hpd_");
+        return;
+      }
+      await setDeviceToken(value);
+      tokenInputEl.value = "";
+      paintTokenStatus(value);
+    });
+  }
+  if (tokenClearEl) {
+    tokenClearEl.addEventListener("click", async () => {
+      await setDeviceToken(null);
+      paintTokenStatus(null);
+    });
+  }
 
   // 2. Wire TTS enabled toggle
   if (ttsEnabledEl) {

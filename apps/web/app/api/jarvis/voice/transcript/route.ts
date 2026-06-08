@@ -10,6 +10,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -27,17 +28,18 @@ const CORS = {
 };
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const expected = process.env.PHYSICAL_TRIGGER_SECRET;
-  if (!expected) {
-    return Response.json(
-      { error: "PHYSICAL_TRIGGER_SECRET not configured on server" },
-      { status: 500, headers: CORS },
-    );
-  }
-
-  const provided = req.headers.get("x-trigger-secret");
-  if (!provided || provided !== expected) {
-    return new Response("Unauthorized", { status: 401, headers: CORS });
+  // Two acceptable callers:
+  //   1. Desktop app — Authorization: Bearer hpd_... (per-device token,
+  //      revocable from /settings/desktop). The right path going forward.
+  //   2. ESP32 bridge — X-Trigger-Secret matching PHYSICAL_TRIGGER_SECRET.
+  //      Kept for the dedicated hardware path which has no user account.
+  const desktopUserId = await validateDesktopBearer(req);
+  if (!desktopUserId) {
+    const expected = process.env.PHYSICAL_TRIGGER_SECRET;
+    const provided = req.headers.get("x-trigger-secret");
+    if (!expected || !provided || provided !== expected) {
+      return new Response("Unauthorized", { status: 401, headers: CORS });
+    }
   }
 
   const audioBuffer = await req.arrayBuffer();

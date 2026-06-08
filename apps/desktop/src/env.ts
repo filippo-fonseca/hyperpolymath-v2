@@ -19,16 +19,12 @@ export function getEnv(): DesktopEnv {
   const apiBaseUrl =
     (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ??
     "http://localhost:3000";
+  // Legacy header — required by the ESP32 bridge path and kept as a fallback
+  // for the desktop while we migrate to per-device bearer tokens. Empty
+  // string is acceptable now; the device token (Authorization: Bearer)
+  // pasted in via Settings is the canonical auth.
   const triggerSecret =
-    (import.meta.env["VITE_PHYSICAL_TRIGGER_SECRET"] as string | undefined) ??
-    "";
-
-  if (!triggerSecret) {
-    throw new Error(
-      "VITE_PHYSICAL_TRIGGER_SECRET is not set. " +
-        "Add it to apps/desktop/.env.local matching the value in apps/web/.env.local.",
-    );
-  }
+    (import.meta.env["VITE_PHYSICAL_TRIGGER_SECRET"] as string | undefined) ?? "";
 
   cached = { apiBaseUrl, triggerSecret };
   return cached;
