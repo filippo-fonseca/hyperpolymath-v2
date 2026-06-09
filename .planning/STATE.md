@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 999.12-02-PLAN.md
-last_updated: "2026-06-09T19:44:55.581Z"
+stopped_at: Completed 999.12-03-PLAN.md
+last_updated: "2026-06-09T20:02:11.962Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 32
   completed_phases: 12
   total_plans: 82
-  completed_plans: 67
+  completed_plans: 68
   percent: 0
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 999.12 (personal-context-graph-daily-mcp-export) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
-Last activity: 2026-06-09 - Completed quick task 260609-luc: branding reference page
+Last activity: 2026-06-09
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -119,6 +119,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 15-training-fitness-activity-planner P05 | 10m | 3 tasks | 10 files |
 | Phase 999.12 P01 | 5min | 3 tasks | 4 files |
 | Phase 999.12 P02 | 11min | 3 tasks | 14 files |
+| Phase 999.12-personal-context-graph-daily-mcp-export P03 | ~11min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -331,6 +332,9 @@ Recent decisions affecting current work:
 - [Phase 999.12]: Plan 02: caps live in loaders not schema (tasks 200, captures 50/500-char, training 30). meta.excludedNoExportCount tracks the recency window not unbounded history
 - [Phase 999.12]: Plan 02: noExport gated in TS not WHERE — SELECT no_export, skip-with-count. Surfaces excludedNoExportCount without a second COUNT query and is robust to mid-build flips
 - [Phase 999.12]: Plan 02: Zod 4 UUID strict-format gotcha — pad-counter test fixtures (00000000-…-0010) fail format; all fixtures use crypto.randomUUID() (v4). Documented inline in build-snapshot.test.ts
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Zod schemas in packages/personal-context-mcp/ duplicated verbatim from apps/web/lib/context/types.ts (MCP-01 zero-coupling). Lock-step bumps documented in PRIVACY.md §6.
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Tool registration split into makeXHandler(ctx) + registerX(server, ctx) so tests drive handlers directly without spinning up an MCP transport.
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: get_current_context.topics[] filters NODES ONLY (edges always returned in full); get_snapshot_history capped at days=30 + metadata-only (no nodes/edges arrays) to stay under MCP response budget.
 
 ### Pending Todos
 
@@ -354,6 +358,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:44:36.582Z
-Stopped at: Completed 999.12-02-PLAN.md
+Last session: 2026-06-09T20:01:58.722Z
+Stopped at: Completed 999.12-03-PLAN.md
 Resume file: None

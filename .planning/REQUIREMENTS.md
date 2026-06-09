@@ -225,12 +225,12 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 
 ### MCP Server — Personal Context (Phase 999.12)
 
-- [ ] **MCP-01**: `packages/personal-context-mcp/` workspace package exports `createPersonalContextServer({ userId, db })` returning a configured MCP `Server` instance; mirrors the `packages/jarvis-core/` factoring
+- [x] **MCP-01**: `packages/personal-context-mcp/` workspace package exports `createPersonalContextServer({ userId, db })` returning a configured MCP `Server` instance; mirrors the `packages/jarvis-core/` factoring
 - [ ] **MCP-02**: `app/api/mcp/[...transport]/route.ts` mounts the MCP server over `StreamableHTTPServerTransport` (NOT stdio); `runtime = 'nodejs'` is explicit
 - [x] **MCP-03**: `integration_tokens` table is reused with `provider = 'mcp_agent'`; the MCP route validates `Authorization: Bearer <token>` against the table and resolves it to a `userId` before instantiating the server
-- [ ] **MCP-04**: V1 tools `get_current_context({ topics?: NodeKind[] })` and `get_snapshot_history({ days?: number })` are defined with Zod input schemas and read-only handlers that query `personal_context_snapshots` via Drizzle; `get_snapshot_history` returns metadata-only (no payloads)
+- [x] **MCP-04**: V1 tools `get_current_context({ topics?: NodeKind[] })` and `get_snapshot_history({ days?: number })` are defined with Zod input schemas and read-only handlers that query `personal_context_snapshots` via Drizzle; `get_snapshot_history` returns metadata-only (no payloads)
 - [ ] **MCP-05**: `/settings/mcp-tokens` page lets the user mint, list, and revoke MCP agent tokens (mirror `/settings/desktop`); mint flow displays the raw token exactly once with a copy button
-- [ ] **MCP-06**: `packages/personal-context-mcp/PRIVACY.md` documents the exact set of node types exported, the `no_export` filtering behavior, what is NEVER exported (raw conversation history, OAuth tokens, encrypted secrets), and the token-rotation guidance
+- [x] **MCP-06**: `packages/personal-context-mcp/PRIVACY.md` documents the exact set of node types exported, the `no_export` filtering behavior, what is NEVER exported (raw conversation history, OAuth tokens, encrypted secrets), and the token-rotation guidance
 - [ ] **MCP-07**: ~~`query_context({ question, k })` semantic search over snapshot history via pgvector + embeddings~~ **DEFERRED to follow-on phase 999.12.1** — read-only retrieval ships first
 
 ## v2 Requirements

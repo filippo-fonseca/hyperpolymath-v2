@@ -597,7 +597,7 @@ Plans:
 Plans:
 - [x] 999.12-01-PLAN.md — Wave 1: DB foundation — migration 0026 (personal_context_snapshots + RLS) + migration 0027 (no_export columns on captures/tasks/jarvis_facts) + Drizzle schema updates (CTX-01, CTX-04, MCP-03)
 - [x] 999.12-02-PLAN.md — Wave 1: Typed snapshot builder — apps/web/lib/context/ data layer with Zod Node/Edge discriminated unions, per-node loaders with no_export filter + caps, deriveEdges, buildSnapshot, migrate, persistSnapshot (CTX-02, CTX-03, CTX-04, CTX-09)
-- [ ] 999.12-03-PLAN.md — Wave 2: packages/personal-context-mcp/ workspace package — types + createPersonalContextServer factory + get_current_context + get_snapshot_history tools + PRIVACY.md field allowlist (MCP-01, MCP-04, MCP-06)
+- [x] 999.12-03-PLAN.md — Wave 2: packages/personal-context-mcp/ workspace package — types + createPersonalContextServer factory + get_current_context + get_snapshot_history tools + PRIVACY.md field allowlist (MCP-01, MCP-04, MCP-06)
 - [ ] 999.12-04-PLAN.md — Wave 2: Next.js API surfaces — bearer mint/verify helpers + Streamable HTTP /api/mcp endpoint + Vercel cron route + manual /api/context/rebuild + vercel.json cron entry (CTX-06, CTX-07, MCP-02, MCP-03)
 - [ ] 999.12-05-PLAN.md — Wave 3: Settings UI — /settings/context (snapshot preview + Rebuild now) + /settings/mcp-tokens (mint/list/revoke mirroring /settings/desktop) + NoExportToggle component + end-to-end human-verify with a live MCP client (CTX-05, CTX-08, MCP-05)
 
