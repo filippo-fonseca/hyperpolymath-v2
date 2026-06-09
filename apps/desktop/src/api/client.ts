@@ -9,6 +9,24 @@
 import { fetch } from "@tauri-apps/plugin-http";
 
 import { getEnv } from "@/env";
+import { getDeviceToken } from "@/auth/device-token";
+
+/**
+ * Build auth headers for outgoing requests.
+ *
+ * If a device token has been pasted in (from /settings/desktop), prefer it —
+ * the server's validateDesktopBearer maps it to a user_id. Always also send
+ * the legacy x-trigger-secret header so the ESP32 path keeps working until
+ * we fully retire it. The server short-circuits on the bearer when valid.
+ */
+async function authHeaders(triggerSecret: string): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    "x-trigger-secret": triggerSecret,
+  };
+  const token = await getDeviceToken();
+  if (token) headers["authorization"] = `Bearer ${token}`;
+  return headers;
+}
 
 /**
  * POST /api/jarvis/voice/source/claim
@@ -21,7 +39,7 @@ export async function postClaim(): Promise<void> {
   const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/source/claim`, {
     method: "POST",
     headers: {
-      "x-trigger-secret": triggerSecret,
+      ...(await authHeaders(triggerSecret)),
       "content-type": "application/json",
     },
     body: "{}",
@@ -50,8 +68,8 @@ export async function postTts(args: {
   const res = await fetch(`${apiBaseUrl}/api/jarvis/tts`, {
     method: "POST",
     headers: {
+      ...(await authHeaders(triggerSecret)),
       "content-type": "application/json",
-      "x-trigger-secret": triggerSecret,
     },
     body: JSON.stringify({ text: args.text, voiceId: args.voiceId }),
   });
@@ -86,7 +104,7 @@ export async function postTranscript(args: {
   const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/transcript`, {
     method: "POST",
     headers: {
-      "x-trigger-secret": triggerSecret,
+      ...(await authHeaders(triggerSecret)),
       "content-type": "audio/wav",
       "x-jarvis-vad-end-at": String(args.vadEndAt),
     },

@@ -18,6 +18,12 @@ async function getUserId(): Promise<string | null> {
   return data.claims.sub;
 }
 
+// GitHub usernames are 1-39 chars, alphanumeric plus single hyphens (not
+// leading/trailing). We accept the looser shape here because the input is
+// user-typed (paste with @, trailing slash, etc.) and we sanitize before
+// persisting. Empty string → null.
+const GITHUB_USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
 const ProfileSchema = z.object({
   displayName: z
     .string()
@@ -27,6 +33,11 @@ const ProfileSchema = z.object({
     .string()
     .max(280, "Bio must be 280 characters or fewer")
     .nullable(),
+  githubUsername: z
+    .string()
+    .max(39, "GitHub username must be 39 characters or fewer")
+    .nullable()
+    .optional(),
 });
 
 const AvatarSchema = z.object({
@@ -41,7 +52,13 @@ const AvatarSchema = z.object({
  */
 export async function updateProfile(
   input: unknown,
-): Promise<ActionResult<{ displayName: string | null; bio: string | null }>> {
+): Promise<
+  ActionResult<{
+    displayName: string | null;
+    bio: string | null;
+    githubUsername: string | null;
+  }>
+> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
 
@@ -56,16 +73,47 @@ export async function updateProfile(
     parsed.data.displayName?.trim() === "" ? null : parsed.data.displayName;
   const bio = parsed.data.bio?.trim() === "" ? null : parsed.data.bio;
 
+  // GitHub field is optional on the action input — older callers (legacy
+  // updates that don't touch GitHub) pass undefined and we leave the column
+  // alone. Empty string normalizes to null. Anything else gets sanitized
+  // (strip @, whitespace, trailing slash) and validated against the GitHub
+  // username regex; we reject early with a friendly message rather than let
+  // a bad value persist and break the heatmap.
+  let ghPatch: { githubUsername: string | null } | null = null;
+  if (parsed.data.githubUsername !== undefined) {
+    const raw = parsed.data.githubUsername;
+    if (raw === null || raw.trim() === "") {
+      ghPatch = { githubUsername: null };
+    } else {
+      const cleaned = raw.trim().replace(/^@/, "").replace(/\/$/, "");
+      if (!GITHUB_USERNAME_RE.test(cleaned)) {
+        return {
+          success: false,
+          error:
+            "GitHub username may contain letters, numbers, and single hyphens.",
+        };
+      }
+      ghPatch = { githubUsername: cleaned };
+    }
+  }
+
   await db
     .update(users)
-    .set({ displayName, bio })
+    .set({ displayName, bio, ...(ghPatch ?? {}) })
     .where(eq(users.id, userId));
 
   // Sidebar lives at the app group layout boundary; revalidate so the chip
   // re-renders with the new display name on the next navigation.
   revalidatePath("/", "layout");
 
-  return { success: true, data: { displayName, bio } };
+  return {
+    success: true,
+    data: {
+      displayName,
+      bio,
+      githubUsername: ghPatch ? ghPatch.githubUsername : null,
+    },
+  };
 }
 
 /**

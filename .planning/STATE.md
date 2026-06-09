@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
-last_updated: "2026-06-06T20:28:55.493Z"
-last_activity: 2026-06-06
+stopped_at: Completed 15-05-PLAN.md
+last_updated: "2026-06-08T16:39:02.966Z"
+last_activity: 2026-06-08
 progress:
-  total_phases: 28
-  completed_phases: 11
-  total_plans: 71
-  completed_plans: 59
+  total_phases: 29
+  completed_phases: 12
+  total_plans: 77
+  completed_plans: 65
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 14 — jarvis-desktop-mic-middleman
+**Current focus:** Phase 15 — training-fitness-activity-planner
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 14 (jarvis-desktop-mic-middleman) — EXECUTING
-Plan: 3 of 5
+Phase: 999.1
+Plan: Not started
 Status: Ready to execute
-Last activity: 2026-06-06
+Last activity: 2026-06-08
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -111,6 +111,12 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 12-on-device-wake-word-mic-gating-deadline-bound P01 | 6min | 4 tasks | 13 files |
 | Phase 14-jarvis-desktop-mic-middleman P02 | 5 | 2 tasks | 11 files |
 | Phase 14 P04 | 40 | 7 tasks | 19 files |
+| Phase 15 P01 | 3 | 3 tasks | 3 files |
+| Phase 15 P02 | 12m | 3 tasks | 8 files |
+| Phase 15 P06 | 8 | 2 tasks | 5 files |
+| Phase 15 P03 | 9 | 3 tasks | 8 files |
+| Phase 15-training-fitness-activity-planner P04 | ~25min | 3 tasks | 10 files |
+| Phase 15-training-fitness-activity-planner P05 | 10m | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -120,6 +126,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 - Phase 6.1 inserted after Phase 6 (2026-05-19): visual-redesign-jarvis-notion. User rejected Phase 6's visual contract live at 06-05 Task 3 checkpoint: "I do not like the UI. Needs to look like as if the UI for JARVIS from Tony Stark had a baby with Notion." Phase 6 closed passed_with_deferrals on functional plumbing (RES-01..04,06,07 + SET-03 + AES-05); AES-01..04,06,07 deferred to 6.1. 6.1 is research-first via /gsd:ui-phase producing a fresh UI-SPEC for the holographic-AI × clean-document target. Phase 6 commits stay in main — design-token infrastructure carries forward; only values and surface treatments change.
 - Phase 6.2 inserted after Phase 6.1 (2026-05-19 PM): anthropic-discipline-rebuild. User rejected Phase 6.1's cumulative HUD-heavy visual surface during 06.1-06 Task 3 walkthrough: "i need you to do a massive refactor. research properly the UI of claude code / anthropic + notion paired with something like what jarvis from tony stark has. do another phase. i still do not like how it looks and everything feels clunky and blah." Then reinforced cyan-canonical via second image reference + "we are doing it jarvis-esque like in the tony stark movie." Phase 6.1 closed passed_with_deferrals on infrastructure (token cleanup, motion library substrate, focus-visible system, shadcn primitive restyles, AES-04 copy pass, intentionality.io utility class adoption); AES-01..04,06,07 re-deferred to Phase 6.2. New discipline triumvirate for 6.2: Anthropic (claude.ai + claude.com + Claude Code CLI + console.anthropic.com) as the discipline pole, Notion as content frame, JARVIS as atmospheric mood only (cyan accent + subtle depth, no literal HUD vocabulary). Massive refactor of Phase 6.1's chrome — throw out corner crops on every surface, hex-grid background, 7-state motion machine, arc-reactor centerpiece. 6.2 is research-first via /gsd:research-phase + /gsd:ui-phase.
 - Phase 8 added (2026-05-25): public-landing-manifesto. Build-in-public stance — public-facing landing page at `/` that channels Karpathy-grade intellectual restraint through hyperpolymath's Garamond/paper/Renaissance voice. Manifesto IS the front door: thesis → live animated JARVIS demo (README ASCII block) → primitives spec (areas/projects/captures/JARVIS/calendar) → engine (Sonnet 4.6 + Strict Tool Use, one real input→JSON) → fork-or-use choice → quiet live build-log feed (last N commits, current phase, shipped-this-week). Logged-out `/` shows manifesto; logged-in `/` continues redirecting to `/today`. Independent of Phase 6.2 — landing route owns its own visual treatment derived from README voice. Inspired by Karpathy/Tan/Levels/Linear references; research pass required pre-plan. Must align with Phase 6.1 directional anchors (restraint over theatrics, JARVIS as MOOD only — not HUD-heavy). Workflow: `/gsd:discuss-phase 08` → `/gsd:ui-phase 08` (mandatory) → `/gsd:plan-phase 08` → `/gsd:execute-phase 08`.
+- Phase 15 added (2026-06-08): Training — user-agnostic fitness activity planner. Custom sport/activity types (name + color + optional has_distance), user-defined batches grouping types (e.g. Cardio: Running+Biking; Gym: Push/Pull/Legs), weekly planner with drag-drop between days, check-off / reschedule / cancel / update, completion logging including actual distance when type supports it, stats aggregated by type and by batch. Stack: Supabase Realtime + Drizzle + TanStack Query per existing conventions. Out of scope for MVP: wearables, GPS, social, templates/programs. Note: gsd-tools CLI initially assigned 1000 because of 999.x backlog entries; manually corrected to 15 (next sequential active-milestone integer after Phase 14) and directory renamed accordingly.
 - Milestone v1.1 opened (2026-05-28): Speed & Agility. Six new phases (9–14) extending the roadmap from the previous tail (Phase 8). Phase shape locked by `.planning/research/speed-agility/` synthesis + user decisions (Haiku fast-path IN, ElevenLabs/British KEPT, desktop shell LAST). Phase numbering continues from 8 (no decimal, no reset). Backlog stubs 999.6 (hibernation), 999.7 (interrupt), 999.8 (scoped wake-word) absorbed into Phases 12 + 14. Hard external deadline: Picovoice Porcupine free-tier sunset 2026-06-30 (Phase 12 timing pressure). Critical path: 9 → 10 → 11 (telemetry → quick wins → cache) lands in ~2 weeks; 12 + 13 + 14 follow somewhat in parallel.
 
 ### Decisions
@@ -306,6 +313,15 @@ Recent decisions affecting current work:
 - [Phase 14]: voiceActive=false for tool schema in run-turn.ts (voice_summary is browser-TTS concern; server-side voice turns skip it)
 - [Phase 14]: turnId pre-generated in route.ts and passed to runJarvisTurnStream so Plan 09-02 beacon correlation is preserved
 - [Phase 14]: runJarvisTurnStream fires void after returning 200 to voice/transcript; response chunks stream via SSE asynchronously
+- [Phase 15]: Plan 15-01: training migration numbered 0022 (0021 was taken); activity_type FK uses ON DELETE RESTRICT
+- [Phase 15]: OKLCH circular hue averaging (atan2) is the right blend math — verified by warm-red+magenta test landing in warm range not cyan
+- [Phase 15]: deleteType blocks deletion when ANY activities reference the type (not just non-archived); matches Open Q4 'Archive instead?' UX
+- [Phase 15]: Sidebar nav entry lives in PersistentNav.tsx (not SidebarTree.tsx); SidebarTree owns the areas/projects tree only
+- [Phase 15]: manageOpen state lifted to TrainingClient (Pitfall 8); ManageTypesSheet body slots into the lifted state in plan 15-04
+- [Phase 15-training-fitness-activity-planner]: [15-04] Use ad-hoc input checkbox for type distance toggle (no shadcn Switch in repo)
+- [Phase 15-training-fitness-activity-planner]: [15-04] Two-click inline delete confirm on ActivityEditDialog (avoid nested AlertDialog focus-trap)
+- [Phase 15-training-fitness-activity-planner]: Heatmap stays a fixed 12-month view independent of the time-window toggle; only supporting cards re-aggregate
+- [Phase 15-training-fitness-activity-planner]: Single all-time useQuery is source of truth; time-window filter derives in-memory so realtime invalidation touches one key
 
 ### Pending Todos
 
@@ -321,9 +337,13 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260518-mhu | JARVIS console polish — $project autocomplete pill commit + undo visual feedback on receipts | 2026-05-18 | ba33d49 | [260518-mhu-jarvis-console-polish-project-autocomple](./quick/260518-mhu-jarvis-console-polish-project-autocomple/) |
+| 260607-fgb | Build LifeOS tab — /lifeos route as canonical homepage centered on Areas tree with Recent Captures, Today's Habits, and Upcoming Tasks widgets | 2026-06-07 | 2304923 | [260607-fgb-build-lifeos-tab-lifeos-route-as-canonic](./quick/260607-fgb-build-lifeos-tab-lifeos-route-as-canonic/) |
+| 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |
+| 260607-gox | Make LifeOS widgets interactive — habit toggle, hover-reveal Convert-to-task on JARVIS captures, task checkoff with motion slide-out; reuses existing Server Actions + TanStack Query keys so /habits, /captures, /tasks stay in sync | 2026-06-07 | 175e3ac | [260607-gox-make-lifeos-widgets-interactive-habits-t](./quick/260607-gox-make-lifeos-widgets-interactive-habits-t/) |
+| 260607-h2k | Life analytics tab on /insights — third tab with GitHub heatmap (react-github-calendar + jogruber proxy), Claude Code usage (ccusage CLI subprocess — v20 dropped lib API), Strava (strava-v3 with refresh rotation persistence to integration_tokens), Flow Pomodoro week-flip chart; shared Result<T> contract for per-panel error isolation | 2026-06-07 | 5312cad | [260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow](./quick/260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow/) |
 
 ## Session Continuity
 
-Last session: 2026-06-06T20:28:55.489Z
-Stopped at: Completed 14-04-RECEIPT-SUMMARY.md (server-side JARVIS turn slice)
+Last session: 2026-06-08T16:34:14.544Z
+Stopped at: Completed 15-05-PLAN.md
 Resume file: None

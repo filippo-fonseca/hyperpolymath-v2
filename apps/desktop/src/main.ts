@@ -49,6 +49,7 @@ import {
   type JarvisResponseComplete,
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
+import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -174,16 +175,13 @@ function paintTtsState(playing: boolean): void {
 let _wakeRegistered = false;
 let _extendRegistered = false;
 
-function paintHotkeyStatus(peEnabled: boolean): void {
+function paintHotkeyStatus(_peEnabled: boolean): void {
   const el = document.getElementById("hotkey-status");
   if (!el) return;
-  const extLabel = _extendRegistered ? "✓ ⌘⌃E extend" : "✗ ⌘⌃E extend";
-  if (peEnabled) {
-    el.textContent = `PE active · ${extLabel}`;
-    return;
-  }
-  const wakeLabel = _wakeRegistered ? "✓ ⌘⌃J wake" : "✗ ⌘⌃J wake";
-  el.textContent = `${wakeLabel} · ${extLabel}`;
+  // Plain labels — no status glyphs. The fallback chain picks a chord
+  // that actually registers, so visual ✓/✗ feedback is just noise.
+  el.innerHTML = `${prettyHotkey(WAKE_HOTKEY)} wake · ${prettyHotkey(_activeExtendHotkey)} extend`;
+  el.removeAttribute("title");
 }
 
 function wireCancelButton(): void {
@@ -220,9 +218,10 @@ function paintActionRow(state: CaptureState, isExtended: boolean): void {
     if (state === "recording") {
       extendBtn.classList.add("visible");
       extendBtn.dataset.extended = isExtended ? "true" : "false";
+      const extLabel = prettyHotkey(_activeExtendHotkey);
       extendBtn.innerHTML = isExtended
-        ? '✓ Holding — tap to send <span class="shortcut-label">⌘⌃E</span>'
-        : '⏸ Hold mic open <span class="shortcut-label">⌘⌃E</span>';
+        ? `✓ Holding — tap to send <span class="shortcut-label">${extLabel}</span>`
+        : `⏸ Hold mic open <span class="shortcut-label">${extLabel}</span>`;
     } else {
       extendBtn.classList.remove("visible");
     }
@@ -251,8 +250,37 @@ function wireStopButton(): void {
 //     list and common productivity apps.
 //
 // Manual buttons in the UI remain as the guaranteed fallback regardless.
-const WAKE_HOTKEY = "Cmd+Ctrl+J";   // wake (only when PE mode is OFF)
-const EXTEND_HOTKEY = "Cmd+Ctrl+E"; // toggle extend (always available)
+// Use Tauri's canonical accelerator format from the plugin docs:
+// https://v2.tauri.app/plugin/global-shortcut/  — modifiers spelled out,
+// key as KeyX literal. The earlier "Cmd+Ctrl+J" form was getting
+// rejected (silent failure) because the parser ambiguates Cmd vs Ctrl.
+const WAKE_HOTKEY = "Command+Control+KeyJ";
+// Fallback chain — try each in order until one registers. Cmd+Ctrl+E is
+// claimed by Slack / Logic / various other apps on common Mac setups; the
+// rest are very rarely bound by anything. Whichever wins shows in the
+// status row so the user knows which chord to press.
+const EXTEND_HOTKEY_CANDIDATES = [
+  "Command+Control+KeyE",
+  "Command+Control+KeyK",
+  "Command+Control+Semicolon",
+  "Command+Control+Backslash",
+  "Command+Control+Period",
+];
+let _activeExtendHotkey: string = EXTEND_HOTKEY_CANDIDATES[0] ?? "Command+Control+KeyE";
+
+// Pretty label for a Tauri accelerator — for UI display.
+function prettyHotkey(accel: string): string {
+  return accel
+    .replace(/Command/g, "⌘")
+    .replace(/Control/g, "⌃")
+    .replace(/Shift/g, "⇧")
+    .replace(/Option|Alt/g, "⌥")
+    .replace(/Key([A-Z])/g, "$1")
+    .replace(/Semicolon/g, ";")
+    .replace(/Backslash/g, "\\")
+    .replace(/Period/g, ".")
+    .replace(/\+/g, "");
+}
 
 async function safeRegister(
   hotkey: string,
@@ -295,23 +323,30 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
 }
 
 /**
- * Register or unregister the wake hotkey based on PE mode.
- * When PE is OFF, Ctrl+Option+J fires startCaptureTurn directly.
- * When PE is ON, the wake hotkey is released — ESP32 SSE triggers handle wake.
- * The extend hotkey is always registered regardless of PE mode.
+ * Always register the wake hotkey. Previously this gated on PE mode, which
+ * meant new users (default: PE ON) had no working hotkey — the only path
+ * was the ESP32, which most laptops don't have plugged in. Now the hotkey
+ * fires startCaptureTurn() in both modes; when PE is ON the ESP32 still
+ * works through its own SSE trigger path, so the hotkey is just an extra
+ * input surface, not a replacement.
  */
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
-  if (peEnabled) {
-    await safeUnregister(WAKE_HOTKEY, "wake");
-    _wakeRegistered = false;
-  } else {
-    _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
-  }
+  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
   paintHotkeyStatus(peEnabled);
 }
 
 async function wireExtendShortcut(): Promise<void> {
-  _extendRegistered = await safeRegister(EXTEND_HOTKEY, "extend", () => toggleExtended());
+  // Try each candidate in order; first one to register wins. Surface the
+  // actually-active chord in the status row so the user knows what to press.
+  for (const candidate of EXTEND_HOTKEY_CANDIDATES) {
+    const ok = await safeRegister(candidate, "extend", () => toggleExtended());
+    if (ok) {
+      _activeExtendHotkey = candidate;
+      _extendRegistered = true;
+      return;
+    }
+  }
+  _extendRegistered = false;
 }
 
 async function boot(): Promise<void> {
@@ -338,6 +373,79 @@ async function boot(): Promise<void> {
     modeEl.textContent = settings.physicalExtenderEnabled ? "physical extender" : "hotkey (⌃⌥J)";
   }
   paintHotkeyStatus(settings.physicalExtenderEnabled);
+
+  // 1b. Wire device token (Authorization: Bearer hpd_...) for prod auth.
+  const tokenInputEl = document.getElementById("device-token-input") as HTMLInputElement | null;
+  const tokenStatusEl = document.getElementById("token-status");
+  const tokenSaveEl = document.getElementById("device-token-save");
+  const tokenClearEl = document.getElementById("device-token-clear");
+  const tokenMintLinkEl = document.getElementById("device-token-mint-link") as HTMLAnchorElement | null;
+  const paintTokenStatus = (token: string | null) => {
+    if (!tokenStatusEl) return;
+    if (token) {
+      tokenStatusEl.textContent = `✓ ${token.slice(0, 8)}…`;
+      tokenStatusEl.style.color = "var(--ok, #5b9d6a)";
+    } else {
+      tokenStatusEl.textContent = "unauthenticated — paste a token below";
+      tokenStatusEl.style.color = "var(--muted)";
+    }
+  };
+  paintTokenStatus(await getDeviceToken());
+  if (tokenMintLinkEl) {
+    const { apiBaseUrl } = (await import("@/env")).getEnv();
+    const mintUrl = `${apiBaseUrl}/settings/desktop`;
+    tokenMintLinkEl.href = mintUrl;
+    tokenMintLinkEl.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.open(mintUrl, "_blank");
+    });
+  }
+  if (tokenSaveEl && tokenInputEl) {
+    const trySaveToken = async (rawValue: string): Promise<boolean> => {
+      const value = rawValue.trim();
+      if (!value) return false;
+      if (!value.startsWith("hpd_")) {
+        if (tokenStatusEl) {
+          tokenStatusEl.textContent =
+            "invalid token — expected one starting with hpd_";
+          tokenStatusEl.style.color = "var(--err, #c45a4a)";
+        }
+        // eslint-disable-next-line no-console
+        console.warn("[device-token] token must start with hpd_");
+        return false;
+      }
+      await setDeviceToken(value);
+      tokenInputEl.value = "";
+      paintTokenStatus(value);
+      return true;
+    };
+
+    tokenSaveEl.addEventListener("click", async () => {
+      await trySaveToken(tokenInputEl.value);
+    });
+
+    // Auto-save on paste so the user doesn't have to chase a second button.
+    // Tiny timeout lets the pasted content land in `.value` first.
+    tokenInputEl.addEventListener("paste", () => {
+      setTimeout(() => {
+        void trySaveToken(tokenInputEl.value);
+      }, 0);
+    });
+
+    // Enter-to-save while the input has focus.
+    tokenInputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void trySaveToken(tokenInputEl.value);
+      }
+    });
+  }
+  if (tokenClearEl) {
+    tokenClearEl.addEventListener("click", async () => {
+      await setDeviceToken(null);
+      paintTokenStatus(null);
+    });
+  }
 
   // 2. Wire TTS enabled toggle
   if (ttsEnabledEl) {

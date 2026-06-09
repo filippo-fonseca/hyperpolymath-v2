@@ -7,6 +7,7 @@ import {
   boolean,
   date,
   bigint,
+  numeric,
   primaryKey,
   check,
   index,
@@ -63,6 +64,11 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
+  // GitHub handle (no @, just the username) for the Life-tab contributions
+  // heatmap and any future GitHub-backed surface. Null = not connected; the
+  // heatmap renders a "connect in settings" placeholder. User-editable from
+  // /settings and from the onboarding flow.
+  githubUsername: text("github_username"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   // Phase 11 / CACHE-03 (D-01) — tamper-proof freshness counter bumped by
   // Postgres BEFORE-triggers on tasks/captures/projects/areas/habits/jarvis_facts
@@ -71,6 +77,11 @@ export const users = pgTable("users", {
   stateVersion: bigint("state_version", { mode: "bigint" })
     .notNull()
     .default(1n),
+  // Phase 15 / TRN-14 (D-10) — user's preferred display unit for training
+  // distances. Canonical storage is km on training_activities; the display
+  // layer (lib/training/distance.ts in later plans) converts at the IO
+  // boundary. CHECK constraint enforced in migration 0022.
+  distanceUnit: text("distance_unit").notNull().default("km"),
 });
 
 export const areas = pgTable(
@@ -448,6 +459,98 @@ export const habitsAreas = pgTable(
   ],
 );
 
+// integration_tokens — third-party OAuth tokens (Strava, etc.) that rotate
+// across exchanges. Composite PK (user_id, provider) gives one row per user
+// per provider. Required because `strava-v3` does NOT auto-persist rotated
+// refresh_tokens; we own the write (see 260607-h2k plan D-03).
+// Single-user MVP — RLS deferred; column-level user_id is the boundary.
+export const integrationTokens = pgTable(
+  "integration_tokens",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.provider] }),
+  ],
+);
+
+// flow_sessions — Pomodoro sessions imported from Flow app CSV exports.
+// Unique on (user_id, started_at) so re-uploading the same CSV is a no-op
+// upsert (existing rows update completed_at + duration; new rows insert).
+export const flowSessions = pgTable(
+  "flow_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("flow_sessions_user_started_uniq").on(t.userId, t.startedAt),
+    index("flow_sessions_user_started_idx").on(t.userId, t.startedAt),
+  ],
+);
+
+// desktop_devices — per-device auth tokens for the Tauri desktop app.
+// Pasted once into the desktop's settings (minted from /settings/desktop on
+// the web) and sent as `Authorization: Bearer hpd_...` on every API call.
+// Only the hash is stored; the plaintext token is returned to the user once
+// at mint time and never persisted.
+export const desktopDevices = pgTable(
+  "desktop_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // sha256 hex of the plaintext token (64 chars).
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("desktop_devices_user_idx").on(t.userId),
+  ],
+);
+
+// claude_code_usage — daily Claude Code token totals.
+// Populated by a local cron (tools/claude-code-sync.mjs) that runs ccusage
+// on the user's laptop and POSTs to /api/integrations/claude-code/sync.
+// PK (user_id, date) so re-syncs upsert in place.
+export const claudeCodeUsage = pgTable(
+  "claude_code_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    costUsd: integer("cost_usd_micros"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date] }),
+  ],
+);
+
 export const habitCompletions = pgTable(
   "habit_completions",
   {
@@ -467,5 +570,119 @@ export const habitCompletions = pgTable(
   (t) => [
     uniqueIndex("habit_completions_habit_date_uniq").on(t.habitId, t.completedDate),
     index("habit_completions_user_date_idx").on(t.userId, t.completedDate),
+  ],
+);
+
+// ─── TRAINING ──────────────────────────────────────────────────────────────
+// Phase 15 — fitness activity planner. Three tables, all userId-scoped with
+// RLS in migration 0022. state_version BEFORE-triggers fire on all three so
+// JARVIS state-snapshot cache invalidates correctly (D-19 / CACHE-03).
+//
+//   training_batches         — user-defined groupings (e.g. "Cardio", "Gym")
+//   training_activity_types  — user-defined sports/activity kinds; optional
+//                              batch membership; carries display color + the
+//                              has_distance flag that drives the planner UI
+//   training_activities      — per-day planned/logged rows; canonical km
+//                              storage (display layer converts per
+//                              users.distance_unit)
+//
+// Statuses: 'planned' → 'done' | 'cancelled' | 'skipped' (CHECK in migration).
+// scheduled_date is DATE (not timestamptz) — client decides the ISO date
+// string and the server stores verbatim, mirroring habit_completions so
+// timezone math stays out of the server (Pitfall 7 in 15-RESEARCH.md).
+
+export const trainingBatches = pgTable(
+  "training_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    orderIndex: integer("order_index").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("training_batches_user_order_idx").on(t.userId, t.orderIndex)],
+);
+
+export const trainingActivityTypes = pgTable(
+  "training_activity_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Nullable per D-06: ungrouped types are allowed. ON DELETE SET NULL so
+    // archiving/removing a batch doesn't cascade-delete its types — they
+    // become ungrouped instead.
+    batchId: uuid("batch_id").references(() => trainingBatches.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    // OKLCH string, e.g. "oklch(65% 0.13 25)" — see lib/training/palette.ts
+    // (added in a later plan). Stored as text to keep the heatmap blend math
+    // (JS-side, perceptual) the canonical color authority.
+    color: text("color").notNull(),
+    hasDistance: boolean("has_distance").notNull().default(false),
+    orderIndex: integer("order_index").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("training_activity_types_user_idx").on(t.userId),
+    // Ordered iteration within a batch; partial because order_index only
+    // matters for batched types (ungrouped renders in a separate list).
+    index("training_activity_types_batch_order_idx")
+      .on(t.batchId, t.orderIndex)
+      .where(sql`batch_id IS NOT NULL`),
+  ],
+);
+
+export const trainingActivities = pgTable(
+  "training_activities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // ON DELETE RESTRICT — deleting a type that still has activities should
+    // fail loudly so the UI can surface "archive instead?" (mirrors the
+    // areas → projects pattern). See 15-RESEARCH.md Open Question 4.
+    activityTypeId: uuid("activity_type_id")
+      .notNull()
+      .references(() => trainingActivityTypes.id, { onDelete: "restrict" }),
+    // Day-granular per D-02 (no time-of-day MVP). DATE not timestamptz so the
+    // "what's on Tuesday" question is answerable in the user's local timezone
+    // without server-side TZ math.
+    scheduledDate: date("scheduled_date").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    plannedDurationMin: integer("planned_duration_min"),
+    actualDurationMin: integer("actual_duration_min"),
+    // Canonical km storage per D-10. Display layer converts to user's
+    // preferred unit (users.distanceUnit). numeric(8,3) → up to 99999.999 km
+    // with millimeter precision, more than enough for any human distance.
+    plannedDistanceKm: numeric("planned_distance_km", { precision: 8, scale: 3 }),
+    actualDistanceKm: numeric("actual_distance_km", { precision: 8, scale: 3 }),
+    // 'planned' | 'done' | 'cancelled' | 'skipped' — CHECK in migration 0022.
+    status: text("status").notNull().default("planned"),
+    // Within-column ordering on the planner board (Claude's Discretion D-03).
+    dayOrderIndex: integer("day_order_index").notNull().default(0),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Week query: WHERE user_id=$1 AND scheduled_date BETWEEN $2 AND $3.
+    // Also serves the 365-day heatmap range scan.
+    index("training_activities_user_date_idx").on(t.userId, t.scheduledDate),
+    // Per-type aggregates on the stats surface.
+    index("training_activities_user_type_idx").on(t.userId, t.activityTypeId),
+    // Completed-only adherence queries — partial keeps the index tiny.
+    index("training_activities_user_status_idx")
+      .on(t.userId, t.status)
+      .where(sql`status = 'done'`),
   ],
 );

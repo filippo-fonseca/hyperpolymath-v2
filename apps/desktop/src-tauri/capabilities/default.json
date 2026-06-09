@@ -8,11 +8,15 @@
     "core:event:default",
     "store:default",
     "global-shortcut:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-unregister",
     {
       "identifier": "http:default",
       "allow": [
         { "url": "http://localhost:3000/*" },
-        { "url": "http://127.0.0.1:3000/*" }
+        { "url": "http://127.0.0.1:3000/*" },
+        { "url": "https://hyperpolymath.com/*" }
       ]
     }
   ]

@@ -57,12 +57,13 @@ export function AreasTree({
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
 
   const [paths, setPaths] = useState<{ id: string; d: string }[]>([]);
-  const [junctionLine, setJunctionLine] = useState<{
-    x1: number;
-    x2: number;
-    y: number;
-    rootX: number;
-    rootY: number;
+  const [junctionLines, setJunctionLines] = useState<
+    { x1: number; x2: number; y: number }[]
+  >([]);
+  const [trunkLine, setTrunkLine] = useState<{
+    x: number;
+    y1: number;
+    y2: number;
   } | null>(null);
   const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
 
@@ -131,10 +132,6 @@ export function AreasTree({
       const rootCx = rootRect.left + rootRect.width / 2 - containerRect.left;
       const rootBottom = rootRect.bottom - containerRect.top;
 
-      // Junction Y sits TRUNK_DROP below the root. If only one card we don't
-      // need a horizontal junction — connector goes straight down.
-      const junctionY = rootBottom + TRUNK_DROP;
-
       const cardCenters: { id: string; cx: number; top: number }[] = [];
       for (const [id, el] of cardRefs.current.entries()) {
         const r = el.getBoundingClientRect();
@@ -146,36 +143,69 @@ export function AreasTree({
       }
       if (cardCenters.length === 0) {
         setPaths([]);
-        setJunctionLine(null);
+        setJunctionLines([]);
+        setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
         return;
       }
 
-      const minX = Math.min(...cardCenters.map((c) => c.cx));
-      const maxX = Math.max(...cardCenters.map((c) => c.cx));
-
-      const next: { id: string; d: string }[] = [];
-      for (const c of cardCenters) {
-        // Orthogonal path: down the trunk → across the junction → down the
-        // branch to BRANCH_RISE above the card's top edge. We stop BRANCH_RISE
-        // above the card so the dot fades into the card surface rather than
-        // visually crashing into it.
-        const branchEndY = Math.max(junctionY, c.top - 2);
-        const d =
-          cardCenters.length === 1
-            ? // Single area: no horizontal segment needed.
-              `M ${rootCx} ${rootBottom} V ${branchEndY}`
-            : // Multiple areas: trunk → junction → branch.
-              `M ${rootCx} ${rootBottom} V ${junctionY} H ${c.cx} V ${branchEndY}`;
-        next.push({ id: c.id, d });
+      // Bucket cards into rows by `top` coordinate. Cards within 8px of each
+      // other are treated as part of the same row (handles minor sub-pixel
+      // jitter from getBoundingClientRect on different viewports).
+      const sortedByTop = [...cardCenters].sort((a, b) => a.top - b.top);
+      const rows: { id: string; cx: number; top: number }[][] = [];
+      for (const c of sortedByTop) {
+        const lastRow = rows[rows.length - 1];
+        if (lastRow && Math.abs(c.top - lastRow[0].top) < 8) {
+          lastRow.push(c);
+        } else {
+          rows.push([c]);
+        }
       }
 
-      setPaths(next);
-      setJunctionLine(
-        cardCenters.length > 1
-          ? { x1: minX, x2: maxX, y: junctionY, rootX: rootCx, rootY: rootBottom }
-          : null,
-      );
+      // Special case: single card (also single row of 1). Straight vertical
+      // from root to card with no junction needed.
+      if (cardCenters.length === 1) {
+        const only = cardCenters[0];
+        const branchEndY = Math.max(rootBottom + TRUNK_DROP, only.top - 2);
+        setPaths([{ id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` }]);
+        setJunctionLines([]);
+        setTrunkLine(null);
+        setSvgSize({ w: containerRect.width, h: containerRect.height });
+        return;
+      }
+
+      // For each row: junction sits BRANCH_RISE above the cards' top. Include
+      // rootCx in the junction span so the trunk visually connects in even if
+      // all cards in a row lie to one side.
+      const junctions: { x1: number; x2: number; y: number }[] = [];
+      const nextPaths: { id: string; d: string }[] = [];
+      let lastJunctionY = rootBottom + TRUNK_DROP;
+      for (const row of rows) {
+        const rowMinX = Math.min(...row.map((c) => c.cx));
+        const rowMaxX = Math.max(...row.map((c) => c.cx));
+        const rowJunctionY = row[0].top - BRANCH_RISE;
+        junctions.push({
+          x1: Math.min(rowMinX, rootCx),
+          x2: Math.max(rowMaxX, rootCx),
+          y: rowJunctionY,
+        });
+        for (const c of row) {
+          const branchEndY = Math.max(rowJunctionY, c.top - 2);
+          nextPaths.push({
+            id: c.id,
+            d: `M ${rootCx} ${rowJunctionY} H ${c.cx} V ${branchEndY}`,
+          });
+        }
+        lastJunctionY = rowJunctionY;
+      }
+
+      // One continuous trunk spine from rootBottom down to the LAST row's
+      // junction Y. Passes through every intermediate junction (they share
+      // x=rootCx by construction), visually unifying multi-row layouts.
+      setPaths(nextPaths);
+      setJunctionLines(junctions);
+      setTrunkLine({ x: rootCx, y1: rootBottom, y2: lastJunctionY });
       setSvgSize({ w: containerRect.width, h: containerRect.height });
     }
 
@@ -243,19 +273,35 @@ export function AreasTree({
           </filter>
         </defs>
 
-        {/* Junction line drawn once, separate from the per-area paths so the
-            animated dots don't double-travel along it. */}
-        {junctionLine ? (
+        {/* Trunk spine — one continuous vertical from root through every row's
+            junction. Multi-row layouts get a single visual backbone. */}
+        {trunkLine ? (
           <line
-            x1={junctionLine.x1}
-            y1={junctionLine.y}
-            x2={junctionLine.x2}
-            y2={junctionLine.y}
+            x1={trunkLine.x}
+            y1={trunkLine.y1}
+            x2={trunkLine.x}
+            y2={trunkLine.y2}
             stroke={lineColor}
             strokeWidth="1.25"
             strokeLinecap="round"
           />
         ) : null}
+
+        {/* Per-row junctions — one horizontal segment per wrapped row, drawn
+            separately from the per-area paths so animated dots don't
+            double-travel along the junction. */}
+        {junctionLines.map((j, i) => (
+          <line
+            key={`junction-${i}`}
+            x1={j.x1}
+            y1={j.y}
+            x2={j.x2}
+            y2={j.y}
+            stroke={lineColor}
+            strokeWidth="1.25"
+            strokeLinecap="round"
+          />
+        ))}
 
         {paths.map((p, i) => (
           <g key={p.id}>
@@ -349,15 +395,12 @@ export function AreasTree({
           colliding with the label above or the area row below. */}
       <div style={{ height: TRUNK_DROP }} aria-hidden="true" />
 
-      {/* Area row. nowrap + horizontal scroll keeps the tree shape intact for
-          many areas instead of wrapping (which would break the single-row
-          junction concept). At small counts it centers. */}
-      <div className="relative z-10 overflow-x-auto">
+      {/* Area row. Wraps onto multiple rows when width is exceeded — the
+          measurement pass buckets cards into rows and emits one junction
+          segment per row plus a continuous trunk through them all. */}
+      <div className="relative z-10">
         <div
-          className={cn(
-            "flex items-start gap-8 px-4 pb-4 mx-auto",
-            "min-w-min w-fit",
-          )}
+          className="flex flex-wrap items-start justify-center gap-x-8 gap-y-12 px-4 pb-4"
           style={{ paddingTop: BRANCH_RISE }}
         >
           {areas.length === 0 ? (

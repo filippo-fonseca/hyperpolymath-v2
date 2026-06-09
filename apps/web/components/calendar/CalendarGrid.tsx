@@ -77,7 +77,7 @@ type EventChangeArgs = {
 
 interface Props {
   events: GcalEvent[];
-  view: "day" | "week";
+  view: "day" | "3day" | "week";
   date: Date;
   userTimezone: string;
   onNavigate: (date: Date) => void;
@@ -153,6 +153,10 @@ export function CalendarGrid({
 }: Props) {
   const days = useMemo(() => {
     if (view === "day") return [startOfDay(date)];
+    if (view === "3day") {
+      const start = startOfDay(date);
+      return Array.from({ length: 3 }, (_, i) => addDays(start, i));
+    }
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [view, date]);

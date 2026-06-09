@@ -140,7 +140,7 @@ export function CalendarClient({
   const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
-  const [view, setView] = useState<"day" | "week">("week");
+  const [view, setView] = useState<"day" | "3day" | "week">("week");
   const [date, setDate] = useState(new Date());
   const [calsParam] = useQueryState("cals");
   const [panelState, setPanelState] = useState<PanelState>({ mode: "closed" });
@@ -252,6 +252,11 @@ export function CalendarClient({
         timeMin: startOfDay(date).toISOString(),
         timeMax: endOfDay(date).toISOString(),
       };
+    }
+    if (view === "3day") {
+      const start = startOfDay(date);
+      const end = endOfDay(addMinutes(start, 60 * 24 * 3 - 1));
+      return { timeMin: start.toISOString(), timeMax: end.toISOString() };
     }
     return {
       timeMin: startOfWeek(date, { weekStartsOn: 1 }).toISOString(),

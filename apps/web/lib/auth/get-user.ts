@@ -12,6 +12,7 @@ export interface AuthenticatedUser {
   displayName: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  githubUsername: string | null;
 }
 
 /**
@@ -70,6 +71,7 @@ export async function getUserOrRedirect(): Promise<AuthenticatedUser> {
       displayName: users.displayName,
       bio: users.bio,
       avatarUrl: users.avatarUrl,
+      githubUsername: users.githubUsername,
     })
     .from(users)
     .where(eq(users.id, userId))

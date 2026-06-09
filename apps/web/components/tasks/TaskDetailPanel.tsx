@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
+import { MoveToMenu } from "./MoveToMenu";
 import { updateTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
@@ -344,12 +345,19 @@ export function TaskDetailPanel({
 
                 {/* 3. Due date */}
                 <FieldSection label="Due date">
-                  <Input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => set("dueDate", e.target.value)}
-                    className="font-sans text-[13px] h-8"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => set("dueDate", e.target.value)}
+                      className="font-sans text-[13px] h-8 flex-1"
+                    />
+                    <MoveToMenu
+                      variant="inline"
+                      allowClear
+                      onPick={(ymd) => set("dueDate", ymd ?? "")}
+                    />
+                  </div>
                 </FieldSection>
 
                 {/* 4. Linked projects */}

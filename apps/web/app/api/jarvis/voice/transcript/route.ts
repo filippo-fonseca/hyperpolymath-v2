@@ -10,6 +10,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -27,17 +28,18 @@ const CORS = {
 };
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const expected = process.env.PHYSICAL_TRIGGER_SECRET;
-  if (!expected) {
-    return Response.json(
-      { error: "PHYSICAL_TRIGGER_SECRET not configured on server" },
-      { status: 500, headers: CORS },
-    );
-  }
-
-  const provided = req.headers.get("x-trigger-secret");
-  if (!provided || provided !== expected) {
-    return new Response("Unauthorized", { status: 401, headers: CORS });
+  // Two acceptable callers:
+  //   1. Desktop app — Authorization: Bearer hpd_... (per-device token,
+  //      revocable from /settings/desktop). The right path going forward.
+  //   2. ESP32 bridge — X-Trigger-Secret matching PHYSICAL_TRIGGER_SECRET.
+  //      Kept for the dedicated hardware path which has no user account.
+  const desktopUserId = await validateDesktopBearer(req);
+  if (!desktopUserId) {
+    const expected = process.env.PHYSICAL_TRIGGER_SECRET;
+    const provided = req.headers.get("x-trigger-secret");
+    if (!expected || !provided || provided !== expected) {
+      return new Response("Unauthorized", { status: 401, headers: CORS });
+    }
   }
 
   const audioBuffer = await req.arrayBuffer();
@@ -77,10 +79,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     at: sttDoneAt,
   });
 
-  const userId = await findSingleUserId();
+  // 2026-06 multi-user fix: when a desktop bearer authenticated the request,
+  // that token is BOUND to a specific user — always honor it. Only the
+  // headless ESP32 path (validated via PHYSICAL_TRIGGER_SECRET, with no per-
+  // device identity) falls back to findSingleUserId, which keeps the legacy
+  // hardware bridge working on personal single-user installs.
+  const userId = desktopUserId ?? (await findSingleUserId());
   if (!userId) {
     return Response.json(
-      { error: "voice turn requires single-user mode" },
+      {
+        error:
+          "no user identity for this voice turn — pair the desktop app at /settings/desktop",
+      },
       { status: 409, headers: CORS },
     );
   }

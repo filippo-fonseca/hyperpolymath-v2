@@ -134,6 +134,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
         timezone: users.timezone,
         defaultCalendarId: users.gcalDefaultCalendarId,
         stateVersion: users.stateVersion,
+        displayName: users.displayName,
       })
       .from(users)
       .where(eq(users.id, opts.userId))
@@ -178,6 +179,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     projects: projectSummaries,
     facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
     voiceActive,
+    userDisplayName: userRow?.displayName ?? null,
   });
 
   const stateVersion = userRow?.stateVersion ?? 1n;

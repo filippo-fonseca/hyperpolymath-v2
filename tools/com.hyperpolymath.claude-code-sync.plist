@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS LaunchAgent — runs tools/claude-code-sync.mjs once per day at 03:30 local time.
+
+  Install:
+    1. Edit the WorkingDirectory + ProgramArguments paths below to match where
+       this repo lives on your machine (default assumes ~/Developer/Projects/hyperpolymath-v2).
+    2. Copy to ~/Library/LaunchAgents/:
+         cp tools/com.hyperpolymath.claude-code-sync.plist ~/Library/LaunchAgents/
+    3. Load it:
+         launchctl load ~/Library/LaunchAgents/com.hyperpolymath.claude-code-sync.plist
+    4. Verify the next-fire time + last-run status:
+         launchctl list | grep claude-code-sync
+
+  Inspect logs at /tmp/claude-code-sync.{out,err}.log
+  Pause: launchctl unload ~/Library/LaunchAgents/com.hyperpolymath.claude-code-sync.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hyperpolymath.claude-code-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/tools/claude-code-sync.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/filippofonseca/Developer/Projects/hyperpolymath-v2</string>
+
+  <!-- Daily at 03:30 local time. Adjust to taste. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+
+  <!-- Also run once when LaunchAgent first loads (good for testing). -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Inherit PATH so `ccusage`, `npx`, and `node` are findable. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/claude-code-sync.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/claude-code-sync.err.log</string>
+</dict>
+</plist>

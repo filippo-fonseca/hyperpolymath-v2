@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
+import { cn } from "@/lib/utils";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
 type TaskStatus =
@@ -21,41 +22,31 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   lesno: "Lesno",
 };
 
-const STATUS_ACCENT: Record<
-  TaskStatus,
-  { dot: string; bg: string; rim: string; cardBg: string }
-> = {
-  "not started": {
-    dot: "oklch(0.72 0.02 80)",
-    bg: "oklch(0.21 0.02 80 / 0.55)",
-    rim: "oklch(0.42 0.04 80 / 0.6)",
-    cardBg: "oklch(0.27 0.03 80 / 0.8)",
-  },
-  "up next": {
-    dot: "oklch(0.78 0.16 80)",
-    bg: "oklch(0.22 0.04 75 / 0.75)",
-    rim: "oklch(0.55 0.13 75 / 0.6)",
-    cardBg: "oklch(0.30 0.07 60 / 0.85)",
-  },
-  "in progress": {
-    dot: "oklch(0.74 0.16 240)",
-    bg: "oklch(0.22 0.05 245 / 0.78)",
-    rim: "oklch(0.52 0.13 245 / 0.6)",
-    cardBg: "oklch(0.30 0.08 260 / 0.85)",
-  },
-  "almost done": {
-    dot: "oklch(0.78 0.16 305)",
-    bg: "oklch(0.22 0.05 295 / 0.78)",
-    rim: "oklch(0.55 0.13 295 / 0.6)",
-    cardBg: "oklch(0.30 0.08 290 / 0.85)",
-  },
-  lesno: {
-    dot: "oklch(0.78 0.18 160)",
-    bg: "oklch(0.22 0.05 175 / 0.78)",
-    rim: "oklch(0.52 0.12 175 / 0.6)",
-    cardBg: "oklch(0.30 0.07 180 / 0.85)",
-  },
+// Each status gets a vibrant hue (the dot). bg, rim, and cardBg are
+// derived from the dot via color-mix against canvas/surface tokens so
+// they adapt automatically to light vs dark mode — no hardcoded dark
+// OKLCH lightness values (which were the previous design and turned
+// into murky dark blocks on the light parchment canvas).
+const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
+  "not started": { dot: "oklch(0.72 0.02 80)" },
+  "up next":     { dot: "oklch(0.78 0.16 80)" },
+  "in progress": { dot: "oklch(0.74 0.16 240)" },
+  "almost done": { dot: "oklch(0.78 0.16 305)" },
+  lesno:         { dot: "oklch(0.78 0.18 160)" },
 };
+
+function deriveAccent(dot: string) {
+  return {
+    dot,
+    // Light wash of the hue against the canvas. ~12% hue mix gives a
+    // tint you can read but doesn't drown the cards.
+    bg: `color-mix(in oklch, var(--canvas) 88%, ${dot})`,
+    // Slightly more saturated for the inset border.
+    rim: `color-mix(in oklch, var(--edge) 55%, ${dot})`,
+    // Card background sits just above the column wash.
+    cardBg: `color-mix(in oklch, var(--surface-raised) 90%, ${dot})`,
+  };
+}
 
 interface Props {
   status: TaskStatus;
@@ -68,6 +59,12 @@ interface Props {
   onDragEnd: () => void;
   onDropOnColumn: (target: TaskStatus) => void;
   pendingTaskId: string | null;
+  /** Selection plumbing — when supplied, cards render their checkbox and
+   * the column header gets a "select all in column" toggle. */
+  selectionActive?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
+  onToggleColumnSelection?: (status: TaskStatus, taskIds: string[]) => void;
 }
 
 export function KanbanColumn({
@@ -81,9 +78,18 @@ export function KanbanColumn({
   onDragEnd,
   onDropOnColumn,
   pendingTaskId,
+  selectionActive,
+  selectedIds,
+  onToggleSelected,
+  onToggleColumnSelection,
 }: Props) {
+  const taskIds = tasks.map((t) => t.id);
+  const selectedInColumn = selectedIds
+    ? taskIds.filter((id) => selectedIds.has(id)).length
+    : 0;
+  const allSelected = taskIds.length > 0 && selectedInColumn === taskIds.length;
   const ref = useRef<HTMLDivElement>(null);
-  const accent = STATUS_ACCENT[status];
+  const accent = deriveAccent(STATUS_ACCENT[status].dot);
 
   const restingShadow = `inset 0 0 0 1px ${accent.rim}`;
   const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`;
@@ -131,7 +137,7 @@ export function KanbanColumn({
         ["--task-card-bg" as string]: accent.cardBg,
       } as React.CSSProperties}
     >
-      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+      <div className="group/colhdr flex items-center gap-2 px-4 pt-3 pb-2">
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: accent.dot }}
@@ -145,6 +151,23 @@ export function KanbanColumn({
         <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
           ({tasks.length})
         </span>
+        {onToggleColumnSelection && tasks.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onToggleColumnSelection(status, taskIds)}
+            className={cn(
+              "ml-auto rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              allSelected
+                ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
+                : selectionActive || selectedInColumn > 0
+                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] opacity-0 group-hover/colhdr:opacity-100 hover:text-[var(--ink)]",
+            )}
+            title={allSelected ? "Deselect all in column" : "Select all in column"}
+          >
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+        ) : null}
       </div>
 
       {/* Two-part column body: scrollable task list, pinned "Add task" footer.
@@ -163,6 +186,9 @@ export function KanbanColumn({
                 onDragEnd={onDragEnd}
                 isDragging={draggedTaskId === task.id}
                 isPending={pendingTaskId === task.id}
+                selectionActive={selectionActive}
+                isSelected={selectedIds?.has(task.id) ?? false}
+                onToggleSelected={onToggleSelected}
               />
             ))}
           </AnimatePresence>

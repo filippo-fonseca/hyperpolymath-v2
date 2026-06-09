@@ -377,10 +377,24 @@ Plans:
 - [ ] 14-05-PLAN.md — hyperpolymath desktop service + Phase 14 Success Criteria verification
 **UI hint**: yes (tray icon + Settings window with tunable knobs)
 
+### Phase 15: Training — fitness activity planner
+**Goal**: A new top-level "Training" surface for logging and planning fitness activities. The user defines their own sport/activity types (each with a name, color, and optional `has_distance` boolean) and groups them into user-managed batches (e.g. "Cardio" containing Running + Biking; "Gym" containing Push / Pull / Legs). A weekly planner view lets the user plan activities per-day with title, description, planned duration, and (when the activity type supports distance) a planned distance. Activities can be checked off as done, dragged between days, rescheduled, cancelled, or updated; completing a distance-enabled activity prompts for an actual distance. A stats surface aggregates total duration and distance by activity type and by batch. UX matches the rest of the app (Anthropic-level interaction polish, Notion document discipline, motion polish on drag/drop and check-off). Stack: Supabase Realtime + Drizzle schema/queries + TanStack Query per existing conventions; per-user `userId`-scoped rows from day one.
+**Depends on**: Phase 1 (auth + foundations), Phase 3 (realtime layer pattern), existing tasks/kanban interaction primitives
+**Requirements**: TRN-01 through TRN-18 (defined during /gsd:plan-phase 15)
+**Out of scope for this phase**: wearable integration, GPS tracking, social features, workout templates/programs — capture as backlog if needed
+**Plans**: 6 plans
+- [x] 15-01-PLAN.md — Schema + 0021 migration + RLS + state_version triggers + RealtimeTable union extension
+- [x] 15-02-PLAN.md — OKLCH color-blend + palette + distance + week libraries + Drizzle queries + Server Actions
+- [x] 15-03-PLAN.md — Weekly planner: route + TrainingBoard + @dnd-kit drag-between-days + ActivityCard + inline create + sidebar nav
+- [x] 15-04-PLAN.md — Manage Types Sheet (batches + types sortable CRUD) + ColorPicker + CompleteActivityDialog + ActivityEditDialog wiring
+- [x] 15-05-PLAN.md — Stats surface: OKLCH-blended heatmap + DayPopover + AdherenceCard + BatchTotalsTable + DurationTrendChart + TimeWindowToggle
+- [x] 15-06-PLAN.md — TodayTrainingWidget on LifeOS (Rest day state) + /settings distance_unit toggle
+**UI hint**: yes (new top-level surface with planner + management + stats sub-views)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -401,6 +415,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 12. On-Device Wake-Word + Mic Gating | 0/TBD | Not started | - |
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
+| 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 
 ## Backlog
 
@@ -416,7 +431,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 4/5 plans executed
+**Plans:** 6/6 plans complete
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
@@ -557,3 +572,4 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+

@@ -27,6 +27,7 @@
 
 import { ElevenLabsClient } from "elevenlabs";
 import { createClient } from "@/lib/supabase/server";
+import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
 import type { TtsRequest } from "@/lib/voice/types";
 import type { NextRequest } from "next/server";
@@ -39,20 +40,24 @@ const MAX_TEXT_LEN = 5000;
 const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 
 export async function POST(req: NextRequest): Promise<Response> {
-  // 1. Auth — desktop daemon sends X-Trigger-Secret; browsers send Supabase cookie.
-  const triggerSecret = req.headers.get("x-trigger-secret");
-  if (triggerSecret) {
-    // Desktop path: validate against PHYSICAL_TRIGGER_SECRET.
-    const expected = process.env.PHYSICAL_TRIGGER_SECRET;
-    if (!expected || triggerSecret !== expected) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-  } else {
-    // Browser path: getClaims() per CLAUDE.md Critical Pattern 1.
-    const supabase = await createClient();
-    const claimsResult = await supabase.auth.getClaims();
-    if (claimsResult.error || !claimsResult.data?.claims?.sub) {
-      return new Response("Unauthorized", { status: 401 });
+  // 1. Auth — three accepted callers in priority order:
+  //   a) Desktop app: Authorization: Bearer hpd_... (per-device token).
+  //   b) ESP32 bridge: X-Trigger-Secret matching PHYSICAL_TRIGGER_SECRET.
+  //   c) Browser: Supabase cookie via getClaims().
+  const desktopUserId = await validateDesktopBearer(req);
+  if (!desktopUserId) {
+    const triggerSecret = req.headers.get("x-trigger-secret");
+    if (triggerSecret) {
+      const expected = process.env.PHYSICAL_TRIGGER_SECRET;
+      if (!expected || triggerSecret !== expected) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+    } else {
+      const supabase = await createClient();
+      const claimsResult = await supabase.auth.getClaims();
+      if (claimsResult.error || !claimsResult.data?.claims?.sub) {
+        return new Response("Unauthorized", { status: 401 });
+      }
     }
   }
 

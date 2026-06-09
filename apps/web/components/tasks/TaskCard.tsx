@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
@@ -13,6 +14,14 @@ interface Props {
   draggable?: boolean;
   onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
+  /** Multi-select integration. When `selectionActive` is true, the checkbox
+   * is always visible; otherwise it appears only on hover. Click toggles
+   * via `onToggleSelected`. Plain card click still routes through `onClick`
+   * unless `onToggleSelected` is provided AND the user shift/meta-clicks
+   * the card body (handled in the parent). */
+  selectionActive?: boolean;
+  isSelected?: boolean;
+  onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
 }
 
 export function TaskCard({
@@ -23,15 +32,20 @@ export function TaskCard({
   draggable,
   onDragStart,
   onDragEnd,
+  selectionActive,
+  isSelected,
+  onToggleSelected,
 }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // Parse YMD as LOCAL midnight (not UTC midnight) so a 2026-06-08 due
+  // date doesn't read as 2026-06-07 in negative-UTC timezones.
+  const dueLocal = task.dueDate ? new Date(task.dueDate + "T00:00:00") : null;
   const isOverdue =
-    task.dueDate !== null &&
-    task.status !== "lesno" &&
-    new Date(task.dueDate) < today;
+    dueLocal !== null && task.status !== "lesno" && dueLocal < today;
   const isLesno = task.status === "lesno";
 
+  // Tailwind's group-hover modifier on the checkbox keys off this class.
   return (
     <div
       draggable={draggable}
@@ -41,9 +55,15 @@ export function TaskCard({
         onDragStart?.(task.id);
       }}
       onDragEnd={() => onDragEnd?.()}
-      onClick={() => onClick(task.id)}
+      onClick={(ev) => {
+        if (onToggleSelected && (ev.metaKey || ev.ctrlKey || ev.shiftKey || selectionActive)) {
+          onToggleSelected(task.id, ev);
+          return;
+        }
+        onClick(task.id);
+      }}
       className={cn(
-        "select-none",
+        "group/task select-none",
         draggable && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-50",
       )}
@@ -66,6 +86,7 @@ export function TaskCard({
           "relative rounded-xl px-3.5 py-2.5",
           isPending && "opacity-50",
           isLesno && "opacity-80",
+          isSelected && "ring-2 ring-[var(--hud-cyan)] ring-offset-1 ring-offset-[var(--canvas)]",
         )}
         style={{
           background: "var(--task-card-bg, var(--surface-raised))",
@@ -73,6 +94,27 @@ export function TaskCard({
             "0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
+        {onToggleSelected ? (
+          <button
+            type="button"
+            aria-label={isSelected ? "Deselect task" : "Select task"}
+            aria-pressed={isSelected}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onToggleSelected(task.id, ev);
+            }}
+            className={cn(
+              "absolute -left-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-md border bg-[var(--canvas)] transition-opacity duration-100 cursor-pointer-always",
+              isSelected
+                ? "opacity-100 border-[var(--hud-cyan)] bg-[var(--hud-cyan)] text-[var(--canvas)]"
+                : selectionActive
+                  ? "opacity-100 border-[var(--edge)] text-transparent"
+                  : "opacity-0 group-hover/task:opacity-100 border-[var(--edge)] text-transparent",
+            )}
+          >
+            <Check size={11} strokeWidth={2.5} />
+          </button>
+        ) : null}
         <p
           className={cn(
             "font-serif text-base line-clamp-2 mb-2",

@@ -11,6 +11,7 @@ import { ShortcutsCheatSheet } from "@/components/shell/ShortcutsCheatSheet";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
+import { GlobalJarvisDialog } from "@/components/jarvis/GlobalJarvisDialog";
 import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
 import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
@@ -72,6 +73,9 @@ export default async function AppLayout({
         {/* Phase 6 Plan 06-03 (AES-05, D-02): Cmd+K focuses JARVIS Console input
             anywhere in (app). CommandMenu rebound to Cmd+Shift+K. */}
         <GlobalHotkeys />
+        {/* Quick 260607-g56: Cmd+K opens a lite JARVIS dialog from any (app)
+            route EXCEPT /today (where GlobalHotkeys.focusJarvis wins). */}
+        <GlobalJarvisDialog />
         {/* Capture composer — opens on Cmd+Shift+K (Cmd+K reserved for JARVIS focus) */}
         <CommandMenu
           hashtags={hashtagsForComposer}

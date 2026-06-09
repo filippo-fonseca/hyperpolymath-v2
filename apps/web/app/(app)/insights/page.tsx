@@ -12,6 +12,11 @@ import { InsightsTabs } from "@/components/insights/InsightsTabs";
 // Phase 9 / TEL-02 — Pipeline Latency panel mounts ABOVE the existing tabs
 // per D-03 (additive placement; first thing the user sees on /insights).
 import { PipelineLatencyPanel } from "@/components/insights/PipelineLatencyPanel";
+// 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
+// three Result-returning calls are added to the page-level Promise.all.
+import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
+import { getStravaActivities } from "@/lib/integrations/strava/activities";
+import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,15 +32,38 @@ export default async function InsightsPage() {
   const todayISO = toISO(today);
   const startISO = toISO(start);
 
-  const [analytics, jarvisLegacy, habits, habitCompletions, pipelineStats] =
-    await Promise.all([
-      getAnalyticsData(user.id),
-      getInsightsData(user.id),
-      getHabitsForCurrentUser(),
-      getHabitCompletionsInRange(startISO, todayISO),
-      // Phase 9 / TEL-02 — rolling 24h window per CONTEXT §D-04.
-      getStageLatencyStats(user.id, 60 * 24),
-    ]);
+  const [
+    analytics,
+    jarvisLegacy,
+    habits,
+    habitCompletions,
+    pipelineStats,
+    claudeCode,
+    strava,
+    flow,
+  ] = await Promise.all([
+    getAnalyticsData(user.id),
+    getInsightsData(user.id),
+    getHabitsForCurrentUser(),
+    getHabitCompletionsInRange(startISO, todayISO),
+    // Phase 9 / TEL-02 — rolling 24h window per CONTEXT §D-04.
+    getStageLatencyStats(user.id, 60 * 24),
+    // 260607-h2k — each integration returns Result<T> and never throws (D-06).
+    // Belt-and-suspenders .catch as final safety net so a thrown error here
+    // can never crash the page.
+    getClaudeCodeUsage().catch((e) => ({
+      ok: false as const,
+      error: String(e?.message ?? e),
+    })),
+    getStravaActivities(user.id).catch((e) => ({
+      ok: false as const,
+      error: String(e?.message ?? e),
+    })),
+    getFlowSessions().catch((e) => ({
+      ok: false as const,
+      error: String(e?.message ?? e),
+    })),
+  ]);
 
   const totalEvents = analytics.events.length + analytics.meta.taskTotalCompleted;
 
@@ -65,7 +93,6 @@ export default async function InsightsPage() {
         </header>
 
         <InsightsTabs
-          analytics={analytics}
           jarvis={{ hasData: jarvisLegacy.totalTurns > 0, data: jarvisLegacy }}
           habits={{
             habits,
@@ -73,6 +100,7 @@ export default async function InsightsPage() {
             today: todayISO,
             earliestAvailable: startISO,
           }}
+          life={{ claudeCode, strava, flow, githubUsername: user.githubUsername }}
         />
       </main>
     </div>

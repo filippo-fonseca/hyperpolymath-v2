@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, Github, Loader2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { updateAvatarUrl, updateProfile } from "@/app/actions/profile";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ interface Props {
   initialDisplayName: string | null;
   initialBio: string | null;
   initialAvatarUrl: string | null;
+  initialGithubUsername: string | null;
   /** Fallback from Google OAuth metadata when no uploaded avatar exists. */
   oauthAvatarUrl: string | null;
 }
@@ -46,10 +47,14 @@ export function ProfileSection({
   initialDisplayName,
   initialBio,
   initialAvatarUrl,
+  initialGithubUsername,
   oauthAvatarUrl,
 }: Props) {
   const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
   const [bio, setBio] = useState(initialBio ?? "");
+  const [githubUsername, setGithubUsername] = useState(
+    initialGithubUsername ?? "",
+  );
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [uploading, setUploading] = useState(false);
   const [savingProfile, startProfileTransition] = useTransition();
@@ -57,7 +62,8 @@ export function ProfileSection({
 
   const dirty =
     (displayName.trim() || null) !== (initialDisplayName ?? null) ||
-    (bio.trim() || null) !== (initialBio ?? null);
+    (bio.trim() || null) !== (initialBio ?? null) ||
+    (githubUsername.trim() || null) !== (initialGithubUsername ?? null);
 
   const effectiveAvatarUrl = avatarUrl || oauthAvatarUrl;
 
@@ -143,6 +149,7 @@ export function ProfileSection({
       const r = await updateProfile({
         displayName: displayName.trim() || null,
         bio: bio.trim() || null,
+        githubUsername: githubUsername.trim() || null,
       });
       if (!r.success) {
         toast.error(r.error);
@@ -266,6 +273,35 @@ export function ProfileSection({
           placeholder="A sentence or two about you."
           className="font-serif resize-none"
         />
+      </label>
+
+      {/* GitHub username */}
+      <label className="block space-y-2">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          GitHub username
+        </span>
+        <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--ink-amber)] transition-colors">
+          <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--edge)] text-[var(--ink-muted)]">
+            <Github className="h-3.5 w-3.5" />
+            <span className="font-mono text-[12px]">@</span>
+          </span>
+          <input
+            type="text"
+            value={githubUsername}
+            onChange={(e) =>
+              setGithubUsername(e.target.value.replace(/^@/, "").trim())
+            }
+            maxLength={39}
+            placeholder="octocat"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            className="flex-1 h-9 px-3 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+          />
+        </div>
+        <p className="font-serif text-xs text-[var(--ink-muted)] italic">
+          Powers the GitHub heatmap on the Life tab. Leave blank to hide.
+        </p>
       </label>
 
       <div className="flex justify-end">

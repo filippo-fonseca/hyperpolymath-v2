@@ -36,12 +36,15 @@ const COLUMN_ORDER: Status[] = [
   "lesno",
 ];
 
-// Shared accent for the tray (matches KanbanColumn's "not started" entry).
+// Shared accent for the tray. Derived from the dot via color-mix against
+// canvas/surface so the tray adapts to light + dark mode (was hardcoded
+// dark OKLCH lightness that turned into a murky band in light mode).
+const NOT_STARTED_DOT = "oklch(0.72 0.02 80)";
 const NOT_STARTED_ACCENT = {
-  dot: "oklch(0.72 0.02 80)",
-  bg: "oklch(0.21 0.02 80 / 0.55)",
-  rim: "oklch(0.42 0.04 80 / 0.6)",
-  cardBg: "oklch(0.27 0.03 80 / 0.8)",
+  dot: NOT_STARTED_DOT,
+  bg: `color-mix(in oklch, var(--canvas) 88%, ${NOT_STARTED_DOT})`,
+  rim: `color-mix(in oklch, var(--edge) 55%, ${NOT_STARTED_DOT})`,
+  cardBg: `color-mix(in oklch, var(--surface-raised) 90%, ${NOT_STARTED_DOT})`,
 };
 
 interface Props {
@@ -50,6 +53,19 @@ interface Props {
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
   addOptimistic: TasksOptimisticDispatch;
+  selectionActive?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
+  onToggleColumnSelection?: (status: Status, taskIds: string[]) => void;
+  /** Drag state lifted to the parent so cards outside the kanban (e.g.
+   * the Inbox tray) can also be dragged INTO the columns. When supplied,
+   * the board uses the parent's drag handlers + drop dispatcher instead
+   * of its own internal state. */
+  externalDraggedTaskId?: string | null;
+  externalDraggedFromStatus?: Status | null;
+  onExternalDragStart?: (id: string) => void;
+  onExternalDragEnd?: () => void;
+  onExternalDropOnStatus?: (target: Status) => void;
 }
 
 export function KanbanBoard({
@@ -58,9 +74,25 @@ export function KanbanBoard({
   onTaskClick,
   onCreateTask,
   addOptimistic,
+  selectionActive,
+  selectedIds,
+  onToggleSelected,
+  onToggleColumnSelection,
+  externalDraggedTaskId,
+  externalDraggedFromStatus,
+  onExternalDragStart,
+  onExternalDragEnd,
+  onExternalDropOnStatus,
 }: Props) {
   const queryClient = useQueryClient();
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [internalDraggedTaskId, setInternalDraggedTaskId] = useState<string | null>(null);
+  const draggedTaskId = externalDraggedTaskId ?? internalDraggedTaskId;
+  const setDraggedTaskId = onExternalDragStart
+    ? (id: string | null) => {
+        if (id) onExternalDragStart(id);
+        else onExternalDragEnd?.();
+      }
+    : setInternalDraggedTaskId;
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
 
@@ -92,11 +124,17 @@ export function KanbanBoard({
   const draggedTask = draggedTaskId
     ? tasks.find((t) => t.id === draggedTaskId) ?? null
     : null;
-  const draggedFromStatus: Status | null = draggedTask
+  const internalDraggedFromStatus: Status | null = draggedTask
     ? (draggedTask.status as Status)
     : null;
+  const draggedFromStatus = externalDraggedFromStatus ?? internalDraggedFromStatus;
 
   function dropTaskOnStatus(targetStatus: Status) {
+    // External drop pipe — parent owns task lookup + dueDate side-effects.
+    if (onExternalDropOnStatus) {
+      onExternalDropOnStatus(targetStatus);
+      return;
+    }
     if (!draggedTask) return;
     if (draggedTask.status === targetStatus) {
       setDraggedTaskId(null);
@@ -161,6 +199,10 @@ export function KanbanBoard({
             onDragEnd={() => setDraggedTaskId(null)}
             onDropOnColumn={dropTaskOnStatus}
             pendingTaskId={null}
+            selectionActive={selectionActive}
+            selectedIds={selectedIds}
+            onToggleSelected={onToggleSelected}
+            onToggleColumnSelection={onToggleColumnSelection}
           />
         ))}
       </div>

@@ -25,6 +25,7 @@ export {
 export {
   buildProjectListContext,
   buildSystemPrompt,
+  buildUserContextBlock,
   type SystemBlock,
 } from "./prompt-builder";
 

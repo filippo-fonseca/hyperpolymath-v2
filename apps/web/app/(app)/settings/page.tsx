@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Brain, Laptop } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -15,6 +16,7 @@ import { DefaultCalendarPicker } from "@/components/settings/DefaultCalendarPick
 import { VisibleCalendarsCheckboxList } from "@/components/settings/VisibleCalendarsCheckboxList";
 import { TimezoneOverrideRow } from "@/components/settings/TimezoneOverrideRow";
 import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
+import { DistanceUnitToggle } from "@/components/training/settings/DistanceUnitToggle";
 import {
   getValidGcalToken,
   GcalNotConnectedError,
@@ -43,10 +45,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const [gcalStatus, oauthAvatar] = await Promise.all([
+  const [gcalStatus, oauthAvatar, distanceUnitRow] = await Promise.all([
     getGcalConnectionStatus(user.id),
     getAuthAvatar(),
+    db
+      .select({ unit: users.distanceUnit })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
   ]);
+  const currentDistanceUnit: "km" | "mi" =
+    distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
 
   let calendars: GcalCalendarMeta[] = [];
   let currentDefault: string | null = null;
@@ -116,6 +125,7 @@ export default async function SettingsPage() {
             initialDisplayName={user.displayName}
             initialBio={user.bio}
             initialAvatarUrl={user.avatarUrl}
+            initialGithubUsername={user.githubUsername}
             oauthAvatarUrl={oauthAvatar.avatarUrl}
           />
         </Card>
@@ -144,6 +154,22 @@ export default async function SettingsPage() {
 
         <Card className={tileHover}>
           <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+            Units
+          </h2>
+          <div className="space-y-1">
+            <p className="font-serif text-base text-[var(--ink)]">
+              Distance unit
+            </p>
+            <p className="font-serif text-base text-[var(--ink-muted)]">
+              Used across the training planner, completion dialog, and stats.
+              Stored data stays in kilometers; only the display converts.
+            </p>
+          </div>
+          <DistanceUnitToggle value={currentDistanceUnit} />
+        </Card>
+
+        <Card className={tileHover}>
+          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
             Integrations
           </h2>
           <GcalConnectionRow status={gcalStatus} />
@@ -167,9 +193,14 @@ export default async function SettingsPage() {
 
         {/* Phase 5.1 (D-M6 / JARVIS-18) — Memory settings link */}
         <Card className={tileHover}>
-          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-            JARVIS Memory
-          </h2>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <Brain className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              JARVIS Memory
+            </h2>
+          </div>
           <p className="font-serif text-base text-[var(--ink-muted)]">
             Review, edit, or remove facts JARVIS has remembered about you.
           </p>
@@ -178,6 +209,28 @@ export default async function SettingsPage() {
             className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
           >
             Manage memory →
+          </Link>
+        </Card>
+
+        {/* Desktop devices — bearer tokens for the Tauri desktop app. */}
+        <Card className={tileHover}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <Laptop className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              Desktop devices
+            </h2>
+          </div>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
+            Mint a bearer token for the desktop app, then paste it once into
+            the device to pair it. Revoke any device at any time.
+          </p>
+          <Link
+            href="/settings/desktop"
+            className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
+            Manage devices →
           </Link>
         </Card>
 

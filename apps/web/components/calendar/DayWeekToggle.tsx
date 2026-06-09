@@ -21,9 +21,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+export type CalendarView = "day" | "3day" | "week";
+
 interface Props {
-  view: "day" | "week";
-  onChange: (view: "day" | "week") => void;
+  view: CalendarView;
+  onChange: (view: CalendarView) => void;
   date: Date;
   onDateChange: (date: Date) => void;
 }
@@ -34,39 +36,34 @@ interface Props {
 // register); the date label keeps serif because it's content (the page is
 // reading a date, not labeling chrome). Inactive segments at --ink-muted
 // dim to --ink on 100ms hover; active state gets 1px inset --edge ring.
+const SEGMENTS: { value: CalendarView; label: string }[] = [
+  { value: "day", label: "Day" },
+  { value: "3day", label: "3 Day" },
+  { value: "week", label: "Week" },
+];
+
 export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
-  const step = view === "day" ? 1 : 7;
+  const step = view === "day" ? 1 : view === "3day" ? 3 : 7;
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-sm p-0.5 bg-[var(--surface)]">
-        <button
-          type="button"
-          onClick={() => onChange("day")}
-          className={cn(
-            "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-            "transition-colors duration-150 ease-out",
-            view === "day"
-              ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-              : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-          )}
-          aria-pressed={view === "day"}
-        >
-          Day
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange("week")}
-          className={cn(
-            "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-            "transition-colors duration-150 ease-out",
-            view === "week"
-              ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-              : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-          )}
-          aria-pressed={view === "week"}
-        >
-          Week
-        </button>
+        {SEGMENTS.map((seg) => (
+          <button
+            key={seg.value}
+            type="button"
+            onClick={() => onChange(seg.value)}
+            className={cn(
+              "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+              "transition-colors duration-150 ease-out",
+              view === seg.value
+                ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+            )}
+            aria-pressed={view === seg.value}
+          >
+            {seg.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center gap-1">
@@ -76,7 +73,7 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
           size="sm"
           className="h-7 px-2"
           onClick={() => onDateChange(addDays(date, -step))}
-          aria-label={view === "day" ? "Previous day" : "Previous week"}
+          aria-label={view === "day" ? "Previous day" : view === "3day" ? "Previous 3 days" : "Previous week"}
         >
           <ChevronLeft size={14} strokeWidth={1.5} />
         </Button>
@@ -95,7 +92,7 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
           size="sm"
           className="h-7 px-2"
           onClick={() => onDateChange(addDays(date, step))}
-          aria-label={view === "day" ? "Next day" : "Next week"}
+          aria-label={view === "day" ? "Next day" : view === "3day" ? "Next 3 days" : "Next week"}
         >
           <ChevronRight size={14} strokeWidth={1.5} />
         </Button>
@@ -105,7 +102,9 @@ export function DayWeekToggle({ view, onChange, date, onDateChange }: Props) {
       <span className="font-serif text-sm text-[var(--ink-muted)] ml-2">
         {view === "day"
           ? format(date, "EEEE, MMMM d, yyyy")
-          : format(date, "MMMM yyyy")}
+          : view === "3day"
+            ? `${format(date, "MMM d")} – ${format(addDays(date, 2), "MMM d, yyyy")}`
+            : format(date, "MMMM yyyy")}
       </span>
     </div>
   );

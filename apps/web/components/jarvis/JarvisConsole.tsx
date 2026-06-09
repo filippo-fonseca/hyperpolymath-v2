@@ -536,8 +536,15 @@ export function JarvisConsole({
         text: detail.transcript,
         createdAt: new Date(),
       };
-      setTurns([userTurn]);
-      turnsRef.current = [userTurn];
+      // 2026-06 fix: previously `setTurns([userTurn])` wiped the entire
+      // scrollback on every voice transcript so the conversation history
+      // vanished the moment the desktop spoke. Append instead so the
+      // browser shows a real running conversation.
+      setTurns((prev) => {
+        const next = [...prev, userTurn];
+        turnsRef.current = next;
+        return next;
+      });
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
@@ -645,6 +652,33 @@ export function JarvisConsole({
       window.removeEventListener("jarvis-response-end", handleResponseEnd);
     };
   }, []);
+
+  // Quick 260607-g56: consume sessionStorage('jarvis-prefill') on mount. Set by
+  // LifeOsQuickSend and GlobalJarvisDialog when they hand off a seed turn to
+  // the full console flow. Defer one tick so the console is fully mounted +
+  // scrollback hydrated before we fire handleSubmit.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let prefill: string | null = null;
+    try {
+      prefill = sessionStorage.getItem("jarvis-prefill");
+      if (prefill) sessionStorage.removeItem("jarvis-prefill");
+    } catch {
+      return;
+    }
+    if (!prefill?.trim()) return;
+    const t = setTimeout(() => {
+      void handleSubmit({
+        input: prefill,
+        parsedDates: [],
+        parsedPriority: null,
+        slashCommand: null,
+        projectIds: [],
+        hashtags: [],
+      });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [handleSubmit]);
 
   // Phase 7 voice-everywhere: jarvis-cancel aborts the in-flight /api/jarvis
   // request so the user can stop the run before the model finishes.

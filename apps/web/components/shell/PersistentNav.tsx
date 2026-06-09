@@ -12,6 +12,8 @@ import {
   BarChart2,
   Info,
   Repeat,
+  LayoutDashboard,
+  Dumbbell,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
@@ -28,6 +30,11 @@ import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
 import { PressToTalkButton } from "@/components/voice/PressToTalkButton";
 import type { MicState } from "@/lib/voice/types";
+import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
+import {
+  subscribeToPolypadState,
+  type PolypadConnectionState,
+} from "@/lib/polypad/polypad-state-bus";
 
 /**
  * Top-level primary navigation rendered inside the Sidebar's NAVIGATE section.
@@ -52,8 +59,10 @@ import type { MicState } from "@/lib/voice/types";
  */
 const items = [
   { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
+  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
   // /areas is NOT here — the sidebar AREAS section header below acts as
@@ -71,6 +80,19 @@ function MicIndicatorDotContainer() {
   const [state, setState] = useState<MicState>("idle");
   useEffect(() => subscribeToMicState(setState), []);
   return <MicIndicatorDot state={state} />;
+}
+
+/**
+ * Quick task 260607-gy1 — Polypad device connection indicator.
+ *
+ * Mirrors MicIndicatorDotContainer; accepts `collapsed` so the dot can hide
+ * its label + icon in collapsed sidebar mode. Subscribes to the stub state
+ * bus until the bridge ships.
+ */
+function PolypadIndicatorDotContainer({ collapsed }: { collapsed: boolean }) {
+  const [state, setState] = useState<PolypadConnectionState>("disconnected");
+  useEffect(() => subscribeToPolypadState(setState), []);
+  return <PolypadIndicatorDot state={state} collapsed={collapsed} />;
 }
 
 interface Props {
@@ -204,9 +226,12 @@ export function PersistentNav({ collapsed }: Props) {
         })}
 
         {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern). */}
-        <div className="flex items-center gap-1 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
+        <div className="flex items-center gap-2 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
           <div className="agent-mode-scope inline-flex items-center">
             <MicIndicatorDotContainer />
+          </div>
+          <div className="agent-mode-scope inline-flex items-center">
+            <PolypadIndicatorDotContainer collapsed={collapsed} />
           </div>
           {!collapsed && (
             <>
