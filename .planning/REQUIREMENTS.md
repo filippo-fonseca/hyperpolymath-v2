@@ -214,14 +214,14 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 ### Personal Context Graph + MCP Export (Phase 999.12)
 
 - [x] **CTX-01**: `personal_context_snapshots` table exists with `user_id`, `captured_on` (date, one row per user per day), `schema_version` (int), `payload` (jsonb typed graph), `meta` (jsonb with counts + `no_export_filtered`), RLS scoped to `auth.uid()`, NOT added to `supabase_realtime` publication
-- [ ] **CTX-02**: `apps/web/lib/context/builder.ts` exports a pure `buildSnapshot(userId)` that reads from areas/projects/tasks/captures/training/habits/jarvis_facts via Drizzle and returns a typed `{ nodes: Node[]; edges: Edge[]; meta }` graph
-- [ ] **CTX-03**: `Node` and `Edge` are discriminated unions with Zod schemas; every node type has an explicit `kind` discriminator; payload is parse-validated before persistence
+- [x] **CTX-02**: `apps/web/lib/context/builder.ts` exports a pure `buildSnapshot(userId)` that reads from areas/projects/tasks/captures/training/habits/jarvis_facts via Drizzle and returns a typed `{ nodes: Node[]; edges: Edge[]; meta }` graph
+- [x] **CTX-03**: `Node` and `Edge` are discriminated unions with Zod schemas; every node type has an explicit `kind` discriminator; payload is parse-validated before persistence
 - [x] **CTX-04**: `no_export boolean default false` columns exist on `captures`, `tasks`, and `jarvis_facts`; the snapshot builder filters rows where `no_export = true` and records the filtered count in `meta.no_export_filtered`
 - [ ] **CTX-05**: `/settings/context` page renders the latest snapshot (collapsible JSON preview + node/edge counts + filtered count) and exposes an on-demand "Rebuild now" button that calls `/api/context/rebuild`
 - [ ] **CTX-06**: `app/api/cron/build-snapshot/route.ts` runs as a Node-runtime route, validates `Authorization: Bearer ${CRON_SECRET}`, iterates active users, and upserts one snapshot per user per UTC day
 - [ ] **CTX-07**: `vercel.json` contains a cron entry hitting `/api/cron/build-snapshot` on `0 5 * * *` (00:00 ET / 05:00 UTC)
 - [ ] **CTX-08**: A `NoExportToggle` component + Server Action lets the user flip `no_export` on individual captures, tasks, and JARVIS facts; mounted at least on `/settings/memory` (jarvis_facts list)
-- [ ] **CTX-09**: Snapshot payload carries `schema_version: 1`; a `migrateSnapshot(payload)` helper centralizes future version bumps so the cron + reader paths never branch on version inline
+- [x] **CTX-09**: Snapshot payload carries `schema_version: 1`; a `migrateSnapshot(payload)` helper centralizes future version bumps so the cron + reader paths never branch on version inline
 
 ### MCP Server — Personal Context (Phase 999.12)
 

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 999.12-01-PLAN.md
-last_updated: "2026-06-09T19:29:09.495Z"
+stopped_at: Completed 999.12-02-PLAN.md
+last_updated: "2026-06-09T19:44:55.581Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 32
   completed_phases: 12
   total_plans: 82
-  completed_plans: 66
+  completed_plans: 67
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 999.12 (personal-context-graph-daily-mcp-export) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-09
 
@@ -118,6 +118,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 15-training-fitness-activity-planner P04 | ~25min | 3 tasks | 10 files |
 | Phase 15-training-fitness-activity-planner P05 | 10m | 3 tasks | 10 files |
 | Phase 999.12 P01 | 5min | 3 tasks | 4 files |
+| Phase 999.12 P02 | 11min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -325,6 +326,11 @@ Recent decisions affecting current work:
 - [Phase 15-training-fitness-activity-planner]: Single all-time useQuery is source of truth; time-window filter derives in-memory so realtime invalidation touches one key
 - [Phase 999.12]: Snapshot payload kept as plain jsonb (no .$type<ContextSnapshot>()) in schema.ts to avoid circular import schema.ts → context/build-snapshot.ts → schema.ts; Plan 02 casts at the query site
 - [Phase 999.12]: personal_context_snapshots intentionally excluded from supabase_realtime publication (RESEARCH.md Pitfall 4 — JSONB payload is privacy-sensitive; no live-update need)
+- [Phase 999.12]: Plan 02: loaders take optional db injection; tests mock loaders not Drizzle chain — faster + decoupled from query DSL
+- [Phase 999.12]: Plan 02: edges derive purely from loaded nodes — no extra DB hit. captures/tasks loaders fetch junction inline; deriveEdges walks in-memory only (O(rows))
+- [Phase 999.12]: Plan 02: caps live in loaders not schema (tasks 200, captures 50/500-char, training 30). meta.excludedNoExportCount tracks the recency window not unbounded history
+- [Phase 999.12]: Plan 02: noExport gated in TS not WHERE — SELECT no_export, skip-with-count. Surfaces excludedNoExportCount without a second COUNT query and is robust to mid-build flips
+- [Phase 999.12]: Plan 02: Zod 4 UUID strict-format gotcha — pad-counter test fixtures (00000000-…-0010) fail format; all fixtures use crypto.randomUUID() (v4). Documented inline in build-snapshot.test.ts
 
 ### Pending Todos
 
@@ -347,6 +353,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:29:09.490Z
-Stopped at: Completed 999.12-01-PLAN.md
+Last session: 2026-06-09T19:44:36.582Z
+Stopped at: Completed 999.12-02-PLAN.md
 Resume file: None
