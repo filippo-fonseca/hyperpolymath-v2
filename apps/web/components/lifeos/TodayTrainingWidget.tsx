@@ -63,7 +63,7 @@ export function TodayTrainingWidget({
   );
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
+    <div className="flex flex-col h-full">
       <header className="mb-4 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2.5">
           <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
@@ -144,6 +144,6 @@ export function TodayTrainingWidget({
           })}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

@@ -47,7 +47,7 @@ export function RecentCapturesWidget({
   );
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color] duration-150 ease-out hover:border-[var(--edge-hud)]">
+    <div className="flex flex-col h-full">
       <header className="mb-4 flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
           <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
@@ -159,6 +159,6 @@ export function RecentCapturesWidget({
           availableProjects={availableProjects}
         />
       )}
-    </section>
+    </div>
   );
 }

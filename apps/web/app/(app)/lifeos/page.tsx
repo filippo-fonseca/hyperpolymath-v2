@@ -16,6 +16,7 @@ import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
 import { LifeOsBentoGrid } from "@/components/lifeos/LifeOsBentoGrid";
+import { WidgetCard } from "@/components/lifeos/WidgetCard";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
@@ -106,34 +107,42 @@ export default async function LifeOsPage() {
         <LifeOsAreasSection />
         <LifeOsBentoGrid
           hero={
-            <UpcomingTasksWidget
-              userId={user.id}
-              initialTasks={initialTasks}
-              limit={7}
-            />
+            <WidgetCard href="/tasks" ariaLabel="Open Tasks">
+              <UpcomingTasksWidget
+                userId={user.id}
+                initialTasks={initialTasks}
+                limit={7}
+              />
+            </WidgetCard>
           }
           topRight={
-            <TodayHabitsWidget
-              userId={user.id}
-              initialHabits={initialHabits}
-              initialCompletions={initialCompletions}
-              todayISO={todayISO}
-            />
+            <WidgetCard href="/habits" ariaLabel="Open Habits">
+              <TodayHabitsWidget
+                userId={user.id}
+                initialHabits={initialHabits}
+                initialCompletions={initialCompletions}
+                todayISO={todayISO}
+              />
+            </WidgetCard>
           }
           midRight={
-            <TodayTrainingWidget
-              userId={user.id}
-              initialActivities={initialTrainingActivities}
-              distanceUnit={distanceUnit}
-              todayISO={todayISO}
-            />
+            <WidgetCard href="/training" ariaLabel="Open Training">
+              <TodayTrainingWidget
+                userId={user.id}
+                initialActivities={initialTrainingActivities}
+                distanceUnit={distanceUnit}
+                todayISO={todayISO}
+              />
+            </WidgetCard>
           }
           bottom={
-            <RecentCapturesWidget
-              userId={user.id}
-              initialCaptures={initialCaptures}
-              availableProjects={availableProjects}
-            />
+            <WidgetCard href="/captures" ariaLabel="Open Captures">
+              <RecentCapturesWidget
+                userId={user.id}
+                initialCaptures={initialCaptures}
+                availableProjects={availableProjects}
+              />
+            </WidgetCard>
           }
         />
       </div>

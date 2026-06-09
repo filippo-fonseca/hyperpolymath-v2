@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  createTask,
   getTasksForCurrentUser,
   updateTaskStatus,
 } from "@/app/actions/tasks";
@@ -85,6 +87,8 @@ export function UpcomingTasksWidget({
   });
 
   const [checkedOff, setCheckedOff] = useState<Set<string>>(new Set());
+  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const todayISO = (() => {
     const d = new Date();
@@ -109,6 +113,26 @@ export function UpcomingTasksWidget({
         new Date(b.dueDate as string).getTime(),
     )
     .slice(0, limit);
+
+  async function handleCreate() {
+    const title = newTitle.trim();
+    if (!title || creating) return;
+    setCreating(true);
+    const r = await createTask({
+      title,
+      status: "not started",
+      dueDate: todayISO,
+      priority: "P3",
+      projectIds: [],
+    });
+    setCreating(false);
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    setNewTitle("");
+    await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
+  }
 
   async function handleCheck(task: TaskWithProjects) {
     setCheckedOff((prev) => new Set(prev).add(task.id));
@@ -145,7 +169,7 @@ export function UpcomingTasksWidget({
     : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-6 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
+    <div className="flex flex-col h-full">
       <header className="mb-5 flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
           <h3
@@ -176,6 +200,36 @@ export function UpcomingTasksWidget({
           All →
         </Link>
       </header>
+
+      {/* Inline composer — Enter to create with today's due date. */}
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 transition-colors duration-150 focus-within:border-[var(--edge-hud)]">
+        <Plus
+          size={13}
+          strokeWidth={1.75}
+          className="text-[var(--ink-muted)] shrink-0"
+          aria-hidden
+        />
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleCreate();
+            }
+          }}
+          placeholder="New task — Enter to add"
+          disabled={creating}
+          className="flex-1 min-w-0 bg-transparent outline-none font-serif text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+        />
+        {newTitle.trim() && (
+          <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+            ⏎
+          </span>
+        )}
+      </div>
+
       {upcoming.length === 0 ? (
         <div className="flex flex-1 items-center">
           <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
@@ -237,6 +291,6 @@ export function UpcomingTasksWidget({
           </AnimatePresence>
         </ul>
       )}
-    </section>
+    </div>
   );
 }

@@ -149,7 +149,7 @@ export function TodayHabitsWidget({
   const doneCount = habits.filter((h) => isDone(h.id)).length;
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
+    <div className="flex flex-col h-full">
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <RingProgress done={doneCount} total={habits.length} />
@@ -229,6 +229,6 @@ export function TodayHabitsWidget({
           )}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
