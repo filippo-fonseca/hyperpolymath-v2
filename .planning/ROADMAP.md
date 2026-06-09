@@ -602,3 +602,44 @@ Plans:
 - [ ] 999.12-05-PLAN.md — Wave 3: Settings UI — /settings/context (snapshot preview + Rebuild now) + /settings/mcp-tokens (mint/list/revoke mirroring /settings/desktop) + NoExportToggle component + end-to-end human-verify with a live MCP client (CTX-05, CTX-08, MCP-05)
 
 
+
+### Phase 999.14: MCP token label column + multi-token-per-user (BACKLOG, parent 999.12)
+
+**Goal:** Two small followups to Phase 999.12: (a) add a dedicated `label text` column to `integration_tokens` (v1 of 999.12 reuses the existing `refresh_token` column to hold the user-supplied human-readable token name — a documented shortcut), and (b) drop the one-token-per-user constraint on `mcp_agent` tokens (composite PK `(user_id, provider)` means re-mint overwrites; switching to a surrogate `id uuid` PK lets the user keep independent tokens for claude.ai web vs Claude Code vs future agents and revoke each independently).
+
+**Why:** Independent revocation is the whole point of per-agent MCP tokens. v1's overwrite-on-mint UX is acceptable for one user with one consumer, but the moment a second consumer comes online the overwrite becomes a footgun. Also, `refresh_token` carrying a human label is the kind of semantic shortcut that turns confusing 18 months later.
+
+**Likely shape:**
+- One additive migration: `ALTER TABLE integration_tokens ADD COLUMN label text;` + relax PK to include a surrogate `id uuid default gen_random_uuid()`
+- Migrate existing `mcp_agent` rows: copy `refresh_token` → `label`, null out `refresh_token`
+- Update `/settings/mcp-tokens` Server Actions to write `label` directly and support N tokens per user
+- Update `/api/mcp/[...transport]` bearer lookup to match on `(provider, token_hash)` instead of `(user_id, provider)`
+
+**Trigger:** When the user wants a second MCP token, or when any other phase needs to add a `provider` to `integration_tokens` that genuinely needs both a label and a real refresh token.
+
+**Requirements:** TBD (define when promoting)
+
+**Plans:** 0 plans (idea filed 2026-06-09)
+
+Plans:
+- [ ] TBD
+
+### Phase 999.15: NoExport toggle on captures + tasks (per-row UI) (BACKLOG, parent 999.12)
+
+**Goal:** Surface the per-row `no_export` toggle on capture detail and task detail panels. Phase 999.12 ships the underlying column on `captures`, `tasks`, and `jarvis_facts` and the builder filters rows where `no_export = true`. The only missing piece for v1 was the UI — the toggle shipped only on `/settings/memory` (jarvis_facts, the most privacy-sensitive surface). Per-capture and per-task toggles are pure additive UI work: column, Server Action, and builder filter all already exist.
+
+**Why:** Captures and tasks DO leak personal info via MCP today unless the user remembers to flip the row's flag before the nightly cron fires; currently there is no UI for that flip. Defaulting to exportable is right (otherwise the system loses its "agent already knows me" value) but the per-row opt-out needs to be one click away.
+
+**Likely shape:**
+- Mount the existing `NoExportToggle` on capture detail + task detail panels
+- Same Server Action `setNoExport(table, id, value)` already accepts `'captures'` and `'tasks'` from 999.12
+- Optional polish: small "🔒 Not exported" badge on `/captures` and `/tasks` list rows when flagged
+
+**Trigger:** Immediately after Phase 999.12 lands and a few weeks of MCP usage reveal which capture/task types the user actually wants to hide. Cheap, additive, no migration.
+
+**Requirements:** TBD
+
+**Plans:** 0 plans (idea filed 2026-06-09)
+
+Plans:
+- [ ] TBD
