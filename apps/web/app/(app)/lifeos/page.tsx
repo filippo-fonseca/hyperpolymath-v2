@@ -15,7 +15,6 @@ import {
 import { LifeOsBanner } from "@/components/lifeos/LifeOsBanner";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
 import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
-import { LifeOsWallpaper } from "@/components/lifeos/LifeOsWallpaper";
 import { LifeOsWidgetGrid } from "@/components/lifeos/LifeOsWidgetGrid";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
@@ -78,7 +77,6 @@ export default async function LifeOsPage() {
 
   return (
     <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <LifeOsWallpaper />
       <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
         <LifeOsBanner
           title="LifeOS"

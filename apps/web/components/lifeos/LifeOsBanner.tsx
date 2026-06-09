@@ -34,17 +34,6 @@ export function LifeOsBanner({ title, emoji, subtitle }: Props) {
 
   return (
     <motion.section className="mb-10" {...animProps}>
-      {/* Cover placeholder — Notion-style strip. Static for now; a future
-          plan can wire image upload + crop. The very low-alpha cyan tint
-          in the gradient is the only atmospheric touch on this surface. */}
-      <div
-        aria-hidden="true"
-        className="h-24 md:h-32 rounded-lg border border-[var(--edge)] bg-[var(--surface)] mb-6"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--surface) 0%, color-mix(in oklch, var(--hud-cyan) 4%, var(--surface)) 100%)",
-        }}
-      />
       {/* Emoji + title block — mirrors Notion's page header proportions.
           Using a lozenge glyph (◈) instead of a standard emoji to stay in
           the Renaissance/journal-paper register; `📓` was the considered
