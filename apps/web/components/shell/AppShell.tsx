@@ -1,6 +1,7 @@
 "use client";
 
 import { Sidebar } from "./Sidebar";
+import { TopTabBar } from "./TopTabBar";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -44,7 +45,10 @@ export function AppShell({
         graduationYear={graduationYear}
         profile={profile}
       />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <TopTabBar />
+        <div className="flex-1 overflow-auto">{children}</div>
+      </main>
     </div>
   );
 }

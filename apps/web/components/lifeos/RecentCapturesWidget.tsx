@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { formatDistanceToNowStrict } from "date-fns";
+import { motion, useReducedMotion } from "motion/react";
+import { Sparkles, PenLine, Hash } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getCapturesForCurrentUser } from "@/app/actions/captures";
 import { tableKey } from "@/lib/realtime/query-keys";
@@ -17,24 +20,19 @@ interface Props {
 }
 
 /**
- * RecentCapturesWidget — at-a-glance + interactive tile for the LifeOS homepage.
+ * RecentCapturesWidget — full-width bottom tile in the bento grid.
  *
- * Quick task 260607-gox (2/3): converted from Server Component to client island.
- * Reuses the [...tableKey("captures", userId), null] query key from
- * CapturesClient so Realtime invalidation fans out to both surfaces.
- *
- * Hover-revealed "→ Task" action surfaces ONLY for JARVIS-created captures
- * (createdVia === "jarvis", preserving D-14 / JARVIS-13). Opens the existing
- * ConvertCaptureToTaskDialog verbatim — no parallel dialog invented; the
- * dialog handles its own invalidation across captures + tasks query keys.
- *
- * Aesthetic: opacity 0 → 0.85 on group hover, no scale, no glow.
+ * Reads as a horizontal stream of recent thoughts. Source glyph (sparkle for
+ * JARVIS, pen for manual), relative timestamp, content, then up to two
+ * hashtag chips. Hover reveals the "→ Task" affordance ONLY for JARVIS
+ * captures (D-14 / JARVIS-13). Cards stagger in on mount.
  */
 export function RecentCapturesWidget({
   userId,
   initialCaptures,
   availableProjects,
 }: Props) {
+  const reduced = useReducedMotion();
   useTableSubscription("captures", userId);
 
   const { data: capturesData = initialCaptures } = useQuery({
@@ -43,18 +41,22 @@ export function RecentCapturesWidget({
     initialData: initialCaptures,
   });
 
-  const recent = capturesData.slice(0, 5);
-
+  const recent = capturesData.slice(0, 6);
   const [convertTarget, setConvertTarget] = useState<CaptureWithLinks | null>(
     null,
   );
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
+    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color] duration-150 ease-out hover:border-[var(--edge-hud)]">
       <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-          Recent captures
-        </h3>
+        <div className="flex items-baseline gap-3">
+          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
+            Recent captures
+          </h3>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
+            {capturesData.length} total
+          </span>
+        </div>
         <Link
           href="/captures"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
@@ -67,27 +69,81 @@ export function RecentCapturesWidget({
           Nothing captured yet. Type into JARVIS to drop a note.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3 flex-1">
-          {recent.map((c) => {
+        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {recent.map((c, i) => {
             const isJarvis = c.createdVia === "jarvis";
+            const SourceIcon = isJarvis ? Sparkles : PenLine;
             return (
-              <li
+              <motion.li
                 key={c.id}
-                className="group relative border-b border-[var(--edge)] pb-3 last:border-b-0 last:pb-0"
+                initial={reduced ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: reduced ? 0 : 0.04 * i,
+                  duration: 0.28,
+                  ease: [0.25, 1, 0.5, 1],
+                }}
+                className="group relative rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2 transition-[border-color] duration-150 hover:border-[var(--edge-hud)]"
               >
-                <p className="font-serif text-[14px] text-[var(--ink)] line-clamp-2 pr-14">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+                    <SourceIcon
+                      size={11}
+                      strokeWidth={1.75}
+                      style={
+                        isJarvis
+                          ? {
+                              color: "var(--hud-cyan)",
+                              filter:
+                                "drop-shadow(0 0 4px color-mix(in oklch, var(--hud-cyan) 50%, transparent))",
+                            }
+                          : undefined
+                      }
+                    />
+                    <span className="font-mono text-[9px] uppercase tracking-[0.14em]">
+                      {isJarvis ? "JARVIS" : "Manual"}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+                    {formatDistanceToNowStrict(new Date(c.createdAt), {
+                      addSuffix: false,
+                    })}
+                  </span>
+                </div>
+                <p className="font-serif text-[13px] leading-[1.45] text-[var(--ink)] line-clamp-3">
                   {c.content}
                 </p>
+                {(c.hashtags.length > 0 || c.projects.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {c.hashtags.slice(0, 2).map((h) => (
+                      <span
+                        key={h.id}
+                        className="inline-flex items-center gap-0.5 font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)]"
+                      >
+                        <Hash size={8} strokeWidth={2} />
+                        {h.displayName}
+                      </span>
+                    ))}
+                    {c.projects.slice(0, 1).map((p) => (
+                      <span
+                        key={p.id}
+                        className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] truncate max-w-[120px]"
+                      >
+                        / {p.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {isJarvis && (
                   <button
                     type="button"
                     onClick={() => setConvertTarget(c)}
-                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-[0.85] transition-opacity duration-150 ease-out font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-[0.85] transition-opacity duration-150 ease-out font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] cursor-pointer-always bg-[var(--surface-raised)] px-1.5 py-0.5 rounded"
                   >
                     → Task
                   </button>
                 )}
-              </li>
+              </motion.li>
             );
           })}
         </ul>
