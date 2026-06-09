@@ -53,6 +53,8 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: TaskStatus }) => Promise<void>;
+  /** Opens the detail panel as a draft (preferred over inline composer). */
+  onStartCreate?: (status: TaskStatus) => void;
   draggedTaskId: string | null;
   draggedFromStatus: TaskStatus | null;
   onDragStart: (id: string) => void;
@@ -72,6 +74,7 @@ export function KanbanColumn({
   tasks,
   onTaskClick,
   onCreateTask,
+  onStartCreate,
   draggedTaskId,
   draggedFromStatus,
   onDragStart,
@@ -112,7 +115,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl h-full min-h-0"
+      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -195,7 +198,7 @@ export function KanbanColumn({
         </div>
 
         <div className="mt-2 pt-2 border-t border-[color:color-mix(in_oklch,var(--edge)_50%,transparent)]">
-          <TaskCreateInline status={status} onCreateTask={onCreateTask} />
+          <TaskCreateInline status={status} onCreateTask={onCreateTask} onStartCreate={onStartCreate} />
         </div>
       </div>
     </div>

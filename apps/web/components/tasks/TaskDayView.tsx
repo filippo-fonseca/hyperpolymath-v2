@@ -165,7 +165,7 @@ function DaySection({
         </span>
       </div>
       {tasks.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-1 @sm/main:grid-cols-2 @2xl/main:grid-cols-3 @4xl/main:grid-cols-4 gap-2.5">
           {tasks.map((t) => (
             <TaskCard key={t.id} task={t} onClick={onTaskClick} />
           ))}

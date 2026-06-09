@@ -144,7 +144,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-[var(--surface)] border-r border-[var(--edge)] shrink-0 overflow-hidden",
+        "group/sidebar flex flex-col h-full bg-[var(--surface)] border-r border-[var(--edge)] shrink-0 overflow-hidden",
         "transition-[width] duration-200 ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
         // Prevent layout shift before mounted (localStorage read)
@@ -152,8 +152,12 @@ export function Sidebar({
       )}
       aria-label="Sidebar"
     >
-      {/* Header: Wordmark + collapse toggle */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
+      {/* Header: Wordmark + collapse toggle.
+          When collapsed, the 64px row is too narrow for both glyphs at once,
+          so the H wordmark owns the whole row and the chevron only fades in
+          on hover/focus (positioned absolutely so it overlays the H instead
+          of pushing it). */}
+      <div className="relative flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
         <Wordmark collapsed={collapsed} />
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -163,7 +167,11 @@ export function Sidebar({
                 size="icon-sm"
                 onClick={toggleCollapsed}
                 aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+                className={cn(
+                  "shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-[opacity,color] duration-150 ease-out",
+                  collapsed &&
+                    "absolute right-2 top-1/2 -translate-y-1/2 bg-[var(--surface)] opacity-0 pointer-events-none group-hover/sidebar:opacity-100 group-hover/sidebar:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto",
+                )}
               >
                 {collapsed ? (
                   <ChevronRight size={14} strokeWidth={1.5} />

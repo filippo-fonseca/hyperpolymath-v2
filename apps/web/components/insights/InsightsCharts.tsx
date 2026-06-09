@@ -105,12 +105,12 @@ export function InsightsCharts({ data }: Props) {
     : "—";
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 @lg/main:grid-cols-2 gap-6">
       {/* Chart 1 — ACTION DISTRIBUTION (full width on md+) */}
       <ChartPanel
         title="Action distribution"
         height={220}
-        className="md:col-span-2"
+        className="@lg/main:col-span-2"
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data.actionDist} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

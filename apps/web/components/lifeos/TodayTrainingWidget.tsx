@@ -63,11 +63,18 @@ export function TodayTrainingWidget({
   );
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
+    <div className="flex flex-col h-full">
       <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-          Today's training
-        </h3>
+        <div className="flex items-baseline gap-2.5">
+          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
+            Training
+          </h3>
+          {visible.length > 0 && (
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
+              {visible.filter((a) => a.status === "done").length}/{visible.length}
+            </span>
+          )}
+        </div>
         <Link
           href="/training"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
@@ -137,6 +144,6 @@ export function TodayTrainingWidget({
           })}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

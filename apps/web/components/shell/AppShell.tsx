@@ -1,6 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
+import { TopTabBar } from "./TopTabBar";
+import { JarvisSidePanel } from "./JarvisSidePanel";
+import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -8,7 +12,6 @@ interface Props {
   activeAreas: SidebarArea[];
   allAreas: SidebarArea[];
   graduationYear?: number | null;
-  /** Profile snapshot forwarded to the sidebar chip. */
   profile: {
     displayName: string | null;
     email: string;
@@ -18,14 +21,20 @@ interface Props {
   children: React.ReactNode;
 }
 
+const JARVIS_PATH = "/today";
+
 /**
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §14 carry-forward, §5e diplomatic chrome):
+ * AppShell — sidebar + main column with optional JARVIS side panel.
  *
- * Layout grid is unchanged from Phase 6 — `proxy.ts` and route compositions
- * depend on the sidebar-left + main-right structure. ONLY the chrome
- * typography + edge treatment carries to the children. Background reads
- * directly from --canvas (not Tailwind's bg-background alias) so the
- * journal-paper surface is explicit and there is no neumorphic shadow.
+ * Layout grid: sidebar-left + main-right, unchanged from Phase 6. The main
+ * column now stacks the TopTabBar above a content area that may split
+ * horizontally when split-screen mode is on: left ~70% (the route) + right
+ * ~30% (an embedded JARVIS console). The divider is a 1px hairline, matching
+ * macOS/Arc browser split panes.
+ *
+ * The side panel is suppressed on /today (avoids two JARVIS consoles) and on
+ * /onboarding (no chrome there). It also collapses on narrow viewports
+ * (< lg) to keep the route legible.
  */
 export function AppShell({
   userId,
@@ -35,6 +44,14 @@ export function AppShell({
   profile,
   children,
 }: Props) {
+  const pathname = usePathname() ?? "";
+  const { splitOn } = useSplitScreen();
+
+  const onJarvis =
+    pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
+  const onOnboarding = pathname.startsWith("/onboarding");
+  const showPanel = splitOn && !onJarvis && !onOnboarding;
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
       <Sidebar
@@ -44,7 +61,20 @@ export function AppShell({
         graduationYear={graduationYear}
         profile={profile}
       />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <TopTabBar />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="@container/main flex-1 overflow-auto">{children}</div>
+          {showPanel && (
+            <aside
+              aria-label="JARVIS side panel"
+              className="hidden lg:flex w-[30%] min-w-[360px] max-w-[520px] flex-col border-l border-[var(--edge)] bg-[var(--canvas)] overflow-hidden agent-mode-scope"
+            >
+              <JarvisSidePanel />
+            </aside>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

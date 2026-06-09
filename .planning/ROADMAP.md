@@ -603,7 +603,22 @@ Plans:
 
 
 
-### Phase 999.14: MCP token label column + multi-token-per-user (BACKLOG, parent 999.12)
+### Phase 999.14: Pre-release landing page refresh (BACKLOG)
+
+**Goal:** Before going public, sweep the marketing landing page so it reflects what hyperpolymath actually does today — not the Phase 1/2 placeholder copy. Two big additions: (1) MCP / personal context graph story (ships from Phase 999.12) — frame hyperpolymath as the daily-refreshed memory layer for every other agent the user touches; (2) Knowledge graph angle — unified web of areas/projects/captures/tasks/training/habits as a first-class surface ("your second brain has a schema now"). Plus a housekeeping pass: replace v1-era copy (Goodreads/Strava/Twilio references), audit the JARVIS demo for current tool list, confirm split-screen + ⌃1/⌃2 + LifeOS hero/bento are showcased, re-shoot stale screenshots, verify OG/favicon/twitter-image reflect current brand mark, typo/grammar sweep.
+
+**Why:** Landing copy is the first impression. Captured 2026-06-09 in anticipation of a public push following Phase 999.12 (which adds the actual MCP-export story worth telling).
+
+**Idea:** `.planning/phases/999.14-pre-release-landing-page-refresh/IDEA.md`
+
+**Requirements:** TBD (define when promoting — likely `LAND-*` family)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD
+
+### Phase 999.16: MCP token label column + multi-token-per-user (BACKLOG, parent 999.12)
 
 **Goal:** Two small followups to Phase 999.12: (a) add a dedicated `label text` column to `integration_tokens` (v1 of 999.12 reuses the existing `refresh_token` column to hold the user-supplied human-readable token name — a documented shortcut), and (b) drop the one-token-per-user constraint on `mcp_agent` tokens (composite PK `(user_id, provider)` means re-mint overwrites; switching to a surrogate `id uuid` PK lets the user keep independent tokens for claude.ai web vs Claude Code vs future agents and revoke each independently).
 

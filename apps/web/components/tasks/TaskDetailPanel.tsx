@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { MoveToMenu } from "./MoveToMenu";
-import { updateTask } from "@/app/actions/tasks";
+import { createTask, updateTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,12 @@ interface Props {
    * server call.
    */
   onDeleteTask?: (task: TaskWithProjects) => void;
+  /**
+   * "create" mode: `task` is a draft (not yet persisted). Save calls the
+   * createTask Server Action; Cancel/close discards. "edit" mode (default):
+   * existing behavior — Save calls updateTask, Delete is offered.
+   */
+  mode?: "edit" | "create";
 }
 
 interface FormState {
@@ -112,7 +118,9 @@ export function TaskDetailPanel({
   onClose,
   addOptimistic,
   onDeleteTask,
+  mode = "edit",
 }: Props) {
+  const isCreate = mode === "create";
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
@@ -140,10 +148,59 @@ export function TaskDetailPanel({
     }
   }, [task?.id]);
 
-  const dirty = task ? isDirty(form, initialForm) : false;
+  // In create mode, "dirty" = "has a title" — we just need something to save.
+  // In edit mode, "dirty" = "form diverged from the initial snapshot".
+  const dirty = task
+    ? isCreate
+      ? form.title.trim().length > 0
+      : isDirty(form, initialForm)
+    : false;
+
+  const handleCreate = useCallback(async () => {
+    const title = form.title.trim();
+    if (!title) return;
+    const newId = crypto.randomUUID();
+    const projectChips = projects
+      .filter((p) => form.projectIds.includes(p.id))
+      .map((p) => ({ id: p.id, name: p.name }));
+    // Optimistic insert so the new row pops into the kanban immediately.
+    addOptimistic({
+      type: "insert",
+      row: {
+        id: newId,
+        title,
+        notes: form.notes || null,
+        priority: form.priority,
+        status: form.status,
+        dueDate: form.dueDate || null,
+        kanbanPosition: 0,
+        completedAt: null,
+        createdAt: new Date(),
+        projects: projectChips,
+      },
+    });
+    const r = await createTask({
+      id: newId,
+      title,
+      notes: form.notes || null,
+      priority: form.priority,
+      status: form.status,
+      dueDate: form.dueDate || null,
+      projectIds: form.projectIds,
+    });
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    onClose();
+  }, [form, projects, addOptimistic, onClose]);
 
   const handleSave = useCallback(async () => {
     if (!task) return;
+    if (isCreate) {
+      await handleCreate();
+      return;
+    }
     const patch = {
       title: form.title.trim() || task.title,
       notes: form.notes || null,
@@ -179,7 +236,7 @@ export function TaskDetailPanel({
     }
     setInitialForm(form);
     // Realtime echo invalidates ['tasks', userId] → refetch → cache settles.
-  }, [task, form, projects, addOptimistic]);
+  }, [task, form, projects, addOptimistic, isCreate, handleCreate]);
 
   // Cmd+Enter to save
   useEffect(() => {
@@ -211,23 +268,32 @@ export function TaskDetailPanel({
   const handleSheetOpenChange = useCallback(
     (next: boolean) => {
       if (next) return;
+      // Create mode: nothing is persisted yet; closing is always safe.
+      if (isCreate) {
+        onClose();
+        return;
+      }
       if (dirty) {
         setPendingDiscardAction("close");
         return;
       }
       onClose();
     },
-    [dirty, onClose],
+    [dirty, onClose, isCreate],
   );
 
-  // Cancel button: confirm when dirty, otherwise just close.
+  // Cancel button: confirm when dirty (edit mode only); otherwise close.
   const handleCancelClick = useCallback(() => {
+    if (isCreate) {
+      onClose();
+      return;
+    }
     if (dirty) {
       setPendingDiscardAction("cancel");
       return;
     }
     onClose();
-  }, [dirty, onClose]);
+  }, [dirty, onClose, isCreate]);
 
   // Confirmed discard: reset form to initial, then close the panel.
   const handleConfirmDiscard = useCallback(() => {
@@ -275,10 +341,13 @@ export function TaskDetailPanel({
                       type="text"
                       value={form.title}
                       onChange={(e) => set("title", e.target.value)}
+                      autoFocus={isCreate}
+                      placeholder={isCreate ? "Task title…" : undefined}
                       className={cn(
                         "font-serif text-xl font-semibold text-[var(--ink)] w-full",
                         "bg-transparent focus:outline-none border-b border-transparent",
                         "focus:border-[var(--ink-amber)] transition-colors duration-150 ease-out",
+                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal",
                       )}
                       aria-label="Task title"
                     />
@@ -383,23 +452,33 @@ export function TaskDetailPanel({
 
               {/* Footer */}
               <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--edge)]">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={isPending}
-                >
-                  Delete task
-                </Button>
+                {isCreate ? (
+                  <span />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isPending}
+                  >
+                    Delete task
+                  </Button>
+                )}
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={handleCancelClick}
-                    disabled={!dirty || isPending}
-                    title={dirty ? "Discard unsaved changes" : undefined}
+                    disabled={isPending}
+                    title={
+                      isCreate
+                        ? "Discard this draft"
+                        : dirty
+                          ? "Discard unsaved changes"
+                          : undefined
+                    }
                   >
                     Cancel
                   </Button>
@@ -409,7 +488,7 @@ export function TaskDetailPanel({
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
-                    Save changes
+                    {isCreate ? "Create task" : "Save changes"}
                   </Button>
                 </div>
               </div>
