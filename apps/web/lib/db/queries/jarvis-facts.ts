@@ -21,6 +21,10 @@ export type JarvisFactRow = {
   key: string;
   value: string;
   source: "user_explicit" | "jarvis_suggested";
+  // Phase 999.12 / CTX-04 — privacy gate for the MCP personal-context export.
+  // When true, this fact is filtered out of buildSnapshot. Surfaced on
+  // /settings/memory via NoExportToggle.
+  noExport: boolean;
   updatedAt: Date;
   lastUsedAt: Date | null;
 };
@@ -40,6 +44,7 @@ export async function getJarvisFactsForUser(userId: string): Promise<JarvisFactR
       key: jarvisFacts.key,
       value: jarvisFacts.value,
       source: jarvisFacts.source,
+      noExport: jarvisFacts.noExport,
       updatedAt: jarvisFacts.updatedAt,
       lastUsedAt: jarvisFacts.lastUsedAt,
     })
