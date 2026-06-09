@@ -218,15 +218,15 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [x] **CTX-03**: `Node` and `Edge` are discriminated unions with Zod schemas; every node type has an explicit `kind` discriminator; payload is parse-validated before persistence
 - [x] **CTX-04**: `no_export boolean default false` columns exist on `captures`, `tasks`, and `jarvis_facts`; the snapshot builder filters rows where `no_export = true` and records the filtered count in `meta.no_export_filtered`
 - [ ] **CTX-05**: `/settings/context` page renders the latest snapshot (collapsible JSON preview + node/edge counts + filtered count) and exposes an on-demand "Rebuild now" button that calls `/api/context/rebuild`
-- [ ] **CTX-06**: `app/api/cron/build-snapshot/route.ts` runs as a Node-runtime route, validates `Authorization: Bearer ${CRON_SECRET}`, iterates active users, and upserts one snapshot per user per UTC day
-- [ ] **CTX-07**: `vercel.json` contains a cron entry hitting `/api/cron/build-snapshot` on `0 5 * * *` (00:00 ET / 05:00 UTC)
+- [x] **CTX-06**: `app/api/cron/build-snapshot/route.ts` runs as a Node-runtime route, validates `Authorization: Bearer ${CRON_SECRET}`, iterates active users, and upserts one snapshot per user per UTC day
+- [x] **CTX-07**: `vercel.json` contains a cron entry hitting `/api/cron/build-snapshot` on `0 5 * * *` (00:00 ET / 05:00 UTC)
 - [ ] **CTX-08**: A `NoExportToggle` component + Server Action lets the user flip `no_export` on individual captures, tasks, and JARVIS facts; mounted at least on `/settings/memory` (jarvis_facts list)
 - [x] **CTX-09**: Snapshot payload carries `schema_version: 1`; a `migrateSnapshot(payload)` helper centralizes future version bumps so the cron + reader paths never branch on version inline
 
 ### MCP Server — Personal Context (Phase 999.12)
 
 - [x] **MCP-01**: `packages/personal-context-mcp/` workspace package exports `createPersonalContextServer({ userId, db })` returning a configured MCP `Server` instance; mirrors the `packages/jarvis-core/` factoring
-- [ ] **MCP-02**: `app/api/mcp/[...transport]/route.ts` mounts the MCP server over `StreamableHTTPServerTransport` (NOT stdio); `runtime = 'nodejs'` is explicit
+- [x] **MCP-02**: `app/api/mcp/[...transport]/route.ts` mounts the MCP server over `StreamableHTTPServerTransport` (NOT stdio); `runtime = 'nodejs'` is explicit
 - [x] **MCP-03**: `integration_tokens` table is reused with `provider = 'mcp_agent'`; the MCP route validates `Authorization: Bearer <token>` against the table and resolves it to a `userId` before instantiating the server
 - [x] **MCP-04**: V1 tools `get_current_context({ topics?: NodeKind[] })` and `get_snapshot_history({ days?: number })` are defined with Zod input schemas and read-only handlers that query `personal_context_snapshots` via Drizzle; `get_snapshot_history` returns metadata-only (no payloads)
 - [ ] **MCP-05**: `/settings/mcp-tokens` page lets the user mint, list, and revoke MCP agent tokens (mirror `/settings/desktop`); mint flow displays the raw token exactly once with a copy button
