@@ -23,6 +23,7 @@
     "@dnd-kit/utilities": "3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@hyperpolymath/jarvis-core": "workspace:*",
+    "@hyperpolymath/personal-context-mcp": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@picovoice/porcupine-react": "4.0.0",
     "@ricky0123/vad-react": "0.0.36",
