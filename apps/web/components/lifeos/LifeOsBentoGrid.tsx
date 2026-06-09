@@ -53,11 +53,11 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
   if (reduced) {
     return (
       <section className="mb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:auto-rows-[minmax(180px,auto)]">
-          <div className="lg:col-span-2 lg:row-span-2">{hero}</div>
+        <div className="grid grid-cols-1 @3xl/main:grid-cols-3 gap-4 @3xl/main:auto-rows-[minmax(180px,auto)]">
+          <div className="@3xl/main:col-span-2 @3xl/main:row-span-2">{hero}</div>
           <div>{topRight}</div>
           <div>{midRight}</div>
-          <div className="lg:col-span-3">{bottom}</div>
+          <div className="@3xl/main:col-span-3">{bottom}</div>
         </div>
       </section>
     );
@@ -66,17 +66,17 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
   return (
     <section className="mb-12">
       <motion.div
-        className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:auto-rows-[minmax(180px,auto)]"
+        className="grid grid-cols-1 @3xl/main:grid-cols-3 gap-4 @3xl/main:auto-rows-[minmax(180px,auto)]"
         variants={container}
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={child} className="lg:col-span-2 lg:row-span-2">
+        <motion.div variants={child} className="@3xl/main:col-span-2 @3xl/main:row-span-2">
           {hero}
         </motion.div>
         <motion.div variants={child}>{topRight}</motion.div>
         <motion.div variants={child}>{midRight}</motion.div>
-        <motion.div variants={child} className="lg:col-span-3">
+        <motion.div variants={child} className="@3xl/main:col-span-3">
           {bottom}
         </motion.div>
       </motion.div>

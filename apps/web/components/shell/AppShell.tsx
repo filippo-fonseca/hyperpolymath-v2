@@ -64,7 +64,7 @@ export function AppShell({
       <main className="flex flex-1 flex-col overflow-hidden">
         <TopTabBar />
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-auto">{children}</div>
+          <div className="@container/main flex-1 overflow-auto">{children}</div>
           {showPanel && (
             <aside
               aria-label="JARVIS side panel"

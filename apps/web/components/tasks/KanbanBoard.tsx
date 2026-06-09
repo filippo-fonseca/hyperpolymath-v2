@@ -185,7 +185,7 @@ export function KanbanBoard({
         onDropOnTray={() => dropTaskOnStatus("not started")}
       />
 
-      <div className="flex gap-5 overflow-x-auto pb-4 pr-2 flex-1 min-h-0 items-stretch">
+      <div className="flex flex-col @lg/main:flex-row gap-5 @lg/main:overflow-x-auto pb-4 pr-2 flex-1 min-h-0 @lg/main:items-stretch">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}

@@ -165,7 +165,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
       </div>
 
       {/* Per-stage sparklines — 7-day trend, one per visible stage */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 @xl/main:grid-cols-4 gap-4">
         {stackStages.map((s, i) => (
           <StageSparkline
             key={s.name}

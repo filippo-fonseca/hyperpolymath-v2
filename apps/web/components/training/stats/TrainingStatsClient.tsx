@@ -168,7 +168,7 @@ export function TrainingStatsClient({
       </div>
 
       {/* Two-column supporting cards */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 @2xl/main:grid-cols-2">
         <BatchTotalsTable
           activities={filteredActivities}
           types={types}

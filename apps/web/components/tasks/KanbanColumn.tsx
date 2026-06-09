@@ -112,7 +112,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col min-w-[280px] max-w-[320px] flex-shrink-0 rounded-2xl h-full min-h-0"
+      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;

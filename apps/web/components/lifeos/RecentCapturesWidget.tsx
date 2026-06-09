@@ -69,7 +69,7 @@ export function RecentCapturesWidget({
           Nothing captured yet. Type into JARVIS to drop a note.
         </p>
       ) : (
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <ul className="grid grid-cols-1 @lg/main:grid-cols-2 @3xl/main:grid-cols-3 gap-3">
           {recent.map((c, i) => {
             const isJarvis = c.createdVia === "jarvis";
             const SourceIcon = isJarvis ? Sparkles : PenLine;
