@@ -573,3 +573,27 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
 
+### Phase 999.12: Personal context graph + daily MCP export (PROMOTED → planning)
+
+**Goal:** Build a single always-current "web of things about me" — a graph that unifies everything across hyperpolymath (areas, projects, captures, tasks, training, habits, JARVIS facts, journal/notes) plus light external inputs (Linear/GH activity, calendar load, recent reading) into a coherent, queryable personal-context snapshot. Daily cron exports the snapshot to a hosted MCP server so external agents (claude.ai web, Claude Code, future agentic surfaces) can pull authoritative context about *who I am right now, what I care about, and what I'm doing*.
+
+**Why:** Every external agent today starts cold; the user re-primes each one manually. Hyperpolymath already holds the richest personal signal (areas, projects, recent captures, JARVIS facts, training history) but none of it leaves the app. An MCP server exposing a canonical personal context turns every agent into something that *already knows you*. Captured 2026-06-08; promoted 2026-06-09 to active planning.
+
+**Likely shape (sketch, not contract):**
+- New `personal_context_snapshots` table (one row per day) with a JSON payload of typed graph nodes + edges, schema-versioned for future evolution
+- Snapshot builder: pure server function that reads from each surface (areas / projects / tasks / captures / training / habits / JARVIS facts) and emits a typed graph
+- Daily cron (Vercel cron or Supabase pg_cron) builds + persists the snapshot
+- MCP server (separate package, hosted): `get_current_context()` → latest snapshot; `query_context(question)` → semantic search over snapshot history
+- Per-row `no_export` privacy flag so personal items can stay local-only
+- Long-lived per-agent bearer tokens with rotation
+- Look at how **Obsidian** (graph view, Dataview, Bases), **Karpathy's LLM memory work** (long-context personal memory patterns), and existing **MCP servers / personal-knowledge tools** (Mem, Reflect, Notion AI, mem0) approach this — research must survey prior art before design
+
+**Open questions:** what goes in by default vs opt-in per node type; nightly cadence vs on-demand pulls; schema versioning strategy for forever-snapshots; embedding model + vector store for semantic query; whether to expose write-back tools (e.g., `add_capture`) or read-only
+
+**Requirements:** TBD (define during planning — likely `CTX-*` and `MCP-*` families)
+
+**Plans:** 0 plans (in planning)
+
+Plans:
+- [ ] TBD (created by /gsd:plan-phase 999.12)
+
