@@ -28,7 +28,6 @@ import { cn } from "@/lib/utils";
 import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
-import { PressToTalkButton } from "@/components/voice/PressToTalkButton";
 import type { MicState } from "@/lib/voice/types";
 import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
 import {
@@ -233,12 +232,7 @@ export function PersistentNav({ collapsed }: Props) {
           <div className="agent-mode-scope inline-flex items-center">
             <PolypadIndicatorDotContainer collapsed={collapsed} />
           </div>
-          {!collapsed && (
-            <>
-              <PressToTalkButton />
-              <DiscreetToggleButton />
-            </>
-          )}
+          {!collapsed && <DiscreetToggleButton />}
         </div>
 
         {/* "Meet Kiwi" info trigger — opens the KiwiAboutDialog modal.

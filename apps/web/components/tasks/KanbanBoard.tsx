@@ -52,6 +52,8 @@ interface Props {
   userId: string;
   onTaskClick: (id: string) => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
+  /** Opens the detail panel as a draft for the given column (Add task flow). */
+  onStartCreate?: (status: Status) => void;
   addOptimistic: TasksOptimisticDispatch;
   selectionActive?: boolean;
   selectedIds?: Set<string>;
@@ -73,6 +75,7 @@ export function KanbanBoard({
   userId,
   onTaskClick,
   onCreateTask,
+  onStartCreate,
   addOptimistic,
   selectionActive,
   selectedIds,
@@ -177,6 +180,7 @@ export function KanbanBoard({
         expanded={trayExpanded}
         onToggle={() => setTrayExpanded((v) => !v)}
         onCreateTask={onCreateTask}
+        onStartCreate={onStartCreate}
         onTaskClick={onTaskClick}
         draggedTaskId={draggedTaskId}
         draggedFromStatus={draggedFromStatus}
@@ -193,6 +197,7 @@ export function KanbanBoard({
             tasks={tasksByStatus[status]}
             onTaskClick={onTaskClick}
             onCreateTask={onCreateTask}
+            onStartCreate={onStartCreate}
             draggedTaskId={draggedTaskId}
             draggedFromStatus={draggedFromStatus}
             onDragStart={setDraggedTaskId}
@@ -219,6 +224,7 @@ interface TrayProps {
   expanded: boolean;
   onToggle: () => void;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
+  onStartCreate?: (status: Status) => void;
   onTaskClick: (id: string) => void;
   draggedTaskId: string | null;
   draggedFromStatus: Status | null;
@@ -232,6 +238,7 @@ function NotStartedTray({
   expanded,
   onToggle,
   onCreateTask,
+  onStartCreate,
   onTaskClick,
   draggedTaskId,
   draggedFromStatus,
@@ -322,6 +329,7 @@ function NotStartedTray({
             <TaskCreateInline
               status="not started"
               onCreateTask={onCreateTask}
+              onStartCreate={onStartCreate}
             />
           </div>
         </div>

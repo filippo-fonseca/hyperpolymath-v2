@@ -15,15 +15,25 @@ type TaskStatus =
 interface Props {
   status: TaskStatus;
   onCreateTask: (input: { title: string; status: TaskStatus }) => Promise<void>;
+  /**
+   * When provided, "+ Add task" opens the full task detail panel as a draft
+   * instead of revealing the inline input. Preferred path now that users
+   * want to set project / due date / etc. at create time.
+   */
+  onStartCreate?: (status: TaskStatus) => void;
 }
 
-export function TaskCreateInline({ status, onCreateTask }: Props) {
+export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openInput() {
+    if (onStartCreate) {
+      onStartCreate(status);
+      return;
+    }
     setIsOpen(true);
     setTimeout(() => inputRef.current?.focus(), 0);
   }
