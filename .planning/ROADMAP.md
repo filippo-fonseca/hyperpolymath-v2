@@ -113,7 +113,7 @@ Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keep
 **Depends on**: Phase 4
 **Requirements**: JARVIS-01, JARVIS-02, JARVIS-03, JARVIS-04, JARVIS-05, JARVIS-06, JARVIS-07, JARVIS-08, JARVIS-09, JARVIS-10, JARVIS-11, JARVIS-12, JARVIS-13, JARVIS-14, JARVIS-15, JARVIS-16, JARVIS-17, TEST-01, TEST-02, TEST-03, TEST-05, RES-05
 **Success Criteria** (what must be TRUE):
-  1. User can type one sentence into the JARVIS Console homescreen (e.g., "dinner with anna 8pm saturday + buy flowers friday p1 $running") and see one or more action receipts (badged by intent: task / capture / event) showing the resolved fields — the right action lands in the right place every time
+  1. User can type one sentence into the JARVIS Console homescreen (e.g., "lunch with sam 8pm saturday + pick up groceries friday p1 $running") and see one or more action receipts (badged by intent: task / capture / event) showing the resolved fields — the right action lands in the right place every time
   2. The deterministic chrono-node pre-parser resolves all relative dates (today, tomorrow, this/next weekday, M/D, "8pm saturday", time ranges) to ISO timestamps before the prompt is sent; the resolved date appears in the action receipt; Vitest unit tests cover all v1 grammar cases including DST edge cases
   3. JARVIS response streams via SSE with v1's animated thinking-word indicator visible within 100ms of submit; p50 first-token latency < 4s and p95 < 10s for typical multi-action prompts (verified in `jarvis_events` telemetry)
   4. `$projectname` chips autocomplete from the user's projects (resolved to project ID server-side) and `#hashtag` chips autocomplete from existing tags (new ones auto-created on submit); when JARVIS cannot resolve a `$project` reference, the message is filed as a Capture with the literal text preserved
@@ -134,7 +134,7 @@ Phases 9–14 extend the roadmap to deliver a sub-1.5s p50 voice loop while keep
 **Depends on**: Phase 5
 **Requirements**: JARVIS-18, JARVIS-19, JARVIS-20, JARVIS-21, JARVIS-22
 **Success Criteria** (what must be TRUE):
-  1. Every JARVIS action turn renders ONE leading text block (1-3 sentences in JARVIS register) above visually-compact receipt cards; user's canonical "Handled, sir. Dinner with Anna..." prose is reproducible from the live model
+  1. Every JARVIS action turn renders ONE leading text block (1-3 sentences in JARVIS register) above visually-compact receipt cards; user's canonical "Handled, sir. Lunch with Sam..." prose is reproducible from the live model
   2. Persistent `jarvis_facts` table exists with RLS, the `remember_fact` tool writes via onConflictDoUpdate (last-write-wins), facts are injected into the cached system prompt on every turn, and `/settings/memory` lets the user read/edit/delete them; facts NEVER written from a capture's content (adversarial fixtures lock this)
   3. `ask_clarification` tool emits inline questions with optional chip options when medium-confidence input would lose intent through capture-first; reply continues as `[CLARIFICATION REPLY] ...`; depth capped at 1 per turn; capture-first remains the default
   4. Single-action JARVIS turn fires ≤ 2 DB roundtrips (asserted by `tests/jarvis-perf-budget.test.ts` via Drizzle logger spy); Sidebar areas/projects queries no longer refetch incidentally on JARVIS Server Actions (asserted by `tests/sidebar-no-refetch.test.tsx`); `validate-references` batches project + calendar checks into one Promise.all
@@ -349,7 +349,7 @@ Plans:
 **Depends on**: Phase 11 (prompt cache must be solid before splitting traffic across two models — each tier needs its own cache lifecycle), Phase 9 (per-tier telemetry visualizes the win)
 **Requirements**: ROUTE-01, ROUTE-02, ROUTE-03, ROUTE-04
 **Success Criteria** (what must be TRUE):
-  1. User submits "add buy milk" and the turn routes to Haiku 4.5 with first-token latency noticeably lower than the same turn on Sonnet (verifiable on `/insights` per-tier latency chart); user submits "schedule dinner with anna 8pm sat + book reading p1 friday" and it routes to Sonnet 4.6
+  1. User submits "add buy milk" and the turn routes to Haiku 4.5 with first-token latency noticeably lower than the same turn on Sonnet (verifiable on `/insights` per-tier latency chart); user submits "schedule lunch with sam 8pm sat + book reading p1 friday" and it routes to Sonnet 4.6
   2. The eval set (`tests/jarvis-routing.test.ts`, ≥50 fixtures) measures Haiku's misroute rate against Sonnet's baseline on the same fixtures; CI fails if Haiku exceeds Sonnet by more than 2 percentage points — the "if JARVIS misroutes, v2 has failed" bar from PROJECT.md is preserved
   3. When Haiku fires `ask_clarification`, fails reference validation, or emits no tool, the turn auto-escalates to Sonnet for a single retry before any receipt or prose renders for the user — user never sees a low-confidence Haiku result
   4. `/insights` renders model-tier distribution (% Sonnet vs % Haiku) on a rolling 24h window alongside per-tier p50 first-token latency, so routing health is observable

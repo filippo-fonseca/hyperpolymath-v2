@@ -243,7 +243,7 @@ Single-column, single-page scroll. No sidebars, no top nav. The page has only:
 ┌──────────────────────────┐    ┌──────────────────────────────────────────┐
 │  INPUT                   │    │  STRICT-TOOL-USE JSON                    │
 │                          │    │                                          │
-│  dinner with anna 8pm    │ →  │  {                                       │
+│  lunch with sam 8pm    │ →  │  {                                       │
 │  saturday. buy her       │    │    "tool": "create_event",               │
 │  flowers friday          │    │    "input": { ... }                      │
 │                          │    │  }                                       │
@@ -376,10 +376,10 @@ The centerpiece. Worth its own section.
 
 ```
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  $  dinner with anna 8pm saturday. buy her flowers friday afternoon  │
+  │  $  lunch with sam 8pm saturday. pick up groceries friday afternoon  │
   │                                                                      │
-  │  ⚜  scheduled  →  gcal · sat 8:00pm · "Dinner with Anna"             │
-  │  ⚜  created    →  task · fri afternoon · P2 · "Buy flowers"          │
+  │  ⚜  scheduled  →  gcal · sat 8:00pm · "Lunch with Sam"             │
+  │  ⚜  created    →  task · fri afternoon · P2 · "Pick up groceries"          │
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -406,9 +406,9 @@ The centerpiece. Worth its own section.
 
 **Example A (multi-action, the canonical from README — ships in the implementation):**
 ```
-$  dinner with anna 8pm saturday. buy her flowers friday afternoon
-⚜  scheduled  →  gcal · sat 8:00pm · "Dinner with Anna"
-⚜  created    →  task · fri afternoon · P2 · "Buy flowers"
+$  lunch with sam 8pm saturday. pick up groceries friday afternoon
+⚜  scheduled  →  gcal · sat 8:00pm · "Lunch with Sam"
+⚜  created    →  task · fri afternoon · P2 · "Pick up groceries"
 ```
 
 **Example B (capture-only, shows the capture-first principle):**

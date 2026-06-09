@@ -8,7 +8,7 @@ human_verification:
   - test: "Speak a typical single-action command in voice mode (e.g. 'add buy milk') with backend cold-started"
     expected: "First TTS syllable plays within 1.5s of speech-end (p50 over ≥10 turns); observable in /insights Pipeline Latency panel as audio_first_play_at - vad_end_at p50 < 1500ms"
     why_human: "SC#1 requires live voice-mode telemetry collection across multiple turns — cannot be unit-asserted. The infrastructure that enables this win (LAT-01 + LAT-02 + LAT-03 + LAT-04) is all in place and verified at the code level."
-  - test: "DevTools network waterfall during a multi-sentence response (e.g. 'dinner with anna 8pm saturday + buy flowers friday')"
+  - test: "DevTools network waterfall during a multi-sentence response (e.g. 'lunch with sam 8pm saturday + pick up groceries friday')"
     expected: "≥ 2 POST /api/jarvis/tts requests fire in parallel BEFORE the POST /api/jarvis SSE response closes — pipelined per-sentence dispatch visible in waterfall"
     why_human: "SC#2 is verified at the unit level by Test 2 in turn-playback-controller.test.ts (inFlightPeak >= 2 with 50ms-delayed fetches). The integration waterfall is the canonical live demo and requires browser interaction."
   - test: "Subjective listen-back comparing pre-LAT-01 MP3 path vs post-LAT-01 pcm_24000 path"

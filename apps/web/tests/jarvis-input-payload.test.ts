@@ -51,7 +51,7 @@ describe("buildJarvisInputPayload — priority gate (regression for first-submit
 
   it("no priority token → parsedPriority is null (server lets model default)", () => {
     const payload = buildJarvisInputPayload(
-      "buy flowers tomorrow",
+      "pick up groceries tomorrow",
       null,
       TZ,
       null,
@@ -61,7 +61,7 @@ describe("buildJarvisInputPayload — priority gate (regression for first-submit
 
   it("8pm in a time phrase does NOT false-match as priority", () => {
     const payload = buildJarvisInputPayload(
-      "dinner anna 8pm sat",
+      "lunch sam 8pm sat",
       null,
       TZ,
       null,
@@ -71,7 +71,7 @@ describe("buildJarvisInputPayload — priority gate (regression for first-submit
 
   it("priority adjacent to a date phrase still surfaces", () => {
     const payload = buildJarvisInputPayload(
-      "surprise for anna 5/16 p1",
+      "surprise for sam 5/16 p1",
       null,
       TZ,
       null,
@@ -81,15 +81,15 @@ describe("buildJarvisInputPayload — priority gate (regression for first-submit
 });
 
 describe("buildJarvisInputPayload — slash commands (Bug 2 + Bug 3)", () => {
-  it("'/task buy flowers' parses slashCommand='task' + body strips prefix", () => {
+  it("'/task pick up groceries' parses slashCommand='task' + body strips prefix", () => {
     const payload = buildJarvisInputPayload(
-      "/task buy flowers",
+      "/task pick up groceries",
       null,
       TZ,
       null,
     );
     expect(payload!.slashCommand).toBe("task");
-    expect(payload!.input).toBe("buy flowers");
+    expect(payload!.input).toBe("pick up groceries");
   });
 
   it("'/ask what did I file?' parses slashCommand='ask'", () => {
@@ -108,17 +108,17 @@ describe("buildJarvisInputPayload — slash commands (Bug 2 + Bug 3)", () => {
     expect(payload!.slashCommand).toBeNull();
   });
 
-  it("slashCommandOverride='task' with body 'buy flowers' (pinned via click)", () => {
+  it("slashCommandOverride='task' with body 'pick up groceries' (pinned via click)", () => {
     // Simulates: user typed `/`, clicked /task from popover (pinned),
     // editor stripped the prefix, user typed body, pressed Enter.
     const payload = buildJarvisInputPayload(
-      "buy flowers",
+      "pick up groceries",
       null,
       TZ,
       "task",
     );
     expect(payload!.slashCommand).toBe("task");
-    expect(payload!.input).toBe("buy flowers");
+    expect(payload!.input).toBe("pick up groceries");
   });
 
   it("override + body with priority + date — all three preserved", () => {

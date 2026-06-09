@@ -4,10 +4,10 @@ import { describe, expect, it } from "vitest";
 import { parseSlashCommand } from "../src/parsers/slash-command";
 
 describe("parseSlashCommand", () => {
-  it("/task buy flowers", () => {
-    expect(parseSlashCommand("/task buy flowers")).toEqual({
+  it("/task pick up groceries", () => {
+    expect(parseSlashCommand("/task pick up groceries")).toEqual({
       command: "task",
-      body: "buy flowers",
+      body: "pick up groceries",
     });
   });
 
@@ -41,7 +41,7 @@ describe("parseSlashCommand", () => {
   });
 
   it("plain text returns null (auto-infer path)", () => {
-    expect(parseSlashCommand("buy flowers")).toBeNull();
+    expect(parseSlashCommand("pick up groceries")).toBeNull();
   });
 
   it("unknown commands return null", () => {

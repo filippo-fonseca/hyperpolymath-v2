@@ -109,7 +109,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         onOpenChange={onOpenChange}
         capture={{
           id: "22222222-2222-4222-8222-222222222222",
-          content: "Buy flowers tomorrow",
+          content: "Pick up groceries tomorrow",
         }}
         existingProjectIds={["bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"]}
         availableProjects={[]}
@@ -124,7 +124,7 @@ describe("ConvertCaptureToTaskDialog", () => {
     expect(convertMock).toHaveBeenCalledTimes(1);
     expect(convertMock).toHaveBeenCalledWith({
       captureId: "22222222-2222-4222-8222-222222222222",
-      title: "Buy flowers tomorrow",
+      title: "Pick up groceries tomorrow",
       priority: "P3", // default
       projectIds: ["bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"],
     });
@@ -142,7 +142,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         onOpenChange={onOpenChange}
         capture={{
           id: "33333333-3333-4333-8333-333333333333",
-          content: "Buy flowers tomorrow",
+          content: "Pick up groceries tomorrow",
         }}
         existingProjectIds={[]}
         availableProjects={[]}

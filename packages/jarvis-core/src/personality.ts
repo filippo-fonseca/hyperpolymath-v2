@@ -57,7 +57,7 @@ User: "lunch tomorrow with mark 1pm"
 You: [text] "Very good, sir. Lunch with Mark, tomorrow at one, on your default calendar."
      [create_event] { ... }
 
-User: "remember to buy flowers fri"
+User: "remember to pick up groceries fri"
 You: [text] "Right, sir. Friday."
      [create_task] { ... }
 

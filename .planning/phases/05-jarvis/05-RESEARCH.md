@@ -81,7 +81,7 @@ Thinking-word list. Slash command autocomplete UI. Receipt block layout. Empty-s
 
 ### 1.1 Streaming event sequence for multi-action responses
 
-Verified against [Anthropic streaming docs](https://platform.claude.com/docs/en/api/streaming). For "buy flowers fri + dinner 8pm sat + #idea sandwich shop", the stream emits:
+Verified against [Anthropic streaming docs](https://platform.claude.com/docs/en/api/streaming). For "pick up groceries fri + dinner 8pm sat + #idea sandwich shop", the stream emits:
 
 ```
 message_start                                    → { message: { id, content: [], usage: { input_tokens } } }
@@ -541,7 +541,7 @@ describe("parseDates", () => {
   const ref = new Date("2026-05-11T14:00:00.000Z");
 
   it("today (all-day)", () => {
-    const out = parseDates("buy flowers today", NY, ref);
+    const out = parseDates("pick up groceries today", NY, ref);
     expect(out[0].start).toMatch(/^2026-05-11T/);
     expect(out[0].allDay).toBe(true);
   });
@@ -602,7 +602,7 @@ describe("parseDates", () => {
   });
 
   it("no date phrase returns empty", () => {
-    expect(parseDates("buy flowers", NY, ref)).toEqual([]);
+    expect(parseDates("pick up groceries", NY, ref)).toEqual([]);
   });
 });
 ```
@@ -610,7 +610,7 @@ describe("parseDates", () => {
 ### 4.4 Pitfalls (P4)
 
 - **Don't pass IANA strings to chrono's `timezones` option.** It's offset-based and breaks at every DST boundary.
-- **`forwardDate: true`** is critical for "buy flowers 3/15" style — without it, chrono returns the most recent past March 15.
+- **`forwardDate: true`** is critical for "pick up groceries 3/15" style — without it, chrono returns the most recent past March 15.
 - **DST receipt copy.** When TZDate shifts a non-existent time (e.g., "2:30am" on Mar 8 → 3:30am), the receipt should say what happened: "Scheduled for Sun Mar 8, 3:30 AM EDT (2:30 AM doesn't exist due to spring-forward)." JARVIS doesn't ask clarifying questions (D-15) — but it should say what it did.
 - **Reference date matters.** "tomorrow" depends on `refDate`. Pass `new Date()` from the **client** — the user's wall clock is what they mean.
 

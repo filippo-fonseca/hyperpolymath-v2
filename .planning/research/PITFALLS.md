@@ -141,7 +141,7 @@ LLMs process all text in a single context window with no built-in privilege sepa
 ### Pitfall 6: LLM date parsing for "next Thursday" — silent wrong-time bookings
 
 **What goes wrong:**
-User types "dinner with anna 8pm saturday". Kiwi resolves "saturday" against its idea of the current week — which depends on (a) what date the model thinks today is, (b) whether the user's locale starts the week on Sunday or Monday, (c) whether the model treats "saturday" as "this saturday" or "next saturday" when today is Friday. Result: dinner gets scheduled at 8pm a week off. User notices when they show up to a closed restaurant.
+User types "lunch with sam 8pm saturday". Kiwi resolves "saturday" against its idea of the current week — which depends on (a) what date the model thinks today is, (b) whether the user's locale starts the week on Sunday or Monday, (c) whether the model treats "saturday" as "this saturday" or "next saturday" when today is Friday. Result: dinner gets scheduled at 8pm a week off. User notices when they show up to a closed restaurant.
 
 **Why it happens:**
 LLMs are notoriously inconsistent on relative time. Even with the current date in the system prompt, models drift on edge cases ("next friday" when today is Friday: today + 1 or today + 8?). The v1 prompt baked in rules ("`next <weekday>` → always +7d from this") but a prompt rule is a vibe, not a guarantee.
@@ -151,7 +151,7 @@ LLMs are notoriously inconsistent on relative time. Even with the current date i
 - **Two-pass approach** that v1 didn't fully use:
   1. Pass 1 (deterministic, no LLM): regex/chrono extracts dates, times, priorities, project mentions, hashtags. Output is structured JSON.
   2. Pass 2 (LLM with tool use): given the deterministic extraction + the residual text, decide which actions to emit. The LLM never sees "saturday" — it sees `{ resolvedDate: "2026-05-09", resolvedTime: "20:00" }`.
-- **Show the resolved date in the UI before commit.** "Scheduling: Dinner with Anna — Saturday May 9, 8:00 PM." User catches errors at the source.
+- **Show the resolved date in the UI before commit.** "Scheduling: Lunch with Sam — Saturday May 9, 8:00 PM." User catches errors at the source.
 - For ranges and `M/D` formats, normalize to ISO 8601 with the user's IANA timezone before the model ever sees them.
 - Always send `today: YYYY-MM-DD` AND `currentWeekday: Saturday` AND `userTimezone: America/New_York` in the system prompt as a backstop.
 

@@ -10,13 +10,13 @@ import {
 
 describe("zCreateTask", () => {
   it("accepts minimal { title }", () => {
-    expect(zCreateTask.safeParse({ title: "buy flowers" }).success).toBe(true);
+    expect(zCreateTask.safeParse({ title: "pick up groceries" }).success).toBe(true);
   });
 
   it("accepts full shape", () => {
     expect(
       zCreateTask.safeParse({
-        title: "buy flowers",
+        title: "pick up groceries",
         priority: "P1",
         status: "up next",
         due: "2026-05-15T00:00:00.000Z",

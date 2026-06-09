@@ -6,11 +6,11 @@ import { parsePriority } from "../src/parsers/priority";
 
 describe("parsePriority", () => {
   it("recognises 'p1' prefix", () => {
-    expect(parsePriority("p1 buy flowers")).toBe("P1");
+    expect(parsePriority("p1 pick up groceries")).toBe("P1");
   });
 
   it("recognises 'p2' suffix", () => {
-    expect(parsePriority("buy flowers p2")).toBe("P2");
+    expect(parsePriority("pick up groceries p2")).toBe("P2");
   });
 
   it("recognises 'p3' anywhere", () => {
@@ -26,7 +26,7 @@ describe("parsePriority", () => {
   });
 
   it("defaults to P3 when no token present", () => {
-    expect(parsePriority("buy flowers")).toBe("P3");
+    expect(parsePriority("pick up groceries")).toBe("P3");
   });
 
   it("is case-insensitive", () => {
@@ -43,15 +43,15 @@ describe("parsePriority", () => {
   });
 
   it("recognises 'p1' immediately after a date phrase (B5 hotfix)", () => {
-    expect(parsePriority("surprise for anna 5/16 p1")).toBe("P1");
+    expect(parsePriority("surprise for sam 5/16 p1")).toBe("P1");
   });
 
   it("recognises 'p2' before an SMS-style date abbreviation", () => {
-    expect(parsePriority("buy anna flowers p2 tmrw")).toBe("P2");
+    expect(parsePriority("pick up groceries for sam p2 tmrw")).toBe("P2");
   });
 
   it("recognises 'p2' after an M/D date", () => {
-    expect(parsePriority("buy anna flowers p2 5/15")).toBe("P2");
+    expect(parsePriority("pick up groceries for sam p2 5/15")).toBe("P2");
   });
 
   // B-priority-final: end-to-end bug fixtures from user report.
@@ -61,9 +61,9 @@ describe("parsePriority", () => {
   // These fixtures lock in that the parser side returns the correct value;
   // the route + tool description + personality rules together force the
   // model to honour it.
-  it("compound input — 'buy roses tomorrow p1 + dinner anna 8pm sat' → P1", () => {
+  it("compound input — 'pick up groceries tomorrow p1 + lunch sam 8pm sat' → P1", () => {
     expect(
-      parsePriority("buy roses tomorrow p1 + dinner anna 8pm sat"),
+      parsePriority("pick up groceries tomorrow p1 + lunch sam 8pm sat"),
     ).toBe("P1");
   });
 
@@ -74,6 +74,6 @@ describe("parsePriority", () => {
   it("must not false-match '8pm' as a priority token", () => {
     // Word-boundary regex protects against the 'pm' suffix in a time looking
     // like a priority token. No token present in the sub-phrase → P3.
-    expect(parsePriority("dinner anna 8pm sat")).toBe("P3");
+    expect(parsePriority("lunch sam 8pm sat")).toBe("P3");
   });
 });

@@ -12,7 +12,7 @@
 ### Locked Decisions (D-01 through D-13 — research these, NOT alternatives)
 
 **Demo Modality**
-- **D-01:** JARVIS centerpiece is a **pure CSS/Motion replay animation** of the README ASCII block. Cursor types the input verbatim ("dinner with anna 8pm saturday. buy her flowers friday afternoon"), then receipts stream in below. No API call, no auth, zero runtime cost.
+- **D-01:** JARVIS centerpiece is a **pure CSS/Motion replay animation** of the README ASCII block. Cursor types the input verbatim ("lunch with sam 8pm saturday. pick up groceries friday afternoon"), then receipts stream in below. No API call, no auth, zero runtime cost.
 - **D-02:** Respect `prefers-reduced-motion` — when set, render the final state directly with no animation.
 - **D-03:** Two or three example sentences rotate (different action mixes — single task, multi-action, capture-only). Rotation is client-side: visitor clicks "▶ show another" → next canned example. Drafted in plan-phase, reviewed by user before execute.
 
@@ -570,10 +570,10 @@ type Example = {
 
 const EXAMPLES: Example[] = [
   {
-    input: "dinner with anna 8pm saturday. buy her flowers friday afternoon",
+    input: "lunch with sam 8pm saturday. pick up groceries friday afternoon",
     receipts: [
-      { verb: "scheduled", body: 'gcal · sat 8:00pm · "Dinner with Anna"' },
-      { verb: "created",   body: 'task · fri afternoon · P2 · "Buy flowers"' },
+      { verb: "scheduled", body: 'gcal · sat 8:00pm · "Lunch with Sam"' },
+      { verb: "created",   body: 'task · fri afternoon · P2 · "Pick up groceries"' },
     ],
   },
   // ...B, C per UI-SPEC §7c
@@ -1007,7 +1007,7 @@ CREATE POLICY "waitlist_authenticated_insert" ON public.waitlist
 3. **What goes in `strict-tool-use.fixture.ts`?**
    - What we know: Must be a real input → strict-tool-use JSON example from JARVIS
    - What's unclear: Whether to lift from a live `jarvis_events` row, canonicalize from `tools.test.ts`, or hand-author
-   - Recommendation: Lift the canonical README example ("dinner with anna 8pm saturday. buy her flowers friday afternoon") and re-run it once locally against the live JARVIS pipeline; copy the resulting tool_use blocks into the fixture file. This gives the most credible "verbatim from the source of truth" claim.
+   - Recommendation: Lift the canonical README example ("lunch with sam 8pm saturday. pick up groceries friday afternoon") and re-run it once locally against the live JARVIS pipeline; copy the resulting tool_use blocks into the fixture file. This gives the most credible "verbatim from the source of truth" claim.
 
 4. **Does the `.hud-streaming-caret` class exist in globals.css?**
    - What we know: UI-SPEC §7b step 1 references it; the code example above falls back to `animate-pulse`

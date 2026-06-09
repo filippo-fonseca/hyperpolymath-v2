@@ -188,9 +188,9 @@ The ref pattern is **load-bearing**: the closure-captured version (the plan's or
 | ------------------------------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | Empty-state smoke                                | PASS   | Brand-voice copy renders, input pinned at bottom, focus ring visible                                                              |
 | Single-action latency (thinking-word → receipt)  | PASS   | First word visible <100ms; receipt arrives ~4s on warm cache (consistent with Plan 05-02's 4.2s warm latency)                    |
-| Multi-action parallel streaming                  | PASS   | `"buy flowers tomorrow p1 + dinner with anna 8pm saturday"` emits TASK + EVENT receipts in one assistant turn (parallel_tool_use) |
+| Multi-action parallel streaming                  | PASS   | `"pick up groceries tomorrow p1 + lunch with sam 8pm saturday"` emits TASK + EVENT receipts in one assistant turn (parallel_tool_use) |
 | Dual-Mention chip coexistence                    | PASS   | `#idea $running` produces both chips with distinct styling; both popovers fire on their respective triggers                       |
-| Slash-command forcing                            | PASS   | `/task buy flowers` → TASK receipt only (server `tool_choice: { type: "tool", name: "create_task" }`)                            |
+| Slash-command forcing                            | PASS   | `/task pick up groceries` → TASK receipt only (server `tool_choice: { type: "tool", name: "create_task" }`)                            |
 | Ask-mode (explicit and heuristic)                | PASS   | `/ask what's due tomorrow?` → prose reply, no tool emission. `"what's on my list?"` (bare) → same path via heuristic              |
 | Adversarial: "ignore previous instructions ..."  | PASS   | Routed to CAPTURE with literal text (D-15 structural defense holds from Plan 05-02)                                              |
 | Session memory across turns                      | PASS   | `"what did I just file?"` after a prior turn — model references the previous turn from history blocks                            |

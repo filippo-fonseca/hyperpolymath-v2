@@ -11,7 +11,7 @@ describe("parseDates", () => {
   const ref = new Date("2026-05-11T14:00:00.000Z");
 
   it("today (all-day)", () => {
-    const out = parseDates("buy flowers today", NY, ref);
+    const out = parseDates("pick up groceries today", NY, ref);
     expect(out[0]?.start).toMatch(/^2026-05-11T/);
     expect(out[0]?.allDay).toBe(true);
   });
@@ -85,11 +85,11 @@ describe("parseDates", () => {
   });
 
   it("no date phrase returns empty", () => {
-    expect(parseDates("buy flowers", NY, ref)).toEqual([]);
+    expect(parseDates("pick up groceries", NY, ref)).toEqual([]);
   });
 
   it("'tmrw' abbreviation maps to tomorrow (B5 hotfix)", () => {
-    const out = parseDates("buy anna flowers p2 tmrw", NY, ref);
+    const out = parseDates("pick up groceries for sam p2 tmrw", NY, ref);
     expect(out[0]?.start).toMatch(/^2026-05-12/);
     expect(out[0]?.allDay).toBe(true);
   });

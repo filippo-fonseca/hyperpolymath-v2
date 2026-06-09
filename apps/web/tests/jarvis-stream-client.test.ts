@@ -28,7 +28,7 @@ describe("streamJarvis SSE client", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       makeSseResponse([
         `event: text\ndata: {"delta":"Very good, sir."}\n\n`,
-        `event: action\ndata: {"toolUseId":"tu_1","name":"create_task","result":{"ok":true,"id":"t1","receipt":{"title":"buy flowers","priority":"P1"}}}\n\n`,
+        `event: action\ndata: {"toolUseId":"tu_1","name":"create_task","result":{"ok":true,"id":"t1","receipt":{"title":"pick up groceries","priority":"P1"}}}\n\n`,
         `event: done\ndata: {"usage":{"input_tokens":100,"output_tokens":50}}\n\n`,
       ]),
     );
@@ -39,7 +39,7 @@ describe("streamJarvis SSE client", () => {
     const onError = vi.fn();
 
     await streamJarvis(
-      { input: "buy flowers", history: [] },
+      { input: "pick up groceries", history: [] },
       { onText, onAction, onDone, onError },
     );
 
@@ -162,7 +162,7 @@ describe("streamJarvis SSE client", () => {
 
     await streamJarvis(
       {
-        input: "buy flowers",
+        input: "pick up groceries",
         history: [{ role: "user", content: "hi" }],
         linkedProjectIds: ["proj-1"],
         linkedHashtags: ["idea"],
@@ -182,7 +182,7 @@ describe("streamJarvis SSE client", () => {
     );
     const callInit = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(callInit.body));
-    expect(body.input).toBe("buy flowers");
+    expect(body.input).toBe("pick up groceries");
     expect(body.linkedProjectIds).toEqual(["proj-1"]);
     expect(body.linkedHashtags).toEqual(["idea"]);
   });

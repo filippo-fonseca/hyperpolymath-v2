@@ -154,9 +154,9 @@ describe("JarvisReceipt — Undo button", () => {
         ok: true,
         id: "11111111-1111-4111-8111-111111111111",
         receipt: {
-          title: "Buy flowers",
+          title: "Pick up groceries",
           priority: "P1",
-          content: "Buy flowers tomorrow",
+          content: "Pick up groceries tomorrow",
           start: "2026-05-15T20:00:00.000Z",
           end: "2026-05-15T21:00:00.000Z",
         },
@@ -190,7 +190,7 @@ describe("JarvisReceipt — Undo button", () => {
     // After expiry, the Undo button is gone but the receipt remains visible.
     expect(screen.queryByRole("button", { name: /undo/i })).toBeNull();
     // The receipt body (priority chip / title) is still rendered:
-    expect(screen.getByText("Buy flowers")).toBeTruthy();
+    expect(screen.getByText("Pick up groceries")).toBeTruthy();
   });
 
   it("clicking Undo fires onUndo and removes the button", () => {

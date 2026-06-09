@@ -53,8 +53,8 @@ Phase 5 ships a goal-coherent end-to-end agent: pure-TS core, Node-runtime SSE r
 | --- | ----- | ------ | -------- |
 | 1.1 | jarvis-core builds + tests pass with zero React/Next/Supabase/Drizzle/googleapis imports | VERIFIED | 152/152 tests green (`pnpm test` in `packages/jarvis-core`); `purity.test.ts` (79 assertions) walks `src/**/*.ts` and confirms zero forbidden imports |
 | 1.2 | `parseDates('tomorrow 3am', 'America/New_York', refMar7)` returns correct ISO across Mar 8 DST | VERIFIED | `tests/dates.test.ts` includes "DST spring-forward" and "DST fall-back" assertions; all 15 date tests green |
-| 1.3 | `parsePriority('p1 buy flowers') → 'P1'`; default `P3` | VERIFIED | `tests/priority.test.ts` 15/15 green; word-boundary regex at `src/parsers/priority.ts:6` |
-| 1.4 | `parseSlashCommand('/task buy flowers')` returns `{ command: 'task', body: 'buy flowers' }`; non-slash returns null | VERIFIED | `tests/slash-command.test.ts` 10/10 green; bonus `/ask` mode added (D-15 carry forward) |
+| 1.3 | `parsePriority('p1 pick up groceries') → 'P1'`; default `P3` | VERIFIED | `tests/priority.test.ts` 15/15 green; word-boundary regex at `src/parsers/priority.ts:6` |
+| 1.4 | `parseSlashCommand('/task pick up groceries')` returns `{ command: 'task', body: 'pick up groceries' }`; non-slash returns null | VERIFIED | `tests/slash-command.test.ts` 10/10 green; bonus `/ask` mode added (D-15 carry forward) |
 | 1.5 | `buildSystemPrompt({ projects, voiceActive: true })` includes voice addendum; `false` omits it | VERIFIED | `src/prompt-builder.ts:36-48` branches on `voiceActive`; `prompt-builder.test.ts` 12/12 green |
 | 1.6 | `buildToolDefinitions({ voiceActive: true })` adds optional `voice_summary`; `false` omits | VERIFIED | `src/tools/create-task.ts` / `create-capture.ts` / `create-event.ts` use `zCreateXxxFor({ voiceActive })`; `tests/tools.test.ts` 21/21 green |
 | 1.7 | Each tool definition has `strict: true` and uses zod 4 `.toJSONSchema()` | VERIFIED | `src/tools/index.ts:29-40` uses `z.toJSONSchema(schema, { target: "openapi-3.1" })`; all 3 tool defs have `strict: true`; no deprecated `structured-outputs-2025-11-13` header anywhere |

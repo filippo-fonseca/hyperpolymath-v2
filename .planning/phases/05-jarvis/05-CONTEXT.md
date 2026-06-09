@@ -22,7 +22,7 @@ JARVIS — the agent that delivers v2's core promise: **type one sentence into t
 
 ### Action Receipt Execution Model
 
-- **D-03: Auto-execute with 5s sonner undo toast** (matches RES-02). When streaming finishes and each `create_*` tool emits, immediately execute the action (insert into Postgres for tasks/captures, push to gcal for events). Surface a 5s undo toast per action. Multi-action sentences ("dinner 8pm sat + buy flowers fri + #IDEA") → 3 separate execute+undo flows. Fastest happy path — literally "one sentence in, action lands". Recoverability via:
+- **D-03: Auto-execute with 5s sonner undo toast** (matches RES-02). When streaming finishes and each `create_*` tool emits, immediately execute the action (insert into Postgres for tasks/captures, push to gcal for events). Surface a 5s undo toast per action. Multi-action sentences ("dinner 8pm sat + pick up groceries fri + #IDEA") → 3 separate execute+undo flows. Fastest happy path — literally "one sentence in, action lands". Recoverability via:
   - 5s undo toast (immediate revert)
   - JARVIS-13 "Convert to task" affordance on captures (longer-term misroute recovery)
   - Capture-first principle (JARVIS-06, JARVIS-17) — ambiguous routes default to Captures (low blast radius)
@@ -35,7 +35,7 @@ JARVIS — the agent that delivers v2's core promise: **type one sentence into t
 
 ### Manual Mode Toggle
 
-- **D-07: Slash commands at input start.** `/task buy flowers`, `/capture random thought`, `/event dinner 8pm sat $running`. Discoverable: typing `/` opens autocomplete popover with command list + brief descriptions. Default (no slash) = auto-infer. `/help` lists commands. Keyboard-first (matches Warp terminal aesthetic + PROJECT.md). No visible chrome above the input. Slash command shapes the system prompt sent to Claude — forcing the model toward the chosen tool.
+- **D-07: Slash commands at input start.** `/task pick up groceries`, `/capture random thought`, `/event dinner 8pm sat $running`. Discoverable: typing `/` opens autocomplete popover with command list + brief descriptions. Default (no slash) = auto-infer. `/help` lists commands. Keyboard-first (matches Warp terminal aesthetic + PROJECT.md). No visible chrome above the input. Slash command shapes the system prompt sent to Claude — forcing the model toward the chosen tool.
 
 ### Tool Schemas (Strict Tool Use)
 

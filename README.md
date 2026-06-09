@@ -33,10 +33,10 @@ Type one sentence. The right action lands in the right place. Every time.
 
 ```
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  $  dinner with anna 8pm saturday. buy her flowers friday afternoon  │
+  │  $  coffee w/ sam 3pm friday. submit chem pset by 5pm thursday p1    │
   │                                                                      │
-  │  ⚜  scheduled  →  gcal · sat 8:00pm · "Dinner with Anna"            │
-  │  ⚜  created    →  task · fri afternoon · P2 · "Buy flowers"         │
+  │  ⚜  scheduled  →  gcal · fri 3:00pm · "Coffee with Sam"             │
+  │  ⚜  created    →  task · thu 5:00pm · P1 · "Submit chem pset"       │
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -59,9 +59,9 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 | Input | JARVIS infers |
 |---|---|
 | `finish anth pset $ANTH 2480 p2` | Task · *Finish anth pset* · P2 · linked to project ANTH 2480 |
-| `loved anna's mom. such a lovely family` | Capture · no tag · personal reflection |
+| `great energy in the lab group today. so much momentum` | Capture · no tag · personal reflection |
 | `#idea polymathy as a competitive advantage` | Capture · tagged `#idea` |
-| `dinner with anna 8pm sat` | gcal event · Saturday 20:00 |
+| `coffee with sam 3pm fri` | gcal event · Friday 15:00 |
 | `gym tomorrow 7am, then bio pset $BIOL 1010 by 3pm` | gcal event · 07:00 + Task · due 15:00 linked to BIOL 1010 |
 
 **Design principles**

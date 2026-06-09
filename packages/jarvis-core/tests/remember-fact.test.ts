@@ -11,7 +11,7 @@ describe("zRememberFact (default schema — voiceActive=false)", () => {
     expect(
       zRememberFact.safeParse({
         type: "entity",
-        key: "Anna",
+        key: "Sam",
         value: "my partner",
         source: "user_explicit",
       }).success,

@@ -78,7 +78,7 @@ Features users assume exist. Missing these = product feels broken or incomplete.
 | Project detail page (tasks + captures linked) | Notion-style "everything about X in one place" | MEDIUM | core.md spec — breadcrumb format |
 | Project icon + banner image | Notion mental model; brand opportunity | MEDIUM | Emoji picker for icon (sufficient); banner can be solid color in MVP |
 | Tree-view sidebar (Areas → Projects, expandable) | Hierarchy visualization | MEDIUM | Pull-up sidebar per spec |
-| Show task/capture counts per project | Quick scannability | LOW | Aggregate query or denormalized counter |
+| Show task/capture counts per project | Quick scsambility | LOW | Aggregate query or denormalized counter |
 | Mark project as Class with academic metadata | Differentiator (see below) but expected by *students* | LOW | core.md spec |
 
 #### Kiwi (the NLP agent)
@@ -112,8 +112,8 @@ Features that make Hyperpolymath stand apart. Aligned with PROJECT.md Core Value
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Multi-action inference from one sentence** | "Dinner w/ Anna 8pm sat. Buy flowers fri afternoon." → 1 calendar event + 1 task in one turn. *No competitor does this cleanly.* Todoist parses one task; ChatGPT plugins are clunky; Notion AI is multi-step. | HIGH | Claude Sonnet 4.6 with structured tool-use; the central engineering bet. JSON contract is `actions: KiwiAction[]` (v1 pattern). |
-| **Capture-first ambiguity resolution** | When agent isn't sure if "loved Anna's mom" is a task or a thought, it captures rather than asks. Inverts the "AI asks too many questions" complaint. | LOW (prompt) | v1 inherited; codify as system prompt rule + golden-path tests |
+| **Multi-action inference from one sentence** | "Dinner w/ Sam 8pm sat. Pick up groceries fri afternoon." → 1 calendar event + 1 task in one turn. *No competitor does this cleanly.* Todoist parses one task; ChatGPT plugins are clunky; Notion AI is multi-step. | HIGH | Claude Sonnet 4.6 with structured tool-use; the central engineering bet. JSON contract is `actions: KiwiAction[]` (v1 pattern). |
+| **Capture-first ambiguity resolution** | When agent isn't sure if "loved Sam's mom" is a task or a thought, it captures rather than asks. Inverts the "AI asks too many questions" complaint. | LOW (prompt) | v1 inherited; codify as system prompt rule + golden-path tests |
 | **Unified surface across tasks + notes + calendar** | One input bar instead of three apps. Closest competitor: Notion AI Agent — but Notion's tasks are weak and calendar is bolt-on. | HIGH (already the architecture) | Architectural; the existence proof is shipping it |
 | **Journal-paper aesthetic (EB Garamond, Renaissance brand)** | Productivity apps in 2026 all look the same (white card + blue accent + Inter font). The Elsevier/Nature + Notion-zen hybrid is genuinely unique. | MEDIUM | Typography + spacing + restraint; not a feature to "add" but a discipline |
 | **Warp-terminal Kiwi interface** | Most LLM chats look like ChatGPT clones. The terminal-styled input + thinking-word indicator + structured action receipts feels distinctive. | MEDIUM | v1 has this; preserve. Action receipts as terminal-style "✓ created task #42" lines |

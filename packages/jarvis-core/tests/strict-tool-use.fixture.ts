@@ -45,14 +45,14 @@ export interface StrictToolUseFixture {
 }
 
 export const STRICT_TOOL_USE_FIXTURE: StrictToolUseFixture = {
-  input: "dinner with anna 8pm saturday. buy her flowers friday afternoon",
+  input: "lunch with sam 8pm saturday. pick up groceries friday afternoon",
   output: {
     tool_use: [
       {
         type: "tool_use",
         name: "create_event",
         input: {
-          title: "Dinner with Anna",
+          title: "Lunch with Sam",
           start: "2026-05-30T20:00:00-04:00",
           end: "2026-05-30T21:00:00-04:00",
         },
@@ -61,7 +61,7 @@ export const STRICT_TOOL_USE_FIXTURE: StrictToolUseFixture = {
         type: "tool_use",
         name: "create_task",
         input: {
-          title: "Buy flowers",
+          title: "Pick up groceries",
           priority: "P2",
           status: "not started",
           due: "2026-05-29T15:00:00-04:00",

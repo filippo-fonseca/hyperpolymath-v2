@@ -302,7 +302,7 @@ I surveyed open-source builds, blog posts, indie products, and adjacent voice-AI
 3. Multi-context WebSocket API supports concurrent streams if Phase 8 ever needs them.
 4. Anthropic-style API key in env, ~30 lines of route code at `/api/jarvis/tts`.
 
-**Cost math for single-user:** Typical Kiwi receipt summary line ≈ 80 chars ("Got it sir — task added: buy flowers, Friday, P1, $running"). 50 voice turns/day × 80 chars × 7 days = 28,000 chars/week. At ElevenLabs Starter $5/month for 30k chars/month → **Filippo would burn through the $5/month tier in ~4 days**. He needs at minimum the **Creator tier ($22/month, 100k chars)**, or the **Pro tier ($99/month, 500k chars)** for headroom.
+**Cost math for single-user:** Typical Kiwi receipt summary line ≈ 80 chars ("Got it sir — task added: pick up groceries, Friday, P1, $running"). 50 voice turns/day × 80 chars × 7 days = 28,000 chars/week. At ElevenLabs Starter $5/month for 30k chars/month → **Filippo would burn through the $5/month tier in ~4 days**. He needs at minimum the **Creator tier ($22/month, 100k chars)**, or the **Pro tier ($99/month, 500k chars)** for headroom.
 
 **Cheaper path:** Cartesia Sonic at 1/5th the cost → ~$5/month is plenty for single-user voice. Worth A/B-testing voice quality vs cost. Default recommendation is still ElevenLabs because the *British* voice quality matters for the JARVIS feel, which is the whole point — but Cartesia is a defensible budget pick.
 
@@ -372,7 +372,7 @@ The user is listening as well as reading. Each receipt has TWO lines:
 Examples of good summaries:
 - "Task added, sir."
 - "Two captures and one event saved."
-- "Dinner with Anna, Saturday eight, on your default calendar."
+- "Lunch with Sam, Saturday eight, on your default calendar."
 
 Do not read out IDs, hashtags, or technical details. Speak as JARVIS would.
 ```
@@ -389,7 +389,7 @@ EXAMPLES OF YOUR VOICE:
 User: "lunch tomorrow with mark 1pm"
 You: [create_event] "Very good. Lunch with Mark, tomorrow at one, on your default calendar."
 
-User: "remember to buy flowers fri"
+User: "remember to pick up groceries fri"
 You: [create_task] "Noted, sir. Friday."
 
 User: "I'm tired"
@@ -441,7 +441,7 @@ The last example doubles as **prompt-injection defense narration** — the model
 
 ### Stretch (Phase 8+)
 
-- **Proactive briefings.** "Sir, you have three overdue tasks and dinner with Anna at eight." Requires a periodic cron-style scan + nudge UI + new opt-in setting. Real product question — when does JARVIS speak unprompted? Phase 8 territory.
+- **Proactive briefings.** "Sir, you have three overdue tasks and lunch with Sam at eight." Requires a periodic cron-style scan + nudge UI + new opt-in setting. Real product question — when does JARVIS speak unprompted? Phase 8 territory.
 - **Long-term conversation memory.** Conflicts with PROJECT.md session-only stance. Needs a deliberate exception + summarization strategy + new schema. v3 territory.
 - **Voice-driven UI commands** ("Hey Jarvis, switch to dark mode" / "open the tasks page"). Out — Kiwi only has three tools; this would need new tools or a different routing layer.
 - **Multi-language voice** — out of scope; Filippo speaks English.

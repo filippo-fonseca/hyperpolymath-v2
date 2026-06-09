@@ -47,7 +47,7 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 - [x] User connects Google Calendar via OAuth
 - [x] Full bi-directional CRUD: create/edit/delete on app pushes to Google Calendar; loading the page reflects external Google Calendar changes (no background polling — sync on page load + refetch-on-focus)
 - [x] Calendar events are NOT stored in Postgres — they live in Google Calendar; the app is a CRUD operator over gcal
-- [x] JARVIS can create calendar events (e.g., "dinner with anna 8pm saturday") *(Phase 5)*
+- [x] JARVIS can create calendar events (e.g., "lunch with sam 8pm saturday") *(Phase 5)*
 
 **Navigation & Tabs** *(remainder)*
 - [x] Homescreen is the JARVIS interaction surface *(Phase 5: /today renders JarvisConsole)*

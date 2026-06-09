@@ -243,7 +243,7 @@ None — plan executed exactly as written. All 3 tasks completed in order; all 1
 
 Capture during `/gsd:verify-phase 10`:
 
-1. **DevTools network waterfall (Phase Success Criterion #2):** during a multi-action receipt response (e.g. "dinner with anna 8pm saturday + buy flowers friday"), confirm ≥ 2 `POST /api/jarvis/tts` requests fire in parallel BEFORE `POST /api/jarvis` SSE response closes. Test 2 in `turn-playback-controller.test.ts` proves this at the unit level; the integration verification is the browser waterfall.
+1. **DevTools network waterfall (Phase Success Criterion #2):** during a multi-action receipt response (e.g. "lunch with sam 8pm saturday + pick up groceries friday"), confirm ≥ 2 `POST /api/jarvis/tts` requests fire in parallel BEFORE `POST /api/jarvis` SSE response closes. Test 2 in `turn-playback-controller.test.ts` proves this at the unit level; the integration verification is the browser waterfall.
 2. **`/insights` Pipeline Latency panel snapshot:** capture p50 `audio_first_play_at - vad_end_at` for ≥ 10 turns post-deploy. Target per Phase Success Criterion #1: < 1.5s p50.
 3. **Subjective listen-back (Phase Success Criterion #3):** confirm British voice character indistinguishable from pre-LAT-01 MP3 path.
 4. **Barge-in verification:** during JARVIS speaking, say "Hey Jarvis" — bubble should snap to listening within ~50ms; all in-flight TTS fetches aborted.

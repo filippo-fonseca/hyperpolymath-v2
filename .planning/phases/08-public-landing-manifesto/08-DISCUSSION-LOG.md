@@ -28,7 +28,7 @@
 | Option | Description | Selected |
 |---|---|---|
 | Sparse | 1-3 sentences per section + one visual element. 60-90 second read. Pure manifesto energy. | ✓ |
-| Moderate | One paragraph per section + visual. 3-4 minute read. More substantive, still scannable. | partial (Engine only) |
+| Moderate | One paragraph per section + visual. 3-4 minute read. More substantive, still scsamble. | partial (Engine only) |
 | Dense | Multi-paragraph sections. 8-10 minute read. Most essay-like. | |
 
 **User's choice:** Sparse, with one moderate exception — **The Engine** section (Strict Tool Use + real JSON contract gets a paragraph).

@@ -262,7 +262,7 @@ describe("executor.createTask (JARVIS-12 / JARVIS-14)", () => {
     const executor = createServerExecutor();
     const result = await executor.createTask(
       {
-        title: "Buy flowers",
+        title: "Pick up groceries",
         priority: "P1",
         due: "2026-05-14T20:00:00.000Z",
         project_ids: [PROJECT_A],
@@ -276,7 +276,7 @@ describe("executor.createTask (JARVIS-12 / JARVIS-14)", () => {
     // Find the tasks insert in the transactional calls
     const taskInsert = dbState.txnInsertCalls.find((c) => {
       const v = c.values as { userId?: string; title?: string };
-      return v.title === "Buy flowers";
+      return v.title === "Pick up groceries";
     });
     expect(taskInsert).toBeDefined();
     expect((taskInsert!.values as { userId: string }).userId).toBe(USER_A);

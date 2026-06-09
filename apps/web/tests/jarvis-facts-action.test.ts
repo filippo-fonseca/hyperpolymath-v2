@@ -98,7 +98,7 @@ describe("rememberFactAction (JARVIS-18 / D-M3)", () => {
   it("inserts via onConflictDoUpdate and returns {ok:true, id} on success", async () => {
     const result = await rememberFactAction({
       type: "entity",
-      key: "Anna",
+      key: "Sam",
       value: "partner",
       source: "user_explicit",
     });
@@ -118,7 +118,7 @@ describe("rememberFactAction (JARVIS-18 / D-M3)", () => {
 
     const result = await rememberFactAction({
       type: "entity",
-      key: "Anna",
+      key: "Sam",
       value: "partner",
       source: "user_explicit",
     });

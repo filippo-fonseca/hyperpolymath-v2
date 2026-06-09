@@ -317,7 +317,7 @@ describe("POST /api/jarvis — streaming", () => {
     executorCreateTaskMock.mockResolvedValue({
       ok: true,
       id: "task-1",
-      receipt: { id: "task-1", title: "Buy flowers" },
+      receipt: { id: "task-1", title: "Pick up groceries" },
     });
     anthropicStreamMock.mockReturnValue(
       buildAnthropicStream({
@@ -326,14 +326,14 @@ describe("POST /api/jarvis — streaming", () => {
             type: "tool_use",
             id: "tu_1",
             name: "create_task",
-            input: { title: "Buy flowers" },
+            input: { title: "Pick up groceries" },
           },
         ],
       }),
     );
 
     const res = await POST(
-      buildRequest({ input: "buy flowers", history: [] }) as never,
+      buildRequest({ input: "pick up groceries", history: [] }) as never,
     );
     const events = await readSseEvents(res);
 
@@ -719,7 +719,7 @@ describe("POST /api/jarvis — slash commands", () => {
       buildRequest({
         input: "what did I just file?",
         history: [
-          { role: "user", content: "buy flowers" },
+          { role: "user", content: "pick up groceries" },
           { role: "assistant", content: "Noted." },
         ],
         slashCommand: "ask",
@@ -750,7 +750,7 @@ describe("POST /api/jarvis — slash commands", () => {
 
     const res = await POST(
       buildRequest({
-        input: "buy flowers",
+        input: "pick up groceries",
         history: [],
         slashCommand: "task",
       }) as never,
@@ -768,7 +768,7 @@ describe("POST /api/jarvis — slash commands", () => {
       return buildAnthropicStream({ blocks: [] });
     });
     const res = await POST(
-      buildRequest({ input: "buy flowers", history: [] }) as never,
+      buildRequest({ input: "pick up groceries", history: [] }) as never,
     );
     await readSseEvents(res);
     expect(captured?.tool_choice).toEqual({ type: "auto" });

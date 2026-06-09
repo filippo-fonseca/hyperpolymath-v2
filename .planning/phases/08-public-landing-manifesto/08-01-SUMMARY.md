@@ -27,7 +27,7 @@ tech-stack:
 key-files:
   created:
     - "FRAMEWORK.md — 380-line repo-root framework with 5 primitive H2 sections + ASCII data model + fork runbook + acknowledgments"
-    - "packages/jarvis-core/tests/strict-tool-use.fixture.ts — STRICT_TOOL_USE_FIXTURE export (canonical README dinner-with-anna example + create_event/create_task output blocks)"
+    - "packages/jarvis-core/tests/strict-tool-use.fixture.ts — STRICT_TOOL_USE_FIXTURE export (canonical README dinner-with-sam example + create_event/create_task output blocks)"
     - "apps/web/app/opengraph-image.png — 1200×630 parchment PNG (35.7KB)"
     - "apps/web/app/opengraph-image.alt.txt — UI-SPEC §9 canonical alt text"
     - "apps/web/app/twitter-image.png — byte-identical mirror of opengraph-image.png"
@@ -66,7 +66,7 @@ completed: 2026-05-25
 ## Accomplishments
 
 - **FRAMEWORK.md** (380 lines, repo root) — distilled spec naming five primitives + one agent contract; H2s `## Areas`, `## Projects`, `## Captures`, `## JARVIS`, `## Calendar` generate clean GitHub anchors the Plan 08-03 PrimitivesTable can deep-link into; ASCII data-model diagram lifted from README; all 5 tool names present; MIT + Karpathy + Anthropic acknowledgments; zero exclamation marks
-- **strict-tool-use.fixture.ts** (73 lines, packages/jarvis-core/tests/) — exports `STRICT_TOOL_USE_FIXTURE` const + `StrictToolUseFixture` interface; input is the canonical README example (`"dinner with anna 8pm saturday. buy her flowers friday afternoon"`); output emits one `create_event` + one `create_task` tool_use block conforming to live Zod schemas (note: real fields are `start`/`end`/`due`, not `start_iso`/`end_iso`/`due_date` as the plan's example suggested); passes `pnpm tsc --noEmit` cleanly
+- **strict-tool-use.fixture.ts** (73 lines, packages/jarvis-core/tests/) — exports `STRICT_TOOL_USE_FIXTURE` const + `StrictToolUseFixture` interface; input is the canonical README example (`"lunch with sam 8pm saturday. pick up groceries friday afternoon"`); output emits one `create_event` + one `create_task` tool_use block conforming to live Zod schemas (note: real fields are `start`/`end`/`due`, not `start_iso`/`end_iso`/`due_date` as the plan's example suggested); passes `pnpm tsc --noEmit` cleanly
 - **OG image trio** (apps/web/app/) — 1200×630 PNG parchment background (35.7KB) at the Next 16 file-convention path so the landing route auto-emits `<meta property="og:image">`; matching alt text file with the verbatim UI-SPEC §9 copy ("Hyperpolymath. Type one sentence. The right action lands in the right place."); twitter-image.png is byte-identical for `<meta name="twitter:image">`
 
 ## Task Commits

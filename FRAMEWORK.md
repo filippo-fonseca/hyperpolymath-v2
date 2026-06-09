@@ -170,7 +170,7 @@ export const hashtags = pgTable(
 );
 ```
 
-**Real examples (mine):** `#idea polymathy as a competitive advantage`, `loved anna's mom. such a lovely family`, `revisit the gardner essay on focus`.
+**Real examples (mine):** `#idea polymathy as a competitive advantage`, `great energy in the lab group today. so much momentum`, `revisit the gardner essay on focus`.
 
 **Pitfall.** Captures want a junction table for hashtags and another for projects (`captures_hashtags`, `captures_projects`). Both denormalize `userId` onto the junction row — without that denormalization, Row-Level Security recurses and the policy can never be satisfied in a single query. The pattern shows up identically for tasks (`tasks_projects`). Bake it in from day one.
 
@@ -201,7 +201,7 @@ ask_clarification    // single clarifying question instead of acting
   type: "tool_use",
   name: "create_event",
   input: {
-    title: "Dinner with Anna",
+    title: "Coffee with Sam",
     start: "2026-05-30T20:00:00-04:00",
     end:   "2026-05-30T21:00:00-04:00",
   },

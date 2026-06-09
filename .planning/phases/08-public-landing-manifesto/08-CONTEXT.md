@@ -21,7 +21,7 @@ A public-facing manifesto/marketing page at `/` for logged-out visitors that cha
 ## Implementation Decisions
 
 ### Demo Modality
-- **D-01:** JARVIS centerpiece is a **pure CSS/Motion replay animation** of the README ASCII block (`README.md` lines 38-46 area). Cursor types the input verbatim ("dinner with anna 8pm saturday. buy her flowers friday afternoon"), then receipts stream in below ("⚜  scheduled  →  gcal · sat 8:00pm · Dinner with Anna", "⚜  created  →  task · fri afternoon · P2 · Buy flowers"). No API call, no auth, zero runtime cost.
+- **D-01:** JARVIS centerpiece is a **pure CSS/Motion replay animation** of the README ASCII block (`README.md` lines 38-46 area). Cursor types the input verbatim ("lunch with sam 8pm saturday. pick up groceries friday afternoon"), then receipts stream in below ("⚜  scheduled  →  gcal · sat 8:00pm · Lunch with Sam", "⚜  created  →  task · fri afternoon · P2 · Pick up groceries"). No API call, no auth, zero runtime cost.
 - **D-02:** Respect `prefers-reduced-motion` — when set, render the final state directly with no animation.
 - **D-03:** Two or three example sentences rotate (different action mixes — single task, multi-action, capture-only) so the demo doesn't feel canned. Rotation is client-side: visitor clicks "▶ show another" → next canned example. Drafted in plan-phase, reviewed by user before execute.
 

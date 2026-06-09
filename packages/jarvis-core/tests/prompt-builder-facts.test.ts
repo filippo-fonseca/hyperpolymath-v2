@@ -15,7 +15,7 @@ import { buildSystemPrompt } from "../src/prompt-builder";
 import type { JarvisFact } from "../src/types";
 
 const SAMPLE_FACTS: JarvisFact[] = [
-  { type: "entity", key: "Anna", value: "my partner" },
+  { type: "entity", key: "Sam", value: "my partner" },
   { type: "preference", key: "verbosity", value: "be concise" },
 ];
 
@@ -46,10 +46,10 @@ describe("buildSystemPrompt with facts param", () => {
   it("facts block contains compiled [ENTITY] annotation for entity type", () => {
     const blocks = buildSystemPrompt({
       projects: [],
-      facts: [{ type: "entity", key: "Anna", value: "my partner" }],
+      facts: [{ type: "entity", key: "Sam", value: "my partner" }],
     });
     const lastBlock = blocks[blocks.length - 1]!;
-    expect(lastBlock.text).toContain("[ENTITY] Anna: my partner");
+    expect(lastBlock.text).toContain("[ENTITY] Sam: my partner");
   });
 
   it("facts block contains compiled [PREFERENCE] annotation for preference type", () => {

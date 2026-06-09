@@ -467,7 +467,7 @@ Anthropic now offers two structured-output modes for Sonnet 4.5/4.6:
 
 Tool use fits Kiwi's multi-action contract better:
 - Each action type (`create_task`, `create_capture`, `create_event`) is a separate tool with its own schema → cleaner than one mega-schema
-- The model can emit multiple tool_use blocks in one response (the "dinner with anna + buy flowers" example)
+- The model can emit multiple tool_use blocks in one response (the "lunch with sam + pick up groceries" example)
 - Strict mode guarantees the args validate, eliminating the v1 class of "model forgot a required field" bugs
 - Native streaming: tool_use blocks stream incrementally, so the UI can show intent badges as they arrive (matches the v1 UX)
 
@@ -747,7 +747,7 @@ All open clients with subscription receive INSERT delta
 useTableSubscription dedupes by ID, updates state
 ```
 
-### Kiwi Flow (e.g., "buy flowers friday + dinner anna 8pm sat")
+### Kiwi Flow (e.g., "pick up groceries friday + dinner sam 8pm sat")
 
 ```
 User types into Kiwi Console (Client)

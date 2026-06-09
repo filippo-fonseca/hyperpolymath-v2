@@ -22,11 +22,11 @@ export interface ImplicitIntentFixture {
 
 export const IMPLICIT_INTENT_FIXTURES: ImplicitIntentFixture[] = [
   {
-    description: "dinner + flowers reminder",
-    fragmented: "dinner 8pm with anna. need to buy flowers friday.",
-    explicit: "Schedule a dinner with Anna at 8pm Saturday and remind me to buy flowers Friday",
+    description: "dinner + groceries reminder",
+    fragmented: "dinner 8pm with sam. need to pick up groceries friday.",
+    explicit: "Schedule a lunch with Sam at 8pm Saturday and remind me to pick up groceries Friday",
     expectedTools: [
-      { name: "create_event", keyFields: { title: /anna|dinner/i } },
+      { name: "create_event", keyFields: { title: /sam|dinner/i } },
       { name: "create_task", keyFields: { title: /flower/i } },
     ],
   },
@@ -40,10 +40,10 @@ export const IMPLICIT_INTENT_FIXTURES: ImplicitIntentFixture[] = [
     ],
   },
   {
-    description: "anna birthday next week",
-    fragmented: "anna birthday next week",
-    explicit: "Create a task to plan for Anna's birthday next week",
-    expectedTools: [{ name: "create_task", keyFields: { title: /anna|birthday/i } }],
+    description: "sam birthday next week",
+    fragmented: "sam birthday next week",
+    explicit: "Create a task to plan for Sam's birthday next week",
+    expectedTools: [{ name: "create_task", keyFields: { title: /sam|birthday/i } }],
   },
   {
     description: "groceries tonight",
@@ -85,11 +85,11 @@ export const IMPLICIT_INTENT_FIXTURES: ImplicitIntentFixture[] = [
     expectedTools: [{ name: "create_task", keyFields: { title: /review pr/i, priority: "P1" } }],
   },
   {
-    description: "anna dinner + flowers thurs",
-    fragmented: "anna dinner fri 7 + flowers reminder thurs",
-    explicit: "Schedule dinner with Anna on Friday at 7pm, add task to get flowers Thursday",
+    description: "sam lunch + groceries thurs",
+    fragmented: "sam lunch fri 7 + groceries reminder thurs",
+    explicit: "Schedule lunch with Sam on Friday at 7pm, add task to get groceries Thursday",
     expectedTools: [
-      { name: "create_event", keyFields: { title: /anna|dinner/i } },
+      { name: "create_event", keyFields: { title: /sam|dinner/i } },
       { name: "create_task", keyFields: { title: /flower/i } },
     ],
   },
@@ -110,11 +110,11 @@ export const IMPLICIT_INTENT_FIXTURES: ImplicitIntentFixture[] = [
     expectedTools: [{ name: "create_task", keyFields: { title: /reading|cs|hw/i } }],
   },
   {
-    description: "anna sat clean apt",
-    fragmented: "anna coming over saturday. clean apt.",
-    explicit: "Put Anna visiting on Saturday on calendar and add task to clean apartment",
+    description: "sam sat clean apt",
+    fragmented: "sam coming over saturday. clean apt.",
+    explicit: "Put Sam visiting on Saturday on calendar and add task to clean apartment",
     expectedTools: [
-      { name: "create_event", keyFields: { title: /anna/i } },
+      { name: "create_event", keyFields: { title: /sam/i } },
       { name: "create_task", keyFields: { title: /clean/i } },
     ],
   },
@@ -161,9 +161,9 @@ export const IMPLICIT_INTENT_FIXTURES: ImplicitIntentFixture[] = [
     expectedTools: [{ name: "create_task", keyFields: { title: /login.?bug/i, priority: "P2" } }],
   },
   {
-    description: "anna gift march 15",
-    fragmented: "birthday gift anna march 15",
-    explicit: "Add a task to get a birthday gift for Anna before March 15",
-    expectedTools: [{ name: "create_task", keyFields: { title: /gift|anna/i } }],
+    description: "sam gift march 15",
+    fragmented: "birthday gift sam march 15",
+    explicit: "Add a task to get a birthday gift for Sam before March 15",
+    expectedTools: [{ name: "create_task", keyFields: { title: /gift|sam/i } }],
   },
 ];

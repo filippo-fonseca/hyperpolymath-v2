@@ -27,7 +27,7 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   it("accepts full shape with suggested_action", () => {
     expect(
       zAskClarification.safeParse({
-        question: "When should I schedule dinner with Anna?",
+        question: "When should I schedule lunch with Sam?",
         options: ["Tonight 8pm", "Tomorrow 7pm", "Saturday 8pm"],
         suggested_action: {
           tool: "create_event",
