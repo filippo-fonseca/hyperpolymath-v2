@@ -284,47 +284,42 @@ async function renderBannerSvg(
   const isWide = id === "banner-linkedin";
   const isSquare = id === "banner-square";
 
-  const wordmarkSize = isWide ? 132 : isSquare ? 172 : 156;
-  const taglineSize = isWide ? 26 : isSquare ? 34 : 30;
-  const kiwiSize = isWide ? 64 : isSquare ? 104 : 88;
-  const padX = isWide ? 96 : isSquare ? 112 : 104;
-  const padY = isWide ? 56 : isSquare ? 112 : 88;
-  const eyebrowSize = isWide ? 14 : 16;
+  const wordmarkSize = isWide ? 132 : isSquare ? 200 : 156;
+  const taglineSize = isWide ? 28 : isSquare ? 40 : 32;
+  const kiwiSize = isWide ? 88 : isSquare ? 132 : 104;
+  const padX = isWide ? 96 : isSquare ? 120 : 104;
+  const gap = isWide ? 36 : isSquare ? 56 : 48;
 
-  const wordmarkY = isWide ? height / 2 - 14 : height * 0.5 - 30;
-  const taglineY = wordmarkY + wordmarkSize * 0.7 + (isWide ? 28 : 44);
-  const kiwiY = wordmarkY - wordmarkSize * 0.78;
+  // Vertically center a 2-row block:
+  //   row 1 = kiwi + wordmark (sharing a vertical center)
+  //   row 2 = tagline
+  // Sizing each row by its own intrinsic height and using `dominant-baseline=
+  // hanging` so SVG and CSS interpretations stay consistent.
+  const row1Height = Math.max(wordmarkSize, kiwiSize);
+  const taglineLineHeight = 1.3;
+  const row2Height = taglineSize * taglineLineHeight;
+  const blockHeight = row1Height + gap + row2Height;
+  const blockTop = (height - blockHeight) / 2;
+
   const kiwiScale = kiwiSize / 24;
-
-  // Top eyebrow (left/right) with horizontal rule between.
-  const eyebrowY = padY + eyebrowSize;
-  const ruleStartX = padX + 240;
-  const ruleEndX = width - padX - 100;
-  const footerY = height - padY;
+  const kiwiX = padX;
+  const kiwiY = blockTop + (row1Height - kiwiSize) / 2;
+  const wordmarkX = padX + kiwiSize + (isWide ? 32 : 40);
+  const wordmarkTop = blockTop + (row1Height - wordmarkSize) / 2;
+  const taglineTop = blockTop + row1Height + gap;
 
   const inner = `
     ${bgRect(width, height, theme)}
     ${hudOverlay(width, height, theme)}
-    <text x="${padX}" y="${eyebrowY}" font-family="${monoStack}" font-size="${eyebrowSize}"
-      letter-spacing="${eyebrowSize * 0.24}" fill="${t.muted}">§ HYPERPOLYMATH</text>
-    <line x1="${ruleStartX}" y1="${eyebrowY - eyebrowSize * 0.35}" x2="${ruleEndX}" y2="${eyebrowY - eyebrowSize * 0.35}" stroke="${t.rule}" stroke-width="1"/>
-    <text x="${width - padX}" y="${eyebrowY}" text-anchor="end" font-family="${monoStack}" font-size="${eyebrowSize}"
-      letter-spacing="${eyebrowSize * 0.24}" fill="${t.muted}">MMXXVI</text>
-
-    <g transform="translate(${padX} ${kiwiY}) scale(${kiwiScale})">
+    <g transform="translate(${kiwiX} ${kiwiY}) scale(${kiwiScale})">
       <path d="${KIWI_PATH}" fill="${t.accent}"/>
     </g>
-    <text x="${padX + kiwiSize + 28}" y="${wordmarkY + wordmarkSize * 0.78}"
+    <text x="${wordmarkX}" y="${wordmarkTop}" dominant-baseline="hanging"
       font-family="${serifStack}" font-weight="600" font-size="${wordmarkSize}"
       letter-spacing="${-wordmarkSize * 0.035}" fill="${t.fg}">Hyperpolymath</text>
-    <text x="${padX}" y="${taglineY}"
+    <text x="${padX}" y="${taglineTop}" dominant-baseline="hanging"
       font-family="${serifStack}" font-weight="400" font-size="${taglineSize}"
-      fill="${t.muted}">${TAGLINE}</text>
-
-    <text x="${padX}" y="${footerY}" font-family="${monoStack}" font-size="${eyebrowSize}"
-      letter-spacing="${eyebrowSize * 0.2}" fill="${t.muted}">${id.replace("banner-", "").toUpperCase()} · ${width}×${height}</text>
-    <text x="${width - padX}" y="${footerY}" text-anchor="end" font-family="${monoStack}" font-size="${eyebrowSize}"
-      letter-spacing="${eyebrowSize * 0.2}" fill="${t.muted}">HYPERPOLYMATH.COM</text>`;
+      fill="${t.muted}">${TAGLINE}</text>`;
 
   return svgRoot(width, height, inner, fontStyle);
 }
@@ -638,12 +633,11 @@ function renderBannerJsx(
   const isWide = id === "banner-linkedin";
   const isSquare = id === "banner-square";
 
-  const wordmarkSize = isWide ? 132 : isSquare ? 172 : 156;
-  const taglineSize = isWide ? 26 : isSquare ? 34 : 30;
-  const kiwiSize = isWide ? 64 : isSquare ? 104 : 88;
-  const padX = isWide ? 96 : isSquare ? 112 : 104;
-  const padY = isWide ? 56 : isSquare ? 112 : 88;
-  const eyebrowSize = isWide ? 14 : 16;
+  const wordmarkSize = isWide ? 132 : isSquare ? 200 : 156;
+  const taglineSize = isWide ? 28 : isSquare ? 40 : 32;
+  const kiwiSize = isWide ? 88 : isSquare ? 132 : 104;
+  const padX = isWide ? 96 : isSquare ? 120 : 104;
+  const gap = isWide ? 36 : isSquare ? 56 : 48;
 
   return (
     <div
@@ -655,8 +649,10 @@ function renderBannerJsx(
         background: t.bg,
         color: t.fg,
         fontFamily: "EB Garamond, Georgia, serif",
-        padding: `${padY}px ${padX}px`,
-        justifyContent: "space-between",
+        padding: `0 ${padX}px`,
+        justifyContent: "center",
+        alignItems: "flex-start",
+        gap,
         position: "relative",
       }}
     >
@@ -666,77 +662,36 @@ function renderBannerJsx(
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 20,
-          fontSize: eyebrowSize,
-          letterSpacing: "0.24em",
-          textTransform: "uppercase",
-          color: t.muted,
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          gap: isWide ? 32 : 40,
           zIndex: 1,
         }}
       >
-        <span style={flex}>§ Hyperpolymath</span>
-        <span style={{ flex: 1, height: 1, background: t.rule, ...flex }} />
-        <span style={flex}>MMXXVI</span>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: isWide ? 18 : 32,
-          alignItems: "flex-start",
-          zIndex: 1,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: isWide ? 28 : 36 }}>
-          <KiwiSvg size={kiwiSize} color={t.accent} />
-          <span
-            style={{
-              fontSize: wordmarkSize,
-              fontWeight: 600,
-              lineHeight: 1,
-              letterSpacing: "-0.035em",
-              display: "flex",
-            }}
-          >
-            Hyperpolymath
-          </span>
-        </div>
-        <div
+        <KiwiSvg size={kiwiSize} color={t.accent} />
+        <span
           style={{
-            fontSize: taglineSize,
-            fontWeight: 400,
-            color: t.muted,
-            lineHeight: 1.32,
-            maxWidth: isWide ? 1100 : 880,
-            letterSpacing: "-0.005em",
+            fontSize: wordmarkSize,
+            fontWeight: 600,
+            lineHeight: 1,
+            letterSpacing: "-0.035em",
             display: "flex",
           }}
         >
-          {TAGLINE}
-        </div>
+          Hyperpolymath
+        </span>
       </div>
-
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: eyebrowSize,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
+          fontSize: taglineSize,
+          fontWeight: 400,
           color: t.muted,
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+          lineHeight: 1.3,
+          maxWidth: isWide ? 1200 : 880,
+          letterSpacing: "-0.005em",
+          display: "flex",
           zIndex: 1,
         }}
       >
-        <span style={flex}>
-          {id.replace("banner-", "")} · {width}×{height}
-        </span>
-        <span style={flex}>hyperpolymath.com</span>
+        {TAGLINE}
       </div>
     </div>
   );
