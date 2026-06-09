@@ -20,7 +20,6 @@ import {
 // JARVIS-specific primitives.
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
-import { HudEdgeInstrumentation } from "@/components/shared/HudEdgeInstrumentation";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
@@ -843,13 +842,6 @@ export function JarvisConsole({
     return "ready";
   }, [turns, streaming]);
 
-  // Phase 6.1 Plan 02 — TODO(phase 6.1.x): wire real telemetry from
-  // jarvis_events when /insights aggregation lands. For now, null values
-  // render as "—ms / —% / —" placeholders so the rail doesn't feel broken.
-  const latencyMs: number | null = null;
-  const cacheHitPercent: number | null = null;
-  const lastTurnRelative: string | null = null;
-
   // Phase 6.1 — HudCoreBubble visual anchor (arc-reactor centerpiece per
   // Stark HUD reference). Reactive: idle ambient when no conversation,
   // thinking/streaming when JARVIS is active, error on stream failure.
@@ -982,15 +974,6 @@ export function JarvisConsole({
           onSubmit={handleSubmit}
           disabled={streaming}
         />
-        {/* Phase 6.1 Plan 02: bottom-edge instrumentation rail. hidden md:flex
-            per UI-SPEC §10c — drops below 768px to preserve mobile vertical space. */}
-        <div className="flex justify-center mt-2">
-          <HudEdgeInstrumentation
-            latencyMs={latencyMs}
-            cacheHitPercent={cacheHitPercent}
-            lastTurnRelative={lastTurnRelative}
-          />
-        </div>
       </div>
     </div>
   );

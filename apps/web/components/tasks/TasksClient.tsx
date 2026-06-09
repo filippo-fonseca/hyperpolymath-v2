@@ -159,6 +159,10 @@ export function TasksClient({
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
+  // Draft task — set when the user clicks "+ Add task" in a kanban column.
+  // The detail panel opens in create mode with a synthetic empty task; Save
+  // calls createTask, Cancel/close discards.
+  const [draftStatus, setDraftStatus] = useState<TaskStatus | null>(null);
 
   // Auto-hide completed "lesno" tasks by default (per user spec). Persisted in
   // localStorage so the choice survives page reloads. Toggle pill sits in the
@@ -445,6 +449,24 @@ export function TasksClient({
     ? optimisticTasks.find((t) => t.id === openTaskId) ?? null
     : null;
 
+  // Synthetic draft for create mode. id stays constant so React doesn't
+  // re-init the form between toggles; the panel skips the syncing useEffect
+  // anyway by checking task?.id. Dates/projects default to sensible values.
+  const draftTask: TaskWithProjects | null = draftStatus
+    ? {
+        id: "__draft__",
+        title: "",
+        notes: null,
+        priority: "P3",
+        status: draftStatus,
+        dueDate: dateYmd,
+        kanbanPosition: 0,
+        completedAt: null,
+        createdAt: new Date(),
+        projects: [],
+      }
+    : null;
+
   const hasActiveFilters =
     filters.priority.length > 0 ||
     filters.status.length > 0 ||
@@ -642,6 +664,7 @@ export function TasksClient({
             userId={userId}
             onTaskClick={setOpenTaskId}
             onCreateTask={handleCreateTask}
+            onStartCreate={(s) => setDraftStatus(s)}
             addOptimistic={addOptimistic}
             selectionActive={selectedIds.size > 0}
             selectedIds={selectedIds}
@@ -703,6 +726,16 @@ export function TasksClient({
               }),
           });
         }}
+      />
+
+      {/* Draft panel — opens when the user clicks "+ Add task" in a column. */}
+      <TaskDetailPanel
+        task={draftTask}
+        projects={projects}
+        open={!!draftTask}
+        onClose={() => setDraftStatus(null)}
+        addOptimistic={addOptimistic}
+        mode="create"
       />
     </div>
   );

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { Plus } from "lucide-react";
+import { format, differenceInCalendarDays } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  createTask,
   getTasksForCurrentUser,
   updateTaskStatus,
 } from "@/app/actions/tasks";
@@ -17,20 +19,62 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 interface Props {
   userId: string;
   initialTasks: TaskWithProjects[];
+  /** When true, widget shrinks header weight to fit a sidekick slot. */
+  compact?: boolean;
+  /** Max number of rows to render. */
+  limit?: number;
 }
 
+type Urgency = "overdue" | "today" | "soon" | "later";
+
+function urgencyOf(dueDateISO: string, todayISO: string): Urgency {
+  const today = new Date(`${todayISO}T00:00:00`);
+  const due = new Date(`${dueDateISO}T00:00:00`);
+  const days = differenceInCalendarDays(due, today);
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days <= 7) return "soon";
+  return "later";
+}
+
+const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }> = {
+  overdue: {
+    dot: "var(--ink-coral)",
+    text: "var(--ink-coral)",
+    label: "OVERDUE",
+  },
+  today: {
+    dot: "var(--ink-amber)",
+    text: "var(--ink-amber)",
+    label: "TODAY",
+  },
+  soon: {
+    dot: "var(--hud-cyan)",
+    text: "var(--hud-cyan)",
+    label: "",
+  },
+  later: {
+    dot: "var(--ink-muted)",
+    text: "var(--ink-muted)",
+    label: "",
+  },
+};
+
 /**
- * UpcomingTasksWidget — at-a-glance + interactive tile for the LifeOS homepage.
+ * UpcomingTasksWidget — bento hero tile.
  *
- * Quick task 260607-gox (3/3): converted from Server Component to client island.
  * Reuses tableKey("tasks", userId) verbatim from TasksClient so Realtime
- * invalidation drives both surfaces.
- *
- * Notion-style 14px square checkbox per row. Tap → optimistic slide-out via
- * AnimatePresence + motion/react, then updateTaskStatus({ newStatus: "lesno" }),
- * then invalidate so the next pending task fills the slot.
+ * invalidation drives both surfaces. Optimistic check-off via local Set;
+ * AnimatePresence handles the slide-out. Per-row urgency tint surfaces what
+ * matters at a glance — coral for overdue, amber for today, cyan for the
+ * coming week, muted for later.
  */
-export function UpcomingTasksWidget({ userId, initialTasks }: Props) {
+export function UpcomingTasksWidget({
+  userId,
+  initialTasks,
+  compact = false,
+  limit = 7,
+}: Props) {
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
 
@@ -43,18 +87,52 @@ export function UpcomingTasksWidget({ userId, initialTasks }: Props) {
   });
 
   const [checkedOff, setCheckedOff] = useState<Set<string>>(new Set());
+  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const upcoming = tasksData
-    .filter(
-      (t) =>
-        t.status !== "lesno" && t.dueDate != null && !checkedOff.has(t.id),
-    )
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  const open = tasksData.filter(
+    (t) => t.status !== "lesno" && t.dueDate != null && !checkedOff.has(t.id),
+  );
+
+  const overdueCount = open.filter(
+    (t) => urgencyOf(t.dueDate as string, todayISO) === "overdue",
+  ).length;
+  const todayCount = open.filter(
+    (t) => urgencyOf(t.dueDate as string, todayISO) === "today",
+  ).length;
+
+  const upcoming = open
     .sort(
       (a, b) =>
         new Date(a.dueDate as string).getTime() -
         new Date(b.dueDate as string).getTime(),
     )
-    .slice(0, 5);
+    .slice(0, limit);
+
+  async function handleCreate() {
+    const title = newTitle.trim();
+    if (!title || creating) return;
+    setCreating(true);
+    const r = await createTask({
+      title,
+      status: "not started",
+      dueDate: todayISO,
+      priority: "P3",
+      projectIds: [],
+    });
+    setCreating(false);
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    setNewTitle("");
+    await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
+  }
 
   async function handleCheck(task: TaskWithProjects) {
     setCheckedOff((prev) => new Set(prev).add(task.id));
@@ -73,8 +151,6 @@ export function UpcomingTasksWidget({ userId, initialTasks }: Props) {
 
     if (r.data.becameLesno) toast("Lesno.");
 
-    // Let the exit animation settle before refetching so the slot swap
-    // feels like one motion (slide-out → reflow → next task lands).
     setTimeout(() => {
       void queryClient
         .invalidateQueries({ queryKey: tableKey("tasks", userId) })
@@ -90,14 +166,33 @@ export function UpcomingTasksWidget({ userId, initialTasks }: Props) {
 
   const transition = reducedMotion
     ? { duration: 0 }
-    : { duration: 0.2, ease: [0.25, 1, 0.5, 1] as const };
+    : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
   return (
-    <section className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-5 flex flex-col h-full transition-[border-color,transform] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px">
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-          Upcoming tasks
-        </h3>
+    <div className="flex flex-col h-full">
+      <header className="mb-5 flex items-baseline justify-between">
+        <div className="flex items-baseline gap-3">
+          <h3
+            className={`font-serif font-semibold text-[var(--ink)] ${compact ? "text-base" : "text-lg"}`}
+          >
+            Upcoming
+          </h3>
+          {(overdueCount > 0 || todayCount > 0) && (
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              {overdueCount > 0 && (
+                <span style={{ color: "var(--ink-coral)" }}>
+                  {overdueCount} overdue
+                </span>
+              )}
+              {overdueCount > 0 && todayCount > 0 ? " · " : ""}
+              {todayCount > 0 && (
+                <span style={{ color: "var(--ink-amber)" }}>
+                  {todayCount} today
+                </span>
+              )}
+            </span>
+          )}
+        </div>
         <Link
           href="/tasks"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
@@ -105,40 +200,97 @@ export function UpcomingTasksWidget({ userId, initialTasks }: Props) {
           All →
         </Link>
       </header>
+
+      {/* Inline composer — Enter to create with today's due date. */}
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 transition-colors duration-150 focus-within:border-[var(--edge-hud)]">
+        <Plus
+          size={13}
+          strokeWidth={1.75}
+          className="text-[var(--ink-muted)] shrink-0"
+          aria-hidden
+        />
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleCreate();
+            }
+          }}
+          placeholder="New task — Enter to add"
+          disabled={creating}
+          className="flex-1 min-w-0 bg-transparent outline-none font-serif text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+        />
+        {newTitle.trim() && (
+          <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+            ⏎
+          </span>
+        )}
+      </div>
+
       {upcoming.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-          Nothing due. Breathe.
-        </p>
+        <div className="flex flex-1 items-center">
+          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+            Nothing due. Breathe.
+          </p>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-2.5 flex-1">
+        <ul className="flex flex-col flex-1">
           <AnimatePresence mode="popLayout" initial={false}>
-            {upcoming.map((t) => (
-              <motion.li
-                key={t.id}
-                layout
-                initial={{ opacity: 1, x: 0 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={transition}
-                className="flex items-center justify-between gap-3"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleCheck(t)}
-                  aria-label={`Mark "${t.title}" as done`}
-                  className="flex items-center justify-center w-[14px] h-[14px] rounded-sm border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-100 shrink-0 cursor-pointer-always"
-                />
-                <span className="font-serif text-[14px] text-[var(--ink)] truncate flex-1 min-w-0">
-                  {t.title}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] shrink-0">
-                  {format(new Date(t.dueDate as string), "MMM d")}
-                </span>
-              </motion.li>
-            ))}
+            {upcoming.map((t) => {
+              const u = urgencyOf(t.dueDate as string, todayISO);
+              const tone = urgencyToken[u];
+              const project = t.projects?.[0];
+              return (
+                <motion.li
+                  key={t.id}
+                  layout
+                  initial={reducedMotion ? false : { opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={transition}
+                  className="group/task flex items-center gap-3 py-2.5 border-b border-[var(--edge)] last:border-b-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleCheck(t)}
+                    aria-label={`Mark "${t.title}" as done`}
+                    className="relative flex items-center justify-center w-[16px] h-[16px] rounded-[3px] border shrink-0 cursor-pointer-always transition-colors duration-100"
+                    style={{
+                      borderColor:
+                        u === "overdue" || u === "today"
+                          ? tone.dot
+                          : "var(--edge)",
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="absolute -left-2 top-1/2 -translate-y-1/2 h-[14px] w-[2px] rounded-sm opacity-0 group-hover/task:opacity-100 transition-opacity duration-100"
+                      style={{ backgroundColor: tone.dot }}
+                    />
+                  </button>
+                  <span className="font-serif text-[14px] text-[var(--ink)] flex-1 min-w-0 truncate">
+                    {t.title}
+                  </span>
+                  {project && (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)] shrink-0 max-w-[120px] truncate">
+                      {project.name}
+                    </span>
+                  )}
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.10em] shrink-0 tabular-nums"
+                    style={{ color: tone.text }}
+                  >
+                    {tone.label || format(new Date(t.dueDate as string), "MMM d")}
+                  </span>
+                </motion.li>
+              );
+            })}
           </AnimatePresence>
         </ul>
       )}
-    </section>
+    </div>
   );
 }

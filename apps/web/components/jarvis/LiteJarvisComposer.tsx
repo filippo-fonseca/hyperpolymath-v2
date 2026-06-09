@@ -88,11 +88,12 @@ export function LiteJarvisComposer({
   return (
     <div
       className={cn(
-        "group/composer rounded-2xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]",
+        "agent-mode-scope group/composer rounded-xl border border-[var(--edge)] bg-[var(--surface-raised)]",
         "px-4 py-3",
-        "transition-[border-color,box-shadow] duration-150 ease-out",
+        "transition-[border-color,box-shadow,background-color] duration-150 ease-out",
+        "hover:border-[var(--edge-hud)]",
         "focus-within:border-[var(--hud-cyan)]",
-        "focus-within:shadow-[0_0_0_4px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent)]",
+        "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]",
         className,
       )}
     >

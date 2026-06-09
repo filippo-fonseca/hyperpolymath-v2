@@ -15,23 +15,26 @@ import {
   Network,
   Folder,
   X,
+  Columns2,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { cn } from "@/lib/utils";
+import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
 const STORAGE_KEY = "top-tab-last-route";
 
-/**
- * Route lookup for the left tab — keeps icon/label parity with the sidebar
- * destinations. /today is intentionally absent because JARVIS owns the
- * right tab. Anything not in this map (e.g. /projects/[id]) falls through
- * to a generic Folder icon + slug-derived label.
- */
 const ROUTE_META: Record<
   string,
-  { label: string; icon: (props: { size?: number; strokeWidth?: number; className?: string }) => React.ReactNode }
+  {
+    label: string;
+    icon: (props: {
+      size?: number;
+      strokeWidth?: number;
+      className?: string;
+    }) => React.ReactNode;
+  }
 > = {
   "/lifeos": { label: "LifeOS", icon: LayoutDashboard },
   "/tasks": { label: "Tasks", icon: CheckSquare },
@@ -46,18 +49,19 @@ const ROUTE_META: Record<
 
 function metaForPath(pathname: string): {
   label: string;
-  icon: (props: { size?: number; strokeWidth?: number; className?: string }) => React.ReactNode;
+  icon: (props: {
+    size?: number;
+    strokeWidth?: number;
+    className?: string;
+  }) => React.ReactNode;
 } {
-  // Exact match first
   if (ROUTE_META[pathname]) return ROUTE_META[pathname];
-  // Then longest-prefix match (/projects/abc → /projects)
   const segs = pathname.split("/").filter(Boolean);
   while (segs.length > 0) {
     const candidate = "/" + segs.join("/");
     if (ROUTE_META[candidate]) return ROUTE_META[candidate];
     segs.pop();
   }
-  // Fallback: derive label from the first segment
   const first = pathname.split("/").filter(Boolean)[0] ?? "Page";
   return {
     label: first.charAt(0).toUpperCase() + first.slice(1),
@@ -66,25 +70,25 @@ function metaForPath(pathname: string): {
 }
 
 /**
- * TopTabBar — browser-tab metaphor pinned above the main scroll area.
+ * TopTabBar — Arc/Safari-style tab strip pinned above the main scroll area.
  *
- * Two tabs:
- *   - Left: reflects the current sidebar route. When the user is on /today
- *     (JARVIS), the left tab shows the *previous* non-JARVIS route so
- *     there's always a one-click path back. Defaults to /lifeos on first
- *     load.
- *   - Right: JARVIS, always present. Cyan-tinted when active.
+ * macOS-app aesthetic: hairline divider beneath the bar, soft pill tabs that
+ * fill with --surface-raised when active (no thick borders, no halo glow).
+ * JARVIS reads as the agent surface via a small cyan dot + ink-on-cyan label
+ * — never a full chrome-flood.
  *
- * Only one route is rendered at a time — the inactive tab is a navigation
- * affordance, not a parallel pane. Split-screen is filed as a backlog item
- * (.planning/phases/999.13-…) and will graduate this bar to a layout owner.
+ * Split-screen affordance: a quiet vertical-split glyph between the two tabs.
+ * When split is on, both routes render simultaneously (70% / 30%) so
+ * switching tabs swaps the left pane only.
+ *
+ * Keyboard shortcuts (handled in GlobalHotkeys, NOT here):
+ *   Ctrl+1 → left tab · Ctrl+2 → JARVIS. Both no-op while split-screen is on.
  */
 export function TopTabBar() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
+  const { splitOn, toggle: toggleSplit } = useSplitScreen();
 
-  // Track the most recent non-JARVIS route so the left tab can persist a
-  // sensible "go back to what I was doing" target while JARVIS is active.
   const [lastRoute, setLastRoute] = useState<string>(FALLBACK_LEFT_PATH);
 
   useEffect(() => {
@@ -99,28 +103,28 @@ export function TopTabBar() {
     }
   }, [pathname]);
 
-  const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
+  const onJarvis =
+    pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
   const leftPath = onJarvis ? lastRoute : pathname || FALLBACK_LEFT_PATH;
   const leftMeta = metaForPath(leftPath);
   const LeftIcon = leftMeta.icon;
 
-  // Hide the tab bar entirely on the onboarding flow — it's not a "tab".
   if (pathname.startsWith("/onboarding")) return null;
 
   return (
     <div
       role="tablist"
       aria-label="App tabs"
-      className="relative flex items-end gap-1 px-4 pt-2 border-b border-[var(--edge)] bg-[var(--canvas)]"
+      className="relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
       style={{ minHeight: 40 }}
     >
-      {/* Left tab — current sidebar route (or last non-JARVIS while on JARVIS) */}
       <TabPill
         href={leftPath}
-        active={!onJarvis}
+        active={!onJarvis && !splitOn}
         accent={false}
         label={leftMeta.label}
         icon={<LeftIcon size={13} strokeWidth={1.75} />}
+        kbd="⌃1"
         onClose={
           onJarvis
             ? undefined
@@ -130,22 +134,38 @@ export function TopTabBar() {
         }
       />
 
-      {/* Right tab — JARVIS, always present, cyan when active */}
+      <SplitToggle on={splitOn} onClick={toggleSplit} />
+
       <TabPill
         href={JARVIS_PATH}
-        active={onJarvis}
+        active={onJarvis || splitOn}
         accent
         label="JARVIS"
-        icon={
-          <KiwiIcon
-            size={13}
-            aria-hidden="true"
-          />
-        }
+        kbd="⌃2"
+        icon={<KiwiIcon size={13} aria-hidden="true" />}
       />
-
-      {/* Future: split affordance lives here. See .planning/phases/999.13. */}
     </div>
+  );
+}
+
+function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      aria-label={on ? "Exit split screen" : "Enter split screen"}
+      title={on ? "Exit split screen" : "Split screen with JARVIS"}
+      className={cn(
+        "agent-mode-scope inline-flex h-6 w-6 items-center justify-center rounded-md",
+        "transition-[background-color,color] duration-150 ease-out",
+        on
+          ? "bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)] text-[var(--hud-cyan)]"
+          : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]",
+      )}
+    >
+      <Columns2 size={12} strokeWidth={1.75} />
+    </button>
   );
 }
 
@@ -155,6 +175,7 @@ function TabPill({
   accent,
   label,
   icon,
+  kbd,
   onClose,
 }: {
   href: string;
@@ -162,17 +183,24 @@ function TabPill({
   accent: boolean;
   label: string;
   icon: React.ReactNode;
+  kbd?: string;
   onClose?: () => void;
 }) {
+  // accent (JARVIS) tab: scope cyan focus ring so amber doc ring doesn't show
+  // on tab focus. Plain tab keeps the default doc ring.
+  const scope = accent ? "agent-mode-scope" : "";
+
   return (
     <div
       className={cn(
         "group/tab relative flex items-center",
-        "rounded-t-md border border-b-0",
-        "transition-colors duration-150 ease-out",
+        scope,
+        "rounded-md transition-[background-color,color,box-shadow] duration-150 ease-out",
         active
-          ? "bg-[var(--surface-raised)] border-[var(--edge)] -mb-px"
-          : "bg-transparent border-transparent hover:bg-[color-mix(in_oklch,var(--ink)_3%,transparent)]",
+          ? accent
+            ? "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]"
+            : "bg-[var(--surface-raised)] shadow-[inset_0_0_0_1px_var(--edge)]"
+          : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
       )}
       role="tab"
       aria-selected={active}
@@ -180,29 +208,32 @@ function TabPill({
       <Link
         href={href}
         className={cn(
-          "flex items-center gap-2 pl-3 pr-2 py-1.5 font-mono text-[11px] uppercase tracking-[0.10em] outline-none",
+          "flex items-center gap-2 pl-2.5 pr-2 py-1.5 font-sans text-[12px] outline-none rounded-md",
+          "tracking-[-0.005em]",
           active
             ? accent
-              ? "text-[var(--hud-cyan)]"
-              : "text-[var(--ink)]"
+              ? "text-[var(--hud-cyan)] font-medium"
+              : "text-[var(--ink)] font-medium"
             : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
         )}
-        style={
-          active && accent
-            ? {
-                textShadow:
-                  "0 0 12px color-mix(in oklch, var(--hud-cyan) 50%, transparent)",
-              }
-            : undefined
-        }
       >
+        {accent && active && (
+          <span
+            aria-hidden
+            className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+            style={{
+              backgroundColor: "var(--hud-cyan)",
+              boxShadow:
+                "0 0 6px color-mix(in oklch, var(--hud-cyan) 70%, transparent)",
+            }}
+          />
+        )}
         <span
-          className="shrink-0"
+          className="shrink-0 inline-flex items-center"
           style={
-            active && accent
+            accent
               ? {
-                  filter:
-                    "drop-shadow(0 0 6px color-mix(in oklch, var(--hud-cyan) 70%, transparent))",
+                  color: active ? "var(--hud-cyan)" : "var(--ink-muted)",
                 }
               : undefined
           }
@@ -210,6 +241,18 @@ function TabPill({
           {icon}
         </span>
         <span className="truncate max-w-[160px]">{label}</span>
+        {kbd && (
+          <span
+            className={cn(
+              "ml-1 hidden md:inline font-mono text-[9px] tracking-[0.04em] uppercase",
+              active ? "opacity-50" : "opacity-40",
+              accent ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]",
+            )}
+            aria-hidden
+          >
+            {kbd}
+          </span>
+        )}
       </Link>
       {onClose && (
         <button
@@ -218,27 +261,12 @@ function TabPill({
           aria-label={`Close ${label} tab`}
           className={cn(
             "mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm",
-            "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--edge)]",
+            "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_8%,transparent)]",
             "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-100",
           )}
         >
           <X size={10} strokeWidth={2} />
         </button>
-      )}
-      {/* Active accent — cyan glow underline for JARVIS, hairline for others */}
-      {active && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -bottom-px h-px"
-          style={{
-            backgroundColor: accent
-              ? "var(--hud-cyan)"
-              : "var(--surface-raised)",
-            boxShadow: accent
-              ? "0 0 12px color-mix(in oklch, var(--hud-cyan) 55%, transparent)"
-              : undefined,
-          }}
-        />
       )}
     </div>
   );

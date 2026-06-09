@@ -32,13 +32,13 @@ export function LifeTabPanel({
   githubUsername,
 }: Props) {
   return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
-      <div className="lg:col-span-2">
+    <div className="flex flex-col gap-6 @2xl/main:grid @2xl/main:grid-cols-2">
+      <div className="@2xl/main:col-span-2">
         <GithubHeatmapPanel username={githubUsername} />
       </div>
       <ClaudeCodePanel result={claudeCode} />
       <StravaPanel result={strava} />
-      <div className="lg:col-span-2">
+      <div className="@2xl/main:col-span-2">
         <FlowPanel result={flow} />
       </div>
     </div>
