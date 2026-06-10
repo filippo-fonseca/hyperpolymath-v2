@@ -1,0 +1,103 @@
+name: Release Desktop (macOS)
+
+# Manual trigger only — releases ship when YOU say so, not on every push.
+# Run from the Actions tab (UI) or via:
+#   gh workflow run release-desktop.yml -f version=desktop-v0.1.0
+#
+# What this does:
+#   1. Builds the Tauri app on a clean macos-latest runner
+#   2. Signs with your Developer ID Application cert (from secrets)
+#   3. Notarizes via Apple's notarytool, then staples the ticket to the .dmg
+#   4. Creates a GitHub Release with the .dmg attached
+#
+# Required repo secrets (Settings → Secrets and variables → Actions → Secrets):
+#   APPLE_CERTIFICATE           base64 of your .p12 export
+#   APPLE_CERTIFICATE_PASSWORD  password used during the .p12 export
+#   APPLE_SIGNING_IDENTITY      "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID                    your Apple ID email
+#   APPLE_PASSWORD              app-specific password (appleid.apple.com)
+#   APPLE_TEAM_ID               10-char team ID
+#
+# Required repo variable (Settings → Secrets and variables → Actions → Variables):
+#   PROD_SITE_URL               e.g. https://hyperpolymath.com (baked into the build)
+#
+# See apps/desktop/RELEASE.md for the full one-time setup guide.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. desktop-v0.1.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    name: Build · Sign · Notarize · Release
+    runs-on: macos-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write  # tauri-action creates the GitHub Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust target
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build + sign + notarize + release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Apple signing — see RELEASE.md
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Notarization
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # The Vite frontend reads this at build time; baked into the bundle.
+          VITE_API_BASE_URL: ${{ vars.PROD_SITE_URL }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ inputs.version }}
+          releaseName: 'JARVIS Desktop ${{ inputs.version }}'
+          releaseBody: |
+            ## JARVIS Desktop ${{ inputs.version }}
+
+            **Install**: download the `.dmg`, open it, drag JARVIS Desktop to Applications.
+
+            **First launch**: macOS may ask you to confirm — the build is signed
+            and notarized so you should NOT see "unidentified developer." If you
+            do, the signing step failed; check the workflow run logs.
+
+            **Connect to your account**: open Settings inside the app, paste the
+            device token you minted at `/settings/desktop` in the web app.
+          releaseDraft: false
+          prerelease: ${{ inputs.prerelease }}
