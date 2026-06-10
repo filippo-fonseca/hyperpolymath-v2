@@ -52,7 +52,7 @@
 
   <!-- Centered brand statement, italic + extra-bold on JARVIS and Renaissance -->
   <text x="600" y="400" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="34" font-weight="600" fill="#1a1a1a">
-    I brought back the <tspan font-style="italic" font-weight="800">Renaissance</tspan>. And <tspan font-style="italic" font-weight="800">JARVIS</tspan> from Tony Stark. All in one.
+    I brought back the <tspan font-style="italic" font-weight="800">Renaissance Human</tspan>. And gave them <tspan font-style="italic" font-weight="800">JARVIS</tspan> from Tony Stark. All in one.
   </text>
 
   <!-- Spacer hairline below the centered statement -->
