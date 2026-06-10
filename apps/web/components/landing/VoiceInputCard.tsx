@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Mic } from "lucide-react";
+import { Mic, Volume2 } from "lucide-react";
 
 /**
  * VoiceInputCard — sibling to HeroJarvisLine. Mirrors the typed
@@ -20,6 +20,7 @@ interface VoiceExample {
   utterance: string;
   verb: "scheduled" | "created" | "captured";
   body: string;
+  reply: string;
 }
 
 const VOICE_EXAMPLES: readonly VoiceExample[] = [
@@ -27,16 +28,21 @@ const VOICE_EXAMPLES: readonly VoiceExample[] = [
     utterance: "Hey JARVIS — schedule a run tomorrow at 6am.",
     verb: "scheduled",
     body: 'gcal · tomorrow 6:00 AM · "Morning run"',
+    reply:
+      "Six in the morning. Your alarm will, mercifully, do the waking.",
   },
   {
     utterance: "Hey JARVIS — remind me to call mom tonight.",
     verb: "created",
     body: "task · tonight · reminder",
+    reply: "Noted. Filial duty queued for this evening.",
   },
   {
     utterance: "Hey JARVIS — capture: polymathy as competitive edge.",
     verb: "captured",
     body: "capture · #idea",
+    reply:
+      "Filed under ideas. Should it prove correct, you'll thank me later.",
   },
 ] as const;
 
@@ -130,6 +136,25 @@ export function VoiceInputCard() {
           {example.verb}
         </span>
         <span className="text-[var(--ink-muted)]">  →  {example.body}</span>
+      </div>
+
+      {/* JARVIS spoken reply — dry British register, sits under the
+          receipt so the card mirrors the desktop console's read-back
+          (receipt = what got written, reply = what JARVIS said back). */}
+      <div className="mt-1 flex items-start gap-2 w-full text-left">
+        <span
+          className="flex-shrink-0 mt-[3px]"
+          style={{ color: "var(--hud-cyan-light)" }}
+          aria-hidden="true"
+        >
+          <Volume2 size={11} strokeWidth={2} />
+        </span>
+        <p
+          className="font-serif italic text-[13.5px] leading-[1.5]"
+          style={{ color: "var(--ink-muted)" }}
+        >
+          &ldquo;{example.reply}&rdquo;
+        </p>
       </div>
     </motion.div>
   );

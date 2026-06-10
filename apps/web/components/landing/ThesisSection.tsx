@@ -130,15 +130,14 @@ export function ThesisSection() {
               <span className="h-px w-14 md:w-20 bg-[var(--ink)] opacity-15" />
             </div>
 
-            {/* Centered brand statement */}
-            <p className="mt-5 md:mt-6 font-serif font-semibold text-center text-[19px] md:text-[24px] leading-[1.35] text-[var(--ink)] max-w-[760px] mx-auto">
+            {/* Centered brand statement — single line on desktop. The
+                size is constrained so the full sentence fits without
+                wrapping at the card's max width. */}
+            <p className="mt-5 md:mt-6 font-serif font-semibold text-center text-[18px] md:text-[22px] leading-[1.35] text-[var(--ink)] max-w-[1000px] mx-auto whitespace-normal md:whitespace-nowrap">
               I brought back the{" "}
               <em className="font-extrabold italic">Renaissance Human</em>
               . And gave them{" "}
-              <span className="whitespace-nowrap">
-                <em className="font-extrabold italic">JARVIS</em> from Tony Stark.
-              </span>
-              <br className="hidden md:block" />
+              <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
               <span className="italic">All in one.</span>
             </p>
 
