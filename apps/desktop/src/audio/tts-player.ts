@@ -10,6 +10,7 @@
 
 import { fetch } from "@tauri-apps/plugin-http";
 import { getEnv } from "@/env";
+import { getDeviceToken } from "@/auth/device-token";
 
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George (warm British male)
 
@@ -142,13 +143,20 @@ export class TtsPlayer {
     const ac = new AbortController();
     this.abortController = ac;
 
+    // Device bearer token is the canonical auth — the trigger secret is
+    // empty in production DMG builds (CI only injects VITE_API_BASE_URL),
+    // which made every TTS request 401 and the app silently never spoke.
+    const token = await getDeviceToken();
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "x-trigger-secret": triggerSecret,
+    };
+    if (token) headers["authorization"] = `Bearer ${token}`;
+
     try {
       const res = await fetch(`${apiBaseUrl}/api/jarvis/tts`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-trigger-secret": triggerSecret,
-        },
+        headers,
         body: JSON.stringify({ text, voiceId: this.voiceId }),
         signal: ac.signal as AbortSignal,
       });
