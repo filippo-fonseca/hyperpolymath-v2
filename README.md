@@ -182,34 +182,26 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 
 ## ⚜  Where You Use It
 
-Three surfaces, one backend. The desktop app is the real daily driver; the web app is for anywhere you're not at your machine; the physical extender is a fun side-project for voice-without-always-on-mic.
+Three surfaces, one backend. The desktop app is the real daily driver; the web app is for anywhere you're not at your machine; the Polypad is an optional desktop companion (a custom-built hardware extension) that adds programmable macro keys and an on-device "Hey JARVIS" wake-word module.
 
-```
-        ┌───────────────────────────┐
-        │   jarvis · physical       │   optional macropad i'm building
-        │   ────────────────────    │   • on-device wake-word module
-        │   ◉  ◉  ◉  ◉  ◉  ◉        │   • only listens when device is awake
-        │   ◉  ◉  ◉  ◉  ◉  ◉        │   • no extender on  →  no wake word, no mic
-        └─────────────┬─────────────┘
-                      │  BLE / USB (when awake)
-                      ▼
-   ┌────────────────────────────────┐        ┌──────────────────────────┐
-   │   Desktop App   (Tauri · Rust) │        │   Web App   (Next.js 16) │
-   │   ────────────────────────────  │        │   ──────────────────────  │
-   │   ⌘K · keyboard-first hub       │        │   browser anywhere       │
-   │   mic gated · opt-in only       │        │   same auth, same data   │
-   │   primary interaction surface   │        │   for laptops, phones    │
-   └─────────────────┬──────────────┘        └────────────┬─────────────┘
-                     │                                     │
-                     └─────────────────┬───────────────────┘
-                                       ▼
-                          ┌──────────────────────────┐
-                          │  hyperpolymath backend   │
-                          │  Supabase · Drizzle · gc │
-                          └──────────────────────────┘
-```
+<div align="center">
 
-**Why the desktop app is the hub.** No browser tab to hunt for, system-level shortcut to summon JARVIS, mic is opt-in via an explicit toggle (or the physical extender). When the desktop holds the mic, the web JARVIS console shows a quiet "Voice via desktop" pill in the nav so you always know which surface is listening.
+<img src="./.github/assets/readme-stack.svg" alt="Three surfaces — Web app, Desktop app middleman, and Polypad hardware — all feeding the Hyperpolymath backend" width="900" />
+
+</div>
+
+**Why the desktop app is the hub.** No browser tab to hunt for, system-level shortcut (`⌘⌥J`) to summon JARVIS, mic is opt-in via an explicit toggle. When the desktop holds the mic, the web JARVIS console shows a quiet "Voice via desktop" pill in the nav so you always know which surface is listening.
+
+**Polypad** (optional). A small custom-built unit that sits on the desk and acts as an extension of the framework. It exists because pushing one keyboard shortcut is great, but having a dedicated piece of hardware purpose-built for the system is better.
+
+- **4 × 3 mechanical keys**, hot-swap, **Cherry MX Red** switches (linear, light, fast — built for satisfying repeated triggers).
+- **Custom PCB** (open-source, designed in KiCad).
+- **DFRobot wake-word module** for on-device "Hey JARVIS" detection. Listens locally; only fires when the trigger phrase hits.
+- **ESP32** drives the wake-word side (audio → trigger event over serial).
+- **Adafruit KB2040** drives the keys, running **KMK firmware** for the macro layout.
+- Both microcontrollers stream events over a single USB-serial link into the desktop bridge, which forwards them straight into JARVIS.
+
+The system is fully usable without the Polypad — `⌘⌥J` and the on-screen toggle do everything. The Polypad is for when you want a physical surface for the framework to live on.
 
 ---
 
