@@ -29,6 +29,8 @@ interface Props {
   onCheckOff?: (activity: ActivityWithType) => void;
   /** Threaded through to ActivityCard — opens ActivityEditDialog. */
   onEdit?: (activity: ActivityWithType) => void;
+  /** "+ Add activity" — opens CreateActivityDialog seeded with the column date. */
+  onAddActivity?: (dateISO: string) => void;
 }
 
 /**
@@ -50,6 +52,7 @@ export function TrainingBoard({
   distanceUnit,
   onCheckOff,
   onEdit,
+  onAddActivity,
 }: Props) {
   void userId; // accepted for callback parity; mutations run via Server Actions.
 
@@ -116,6 +119,7 @@ export function TrainingBoard({
               isAnyDragging={isDragging}
               onCheckOff={onCheckOff}
               onEdit={onEdit}
+              onAddActivity={onAddActivity}
             />
           );
         })}

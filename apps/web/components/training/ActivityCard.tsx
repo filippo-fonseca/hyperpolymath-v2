@@ -3,12 +3,13 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "motion/react";
-import { Check, MinusCircle, MoreHorizontal, X } from "lucide-react";
+import { Check, MinusCircle, MoreHorizontal, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelActivity,
   deleteActivity,
   skipActivity,
+  uncompleteActivity,
 } from "@/app/actions/training";
 import {
   DropdownMenu,
@@ -89,6 +90,11 @@ export function ActivityCard({
     if (!res.success) toast.error(res.error || "Could not skip");
   };
 
+  const handleRevert = async () => {
+    const res = await uncompleteActivity({ id: activity.id });
+    if (!res.success) toast.error(res.error || "Could not revert");
+  };
+
   const handleDelete = async () => {
     const res = await deleteActivity({ id: activity.id });
     if (!res.success) toast.error(res.error || "Could not delete");
@@ -167,13 +173,17 @@ export function ActivityCard({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem
-            disabled={isDone}
-            onSelect={() => onCheckOff?.(activity)}
-          >
-            <Check size={12} strokeWidth={1.5} className="mr-2" />
-            Mark done
-          </DropdownMenuItem>
+          {isDone || isCancelled || isSkipped ? (
+            <DropdownMenuItem onSelect={handleRevert}>
+              <RotateCcw size={12} strokeWidth={1.5} className="mr-2" />
+              {isDone ? "Unmark done" : "Revert to planned"}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onSelect={() => onCheckOff?.(activity)}>
+              <Check size={12} strokeWidth={1.5} className="mr-2" />
+              Mark done
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             disabled={!onEdit}
             onSelect={() => onEdit?.(activity)}

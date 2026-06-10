@@ -46,6 +46,11 @@ const CELL = 12;
 const GAP = 3;
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""] as const;
 
+// App epoch — no training data can exist before this (app launched June 2026),
+// so the lifetime/12-month grid is hard-floored here instead of showing a year
+// of meaningless empty cells.
+const APP_EPOCH = new Date(2026, 5, 1);
+
 /**
  * GitHub-style training heatmap with **OKLCH-blended day cells** (D-12 /
  * TRN-09 / TRN-10) — the load-bearing visual of the stats surface.
@@ -76,7 +81,9 @@ export function TrainingHeatmap({
   // ────────────────────────────────────────────────────────────────────
   const { gridDays } = useMemo(() => {
     const today = startOfDay(new Date());
-    const earliest = subDays(today, days - 1);
+    const windowStart = subDays(today, days - 1);
+    const epoch = startOfDay(APP_EPOCH);
+    const earliest = windowStart < epoch ? epoch : windowStart;
     // Pad back to Monday of earliest's week. getDay: Sun=0, Mon=1, ..., Sat=6.
     const earliestDow = getDay(earliest); // 0..6
     const padBack = earliestDow === 0 ? 6 : earliestDow - 1; // days to subtract to reach Monday
@@ -248,6 +255,11 @@ export function TrainingHeatmap({
             }}
           >
             {gridDays.map(({ date, iso }) => {
+              // Monday-padding can reach before the app epoch — render those
+              // as blank spacers so nothing pre-June-2026 appears.
+              if (date < startOfDay(APP_EPOCH)) {
+                return <div key={iso} style={{ width: CELL, height: CELL }} />;
+              }
               const color = dayColors.get(iso);
               const acts = dayMap.get(iso);
               const isFuture =

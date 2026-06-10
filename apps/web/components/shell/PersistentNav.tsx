@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   Dumbbell,
 } from "lucide-react";
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
 import {
   Tooltip,
@@ -44,31 +43,22 @@ import {
  * so the user always has a one-click path back even if they aren't on
  * /calendar at the moment.
  *
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5e + §12e):
- *
- * The JARVIS entry is the home destination. Per UI-SPEC §12e the link label
- * is "JARVIS" (not "Today", not "Home") — the destination IS the agent. The
- * route still points to /today (where JarvisConsole mounts) until a future
- * plan rewires the route. Active link gets 1px --edge-hud LEFT-edge accent
- * (not a bg fill); the JARVIS link additionally gets a 4px --hud-cyan dot
- * when active — the one place cyan touches diplomatic chrome per UI-SPEC §5e.
- *
- * Mono uppercase tracking-wide nav labels per UI-SPEC §5e. Hover opacity
- * 0.7 → 1 over 100ms per UI-SPEC §7a.
+ * JARVIS is intentionally NOT in this list — it lives as the permanent
+ * right-hand tab in the TopTabBar (always reachable, ⌃2). Keeping it here
+ * too was duplicate plumbing.
  */
 const items = [
-  { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
-  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
+  { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined },
+  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined },
+  { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined },
+  { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined },
   // /areas is NOT here — the sidebar AREAS section header below acts as
   // the link + active state, with the area tree nested under it as proper
   // children. Putting it in both spots was duplicate plumbing.
-  { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined },
+  { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined },
 ] as const;
 
 /**
@@ -159,15 +149,7 @@ export function PersistentNav({ collapsed }: Props) {
               )}
               {/* Icon + collapsed-mode badge anchor. */}
               <span className="relative shrink-0">
-                <Icon
-                  size={18}
-                  strokeWidth={active ? 2 : 1.5}
-                  className={
-                    item.isAgent && active
-                      ? "text-[var(--hud-cyan)]"
-                      : undefined
-                  }
-                />
+                <Icon size={18} strokeWidth={active ? 2 : 1.5} />
                 {renderBadge && collapsed && (
                   <span
                     className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--surface)]"

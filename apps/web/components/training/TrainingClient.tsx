@@ -15,6 +15,7 @@ import type {
 import type { DistanceUnit } from "@/lib/training/distance";
 import { ActivityEditDialog } from "./ActivityEditDialog";
 import { CompleteActivityDialog } from "./CompleteActivityDialog";
+import { CreateActivityDialog } from "./CreateActivityDialog";
 import { ManageTypesSheet } from "./ManageTypesSheet";
 import { PlannerHeader } from "./PlannerHeader";
 import { TrainingBoard } from "./TrainingBoard";
@@ -70,6 +71,8 @@ export function TrainingClient({
   const [editActivity, setEditActivity] = useState<ActivityWithType | null>(
     null,
   );
+  // "+ Add activity" in a day column opens the full dialog seeded with that date.
+  const [createDateISO, setCreateDateISO] = useState<string | null>(null);
 
   // Realtime subscriptions.
   // - Activities are the planner's primary data.
@@ -176,6 +179,7 @@ export function TrainingClient({
         distanceUnit={distanceUnit}
         onCheckOff={setCompletionActivity}
         onEdit={setEditActivity}
+        onAddActivity={setCreateDateISO}
       />
 
       <ManageTypesSheet
@@ -193,6 +197,16 @@ export function TrainingClient({
         onOpenChange={(o) => {
           if (!o) setCompletionActivity(null);
         }}
+      />
+
+      <CreateActivityDialog
+        open={!!createDateISO}
+        onOpenChange={(o) => {
+          if (!o) setCreateDateISO(null);
+        }}
+        defaultDateISO={createDateISO ?? week.startISO}
+        types={types}
+        distanceUnit={distanceUnit}
       />
 
       <ActivityEditDialog

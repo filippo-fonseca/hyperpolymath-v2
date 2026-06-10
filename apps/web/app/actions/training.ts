@@ -670,6 +670,37 @@ export async function completeActivity(
 
 const StatusOnlySchema = z.object({ id: UuidSchema });
 
+/** Status → 'planned' (unmark done / un-cancel / un-skip). Clears actuals. */
+export async function uncompleteActivity(
+  input: unknown,
+): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = StatusOnlySchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  await db
+    .update(trainingActivities)
+    .set({
+      status: "planned",
+      completedAt: null,
+      actualDurationMin: null,
+      actualDistanceKm: null,
+      updatedAt: sql`now()`,
+    })
+    .where(
+      and(
+        eq(trainingActivities.id, parsed.data.id),
+        eq(trainingActivities.userId, userId),
+      ),
+    );
+  return { success: true, data: null };
+}
+
 /** Status → 'cancelled' (intentional skip per D-11). */
 export async function cancelActivity(
   input: unknown,

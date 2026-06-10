@@ -2,6 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { format } from "date-fns";
+import { Plus } from "lucide-react";
 import type {
   ActivityWithType,
   TypeWithBatch,
@@ -9,7 +10,6 @@ import type {
 import type { DistanceUnit } from "@/lib/training/distance";
 import { cn } from "@/lib/utils";
 import { ActivityCard } from "./ActivityCard";
-import { ActivityCreateInline } from "./ActivityCreateInline";
 
 interface Props {
   dateISO: string;
@@ -24,6 +24,8 @@ interface Props {
   onCheckOff?: (activity: ActivityWithType) => void;
   /** Opens the ActivityEditDialog (15-04) for the clicked card's kebab → Edit. */
   onEdit?: (activity: ActivityWithType) => void;
+  /** Opens CreateActivityDialog seeded with this column's date. */
+  onAddActivity?: (dateISO: string) => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export function TrainingDayColumn({
   isAnyDragging,
   onCheckOff,
   onEdit,
+  onAddActivity,
 }: Props) {
   const { isOver, setNodeRef } = useDroppable({ id: dateISO });
 
@@ -87,11 +90,15 @@ export function TrainingDayColumn({
           />
         ))}
 
-        <ActivityCreateInline
-          dateISO={dateISO}
-          types={types}
-          distanceUnit={distanceUnit}
-        />
+        <button
+          type="button"
+          onClick={() => onAddActivity?.(dateISO)}
+          disabled={types.length === 0}
+          className="flex w-full items-center gap-1 rounded px-1.5 py-1 text-left font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus size={11} strokeWidth={1.5} />
+          Add activity
+        </button>
       </div>
     </div>
   );

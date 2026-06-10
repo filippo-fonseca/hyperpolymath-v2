@@ -19,7 +19,8 @@ import {
 // to break the Wave 2 race). HudStatusPill + HudThinkingRing are this plan's
 // JARVIS-specific primitives.
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
-import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
+import type { HudStatusState } from "@/components/shared/HudStatusPill";
+import { publishJarvisStatus } from "@/lib/jarvis/jarvis-status-bus";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
@@ -842,6 +843,14 @@ export function JarvisConsole({
     return "ready";
   }, [turns, streaming]);
 
+  // The status pill renders in the app header (TopTabBar) so conversation
+  // items can never obscure it — publish over the bus instead of rendering.
+  useEffect(() => {
+    publishJarvisStatus(status);
+  }, [status]);
+  // Unmount-only reset (separate effect so transitions don't blip "ready").
+  useEffect(() => () => publishJarvisStatus("ready"), []);
+
   // Phase 6.1 — HudCoreBubble visual anchor (arc-reactor centerpiece per
   // Stark HUD reference). Reactive: idle ambient when no conversation,
   // thinking/streaming when JARVIS is active, error on stream failure.
@@ -870,10 +879,6 @@ export function JarvisConsole({
       {/* Phase 6.1 Plan 02: 4 corner L-brackets at viewport corners (12px legs,
           breathing 6s). aria-hidden + pointer-events-none — pure chrome. */}
       <HudCornerCrops size={12} />
-
-      {/* Phase 6.1 Plan 02: top-right status pill. Positioned absolute so it
-          doesn't displace the scrollback layout. */}
-      <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
 
       {/* Phase 14-03: desktop mic active indicator. Shown when the desktop
           daemon holds the voice-source claim, so the user knows the browser

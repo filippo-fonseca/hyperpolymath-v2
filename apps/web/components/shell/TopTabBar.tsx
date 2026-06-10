@@ -18,6 +18,11 @@ import {
   Columns2,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import {
+  HudStatusPill,
+  type HudStatusState,
+} from "@/components/shared/HudStatusPill";
+import { subscribeToJarvisStatus } from "@/lib/jarvis/jarvis-status-bus";
 import { cn } from "@/lib/utils";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 
@@ -144,8 +149,23 @@ export function TopTabBar() {
         kbd="⌃2"
         icon={<KiwiIcon size={13} aria-hidden="true" />}
       />
+
+      {/* JARVIS status pill — lives in the header (not the console) so
+          scrollback content can never obscure it. Only shown while a
+          console is actually mounted (JARVIS tab or split pane). */}
+      {(onJarvis || splitOn) && (
+        <span className="agent-mode-scope ml-auto inline-flex items-center">
+          <JarvisStatusPillContainer />
+        </span>
+      )}
     </div>
   );
+}
+
+function JarvisStatusPillContainer() {
+  const [status, setStatus] = useState<HudStatusState>("ready");
+  useEffect(() => subscribeToJarvisStatus(setStatus), []);
+  return <HudStatusPill state={status} />;
 }
 
 function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
