@@ -36,8 +36,8 @@ Type one sentence. The right action lands in the right place. Every time.
   ┌──────────────────────────────────────────────────────────────────────┐
   │  $  coffee w/ sam 3pm friday. submit chem pset by 5pm thursday p1    │
   │                                                                      │
-  │  ⚜  scheduled  →  gcal · fri 3:00pm · "Coffee with Sam"             │
-  │  ⚜  created    →  task · thu 5:00pm · P1 · "Submit chem pset"       │
+  │  ❦  scheduled  →  gcal · fri 3:00pm · "Coffee with Sam"             │
+  │  ❦  created    →  task · thu 5:00pm · P1 · "Submit chem pset"       │
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +45,7 @@ This is **v2**. A ground-up rebuild of [`polymath-web`](https://github.com/filip
 
 ---
 
-## ⚜  Why Hyperpolymath
+## ❦  Why Hyperpolymath
 
 Modern productivity tools assume you're one thing. A runner, or a researcher, or a founder. Habits live in one app, training in another, nutrition somewhere else, ideas scattered across three different notebooks. Context-switching kills momentum, and the more domains you operate across, the more friction compounds.
 
@@ -53,7 +53,7 @@ Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Runn
 
 ---
 
-## ⚜  Features
+## ❦  Features
 
 Everything below is **shipped and working** unless explicitly marked otherwise.
 
@@ -91,7 +91,7 @@ Everything below is **shipped and working** unless explicitly marked otherwise.
 
 ---
 
-## ⚜  The Engine: JARVIS
+## ❦  The Engine: JARVIS
 
 JARVIS is the centerpiece. A streaming, structured-output agent built on Claude Sonnet 4.6 with **Strict Tool Use** for zero-parse-error JSON contracts. One input becomes N actions, each a different shape.
 
@@ -114,26 +114,13 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 
 ---
 
-## ⚜  Architecture
+## ❦  Architecture
 
-```
-                                  ┌──────────────────────────────┐
-                                  │   JARVIS  ·  Claude 4.6      │
-                                  │   strict tool use · stream   │
-                                  └──────────────┬───────────────┘
-                                                 │ structured JSON
-                                                 ▼
-   ┌──────────────────────┐         ┌─────────────────────────────┐         ┌─────────────────────┐
-   │   Next.js 16 (RSC)   │ ──────► │   Server Actions / API      │ ──────► │  Drizzle  ·  pg     │
-   │   Tailwind 4 · React │ ◄────── │   Zod validation · executor │ ◄────── │  Supabase Postgres  │
-   │   shadcn · Motion 12 │         └──────────────┬──────────────┘         └──────────┬──────────┘
-   └──────────┬───────────┘                        │                                    │
-              │                                    │ Realtime ch                        │ RLS · userId
-              │ TanStack Query                     ▼                                    │
-              │ invalidate on event ◄──── Supabase Realtime ────────────────────────────┘
-              │
-              └──────────────────────────────────────► Google Calendar  (source of truth · gcal CRUD)
-```
+<div align="center">
+
+<img src="./.github/assets/readme-architecture.svg" alt="Architecture diagram — how a sentence becomes an action, end to end" width="900" />
+
+</div>
 
 **The load-bearing decisions**
 
@@ -149,7 +136,7 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 
 ---
 
-## ⚜  Stack
+## ❦  Stack
 
 ```
 ┌─ runtime ───────────────────────────────┐    ┌─ agent ─────────────────────────────────┐
@@ -180,7 +167,7 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 
 ---
 
-## ⚜  Where You Use It
+## ❦  Where You Use It
 
 Three surfaces, one backend. The desktop app is the real daily driver; the web app is for anywhere you're not at your machine; the Polypad is an optional desktop companion (a custom-built hardware extension) that adds programmable macro keys and an on-device "Hey JARVIS" wake-word module.
 
@@ -205,7 +192,7 @@ The system is fully usable without the Polypad — `⌘⌥J` and the on-screen t
 
 ---
 
-## ⚜  Project Layout
+## ❦  Project Layout
 
 ```
 hyperpolymath-v2/
@@ -231,7 +218,7 @@ hyperpolymath-v2/
 
 ---
 
-## ⚜  Quickstart
+## ❦  Quickstart
 
 > Requires Node 20.9+, pnpm 9.12+, a Supabase project, and an Anthropic API key. ElevenLabs key optional (voice mode). Google OAuth credentials required for the Calendar integration.
 
@@ -270,7 +257,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Vercel + Supabase prod setup, and [`C
 
 ---
 
-## ⚜  Roadmap
+## ❦  Roadmap
 
 **Shipped**
 
@@ -308,7 +295,22 @@ Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ide
 
 ---
 
-## ⚜  Status
+## ❦  How It's Built
+
+This is a one-person codebase, but the workflow around it is deliberate. Every phase of Hyperpolymath is planned, executed, and verified through [**GSD**](https://github.com/filippo-fonseca/gsd) — an agent-management and workflow-orchestration framework I built (and use across all my projects) for driving long-horizon Claude Code sessions. Roadmap planning, phase research, plan generation, multi-agent execution waves, verification gates, and post-mortems all run through `/gsd:*` slash commands.
+
+Concretely, that means:
+
+- Every phase shipped in this repo has a `.planning/phases/<phase>/` directory with its research, plan, and verification artifacts.
+- Multi-step features are decomposed into parallel waves and dispatched to subagents under a coordinating orchestrator.
+- Plans are checked goal-backward before execution; verification re-checks goal achievement against the actual code, not against task completion.
+- The `.planning/ROADMAP.md` in this repo is consumed by both GSD and the landing page's Build Log section.
+
+The TL;DR: I don't vibe-code. The agent has scaffolding too.
+
+---
+
+## ❦  Status
 
 **Public preview.** Hyperpolymath is built and used daily by one person (me). The code is public and MIT-licensed because that's a brand commitment, not because the product is positioned as a multi-tenant SaaS. The schema is `userId`-scoped from day one with RLS, so multi-user is structurally possible. But onboarding for additional users is intentionally not the focus.
 
@@ -316,7 +318,7 @@ If you want to self-host the whole stack for your own use, the quickstart above 
 
 ---
 
-## ⚜  Philosophy
+## ❦  Philosophy
 
 > **2.1**  Unified, not fragmented. *One system for everything.*
 >
@@ -330,13 +332,38 @@ If you want to self-host the whole stack for your own use, the quickstart above 
 
 ---
 
-## ⚜  Security
+## ❦  Who Built This
+
+<table>
+<tr>
+<td width="160" valign="top">
+
+<img src="./.github/assets/filippo.png" alt="Filippo Fonseca" width="140" style="border-radius: 12px;" />
+
+</td>
+<td valign="top">
+
+**Filippo Fonseca** &nbsp;·&nbsp; [@filippo-fonseca](https://github.com/filippo-fonseca)
+
+I'm a student, runner, musician, and builder who refuses to pick one. Hyperpolymath is the system I wanted to exist: an academic-paper-feeling life-OS that an agent named JARVIS can drive end-to-end. I started v1 (`polymath-web`) on Firebase + OpenAI, lived with it for a year, learned what mattered, and rebuilt v2 from scratch on Next.js 16 + Supabase + Claude Sonnet 4.6.
+
+The thesis (mine, and this codebase's): *running discipline informs studying discipline · music trains pattern recognition · everything connects, so the tool should too.*
+
+Find me at [hyperpolymath.com](https://hyperpolymath.com), [filippo.fonseca.com](https://filippo.fonseca.com), or on the issue tracker here.
+
+</td>
+</tr>
+</table>
+
+---
+
+## ❦  Security
 
 Found something? See [`SECURITY.md`](./SECURITY.md) for the responsible-disclosure path. The TL;DR: please don't open public issues for vulnerabilities. Email first.
 
 ---
 
-## ⚜  License & Brand
+## ❦  License & Brand
 
 MIT. See [`LICENSE`](./LICENSE). Open source by commitment, not convenience. Secrets live in env, never in the repo.
 
@@ -345,7 +372,7 @@ Hyperpolymath is built and maintained by [@filippo-fonseca](https://github.com/f
 <div align="center">
 
 ```
-       ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜
+       ❦    ❦    ❦    ❦    ❦    ❦    ❦    ❦    ❦    ❦
 ```
 
 *how you do one thing is how you do everything.*

@@ -11,7 +11,7 @@
   </defs>
 
   <!-- Outer page (paper) -->
-  <rect x="0" y="0" width="1200" height="590" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="590" rx="24" fill="#efe9db"/>
 
   <!-- Neumorphic dark shadow underlay -->
   <rect x="36" y="36" width="1128" height="518" rx="20" fill="#d6cdb9" filter="url(#neuShadow)" opacity="0.55"/>
@@ -48,7 +48,7 @@
 
   <!-- Spacer hairline above the centered statement -->
   <line x1="420" y1="386" x2="780" y2="386" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
-  <text x="600" y="390" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="3" fill="#1a1a1a" fill-opacity="0.4" dy="-6">⚜</text>
+  <text x="600" y="390" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="3" fill="#1a1a1a" fill-opacity="0.4" dy="-6">❦</text>
 
   <!-- Centered brand statement, italic + extra-bold on JARVIS and Renaissance Human.
        Two lines so the phrase doesn't overflow at this card width. -->
@@ -61,6 +61,6 @@
   <line x1="420" y1="498" x2="780" y2="498" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
 
   <!-- Footer brand spine -->
-  <text x="80" y="532" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HYPERPOLYMATH · BY FILIPPO FONSECA</text>
+  <text x="80" y="532" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">❦  HYPERPOLYMATH · BY FILIPPO FONSECA</text>
   <text x="1120" y="532" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">HOW YOU DO ONE THING IS HOW YOU DO EVERYTHING</text>
 </svg>
