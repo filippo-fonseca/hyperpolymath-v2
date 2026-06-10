@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" width="1200" height="860" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
   <defs>
     <linearGradient id="paper2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
@@ -30,13 +30,13 @@
   </defs>
 
   <!-- Page (paper) -->
-  <rect x="0" y="0" width="1200" height="820" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="860" fill="#efe9db"/>
 
   <!-- Neumorphic outer frame -->
-  <rect x="36" y="36" width="1128" height="748" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
-  <rect x="24" y="24" width="1128" height="748" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
-  <rect x="30" y="30" width="1140" height="760" rx="18" fill="url(#paper2)"/>
-  <rect x="30.5" y="30.5" width="1139" height="759" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="36" y="36" width="1128" height="788" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
+  <rect x="24" y="24" width="1128" height="788" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
+  <rect x="30" y="30" width="1140" height="800" rx="18" fill="url(#paper2)"/>
+  <rect x="30.5" y="30.5" width="1139" height="799" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Top crest meta -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -136,19 +136,25 @@
          how the photo reads). -->
     <g transform="translate(840 280) scale(0.8)">
       <!-- Cast shadow under the box -->
-      <ellipse cx="150" cy="138" rx="138" ry="6" fill="#1a1a1a" fill-opacity="0.22" filter="url(#softShadow)"/>
+      <ellipse cx="155" cy="128" rx="140" ry="6" fill="#1a1a1a" fill-opacity="0.22" filter="url(#softShadow)"/>
 
-      <!-- Right-side depth strip (visible because the box is angled slightly) -->
-      <path d="M 282 16 L 302 26 L 302 122 L 282 112 Z" fill="#0a0a0a" stroke="#1a1a1a" stroke-opacity="0.65" stroke-width="0.8"/>
+      <!-- Right-side depth strip (visible because the box is angled slightly).
+           Top-front and bottom-front corners must equal the top body's
+           right edge; back corners share an (x+18, y+10) offset that the
+           front-edge strip also uses, so both faces meet cleanly. -->
+      <path d="M 282 16 L 300 26 L 300 122 L 282 112 Z" fill="#0a0a0a" stroke="#1a1a1a" stroke-opacity="0.65" stroke-width="0.8"/>
 
-      <!-- Front-edge depth strip — the lower lip of the case -->
-      <path d="M 8 112 L 282 112 L 302 122 L 26 122 Z" fill="#111111" stroke="#1a1a1a" stroke-opacity="0.65" stroke-width="0.8"/>
+      <!-- Front-edge depth strip — the lower lip of the case. Shares the
+           same (+18, +10) back-offset as the right-side strip so the two
+           meet at exactly (300, 122). -->
+      <path d="M 8 112 L 282 112 L 300 122 L 26 122 Z" fill="#111111" stroke="#1a1a1a" stroke-opacity="0.65" stroke-width="0.8"/>
 
-      <!-- Top body — the dominant face -->
-      <rect x="8" y="16" width="274" height="96" rx="9" fill="url(#polypadTop)" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="1"/>
+      <!-- Top body — the dominant face. Near-sharp corners (rx=3) so the
+           visible edge sits where the depth strips attach. -->
+      <rect x="8" y="16" width="274" height="96" rx="3" fill="url(#polypadTop)" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="1"/>
 
       <!-- Subtle highlight along the top edge to read as anodized plastic -->
-      <line x1="20" y1="20" x2="270" y2="20" stroke="#ffffff" stroke-opacity="0.06"/>
+      <line x1="14" y1="20" x2="276" y2="20" stroke="#ffffff" stroke-opacity="0.06"/>
 
       <!-- Recessed cream plate (sunk into the top face) -->
       <rect x="34" y="28" width="222" height="72" rx="5" fill="#f0e9d8" stroke="#1a1a1a" stroke-opacity="0.7" stroke-width="1"/>
@@ -192,10 +198,6 @@
         <path d="m20.741,5.991c.21-.595.299-1.234.243-1.88-.114-1.326-.812-2.532-1.913-3.309-1.422-1.002-3.378-1.072-4.87-.174-.307.185-.59.403-.841.647-.807.786-2.119,1.723-3.788,1.723h-.794C4.18,2.998.334,6.462.022,10.884c-.174,2.468.725,4.883,2.468,6.625.844.844,1.848,1.484,2.938,1.906l.573,4.583h2.191l-.499-4.04c.271.026.544.04.818.04.201,0,.403-.007.604-.021.447-.032.881-.108,1.305-.209l.529,4.231h2.168l-.706-4.987c2.729-1.469,4.589-4.425,4.589-7.791l.021-2.262c.615-.069,1.187-.271,1.708-.568,3.845,3.229,4.272,8.608,4.272,8.608h1c0-5.446-2.104-9.299-3.259-11.007Zm-3.943.98c-1.025.115-1.798.952-1.798,1.947v2.302c0,3.553-2.647,6.523-6.026,6.761-1.891.131-3.737-.555-5.07-1.887-1.333-1.333-2.021-3.181-1.887-5.071.238-3.379,3.208-6.026,6.761-6.026h.794c1.852,0,3.645-.792,5.183-2.29.141-.137.301-.261.477-.366.823-.495,1.901-.458,2.686.095.627.442,1.008,1.098,1.073,1.846.063.737-.2,1.46-.723,1.983-.398.398-.907.642-1.47.705Zm1.202-2.473c0,.828-.672,1.5-1.5,1.5s-1.5-.672-1.5-1.5.672-1.5,1.5-1.5,1.5.672,1.5,1.5Z"/>
       </g>
 
-      <!-- Wordmark on the plate (the CAD render had a placeholder "H" only
-           because the extrude-cut wasn't finished; the real plate reads
-           "Hyperpolymath"). -->
-      <text x="148" y="100" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="700" font-size="10" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.7">Hyperpolymath</text>
     </g>
 
     <text x="960" y="426" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Polypad</text>
@@ -235,5 +237,5 @@
   <text x="600" y="736" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.7">CLAUDE SONNET 4.6  ·  SUPABASE POSTGRES  ·  REALTIME  ·  GOOGLE CALENDAR</text>
 
   <!-- Footer line -->
-  <text x="80" y="796" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">⚜  HYPERPOLYMATH STACK · FIG. 01</text>
+  <text x="80" y="810" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">⚜  HYPERPOLYMATH STACK · FIG. 01</text>
 </svg>
