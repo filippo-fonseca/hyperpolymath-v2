@@ -11,6 +11,7 @@ import { MeetKiwiSection } from "./MeetKiwiSection";
 import { ChoiceSection } from "./ChoiceSection";
 import { BuildLog } from "./BuildLog";
 import { CursorSpotlight } from "./CursorSpotlight";
+import { DiagramBannerSection } from "./DiagramBannerCard";
 
 /**
  * Public landing manifesto — Phase 8.
@@ -70,6 +71,32 @@ export function LandingPage() {
 
         {/* §07 — THE SURFACE (LifeOS canvas + desktop app + Polypad) */}
         <SurfaceSection />
+
+        {/* §07.5 — THE STACK (banner-style diagram embed) */}
+        <DiagramBannerSection
+          eyebrow="§ 07.5 · THE STACK"
+          bannerEyebrowRight="FIG. 01  ·  THREE PILLARS"
+          title="Three surfaces. One agent."
+          subtitle="Type, click, or speak. Every sentence lands in the same backend."
+          diagramSrc="/diagrams/stack.svg"
+          diagramAlt="Three surfaces — Web app, Desktop app middleman, and Polypad hardware — all feeding the Hyperpolymath backend"
+          footerLeft="HYPERPOLYMATH STACK · FIG. 01"
+          footerRight="WEB · DESKTOP · POLYPAD"
+        />
+
+        <SectionDivider />
+
+        {/* §07.6 — THE ARCHITECTURE (banner-style diagram embed) */}
+        <DiagramBannerSection
+          eyebrow="§ 07.6 · THE ARCHITECTURE"
+          bannerEyebrowRight="FIG. 02  ·  ONE SENTENCE, END TO END"
+          title="How a sentence becomes an action:"
+          subtitle="The contract every JARVIS turn follows, from typed input to live data."
+          diagramSrc="/diagrams/architecture.svg"
+          diagramAlt="Request lifecycle — Sentence to Next.js to JARVIS to Executor to Postgres / GCal, with Supabase Realtime looping back to invalidate TanStack Query"
+          footerLeft="HYPERPOLYMATH ARCHITECTURE · FIG. 02"
+          footerRight="STREAMING · STRICT TOOL USE · REALTIME"
+        />
 
         <SectionDivider />
 
