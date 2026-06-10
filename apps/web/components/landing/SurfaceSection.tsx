@@ -1,5 +1,6 @@
 import { Keyboard, Monitor, Cpu, ExternalLink } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { LifeosCanvasPreview } from "./LifeosCanvasPreview";
 
 /**
  * §07 — The Surface (LifeOS canvas + two input paths).
@@ -31,14 +32,26 @@ export function SurfaceSection() {
       </h2>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Areas, projects, captures, habits, tasks, GitHub, Strava, Claude
-        Code usage, Flow sessions — every signal worth tracking lives on a
+        Areas, projects, tasks, captures, habits, training, health, your
+        Google Calendar, the relationship graph between all of it, and the
+        insights that fall out — every signal worth tracking lives on a
         single page called <em>LifeOS</em>. The whole system converges into
         one document so the agent and I are always looking at the same
         thing.
       </p>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 font-mono text-[13px] leading-[1.6] tracking-[0.02em] text-[var(--ink-muted)]">
+        SURFACES&nbsp;·&nbsp; LifeOS · Today · Areas · Projects · Tasks ·
+        Captures · Calendar · Habits · Training · Health · Graph · Insights
+        · JARVIS
+      </p>
+
+      {/* Twin visual artifact: the Areas tree (spine) + the Knowledge
+          Graph (relationships). Renders what "one canvas" actually means
+          before pivoting into the input-paths card grid below. */}
+      <LifeosCanvasPreview />
+
+      <p className="mt-12 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
         Getting sentences <em>into</em> JARVIS has two paths. Neither
         depends on the other. Both feed the same agent, the same router,
         the same hierarchy.
@@ -46,7 +59,13 @@ export function SurfaceSection() {
 
       <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1 — Desktop App (software middleman) */}
-        <div className="border border-[var(--edge)] rounded bg-[var(--surface)] p-6 flex flex-col">
+        <div
+          className="border border-[var(--edge)] rounded-lg bg-[var(--surface)] p-6 flex flex-col"
+          style={{
+            boxShadow:
+              "0 1px 0 color-mix(in oklch, white 70%, transparent) inset, 0 8px 24px -16px color-mix(in oklch, black 28%, transparent)",
+          }}
+        >
           <div className="flex items-center gap-2">
             <Monitor size={16} className="text-[var(--ink-muted)]" aria-hidden="true" />
             <p className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
@@ -74,10 +93,11 @@ export function SurfaceSection() {
 
         {/* Card 2 — Polypad (hardware middleman, open-source) */}
         <div
-          className="rounded bg-[var(--surface-raised)] p-6 flex flex-col"
+          className="rounded-lg bg-[var(--surface-raised)] p-6 flex flex-col"
           style={{
             border: "1px solid var(--edge-hud)",
-            boxShadow: "var(--glow-hud-subtle)",
+            boxShadow:
+              "var(--glow-hud-subtle), 0 1px 0 color-mix(in oklch, white 50%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 35%, transparent)",
           }}
         >
           <div className="flex items-center gap-2">
