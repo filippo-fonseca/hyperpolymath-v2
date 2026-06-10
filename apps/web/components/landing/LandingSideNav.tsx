@@ -31,6 +31,7 @@ const ENTRIES: ReadonlyArray<{ id: string; label: string }> = [
   { id: "surface", label: "Surface" },
   { id: "stack", label: "Stack" },
   { id: "architecture", label: "Architecture" },
+  { id: "framework", label: "Framework" },
   { id: "choice", label: "Choice" },
   { id: "buildlog", label: "Build Log" },
 ];

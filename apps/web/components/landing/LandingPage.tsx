@@ -14,6 +14,7 @@ import { CursorSpotlight } from "./CursorSpotlight";
 import { DiagramBannerSection } from "./DiagramBannerCard";
 import { MCPSection } from "./MCPSection";
 import { LandingSideNav } from "./LandingSideNav";
+import { FrameworkSection } from "./FrameworkSection";
 
 /**
  * Public landing manifesto — Phase 8.
@@ -115,6 +116,11 @@ export function LandingPage() {
             diagramAlt="Request lifecycle — Sentence to Next.js to JARVIS to Executor to Postgres / GCal, with Supabase Realtime looping back to invalidate TanStack Query"
           />
         </div>
+
+        <SectionDivider />
+
+        {/* §07.7 — THE FRAMEWORK (platform + framework dual-message banner) */}
+        <FrameworkSection />
 
         <SectionDivider />
 
