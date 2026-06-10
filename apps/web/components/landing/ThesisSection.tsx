@@ -46,7 +46,7 @@ export function ThesisSection() {
 
   return (
     <section
-      className="relative min-h-[100vh] flex flex-col items-center justify-center px-6 md:px-10 py-20"
+      className="relative min-h-[100vh] flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-12"
       aria-labelledby="thesis-headline"
     >
       <div className="w-full max-w-[1080px] mx-auto">
@@ -71,7 +71,7 @@ export function ThesisSection() {
             }}
           />
 
-          <div className="relative px-8 md:px-14 pt-8 md:pt-10 pb-8 md:pb-10">
+          <div className="relative px-8 md:px-12 pt-5 md:pt-6 pb-5 md:pb-6">
             {/* Crest row — left meta and right meta in mono uppercase */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -92,60 +92,56 @@ export function ThesisSection() {
               </span>
             </div>
 
-            {/* HudCoreBubble — animated cyan kiwi-in-aura. Stays as the
-                visual focal point of the hero. */}
-            <div className="mt-6 md:mt-8 mx-auto flex items-center justify-center select-none">
-              <HudCoreBubble state="thinking" />
+            {/* HudCoreBubble — animated cyan kiwi-in-aura. Visually scaled
+                down so the whole banner fits the viewport without
+                scrolling; the bubble's intrinsic SVG is 280px. */}
+            <div
+              className="mt-2 md:mt-3 mx-auto flex items-center justify-center select-none"
+              style={{ height: 168 }}
+            >
+              <div style={{ transform: "scale(0.6)", transformOrigin: "center" }}>
+                <HudCoreBubble state="thinking" />
+              </div>
             </div>
 
-            {/* Wordmark — EB Garamond, oversized */}
+            {/* Wordmark — EB Garamond */}
             <h1
               id="thesis-headline"
-              className="mt-6 md:mt-8 font-serif font-semibold text-center text-[64px] md:text-[96px] leading-[1] tracking-[-0.02em] text-[var(--ink)]"
+              className="mt-2 md:mt-3 font-serif font-semibold text-center text-[52px] md:text-[72px] leading-[1] tracking-[-0.02em] text-[var(--ink)]"
             >
               Hyperpolymath
             </h1>
 
-            {/* Primary italic tagline — mirrors banner */}
-            <p className="mt-4 md:mt-5 font-serif italic text-center text-[18px] md:text-[22px] leading-[1.4] text-[var(--ink)] opacity-75">
+            {/* Primary italic tagline */}
+            <p className="mt-3 font-serif italic text-center text-[16px] md:text-[19px] leading-[1.4] text-[var(--ink)] opacity-75">
               A personal life-OS for people who refuse to specialize.
             </p>
 
             {/* Hairline + fleuron spacer */}
             <div
-              className="mt-7 md:mt-9 flex items-center justify-center gap-4"
+              className="mt-5 md:mt-6 flex items-center justify-center gap-4"
               aria-hidden="true"
             >
-              <span className="h-px w-16 md:w-24 bg-[var(--ink)] opacity-15" />
-              <span className="font-mono text-[12px] tracking-[0.3em] opacity-45">
+              <span className="h-px w-14 md:w-20 bg-[var(--ink)] opacity-15" />
+              <span className="font-mono text-[11px] tracking-[0.3em] opacity-45">
                 ❦
               </span>
-              <span className="h-px w-16 md:w-24 bg-[var(--ink)] opacity-15" />
+              <span className="h-px w-14 md:w-20 bg-[var(--ink)] opacity-15" />
             </div>
 
-            {/* Centered brand statement — matches banner copy verbatim */}
-            <p className="mt-7 md:mt-9 font-serif font-semibold text-center text-[22px] md:text-[30px] leading-[1.35] text-[var(--ink)] max-w-[820px] mx-auto">
+            {/* Centered brand statement */}
+            <p className="mt-5 md:mt-6 font-serif font-semibold text-center text-[19px] md:text-[24px] leading-[1.35] text-[var(--ink)] max-w-[760px] mx-auto">
               I brought back the{" "}
-              <em className="font-extrabold not-italic-sm:not-italic italic">
-                Renaissance Human
-              </em>
+              <em className="font-extrabold italic">Renaissance Human</em>
               . And gave them{" "}
-              <em className="font-extrabold not-italic-sm:not-italic italic">
-                JARVIS
-              </em>{" "}
-              from Tony Stark.
+              <em className="font-extrabold italic">JARVIS</em> from Tony
+              Stark.
               <br className="hidden md:block" />
-              <span className="italic"> All in one.</span>
-            </p>
-
-            {/* Tagline 2 — the action promise */}
-            <p className="mt-5 md:mt-6 font-serif italic text-center text-[16px] md:text-[18px] leading-[1.5] text-[var(--ink)] opacity-65 max-w-[640px] mx-auto">
-              Type or speak one sentence to JARVIS, and the right action
-              lands in the right place.
+              <span className="italic">All in one.</span>
             </p>
 
             {/* Footer brand spine */}
-            <div className="mt-8 md:mt-10 flex items-center justify-between border-t border-[var(--ink)]/10 pt-4 md:pt-5">
+            <div className="mt-5 md:mt-6 flex items-center justify-between border-t border-[var(--ink)]/10 pt-3 md:pt-4">
               <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-55">
                 ❦  Hyperpolymath  ·  by Filippo Fonseca
               </span>
@@ -156,11 +152,11 @@ export function ThesisSection() {
           </div>
         </motion.div>
 
-        {/* ── Below-banner beats ── */}
-
-        {/* Live JARVIS line — the auto-cycling typing+receipt loop. */}
+        {/* Live JARVIS line — sits tight under the banner so it remains
+            in the first fold on most viewports, but doesn't push the
+            banner card itself off-screen. */}
         <motion.div
-          className="mt-12 md:mt-16"
+          className="mt-6 md:mt-8"
           initial={enter.initial}
           animate={enter.animate}
           transition={
@@ -170,30 +166,6 @@ export function ThesisSection() {
           }
         >
           <HeroJarvisLine />
-        </motion.div>
-
-        {/* Pull-quote (Ali Abdaal) — kept as the project's voice, sized
-            down so the banner above stays the headliner. */}
-        <motion.div
-          className="mt-12 md:mt-16 max-w-[640px] mx-auto text-center"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={
-            reducedMotion
-              ? undefined
-              : { duration: 0.7, delay: 0.6, ease: EASE_OUT_QUART }
-          }
-        >
-          <p className="font-serif italic text-[17px] leading-[1.5] text-[var(--ink-muted)]">
-            &ldquo;When we can&rsquo;t take ownership of the situation, we
-            can still take ownership of the process.&rdquo;
-          </p>
-          <p className="mt-2 font-serif italic text-[17px] leading-[1.5] text-[var(--ink-muted)]">
-            &ldquo;Play holds the key to true productivity.&rdquo;
-          </p>
-          <p className="mt-3 font-mono text-[12px] text-[var(--ink-muted)] tracking-[0.16em] uppercase">
-            ·  Ali Abdaal
-          </p>
         </motion.div>
       </div>
 
