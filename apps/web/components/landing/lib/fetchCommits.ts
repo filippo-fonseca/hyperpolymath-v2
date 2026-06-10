@@ -1,14 +1,15 @@
 /**
  * GitHub commits fetcher — Phase 8 (LAND-BUILDLOG / D-09).
  *
- * Per RESEARCH §Pattern 3 + Pitfall 4:
- *   - Uses GITHUB_TOKEN (classic PAT, public_repo scope) → 5,000 req/hr/token
- *   - Per-call ISR via { next: { revalidate: 600 } } — 10 min cache
- *   - Graceful degradation: returns null on 403 / 5xx / network / missing token
- *   - shippedThisWeek() filter built from in-memory commit array
+ * Public-repo strategy:
+ *   - Hyperpolymath is open source, so the GitHub commits endpoint is
+ *     reachable unauthenticated (60 req/hr/IP). Combined with our 10-min
+ *     ISR cache, that's ~6 fetches/hr — well under the limit.
+ *   - If GITHUB_TOKEN is set (5,000 req/hr) we use it for headroom, but
+ *     it's no longer required for the feed to render.
+ *   - shippedThisWeek() filter is computed from the in-memory commit array.
  *
  * Failure modes (D-10):
- *   - Missing GITHUB_TOKEN env: soft warn + null
  *   - 403 (rate limit) / 5xx: warn + null; cached page continues serving via SWR
  *   - Network timeout: caught + null
  */
@@ -29,22 +30,22 @@ export type WeeklySummary = {
 };
 
 export async function fetchRecentCommits(): Promise<Commit[] | null> {
+  // Token optional: public repo means unauthenticated calls work (60/hr/IP);
+  // the token only buys headroom (5,000/hr) and helps locally if you're
+  // hitting the public limit from a shared NAT.
   const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    console.warn("[BuildLog] GITHUB_TOKEN missing; commits feed disabled");
-    return null;
-  }
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
     const res = await fetch(
       `https://api.github.com/repos/${REPO}/commits?per_page=10`,
       {
         next: { revalidate: 600 },
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
+        headers,
       },
     );
     if (!res.ok) {

@@ -107,7 +107,7 @@ export function MeetKiwiSection() {
 
         <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
           &ldquo;All-knowing&rdquo; is literal, but bounded. I know
-          everything inside your Hyperpolymath — which areas you have,
+          everything inside your Hyperpolymath: which areas you have,
           what projects sit under them, what&rsquo;s in your calendar,
           what you captured at 2am last Tuesday. I do not know anything
           outside of it, and I will not pretend to. When something is

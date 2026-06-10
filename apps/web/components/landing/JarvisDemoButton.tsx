@@ -113,7 +113,7 @@ export function JarvisDemoButton() {
     state === "loading"
       ? "Summoning…"
       : state === "speaking"
-        ? "Speaking — tap to stop"
+        ? "Speaking · tap to stop"
         : state === "error"
           ? "Try again"
           : "Hear JARVIS speak";

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./.github/assets/readme-hero.svg" alt="Hyperpolymath — a personal life-OS for people who refuse to specialize" width="900" />
+<img src="./.github/assets/readme-hero.svg" alt="Hyperpolymath, a personal life-OS for people who refuse to specialize" width="900" />
 
 <br/>
 
@@ -26,9 +26,9 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar — all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
 
-It runs on three surfaces: the **web app**, a **desktop app** (Tauri-based, keyboard-shortcut driven, mic-gated so it never listens by accident), and an optional **physical extender** — a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake.
+It runs on three surfaces: the **web app**, a **desktop app** (Tauri-based, keyboard-shortcut driven, mic-gated so it never listens by accident), and an optional **physical extender** (a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake).
 
 Type one sentence. The right action lands in the right place. Every time.
 
@@ -58,33 +58,33 @@ Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Runn
 Everything below is **shipped and working** unless explicitly marked otherwise.
 
 #### Agent
-- **JARVIS console.** Streaming Claude Sonnet 4.6 with Strict Tool Use — zero parse errors, multi-tool calls per turn.
+- **JARVIS console.** Streaming Claude Sonnet 4.6 with Strict Tool Use. Zero parse errors, multi-tool calls per turn.
 - **Agentic loop.** Multi-step plans: read context → act → react → continue. Full **create / read / update / delete** over tasks, captures, projects, areas, gcal events.
 - **Inline references.** `$projectname` resolves to a project ID, `#hashtag` to a tag, highlighted as chips in the composer and normalized before reaching the model.
-- **Native time language.** "tomorrow", "next thursday", "8pm sat", time ranges, M/D — all parsed.
+- **Native time language.** "tomorrow", "next thursday", "8pm sat", time ranges, M/D. All parsed.
 - **Voice mode.** "Hey JARVIS" wake-word + ambient follow-up window. ElevenLabs streaming TTS. Per-turn interrupt + stop control.
 - **Personality.** British register, formal, concise, dry, never sycophantic.
 
 #### Surfaces
-- **LifeOS** — the homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
-- **JARVIS** — full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
-- **Today** — the morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
-- **Areas** — your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
-- **Projects** — bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks + captures nested inside.
-- **Tasks** — kanban + list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
-- **Captures** — frictionless inbox: text + hashtag-filterable, full-text search, promote to task in one click.
-- **Calendar** — bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
-- **Habits** — daily-habit primitive with streaks, weekly grid, completion history.
-- **Training** — fitness / activity planner scoped to the Training area; workouts, sessions, intensity signal.
-- **Health** — body-stat tracking surface (weight, sleep, etc.) — early surface, expanding.
-- **Graph** — visual map of areas, projects, captures, and tasks and how everything connects. Force-directed; hover to inspect.
-- **Insights** — counters, completion rates, time-budget signal across areas + projects.
-- **Settings** — profile, graduation year, gcal connection, voice + agent defaults, device pairing.
+- **LifeOS.** The homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
+- **JARVIS.** Full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
+- **Today.** The morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
+- **Areas.** Your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
+- **Projects.** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
+- **Tasks.** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
+- **Captures.** A frictionless inbox: text and hashtag-filterable, full-text search, promote to task in one click.
+- **Calendar.** Bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
+- **Habits.** Daily-habit primitive with streaks, weekly grid, completion history.
+- **Training.** Fitness and activity planner scoped to the Training area; workouts, sessions, intensity signal.
+- **Health.** Body-stat tracking surface (weight, sleep, etc.). Early days, expanding.
+- **Graph.** Visual map of areas, projects, captures, and tasks and how everything connects. Force-directed; hover to inspect.
+- **Insights.** Counters, completion rates, and a time-budget signal across areas + projects.
+- **Settings.** Profile, graduation year, gcal connection, voice + agent defaults, device pairing.
 
 #### Platform
-- **Desktop app** (Tauri / Rust) — global keyboard shortcut to summon JARVIS, mic gated behind an explicit toggle, no always-on listening.
-- **Desktop ↔ web mic bridge** — when the desktop is holding the mic, the web JARVIS console knows and stops competing. A "Voice via desktop" indicator surfaces in the nav.
-- **Realtime everywhere** — Supabase Realtime channels invalidate TanStack Query caches; every surface reflects every change instantly.
+- **Desktop app** (Tauri / Rust). Global keyboard shortcut to summon JARVIS, mic gated behind an explicit toggle, no always-on listening.
+- **Desktop ↔ web mic bridge.** When the desktop is holding the mic, the web JARVIS console knows and stops competing. A "Voice via desktop" indicator surfaces in the nav.
+- **Realtime everywhere.** Supabase Realtime channels invalidate TanStack Query caches; every surface reflects every change instantly.
 - **Google OAuth.** Single sign-on via Supabase Auth.
 - **Auth-aware everything.** All rows scoped to `userId` from day one; RLS enforced at the row level.
 - **MIT, public, secrets in env only.**
@@ -110,7 +110,7 @@ JARVIS is the centerpiece. A streaming, structured-output agent built on Claude 
 - **Capture-first.** Ambiguous input becomes a capture. JARVIS never asks a clarifying question for non-destructive actions.
 - **Agentic.** Read-then-write per turn: JARVIS can fetch state, decide, and act in the same exchange (Phase 5.1).
 - **Voice as a posture, not a default.** On desktop, voice is opt-in via a toggle (or the physical extender). No ambient mic ever runs without consent.
-- **Anthropic discipline.** Prompt caching on stable context, state priming, latency budgets — see Phases 9–11.
+- **Anthropic discipline.** Prompt caching on stable context, state priming, latency budgets (see Phases 9–11).
 
 ---
 
@@ -318,7 +318,7 @@ Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ide
 
 ## ⚜  Status
 
-**Public preview.** Hyperpolymath is built and used daily by one person (me). The code is public and MIT-licensed because that's a brand commitment, not because the product is positioned as a multi-tenant SaaS. The schema is `userId`-scoped from day one with RLS, so multi-user is structurally possible — but onboarding for additional users is intentionally not the focus.
+**Public preview.** Hyperpolymath is built and used daily by one person (me). The code is public and MIT-licensed because that's a brand commitment, not because the product is positioned as a multi-tenant SaaS. The schema is `userId`-scoped from day one with RLS, so multi-user is structurally possible. But onboarding for additional users is intentionally not the focus.
 
 If you want to self-host the whole stack for your own use, the quickstart above is the path. If you find something broken or want to discuss an idea, open an issue or a PR.
 
@@ -340,7 +340,7 @@ If you want to self-host the whole stack for your own use, the quickstart above 
 
 ## ⚜  Security
 
-Found something? See [`SECURITY.md`](./SECURITY.md) for the responsible-disclosure path. The TL;DR: please don't open public issues for vulnerabilities — email first.
+Found something? See [`SECURITY.md`](./SECURITY.md) for the responsible-disclosure path. The TL;DR: please don't open public issues for vulnerabilities. Email first.
 
 ---
 
@@ -356,6 +356,6 @@ Hyperpolymath is built and maintained by [@filippo-fonseca](https://github.com/f
        ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜    ⚜
 ```
 
-*be goated. well.*
+*how you do one thing is how you do everything.*
 
 </div>

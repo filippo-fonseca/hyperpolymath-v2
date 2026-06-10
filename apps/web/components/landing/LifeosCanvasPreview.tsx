@@ -16,11 +16,11 @@
 
 const TREE: Array<{ depth: number; name: string; icon?: string; muted?: boolean }> = [
   { depth: 0, name: "Academics", icon: "▾" },
-  { depth: 1, name: "ANTH 2480 — Renaissance Thought", icon: "▸" },
-  { depth: 1, name: "BIOL 1010 — Molecular Bio", icon: "▾" },
+  { depth: 1, name: "ANTH 2480 · Renaissance Thought", icon: "▸" },
+  { depth: 1, name: "BIOL 1010 · Molecular Bio", icon: "▾" },
   { depth: 2, name: "Tasks", muted: true },
   { depth: 2, name: "Captures", muted: true },
-  { depth: 1, name: "CHEM 1140 — Organic II", icon: "▸" },
+  { depth: 1, name: "CHEM 1140 · Organic II", icon: "▸" },
   { depth: 0, name: "Running", icon: "▾" },
   { depth: 1, name: "Marathon block", icon: "▸" },
   { depth: 1, name: "Training journal", muted: true },
@@ -209,7 +209,7 @@ export function LifeosCanvasPreview() {
           </svg>
         </div>
         <figcaption className="px-4 py-2.5 border-t border-[var(--edge)] font-serif text-[13px] italic text-[var(--ink-muted)]">
-          Areas, projects, tasks, captures — and the lines between them.
+          Areas, projects, tasks, captures, and the lines between them.
         </figcaption>
       </figure>
     </div>

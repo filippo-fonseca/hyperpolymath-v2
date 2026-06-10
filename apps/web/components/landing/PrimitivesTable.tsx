@@ -224,7 +224,7 @@ function PrimitiveTree() {
                 />
                 <Branch
                   name="+  more"
-                  role="the schema is open — new block types plug in here as the life-OS grows"
+                  role="the schema is open (new block types plug in here as the life-OS grows)"
                   slot
                   last
                 />
@@ -288,7 +288,7 @@ function PrimitiveTree() {
             </span>
           </span>
           <span className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] sm:translate-y-[1px]">
-            Gmail, Drive, Strava, Notion — anything JARVIS can read.
+            Gmail, Drive, Strava, Notion. Anything JARVIS can read.
             External systems plug in the same way Calendar does.
           </span>
         </div>

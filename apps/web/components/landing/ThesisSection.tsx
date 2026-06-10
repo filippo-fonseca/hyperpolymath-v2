@@ -72,7 +72,7 @@ export function ThesisSection() {
             &ldquo;Play holds the key to true productivity.&rdquo;
           </p>
           <p className="mt-3 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
-            — Ali Abdaal
+            · Ali Abdaal
           </p>
         </motion.div>
 
@@ -158,7 +158,7 @@ export function ThesisSection() {
               ? { duration: 0 }
               : { duration: 1.8, repeat: Infinity, ease: "easeInOut" }
           }
-          aria-label="Learn more — scroll to bio"
+          aria-label="Learn more · scroll to bio"
         >
           <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]">
             Learn more

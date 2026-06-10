@@ -34,7 +34,7 @@ export function SurfaceSection() {
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
         Areas, projects, tasks, captures, habits, training, health, your
         Google Calendar, the relationship graph between all of it, and the
-        insights that fall out — every signal worth tracking lives on a
+        insights that fall out: every signal worth tracking lives on a
         single page called <em>LifeOS</em>. The whole system converges into
         one document so the agent and I are always looking at the same
         thing.
@@ -86,7 +86,7 @@ export function SurfaceSection() {
 
           <ul className="mt-4 space-y-1.5 font-serif text-[15px] text-[var(--ink-muted)]">
             <li>· Global hotkey, anywhere on macOS</li>
-            <li>· Voice or text — same composer</li>
+            <li>· Voice or text, same composer</li>
             <li>· Always-on; no browser needed</li>
           </ul>
         </div>
@@ -116,7 +116,7 @@ export function SurfaceSection() {
 
           <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink)]">
             I built a small ESP32-based macropad that sits on the desk and
-            fires JARVIS turns over a USB-serial bridge — push a key to
+            fires JARVIS turns over a USB-serial bridge. Push a key to
             talk, push another to capture. The firmware, bridge, and CAD
             files are in the repo. Fork it, change the layout, mount
             different switches, ship your own.
@@ -148,7 +148,7 @@ export function SurfaceSection() {
       </div>
 
       <p className="mt-6 font-mono text-[14px] text-[var(--ink-muted)]">
-        Same agent. Same contract. Two surfaces — pick whichever fits your
+        Same agent. Same contract. Two surfaces. Pick whichever fits your
         hands.
       </p>
     </section>

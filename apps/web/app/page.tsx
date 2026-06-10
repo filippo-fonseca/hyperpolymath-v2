@@ -15,11 +15,11 @@ import { LandingPage } from "@/components/landing/LandingPage";
  */
 
 export const metadata: Metadata = {
-  title: "Hyperpolymath — Type one sentence.",
+  title: "Hyperpolymath · Type one sentence.",
   description:
     "A personal life-OS for people who refuse to specialize. One inbox. One agent. One sentence.",
   openGraph: {
-    title: "Hyperpolymath — Type one sentence.",
+    title: "Hyperpolymath · Type one sentence.",
     description:
       "A personal life-OS for people who refuse to specialize.",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hyperpolymath — Type one sentence.",
+    title: "Hyperpolymath · Type one sentence.",
     description:
       "A personal life-OS for people who refuse to specialize.",
   },

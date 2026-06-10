@@ -1,31 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img" aria-label="Hyperpolymath — a personal life-OS for people who refuse to specialize">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-label="Hyperpolymath, a personal life-OS for people who refuse to specialize">
   <defs>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
       <stop offset="100%" stop-color="#efe9db"/>
     </linearGradient>
-    <filter id="softInset" x="-2%" y="-2%" width="104%" height="104%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="0.2"/>
-    </filter>
     <filter id="neuShadow" x="-10%" y="-10%" width="120%" height="120%">
       <feGaussianBlur stdDeviation="6"/>
     </filter>
   </defs>
 
   <!-- Outer page (paper) -->
-  <rect x="0" y="0" width="1200" height="380" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="440" fill="#efe9db"/>
 
   <!-- Neumorphic dark shadow underlay -->
-  <rect x="36" y="36" width="1128" height="308" rx="20" fill="#d6cdb9" filter="url(#neuShadow)" opacity="0.55"/>
+  <rect x="36" y="36" width="1128" height="368" rx="20" fill="#d6cdb9" filter="url(#neuShadow)" opacity="0.55"/>
   <!-- Neumorphic light highlight underlay -->
-  <rect x="24" y="24" width="1128" height="308" rx="20" fill="#ffffff" filter="url(#neuShadow)" opacity="0.7"/>
+  <rect x="24" y="24" width="1128" height="368" rx="20" fill="#ffffff" filter="url(#neuShadow)" opacity="0.7"/>
 
   <!-- The card -->
-  <rect x="30" y="30" width="1140" height="320" rx="18" fill="url(#paper)"/>
+  <rect x="30" y="30" width="1140" height="380" rx="18" fill="url(#paper)"/>
 
   <!-- Subtle inner hairline -->
-  <rect x="30.5" y="30.5" width="1139" height="319" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="30.5" y="30.5" width="1139" height="379" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Crest dot row (top-left meta) -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -38,19 +35,22 @@
   <!-- Crest dot row (top-right meta) -->
   <text x="1120" y="80" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">MIT · OPEN SOURCE</text>
 
-  <!-- Kiwi-bird icon — scaled from the project glyph (24x24 → ~88x88) -->
-  <g transform="translate(90 150) scale(3.7)" fill="#1a1a1a">
+  <!-- Kiwi-bird icon, scaled from the project glyph -->
+  <g transform="translate(90 160) scale(3.7)" fill="#1a1a1a">
     <path d="m20.741,5.991c.21-.595.299-1.234.243-1.88-.114-1.326-.812-2.532-1.913-3.309-1.422-1.002-3.378-1.072-4.87-.174-.307.185-.59.403-.841.647-.807.786-2.119,1.723-3.788,1.723h-.794C4.18,2.998.334,6.462.022,10.884c-.174,2.468.725,4.883,2.468,6.625.844.844,1.848,1.484,2.938,1.906l.573,4.583h2.191l-.499-4.04c.271.026.544.04.818.04.201,0,.403-.007.604-.021.447-.032.881-.108,1.305-.209l.529,4.231h2.168l-.706-4.987c2.729-1.469,4.589-4.425,4.589-7.791l.021-2.262c.615-.069,1.187-.271,1.708-.568,3.845,3.229,4.272,8.608,4.272,8.608h1c0-5.446-2.104-9.299-3.259-11.007Zm-3.943.98c-1.025.115-1.798.952-1.798,1.947v2.302c0,3.553-2.647,6.523-6.026,6.761-1.891.131-3.737-.555-5.07-1.887-1.333-1.333-2.021-3.181-1.887-5.071.238-3.379,3.208-6.026,6.761-6.026h.794c1.852,0,3.645-.792,5.183-2.29.141-.137.301-.261.477-.366.823-.495,1.901-.458,2.686.095.627.442,1.008,1.098,1.073,1.846.063.737-.2,1.46-.723,1.983-.398.398-.907.642-1.47.705Zm1.202-2.473c0,.828-.672,1.5-1.5,1.5s-1.5-.672-1.5-1.5.672-1.5,1.5-1.5,1.5.672,1.5,1.5Z"/>
   </g>
 
   <!-- Wordmark -->
-  <text x="220" y="218" font-family="'EB Garamond', 'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="118" font-weight="600" letter-spacing="-2" fill="#1a1a1a">Hyperpolymath</text>
+  <text x="220" y="228" font-family="'EB Garamond', 'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="118" font-weight="600" letter-spacing="-2" fill="#1a1a1a">Hyperpolymath</text>
 
-  <!-- Tagline -->
-  <text x="224" y="264" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="22" fill="#1a1a1a" fill-opacity="0.72">A personal life-OS for people who refuse to specialize.</text>
+  <!-- Primary tagline -->
+  <text x="224" y="274" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="22" fill="#1a1a1a" fill-opacity="0.72">A personal life-OS for people who refuse to specialize.</text>
+
+  <!-- Subheader (landing-page line) -->
+  <text x="224" y="320" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="20" fill="#1a1a1a" fill-opacity="0.6">I brought back the Renaissance. And JARVIS from Tony Stark. All in one.</text>
 
   <!-- Footer hairline + brand spine -->
-  <line x1="80" y1="300" x2="1120" y2="300" stroke="#1a1a1a" stroke-opacity="0.1" stroke-width="1"/>
-  <text x="80" y="324" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">JARVIS · CLAUDE SONNET 4.6 · STRICT TOOL USE</text>
-  <text x="1120" y="324" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  BE GOATED. WELL.</text>
+  <line x1="80" y1="358" x2="1120" y2="358" stroke="#1a1a1a" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="80" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">JARVIS · CLAUDE SONNET 4.6 · STRICT TOOL USE</text>
+  <text x="1120" y="382" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HOW YOU DO ONE THING</text>
 </svg>
