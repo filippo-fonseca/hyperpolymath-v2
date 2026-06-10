@@ -48,3 +48,4 @@ DEPLOYMENT.md
 
 # v1 reference checkout — kept locally for cross-reference, not for the repo
 /old-v1/
+.vercel
