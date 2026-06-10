@@ -21,6 +21,11 @@ export type Commit = {
   readonly shortSha: string;
   readonly date: string; // ISO from author.date
   readonly subject: string;
+  readonly author: {
+    readonly login: string | null;
+    readonly avatarUrl: string | null;
+    readonly htmlUrl: string | null;
+  };
 };
 
 export type WeeklySummary = {
@@ -55,12 +60,18 @@ export async function fetchRecentCommits(): Promise<Commit[] | null> {
     const raw = (await res.json()) as Array<{
       sha: string;
       commit: { message: string; author: { date: string } };
+      author: { login: string; avatar_url: string; html_url: string } | null;
     }>;
     return raw.map((c) => ({
       sha: c.sha,
       shortSha: c.sha.slice(0, 7),
       date: c.commit.author.date,
       subject: c.commit.message.split("\n")[0],
+      author: {
+        login: c.author?.login ?? null,
+        avatarUrl: c.author?.avatar_url ?? null,
+        htmlUrl: c.author?.html_url ?? null,
+      },
     }));
   } catch (e) {
     console.error("[BuildLog] commit fetch threw:", e);
