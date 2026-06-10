@@ -100,7 +100,7 @@ export function SurfaceSection() {
               "var(--glow-hud-subtle), 0 1px 0 color-mix(in oklch, white 50%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 35%, transparent)",
           }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 whitespace-nowrap">
             <Cpu size={16} style={{ color: "var(--hud-cyan-light)" }} aria-hidden="true" />
             <p
               className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
