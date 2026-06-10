@@ -875,31 +875,10 @@ export function JarvisConsole({
           doesn't displace the scrollback layout. */}
       <HudStatusPill state={status} className="absolute top-4 right-4 z-10" />
 
-      {/* Phase 14-03: desktop mic active indicator. Shown when the desktop
-          daemon holds the voice-source claim, so the user knows the browser
-          mic is intentionally suppressed (not broken). Subtle pill matching
-          the HUD aesthetic: muted cyan text, edge border, desktop icon prefix.
-          Positioned top-left, aria-live="polite" for screen-reader announce. */}
-      {desktopClaimed && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-label="Voice input via desktop app"
-          className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em]"
-          style={{
-            color: "var(--hud-cyan)",
-            border: "1px solid var(--edge-hud)",
-            backgroundColor: "transparent",
-          }}
-        >
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: "var(--hud-cyan)" }}
-            aria-hidden="true"
-          />
-          <span>Voice via desktop</span>
-        </div>
-      )}
+      {/* Phase 14-03 / nav-move: "Voice via desktop" pill moved to the
+          PersistentNav voice-status row so it no longer overlays JARVIS
+          conversation elements. desktopClaimed is still consumed here for
+          the realtime subscription side-effect. */}
 
       {/* Phase 6.1 — Arc-reactor centerpiece. Sits behind scrollback at z-0;
           dominant in empty state, ambient when conversation begins.

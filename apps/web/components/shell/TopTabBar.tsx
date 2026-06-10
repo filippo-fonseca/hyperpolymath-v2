@@ -89,7 +89,7 @@ function metaForPath(pathname: string): {
 export function TopTabBar() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const { splitOn, toggle: toggleSplit } = useSplitScreen();
+  const { splitOn, setSplitOn } = useSplitScreen();
 
   const [lastRoute, setLastRoute] = useState<string>(FALLBACK_LEFT_PATH);
 
@@ -112,6 +112,22 @@ export function TopTabBar() {
   const LeftIcon = leftMeta.icon;
 
   if (pathname.startsWith("/onboarding")) return null;
+
+  // Split-screen toggle that works from either tab. The side panel only
+  // renders when the main route is NOT JARVIS (otherwise two JARVIS consoles
+  // would stack). So when enabling split from the JARVIS tab, push main to
+  // the last non-JARVIS route — that becomes the left pane, JARVIS occupies
+  // the right pane via the side panel.
+  const onSplitToggle = () => {
+    if (splitOn) {
+      setSplitOn(false);
+      return;
+    }
+    if (onJarvis) {
+      router.push(lastRoute);
+    }
+    setSplitOn(true);
+  };
 
   return (
     <div
@@ -136,8 +152,6 @@ export function TopTabBar() {
         }
       />
 
-      <SplitToggle on={splitOn} onClick={toggleSplit} />
-
       <TabPill
         href={JARVIS_PATH}
         active={onJarvis || splitOn}
@@ -146,6 +160,10 @@ export function TopTabBar() {
         kbd="⌃2"
         icon={<KiwiIcon size={13} aria-hidden="true" />}
       />
+
+      <div className="ml-auto pl-2">
+        <SplitToggle on={splitOn} onClick={onSplitToggle} />
+      </div>
     </div>
   );
 }

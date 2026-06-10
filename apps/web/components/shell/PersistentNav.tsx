@@ -30,6 +30,8 @@ import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
 import type { MicState } from "@/lib/voice/types";
+import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
+import { Laptop } from "lucide-react";
 import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
 import {
   subscribeToPolypadState,
@@ -109,6 +111,7 @@ export function PersistentNav({ collapsed }: Props) {
   const { data: gcalStatus } = useGcalConnectionStatus();
   const showGcalBadge =
     gcalStatus !== undefined && gcalStatus !== "connected";
+  const { desktopClaimed } = useVoiceSourceStatus();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -226,7 +229,9 @@ export function PersistentNav({ collapsed }: Props) {
           );
         })}
 
-        {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern). */}
+        {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern).
+            Now also hosts the "Voice via desktop" pill (moved here from the
+            JarvisConsole overlay so it stops covering conversation elements). */}
         <div className="flex items-center gap-2 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
           <div className="agent-mode-scope inline-flex items-center">
             <MicIndicatorDotContainer />
@@ -235,6 +240,47 @@ export function PersistentNav({ collapsed }: Props) {
             <PolypadIndicatorDotContainer collapsed={collapsed} />
           </div>
           {!collapsed && <DiscreetToggleButton />}
+          {desktopClaimed && (
+            collapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Voice input via desktop app"
+                    className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-md"
+                    style={{
+                      color: "var(--hud-cyan)",
+                      background:
+                        "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
+                      boxShadow:
+                        "inset 0 1px 0 color-mix(in oklch, var(--ink) 0%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 18%, transparent), 0 1px 2px color-mix(in oklch, var(--ink) 12%, transparent)",
+                    }}
+                  >
+                    <Laptop size={11} strokeWidth={1.75} aria-hidden="true" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right">Voice via desktop</TooltipContent>
+              </Tooltip>
+            ) : (
+              <span
+                role="status"
+                aria-live="polite"
+                aria-label="Voice input via desktop app"
+                className="ml-auto inline-flex items-center gap-1.5 px-2 py-[3px] rounded-md font-mono text-[10px] uppercase tracking-[0.1em]"
+                style={{
+                  color: "var(--hud-cyan)",
+                  background:
+                    "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
+                  boxShadow:
+                    "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 18%, transparent), 0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent)",
+                }}
+              >
+                <Laptop size={11} strokeWidth={1.75} aria-hidden="true" />
+                <span>Desktop</span>
+              </span>
+            )
+          )}
         </div>
 
         {/* "Meet Kiwi" info trigger — opens the KiwiAboutDialog modal.
