@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1190" width="1200" height="1190" role="img" aria-label="Hyperpolymath architecture — how a sentence becomes an action, end to end">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1240" width="1200" height="1240" role="img" aria-label="Hyperpolymath architecture — how a sentence becomes an action, end to end">
   <defs>
     <linearGradient id="paperA" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
@@ -19,13 +19,13 @@
   </defs>
 
   <!-- Page (with rounded image corners) -->
-  <rect x="0" y="0" width="1200" height="1190" rx="24" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="1240" rx="24" fill="#efe9db"/>
 
   <!-- Neumorphic frame -->
-  <rect x="36" y="36" width="1128" height="1118" rx="20" fill="#d6cdb9" filter="url(#neuShadow3)" opacity="0.55"/>
-  <rect x="24" y="24" width="1128" height="1118" rx="20" fill="#ffffff" filter="url(#neuShadow3)" opacity="0.7"/>
-  <rect x="30" y="30" width="1140" height="1130" rx="18" fill="url(#paperA)"/>
-  <rect x="30.5" y="30.5" width="1139" height="1129" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="36" y="36" width="1128" height="1168" rx="20" fill="#d6cdb9" filter="url(#neuShadow3)" opacity="0.55"/>
+  <rect x="24" y="24" width="1128" height="1168" rx="20" fill="#ffffff" filter="url(#neuShadow3)" opacity="0.7"/>
+  <rect x="30" y="30" width="1140" height="1180" rx="18" fill="url(#paperA)"/>
+  <rect x="30.5" y="30.5" width="1139" height="1179" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Top crest meta -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -63,19 +63,16 @@
 
   <!-- ─────────── 02 · JARVIS LAYER (dark slab) ─────────── -->
   <g>
-    <rect x="200" y="542" width="800" height="180" rx="14" fill="url(#cardDark)"/>
+    <rect x="200" y="542" width="800" height="140" rx="14" fill="url(#cardDark)"/>
     <text x="240" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.6">02  ·  THE AGENT</text>
     <text x="240" y="624" font-family="'EB Garamond', Georgia, serif" font-size="30" font-weight="600" fill="#f7f3ea">
       <tspan font-style="italic" font-weight="800">JARVIS</tspan>  ·  Claude Sonnet 4.6
     </text>
     <text x="240" y="654" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#f7f3ea" fill-opacity="0.7">Streaming · Strict Tool Use · structured JSON contract · multi-tool turns</text>
-
-    <line x1="240" y1="676" x2="960" y2="676" stroke="#f7f3ea" stroke-opacity="0.12"/>
-    <text x="240" y="700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#f7f3ea" fill-opacity="0.55">@anthropic-ai/sdk  ·  prompt caching  ·  state priming  ·  tool registry</text>
   </g>
 
   <!-- arrow ↓ -->
-  <line x1="600" y1="722" x2="600" y2="760" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
+  <line x1="600" y1="682" x2="600" y2="760" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
   <polygon points="600,766 593,756 607,756" fill="#1a1a1a" fill-opacity="0.8"/>
 
   <!-- ─────────── 03 · EXECUTOR ─────────── -->
@@ -120,5 +117,5 @@
   </g>
 
   <!-- Footer -->
-  <text x="80" y="1172" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH ARCHITECTURE · FIG. 02</text>
+  <text x="80" y="1222" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH ARCHITECTURE · FIG. 02</text>
 </svg>

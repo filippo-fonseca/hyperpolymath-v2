@@ -10,15 +10,19 @@ import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
 const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
 
 /**
- * §01 — Thesis section (the cold open).
+ * §01 — Thesis section / cold open.
  *
- * Phase 8 Plan 08-06 gap closure: hero now leads with a cyan ⚜ ornament
- * (the JARVIS signature) that breathes above the pull-quote. JARVIS is the
- * centerpiece of the system, so the cold open puts the agent's glyph on the
- * frontispiece. The hero h1 and surrounding paragraphs fade-up on mount for
- * a softer entrance. ↓ scroll affordance retained at bottom-12.
+ * The hero now wears the same banner dress as the README GitHub hero:
+ * cream-paper card with a soft neumorphic shadow, mono crest row up
+ * top, an EB Garamond wordmark, italic tagline, a hairline + fleuron
+ * spacer, and a centered brand statement with italic+extra-bold on
+ * "Renaissance Human" and "JARVIS". The HudCoreBubble (the animated
+ * cyan kiwi-in-aura — the actual JARVIS visual) keeps its place as
+ * the focal point above the wordmark.
  *
- * Container: max-w-[920px] mx-auto, vertically centered in first 90vh.
+ * Live demo line (HeroJarvisLine) + the Abdaal pull-quote sit BELOW
+ * the banner card as separate beats. The Learn-more chevron stays
+ * pinned to the bottom of the section.
  */
 export function ThesisSection() {
   const reducedMotion = useReducedMotion();
@@ -32,7 +36,6 @@ export function ThesisSection() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Mount-time entrance (not scroll-triggered — respects §11d).
   const enter = reducedMotion
     ? { initial: false, animate: { opacity: 1, y: 0 } }
     : {
@@ -43,100 +46,158 @@ export function ThesisSection() {
 
   return (
     <section
-      className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 md:px-10"
+      className="relative min-h-[100vh] flex flex-col items-center justify-center px-6 md:px-10 py-20"
       aria-labelledby="thesis-headline"
     >
-      <div className="max-w-[920px] mx-auto text-center">
-        {/* Hero JARVIS centerpiece — the same HudCoreBubble visual that
-            appears in the JARVIS Console when the user talks to the agent.
-            Concentric instrument rings, rotating outer scale, arc-tip
-            sweep, breathing inner glow, central Stark-signature triangle.
-            Idle but visibly alive; reduced-motion freezes the rotations.
-            Pulled into the landing as the frontispiece so the visitor sees
-            the actual agent visual before any prose explains it. */}
-        {/* Bubble wrapper — gives the bubble its own breathing column so
-            its outward glow / drop-shadow has somewhere to fade into
-            without bleeding onto the text below. The negative top margin
-            is gone (it was pulling the bubble into the section's top
-            padding and visually crowding the pull-quote). */}
-        <div className="mx-auto flex items-center justify-center select-none mb-10">
-          <HudCoreBubble state="thinking" />
-        </div>
+      <div className="w-full max-w-[1080px] mx-auto">
+        {/* ── Banner card — mirrors the README GitHub hero ── */}
+        <motion.div
+          {...enter}
+          className="relative overflow-hidden rounded-[24px]"
+          style={{
+            background:
+              "linear-gradient(180deg, color-mix(in oklch, #f7f3ea 96%, transparent), color-mix(in oklch, #efe9db 96%, transparent))",
+            boxShadow:
+              "0 1px 0 color-mix(in oklch, white 78%, transparent) inset, 0 36px 80px -40px color-mix(in oklch, black 42%, transparent), 0 10px 28px -16px color-mix(in oklch, black 24%, transparent)",
+            color: "var(--ink)",
+          }}
+        >
+          {/* Hairline inner stroke */}
+          <div
+            className="absolute inset-[0.5px] rounded-[23.5px] pointer-events-none"
+            style={{
+              border:
+                "1px solid color-mix(in oklch, #1a1a1a 10%, transparent)",
+            }}
+          />
 
-        <motion.div className="mt-4" {...enter}>
-          <p className="font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
-            &ldquo;When we can&rsquo;t take ownership of the situation, we
-            can still take ownership of the process.&rdquo;
-          </p>
-          <p className="mt-2 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)]">
-            &ldquo;Play holds the key to true productivity.&rdquo;
-          </p>
-          <p className="mt-3 font-mono text-[14px] text-[var(--ink-muted)] tracking-[0.04em]">
-            · Ali Abdaal
-          </p>
+          <div className="relative px-8 md:px-14 pt-8 md:pt-10 pb-8 md:pb-10">
+            {/* Crest row — left meta and right meta in mono uppercase */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex gap-1.5 opacity-50"
+                  aria-hidden="true"
+                >
+                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
+                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
+                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
+                </span>
+                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-60">
+                  My life operating system framework, open sourced  ·  v2
+                </span>
+              </div>
+              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-60">
+                MIT  ·  Open source
+              </span>
+            </div>
+
+            {/* HudCoreBubble — animated cyan kiwi-in-aura. Stays as the
+                visual focal point of the hero. */}
+            <div className="mt-6 md:mt-8 mx-auto flex items-center justify-center select-none">
+              <HudCoreBubble state="thinking" />
+            </div>
+
+            {/* Wordmark — EB Garamond, oversized */}
+            <h1
+              id="thesis-headline"
+              className="mt-6 md:mt-8 font-serif font-semibold text-center text-[64px] md:text-[96px] leading-[1] tracking-[-0.02em] text-[var(--ink)]"
+            >
+              Hyperpolymath
+            </h1>
+
+            {/* Primary italic tagline — mirrors banner */}
+            <p className="mt-4 md:mt-5 font-serif italic text-center text-[18px] md:text-[22px] leading-[1.4] text-[var(--ink)] opacity-75">
+              A personal life-OS for people who refuse to specialize.
+            </p>
+
+            {/* Hairline + fleuron spacer */}
+            <div
+              className="mt-7 md:mt-9 flex items-center justify-center gap-4"
+              aria-hidden="true"
+            >
+              <span className="h-px w-16 md:w-24 bg-[var(--ink)] opacity-15" />
+              <span className="font-mono text-[12px] tracking-[0.3em] opacity-45">
+                ❦
+              </span>
+              <span className="h-px w-16 md:w-24 bg-[var(--ink)] opacity-15" />
+            </div>
+
+            {/* Centered brand statement — matches banner copy verbatim */}
+            <p className="mt-7 md:mt-9 font-serif font-semibold text-center text-[22px] md:text-[30px] leading-[1.35] text-[var(--ink)] max-w-[820px] mx-auto">
+              I brought back the{" "}
+              <em className="font-extrabold not-italic-sm:not-italic italic">
+                Renaissance Human
+              </em>
+              . And gave them{" "}
+              <em className="font-extrabold not-italic-sm:not-italic italic">
+                JARVIS
+              </em>{" "}
+              from Tony Stark.
+              <br className="hidden md:block" />
+              <span className="italic"> All in one.</span>
+            </p>
+
+            {/* Tagline 2 — the action promise */}
+            <p className="mt-5 md:mt-6 font-serif italic text-center text-[16px] md:text-[18px] leading-[1.5] text-[var(--ink)] opacity-65 max-w-[640px] mx-auto">
+              Type or speak one sentence to JARVIS, and the right action
+              lands in the right place.
+            </p>
+
+            {/* Footer brand spine */}
+            <div className="mt-8 md:mt-10 flex items-center justify-between border-t border-[var(--ink)]/10 pt-4 md:pt-5">
+              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-55">
+                ❦  Hyperpolymath  ·  by Filippo Fonseca
+              </span>
+              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-55">
+                How you do one thing is how you do everything
+              </span>
+            </div>
+          </div>
         </motion.div>
 
-        <motion.h1
-          id="thesis-headline"
-          className="mt-10 font-serif font-semibold text-[44px] leading-[1.1] text-[var(--ink)] whitespace-nowrap"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={
-            reducedMotion
-              ? undefined
-              : { duration: 0.8, delay: 0.1, ease: EASE_OUT_QUART }
-          }
-        >
-          I brought back the Renaissance. And JARVIS.
-        </motion.h1>
+        {/* ── Below-banner beats ── */}
 
-        {/* Impactful subheader — Display 2 (32px), between the 56px hero
-            and the 18px paragraph in the typographic hierarchy. */}
-        <motion.p
-          className="mt-6 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)] max-w-[780px] mx-auto"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={
-            reducedMotion
-              ? undefined
-              : { duration: 0.75, delay: 0.22, ease: EASE_OUT_QUART }
-          }
-        >
-          A personal life-OS for people who refuse to specialize.
-        </motion.p>
-
-        <motion.p
-          className="mt-5 font-serif italic text-[18px] leading-[1.5] text-[var(--ink-muted)] max-w-[620px] mx-auto"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={
-            reducedMotion
-              ? undefined
-              : { duration: 0.7, delay: 0.36, ease: EASE_OUT_QUART }
-          }
-        >
-          Type or speak one sentence to JARVIS, and the right action lands
-          in the right place.
-        </motion.p>
-
-        {/* Live JARVIS line — auto-cycling typing+receipt loop. The
-            centerpiece of the hero. */}
+        {/* Live JARVIS line — the auto-cycling typing+receipt loop. */}
         <motion.div
+          className="mt-12 md:mt-16"
           initial={enter.initial}
           animate={enter.animate}
           transition={
             reducedMotion
               ? undefined
-              : { duration: 0.7, delay: 0.5, ease: EASE_OUT_QUART }
+              : { duration: 0.7, delay: 0.45, ease: EASE_OUT_QUART }
           }
         >
           <HeroJarvisLine />
         </motion.div>
+
+        {/* Pull-quote (Ali Abdaal) — kept as the project's voice, sized
+            down so the banner above stays the headliner. */}
+        <motion.div
+          className="mt-12 md:mt-16 max-w-[640px] mx-auto text-center"
+          initial={enter.initial}
+          animate={enter.animate}
+          transition={
+            reducedMotion
+              ? undefined
+              : { duration: 0.7, delay: 0.6, ease: EASE_OUT_QUART }
+          }
+        >
+          <p className="font-serif italic text-[17px] leading-[1.5] text-[var(--ink-muted)]">
+            &ldquo;When we can&rsquo;t take ownership of the situation, we
+            can still take ownership of the process.&rdquo;
+          </p>
+          <p className="mt-2 font-serif italic text-[17px] leading-[1.5] text-[var(--ink-muted)]">
+            &ldquo;Play holds the key to true productivity.&rdquo;
+          </p>
+          <p className="mt-3 font-mono text-[12px] text-[var(--ink-muted)] tracking-[0.16em] uppercase">
+            ·  Ali Abdaal
+          </p>
+        </motion.div>
       </div>
 
-      {/* "Learn more" teaser — clickable, smooth-scrolls to §02 WHO.
-          Breathes gently and vanishes on first scroll (no nag).
-          Reduced motion: static opacity, instant scroll instead of smooth. */}
+      {/* Learn more */}
       {!scrolled && (
         <motion.button
           type="button"
@@ -148,7 +209,7 @@ export function ThesisSection() {
               block: "start",
             });
           }}
-          className="absolute bottom-12 inline-flex flex-col items-center gap-1 px-3 py-2 rounded text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors cursor-pointer"
+          className="absolute bottom-10 inline-flex flex-col items-center gap-1 px-3 py-2 rounded text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors cursor-pointer"
           initial={{ opacity: reducedMotion ? 0.7 : 0.5 }}
           animate={
             reducedMotion ? { opacity: 0.7 } : { opacity: [0.45, 0.85, 0.45] }

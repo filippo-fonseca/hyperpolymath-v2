@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 940" width="1200" height="940" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 980" width="1200" height="980" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
   <defs>
     <linearGradient id="paper2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
@@ -30,13 +30,13 @@
   </defs>
 
   <!-- Page (paper) -->
-  <rect x="0" y="0" width="1200" height="940" rx="24" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="980" rx="24" fill="#efe9db"/>
 
   <!-- Neumorphic outer frame -->
-  <rect x="36" y="36" width="1128" height="868" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
-  <rect x="24" y="24" width="1128" height="868" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
-  <rect x="30" y="30" width="1140" height="880" rx="18" fill="url(#paper2)"/>
-  <rect x="30.5" y="30.5" width="1139" height="879" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="36" y="36" width="1128" height="908" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
+  <rect x="24" y="24" width="1128" height="908" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
+  <rect x="30" y="30" width="1140" height="920" rx="18" fill="url(#paper2)"/>
+  <rect x="30.5" y="30.5" width="1139" height="919" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Top crest meta -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -240,5 +240,5 @@
   <text x="600" y="816" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.7">CLAUDE SONNET 4.6  ·  SUPABASE POSTGRES  ·  REALTIME  ·  GOOGLE CALENDAR</text>
 
   <!-- Footer line -->
-  <text x="80" y="908" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH STACK · FIG. 01</text>
+  <text x="80" y="948" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH STACK · FIG. 01</text>
 </svg>
