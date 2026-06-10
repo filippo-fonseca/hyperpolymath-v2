@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 15-05-PLAN.md
-last_updated: "2026-06-08T16:39:02.966Z"
-last_activity: 2026-06-08
+stopped_at: Completed 999.12-03-PLAN.md
+last_updated: "2026-06-09T20:02:11.962Z"
+last_activity: 2026-06-09
 progress:
-  total_phases: 29
+  total_phases: 32
   completed_phases: 12
-  total_plans: 77
-  completed_plans: 65
+  total_plans: 82
+  completed_plans: 68
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 15 — training-fitness-activity-planner
+**Current focus:** Phase 999.12 — personal-context-graph-daily-mcp-export
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 999.1
-Plan: Not started
+Phase: 999.12 (personal-context-graph-daily-mcp-export) — EXECUTING
+Plan: 4 of 5
 Status: Ready to execute
-Last activity: 2026-06-08
+Last activity: 2026-06-09
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -117,6 +117,9 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 15 P03 | 9 | 3 tasks | 8 files |
 | Phase 15-training-fitness-activity-planner P04 | ~25min | 3 tasks | 10 files |
 | Phase 15-training-fitness-activity-planner P05 | 10m | 3 tasks | 10 files |
+| Phase 999.12 P01 | 5min | 3 tasks | 4 files |
+| Phase 999.12 P02 | 11min | 3 tasks | 14 files |
+| Phase 999.12-personal-context-graph-daily-mcp-export P03 | ~11min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -322,6 +325,16 @@ Recent decisions affecting current work:
 - [Phase 15-training-fitness-activity-planner]: [15-04] Two-click inline delete confirm on ActivityEditDialog (avoid nested AlertDialog focus-trap)
 - [Phase 15-training-fitness-activity-planner]: Heatmap stays a fixed 12-month view independent of the time-window toggle; only supporting cards re-aggregate
 - [Phase 15-training-fitness-activity-planner]: Single all-time useQuery is source of truth; time-window filter derives in-memory so realtime invalidation touches one key
+- [Phase 999.12]: Snapshot payload kept as plain jsonb (no .$type<ContextSnapshot>()) in schema.ts to avoid circular import schema.ts → context/build-snapshot.ts → schema.ts; Plan 02 casts at the query site
+- [Phase 999.12]: personal_context_snapshots intentionally excluded from supabase_realtime publication (RESEARCH.md Pitfall 4 — JSONB payload is privacy-sensitive; no live-update need)
+- [Phase 999.12]: Plan 02: loaders take optional db injection; tests mock loaders not Drizzle chain — faster + decoupled from query DSL
+- [Phase 999.12]: Plan 02: edges derive purely from loaded nodes — no extra DB hit. captures/tasks loaders fetch junction inline; deriveEdges walks in-memory only (O(rows))
+- [Phase 999.12]: Plan 02: caps live in loaders not schema (tasks 200, captures 50/500-char, training 30). meta.excludedNoExportCount tracks the recency window not unbounded history
+- [Phase 999.12]: Plan 02: noExport gated in TS not WHERE — SELECT no_export, skip-with-count. Surfaces excludedNoExportCount without a second COUNT query and is robust to mid-build flips
+- [Phase 999.12]: Plan 02: Zod 4 UUID strict-format gotcha — pad-counter test fixtures (00000000-…-0010) fail format; all fixtures use crypto.randomUUID() (v4). Documented inline in build-snapshot.test.ts
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Zod schemas in packages/personal-context-mcp/ duplicated verbatim from apps/web/lib/context/types.ts (MCP-01 zero-coupling). Lock-step bumps documented in PRIVACY.md §6.
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Tool registration split into makeXHandler(ctx) + registerX(server, ctx) so tests drive handlers directly without spinning up an MCP transport.
+- [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: get_current_context.topics[] filters NODES ONLY (edges always returned in full); get_snapshot_history capped at days=30 + metadata-only (no nodes/edges arrays) to stay under MCP response budget.
 
 ### Pending Todos
 
@@ -341,9 +354,10 @@ None yet.
 | 260607-g56 | LifeOS polish — wrapping AreasTree, scoped warm wallpaper, JARVIS quick-send + global Cmd+K dialog (sessionStorage handoff), motion/react pass | 2026-06-07 | 742a0cc | [260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr](./quick/260607-g56-lifeos-polish-wrap-tree-wallpaper-backgr/) |
 | 260607-gox | Make LifeOS widgets interactive — habit toggle, hover-reveal Convert-to-task on JARVIS captures, task checkoff with motion slide-out; reuses existing Server Actions + TanStack Query keys so /habits, /captures, /tasks stay in sync | 2026-06-07 | 175e3ac | [260607-gox-make-lifeos-widgets-interactive-habits-t](./quick/260607-gox-make-lifeos-widgets-interactive-habits-t/) |
 | 260607-h2k | Life analytics tab on /insights — third tab with GitHub heatmap (react-github-calendar + jogruber proxy), Claude Code usage (ccusage CLI subprocess — v20 dropped lib API), Strava (strava-v3 with refresh rotation persistence to integration_tokens), Flow Pomodoro week-flip chart; shared Result<T> contract for per-panel error isolation | 2026-06-07 | 5312cad | [260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow](./quick/260607-h2k-life-analytics-life-tab-on-insights-github-strava-claude-code-flow/) |
+| 260609-luc | Add /branding page showcasing wordmark, H mark, Kiwi logo, JARVIS lockup in token-based color variations | 2026-06-09 | 13c20ae | [260609-luc-add-branding-page-showcasing-wordmark-h-](./quick/260609-luc-add-branding-page-showcasing-wordmark-h-/) |
 
 ## Session Continuity
 
-Last session: 2026-06-08T16:34:14.544Z
-Stopped at: Completed 15-05-PLAN.md
+Last session: 2026-06-09T20:01:58.722Z
+Stopped at: Completed 999.12-03-PLAN.md
 Resume file: None

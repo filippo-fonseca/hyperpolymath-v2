@@ -17,12 +17,21 @@ export function LandingFooter() {
     <footer className="border-t border-[var(--edge)] py-20">
       <div className="max-w-[1200px] mx-auto px-6 md:px-10 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
-          <a
-            href="https://opensource.org/licenses/MIT"
-            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
-          >
-            MIT LICENSE
-          </a>
+          <div className="flex items-center justify-center md:justify-start gap-3 font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <a
+              href="https://opensource.org/licenses/MIT"
+              className="hover:text-[var(--ink)] transition-colors"
+            >
+              MIT LICENSE
+            </a>
+            <span aria-hidden="true" className="opacity-40">·</span>
+            <a
+              href="/branding"
+              className="hover:text-[var(--ink)] transition-colors"
+            >
+              BRAND
+            </a>
+          </div>
           <a
             href="https://github.com/filippo-fonseca"
             className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors text-center"

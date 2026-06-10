@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, Laptop } from "lucide-react";
+import { Brain, KeyRound, Laptop, Network } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -231,6 +231,50 @@ export default async function SettingsPage() {
             className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
           >
             Manage devices →
+          </Link>
+        </Card>
+
+        {/* Phase 999.12 / CTX-08 — Personal context preview + rebuild. */}
+        <Card className={tileHover}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <Network className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              Personal context
+            </h2>
+          </div>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
+            See the snapshot of you that external agents read — and rebuild it
+            on demand without waiting for the nightly refresh.
+          </p>
+          <Link
+            href="/settings/context"
+            className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
+            View snapshot →
+          </Link>
+        </Card>
+
+        {/* Phase 999.12 / MCP-05 — MCP bearer-token management. */}
+        <Card className={tileHover}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)]">
+              <KeyRound className="h-4 w-4" />
+            </span>
+            <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+              MCP tokens
+            </h2>
+          </div>
+          <p className="font-serif text-base text-[var(--ink-muted)]">
+            Mint a bearer token for Claude Desktop, Claude Code, or
+            claude.ai to read your personal context via MCP. Revoke anytime.
+          </p>
+          <Link
+            href="/settings/mcp-tokens"
+            className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+          >
+            Manage tokens →
           </Link>
         </Card>
 

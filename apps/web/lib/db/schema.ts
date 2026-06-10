@@ -162,6 +162,9 @@ export const tasks = pgTable(
     dueDate: date("due_date"),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
+    // task is filtered out of the personal-context snapshot. Migration 0027.
+    noExport: boolean("no_export").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -183,6 +186,9 @@ export const captures = pgTable(
     // capture. JARVIS-created captures write 'jarvis'; manual captures stay
     // NULL. Plan 05-04 keys the "Convert to task" affordance off this.
     createdVia: text("created_via"),
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
+    // capture is filtered out of the personal-context snapshot. Migration 0027.
+    noExport: boolean("no_export").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
@@ -291,6 +297,9 @@ export const jarvisFacts = pgTable(
     key: text("key").notNull(),
     value: text("value").notNull(),
     source: text("source").notNull(),
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
+    // fact is filtered out of the personal-context snapshot. Migration 0027.
+    noExport: boolean("no_export").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
@@ -625,6 +634,9 @@ export const trainingActivityTypes = pgTable(
     // (JS-side, perceptual) the canonical color authority.
     color: text("color").notNull(),
     hasDistance: boolean("has_distance").notNull().default(false),
+    // lucide-react icon name (e.g. "dumbbell"); null = fall back to the color
+    // swatch only. Backed by migration 0025_training_icons.sql.
+    icon: text("icon"),
     orderIndex: integer("order_index").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -684,5 +696,39 @@ export const trainingActivities = pgTable(
     index("training_activities_user_status_idx")
       .on(t.userId, t.status)
       .where(sql`status = 'done'`),
+  ],
+);
+
+// ─── PERSONAL CONTEXT GRAPH ─────────────────────────────────────────────────
+// Phase 999.12 — daily snapshot storage for the MCP export. One row per
+// (user_id, snapshot_date) so re-running the builder on the same day is an
+// idempotent upsert. RLS is owner-only (auth.uid() = user_id) per migration
+// 0026; NOT in the supabase_realtime publication (RESEARCH.md Pitfall 4 —
+// snapshots don't need live updates and broadcasting them would leak the
+// JSON payload over websockets).
+//
+// schema_version supports forever-snapshot read-time migrations — never
+// mutate historical rows; route old payloads through a pure migrate function
+// on read instead (RESEARCH.md Pitfall 3).
+
+export const personalContextSnapshots = pgTable(
+  "personal_context_snapshots",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    snapshotDate: date("snapshot_date").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    // Typed by Plan 02's ContextSnapshot Zod schema. Plain jsonb here so this
+    // schema file stays free of cross-package imports (would otherwise create
+    // a circular dependency schema.ts → context/build-snapshot.ts → schema.ts).
+    // Plan 02 will cast at the query site instead.
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.snapshotDate] }),
   ],
 );

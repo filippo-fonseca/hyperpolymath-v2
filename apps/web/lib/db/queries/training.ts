@@ -33,6 +33,7 @@ export type ActivityWithType = ActivityRow & {
     color: string;
     hasDistance: boolean;
     batchId: string | null;
+    icon: string | null;
   };
 };
 
@@ -128,6 +129,7 @@ export async function getActivitiesInRange(
       typeColor: trainingActivityTypes.color,
       typeHasDistance: trainingActivityTypes.hasDistance,
       typeBatchId: trainingActivityTypes.batchId,
+      typeIcon: trainingActivityTypes.icon,
     })
     .from(trainingActivities)
     .innerJoin(
@@ -154,6 +156,7 @@ export async function getActivitiesInRange(
       color: r.typeColor,
       hasDistance: r.typeHasDistance,
       batchId: r.typeBatchId,
+      icon: r.typeIcon,
     },
   }));
 }
@@ -173,6 +176,7 @@ export async function getAllActivities(
       typeColor: trainingActivityTypes.color,
       typeHasDistance: trainingActivityTypes.hasDistance,
       typeBatchId: trainingActivityTypes.batchId,
+      typeIcon: trainingActivityTypes.icon,
     })
     .from(trainingActivities)
     .innerJoin(
@@ -193,6 +197,7 @@ export async function getAllActivities(
       color: r.typeColor,
       hasDistance: r.typeHasDistance,
       batchId: r.typeBatchId,
+      icon: r.typeIcon,
     },
   }));
 }
@@ -213,6 +218,7 @@ export async function getActivityById(
       typeColor: trainingActivityTypes.color,
       typeHasDistance: trainingActivityTypes.hasDistance,
       typeBatchId: trainingActivityTypes.batchId,
+      typeIcon: trainingActivityTypes.icon,
     })
     .from(trainingActivities)
     .innerJoin(
@@ -237,6 +243,7 @@ export async function getActivityById(
       color: r.typeColor,
       hasDistance: r.typeHasDistance,
       batchId: r.typeBatchId,
+      icon: r.typeIcon,
     },
   };
 }

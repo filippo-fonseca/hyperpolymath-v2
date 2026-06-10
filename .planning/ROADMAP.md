@@ -590,10 +590,71 @@ Plans:
 
 **Open questions:** what goes in by default vs opt-in per node type; nightly cadence vs on-demand pulls; schema versioning strategy for forever-snapshots; embedding model + vector store for semantic query; whether to expose write-back tools (e.g., `add_capture`) or read-only
 
-**Requirements:** TBD (define during planning — likely `CTX-*` and `MCP-*` families)
+**Requirements:** CTX-01, CTX-02, CTX-03, CTX-04, CTX-05, CTX-06, CTX-07, CTX-08, CTX-09, MCP-01, MCP-02, MCP-03, MCP-04, MCP-05, MCP-06 (MCP-07 — semantic query / pgvector — explicitly deferred to follow-on phase 999.12.1)
 
-**Plans:** 0 plans (in planning)
+**Plans:** 4/5 plans executed
 
 Plans:
-- [ ] TBD (created by /gsd:plan-phase 999.12)
+- [x] 999.12-01-PLAN.md — Wave 1: DB foundation — migration 0026 (personal_context_snapshots + RLS) + migration 0027 (no_export columns on captures/tasks/jarvis_facts) + Drizzle schema updates (CTX-01, CTX-04, MCP-03)
+- [x] 999.12-02-PLAN.md — Wave 1: Typed snapshot builder — apps/web/lib/context/ data layer with Zod Node/Edge discriminated unions, per-node loaders with no_export filter + caps, deriveEdges, buildSnapshot, migrate, persistSnapshot (CTX-02, CTX-03, CTX-04, CTX-09)
+- [x] 999.12-03-PLAN.md — Wave 2: packages/personal-context-mcp/ workspace package — types + createPersonalContextServer factory + get_current_context + get_snapshot_history tools + PRIVACY.md field allowlist (MCP-01, MCP-04, MCP-06)
+- [x] 999.12-04-PLAN.md — Wave 2: Next.js API surfaces — bearer mint/verify helpers + Streamable HTTP /api/mcp endpoint + Vercel cron route + manual /api/context/rebuild + vercel.json cron entry (CTX-06, CTX-07, MCP-02, MCP-03)
+- [ ] 999.12-05-PLAN.md — Wave 3: Settings UI — /settings/context (snapshot preview + Rebuild now) + /settings/mcp-tokens (mint/list/revoke mirroring /settings/desktop) + NoExportToggle component + end-to-end human-verify with a live MCP client (CTX-05, CTX-08, MCP-05)
 
+
+
+### Phase 999.14: Pre-release landing page refresh (BACKLOG)
+
+**Goal:** Before going public, sweep the marketing landing page so it reflects what hyperpolymath actually does today — not the Phase 1/2 placeholder copy. Two big additions: (1) MCP / personal context graph story (ships from Phase 999.12) — frame hyperpolymath as the daily-refreshed memory layer for every other agent the user touches; (2) Knowledge graph angle — unified web of areas/projects/captures/tasks/training/habits as a first-class surface ("your second brain has a schema now"). Plus a housekeeping pass: replace v1-era copy (Goodreads/Strava/Twilio references), audit the JARVIS demo for current tool list, confirm split-screen + ⌃1/⌃2 + LifeOS hero/bento are showcased, re-shoot stale screenshots, verify OG/favicon/twitter-image reflect current brand mark, typo/grammar sweep.
+
+**Why:** Landing copy is the first impression. Captured 2026-06-09 in anticipation of a public push following Phase 999.12 (which adds the actual MCP-export story worth telling).
+
+**Idea:** `.planning/phases/999.14-pre-release-landing-page-refresh/IDEA.md`
+
+**Requirements:** TBD (define when promoting — likely `LAND-*` family)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD
+
+### Phase 999.16: MCP token label column + multi-token-per-user (BACKLOG, parent 999.12)
+
+**Goal:** Two small followups to Phase 999.12: (a) add a dedicated `label text` column to `integration_tokens` (v1 of 999.12 reuses the existing `refresh_token` column to hold the user-supplied human-readable token name — a documented shortcut), and (b) drop the one-token-per-user constraint on `mcp_agent` tokens (composite PK `(user_id, provider)` means re-mint overwrites; switching to a surrogate `id uuid` PK lets the user keep independent tokens for claude.ai web vs Claude Code vs future agents and revoke each independently).
+
+**Why:** Independent revocation is the whole point of per-agent MCP tokens. v1's overwrite-on-mint UX is acceptable for one user with one consumer, but the moment a second consumer comes online the overwrite becomes a footgun. Also, `refresh_token` carrying a human label is the kind of semantic shortcut that turns confusing 18 months later.
+
+**Likely shape:**
+- One additive migration: `ALTER TABLE integration_tokens ADD COLUMN label text;` + relax PK to include a surrogate `id uuid default gen_random_uuid()`
+- Migrate existing `mcp_agent` rows: copy `refresh_token` → `label`, null out `refresh_token`
+- Update `/settings/mcp-tokens` Server Actions to write `label` directly and support N tokens per user
+- Update `/api/mcp/[...transport]` bearer lookup to match on `(provider, token_hash)` instead of `(user_id, provider)`
+
+**Trigger:** When the user wants a second MCP token, or when any other phase needs to add a `provider` to `integration_tokens` that genuinely needs both a label and a real refresh token.
+
+**Requirements:** TBD (define when promoting)
+
+**Plans:** 0 plans (idea filed 2026-06-09)
+
+Plans:
+- [ ] TBD
+
+### Phase 999.15: NoExport toggle on captures + tasks (per-row UI) (BACKLOG, parent 999.12)
+
+**Goal:** Surface the per-row `no_export` toggle on capture detail and task detail panels. Phase 999.12 ships the underlying column on `captures`, `tasks`, and `jarvis_facts` and the builder filters rows where `no_export = true`. The only missing piece for v1 was the UI — the toggle shipped only on `/settings/memory` (jarvis_facts, the most privacy-sensitive surface). Per-capture and per-task toggles are pure additive UI work: column, Server Action, and builder filter all already exist.
+
+**Why:** Captures and tasks DO leak personal info via MCP today unless the user remembers to flip the row's flag before the nightly cron fires; currently there is no UI for that flip. Defaulting to exportable is right (otherwise the system loses its "agent already knows me" value) but the per-row opt-out needs to be one click away.
+
+**Likely shape:**
+- Mount the existing `NoExportToggle` on capture detail + task detail panels
+- Same Server Action `setNoExport(table, id, value)` already accepts `'captures'` and `'tasks'` from 999.12
+- Optional polish: small "🔒 Not exported" badge on `/captures` and `/tasks` list rows when flagged
+
+**Trigger:** Immediately after Phase 999.12 lands and a few weeks of MCP usage reveal which capture/task types the user actually wants to hide. Cheap, additive, no migration.
+
+**Requirements:** TBD
+
+**Plans:** 0 plans (idea filed 2026-06-09)
+
+Plans:
+- [ ] TBD

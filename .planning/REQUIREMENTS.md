@@ -211,6 +211,28 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [ ] **DESK-05**: A Settings window inside the desktop app exposes (and persists across restarts, in the app's data dir): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model selector + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle. All changes apply live without restarting the daemon
 - [ ] **DESK-06**: `hyperpolymath` (the dev stack boot tool at `tools/hyperpolymath/hyperpolymath.mjs`) gains a `desktop` service entry in its `SERVICES` array that spawns `pnpm --filter desktop tauri dev` (idempotent — attaches to an already-running tray instance), with status reflected in the boot-script's bottom status bar (◌/●/✗ + port label). The existing `tools/jarvis-physical/bridge/` serial bridge continues to fire wake triggers unchanged
 
+### Personal Context Graph + MCP Export (Phase 999.12)
+
+- [x] **CTX-01**: `personal_context_snapshots` table exists with `user_id`, `captured_on` (date, one row per user per day), `schema_version` (int), `payload` (jsonb typed graph), `meta` (jsonb with counts + `no_export_filtered`), RLS scoped to `auth.uid()`, NOT added to `supabase_realtime` publication
+- [x] **CTX-02**: `apps/web/lib/context/builder.ts` exports a pure `buildSnapshot(userId)` that reads from areas/projects/tasks/captures/training/habits/jarvis_facts via Drizzle and returns a typed `{ nodes: Node[]; edges: Edge[]; meta }` graph
+- [x] **CTX-03**: `Node` and `Edge` are discriminated unions with Zod schemas; every node type has an explicit `kind` discriminator; payload is parse-validated before persistence
+- [x] **CTX-04**: `no_export boolean default false` columns exist on `captures`, `tasks`, and `jarvis_facts`; the snapshot builder filters rows where `no_export = true` and records the filtered count in `meta.no_export_filtered`
+- [ ] **CTX-05**: `/settings/context` page renders the latest snapshot (collapsible JSON preview + node/edge counts + filtered count) and exposes an on-demand "Rebuild now" button that calls `/api/context/rebuild`
+- [x] **CTX-06**: `app/api/cron/build-snapshot/route.ts` runs as a Node-runtime route, validates `Authorization: Bearer ${CRON_SECRET}`, iterates active users, and upserts one snapshot per user per UTC day
+- [x] **CTX-07**: `vercel.json` contains a cron entry hitting `/api/cron/build-snapshot` on `0 5 * * *` (00:00 ET / 05:00 UTC)
+- [ ] **CTX-08**: A `NoExportToggle` component + Server Action lets the user flip `no_export` on individual captures, tasks, and JARVIS facts; mounted at least on `/settings/memory` (jarvis_facts list)
+- [x] **CTX-09**: Snapshot payload carries `schema_version: 1`; a `migrateSnapshot(payload)` helper centralizes future version bumps so the cron + reader paths never branch on version inline
+
+### MCP Server — Personal Context (Phase 999.12)
+
+- [x] **MCP-01**: `packages/personal-context-mcp/` workspace package exports `createPersonalContextServer({ userId, db })` returning a configured MCP `Server` instance; mirrors the `packages/jarvis-core/` factoring
+- [x] **MCP-02**: `app/api/mcp/[...transport]/route.ts` mounts the MCP server over `StreamableHTTPServerTransport` (NOT stdio); `runtime = 'nodejs'` is explicit
+- [x] **MCP-03**: `integration_tokens` table is reused with `provider = 'mcp_agent'`; the MCP route validates `Authorization: Bearer <token>` against the table and resolves it to a `userId` before instantiating the server
+- [x] **MCP-04**: V1 tools `get_current_context({ topics?: NodeKind[] })` and `get_snapshot_history({ days?: number })` are defined with Zod input schemas and read-only handlers that query `personal_context_snapshots` via Drizzle; `get_snapshot_history` returns metadata-only (no payloads)
+- [ ] **MCP-05**: `/settings/mcp-tokens` page lets the user mint, list, and revoke MCP agent tokens (mirror `/settings/desktop`); mint flow displays the raw token exactly once with a copy button
+- [x] **MCP-06**: `packages/personal-context-mcp/PRIVACY.md` documents the exact set of node types exported, the `no_export` filtering behavior, what is NEVER exported (raw conversation history, OAuth tokens, encrypted secrets), and the token-rotation guidance
+- [ ] **MCP-07**: ~~`query_context({ question, k })` semantic search over snapshot history via pgvector + embeddings~~ **DEFERRED to follow-on phase 999.12.1** — read-only retrieval ships first
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.

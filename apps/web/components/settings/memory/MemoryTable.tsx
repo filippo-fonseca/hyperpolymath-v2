@@ -23,6 +23,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { forgetFactAction } from "@/app/actions/jarvis-facts";
 import { RelativeTime } from "@/components/shared/RelativeTime";
+import { NoExportToggle } from "@/components/privacy/NoExportToggle";
 import { MemoryEditDialog } from "./MemoryEditDialog";
 
 interface JarvisFactRow {
@@ -31,6 +32,8 @@ interface JarvisFactRow {
   key: string;
   value: string;
   source: "user_explicit" | "jarvis_suggested";
+  // Phase 999.12 / CTX-04 — privacy gate for the MCP personal-context export.
+  noExport: boolean;
   updatedAt: Date;
   lastUsedAt: Date | null;
 }
@@ -79,8 +82,10 @@ function FactCard({
         </span>
       </div>
 
-      {/* Action row — agent-secondary + destructive buttons per UI-SPEC §9a. */}
-      <div className="mt-3 flex items-center gap-2">
+      {/* Action row — agent-secondary + destructive buttons per UI-SPEC §9a.
+          Plus the Phase 999.12 / CTX-04 NoExportToggle so each fact has a
+          per-row privacy gate against the MCP personal-context export. */}
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         <button
           type="button"
           onClick={onEdit}
@@ -99,6 +104,11 @@ function FactCard({
         >
           Delete
         </button>
+        <NoExportToggle
+          resource="jarvis_fact"
+          id={fact.id}
+          initial={fact.noExport}
+        />
       </div>
     </article>
   );
