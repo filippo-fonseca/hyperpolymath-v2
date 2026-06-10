@@ -64,11 +64,10 @@ export function FrameworkSection() {
           {/* Headline */}
           <h2 className="font-serif font-semibold text-center text-[40px] md:text-[56px] leading-[1.05] tracking-[-0.015em]">
             It&rsquo;s a{" "}
-            <em className="italic font-extrabold">platform</em>.{" "}
-            And a{" "}
+            <em className="italic font-extrabold">platform</em>, but also a{" "}
             <em className="italic font-extrabold">framework</em>.
             <br className="hidden md:block" />
-            <span className="opacity-90"> Use mine. Or build your own.</span>
+            <span className="opacity-90"> Use mine, or build your own.</span>
           </h2>
 
           {/* Fleuron spacer */}
