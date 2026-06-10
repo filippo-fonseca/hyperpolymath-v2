@@ -12,6 +12,7 @@ import { ChoiceSection } from "./ChoiceSection";
 import { BuildLog } from "./BuildLog";
 import { CursorSpotlight } from "./CursorSpotlight";
 import { DiagramBannerSection } from "./DiagramBannerCard";
+import { MCPSection } from "./MCPSection";
 
 /**
  * Public landing manifesto — Phase 8.
@@ -68,6 +69,11 @@ export function LandingPage() {
         <div className="py-12">
           <SectionDivider />
         </div>
+
+        {/* §06.5 — THE MCP SERVER (one-source-of-truth for external LLMs) */}
+        <MCPSection />
+
+        <SectionDivider />
 
         {/* §07 — THE SURFACE (LifeOS canvas + desktop app + Polypad) */}
         <SurfaceSection />
