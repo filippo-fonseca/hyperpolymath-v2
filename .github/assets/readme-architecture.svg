@@ -37,7 +37,7 @@
   <text x="1120" y="80" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">FIG. 02  ·  ONE SENTENCE, END TO END</text>
 
   <!-- Title -->
-  <text x="600" y="146" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="48" font-weight="600" letter-spacing="-0.5" fill="#1a1a1a">How a sentence becomes an action.</text>
+  <text x="600" y="146" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="48" font-weight="600" letter-spacing="-0.5" fill="#1a1a1a">How a sentence becomes an action:</text>
   <text x="600" y="180" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="20" fill="#1a1a1a" fill-opacity="0.65">The contract every JARVIS turn follows, from typed input to live data.</text>
 
   <!-- ─────────── USER SENTENCE PILL ─────────── -->
