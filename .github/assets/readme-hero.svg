@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" role="img" aria-label="Hyperpolymath, a personal life-OS for people who refuse to specialize">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 590" width="1200" height="590" role="img" aria-label="Hyperpolymath, a personal life-OS for people who refuse to specialize">
   <defs>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
@@ -11,18 +11,18 @@
   </defs>
 
   <!-- Outer page (paper) -->
-  <rect x="0" y="0" width="1200" height="560" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="590" fill="#efe9db"/>
 
   <!-- Neumorphic dark shadow underlay -->
-  <rect x="36" y="36" width="1128" height="488" rx="20" fill="#d6cdb9" filter="url(#neuShadow)" opacity="0.55"/>
+  <rect x="36" y="36" width="1128" height="518" rx="20" fill="#d6cdb9" filter="url(#neuShadow)" opacity="0.55"/>
   <!-- Neumorphic light highlight underlay -->
-  <rect x="24" y="24" width="1128" height="488" rx="20" fill="#ffffff" filter="url(#neuShadow)" opacity="0.7"/>
+  <rect x="24" y="24" width="1128" height="518" rx="20" fill="#ffffff" filter="url(#neuShadow)" opacity="0.7"/>
 
   <!-- The card -->
-  <rect x="30" y="30" width="1140" height="500" rx="18" fill="url(#paper)"/>
+  <rect x="30" y="30" width="1140" height="530" rx="18" fill="url(#paper)"/>
 
   <!-- Subtle inner hairline -->
-  <rect x="30.5" y="30.5" width="1139" height="499" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="30.5" y="30.5" width="1139" height="529" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Crest dot row (top-left meta) -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -50,15 +50,17 @@
   <line x1="420" y1="386" x2="780" y2="386" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
   <text x="600" y="390" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="3" fill="#1a1a1a" fill-opacity="0.4" dy="-6">⚜</text>
 
-  <!-- Centered brand statement, italic + extra-bold on JARVIS and Renaissance Human -->
-  <text x="600" y="440" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="34" font-weight="600" fill="#1a1a1a">
-    I brought back the <tspan font-style="italic" font-weight="800">Renaissance Human</tspan>. And gave them <tspan font-style="italic" font-weight="800">JARVIS</tspan> from Tony Stark. All in one.
+  <!-- Centered brand statement, italic + extra-bold on JARVIS and Renaissance Human.
+       Two lines so the phrase doesn't overflow at this card width. -->
+  <text x="600" y="430" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">
+    <tspan x="600">I brought back the <tspan font-style="italic" font-weight="800">Renaissance Human</tspan>. And gave them <tspan font-style="italic" font-weight="800">JARVIS</tspan> from Tony Stark.</tspan>
+    <tspan x="600" dy="38" font-style="italic">All in one.</tspan>
   </text>
 
   <!-- Spacer hairline below the centered statement -->
-  <line x1="420" y1="472" x2="780" y2="472" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
+  <line x1="420" y1="498" x2="780" y2="498" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
 
   <!-- Footer brand spine -->
-  <text x="80" y="506" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HYPERPOLYMATH · BY FILIPPO FONSECA</text>
-  <text x="1120" y="506" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">HOW YOU DO ONE THING IS HOW YOU DO EVERYTHING</text>
+  <text x="80" y="532" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HYPERPOLYMATH · BY FILIPPO FONSECA</text>
+  <text x="1120" y="532" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">HOW YOU DO ONE THING IS HOW YOU DO EVERYTHING</text>
 </svg>
