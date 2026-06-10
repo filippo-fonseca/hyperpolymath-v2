@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 /**
@@ -24,6 +25,12 @@ export function LandingHeader() {
           <span className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             EST. 2026 / MIT
           </span>
+          <Link
+            href="/sign-in"
+            className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+          >
+            SIGN IN
+          </Link>
           <ThemeToggle variant="header" />
         </div>
       </div>
