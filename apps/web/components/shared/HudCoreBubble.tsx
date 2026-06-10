@@ -84,7 +84,9 @@ export function HudCoreBubble({
   // When the user is talking to JARVIS (mic active), the bubble takes over
   // as the focal point: full opacity (override dimmed), scaled up, brighter
   // glow. Returns to ambient when state drops back to listening.
-  const baseOpacity = dimmed ? 0.18 : 0.7;
+  // Ambient baseline bumped from 0.7 → 0.88 so the kiwi reads as present,
+  // not faded, on the landing hero + every other surface that mounts this.
+  const baseOpacity = dimmed ? 0.22 : 0.88;
   const effectiveOpacity = micActive ? 1 : baseOpacity;
   const wakeScale = micActive ? 1.45 : 1;
   const stroke = isError ? "var(--ink-coral)" : "var(--hud-cyan)";
@@ -245,14 +247,21 @@ export function HudCoreBubble({
           className={shouldReduce ? "" : "hud-core-breathe"}
           style={{ transformOrigin: "140px 140px" }}
         >
-          {/* Soft halo backdrop so the glyph reads as a centerpiece, not a
-              floating shape. */}
+          {/* Soft dark halo backdrop so the bright kiwi glyph reads as a
+              centerpiece against the cyan aura instead of blending into it. */}
+          <circle
+            cx="140"
+            cy="140"
+            r="34"
+            fill="#020617"
+            opacity="0.45"
+          />
           <circle
             cx="140"
             cy="140"
             r="34"
             fill={stroke}
-            opacity="0.06"
+            opacity="0.08"
           />
           {/* Kiwi-bird glyph — source: apps/web/public/icons/kiwi-bird.svg.
               Original 24×24 path scaled 2.2× to ~53×53 and centered on
@@ -263,13 +272,13 @@ export function HudCoreBubble({
           <g
             transform="translate(114 114) scale(2.2)"
             style={{
-              filter: `drop-shadow(0 0 6px color-mix(in oklch, ${stroke} 45%, transparent))`,
+              filter: `drop-shadow(0 0 8px color-mix(in oklch, ${stroke} 70%, transparent))`,
             }}
           >
             <path
               d="m20.741,5.991c.21-.595.299-1.234.243-1.88-.114-1.326-.812-2.532-1.913-3.309-1.422-1.002-3.378-1.072-4.87-.174-.307.185-.59.403-.841.647-.807.786-2.119,1.723-3.788,1.723h-.794C4.18,2.998.334,6.462.022,10.884c-.174,2.468.725,4.883,2.468,6.625.844.844,1.848,1.484,2.938,1.906l.573,4.583h2.191l-.499-4.04c.271.026.544.04.818.04.201,0,.403-.007.604-.021.447-.032.881-.108,1.305-.209l.529,4.231h2.168l-.706-4.987c2.729-1.469,4.589-4.425,4.589-7.791l.021-2.262c.615-.069,1.187-.271,1.708-.568,3.845,3.229,4.272,8.608,4.272,8.608h1c0-5.446-2.104-9.299-3.259-11.007Zm-3.943.98c-1.025.115-1.798.952-1.798,1.947v2.302c0,3.553-2.647,6.523-6.026,6.761-1.891.131-3.737-.555-5.07-1.887-1.333-1.333-2.021-3.181-1.887-5.071.238-3.379,3.208-6.026,6.761-6.026h.794c1.852,0,3.645-.792,5.183-2.29.141-.137.301-.261.477-.366.823-.495,1.901-.458,2.686.095.627.442,1.008,1.098,1.073,1.846.063.737-.2,1.46-.723,1.983-.398.398-.907.642-1.47.705Zm1.202-2.473c0,.828-.672,1.5-1.5,1.5s-1.5-.672-1.5-1.5.672-1.5,1.5-1.5,1.5.672,1.5,1.5Z"
-              fill={stroke}
-              opacity="0.95"
+              fill={`color-mix(in oklch, ${stroke} 45%, white)`}
+              opacity="1"
             />
           </g>
         </g>
