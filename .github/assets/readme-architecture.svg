@@ -63,19 +63,16 @@
 
   <!-- ─────────── 02 · JARVIS LAYER (dark slab) ─────────── -->
   <g>
-    <rect x="200" y="542" width="800" height="180" rx="14" fill="url(#cardDark)"/>
+    <rect x="200" y="542" width="800" height="140" rx="14" fill="url(#cardDark)"/>
     <text x="240" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.6">02  ·  THE AGENT</text>
     <text x="240" y="624" font-family="'EB Garamond', Georgia, serif" font-size="30" font-weight="600" fill="#f7f3ea">
       <tspan font-style="italic" font-weight="800">JARVIS</tspan>  ·  Claude Sonnet 4.6
     </text>
     <text x="240" y="654" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#f7f3ea" fill-opacity="0.7">Streaming · Strict Tool Use · structured JSON contract · multi-tool turns</text>
-
-    <line x1="240" y1="676" x2="960" y2="676" stroke="#f7f3ea" stroke-opacity="0.12"/>
-    <text x="240" y="700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#f7f3ea" fill-opacity="0.55">@anthropic-ai/sdk  ·  prompt caching  ·  state priming  ·  tool registry</text>
   </g>
 
   <!-- arrow ↓ -->
-  <line x1="600" y1="722" x2="600" y2="760" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
+  <line x1="600" y1="682" x2="600" y2="760" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.4"/>
   <polygon points="600,766 593,756 607,756" fill="#1a1a1a" fill-opacity="0.8"/>
 
   <!-- ─────────── 03 · EXECUTOR ─────────── -->
