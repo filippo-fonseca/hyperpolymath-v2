@@ -134,8 +134,9 @@ export function ThesisSection() {
               I brought back the{" "}
               <em className="font-extrabold italic">Renaissance Human</em>
               . And gave them{" "}
-              <em className="font-extrabold italic">JARVIS</em> from Tony
-              Stark.
+              <span className="whitespace-nowrap">
+                <em className="font-extrabold italic">JARVIS</em> from Tony Stark.
+              </span>
               <br className="hidden md:block" />
               <span className="italic">All in one.</span>
             </p>
