@@ -37,7 +37,13 @@ export const maxDuration = 30;
 
 const MAX_TEXT_LEN = 5000;
 
-const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+let client: ElevenLabsClient | null = null;
+function getClient(): ElevenLabsClient {
+  if (!client) {
+    client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+  }
+  return client;
+}
 
 export async function POST(req: NextRequest): Promise<Response> {
   // 1. Auth — three accepted callers in priority order:
@@ -79,7 +85,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // 3. Open ElevenLabs stream
   try {
-    const audioStream = await client.textToSpeech.convertAsStream(voiceId, {
+    const audioStream = await getClient().textToSpeech.convertAsStream(voiceId, {
       text,
       model_id: "eleven_flash_v2_5",
       output_format: "pcm_24000", // LAT-01: raw 16-bit signed LE @ 24kHz mono, no decodeAudioData tax
