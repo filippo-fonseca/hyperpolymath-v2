@@ -106,12 +106,12 @@ export function SurfaceSection() {
               className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
               style={{ color: "var(--hud-cyan-light)" }}
             >
-              POLYPAD · OPTIONAL HARDWARE
+              MACROPAD + PHYSICAL VOICE DETECTOR HARDWARE
             </p>
           </div>
 
           <h3 className="mt-4 font-serif font-semibold text-[22px] leading-[1.2] text-[var(--ink)]">
-            Or build your own.
+            The Polypad.
           </h3>
 
           <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink)]">

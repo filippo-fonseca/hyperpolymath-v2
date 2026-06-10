@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
+import { VoiceInputCard } from "./VoiceInputCard";
 import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
 
 // --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier inference.
@@ -153,11 +154,10 @@ export function ThesisSection() {
           </div>
         </motion.div>
 
-        {/* Live JARVIS line — sits tight under the banner so it remains
-            in the first fold on most viewports, but doesn't push the
-            banner card itself off-screen. */}
+        {/* Typed + Spoken input cards sit side-by-side under the banner
+            so visitors see both modalities advertised at once. */}
         <motion.div
-          className="mt-6 md:mt-8"
+          className="mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-[920px] mx-auto"
           initial={enter.initial}
           animate={enter.animate}
           transition={
@@ -167,6 +167,7 @@ export function ThesisSection() {
           }
         >
           <HeroJarvisLine />
+          <VoiceInputCard />
         </motion.div>
       </div>
 
