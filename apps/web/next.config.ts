@@ -4,9 +4,13 @@ import path from "node:path";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Next 16: Turbopack is default; no explicit flag needed
-  // Transpile our pure-TS workspace package (ESM source, no build step).
-  // Required so Next's bundler walks @hyperpolymath/jarvis-core's TS files.
-  transpilePackages: ["@hyperpolymath/jarvis-core"],
+  // Transpile our pure-TS workspace packages (ESM source, no build step).
+  // Required so Next's bundler walks their TS files instead of trying to
+  // resolve the .js-suffixed NodeNext-style imports literally.
+  transpilePackages: [
+    "@hyperpolymath/jarvis-core",
+    "@hyperpolymath/personal-context-mcp",
+  ],
 
   // Phase 8 (LAND-ROADMAP-FS / D-09):
   // Rebase output file tracing to the monorepo root so we can include files

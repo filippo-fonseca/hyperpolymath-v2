@@ -634,6 +634,9 @@ export const trainingActivityTypes = pgTable(
     // (JS-side, perceptual) the canonical color authority.
     color: text("color").notNull(),
     hasDistance: boolean("has_distance").notNull().default(false),
+    // lucide-react icon name (e.g. "dumbbell"); null = fall back to the color
+    // swatch only. Backed by migration 0025_training_icons.sql.
+    icon: text("icon"),
     orderIndex: integer("order_index").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

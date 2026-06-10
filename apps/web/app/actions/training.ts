@@ -776,3 +776,27 @@ export async function listAllActivities(): Promise<ActivityWithType[]> {
   if (!userId) return [];
   return getAllActivities(userId);
 }
+
+// ---------------------------------------------------------------------------
+// createSeries — placeholder for the not-yet-shipped recurring training feature.
+// `CreateRecurringDialog` references it but is not mounted anywhere yet (orphan
+// in this branch). Stubbed so the rest of the app keeps type-checking; wire up
+// the real implementation when the recurring UI lands.
+// ---------------------------------------------------------------------------
+export async function createSeries(_input: {
+  activityTypeId: string;
+  title: string;
+  plannedDurationMin: number | null;
+  plannedDistanceKm: number | null;
+  daysOfWeek: boolean[];
+  startDate: string;
+  endDate: string | null;
+}): Promise<
+  | { success: false; error: string }
+  | { success: true; data: { createdCount: number } }
+> {
+  return {
+    success: false,
+    error: "createSeries is not implemented yet — wire up the recurring training action",
+  };
+}

@@ -16,9 +16,9 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerGetCurrentContext } from "./tools/get-current-context.js";
-import { registerGetSnapshotHistory } from "./tools/get-snapshot-history.js";
-import type { LoadSnapshot, LoadHistory } from "./data/load-snapshot.js";
+import { registerGetCurrentContext } from "./tools/get-current-context";
+import { registerGetSnapshotHistory } from "./tools/get-snapshot-history";
+import type { LoadSnapshot, LoadHistory } from "./data/load-snapshot";
 
 export type CreateServerOptions = {
   /** Owner of the snapshot rows that should be served by this server instance. */
@@ -59,21 +59,21 @@ export function createPersonalContextServer(opts: CreateServerOptions): McpServe
 
 /* ─── Re-exports for downstream consumers ─────────────────────────────── */
 
-export type { LoadSnapshot, LoadHistory } from "./data/load-snapshot.js";
+export type { LoadSnapshot, LoadHistory } from "./data/load-snapshot";
 
 export {
   makeGetCurrentContextHandler,
   registerGetCurrentContext,
   getCurrentContextParamsShape,
   type GetCurrentContextCtx,
-} from "./tools/get-current-context.js";
+} from "./tools/get-current-context";
 
 export {
   makeGetSnapshotHistoryHandler,
   registerGetSnapshotHistory,
   getSnapshotHistoryParamsShape,
   type GetSnapshotHistoryCtx,
-} from "./tools/get-snapshot-history.js";
+} from "./tools/get-snapshot-history";
 
 export {
   NodeSchema,
@@ -86,4 +86,4 @@ export {
   type EdgeType,
   type ContextSnapshot,
   type SnapshotHistoryEntry,
-} from "./types.js";
+} from "./types";
