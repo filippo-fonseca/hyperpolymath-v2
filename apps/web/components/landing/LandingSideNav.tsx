@@ -93,7 +93,7 @@ export function LandingSideNav() {
   return (
     <nav
       aria-label="Section navigation"
-      className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-30 flex-col items-end gap-3 select-none"
+      className="hidden lg:flex fixed left-6 top-1/2 -translate-y-1/2 z-30 flex-col items-start gap-3 select-none"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -104,24 +104,10 @@ export function LandingSideNav() {
             type="button"
             key={entry.id}
             onClick={() => go(entry.id)}
-            className="group flex items-center gap-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] rounded-sm pl-1 pr-0.5 py-0.5"
+            className="group flex items-center gap-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] rounded-sm pr-1 pl-0.5 py-0.5"
             aria-current={isActive ? "true" : undefined}
             aria-label={`Go to ${entry.label} section`}
           >
-            <motion.span
-              className="font-mono text-[10px] tracking-[0.22em] uppercase"
-              initial={false}
-              animate={{
-                opacity: hovered || isActive ? 1 : 0,
-                x: hovered || isActive ? 0 : 6,
-                color: isActive
-                  ? "var(--hud-cyan-light)"
-                  : "var(--ink-muted)",
-              }}
-              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-            >
-              {entry.label}
-            </motion.span>
             <motion.span
               aria-hidden="true"
               className="block rounded-full"
@@ -136,6 +122,20 @@ export function LandingSideNav() {
               }}
               transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
             />
+            <motion.span
+              className="font-mono text-[10px] tracking-[0.22em] uppercase"
+              initial={false}
+              animate={{
+                opacity: hovered || isActive ? 1 : 0,
+                x: hovered || isActive ? 0 : -6,
+                color: isActive
+                  ? "var(--hud-cyan-light)"
+                  : "var(--ink-muted)",
+              }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+            >
+              {entry.label}
+            </motion.span>
           </button>
         );
       })}
