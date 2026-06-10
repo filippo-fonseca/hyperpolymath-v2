@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" width="1200" height="860" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 940" width="1200" height="940" role="img" aria-label="Hyperpolymath stack — Web app, Desktop app middleman, and Polypad hardware, all feeding the same backend">
   <defs>
     <linearGradient id="paper2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7f3ea"/>
@@ -30,13 +30,13 @@
   </defs>
 
   <!-- Page (paper) -->
-  <rect x="0" y="0" width="1200" height="860" rx="24" fill="#efe9db"/>
+  <rect x="0" y="0" width="1200" height="940" rx="24" fill="#efe9db"/>
 
   <!-- Neumorphic outer frame -->
-  <rect x="36" y="36" width="1128" height="788" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
-  <rect x="24" y="24" width="1128" height="788" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
-  <rect x="30" y="30" width="1140" height="800" rx="18" fill="url(#paper2)"/>
-  <rect x="30.5" y="30.5" width="1139" height="799" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
+  <rect x="36" y="36" width="1128" height="868" rx="20" fill="#d6cdb9" filter="url(#neuShadow2)" opacity="0.55"/>
+  <rect x="24" y="24" width="1128" height="868" rx="20" fill="#ffffff" filter="url(#neuShadow2)" opacity="0.7"/>
+  <rect x="30" y="30" width="1140" height="880" rx="18" fill="url(#paper2)"/>
+  <rect x="30.5" y="30.5" width="1139" height="879" rx="17.5" fill="none" stroke="#1a1a1a" stroke-opacity="0.08"/>
 
   <!-- Top crest meta -->
   <g transform="translate(80 76)" fill="#1a1a1a" opacity="0.45">
@@ -57,11 +57,11 @@
 
   <!-- ───── Card 1: Web App ───── -->
   <g>
-    <rect x="80" y="220" width="320" height="380" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.12"/>
-    <text x="108" y="256" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.55">01  ·  WEB</text>
+    <rect x="80" y="220" width="320" height="460" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.12"/>
+    <text x="116" y="266" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.55">01  ·  WEB</text>
 
     <!-- Browser glyph (centered horizontally in card) -->
-    <g transform="translate(170 282)">
+    <g transform="translate(170 304)">
       <rect x="0" y="0" width="140" height="100" rx="6" fill="#fbf8f0" stroke="#1a1a1a" stroke-opacity="0.5" stroke-width="1.2"/>
       <rect x="0" y="0" width="140" height="18" rx="6" fill="#e6dfcd" stroke="#1a1a1a" stroke-opacity="0.5" stroke-width="1.2"/>
       <circle cx="9" cy="9" r="2.2" fill="#1a1a1a" opacity="0.55"/>
@@ -74,28 +74,28 @@
       <line x1="14" y1="82" x2="70" y2="82" stroke="#1a1a1a" stroke-opacity="0.3" stroke-width="1"/>
     </g>
 
-    <text x="240" y="432" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Web App</text>
-    <text x="240" y="460" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">Next.js 16 · Supabase</text>
+    <text x="240" y="456" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Web App</text>
+    <text x="240" y="486" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">Next.js 16 · Supabase</text>
 
-    <line x1="120" y1="488" x2="360" y2="488" stroke="#1a1a1a" stroke-opacity="0.12"/>
+    <line x1="128" y1="520" x2="352" y2="520" stroke="#1a1a1a" stroke-opacity="0.12"/>
 
-    <text x="108" y="516" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  browser, anywhere</text>
-    <text x="108" y="540" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  same auth, same data</text>
-    <text x="108" y="564" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  laptops + phones</text>
+    <text x="116" y="554" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  browser, anywhere</text>
+    <text x="116" y="584" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  same auth, same data</text>
+    <text x="116" y="614" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">·  laptops + phones</text>
   </g>
 
   <!-- ───── Card 2: Desktop (the middleman, default) ───── -->
   <g>
-    <rect x="440" y="220" width="320" height="380" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.18"/>
+    <rect x="440" y="220" width="320" height="460" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.18"/>
     <!-- Highlight ribbon — this is the default path -->
     <rect x="440" y="220" width="320" height="22" rx="14" fill="#1a1a1a"/>
     <rect x="440" y="232" width="320" height="10" fill="#1a1a1a"/>
     <text x="600" y="236" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2.4" fill="#f7f3ea">DEFAULT  ·  THE MIDDLEMAN</text>
 
-    <text x="468" y="276" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.65">02  ·  DESKTOP</text>
+    <text x="476" y="288" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.65">02  ·  DESKTOP</text>
 
     <!-- Mac window glyph -->
-    <g transform="translate(490 298)">
+    <g transform="translate(490 314)">
       <rect x="0" y="0" width="220" height="100" rx="8" fill="#fbf8f0" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.2"/>
       <rect x="0" y="0" width="220" height="20" rx="8" fill="#e6dfcd" stroke="#1a1a1a" stroke-opacity="0.55" stroke-width="1.2"/>
       <circle cx="10" cy="10" r="2.5" fill="#1a1a1a"/>
@@ -106,7 +106,7 @@
     </g>
 
     <!-- Hotkey chips (centered horizontally) -->
-    <g transform="translate(522 420)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">
+    <g transform="translate(522 450)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">
       <rect x="0" y="0" width="36" height="26" rx="5" fill="#fbf8f0" stroke="#1a1a1a" stroke-opacity="0.45"/>
       <text x="18" y="17" text-anchor="middle" fill="#1a1a1a">⌘</text>
       <rect x="44" y="0" width="36" height="26" rx="5" fill="#fbf8f0" stroke="#1a1a1a" stroke-opacity="0.45"/>
@@ -116,25 +116,25 @@
       <text x="138" y="18" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="13" fill="#1a1a1a" fill-opacity="0.6">global hotkey</text>
     </g>
 
-    <text x="600" y="496" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Desktop App</text>
-    <text x="600" y="524" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">Tauri 2 · Rust shell</text>
+    <text x="600" y="540" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Desktop App</text>
+    <text x="600" y="568" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">Tauri 2 · Rust shell</text>
 
-    <line x1="480" y1="550" x2="720" y2="550" stroke="#1a1a1a" stroke-opacity="0.12"/>
+    <line x1="488" y1="600" x2="712" y2="600" stroke="#1a1a1a" stroke-opacity="0.12"/>
 
-    <text x="600" y="578" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">menu-bar resident  ·  mic opt-in only</text>
+    <text x="600" y="634" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="0.6" fill="#1a1a1a" fill-opacity="0.7">menu-bar resident  ·  mic opt-in only</text>
   </g>
 
   <!-- ───── Card 3: Polypad (optional hardware) ───── -->
   <g>
-    <rect x="800" y="220" width="320" height="380" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.12"/>
-    <text x="828" y="256" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.55">03  ·  POLYPAD  ·  OPTIONAL</text>
+    <rect x="800" y="220" width="320" height="460" rx="14" fill="url(#cardPaper)" stroke="#1a1a1a" stroke-opacity="0.12"/>
+    <text x="836" y="266" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#1a1a1a" fill-opacity="0.55">03  ·  POLYPAD  ·  OPTIONAL</text>
 
     <!-- Polypad — chunky black enclosure with a recessed cream top plate.
          Body is drawn as a 2.5D box: top face, a front-edge strip, and a
          right-edge strip suggest real depth without forcing perspective on
          the plate contents (kept axis-aligned for legibility, mirroring
          how the photo reads). -->
-    <g transform="translate(840 280) scale(0.8)">
+    <g transform="translate(840 296) scale(0.8)">
       <!-- Cast shadow under the box -->
       <ellipse cx="155" cy="128" rx="140" ry="6" fill="#1a1a1a" fill-opacity="0.22" filter="url(#softShadow)"/>
 
@@ -203,15 +203,15 @@
 
     </g>
 
-    <text x="960" y="426" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Polypad</text>
-    <text x="960" y="454" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">custom PCB · open-source</text>
+    <text x="960" y="456" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="28" font-weight="600" fill="#1a1a1a">Polypad</text>
+    <text x="960" y="486" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="16" fill="#1a1a1a" fill-opacity="0.65">custom PCB · open-source</text>
 
-    <line x1="840" y1="482" x2="1080" y2="482" stroke="#1a1a1a" stroke-opacity="0.12"/>
+    <line x1="848" y1="520" x2="1072" y2="520" stroke="#1a1a1a" stroke-opacity="0.12"/>
 
-    <text x="828" y="510" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  4×3 Cherry MX Red mechanical</text>
-    <text x="828" y="532" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  DFRobot on-device "Hey JARVIS"</text>
-    <text x="828" y="554" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  ESP32 (wake)  ·  KB2040 + KMK (keys)</text>
-    <text x="828" y="576" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  USB-serial → desktop bridge</text>
+    <text x="836" y="554" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  4×3 Cherry MX Red mechanical</text>
+    <text x="836" y="582" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  DFRobot on-device "Hey JARVIS"</text>
+    <text x="836" y="610" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  ESP32 (wake)  ·  KB2040 + KMK (keys)</text>
+    <text x="836" y="638" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" letter-spacing="0.4" fill="#1a1a1a" fill-opacity="0.72">·  USB-serial → desktop bridge</text>
   </g>
 
   <!-- ============================================================ -->
@@ -221,24 +221,24 @@
   <!-- Connector arrows: web straight down; desktop straight down; polypad → desktop (lateral) → backend -->
 
   <!-- Web → backend -->
-  <line x1="240" y1="620" x2="240" y2="670" stroke="#1a1a1a" stroke-opacity="0.45" stroke-width="1.2" stroke-dasharray="4 4"/>
-  <polygon points="240,676 235,668 245,668" fill="#1a1a1a" fill-opacity="0.7"/>
+  <line x1="240" y1="700" x2="240" y2="750" stroke="#1a1a1a" stroke-opacity="0.45" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <polygon points="240,756 235,748 245,748" fill="#1a1a1a" fill-opacity="0.7"/>
 
   <!-- Desktop → backend (solid; default path) -->
-  <line x1="600" y1="620" x2="600" y2="670" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="2"/>
-  <polygon points="600,678 593,668 607,668" fill="#1a1a1a"/>
+  <line x1="600" y1="700" x2="600" y2="750" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="2"/>
+  <polygon points="600,758 593,748 607,748" fill="#1a1a1a"/>
 
-  <!-- Polypad → backend (still connects through desktop, but visually parallel for clarity) -->
-  <line x1="960" y1="620" x2="960" y2="670" stroke="#1a1a1a" stroke-opacity="0.45" stroke-width="1.2" stroke-dasharray="4 4"/>
-  <polygon points="960,676 955,668 965,668" fill="#1a1a1a" fill-opacity="0.7"/>
+  <!-- Polypad → backend -->
+  <line x1="960" y1="700" x2="960" y2="750" stroke="#1a1a1a" stroke-opacity="0.45" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <polygon points="960,756 955,748 965,748" fill="#1a1a1a" fill-opacity="0.7"/>
 
   <!-- Backend slab -->
-  <rect x="200" y="680" width="800" height="72" rx="10" fill="#1a1a1a"/>
-  <text x="600" y="712" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="22" font-weight="600" fill="#f7f3ea">
+  <rect x="200" y="760" width="800" height="72" rx="10" fill="#1a1a1a"/>
+  <text x="600" y="792" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-size="22" font-weight="600" fill="#f7f3ea">
     <tspan font-style="italic" font-weight="800">JARVIS</tspan>  ·  Hyperpolymath Backend
   </text>
-  <text x="600" y="736" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.7">CLAUDE SONNET 4.6  ·  SUPABASE POSTGRES  ·  REALTIME  ·  GOOGLE CALENDAR</text>
+  <text x="600" y="816" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.2" fill="#f7f3ea" fill-opacity="0.7">CLAUDE SONNET 4.6  ·  SUPABASE POSTGRES  ·  REALTIME  ·  GOOGLE CALENDAR</text>
 
   <!-- Footer line -->
-  <text x="80" y="810" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH STACK · FIG. 01</text>
+  <text x="80" y="908" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" letter-spacing="2" fill="#1a1a1a" fill-opacity="0.5">❦  HYPERPOLYMATH STACK · FIG. 01</text>
 </svg>
