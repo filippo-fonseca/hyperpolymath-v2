@@ -14,6 +14,7 @@ import {
   Repeat,
   LayoutDashboard,
   Dumbbell,
+  Waypoints,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { KiwiAboutDialog } from "./KiwiAboutDialog";
@@ -64,6 +65,7 @@ const items = [
   { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/graph", label: "Graph", icon: Waypoints, disabled: false, tooltip: undefined, isAgent: false },
   // /areas is NOT here — the sidebar AREAS section header below acts as
   // the link + active state, with the area tree nested under it as proper
   // children. Putting it in both spots was duplicate plumbing.

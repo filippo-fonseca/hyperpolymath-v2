@@ -7,8 +7,11 @@
  * does not touch it). That matches the contract: the cron and the manual
  * "Rebuild now" button hit the same row on the same calendar day.
  *
- * `snapshotDate` defaults to today (UTC), matching the Vercel cron schedule
- * `0 5 * * *` (00:00 ET / 05:00 UTC) which lands on the new UTC date.
+ * `snapshotDate` defaults to today in the user's IANA timezone when
+ * `userTimezone` is supplied (e.g., `"America/New_York"`), and UTC otherwise.
+ * The Vercel cron schedule `0 5 * * *` fires at 05:00 UTC regardless of user,
+ * but each user's row is dated by THEIR local calendar at that moment — so a
+ * 1 AM EDT firing lands on the same `snapshot_date` the user calls "today".
  *
  * The payload column in `apps/web/lib/db/schema.ts` is typed as plain `jsonb`
  * (no `.$type<ContextSnapshot>()`) to avoid a `schema.ts → build-snapshot.ts
@@ -24,8 +27,23 @@ export type DB = typeof defaultDb;
 
 export interface PersistOptions {
   db?: DB;
-  /** YYYY-MM-DD; defaults to today (UTC). */
+  /** Explicit YYYY-MM-DD override (mostly for tests). If unset, today is
+   *  computed from `userTimezone` (or UTC if that's also unset). */
   snapshotDate?: string;
+  /** IANA timezone, e.g. `"America/New_York"`. When set, the default
+   *  `snapshotDate` is today in this tz instead of UTC. `null`/`undefined`
+   *  fall back to UTC. */
+  userTimezone?: string | null;
+}
+
+// en-CA formats Date as `YYYY-MM-DD` natively — same shape the column expects.
+function todayInTimezone(tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export async function persistSnapshot(
@@ -35,7 +53,10 @@ export async function persistSnapshot(
 ): Promise<Result<{ userId: string; snapshotDate: string }>> {
   const db = opts.db ?? defaultDb;
   const snapshotDate =
-    opts.snapshotDate ?? new Date().toISOString().slice(0, 10);
+    opts.snapshotDate ??
+    (opts.userTimezone
+      ? todayInTimezone(opts.userTimezone)
+      : new Date().toISOString().slice(0, 10));
 
   try {
     await db

@@ -23,7 +23,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { captures, tasks, jarvisFacts } from "@/lib/db/schema";
+import { captures, tasks, jarvisFacts, users } from "@/lib/db/schema";
 import { buildSnapshot } from "@/lib/context/build-snapshot";
 import { persistSnapshot } from "@/lib/context/persist";
 
@@ -55,7 +55,14 @@ export async function rebuildSnapshotAction(): Promise<
   const built = await buildSnapshot(userId);
   if (!built.ok) return { ok: false, error: built.error };
 
-  const persisted = await persistSnapshot(userId, built.data);
+  const tzRow = await db
+    .select({ tz: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const userTimezone = tzRow[0]?.tz ?? null;
+
+  const persisted = await persistSnapshot(userId, built.data, { userTimezone });
   if (!persisted.ok) return { ok: false, error: persisted.error };
 
   revalidatePath("/settings/context");

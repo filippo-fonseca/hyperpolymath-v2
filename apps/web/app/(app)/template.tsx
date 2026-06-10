@@ -23,6 +23,7 @@ export default function AppTemplate({ children }: { children: React.ReactNode })
   const shouldReduce = useReducedMotion();
   return (
     <motion.div
+      className="h-full"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{

@@ -94,12 +94,15 @@ function buildToolValidators(voiceActive: boolean) {
 
 type ToolName = keyof ReturnType<typeof buildToolValidators>;
 
-function formatTodayDateUtc(): string {
-  const d = new Date();
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+// en-CA renders Date as YYYY-MM-DD natively — same shape downstream consumers
+// (render-user-state, project-startDate compare) expect.
+function formatTodayDateInTimezone(tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
@@ -183,7 +186,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   });
 
   const stateVersion = userRow?.stateVersion ?? 1n;
-  const todayDate = formatTodayDateUtc();
+  const todayDate = formatTodayDateInTimezone(
+    userRow?.timezone ?? "America/New_York",
+  );
   const activeProjectsForSnapshot: SnapshotInputs["projectsActive"] = [];
   const upcomingProjectsForSnapshot: SnapshotInputs["projectsUpcoming"] = [];
   for (const p of userProjects) {

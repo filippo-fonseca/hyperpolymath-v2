@@ -14,7 +14,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 import { buildSnapshot } from "@/lib/context/build-snapshot";
 import { persistSnapshot } from "@/lib/context/persist";
 
@@ -37,7 +40,15 @@ export async function POST() {
       { status: 500 },
     );
   }
-  const persisted = await persistSnapshot(userId, built.data);
+
+  const tzRow = await db
+    .select({ tz: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const userTimezone = tzRow[0]?.tz ?? null;
+
+  const persisted = await persistSnapshot(userId, built.data, { userTimezone });
   if (!persisted.ok) {
     return NextResponse.json(
       { ok: false, error: persisted.error },

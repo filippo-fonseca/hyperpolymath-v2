@@ -117,7 +117,7 @@ export default async function ContextSettingsPage() {
               What external agents see about you, refreshed nightly. Rebuild
               on demand to fold in changes you made since the last snapshot.
               Rows you flag <span className="font-mono text-[13px]">no-export</span>{" "}
-              are excluded — the count below reflects the most recent build.
+              are excluded. The count below reflects the most recent build.
             </p>
           </div>
           <Link

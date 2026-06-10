@@ -1,10 +1,14 @@
 /**
  * /api/cron/snapshot-context — Vercel cron handler.
  *
- * Phase 999.12 CTX-06 / CTX-07. Runs nightly at 0 5 * * * UTC (00:00 ET) per
- * vercel.json. Loops every row in `users` and rebuilds + persists a snapshot
- * for each — failures on one user do NOT abort the others (per-user
- * independence; logged + returned in the response body).
+ * Phase 999.12 CTX-06 / CTX-07. Runs nightly at `0 5 * * *` UTC per
+ * vercel.json (Vercel cron is UTC-only). Loops every row in `users` and
+ * rebuilds + persists a snapshot for each — failures on one user do NOT abort
+ * the others (per-user independence; logged + returned in the response body).
+ *
+ * Each user's `snapshot_date` is computed in **their** IANA timezone
+ * (`users.timezone`), so a row from a 1 AM EDT firing lands on the calendar
+ * day the user calls "today". Users with a null `timezone` fall back to UTC.
  *
  * Auth: `Authorization: Bearer ${CRON_SECRET}`. The env var is REQUIRED in
  * production — a missing CRON_SECRET returns 500 rather than 401 so we fail
@@ -46,19 +50,23 @@ export async function GET(req: Request) {
   // Pull every user. Single-user MVP — but the loop shape is
   // forward-compatible with the multi-user future. Failures per user are
   // independent.
-  const allUsers = await db.select({ id: users.id }).from(users);
+  const allUsers = await db
+    .select({ id: users.id, timezone: users.timezone })
+    .from(users);
 
   let written = 0;
   const failures: Failure[] = [];
 
-  for (const { id } of allUsers) {
+  for (const { id, timezone } of allUsers) {
     const built = await buildSnapshot(id);
     if (!built.ok) {
       console.error("[cron snapshot] build failed", { userId: id, error: built.error });
       failures.push({ userId: id, error: built.error });
       continue;
     }
-    const persisted = await persistSnapshot(id, built.data);
+    const persisted = await persistSnapshot(id, built.data, {
+      userTimezone: timezone,
+    });
     if (!persisted.ok) {
       console.error("[cron snapshot] persist failed", { userId: id, error: persisted.error });
       failures.push({ userId: id, error: persisted.error });
