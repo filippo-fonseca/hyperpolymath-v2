@@ -63,9 +63,17 @@ export function GlobalJarvisHandler() {
           transcript: string;
           sttDoneAt?: number | null;
           vadEndAt?: number;
+          source?: string;
         }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
+      // Desktop-originated transcripts were already executed server-side
+      // (voice/transcript route runs the JARVIS turn and the desktop app
+      // plays the TTS). Re-submitting here ran a SECOND divergent turn —
+      // the desktop and browser would show different responses and actions
+      // could double-fire. Receipts for these turns surface via the
+      // jarvis-tool-call listener below instead.
+      if (detail.source === "desktop") return;
       const sttDoneAt = detail.sttDoneAt ?? null;
       const vadEndAt = detail.vadEndAt;
 
@@ -220,11 +228,36 @@ export function GlobalJarvisHandler() {
       abort = null;
     }
 
+    // Receipts for desktop-initiated turns (server-run, relayed via the
+    // physical SSE channel). Mirrors the onAction toast above so non-/today
+    // pages still show what JARVIS did, without re-running the turn.
+    function handleDesktopToolCall(e: Event) {
+      const detail = (
+        e as CustomEvent<{
+          name: string;
+          result?: { ok?: boolean; error?: string; receipt?: unknown };
+        }>
+      ).detail;
+      if (!detail?.name) return;
+      if (detail.result && detail.result.ok === false) {
+        toast.error(detail.result.error ?? "JARVIS action failed");
+        return;
+      }
+      const receipt = (detail.result?.receipt ?? {}) as { title?: unknown };
+      const summary =
+        typeof receipt.title === "string"
+          ? `${prettyToolName(detail.name)}: ${receipt.title}`
+          : `${prettyToolName(detail.name)} filed`;
+      toast.success(summary, { duration: 4000 });
+    }
+
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     window.addEventListener("jarvis-cancel", handleCancel);
+    window.addEventListener("jarvis-tool-call", handleDesktopToolCall);
     return () => {
       window.removeEventListener("jarvis-voice-transcript", handleVoiceTranscript);
       window.removeEventListener("jarvis-cancel", handleCancel);
+      window.removeEventListener("jarvis-tool-call", handleDesktopToolCall);
       abort?.abort();
     };
   }, [isConsolePage]);

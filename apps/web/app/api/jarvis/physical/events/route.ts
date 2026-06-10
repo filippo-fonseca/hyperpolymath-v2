@@ -1,4 +1,7 @@
-import { physicalBus } from "@/lib/voice/physical-extension/bus";
+import {
+  ensurePhysicalRealtimeBridge,
+  physicalBus,
+} from "@/lib/voice/physical-extension/bus";
 import type {
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
@@ -14,6 +17,11 @@ export const dynamic = "force-dynamic";
 const HEARTBEAT_MS = 25_000;
 
 export async function GET(req: Request): Promise<Response> {
+  // Cross-instance relay: without this, events emitted from another Vercel
+  // lambda instance (e.g. the voice/transcript POST) never reach this SSE
+  // stream's in-memory bus.
+  ensurePhysicalRealtimeBridge();
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

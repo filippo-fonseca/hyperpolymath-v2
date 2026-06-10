@@ -55,6 +55,10 @@ export function usePhysicalExtension(enabled: boolean): void {
             transcript: payload.transcript,
             sttDoneAt: payload.sttDoneAt,
             vadEndAt: payload.vadEndAt,
+            // The server already ran the JARVIS turn for this transcript
+            // (voice/transcript route). Consumers must render it, not
+            // re-submit it.
+            source: "desktop",
           },
         }),
       );
