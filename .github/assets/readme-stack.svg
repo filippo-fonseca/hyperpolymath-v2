@@ -149,15 +149,18 @@
            meet at exactly (300, 122). -->
       <path d="M 8 112 L 282 112 L 300 122 L 26 122 Z" fill="#111111" stroke="#1a1a1a" stroke-opacity="0.65" stroke-width="0.8"/>
 
-      <!-- Top body — the dominant face. Near-sharp corners (rx=3) so the
-           visible edge sits where the depth strips attach. -->
-      <rect x="8" y="16" width="274" height="96" rx="3" fill="url(#polypadTop)" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="1"/>
+      <!-- Top body — the dominant face. Same corner radius as the plate
+           below it so the wall arc matches the lid arc; small enough
+           that the depth strips still meet the rim cleanly. -->
+      <rect x="8" y="16" width="274" height="96" rx="2" fill="url(#polypadTop)" stroke="#1a1a1a" stroke-opacity="0.85" stroke-width="1"/>
 
       <!-- Subtle highlight along the top edge to read as anodized plastic -->
       <line x1="14" y1="20" x2="276" y2="20" stroke="#ffffff" stroke-opacity="0.06"/>
 
-      <!-- Recessed cream plate (sunk into the top face) -->
-      <rect x="34" y="28" width="222" height="72" rx="5" fill="#f0e9d8" stroke="#1a1a1a" stroke-opacity="0.7" stroke-width="1"/>
+      <!-- Recessed cream plate (sunk into the top face). Matched corner
+           radius to the wall above so the lid arc and the wall arc share
+           the same curvature. -->
+      <rect x="34" y="28" width="222" height="72" rx="2" fill="#f0e9d8" stroke="#1a1a1a" stroke-opacity="0.7" stroke-width="1"/>
       <!-- Inset shadow on plate to read as recessed -->
       <rect x="34" y="28" width="222" height="3" fill="#1a1a1a" fill-opacity="0.18"/>
       <rect x="34" y="28" width="3" height="72" fill="#1a1a1a" fill-opacity="0.18"/>
