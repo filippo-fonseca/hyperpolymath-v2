@@ -51,6 +51,6 @@
 
   <!-- Footer hairline + brand spine -->
   <line x1="80" y1="358" x2="1120" y2="358" stroke="#1a1a1a" stroke-opacity="0.1" stroke-width="1"/>
-  <text x="80" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">JARVIS · CLAUDE SONNET 4.6 · STRICT TOOL USE</text>
-  <text x="1120" y="382" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HOW YOU DO ONE THING</text>
+  <text x="80" y="382" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">I BROUGHT BACK THE RENAISSANCE.</text>
+  <text x="1120" y="382" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" letter-spacing="2.4" fill="#1a1a1a" fill-opacity="0.55">⚜  HOW YOU DO ONE THING IS HOW YOU DO EVERYTHING</text>
 </svg>
