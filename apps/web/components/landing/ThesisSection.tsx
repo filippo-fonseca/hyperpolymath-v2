@@ -156,7 +156,7 @@ export function ThesisSection() {
         {/* Typed + Spoken input cards sit side-by-side under the banner
             so visitors see both modalities advertised at once. */}
         <motion.div
-          className="mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-[920px] mx-auto"
+          className="mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4"
           initial={enter.initial}
           animate={enter.animate}
           transition={
