@@ -283,12 +283,9 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Glassy pill composer tile (matches SettingsSectionNav PROFILE pill):
-    // translucent surface + backdrop-blur + inset cyan glow + soft outer halo
-    // + thin cyan-tinged border. focus-within deepens the inset cyan glow and
-    // switches the border to --ink-amber, preserving the previous amber focus
-    // signal so the composer still feels "live."
-    <div className="rounded-xl backdrop-blur-md bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] focus-within:border-[var(--ink-amber)] focus-within:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_40px_color-mix(in_oklch,var(--hud-cyan)_18%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out">
+    // Glass tile composer — focus-within flips the glass accent to amber so
+    // the composer still reads "live" while typing.
+    <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">

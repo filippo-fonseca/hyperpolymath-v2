@@ -11,13 +11,9 @@ interface Props {
 // Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
 // backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
 const TILE =
-  "rounded-xl backdrop-blur-md p-4 " +
-  "bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] " +
-  "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] " +
-  "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] " +
-  "hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] " +
-  "hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] " +
-  "transition-[border-color,box-shadow,background-color] duration-200 ease-out";
+  "rounded-xl p-4 " +
+  "glass-tile " +
+  "";
 
 /**
  * Planned-vs-actual adherence (D-14 / TRN-11 / TRN-12).

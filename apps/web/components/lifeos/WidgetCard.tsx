@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  /** Route the card's "margin click" navigates to. */
+  /** Route the card's "margin click"navigates to. */
   href: string;
   /** Accessible name for the overlay link (screen-readers only). */
   ariaLabel: string;
@@ -26,7 +26,7 @@ interface Props {
  * Hover (group/card):
  *   - Cyan-tinged border deepens
  *   - Inner cyan glow intensifies, outer halo grows softer + larger
- *   - Mirrors the glassy "Profile" pill in /settings nav
+ *   - Mirrors the glassy "Profile"pill in /settings nav
  *
  * Recipe: translucent surface + backdrop-blur, inset white top highlight,
  * inset cyan ambient glow, paired outer halo. No transform — glow does the
@@ -37,13 +37,7 @@ export function WidgetCard({ href, ariaLabel, children, className }: Props) {
     <div
       className={cn(
         "group/card relative h-full",
-        "rounded-xl backdrop-blur-md",
-        "bg-[color-mix(in_oklch,var(--surface)_82%,transparent)]",
-        "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)]",
-        "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)]",
-        "hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)]",
-        "hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)]",
-        "transition-[border-color,box-shadow,background-color] duration-200 ease-out",
+        "rounded-xl glass-tile",
         className,
       )}
     >

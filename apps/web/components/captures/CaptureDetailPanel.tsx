@@ -162,7 +162,7 @@ function contentToTipTapDoc(
  *   permissively parsed on save — matches CaptureComposer.parseEditor)
  * - Hashtags edited implicitly via the editor (no separate input)
  * - Project links edited via ProjectMultiSelect
- * - Save: Cmd+Enter or "Save changes" button
+ * - Save: Cmd+Enter or "Save changes"button
  * - Delete: footer button with confirm dialog (same copy as inline delete)
  * - Close: Esc, click outside, or × button
  */
@@ -408,7 +408,7 @@ export function CaptureDetailPanel({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, dirty, handleSave]);
 
-  // beforeunload guard — show native browser "Leave site?" prompt when the
+  // beforeunload guard — show native browser "Leave site?"prompt when the
   // panel has unsaved changes and the user tries to refresh/close-tab.
   // Only wired when the panel is open AND dirty.
   useEffect(() => {
@@ -538,7 +538,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Content
                   </h3>
-                  <div className="rounded-xl backdrop-blur-md bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] focus-within:border-[var(--ink-amber)] focus-within:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_40px_color-mix(in_oklch,var(--hud-cyan)_18%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out">
+                  <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
                     <EditorContent editor={editor} />
                   </div>
                   <p className="font-sans text-[13px] text-muted-foreground italic">
@@ -566,7 +566,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Info
                   </h3>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px] p-4 rounded-xl backdrop-blur-md bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px] p-4 rounded-xl glass-tile">
                     <dt className="text-muted-foreground">Created</dt>
                     <dd className="text-foreground">
                       {format(capture.createdAt, "PPpp")}

@@ -457,24 +457,33 @@ html::-webkit-scrollbar-thumb:hover,
    e.g. className="glass-tile [--glass-glow-color:var(--ink-amber)]".
    ===================================================================== */
 :root {
-  --glass-hi: oklch(100% 0 0 / 0.55);
-  --glass-lo: oklch(25% 0.01 75 / 0.07);
-  --glass-depth: oklch(25% 0.01 75 / 0.12);
-  --glass-depth-close: oklch(25% 0.01 75 / 0.07);
+  /* Soft-UI pairing (Dribbble reference, June 2026): card and canvas sit in
+     the same family; depth comes from a raised highlight (top-left) paired
+     with a soft shade (bottom-right). Borders are whisper-thin. */
+  --glass-raise: -6px -6px 16px oklch(100% 0 0 / 0.75);
+  --glass-drop: 7px 7px 18px oklch(45% 0.02 260 / 0.16);
+  --glass-hi: oklch(100% 0 0 / 0.6);
+  --glass-lo: oklch(30% 0.01 75 / 0.05);
   --glass-glow-color: var(--hud-cyan);
-  --glass-glow: 4%;
-  --glass-glow-hover: 9%;
-  --glass-border: color-mix(in oklch, var(--edge) 60%, transparent);
-  --glass-bg: color-mix(in oklch, var(--surface) 85%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 72%, transparent);
+  --glass-glow: 3%;
+  --glass-glow-hover: 8%;
+  --glass-border: color-mix(in oklch, var(--edge) 45%, transparent);
+  --glass-bg: color-mix(in oklch, var(--surface) 92%, transparent);
+  --glass-bg-button: color-mix(in oklch, var(--surface) 85%, transparent);
+  --glass-raise-sm: -3px -3px 8px oklch(100% 0 0 / 0.7);
+  --glass-drop-sm: 3px 3px 9px oklch(45% 0.02 260 / 0.16);
 }
 .dark {
-  --glass-hi: oklch(100% 0 0 / 0.06);
-  --glass-lo: oklch(0% 0 0 / 0.4);
-  --glass-depth: oklch(0% 0 0 / 0.5);
-  --glass-depth-close: oklch(0% 0 0 / 0.35);
-  --glass-glow: 6%;
-  --glass-glow-hover: 12%;
+  /* Dark mode: highlight nearly off (bright white smears rejected); depth
+     reads through deeper blacks and a slightly stronger cyan breath. */
+  --glass-raise: -4px -4px 12px oklch(100% 0 0 / 0.025);
+  --glass-drop: 8px 8px 22px oklch(0% 0 0 / 0.55);
+  --glass-hi: oklch(100% 0 0 / 0.05);
+  --glass-lo: oklch(0% 0 0 / 0.35);
+  --glass-glow: 5%;
+  --glass-glow-hover: 11%;
+  --glass-raise-sm: -2px -2px 6px oklch(100% 0 0 / 0.03);
+  --glass-drop-sm: 3px 3px 10px oklch(0% 0 0 / 0.5);
 }
 
 .glass-tile {
@@ -483,20 +492,22 @@ html::-webkit-scrollbar-thumb:hover,
   backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow:
+    var(--glass-raise),
+    var(--glass-drop),
     inset 0 1px 0 var(--glass-hi),
     inset 0 -1px 0 var(--glass-lo),
     inset 0 0 24px
-      color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent),
-    0 6px 18px var(--glass-depth),
-    0 1px 3px var(--glass-depth-close);
+      color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent);
   transition:
     border-color 200ms cubic-bezier(0.25, 1, 0.5, 1),
     box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1),
     background-color 200ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 .glass-tile:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 35%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
   box-shadow:
+    var(--glass-raise),
+    var(--glass-drop),
     inset 0 1px 0 var(--glass-hi),
     inset 0 -1px 0 var(--glass-lo),
     inset 0 0 32px
@@ -504,9 +515,7 @@ html::-webkit-scrollbar-thumb:hover,
         in oklch,
         var(--glass-glow-color) var(--glass-glow-hover),
         transparent
-      ),
-    0 10px 26px var(--glass-depth),
-    0 1px 3px var(--glass-depth-close);
+      );
 }
 
 .glass-button {
@@ -515,31 +524,33 @@ html::-webkit-scrollbar-thumb:hover,
   backdrop-filter: blur(8px);
   border: 1px solid var(--glass-border);
   box-shadow:
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    0 2px 6px var(--glass-depth-close);
+    var(--glass-raise-sm),
+    var(--glass-drop-sm),
+    inset 0 1px 0 var(--glass-hi);
   transition:
     border-color 150ms cubic-bezier(0.25, 1, 0.5, 1),
     box-shadow 150ms cubic-bezier(0.25, 1, 0.5, 1),
     background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 .glass-button:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 40%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 35%, var(--glass-border));
   box-shadow:
+    var(--glass-raise-sm),
+    var(--glass-drop-sm),
     inset 0 1px 0 var(--glass-hi),
-    inset 0 0 16px
+    inset 0 0 14px
       color-mix(
         in oklch,
         var(--glass-glow-color) var(--glass-glow-hover),
         transparent
-      ),
-    0 4px 10px var(--glass-depth-close);
+      );
 }
-.glass-button:active {
+.glass-button:active,
+.glass-pressed {
+  background: color-mix(in oklch, var(--surface) 96%, var(--ink));
   box-shadow:
-    inset 2px 2px 5px var(--glass-lo),
-    inset -1px -1px 3px var(--glass-hi),
-    0 1px 2px var(--glass-depth-close);
+    inset 2px 2px 6px var(--glass-lo),
+    inset -2px -2px 5px var(--glass-hi);
 }
 
 /* =====================================================================

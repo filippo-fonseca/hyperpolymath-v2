@@ -68,7 +68,7 @@ interface Props {
    * Plan 05-04 (JARVIS-13 / D-14) — Projects available for the Convert-to-task
    * dialog's ProjectMultiSelect. Only consumed when the capture's
    * `createdVia === "jarvis"` and the user opens the ⋯ menu's "Convert to
-   * task" item. Pass an empty array to disable the affordance (the menu item
+   * task"item. Pass an empty array to disable the affordance (the menu item
    * still renders for jarvis-created captures; the dialog just has no
    * pickable projects).
    */
@@ -112,7 +112,7 @@ export function CaptureCard({
   const [removed, setRemoved] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // D-14 / JARVIS-13: "Convert to task" affordance is shown ONLY when this
+  // D-14 / JARVIS-13: "Convert to task"affordance is shown ONLY when this
   // capture was created via JARVIS. Manual captures (composer / detail panel
   // save) keep createdVia=null and don't get the menu item.
   const isJarvisCreated = capture.createdVia === "jarvis";
@@ -168,14 +168,14 @@ export function CaptureCard({
             // translucent surface + backdrop-blur + inset cyan glow + soft
             // outer halo + thin cyan-tinged border. Hover deepens border to
             // cyan and ramps the inset glow + outer halo.
-            "group relative rounded-xl backdrop-blur-md",
-            "bg-[color-mix(in_oklch,var(--surface)_82%,transparent)]",
-            "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)]",
-            "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)]",
-            "transition-[border-color,box-shadow,background-color] duration-200 ease-out",
+            "group relative rounded-xl ",
+            "",
+            "glass-tile",
+            "",
+            "",
             compact ? "px-3 py-2" : "px-5 py-4",
             onOpen &&
-              "cursor-pointer hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)]",
+              "cursor-pointer ",
           )}
           {...(onOpen
             ? {
@@ -261,7 +261,7 @@ export function CaptureCard({
       )}
 
       {/* JARVIS-13 / D-14 — Convert capture-to-task dialog, mounted only for
-          createdVia === "jarvis" captures (the menu item that opens it is
+          createdVia === "jarvis"captures (the menu item that opens it is
           itself gated, so the dialog mount-condition is a clean two-layer
           guard). */}
       {isJarvisCreated && convertOpen ? (

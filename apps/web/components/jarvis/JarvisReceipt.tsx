@@ -139,17 +139,16 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           // Translucent surface + backdrop-blur + inset cyan inner halo + single
           // downward outer shadow. Cyan halo intentionally absent here (queued
           // state surfaces it via the outline-trace SVG instead).
-          backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+          backgroundColor: "var(--glass-bg)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           // Static placeholder border so the outline-trace SVG draws over it
           border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
           boxShadow:
-            "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
-            "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
-            "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
-            "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
-            "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)",
+            "var(--glass-raise), var(--glass-drop)," +
+          "inset 0 1px 0 var(--glass-hi)," +
+          "inset 0 -1px 0 var(--glass-lo)," +
+          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)",
         }}
       >
         {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
@@ -303,14 +302,13 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // outer shadow for depth. On resolved receipts we stack the ambient
   // --hud-cyan-glow-soft halo on top so the inner + outer cyan signals blend.
   const glassyShadow =
-    "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
-    "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
-    "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
-    "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
-    "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)";
+    "var(--glass-raise), var(--glass-drop)," +
+          "inset 0 1px 0 var(--glass-hi)," +
+          "inset 0 -1px 0 var(--glass-lo)," +
+          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
 
   const containerStyle: React.CSSProperties = {
-    backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+    backgroundColor: "var(--glass-bg)",
     backdropFilter: "blur(12px)",
     WebkitBackdropFilter: "blur(12px)",
     // 1px --edge-hud (softened) base border; error overrides LEFT edge to 3px coral
@@ -558,16 +556,15 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
         // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
         // Translucent surface + backdrop-blur + inset cyan inner halo + single
         // downward outer shadow, composed under the JARVIS ambient cyan glow.
-        backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+        backgroundColor: "var(--glass-bg)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
         boxShadow:
-          "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
-          "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
-          "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
-          "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
-          "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)," +
+          "var(--glass-raise), var(--glass-drop)," +
+          "inset 0 1px 0 var(--glass-hi)," +
+          "inset 0 -1px 0 var(--glass-lo)," +
+          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)," +
           "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >

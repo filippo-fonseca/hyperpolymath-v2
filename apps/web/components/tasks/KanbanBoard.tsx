@@ -20,7 +20,7 @@ type Status =
   | "almost done"
   | "lesno";
 
-// All five statuses — used for grouping. "not started" is rendered above the
+// All five statuses — used for grouping. "not started"is rendered above the
 // kanban in a separate tray, so it's excluded from the column render order.
 const ALL_STATUSES: Status[] = [
   "not started",
@@ -276,10 +276,10 @@ function NotStartedTray({
         {
           background: accent.bg,
           boxShadow: showDrop
-            ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`
-            : `inset 0 0 0 1px ${accent.rim}`,
+            ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, var(--glass-raise), var(--glass-drop)`
+            : `inset 0 0 0 1px ${accent.rim}, var(--glass-raise), var(--glass-drop)`,
           transition: "box-shadow 160ms ease-out",
-          ["--task-card-bg" as string]: accent.cardBg,
+          ["--task-card-bg"as string]: accent.cardBg,
         } as React.CSSProperties
       }
     >

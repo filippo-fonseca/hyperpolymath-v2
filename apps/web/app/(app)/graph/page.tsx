@@ -1,5 +1,5 @@
 /**
- * /graph — interactive "spider web" view of the personal context graph.
+ * /graph — interactive "spider web"view of the personal context graph.
  *
  * Phase 999.12 follow-up. Reads the latest persisted personal_context_snapshot
  * (the same payload exported to AI agents over MCP) and hands its nodes + edges

@@ -15,7 +15,7 @@ interface Props {
   activeHashtagId: string | null;
   /**
    * Total captures owned by the user (no filter applied). Rendered as the
-   * count on the "All" row at the top of the sidebar — the primary
+   * count on the "All"row at the top of the sidebar — the primary
    * affordance for clearing an active `?tag=` filter.
    */
   totalCount: number;
@@ -35,18 +35,18 @@ interface Props {
  * - No state of our own — pure render off the prop.
  *
  * Layout (top → bottom):
- *   1. "All" row — clears the `?tag=` filter; active when no tag is selected.
- *      Sits above the "Hashtags" heading because it is a filter-clear, not a
+ *   1. "All"row — clears the `?tag=` filter; active when no tag is selected.
+ *      Sits above the "Hashtags"heading because it is a filter-clear, not a
  *      hashtag itself. Users who land on `/captures?tag=...` need a
  *      discoverable way back to the full feed (the previous "click the active
- *      tag again" toggle was the only path, and not discoverable).
- *   2. "Hashtags" section heading.
+ *      tag again"toggle was the only path, and not discoverable).
+ *   2. "Hashtags"section heading.
  *   3. Hashtag rows — `#name` + count, font-sans 13px/400.
  *
  * - 200px-wide column rendered by CapturesClient
  * - Active row: text-accent + bg-secondary (color shift only, no weight change)
  * - Sorted DESC by count by the server query; we render in given order
- * - Orphan tags (count === 0): hidden by default; "Show all" toggle reveals at opacity-40
+ * - Orphan tags (count === 0): hidden by default; "Show all"toggle reveals at opacity-40
  * - Click again on the active hashtag row also clears the filter (secondary affordance)
  */
 export function HashtagSidebar({
@@ -86,8 +86,8 @@ export function HashtagSidebar({
   }
 
   return (
-    <div className="flex flex-col p-4 rounded-xl backdrop-blur-md bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out">
-      {/* All row — filter-clear; sits above the "Hashtags" heading. */}
+    <div className="flex flex-col p-4 rounded-xl glass-tile">
+      {/* All row — filter-clear; sits above the "Hashtags"heading. */}
       <button
         type="button"
         onClick={() => onSelect(null)}

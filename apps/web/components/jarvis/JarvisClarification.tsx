@@ -55,16 +55,15 @@ export function JarvisClarification({ clarification, onReply }: Props) {
         // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
         // Translucent surface + backdrop-blur + inset cyan inner halo + single
         // downward outer shadow, composed under the JARVIS ambient cyan glow.
-        backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+        backgroundColor: "var(--glass-bg)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
         boxShadow:
-          "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
-          "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
-          "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
-          "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
-          "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)," +
+          "var(--glass-raise), var(--glass-drop)," +
+          "inset 0 1px 0 var(--glass-hi)," +
+          "inset 0 -1px 0 var(--glass-lo)," +
+          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)," +
           "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
