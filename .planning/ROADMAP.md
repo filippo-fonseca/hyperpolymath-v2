@@ -658,3 +658,27 @@ Plans:
 
 Plans:
 - [ ] TBD
+
+### Phase 999.17: Wiki — Markdown pages with entity references (Zyndicate, finally) (BACKLOG)
+
+**Goal:** A "Wiki" surface inside hyperpolymath — full Markdown pages, MemAI-style, that can live nested under projects (and areas) and can `@`-reference first-class entities (tasks, captures, projects, areas, JARVIS facts). Bidirectional links, backlinks panel, slash-commands to embed live task lists / capture feeds inside a page. All pages flow into the daily MCP export (Phase 999.12) so external agents get prose context, not just structured rows.
+
+**Why:** Captured 2026-06-10. This is the long-dreamed Zyndicate vision from ~5 years ago — a personal knowledge graph where prose, structured entities, and project hierarchy interlink. The structured primitives (tasks/captures/projects) cover *facts*, Phase 999.10 covers *freeform scratchpad*, but neither covers *durable interlinked knowledge with entity references*. The wiki is what closes the loop: a page about "Thesis Chapter 3" can `@`-link to its parent project, embed the live filtered task list, and reference the captures that fed into it — and the whole graph exports to MCP.
+
+**Distinct from 999.10 (Mem-style scratchpad):** 999.10 is freeform single-document writing. This is *structured wiki* — pages have parents, backlinks, entity refs, embeds. Likely shares an editor primitive with 999.10; decide during research whether to merge or keep separate.
+
+**Likely shape (sketch, not contract):**
+- New `wiki_pages` table — `userId`, optional `parent_type` + `parent_id` (project / area / page), title, slug, markdown body, `no_export` flag, Realtime subscription, RLS
+- Editor: Tiptap or CodeMirror 6 with custom `@mention` extension resolving to tasks/captures/projects/areas + slash-commands for embeds (`/tasks status:in-progress project:thesis`, `/captures #hashtag`)
+- Page tree in sidebar nested under the linked project/area; backlinks panel at the bottom of each page
+- Search via existing `tsvector` infra (extend captures search)
+- MCP export: pages included in nightly snapshot with their references resolved; honors `no_export` (Phase 999.15 pattern)
+
+**Trigger:** After 999.10 (scratchpad) lands so the editor primitive is proven, and after 999.12 (MCP export) so entity references can ride the existing builder.
+
+**Requirements:** TBD (likely `WIKI-*` family)
+
+**Plans:** 0 plans (idea filed 2026-06-10)
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
