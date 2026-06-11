@@ -108,10 +108,11 @@ describe("buildToolDefinitions — 14 tools after Phase 16", () => {
     expect(askClarification?.cache_control).toBeUndefined();
   });
 
-  it("each tool has strict: true", () => {
+  it("strict split: creates/deletes/meta strict, update/find non-strict (grammar budget)", () => {
     const tools = buildToolDefinitions();
+    const STRICT = ["create_task", "create_capture", "create_event", "remember_fact", "ask_clarification", "delete_task", "delete_capture", "delete_event"];
     for (const t of tools) {
-      expect(t.strict).toBe(true);
+      expect(t.strict, t.name).toBe(STRICT.includes(t.name));
     }
   });
 

@@ -68,8 +68,12 @@ export interface JarvisToolDefinition {
     | "find_events";
   description: string;
   input_schema: Record<string, unknown>;
-  /** Per-tool strict mode (replaces deprecated beta header). */
-  strict: true;
+  /** Per-tool strict mode (replaces deprecated beta header).
+   *  Phase 16: update/find tools are NON-strict — 14 strict tools exceed
+   *  the structured-outputs grammar size limit ("compiled grammar is too
+   *  large"). Server-side Zod validation in run-turn.ts still enforces the
+   *  contract for non-strict tools. */
+  strict: boolean;
   /** Present ONLY on the LAST tool to mark the cache breakpoint.
    *  Phase 11 / CACHE-01: ttl widened to "5m" | "1h". Default is "5m";
    *  setting "1h" requires the `extended-cache-ttl-2025-04-11` beta
@@ -134,17 +138,18 @@ export function buildToolDefinitions(
     // Phase 16 (SMJ-03 / SMJ-04 / SMJ-05 / SMJ-06 / SMJ-07 / SMJ-09):
     // 9 new tools for CRUD (update/delete) + discovery (find_*).
     // +9 tools ≈ +360 tokens of tool-schema token cost per turn (RESEARCH.md Pitfall 7).
-    { ...updateTaskTool, strict: true as const },
-    { ...updateCaptureTool, strict: true as const },
-    { ...updateEventTool, strict: true as const },
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    { ...updateTaskTool, strict: false as const },
+    { ...updateCaptureTool, strict: false as const },
+    { ...updateEventTool, strict: false as const },
     { ...deleteTaskTool, strict: true as const },
     { ...deleteCaptureTool, strict: true as const },
     { ...deleteEventTool, strict: true as const },
-    { ...findTasksTool, strict: true as const },
-    { ...findCapturesTool, strict: true as const },
+    { ...findTasksTool, strict: false as const },
+    { ...findCapturesTool, strict: false as const },
     {
       ...findEventsTool,
-      strict: true as const,
+      strict: false as const,
       // Phase 16 / CACHE-01 (D-06 BREAKPOINT 1): cache_control moves here —
       // find_events is now the LAST tool in the array. TTL "1h" amortizes
       // the 2× write cost over a full hour of turns.
