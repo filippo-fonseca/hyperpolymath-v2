@@ -8,6 +8,13 @@ interface Props {
   windowLabel: string;
 }
 
+// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
+// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
+const TILE =
+  "rounded-xl p-4 " +
+  "glass-tile " +
+  "";
+
 /**
  * Planned-vs-actual adherence (D-14 / TRN-11 / TRN-12).
  *
@@ -36,7 +43,7 @@ export function AdherenceCard({ activities, windowLabel }: Props) {
   }, [activities]);
 
   return (
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4">
+    <div className={TILE}>
       <div className="flex items-baseline justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           Adherence · {windowLabel}

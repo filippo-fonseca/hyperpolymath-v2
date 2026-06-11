@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { useReducedMotion } from "motion/react";
 import type { InsightsData } from "@/lib/db/queries/insights";
+import { NEUMORPHIC_TILE } from "./tile-style";
 
 /**
  * Phase 7 arc-redesign — Insights charts refreshed to a softer dashboard
@@ -54,13 +55,7 @@ function ChartPanel({
 }: ChartPanelProps) {
   return (
     <div
-      className={`relative rounded-2xl bg-[var(--surface)] p-6 ${className}`}
-      style={{
-        // Soft inset border + subtle ambient cyan halo — moves away from the
-        // sharp 1px HUD frame in favour of a rounded dashboard card.
-        boxShadow:
-          "inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent), 0 1px 2px rgba(0,0,0,0.04), 0 0 32px color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
-      }}
+      className={`relative ${NEUMORPHIC_TILE} p-6 ${className}`}
     >
       <header className="mb-5 flex items-baseline justify-between gap-3">
         <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  /** Route the card's "margin click" navigates to. */
+  /** Route the card's "margin click"navigates to. */
   href: string;
   /** Accessible name for the overlay link (screen-readers only). */
   ariaLabel: string;
@@ -24,24 +24,20 @@ interface Props {
  *     sits above the overlay so its buttons/links capture clicks directly.
  *
  * Hover (group/card):
- *   - Border lifts to --edge-hud, then to --hud-cyan when also focused
- *   - Subtle cyan gradient shadow (radial, low alpha) plus a 1px lift
- *   - Pseudo-element top border accent fades in cyan
+ *   - Cyan-tinged border deepens
+ *   - Inner cyan glow intensifies, outer halo grows softer + larger
+ *   - Mirrors the glassy "Profile"pill in /settings nav
  *
- * Reduced-motion users: no lift, no shadow expansion — only the border color
- * transition runs (which is below the threshold for vestibular triggers).
+ * Recipe: translucent surface + backdrop-blur, inset white top highlight,
+ * inset cyan ambient glow, paired outer halo. No transform — glow does the
+ * lifting, not motion.
  */
 export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
         "group/card relative h-full",
-        "rounded-xl border border-[var(--edge)] bg-[var(--surface)]",
-        "transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out",
-        "hover:border-[var(--edge-hud)]",
-        "hover:-translate-y-[1px] motion-reduce:hover:translate-y-0",
-        "hover:shadow-[0_8px_24px_-16px_rgb(0_0_0_/_0.18),0_2px_6px_-3px_rgb(0_0_0_/_0.06)]",
-        "motion-reduce:hover:shadow-none",
+        "rounded-xl glass-tile",
         className,
       )}
     >

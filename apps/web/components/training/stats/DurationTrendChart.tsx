@@ -22,6 +22,13 @@ interface Props {
   weeks?: number;
 }
 
+// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
+// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
+const TILE =
+  "rounded-xl p-4 " +
+  "glass-tile " +
+  "";
+
 /**
  * Weekly duration bar chart (TRN-11) — at least one over-time chart per
  * D-13, and explicitly NOT a pie chart.
@@ -72,7 +79,7 @@ export function DurationTrendChart({
   const totalMin = buckets.reduce((acc, b) => acc + b.min, 0);
 
   return (
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4">
+    <div className={TILE}>
       <div className="flex items-baseline justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           Duration trend · last {weeks} weeks
@@ -103,7 +110,7 @@ export function DurationTrendChart({
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="font-mono text-[10px]">
+                <TooltipContent side="top"className="font-mono text-[10px]">
                   Week of {b.label} — {formatMinutes(b.min)}
                 </TooltipContent>
               </Tooltip>

@@ -162,7 +162,7 @@ function contentToTipTapDoc(
  *   permissively parsed on save — matches CaptureComposer.parseEditor)
  * - Hashtags edited implicitly via the editor (no separate input)
  * - Project links edited via ProjectMultiSelect
- * - Save: Cmd+Enter or "Save changes" button
+ * - Save: Cmd+Enter or "Save changes"button
  * - Delete: footer button with confirm dialog (same copy as inline delete)
  * - Close: Esc, click outside, or × button
  */
@@ -408,7 +408,7 @@ export function CaptureDetailPanel({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, dirty, handleSave]);
 
-  // beforeunload guard — show native browser "Leave site?" prompt when the
+  // beforeunload guard — show native browser "Leave site?"prompt when the
   // panel has unsaved changes and the user tries to refresh/close-tab.
   // Only wired when the panel is open AND dirty.
   useEffect(() => {
@@ -538,7 +538,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Content
                   </h3>
-                  <div className="border border-border rounded-lg bg-card">
+                  <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
                     <EditorContent editor={editor} />
                   </div>
                   <p className="font-sans text-[13px] text-muted-foreground italic">
@@ -566,7 +566,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Info
                   </h3>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px]">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px] p-4 rounded-xl glass-tile">
                     <dt className="text-muted-foreground">Created</dt>
                     <dd className="text-foreground">
                       {format(capture.createdAt, "PPpp")}

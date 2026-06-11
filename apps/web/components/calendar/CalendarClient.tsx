@@ -24,7 +24,7 @@
  *      `Intl.DateTimeFormat().resolvedOptions().timeZone` and POST via
  *      `setTimezone(detected)`. Then refresh the route.
  *   2. Drift-detect: when both saved and detected zones are non-null AND
- *      differ, surface a dismissible toast with an "Update" action.
+ *      differ, surface a dismissible toast with an "Update"action.
  *
  * Filter (D-10):
  *   - CalendarFilters chips own the URL state. We read `?cals=` here to
@@ -117,12 +117,12 @@ function dtoToGridEvent(
 }
 
 /**
- * Round-to-next-half-hour for the Cmd+K "?create=now" default range.
+ * Round-to-next-half-hour for the Cmd+K "?create=now"default range.
  *
  * Plan 04-04 Step 3 / AES-05: opening Cmd+K → New event should drop you on
  * /calendar with the panel pre-filled at the next round half-hour and a
  * 60-minute duration. This matches the muscle memory of native gcal "Quick
- * add" affordances.
+ * add"affordances.
  */
 function nextHalfHour(from: Date): Date {
   const m = from.getMinutes();
@@ -391,7 +391,7 @@ export function CalendarClient({
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
    * Locating the swap behind a named function makes it grep-robust and
    * lets us call it from anywhere (currently just handleCreate, but a
-   * future "duplicate event" affordance would reuse it).
+   * future "duplicate event"affordance would reuse it).
    */
   const swapPlaceholderForCanonical = useCallback(
     (placeholderId: string, dto: GcalEventDTO) => {
@@ -564,7 +564,7 @@ export function CalendarClient({
       // 2. 5s Undo toast (RES-02 / UI-SPEC §8h). gcal DELETE deferred.
       const previousRow = previous;
       showUndoToast({
-        message: `"${previous.title || "Event"}" deleted`,
+        message: `"${previous.title || "Event"}"deleted`,
         optimisticRemove: () => {
           /* already done above */
         },
@@ -641,7 +641,7 @@ export function CalendarClient({
   // Phase 6.1 Plan 06.1-05 (UI-SPEC §5g):
   //   - Outer container on bg --canvas (calendar is document-leaning surface,
   //     axis 4, per UI-SPEC §2b)
-  //   - "today" column receives an 8% amber wash (rgb(217 119 6 / 0.08) per
+  //   - "today"column receives an 8% amber wash (rgb(217 119 6 / 0.08) per
   //     UI-SPEC §3f reserved-for list / §5g) — applied via the .rbc-today
   //     selector in globals.css (kept as a single source of truth for rbc
   //     overrides). The literal also appears once here as a comment marker so
@@ -652,7 +652,7 @@ export function CalendarClient({
   // Calendar copy register per UI-SPEC §12e:
   //   - "New event" CTA (header)
   //   - "Edit event" Sheet title (handled in EventDetailPanel)
-  //   - "Save event" + "Discard changes" + "Delete" button labels (per §12f)
+  //   - "Save event" + "Discard changes" + "Delete"button labels (per §12f)
   //   - "Google Calendar disconnected. Reconnect from Settings." (toast above)
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--canvas)]">
@@ -666,14 +666,15 @@ export function CalendarClient({
         </p>
       </header>
 
-      {/* Toolbar — wrapped in a soft pill container that matches /tasks. */}
+      {/* Toolbar — glassy pill matching the /settings PROFILE pill:
+          translucent surface + backdrop-blur + inset cyan glow + soft outer
+          halo + thin cyan-tinged border on hover. */}
       <div
-        className="mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2"
-        style={{
-          backgroundColor: "var(--surface)",
-          boxShadow:
-            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
-        }}
+        className={
+          "mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2 " +
+          "glass-tile " +
+          ""
+        }
       >
         <DayWeekToggle
           view={view}

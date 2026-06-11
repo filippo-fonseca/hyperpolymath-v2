@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 // into murky dark blocks on the light parchment canvas).
 const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
   "not started": { dot: "oklch(0.72 0.02 80)" },
-  "up next":     { dot: "oklch(0.78 0.16 80)" },
+  "up next": { dot: "oklch(0.78 0.16 80)" },
   "in progress": { dot: "oklch(0.74 0.16 240)" },
   "almost done": { dot: "oklch(0.78 0.16 305)" },
   lesno:         { dot: "oklch(0.78 0.18 160)" },
@@ -38,9 +38,10 @@ const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
 function deriveAccent(dot: string) {
   return {
     dot,
-    // Light wash of the hue against the canvas. ~12% hue mix gives a
-    // tint you can read but doesn't drown the cards.
-    bg: `color-mix(in oklch, var(--canvas) 88%, ${dot})`,
+    // Light wash of the hue against the canvas, kept partly translucent
+    // so the column reads as a glass tile (backdrop-blur shows through)
+    // while still carrying its status hue.
+    bg: `color-mix(in oklch, color-mix(in oklch, var(--canvas) 88%, ${dot}) 82%, transparent)`,
     // Slightly more saturated for the inset border.
     rim: `color-mix(in oklch, var(--edge) 55%, ${dot})`,
     // Card background sits just above the column wash.
@@ -62,7 +63,7 @@ interface Props {
   onDropOnColumn: (target: TaskStatus) => void;
   pendingTaskId: string | null;
   /** Selection plumbing — when supplied, cards render their checkbox and
-   * the column header gets a "select all in column" toggle. */
+   * the column header gets a "select all in column"toggle. */
   selectionActive?: boolean;
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
@@ -94,13 +95,20 @@ export function KanbanColumn({
   const ref = useRef<HTMLDivElement>(null);
   const accent = deriveAccent(STATUS_ACCENT[status].dot);
 
-  const restingShadow = `inset 0 0 0 1px ${accent.rim}`;
-  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`;
+  // Glass surface system: the shadow stack references the --glass-* knobs
+  // from globals.css (single source of truth) with the per-status accent
+  // ring composed on top — 1px at rest, 2px + inner wash as a drop target.
+  // Inline (not .glass-tile) because the v1 drop affordance mutates
+  // style.boxShadow directly, which would clobber a class-provided stack.
+  const glass =
+    "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo)";
+  const restingShadow = `inset 0 0 0 1px ${accent.rim}, ${glass}`;
+  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, ${glass}`;
 
   // v1 pattern: drop-target affordance via direct DOM mutation, NOT React state.
   // Setting React state on every dragover triggers a re-render of the column +
   // its task cards, which competes with Motion's layout animation on drop and
-  // produces a visible "recoil" snap. Mutating boxShadow on the DOM node bypasses
+  // produces a visible "recoil"snap. Mutating boxShadow on the DOM node bypasses
   // React entirely — the affordance lights up instantly, no churn on the children.
   const isValidTarget = (): boolean =>
     draggedTaskId !== null && draggedFromStatus !== status;
@@ -115,7 +123,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0"
+      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0 backdrop-blur-md border border-[var(--glass-border)]"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -137,7 +145,7 @@ export function KanbanColumn({
         background: accent.bg,
         boxShadow: restingShadow,
         transition: "box-shadow 140ms ease-out",
-        ["--task-card-bg" as string]: accent.cardBg,
+        ["--task-card-bg"as string]: accent.cardBg,
       } as React.CSSProperties}
     >
       <div className="group/colhdr flex items-center gap-2 px-4 pt-3 pb-2">
@@ -173,12 +181,12 @@ export function KanbanColumn({
         ) : null}
       </div>
 
-      {/* Two-part column body: scrollable task list, pinned "Add task" footer.
+      {/* Two-part column body: scrollable task list, pinned "Add task"footer.
           flex-1 + min-h-0 lets the list shrink/scroll inside the column's
           row-stretched height; the footer stays anchored at the bottom. */}
       <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
         <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence mode="popLayout"initial={false}>
             {tasks.map((task) => (
               <TaskCard
                 key={task.id}

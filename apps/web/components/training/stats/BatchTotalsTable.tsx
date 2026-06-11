@@ -19,6 +19,13 @@ interface Props {
   windowLabel: string;
 }
 
+// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
+// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
+const TILE =
+  "rounded-xl p-4 " +
+  "glass-tile " +
+  "";
+
 interface TypeAgg {
   typeId: string;
   name: string;
@@ -32,11 +39,11 @@ interface TypeAgg {
 /**
  * Per-batch totals (TRN-11): each user-defined batch renders as a section
  * with per-type duration + distance rows. Ungrouped types fall under an
- * "Ungrouped" section at the bottom.
+ * "Ungrouped"section at the bottom.
  *
- * - "Done" minutes use `actualDurationMin ?? plannedDurationMin` for status
+ * - "Done"minutes use `actualDurationMin ?? plannedDurationMin` for status
  *   = done (the realistic figure for retrospective stats).
- * - "Planned" minutes are the still-outstanding planned time (status =
+ * - "Planned"minutes are the still-outstanding planned time (status =
  *   planned) so the user can see commitment vs accomplishment.
  * - Distance only renders for types with `hasDistance` and only sums
  *   actuals on done activities (km is canonical — formatDistance converts).
@@ -105,7 +112,7 @@ export function BatchTotalsTable({
   }, [activities, types, batches]);
 
   return (
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4">
+    <div className={TILE}>
       <div className="flex items-baseline justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           By batch · {windowLabel}

@@ -93,6 +93,13 @@ interface GLink {
   tgtType: string;
 }
 
+// Shared glassy pill chrome — mirrors PROFILE pill in settings nav.
+// Glass translucent surface + backdrop-blur + inset cyan glow + soft outer halo.
+const tile =
+  "rounded-xl " +
+  "glass-tile " +
+  "";
+
 export function GraphExplorer({
   snapshotDate,
   schemaVersion,
@@ -223,9 +230,11 @@ export function GraphExplorer({
   }
 
   return (
-    <main className="relative flex h-full min-h-0 flex-col bg-[var(--canvas)] text-[var(--ink)]">
+    <main className="relative flex h-full min-h-0 flex-col gap-3 bg-[var(--canvas)] p-4 text-[var(--ink)]">
       {/* MCP / snapshot header */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--edge)] px-6 py-3">
+      <header
+        className={`${tile} flex flex-wrap items-center justify-between gap-3 bg-[var(--surface)] px-5 py-3`}
+      >
         <div className="min-w-0">
           <h1 className="font-serif text-xl font-semibold">Knowledge graph</h1>
           <p className="mt-0.5 font-mono text-[11px] text-[var(--ink-muted)]">
@@ -252,7 +261,9 @@ export function GraphExplorer({
       </header>
 
       {/* Filter legend */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge)] px-6 py-2">
+      <div
+        className={`${tile} flex flex-wrap items-center gap-2 bg-[var(--surface)] px-5 py-2.5`}
+      >
         <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
           show
         </span>
@@ -281,7 +292,9 @@ export function GraphExplorer({
       </div>
 
       {/* Graph canvas + detail panel */}
-      <div className="relative flex min-h-0 flex-1">
+      <div
+        className={`${tile} relative flex min-h-0 flex-1 overflow-hidden bg-[#0a0c10]`}
+      >
         <div ref={wrapRef} className="relative min-h-0 flex-1 bg-[#0a0c10]">
           {dims.w > 0 && (
             <ForceGraph2D
@@ -319,14 +332,14 @@ export function GraphExplorer({
           )}
 
           {/* hint pill */}
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-black/40 px-2.5 py-1 font-mono text-[10px] text-white/60">
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-white/5 bg-black/40 px-2.5 py-1 font-mono text-[10px] text-white/60 shadow-[0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
             scroll to zoom · drag to pan · click a node to inspect
           </div>
         </div>
 
         {/* Detail panel */}
         {selected && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[var(--edge)] bg-[var(--surface)] p-5">
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-5 shadow-[inset_6px_0_18px_color-mix(in_oklch,var(--ink)_6%,transparent),inset_0_1px_0_color-mix(in_oklch,white_50%,transparent)]">
             <div className="flex items-center gap-2">
               <span
                 className="inline-block h-3 w-3 rounded-full"

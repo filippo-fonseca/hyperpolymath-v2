@@ -85,7 +85,7 @@ export type TasksOptimisticDispatch = (
  *      — Realtime echoes invalidate the cache → refetch via queryFn.
  *   3. `useOptimistic(tasks, optimisticReducer)` — instant local feedback for
  *      writes. The Realtime echo carries the same caller-supplied UUID, so
- *      the reducer's "insert" no-ops on echo (RT-05 dedupe).
+ *      the reducer's "insert"no-ops on echo (RT-05 dedupe).
  *
  * D-02: no opacity dim / spinner / pending chrome on optimistic surfaces.
  * D-05: no toast/badge on Realtime invalidation (silent cross-device sync).
@@ -159,12 +159,12 @@ export function TasksClient({
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
-  // Draft task — set when the user clicks "+ Add task" in a kanban column.
+  // Draft task — set when the user clicks "+ Add task"in a kanban column.
   // The detail panel opens in create mode with a synthetic empty task; Save
   // calls createTask, Cancel/close discards.
   const [draftStatus, setDraftStatus] = useState<TaskStatus | null>(null);
 
-  // Auto-hide completed "lesno" tasks by default (per user spec). Persisted in
+  // Auto-hide completed "lesno"tasks by default (per user spec). Persisted in
   // localStorage so the choice survives page reloads. Toggle pill sits in the
   // toolbar next to the view switcher.
   const [showLesno, setShowLesno] = useState(false);
@@ -278,7 +278,7 @@ export function TasksClient({
   // Compare YMD strings directly: t.dueDate from the DB is already a
   // YYYY-MM-DD string (drizzle `date` column), and dateYmd is the URL
   // YMD string. Round-tripping through Date introduces UTC-midnight
-  // drift in negative-UTC timezones (a task created today as "today" in
+  // drift in negative-UTC timezones (a task created today as "today"in
   // EDT would parse to UTC midnight, which is yesterday in EDT, and
   // never match the day filter — that's why new tasks were falling
   // through to the Inbox tray instead of landing in the active column).
@@ -402,7 +402,7 @@ export function TasksClient({
     // header AND the status to whichever column the inline composer was
     // in. Both come from props/state and require no extra UI affordance —
     // matches the muscle-memory expectation that "the column I click is
-    // the column it lands in" and "today's tasks land on today."
+    // the column it lands in"and "today's tasks land on today."
     const defaultedDueDate = dateYmd;
     startTransition(async () => {
       // Optimistic insert FIRST — UI flips instantly
@@ -515,17 +515,23 @@ export function TasksClient({
         </p>
       </header>
 
-      {/* Toolbar: filters + view toggle wrapped in a soft pill container. */}
+      {/* Toolbar: filters + view toggle wrapped in a glassy pill container
+          (matches the PROFILE pill in /settings nav — translucent surface +
+          backdrop-blur + inset cyan glow + soft outer halo + thin cyan-tinged
+          border on hover). */}
       <div
-        className="flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2"
-        style={{
-          backgroundColor: "var(--surface)",
-          boxShadow:
-            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
-        }}
+        className={cn(
+          "flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2 ",
+          "",
+          "glass-tile",
+          "",
+          "",
+          "",
+          "",
+        )}
       >
         <TaskFilters projects={projects} />
-        {/* Show / hide completed "lesno" tasks. Off by default per user spec —
+        {/* Show / hide completed "lesno"tasks. Off by default per user spec —
             the kanban + list + day views all read from `filtered`, which
             drops lesno when this is false. */}
         <button
@@ -615,7 +621,15 @@ export function TasksClient({
                 className="overflow-hidden"
               >
                 <div
-                  className="mb-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-3"
+                  className={cn(
+                    "mb-4 rounded-xl p-3 ",
+                    "",
+                    "glass-tile",
+                    "",
+                    "",
+                    "",
+                    "",
+                  )}
                   role="region"
                   aria-label="Tasks without a due date"
                 >
@@ -698,7 +712,7 @@ export function TasksClient({
           addOptimistic({ type: "delete", id: task.id });
           // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h)
           showUndoToast({
-            message: `"${task.title}" deleted`,
+            message: `"${task.title}"deleted`,
             optimisticRemove: () => {
               /* already done above */
             },
@@ -728,7 +742,7 @@ export function TasksClient({
         }}
       />
 
-      {/* Draft panel — opens when the user clicks "+ Add task" in a column. */}
+      {/* Draft panel — opens when the user clicks "+ Add task"in a column. */}
       <TaskDetailPanel
         task={draftTask}
         projects={projects}

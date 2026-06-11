@@ -68,7 +68,7 @@ interface Props {
    * Plan 05-04 (JARVIS-13 / D-14) — Projects available for the Convert-to-task
    * dialog's ProjectMultiSelect. Only consumed when the capture's
    * `createdVia === "jarvis"` and the user opens the ⋯ menu's "Convert to
-   * task" item. Pass an empty array to disable the affordance (the menu item
+   * task"item. Pass an empty array to disable the affordance (the menu item
    * still renders for jarvis-created captures; the dialog just has no
    * pickable projects).
    */
@@ -112,7 +112,7 @@ export function CaptureCard({
   const [removed, setRemoved] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // D-14 / JARVIS-13: "Convert to task" affordance is shown ONLY when this
+  // D-14 / JARVIS-13: "Convert to task"affordance is shown ONLY when this
   // capture was created via JARVIS. Manual captures (composer / detail panel
   // save) keep createdVia=null and don't get the menu item.
   const isJarvisCreated = capture.createdVia === "jarvis";
@@ -164,14 +164,18 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // Phase 06.1 Plan 04 (UI-SPEC §5i): captures feed is document-pure —
-            // no card chrome, no border, no shadow. Hover paints a 1px --edge
-            // left edge over 150ms (felt-quality grep target). Wrapper is
-            // clickable only when onOpen is provided.
-            "group relative transition-colors duration-150 ease-out",
-            "border-l-2 border-l-transparent",
-            compact ? "px-3 py-2" : "px-4 py-3",
-            onOpen && "cursor-pointer hover:border-l-[var(--edge)]",
+            // Glassy pill tile (matches SettingsSectionNav PROFILE pill):
+            // translucent surface + backdrop-blur + inset cyan glow + soft
+            // outer halo + thin cyan-tinged border. Hover deepens border to
+            // cyan and ramps the inset glow + outer halo.
+            "group relative rounded-xl ",
+            "",
+            "glass-tile",
+            "",
+            "",
+            compact ? "px-3 py-2" : "px-5 py-4",
+            onOpen &&
+              "cursor-pointer ",
           )}
           {...(onOpen
             ? {
@@ -257,7 +261,7 @@ export function CaptureCard({
       )}
 
       {/* JARVIS-13 / D-14 — Convert capture-to-task dialog, mounted only for
-          createdVia === "jarvis" captures (the menu item that opens it is
+          createdVia === "jarvis"captures (the menu item that opens it is
           itself gated, so the dialog mount-condition is a clean two-layer
           guard). */}
       {isJarvisCreated && convertOpen ? (

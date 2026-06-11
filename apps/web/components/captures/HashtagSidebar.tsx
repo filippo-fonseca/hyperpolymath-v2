@@ -15,7 +15,7 @@ interface Props {
   activeHashtagId: string | null;
   /**
    * Total captures owned by the user (no filter applied). Rendered as the
-   * count on the "All" row at the top of the sidebar — the primary
+   * count on the "All"row at the top of the sidebar — the primary
    * affordance for clearing an active `?tag=` filter.
    */
   totalCount: number;
@@ -35,18 +35,18 @@ interface Props {
  * - No state of our own — pure render off the prop.
  *
  * Layout (top → bottom):
- *   1. "All" row — clears the `?tag=` filter; active when no tag is selected.
- *      Sits above the "Hashtags" heading because it is a filter-clear, not a
+ *   1. "All"row — clears the `?tag=` filter; active when no tag is selected.
+ *      Sits above the "Hashtags"heading because it is a filter-clear, not a
  *      hashtag itself. Users who land on `/captures?tag=...` need a
  *      discoverable way back to the full feed (the previous "click the active
- *      tag again" toggle was the only path, and not discoverable).
- *   2. "Hashtags" section heading.
+ *      tag again"toggle was the only path, and not discoverable).
+ *   2. "Hashtags"section heading.
  *   3. Hashtag rows — `#name` + count, font-sans 13px/400.
  *
  * - 200px-wide column rendered by CapturesClient
  * - Active row: text-accent + bg-secondary (color shift only, no weight change)
  * - Sorted DESC by count by the server query; we render in given order
- * - Orphan tags (count === 0): hidden by default; "Show all" toggle reveals at opacity-40
+ * - Orphan tags (count === 0): hidden by default; "Show all"toggle reveals at opacity-40
  * - Click again on the active hashtag row also clears the filter (secondary affordance)
  */
 export function HashtagSidebar({
@@ -86,8 +86,8 @@ export function HashtagSidebar({
   }
 
   return (
-    <div className="flex flex-col">
-      {/* All row — filter-clear; sits above the "Hashtags" heading. */}
+    <div className="flex flex-col p-4 rounded-xl glass-tile">
+      {/* All row — filter-clear; sits above the "Hashtags"heading. */}
       <button
         type="button"
         onClick={() => onSelect(null)}

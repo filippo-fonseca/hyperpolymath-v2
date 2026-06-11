@@ -283,11 +283,9 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Phase 06.1 Plan 04 (UI-SPEC §5i, §9d) — document-tier composer chrome.
-    // Wrapper: bg --surface + 1px --edge border at rest; focus-within bumps the
-    // border to --ink-amber over 150ms --ease-out-quart. The global :focus-visible
-    // rule layers --ring-doc onto focused inputs inside automatically.
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--ink-amber)] transition-colors duration-150 ease-out">
+    // Glass tile composer — focus-within flips the glass accent to amber so
+    // the composer still reads "live" while typing.
+    <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">

@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NEUMORPHIC_TILE } from "./tile-style";
 
 /**
  * Phase 9 / TEL-02 — Pipeline Latency panel (D-03/D-04).
@@ -58,13 +59,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
   // or fresh re-instrumentation). Copy LOCKED per must_haves.truths.
   if (stats.totalTurns === 0) {
     return (
-      <section
-        className="rounded-2xl bg-[var(--surface)] p-6 mb-8"
-        style={{
-          boxShadow:
-            "inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent), 0 0 32px color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
-        }}
-      >
+      <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
         <header className="mb-4">
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
@@ -106,13 +101,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
     : 0;
 
   return (
-    <section
-      className="rounded-2xl bg-[var(--surface)] p-6 mb-8"
-      style={{
-        boxShadow:
-          "inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent), 0 1px 2px rgba(0,0,0,0.04), 0 0 32px color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
-      }}
-    >
+    <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
       <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
@@ -227,7 +216,13 @@ function StageSparkline({
     ms: view === "p50" ? d.p50Ms : d.p95Ms,
   }));
   return (
-    <div className="rounded-lg p-3 bg-[var(--surface-raised)]/40">
+    <div
+      className={
+        "rounded-lg p-3 bg-[var(--surface-raised)]/40 " +
+        "border border-[color-mix(in_oklch,var(--edge)_60%,transparent)] " +
+        "shadow-[3px_3px_10px_color-mix(in_oklch,var(--ink)_6%,transparent),-2px_-2px_8px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_50%,transparent)]"
+      }
+    >
       <div className="flex items-baseline justify-between mb-1">
         <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
           {stage.label}

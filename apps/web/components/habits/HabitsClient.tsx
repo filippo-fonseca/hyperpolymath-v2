@@ -70,6 +70,14 @@ interface Props {
 
 type Tab = "today" | "manage" | "archive";
 
+// Glassy pill tile — matches the PROFILE pill in SettingsSectionNav.
+// Translucent surface + backdrop-blur + inset cyan glow + soft outer halo
+// + thin cyan-tinged border. Hover lifts the halo and warms the cyan inset.
+const TILE_NEUMORPHIC =
+  "rounded-xl " +
+  "glass-tile " +
+  "";
+
 const FULL_DAY_NAMES = [
   "Sunday",
   "Monday",
@@ -312,7 +320,7 @@ export function HabitsClient({
             </span>
           </TabButton>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
+        <Button size="sm"onClick={() => setCreateOpen(true)}>
           <Plus size={14} /> New habit
         </Button>
       </div>
@@ -379,7 +387,7 @@ function TodayTab({
   const [selectedDate, setSelectedDate] = useState(today);
   const [calOpen, setCalOpen] = useState(false);
 
-  // Auto-snap to "today" if the day rolls over while we were on yesterday.
+  // Auto-snap to "today"if the day rolls over while we were on yesterday.
   // (No-op for any other selection — only when today's value changed AND
   // we were anchored to the previous today.)
   useEffect(() => {
@@ -409,7 +417,7 @@ function TodayTab({
 
   return (
     <section className="flex flex-col gap-4">
-      {/* Day navigator — prev / label+calendar / next, with a "Today" reset
+      {/* Day navigator — prev / label+calendar / next, with a "Today"reset
           on the right when off-today. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1">
@@ -436,7 +444,7 @@ function TodayTab({
                 {formatDateLabel(selectedDate, today)}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-3">
+            <PopoverContent align="start"className="w-auto p-3">
               <MiniCalendar
                 value={selectedDate}
                 onChange={(iso) => {
@@ -491,7 +499,7 @@ function TodayTab({
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence mode="popLayout"initial={false}>
             {dayHabits.map((h) => (
               <motion.li
                 key={h.id}
@@ -526,11 +534,10 @@ function DayHabitRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl border",
-        "transition-colors duration-150 ease-out",
+        "flex items-center gap-3 px-4 py-3",
         completed
-          ? "border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))]"
-          : "border-[var(--edge)] bg-[var(--surface)] hover:border-[var(--edge-hud)]",
+          ? "rounded-xl glass-tile border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))] [--glass-glow-color:var(--ink-amber)] [--glass-glow:8%]"
+          : TILE_NEUMORPHIC,
       )}
     >
       <CheckCircle completed={completed} onClick={onToggle} />
@@ -584,7 +591,7 @@ function ManageTab({
         <p className="font-serif italic text-base text-[var(--ink-muted)]">
           Habits you build here repeat on the days you pick.
         </p>
-        <Button className="mt-4" size="sm" onClick={onCreate}>
+        <Button className="mt-4"size="sm"onClick={onCreate}>
           <Plus size={14} /> Add your first habit
         </Button>
       </div>
@@ -626,7 +633,7 @@ function ManageHabitRow({
   const createdISO = toISODate(habit.createdAt);
 
   // 7-day strip ending today. Clamp by createdAt — earlier days render as
-  // "didn't exist" (no border, faint) to make the "habit is new" honest.
+  // "didn't exist" (no border, faint) to make the "habit is new"honest.
   const strip = useMemo(() => {
     const out: {
       iso: string;
@@ -650,11 +657,7 @@ function ManageHabitRow({
 
   return (
     <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl",
-        "border border-[var(--edge)] bg-[var(--surface)]",
-        "hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
-      )}
+      className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
     >
       <button
         type="button"
@@ -739,7 +742,7 @@ function ArchiveTab({
       {archived.map((h) => (
         <li
           key={h.id}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--edge)] bg-[var(--surface)]"
+          className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
         >
           <div className="flex flex-col min-w-0 flex-1">
             <p className="font-serif text-[15px] text-[var(--ink-muted)] truncate">
@@ -869,7 +872,7 @@ function HabitRowMenu({
             <DropdownMenuSeparator />
           </>
         )}
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        <DropdownMenuItem variant="destructive"onClick={onDelete}>
           <Trash2 size={14} /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

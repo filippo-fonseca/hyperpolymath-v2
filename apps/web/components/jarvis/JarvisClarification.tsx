@@ -48,13 +48,23 @@ export function JarvisClarification({ clarification, onReply }: Props) {
   return (
     <div
       className={cn(
-        "relative rounded-sm px-4 py-3 my-1 overflow-hidden",
+        "relative rounded-lg px-4 py-3 my-1 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out",
         disabled && "opacity-60",
       )}
       style={{
-        backgroundColor: "var(--surface)",
-        border: "1px solid var(--edge-hud)",
-        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+        // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
+        // Translucent surface + backdrop-blur + inset cyan inner halo + single
+        // downward outer shadow, composed under the JARVIS ambient cyan glow.
+        backgroundColor: "var(--glass-bg)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
+        boxShadow:
+          "var(--glass-raise), var(--glass-drop)," +
+          "inset 0 1px 0 var(--glass-hi)," +
+          "inset 0 -1px 0 var(--glass-lo)," +
+          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)," +
+          "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
       {/* Phase 6.1 Plan 02 (UI-SPEC §5a): static 10px corner L-brackets frame

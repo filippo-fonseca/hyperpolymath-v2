@@ -95,7 +95,15 @@ export function CalendarFilters({ calendars }: Props) {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-64 p-1.5 border-[var(--edge)] bg-[var(--surface-raised)]"
+        className={
+          // Glassy pill matching /settings PROFILE pill: translucent surface +
+          // backdrop-blur + inset cyan glow + soft outer halo + thin
+          // cyan-tinged border on hover.
+          "w-64 p-1.5 rounded-xl " +
+          "bg-[color-mix(in_oklch,var(--surface-raised)_82%,transparent)] " +
+          "glass-tile " +
+          ""
+        }
       >
         <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           Show calendars

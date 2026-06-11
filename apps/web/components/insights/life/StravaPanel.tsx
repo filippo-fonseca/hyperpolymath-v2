@@ -15,6 +15,7 @@ import type {
   WeeklyStats,
 } from '@/lib/integrations/strava/activities';
 import { StravaDisconnectButton } from './StravaConnectionControl';
+import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 const ACCENT = '#FC4C02';
 // const ACCENT_DIM = '#c43d02'; // reserved for hover/secondary use
@@ -26,12 +27,11 @@ interface Props {
 function PanelChrome({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className="rounded-2xl bg-[var(--surface)] border border-[var(--edge)] p-6"
+      className={`group ${NEUMORPHIC_TILE} p-6`}
       style={
         {
           ['--panel-accent']: ACCENT,
-          boxShadow:
-            'inset 0 0 0 1px color-mix(in oklch, var(--panel-accent) 40%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 5%, transparent)',
+          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
         } as React.CSSProperties
       }
     >

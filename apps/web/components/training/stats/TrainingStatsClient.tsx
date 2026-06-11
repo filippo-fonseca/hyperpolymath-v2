@@ -36,6 +36,13 @@ interface Props {
   distanceUnit: DistanceUnit;
 }
 
+// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
+// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
+const TILE =
+  "rounded-xl p-4 overflow-x-auto " +
+  "glass-tile " +
+  "";
+
 /**
  * /training/stats orchestrator (TRN-09 / TRN-10 / TRN-11).
  *
@@ -133,7 +140,7 @@ export function TrainingStatsClient({
             size="sm"
             className="h-7 gap-1.5 px-2 font-mono text-[11px] uppercase tracking-[0.06em]"
           >
-            <Link href="/training" aria-label="Back to planner">
+            <Link href="/training"aria-label="Back to planner">
               <ArrowLeft size={13} strokeWidth={1.5} />
               Planner
             </Link>
@@ -152,7 +159,7 @@ export function TrainingStatsClient({
       />
 
       {/* The headline visual — 12 months regardless of window toggle */}
-      <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4 overflow-x-auto">
+      <div className={TILE}>
         <div className="flex items-baseline justify-between pb-3">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
             Last 12 months · blended day colors

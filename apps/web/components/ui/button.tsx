@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils"
  * Phase 6 06-01; `focus-visible:outline-none` defers to the global
  * :focus-visible rule in globals.css which paints --ring-doc.
  *
- * NO neumorphic shadow on any button — Phase 6's retired button shadow tokens
- * (purged in Plan 06.1-01) are intentionally absent. Consumers that need an
- * agent-tier glow add it inline at the consumption site.
+ * Outline/secondary ride the .glass-button utility (globals.css glass
+ * surface system) — translucent, blurred, specular edge, pressed inset.
+ * Default (solid ink) and ghost/link stay flat to preserve hierarchy.
  *
  * Destructive intentionally uses --ring-doc (amber) on focus, not red — keeps
  * the button bordered + colored in coral but the ring stays in the document
@@ -36,13 +36,13 @@ const buttonVariants = cva(
         destructive:
           "bg-transparent border border-[var(--ink-coral)] text-[var(--ink-coral)] " +
           "hover:bg-[color:rgb(220_38_38_/_0.08)] active:bg-[color:rgb(220_38_38_/_0.16)]",
-        // Outline / Secondary — 1px edge, surface on hover
-        outline:
-          "bg-transparent border border-[var(--edge)] text-[var(--ink)] " +
-          "hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
-        secondary:
-          "bg-transparent border border-[var(--edge)] text-[var(--ink)] " +
-          "hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
+        // Outline / Secondary — glass control tier (.glass-button in
+        // globals.css): translucent surface, backdrop blur, specular top
+        // edge, cyan-tinged border + inner glow on hover, pressed inset on
+        // active. Single source of truth for the look lives in the
+        // --glass-* knobs.
+        outline: "glass-button text-[var(--ink)]",
+        secondary: "glass-button text-[var(--ink)]",
         // Ghost — no border at rest; surface on hover
         ghost:
           "bg-transparent text-[var(--ink)] hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
