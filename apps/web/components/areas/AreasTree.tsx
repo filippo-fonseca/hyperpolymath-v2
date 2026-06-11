@@ -46,6 +46,29 @@ const PER_AREA_COLLAPSED_PREFIX = "areas-tree-collapsed-";
 const TRUNK_DROP = 36; // px the trunk falls before reaching the junction
 const BRANCH_RISE = 32; // px the branch rises off the top of each card
 
+/**
+ * Per-area accent palette. Six soft oklch hues — pinks, turquoise, purple,
+ * mint, amber, cyan — chosen to read as a constellation of distinct nodes
+ * without breaking the journal-paper restraint. Each area is assigned a
+ * stable color via a tiny string hash of its id (deterministic across
+ * reloads). The same color drives both the SVG branch stroke AND the area
+ * card's left-edge accent + top vertex dot.
+ */
+const NODE_PALETTE = [
+  "oklch(72% 0.13 210)", // cyan (brand)
+  "oklch(74% 0.14 350)", // pink
+  "oklch(72% 0.14 305)", // purple
+  "oklch(74% 0.13 175)", // turquoise
+  "oklch(76% 0.15 155)", // mint / light green
+  "oklch(80% 0.13 70)",  // amber / peach
+] as const;
+
+function pickNodeColor(id: string): string {
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
+  return NODE_PALETTE[Math.abs(h) % NODE_PALETTE.length];
+}
+
 export function AreasTree({
   areas,
   rootAvatarUrl,
@@ -57,6 +80,9 @@ export function AreasTree({
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
 
   const [paths, setPaths] = useState<{ id: string; d: string }[]>([]);
+  const [cardVertices, setCardVertices] = useState<
+    { id: string; cx: number; cy: number }[]
+  >([]);
   const [junctionLines, setJunctionLines] = useState<
     { x1: number; x2: number; y: number }[]
   >([]);
@@ -143,6 +169,7 @@ export function AreasTree({
       }
       if (cardCenters.length === 0) {
         setPaths([]);
+        setCardVertices([]);
         setJunctionLines([]);
         setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
@@ -169,6 +196,7 @@ export function AreasTree({
         const only = cardCenters[0];
         const branchEndY = Math.max(rootBottom + TRUNK_DROP, only.top - 2);
         setPaths([{ id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` }]);
+        setCardVertices([{ id: only.id, cx: rootCx, cy: branchEndY }]);
         setJunctionLines([]);
         setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
@@ -180,6 +208,7 @@ export function AreasTree({
       // all cards in a row lie to one side.
       const junctions: { x1: number; x2: number; y: number }[] = [];
       const nextPaths: { id: string; d: string }[] = [];
+      const nextVertices: { id: string; cx: number; cy: number }[] = [];
       let lastJunctionY = rootBottom + TRUNK_DROP;
       for (const row of rows) {
         const rowMinX = Math.min(...row.map((c) => c.cx));
@@ -196,6 +225,7 @@ export function AreasTree({
             id: c.id,
             d: `M ${rootCx} ${rowJunctionY} H ${c.cx} V ${branchEndY}`,
           });
+          nextVertices.push({ id: c.id, cx: c.cx, cy: branchEndY });
         }
         lastJunctionY = rowJunctionY;
       }
@@ -204,6 +234,7 @@ export function AreasTree({
       // junction Y. Passes through every intermediate junction (they share
       // x=rootCx by construction), visually unifying multi-row layouts.
       setPaths(nextPaths);
+      setCardVertices(nextVertices);
       setJunctionLines(junctions);
       setTrunkLine({ x: rootCx, y1: rootBottom, y2: lastJunctionY });
       setSvgSize({ w: containerRect.width, h: containerRect.height });
@@ -221,7 +252,10 @@ export function AreasTree({
     };
   }, [areas.length]);
 
-  const lineColor = "color-mix(in oklch, var(--hud-cyan) 40%, transparent)";
+  // Trunk + junctions stay neutral cyan (they belong to the whole tree, not
+  // any one area), but bumped from 40% → 70% opacity and 1.25 → 1.75 stroke
+  // so the backbone reads at a glance instead of fading into the canvas.
+  const trunkColor = "color-mix(in oklch, var(--hud-cyan) 70%, transparent)";
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -281,8 +315,8 @@ export function AreasTree({
             y1={trunkLine.y1}
             x2={trunkLine.x}
             y2={trunkLine.y2}
-            stroke={lineColor}
-            strokeWidth="1.25"
+            stroke={trunkColor}
+            strokeWidth="1.75"
             strokeLinecap="round"
           />
         ) : null}
@@ -297,47 +331,79 @@ export function AreasTree({
             y1={j.y}
             x2={j.x2}
             y2={j.y}
-            stroke={lineColor}
-            strokeWidth="1.25"
+            stroke={trunkColor}
+            strokeWidth="1.75"
             strokeLinecap="round"
           />
         ))}
 
-        {paths.map((p, i) => (
-          <g key={p.id}>
-            <path
-              id={`feed-path-${p.id}`}
-              d={p.d}
-              fill="none"
-              stroke={lineColor}
-              strokeWidth="1.25"
-              strokeLinecap="round"
-            />
-            <circle
-              r="4"
-              fill="var(--hud-cyan-light)"
-              filter="url(#feed-glow)"
-              opacity="0.85"
-            >
-              <animateMotion
-                dur="2.6s"
-                repeatCount="indefinite"
-                begin={`${(i * 0.35).toFixed(2)}s`}
+        {paths.map((p, i) => {
+          const accent = pickNodeColor(p.id);
+          const stroke = `color-mix(in oklch, ${accent} 75%, transparent)`;
+          return (
+            <g key={p.id}>
+              <path
+                id={`feed-path-${p.id}`}
+                d={p.d}
+                fill="none"
+                stroke={stroke}
+                strokeWidth="1.75"
+                strokeLinecap="round"
+              />
+              <circle
+                r="4"
+                fill={accent}
+                filter="url(#feed-glow)"
+                opacity="0.85"
               >
-                <mpath href={`#feed-path-${p.id}`} />
-              </animateMotion>
-            </circle>
-            <circle r="1.75" fill="var(--hud-cyan-light)">
-              <animateMotion
-                dur="2.6s"
-                repeatCount="indefinite"
-                begin={`${(i * 0.35).toFixed(2)}s`}
-              >
-                <mpath href={`#feed-path-${p.id}`} />
-              </animateMotion>
-            </circle>
-          </g>
-        ))}
+                <animateMotion
+                  dur="2.6s"
+                  repeatCount="indefinite"
+                  begin={`${(i * 0.35).toFixed(2)}s`}
+                >
+                  <mpath href={`#feed-path-${p.id}`} />
+                </animateMotion>
+              </circle>
+              <circle r="1.75" fill={accent}>
+                <animateMotion
+                  dur="2.6s"
+                  repeatCount="indefinite"
+                  begin={`${(i * 0.35).toFixed(2)}s`}
+                >
+                  <mpath href={`#feed-path-${p.id}`} />
+                </animateMotion>
+              </circle>
+            </g>
+          );
+        })}
+
+        {/* Vertex dots — solid filled circles at the top of every area card
+            where its branch terminates. Outer halo + inner nucleus reads as
+            a "node" in graph-theory sense, so the tree visualises actual
+            graph vertices instead of just lines disappearing into cards. */}
+        {cardVertices.map((v) => {
+          const accent = pickNodeColor(v.id);
+          return (
+            <g key={`vertex-${v.id}`}>
+              <circle
+                cx={v.cx}
+                cy={v.cy}
+                r="6"
+                fill={accent}
+                opacity="0.18"
+                filter="url(#feed-glow)"
+              />
+              <circle
+                cx={v.cx}
+                cy={v.cy}
+                r="3.25"
+                fill="var(--canvas)"
+                stroke={accent}
+                strokeWidth="1.5"
+              />
+            </g>
+          );
+        })}
       </svg>
 
       {/* Root — just the avatar. Strict pixel width AND height on both the
