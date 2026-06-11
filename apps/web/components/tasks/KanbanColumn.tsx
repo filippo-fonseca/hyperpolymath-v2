@@ -38,9 +38,10 @@ const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
 function deriveAccent(dot: string) {
   return {
     dot,
-    // Light wash of the hue against the canvas. ~12% hue mix gives a
-    // tint you can read but doesn't drown the cards.
-    bg: `color-mix(in oklch, var(--canvas) 88%, ${dot})`,
+    // Light wash of the hue against the canvas, kept partly translucent
+    // so the column reads as a glass tile (backdrop-blur shows through)
+    // while still carrying its status hue.
+    bg: `color-mix(in oklch, color-mix(in oklch, var(--canvas) 88%, ${dot}) 82%, transparent)`,
     // Slightly more saturated for the inset border.
     rim: `color-mix(in oklch, var(--edge) 55%, ${dot})`,
     // Card background sits just above the column wash.
@@ -94,16 +95,17 @@ export function KanbanColumn({
   const ref = useRef<HTMLDivElement>(null);
   const accent = deriveAccent(STATUS_ACCENT[status].dot);
 
-  // Neumorphic tile shadow stack (paired raised + recessed + inset highlight),
-  // matched to /settings tile chrome. The accent rim sits on top so each
-  // column still reads as its status hue, and the drop-target hover still
-  // lights up via the boxShadow DOM mutation below.
-  const neumorphic =
-    "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
-  const neumorphicHover =
-    "8px 8px 22px color-mix(in oklch, var(--ink) 12%, transparent), -5px -5px 16px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
-  const restingShadow = `inset 0 0 0 1px ${accent.rim}, ${neumorphic}`;
-  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, ${neumorphicHover}`;
+  // Glassy pill shadow stack (matches the PROFILE pill in /settings nav):
+  // translucent surface + thin top highlight + bottom shade + faint cyan
+  // inner glow + soft outer halo. The per-status accent rim is composed
+  // ON TOP via the first inset (1px ring at resting, 2px ring on hover-as-
+  // drop-target), so each column still reads as its status hue.
+  const glass =
+    "inset 0 1px 0 color-mix(in oklch, white 12%, transparent), inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent), inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent), 0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent), 0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)";
+  const glassHover =
+    "inset 0 1px 0 color-mix(in oklch, white 16%, transparent), inset 0 -1px 0 color-mix(in oklch, var(--ink) 12%, transparent), inset 0 0 32px color-mix(in oklch, var(--hud-cyan) 12%, transparent), 0 14px 40px color-mix(in oklch, var(--ink) 30%, transparent), 0 2px 8px color-mix(in oklch, var(--ink) 14%, transparent)";
+  const restingShadow = `inset 0 0 0 1px ${accent.rim}, ${glass}`;
+  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, ${glassHover}`;
 
   // v1 pattern: drop-target affordance via direct DOM mutation, NOT React state.
   // Setting React state on every dragover triggers a re-render of the column +
@@ -123,7 +125,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0"
+      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0 backdrop-blur-md"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
