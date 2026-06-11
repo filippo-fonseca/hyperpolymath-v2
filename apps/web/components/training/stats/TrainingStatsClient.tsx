@@ -36,6 +36,13 @@ interface Props {
   distanceUnit: DistanceUnit;
 }
 
+// Soft neumorphic glassy tile — mirrors /settings page tile aesthetic.
+const TILE =
+  "rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-4 overflow-x-auto " +
+  "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "transition-[border-color,box-shadow] duration-200 ease-out";
+
 /**
  * /training/stats orchestrator (TRN-09 / TRN-10 / TRN-11).
  *
@@ -152,7 +159,7 @@ export function TrainingStatsClient({
       />
 
       {/* The headline visual — 12 months regardless of window toggle */}
-      <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4 overflow-x-auto">
+      <div className={TILE}>
         <div className="flex items-baseline justify-between pb-3">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
             Last 12 months · blended day colors
