@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { AreaDetailHeader } from "@/components/areas/AreaDetailHeader";
+import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
 
 interface Props {
   params: Promise<{ areaId: string }>;
@@ -16,8 +18,8 @@ interface Props {
  * (active by default; archived hidden so the page reads as the live shape
  * of the area). Each project is a small card linking into its own page.
  *
- * Same data model as the sidebar tree, scoped server-side so we don't ship
- * the full hierarchy to the client just to filter it.
+ * CRUD affordances added in Quick 260611-g2z: AreaDetailHeader (Edit area +
+ * New project) and per-card AreaProjectCardMenu (Rename / Edit / Move / Delete).
  */
 export default async function AreaDetailPage({ params }: Props) {
   const { areaId } = await params;
@@ -54,6 +56,18 @@ export default async function AreaDetailPage({ params }: Props) {
     )
     .orderBy(asc(projects.orderIndex), asc(projects.createdAt));
 
+  // All active areas for the area picker in ProjectCreateDialog + MoveProjectDialog
+  const allActiveAreas = await db
+    .select({ id: areas.id, name: areas.name })
+    .from(areas)
+    .where(
+      and(
+        eq(areas.userId, user.id),
+        isNull(areas.archivedAt),
+      ),
+    )
+    .orderBy(asc(areas.orderIndex), asc(areas.createdAt));
+
   return (
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-6 pb-20">
@@ -65,22 +79,12 @@ export default async function AreaDetailPage({ params }: Props) {
           ]}
         />
 
-        <header className="mt-2 mb-10 space-y-2">
-          <div className="flex items-baseline gap-3">
-            {area.emoji ? (
-              <span className="text-3xl leading-none" aria-hidden="true">
-                {area.emoji}
-              </span>
-            ) : null}
-            <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
-              {area.name}
-            </h1>
-          </div>
-          <p className="font-serif text-base text-[var(--ink-muted)]">
-            {projectRows.length} active project
-            {projectRows.length === 1 ? "" : "s"}.
-          </p>
-        </header>
+        <AreaDetailHeader
+          area={area}
+          allAreas={allActiveAreas}
+          graduationYear={user.graduationYear}
+          projectCount={projectRows.length}
+        />
 
         <div className="flex items-baseline gap-3 mb-4">
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
@@ -97,13 +101,13 @@ export default async function AreaDetailPage({ params }: Props) {
               No projects in this area yet.
             </p>
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
-              Add one from the sidebar.
+              Use the New project button above to get started.
             </p>
           </div>
         ) : (
           <ul className="grid grid-cols-1 @sm/main:grid-cols-2 @2xl/main:grid-cols-3 gap-4">
             {projectRows.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="relative group">
                 <Link
                   href={`/projects/${p.id}`}
                   className="group flex flex-col gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-4 py-4 hover:border-[var(--edge-hud)] hover:bg-[var(--surface-raised)] transition-colors duration-150 ease-out cursor-pointer-always h-full"
@@ -132,6 +136,18 @@ export default async function AreaDetailPage({ params }: Props) {
                     </p>
                   ) : null}
                 </Link>
+                {/* Per-project ⋯ menu — positioned in card top-right, stops propagation */}
+                <div className="absolute top-2 right-2 z-10">
+                  <AreaProjectCardMenu
+                    projectId={p.id}
+                    projectName={p.name}
+                    projectDescription={p.description}
+                    projectIcon={p.icon}
+                    isClass={p.isClass}
+                    currentAreaId={areaId}
+                    allAreas={allActiveAreas}
+                  />
+                </div>
               </li>
             ))}
           </ul>
