@@ -25,23 +25,24 @@ interface Props {
  *
  * Hover (group/card):
  *   - Border lifts to --edge-hud, then to --hud-cyan when also focused
- *   - Subtle cyan gradient shadow (radial, low alpha) plus a 1px lift
- *   - Pseudo-element top border accent fades in cyan
+ *   - Soft neumorphic glassy tile shadow (paired raised + recessed direction,
+ *     inset white highlight at the top) — harmonised with /settings tiles
+ *   - Subtle 1px lift
  *
- * Reduced-motion users: no lift, no shadow expansion — only the border color
- * transition runs (which is below the threshold for vestibular triggers).
+ * Reduced-motion users: no lift — only the border-color/shadow transitions
+ * run (which is below the threshold for vestibular triggers).
  */
 export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
         "group/card relative h-full",
-        "rounded-xl border border-[var(--edge)] bg-[var(--surface)]",
+        "rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)]",
+        "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
         "transition-[border-color,transform,box-shadow,background-color] duration-200 ease-out",
         "hover:border-[var(--edge-hud)]",
         "hover:-translate-y-[1px] motion-reduce:hover:translate-y-0",
-        "hover:shadow-[0_8px_24px_-16px_rgb(0_0_0_/_0.18),0_2px_6px_-3px_rgb(0_0_0_/_0.06)]",
-        "motion-reduce:hover:shadow-none",
+        "hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
         className,
       )}
     >
