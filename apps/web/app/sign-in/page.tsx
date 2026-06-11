@@ -67,14 +67,15 @@ export default async function SignInPage() {
 
             <SignInButton />
 
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-center text-[var(--ink-muted)]">
+            <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-center whitespace-nowrap text-[var(--ink-muted)]">
               By continuing, you agree to use Hyperpolymath responsibly.
             </p>
           </div>
 
           {/* Closing tagline — the brand voice. */}
           <p className="mt-8 text-center font-serif italic text-[13px] text-[var(--ink-muted)]">
-            &ldquo;I brought back the Renaissance.&rdquo;
+            &ldquo;I brought back the Renaissance man/woman ideal and mixed it
+            with JARVIS from Tony Stark.&rdquo;
           </p>
         </div>
       </section>

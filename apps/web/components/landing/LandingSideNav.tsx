@@ -100,14 +100,16 @@ export function LandingSideNav() {
     >
       {/* Neumorphic pillow — soft raised surface, dual-shadow.
           Expands width on hover to wrap labels; contracts back to the
-          rail when idle. Sits behind the buttons via z-[-1] inside an
-          isolated stacking context so it never eats pointer events. */}
+          rail when idle (labels are hidden then, so the pillow must hug
+          the dot column or it overlaps page content). Sits behind the
+          buttons via z-[-1] inside an isolated stacking context so it
+          never eats pointer events. */}
       <motion.div
         aria-hidden="true"
         className="absolute -inset-y-3 -left-3 rounded-2xl pointer-events-none -z-10"
         initial={false}
         animate={{
-          width: hovered ? 188 : 215,
+          width: hovered ? 215 : 38,
           opacity: hovered ? 1 : 0.78,
           backgroundColor: hovered
             ? "oklch(96% 0.006 75)"

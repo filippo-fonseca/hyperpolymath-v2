@@ -8,7 +8,7 @@ import {
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
-import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
+import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -41,10 +41,11 @@ interface VoiceTextBody {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const userId = await validateDesktopBearer(req);
-  if (!userId) {
+  const identity = await validateDesktopBearerIdentity(req);
+  if (!identity) {
     return new Response("Unauthorized", { status: 401, headers: CORS });
   }
+  const userId = identity.userId;
 
   let text: string;
   let body: VoiceTextBody;
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     messages: [{ role: "user", content: userContent }],
     toolChoice,
     parsedPriority: body.parsedPriority,
+    source: { device: identity.deviceName, input: "text" },
     isVoice: false,
     sttDoneAt: null,
     vadEndAt: undefined,

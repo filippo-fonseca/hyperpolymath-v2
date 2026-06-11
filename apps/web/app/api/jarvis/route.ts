@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
         messages,
         toolChoice,
         parsedPriority: body.parsedPriority,
+        source: { device: "Web", input: voiceActive ? "voice" : "text" },
         isVoice: voiceActive,
         sttDoneAt: sttDoneAt && !Number.isNaN(sttDoneAt) ? sttDoneAt : null,
         vadEndAt: vadEndAt && !Number.isNaN(vadEndAt) ? vadEndAt : undefined,

@@ -63,6 +63,8 @@ export async function createCapture(
         ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         content: parsed.data.content,
+        sourceDevice: "Web",
+        sourceInput: "text",
       })
       .returning({ id: captures.id });
 

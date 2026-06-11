@@ -16,6 +16,12 @@ import type { AskClarificationAction } from "../tools/ask-clarification";
 export interface ExecutionContext {
   /** Re-derived from getClaims() at the boundary, NEVER trusted from model. */
   userId: string;
+  /**
+   * Capture provenance — where this turn originated. `device` is the paired
+   * token's name ('Web' for the browser console), denormalized into created
+   * rows so the record survives token deletion. Optional for back-compat.
+   */
+  source?: { device: string; input: "voice" | "text" };
   /** IANA timezone. */
   userTimezone: string;
   defaultCalendarId: string | null;

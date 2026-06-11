@@ -10,7 +10,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
-import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
+import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   //      revocable from /settings/desktop). The right path going forward.
   //   2. ESP32 bridge — X-Trigger-Secret matching PHYSICAL_TRIGGER_SECRET.
   //      Kept for the dedicated hardware path which has no user account.
-  const desktopUserId = await validateDesktopBearer(req);
+  const desktopIdentity = await validateDesktopBearerIdentity(req);
+  const desktopUserId = desktopIdentity?.userId ?? null;
   if (!desktopUserId) {
     const expected = process.env.PHYSICAL_TRIGGER_SECRET;
     const provided = req.headers.get("x-trigger-secret");
@@ -130,6 +131,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   void runJarvisTurnStream({
     userId,
     input: transcript,
+    // Provenance: paired-device token name; the headless ESP32 path has no
+    // token identity, so it reads as the physical extender.
+    source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
     isVoice: true,
     sttDoneAt,
     vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,

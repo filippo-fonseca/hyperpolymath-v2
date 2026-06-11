@@ -21,6 +21,9 @@ export interface CaptureWithLinks {
    * CaptureDetailPanel.
    */
   createdVia: string | null;
+  /** Provenance (migration 0028): device token name or 'Web'; 'voice' | 'text'. */
+  sourceDevice: string | null;
+  sourceInput: string | null;
   hashtags: { id: string; displayName: string; name: string }[];
   projects: { id: string; name: string }[];
 }
@@ -80,6 +83,8 @@ export async function getCapturesForUser(
     createdAt: Date;
     updatedAt: Date;
     createdVia: string | null;
+    sourceDevice: string | null;
+    sourceInput: string | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -92,6 +97,8 @@ export async function getCapturesForUser(
         updatedAt: captures.updatedAt,
         // D-14 surface — needed for "Convert to task" affordance gating.
         createdVia: captures.createdVia,
+        sourceDevice: captures.sourceDevice,
+        sourceInput: captures.sourceInput,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -105,6 +112,8 @@ export async function getCapturesForUser(
         createdAt: captures.createdAt,
         updatedAt: captures.updatedAt,
         createdVia: captures.createdVia,
+        sourceDevice: captures.sourceDevice,
+        sourceInput: captures.sourceInput,
       })
       .from(captures)
       .innerJoin(
@@ -126,6 +135,8 @@ export async function getCapturesForUser(
         createdAt: captures.createdAt,
         updatedAt: captures.updatedAt,
         createdVia: captures.createdVia,
+        sourceDevice: captures.sourceDevice,
+        sourceInput: captures.sourceInput,
       })
       .from(captures)
       .where(eq(captures.userId, userId))

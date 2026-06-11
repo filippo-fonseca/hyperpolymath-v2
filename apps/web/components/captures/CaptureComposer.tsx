@@ -204,6 +204,8 @@ export function CaptureComposer({
       // so createdVia stays null. JARVIS-created captures only originate
       // from the /api/jarvis executor (Plan 05-02).
       createdVia: null,
+      sourceDevice: "Web",
+      sourceInput: "text",
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.

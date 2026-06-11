@@ -564,7 +564,7 @@ export function CaptureDetailPanel({
                 {/* Metadata */}
                 <section className="flex flex-col gap-2">
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
-                    Timestamps
+                    Info
                   </h3>
                   <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px]">
                     <dt className="text-muted-foreground">Created</dt>
@@ -575,6 +575,17 @@ export function CaptureDetailPanel({
                     <dd className="text-foreground">
                       {format(capture.updatedAt, "PPpp")}
                     </dd>
+                    {(capture.sourceDevice || capture.sourceInput) && (
+                      <>
+                        <dt className="text-muted-foreground">Source</dt>
+                        <dd className="text-foreground">
+                          {capture.sourceDevice ?? "Unknown device"}
+                          {capture.sourceInput
+                            ? ` · ${capture.sourceInput === "voice" ? "spoken" : "typed"}`
+                            : ""}
+                        </dd>
+                      </>
+                    )}
                   </dl>
                 </section>
               </div>

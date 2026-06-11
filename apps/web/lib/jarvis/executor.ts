@@ -170,6 +170,8 @@ export function createServerExecutor(): ActionExecutor {
             userId: ctx.userId,
             content: input.content,
             createdVia: "jarvis", // D-14
+            sourceDevice: ctx.source?.device ?? null,
+            sourceInput: ctx.source?.input ?? null,
           });
           // Upsert hashtags via the existing race-safe helper. The signature
           // (B2 fix) is (userId, name, txOrDb) — userId FIRST so call sites

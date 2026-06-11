@@ -63,6 +63,11 @@ export interface RunTurnOptions {
    */
   parsedPriority?: "P∞" | "P1" | "P2" | "P3";
   isVoice: boolean;
+  /**
+   * Capture provenance: paired-device token name ('Web' for browser) +
+   * input modality. Denormalized into rows created by the executor.
+   */
+  source?: { device: string; input: "voice" | "text" };
   sttDoneAt: number | null;
   vadEndAt: number | undefined;
   abortSignal?: AbortSignal;
@@ -249,6 +254,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const executor = createServerExecutor();
   const ctx = {
     userId: opts.userId,
+    source: opts.source,
     userTimezone: userRow?.timezone ?? "America/New_York",
     defaultCalendarId: userRow?.defaultCalendarId ?? null,
     preValidatedProjectIds,

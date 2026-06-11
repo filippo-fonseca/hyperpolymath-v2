@@ -186,6 +186,11 @@ export const captures = pgTable(
     // capture. JARVIS-created captures write 'jarvis'; manual captures stay
     // NULL. Plan 05-04 keys the "Convert to task" affordance off this.
     createdVia: text("created_via"),
+    // Capture provenance (migration 0028): the paired-device token's NAME
+    // denormalized at insert time ('Web' for browser) so the record survives
+    // token deletion, plus the input modality ('voice' | 'text').
+    sourceDevice: text("source_device"),
+    sourceInput: text("source_input"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
