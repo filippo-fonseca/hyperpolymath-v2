@@ -164,14 +164,16 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // Phase 06.1 Plan 04 (UI-SPEC §5i): captures feed is document-pure —
-            // no card chrome, no border, no shadow. Hover paints a 1px --edge
-            // left edge over 150ms (felt-quality grep target). Wrapper is
-            // clickable only when onOpen is provided.
-            "group relative transition-colors duration-150 ease-out",
-            "border-l-2 border-l-transparent",
-            compact ? "px-3 py-2" : "px-4 py-3",
-            onOpen && "cursor-pointer hover:border-l-[var(--edge)]",
+            // Neumorphic glassy tile (matches /settings tile contract):
+            // dual-direction paired shadow + inset highlight + hover deepens.
+            // Compact variant (project detail Captures column) keeps a tighter
+            // padding rhythm but inherits the same pillow chrome.
+            "group relative bg-[var(--surface)] rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)]",
+            "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+            "transition-[border-color,box-shadow] duration-200 ease-out",
+            compact ? "px-3 py-2" : "px-5 py-4",
+            onOpen &&
+              "cursor-pointer hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
           )}
           {...(onOpen
             ? {

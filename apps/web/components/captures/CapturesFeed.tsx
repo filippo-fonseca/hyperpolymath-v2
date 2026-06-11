@@ -96,10 +96,10 @@ export function CapturesFeed({
   }
 
   return (
-    // Phase 06.1 Plan 04 (UI-SPEC §7d) — flat feed list. No card spacing; the
-    // per-row hover left-edge is the affordance signal. mode="popLayout" lets
-    // siblings reflow while a row exits via the motion exit prop on CaptureCard.
-    <div className="flex flex-col">
+    // Neumorphic tile feed — each capture is a pillow surface; we space them
+    // vertically so the dual-direction shadow can breathe. mode="popLayout"
+    // still drives the per-row exit via the motion exit prop on CaptureCard.
+    <div className="flex flex-col gap-3">
       <AnimatePresence mode="popLayout" initial={false}>
         {captures.map((c) => (
           <CaptureCard
