@@ -207,7 +207,9 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0, 212, 255, 0.16)",
+    // Opaque cyan-on-dark mix — content scrolls underneath, and a
+    // translucent fill let list rows bleed through the button.
+    backgroundColor: "#08313d",
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: colors.accent,

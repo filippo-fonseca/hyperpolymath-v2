@@ -611,7 +611,7 @@ export function Home() {
         )}
 
         {/* Text bar pinned to the bottom; KeyboardAvoidingView lifts it. */}
-        <View style={{ paddingBottom: 8 }}>
+        <View style={{ paddingBottom: 16 }}>
           <TextBar
             disabled={!ready}
             projects={context.projects}

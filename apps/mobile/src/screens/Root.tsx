@@ -1,33 +1,41 @@
-// Tab shell. JARVIS (the orb screen) is the center and default tab; Tasks,
-// Habits, and Captures flank it. All four screens stay MOUNTED — inactive
-// ones are display:none — so the JARVIS SSE stream, TTS queue, and any
-// in-flight dictation survive tab switches.
+// Tab shell. JARVIS (the orb screen) is the literal center of the bottom
+// bar — two icon tabs on each side (Tasks, Habits ◉ Training, Captures) for
+// symmetry. All five screens stay MOUNTED — inactive ones are display:none —
+// so the JARVIS SSE stream, TTS queue, and any in-flight dictation survive
+// tab switches.
 
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { KiwiMark } from "../components/icons";
+import { CelebrationOverlay } from "../components/celebrate";
+import { KiwiMark, TabIcon } from "../components/icons";
 import { colors, mono } from "../theme";
 import { CapturesScreen } from "./Captures";
 import { HabitsScreen } from "./Habits";
 import { Home } from "./Home";
 import { TasksScreen } from "./Tasks";
+import { TrainingScreen } from "./Training";
 
-type Tab = "tasks" | "habits" | "jarvis" | "captures";
-
-const SIDE_TABS: Array<{ key: Tab; label: string }> = [
-  { key: "tasks", label: "TASKS" },
-  { key: "habits", label: "HABITS" },
-  { key: "captures", label: "CAPTURES" },
-];
+type Tab = "tasks" | "habits" | "jarvis" | "training" | "captures";
 
 export function Root() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("jarvis");
+  const orbPulse = useRef(new Animated.Value(1)).current;
+
+  const pulseOrb = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(orbPulse, { toValue: 1.22, duration: 130, useNativeDriver: true }),
+      Animated.spring(orbPulse, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+  }, [orbPulse]);
 
   const screen = (key: Tab, node: React.ReactNode) => (
-    <View style={[styles.screen, tab !== key && styles.hidden]} pointerEvents={tab === key ? "auto" : "none"}>
+    <View
+      style={[styles.screen, tab !== key && styles.hidden]}
+      pointerEvents={tab === key ? "auto" : "none"}
+    >
       {node}
     </View>
   );
@@ -38,46 +46,64 @@ export function Root() {
         {screen("tasks", <TasksScreen active={tab === "tasks"} />)}
         {screen("habits", <HabitsScreen active={tab === "habits"} />)}
         {screen("jarvis", <Home />)}
+        {screen("training", <TrainingScreen active={tab === "training"} />)}
         {screen("captures", <CapturesScreen active={tab === "captures"} />)}
       </View>
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <TabButton icon="tasks" label="TASKS" active={tab === "tasks"} onPress={() => setTab("tasks")} />
+        <TabButton icon="habits" label="HABITS" active={tab === "habits"} onPress={() => setTab("habits")} />
+        {/* Fixed-width gap reserves the orb's slot; the orb itself is
+            absolutely centered over the bar so flex rounding can never
+            nudge it off-center. */}
+        <View style={styles.orbGap} />
         <TabButton
-          label="TASKS"
-          active={tab === "tasks"}
-          onPress={() => setTab("tasks")}
+          icon="training"
+          label="TRAINING"
+          active={tab === "training"}
+          onPress={() => setTab("training")}
         />
         <TabButton
-          label="HABITS"
-          active={tab === "habits"}
-          onPress={() => setTab("habits")}
-        />
-        <Pressable
-          onPress={() => setTab("jarvis")}
-          style={({ pressed }) => [styles.orbTab, pressed && { opacity: 0.7 }]}
-          accessibilityRole="button"
-          accessibilityLabel="JARVIS"
-        >
-          <View style={[styles.orbCircle, tab === "jarvis" && styles.orbCircleActive]}>
-            <KiwiMark size={26} color={tab === "jarvis" ? colors.accent : colors.textDim} />
-          </View>
-        </Pressable>
-        <TabButton
+          icon="captures"
           label="CAPTURES"
           active={tab === "captures"}
           onPress={() => setTab("captures")}
         />
-        <View style={styles.spacer} />
+        <View style={styles.orbOverlay} pointerEvents="box-none">
+          <Pressable
+            onPress={() => setTab("jarvis")}
+            style={({ pressed }) => [styles.orbTab, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityLabel="JARVIS"
+          >
+            <Animated.View
+              style={[
+                styles.orbCircle,
+                tab === "jarvis" && styles.orbCircleActive,
+                { transform: [{ scale: orbPulse }] },
+              ]}
+            >
+              <KiwiMark size={26} color={tab === "jarvis" ? colors.accent : colors.textDim} />
+            </Animated.View>
+          </Pressable>
+        </View>
       </View>
+
+      <CelebrationOverlay
+        targetBottom={Math.max(insets.bottom, 8) + 46}
+        onArrive={pulseOrb}
+      />
     </View>
   );
 }
 
 function TabButton({
+  icon,
   label,
   active,
   onPress,
 }: {
+  icon: "tasks" | "habits" | "training" | "captures";
   label: string;
   active: boolean;
   onPress: () => void;
@@ -89,8 +115,14 @@ function TabButton({
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <View style={[styles.tabDot, active && styles.tabDotActive]} />
-      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+      <TabIcon name={icon} size={21} color={active ? colors.accent : colors.textDim} />
+      <Text
+        style={[styles.tabLabel, active && styles.tabLabelActive]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -116,39 +148,37 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
     paddingTop: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: "#070d12",
   },
   tab: {
+    flex: 1,
     alignItems: "center",
-    gap: 4,
-    minWidth: 70,
-  },
-  tabDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: "transparent",
-  },
-  tabDotActive: {
-    backgroundColor: colors.accent,
+    gap: 3,
   },
   tabLabel: {
     color: colors.textDim,
     fontFamily: mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 8,
+    letterSpacing: 0.5,
   },
   tabLabelActive: {
     color: colors.text,
   },
-  orbTab: {
-    marginTop: -22,
+  orbGap: {
+    width: 70,
   },
+  orbOverlay: {
+    position: "absolute",
+    top: -24,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  orbTab: {},
   orbCircle: {
     width: 58,
     height: 58,
@@ -165,8 +195,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
-  },
-  spacer: {
-    width: 0,
   },
 });
