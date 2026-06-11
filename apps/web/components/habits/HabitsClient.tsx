@@ -70,6 +70,16 @@ interface Props {
 
 type Tab = "today" | "manage" | "archive";
 
+// Soft neumorphic glassy tile — matches /settings page tile constant.
+// Dual-direction paired shadow + inset highlight; hover deepens border to
+// --edge-hud and intensifies the shadow. Used on Card-tier surfaces only.
+const TILE_NEUMORPHIC =
+  "rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] " +
+  "bg-[var(--surface)] " +
+  "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "transition-[border-color,box-shadow] duration-200 ease-out";
+
 const FULL_DAY_NAMES = [
   "Sunday",
   "Monday",
@@ -526,11 +536,10 @@ function DayHabitRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl border",
-        "transition-colors duration-150 ease-out",
+        "flex items-center gap-3 px-4 py-3",
         completed
-          ? "border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))]"
-          : "border-[var(--edge)] bg-[var(--surface)] hover:border-[var(--edge-hud)]",
+          ? "rounded-xl border border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out"
+          : TILE_NEUMORPHIC,
       )}
     >
       <CheckCircle completed={completed} onClick={onToggle} />
@@ -650,11 +659,7 @@ function ManageHabitRow({
 
   return (
     <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl",
-        "border border-[var(--edge)] bg-[var(--surface)]",
-        "hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
-      )}
+      className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
     >
       <button
         type="button"
@@ -739,7 +744,7 @@ function ArchiveTab({
       {archived.map((h) => (
         <li
           key={h.id}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--edge)] bg-[var(--surface)]"
+          className={cn("flex items-center gap-3 px-4 py-3", TILE_NEUMORPHIC)}
         >
           <div className="flex flex-col min-w-0 flex-1">
             <p className="font-serif text-[15px] text-[var(--ink-muted)] truncate">
