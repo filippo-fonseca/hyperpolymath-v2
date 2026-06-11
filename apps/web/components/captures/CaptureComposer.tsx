@@ -283,10 +283,12 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Neumorphic glassy composer tile (matches /settings tile contract).
-    // focus-within bumps the border to --ink-amber over 200ms; the dual-
-    // direction paired shadow + inset highlight remain at all states.
-    <div className="rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] focus-within:border-[var(--ink-amber)] focus-within:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out">
+    // Glassy pill composer tile (matches SettingsSectionNav PROFILE pill):
+    // translucent surface + backdrop-blur + inset cyan glow + soft outer halo
+    // + thin cyan-tinged border. focus-within deepens the inset cyan glow and
+    // switches the border to --ink-amber, preserving the previous amber focus
+    // signal so the composer still feels "live."
+    <div className="rounded-xl backdrop-blur-md bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] focus-within:border-[var(--ink-amber)] focus-within:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_40px_color-mix(in_oklch,var(--hud-cyan)_18%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
