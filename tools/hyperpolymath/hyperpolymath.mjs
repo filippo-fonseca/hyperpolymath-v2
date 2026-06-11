@@ -30,6 +30,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const WEB_DIR = resolve(REPO_ROOT, "apps/web");
 const DESKTOP_DIR = resolve(REPO_ROOT, "apps/desktop");
 const BRIDGE_DIR = resolve(REPO_ROOT, "tools/jarvis-physical/bridge");
+const MOBILE_DIR = resolve(REPO_ROOT, "apps/mobile");
 
 const FLAGS = parseFlags(process.argv.slice(2));
 
@@ -132,6 +133,29 @@ const SERVICES = [
     // The "App listening" pattern is what tauri emits once the webview window
     // is up; fall back to the dev-server "ready" if Tauri renames it later.
     ready: (proc) => waitForLog(proc, /App listening|Running BeforeDevCommand|Built/i, 600_000),
+  },
+
+  {
+    name: "mobile",
+    color: "yellow",
+    port: ":8081",
+    async preflight() {
+      // If a Metro dev server already holds :8081 (e.g. started by hand in
+      // another terminal), expo start would prompt "Use port 8082 instead?"
+      // and hang forever with no stdin. Reuse the existing one instead.
+      if (await isPortListening(8081)) {
+        warn("mobile", "Metro already running on :8081 — reusing it");
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("pnpm", ["start"], {
+        cwd: MOBILE_DIR,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /Waiting on http:\/\/localhost:8081|Metro waiting/i, 120_000),
   },
 
   {

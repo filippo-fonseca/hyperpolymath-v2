@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "JARVIS",
+    "slug": "jarvis-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#050a0e",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.hyperpolymath.jarvis",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "JARVIS listens when you tap the orb so you can dictate commands.",
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/042c3bcf-b3d7-4895-baa2-f0495b2ad6ac",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "JARVIS listens when you tap the orb so you can dictate commands."
+        }
+      ],
+      "expo-secure-store",
+      "expo-updates",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "042c3bcf-b3d7-4895-baa2-f0495b2ad6ac"
+      }
+    },
+    "owner": "ffyale"
+  }
+}
