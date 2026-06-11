@@ -122,13 +122,44 @@ function extractWhereParams(node: unknown, depth = 0): string[] {
 
 function makeOwnershipAwareDb() {
   return {
-    // SELECT path — used by findTasks, findCaptures
+    // SELECT path — used by findTasks, findCaptures, and the transaction-SELECT
+    // in updateTask / updateCapture (SELECT-before-UPDATE for `before` snapshot).
     select: vi.fn((shape?: unknown) => {
+      let _fromTable: unknown = null;
+      let _whereNode: unknown = null;
       const chain = {
         _shape: shape,
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
+        from: vi.fn((table: unknown) => {
+          _fromTable = table;
+          return chain;
+        }),
+        where: vi.fn((whereNode: unknown) => {
+          _whereNode = whereNode;
+          return chain;
+        }),
+        limit: vi.fn(() => {
+          // Resolve ownership-aware rows for the SELECT-before-UPDATE pattern.
+          // Inspect the WHERE node to find matching rows in the store.
+          const tableName = _fromTable && typeof _fromTable === "object"
+            ? ((_fromTable as Record<string | symbol, unknown>)[Symbol.for("drizzle:Name")] as string | undefined)
+              ?? ((_fromTable as Record<string, unknown>)["_"] as Record<string, string> | undefined)?.name
+              ?? "unknown"
+            : "unknown";
+          const store =
+            tableName === "tasks"
+              ? mockState.tasks
+              : tableName === "captures"
+                ? mockState.captures
+                : null;
+          if (!store || !_whereNode) return Promise.resolve([]);
+          const params = extractWhereParams(_whereNode);
+          for (const [rowId, row] of store) {
+            if (params.includes(rowId) && params.includes(row.userId)) {
+              return Promise.resolve([row]);
+            }
+          }
+          return Promise.resolve([]);
+        }),
       };
       // findTasks: return tasks for the scoped userId
       // findCaptures: return captures for the scoped userId
@@ -213,12 +244,12 @@ function makeOwnershipAwareDb() {
     insert: vi.fn(() => ({
       values: vi.fn().mockResolvedValue(undefined),
     })),
-    transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
-      await fn({
-        insert: vi.fn(() => ({
-          values: vi.fn().mockReturnValue({ onConflictDoNothing: vi.fn().mockResolvedValue(undefined) }),
-        })),
-      });
+    // Transaction passes `mockDb` itself as the tx so that `tx.select`, `tx.update`,
+    // `tx.delete`, `tx.insert` all resolve with the same ownership-aware behavior.
+    // The return value of `fn` is forwarded as the transaction result (needed for
+    // updateTask / updateCapture which return rows from inside the transaction).
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+      return fn(mockDb);
     }),
   };
 }
@@ -237,6 +268,8 @@ vi.mock("@/lib/gcal/events", () => ({
   patchEvent: vi.fn(),
   deleteEvent: vi.fn(),
   listEvents: vi.fn(),
+  getEvent: vi.fn(),
+  insertEvent: vi.fn(),
 }));
 
 vi.mock("@/app/actions/hashtags", () => ({
@@ -468,4 +501,55 @@ describe("JARVIS executor CRUD — ownership enforcement (Plan 16-03)", () => {
     // Content unchanged
     expect(mockState.captures.get(row.id)?.content).toBe("userB's original content");
   });
+
+  // Plan 16-06 Task 1: new tests for before/snapshot receipt shapes
+
+  it("updateTask happy-path includes before snapshot", async () => {
+    const row = seedTask(USER_A, { title: "old title", status: "not started", priority: "P3" });
+
+    const executor = createServerExecutor();
+    const result = await executor.updateTask(
+      { id: row.id, title: "new title" },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.id).toBe(row.id);
+      // `before` must carry the pre-update value for the changed field
+      expect((result.receipt as { before?: { title?: string } }).before?.title).toBe("old title");
+    }
+  });
+
+  it("deleteTask happy-path includes full row snapshot", async () => {
+    const row = seedTask(USER_A, { title: "will be deleted" });
+
+    const executor = createServerExecutor();
+    const result = await executor.deleteTask({ id: row.id }, ctxA);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const receipt = result.receipt as { id: string; deleted: boolean; snapshot?: { id: string; userId: string } };
+      expect(receipt.deleted).toBe(true);
+      expect(receipt.snapshot?.id).toBe(row.id);
+      expect(receipt.snapshot?.userId).toBe(ctxA.userId);
+    }
+  });
+
+  it("deleteCapture happy-path includes full row snapshot", async () => {
+    const originalContent = "original capture content for snapshot test";
+    const row = seedCapture(USER_A, { content: originalContent });
+
+    const executor = createServerExecutor();
+    const result = await executor.deleteCapture({ id: row.id }, ctxA);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const receipt = result.receipt as { deleted: boolean; snapshot?: { content: string } };
+      expect(receipt.deleted).toBe(true);
+      expect(receipt.snapshot?.content).toBe(originalContent);
+    }
+  });
+
+  it.todo("updateEvent includes before snapshot from getEvent");
 });

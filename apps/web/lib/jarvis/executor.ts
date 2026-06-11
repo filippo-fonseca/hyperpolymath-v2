@@ -47,6 +47,7 @@ import { upsertHashtag } from "@/app/actions/hashtags";
 import {
   createEventForJarvis,
   deleteEvent as gcalDeleteEvent,
+  getEvent as gcalGetEvent,
   listEvents,
   patchEvent,
 } from "@/lib/gcal/events";
@@ -410,17 +411,51 @@ export function createServerExecutor(): ActionExecutor {
       }
       set.updatedAt = new Date();
 
-      const rows = await db
-        .update(tasks)
-        .set(set)
-        .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
-        .returning({
-          id: tasks.id,
-          title: tasks.title,
-          status: tasks.status,
-          priority: tasks.priority,
-          dueDate: tasks.dueDate,
-        });
+      // SELECT-before-UPDATE in a transaction to capture the `before` snapshot.
+      // We only include the keys present in `set` (excluding updatedAt) so the
+      // undo payload is a minimal diff, not the full row.
+      let beforeSnapshot: Record<string, unknown> = {};
+      let rows: { id: string; title: string; status: string; priority: string; dueDate: string | null }[] = [];
+
+      const result = await db.transaction(async (tx) => {
+        const existing = await tx
+          .select({
+            id: tasks.id,
+            title: tasks.title,
+            notes: tasks.notes,
+            priority: tasks.priority,
+            status: tasks.status,
+            dueDate: tasks.dueDate,
+          })
+          .from(tasks)
+          .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
+          .limit(1);
+
+        if (existing.length === 0) return null;
+
+        // Build before: pick only keys mirroring `set` (excluding updatedAt)
+        const prev = existing[0]!;
+        if (input.title !== undefined) beforeSnapshot.title = prev.title;
+        if (input.description !== undefined) beforeSnapshot.notes = prev.notes;
+        if (input.priority !== undefined) beforeSnapshot.priority = prev.priority;
+        if (input.status !== undefined) beforeSnapshot.status = prev.status;
+        if (input.due !== undefined) beforeSnapshot.dueDate = prev.dueDate;
+
+        const updated = await tx
+          .update(tasks)
+          .set(set)
+          .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
+          .returning({
+            id: tasks.id,
+            title: tasks.title,
+            status: tasks.status,
+            priority: tasks.priority,
+            dueDate: tasks.dueDate,
+          });
+        return updated;
+      });
+
+      rows = result ?? [];
 
       if (rows.length === 0) {
         return { ok: false, kind: "not_found", error: "Task not found" };
@@ -432,7 +467,7 @@ export function createServerExecutor(): ActionExecutor {
       return {
         ok: true,
         id: input.id,
-        receipt: { id: input.id, changes: set, after: rows[0] },
+        receipt: { id: input.id, changes: set, before: beforeSnapshot, after: rows[0] },
       };
     },
 
@@ -443,7 +478,7 @@ export function createServerExecutor(): ActionExecutor {
       const rows = await db
         .delete(tasks)
         .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
-        .returning({ id: tasks.id, title: tasks.title });
+        .returning();
 
       if (rows.length === 0) {
         return { ok: false, kind: "not_found", error: "Task not found" };
@@ -451,7 +486,7 @@ export function createServerExecutor(): ActionExecutor {
       return {
         ok: true,
         id: input.id,
-        receipt: { id: input.id, title: rows[0]!.title, deleted: true },
+        receipt: { id: input.id, title: rows[0]!.title, deleted: true, snapshot: rows[0] },
       };
     },
 
@@ -463,14 +498,32 @@ export function createServerExecutor(): ActionExecutor {
       if (input.content !== undefined) set.content = input.content;
       set.updatedAt = new Date();
 
-      const rows = await db
-        .update(captures)
-        .set(set)
-        .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
-        .returning({
-          id: captures.id,
-          content: captures.content,
-        });
+      // SELECT-before-UPDATE in a transaction to capture the `before` snapshot.
+      let beforeSnapshot: Record<string, unknown> = {};
+      let rows: { id: string; content: string }[] = [];
+
+      const result = await db.transaction(async (tx) => {
+        const existing = await tx
+          .select({ id: captures.id, content: captures.content })
+          .from(captures)
+          .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
+          .limit(1);
+
+        if (existing.length === 0) return null;
+
+        // Build before: only keys mirroring `set` (excluding updatedAt)
+        const prev = existing[0]!;
+        if (input.content !== undefined) beforeSnapshot.content = prev.content;
+
+        const updated = await tx
+          .update(captures)
+          .set(set)
+          .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
+          .returning({ id: captures.id, content: captures.content });
+        return updated;
+      });
+
+      rows = result ?? [];
 
       if (rows.length === 0) {
         return { ok: false, kind: "not_found", error: "Capture not found" };
@@ -481,7 +534,7 @@ export function createServerExecutor(): ActionExecutor {
       return {
         ok: true,
         id: input.id,
-        receipt: { id: input.id, changes: set, after: rows[0] },
+        receipt: { id: input.id, changes: set, before: beforeSnapshot, after: rows[0] },
       };
     },
 
@@ -492,7 +545,7 @@ export function createServerExecutor(): ActionExecutor {
       const rows = await db
         .delete(captures)
         .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
-        .returning({ id: captures.id, content: captures.content });
+        .returning();
 
       if (rows.length === 0) {
         return { ok: false, kind: "not_found", error: "Capture not found" };
@@ -504,6 +557,7 @@ export function createServerExecutor(): ActionExecutor {
           id: input.id,
           preview: rows[0]!.content.slice(0, 80),
           deleted: true,
+          snapshot: rows[0],
         },
       };
     },
@@ -581,6 +635,16 @@ export function createServerExecutor(): ActionExecutor {
         if (input.end !== undefined) {
           patch.end = { dateTime: input.end, timeZone: ctx.userTimezone };
         }
+
+        // Fetch the current event to build the `before` snapshot for undo.
+        // Only capture keys mirroring what we're about to patch.
+        const { data: existing } = await gcalGetEvent(cal, input.calendar_id, input.id);
+        const before: Record<string, unknown> = {};
+        if (input.title !== undefined) before.summary = existing.summary;
+        if (input.description !== undefined) before.description = existing.description;
+        if (input.start !== undefined) before.start = existing.start;
+        if (input.end !== undefined) before.end = existing.end;
+
         const { data } = await patchEvent(cal, input.calendar_id, input.id, patch);
         return {
           ok: true,
@@ -589,6 +653,7 @@ export function createServerExecutor(): ActionExecutor {
             id: input.id,
             calendar_id: input.calendar_id,
             changes: patch,
+            before,
             after: { summary: data.summary, start: data.start, end: data.end },
           },
         };
@@ -598,6 +663,12 @@ export function createServerExecutor(): ActionExecutor {
         }
         if (err instanceof GcalTokenRevokedError) {
           return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
+        }
+        // 404 from getEvent — event not found
+        const code = (err as { code?: number; status?: number } | null)?.code
+          ?? (err as { code?: number; status?: number } | null)?.status;
+        if (code === 404 || code === 410) {
+          return { ok: false, kind: "not_found", error: "Event not found" };
         }
         throw err;
       }
@@ -609,11 +680,31 @@ export function createServerExecutor(): ActionExecutor {
     ): Promise<ExecutorResult> {
       try {
         const cal = await getValidGcalToken(ctx.userId);
+
+        // Fetch the event before deleting to build a snapshot for undo.
+        // If getEvent 404s, the snapshot is omitted — undo will be unavailable
+        // but deletion still proceeds (acceptable degraded path).
+        let snapshot: Record<string, unknown> | undefined = undefined;
+        try {
+          const { data } = await gcalGetEvent(cal, input.calendar_id, input.id);
+          // Strip auto-assigned fields that would break re-insert
+          const { etag, htmlLink, iCalUID, ...rest } = data as Record<string, unknown>;
+          void etag; void htmlLink; void iCalUID;
+          snapshot = rest;
+        } catch {
+          // 404 / 410 — snapshot unavailable; proceed with delete
+        }
+
         await gcalDeleteEvent(cal, input.calendar_id, input.id);
         return {
           ok: true,
           id: input.id,
-          receipt: { id: input.id, calendar_id: input.calendar_id, deleted: true },
+          receipt: {
+            id: input.id,
+            calendar_id: input.calendar_id,
+            deleted: true,
+            ...(snapshot ? { snapshot } : {}),
+          },
         };
       } catch (err) {
         if (err instanceof GcalNotConnectedError) {

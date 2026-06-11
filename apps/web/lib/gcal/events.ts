@@ -57,6 +57,14 @@ export async function deleteEvent(
   return cal.events.delete({ calendarId, eventId });
 }
 
+export async function getEvent(
+  cal: calendar_v3.Calendar,
+  calendarId: string,
+  eventId: string,
+) {
+  return cal.events.get({ calendarId, eventId });
+}
+
 // ---------------------------------------------------------------------------
 // Higher-level helper for the JARVIS executor (Phase 5 Plan 05-02).
 //
