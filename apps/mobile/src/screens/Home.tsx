@@ -72,6 +72,7 @@ export function Home() {
   const sentenceBuffer = useRef("");
   const sentenceSeq = useRef(0);
   const turnDone = useRef(true);
+  const activeAssistantId = useRef<string | null>(null);
   const orbStateRef = useRef<OrbState>("idle");
   orbStateRef.current = orbState;
 
@@ -102,14 +103,11 @@ export function Home() {
   }, [ttsQueue]);
 
   const appendAssistantDelta = useCallback((delta: string) => {
-    setTurns((prev) => {
-      const next = [...prev];
-      const last = next[next.length - 1];
-      if (last?.role === "assistant") {
-        next[next.length - 1] = { ...last, text: last.text + delta };
-      }
-      return next;
-    });
+    const id = activeAssistantId.current;
+    if (!id) return;
+    setTurns((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, text: t.text + delta } : t)),
+    );
   }, []);
 
   // SSE subscription — re-opened whenever settings are saved (server URL or
@@ -118,14 +116,16 @@ export function Home() {
     if (!ready || settingsOpen) return;
     return subscribeJarvisEvents({
       onStatus: setSseStatus,
-      onResponseStart: () => {
+      onResponseStart: ({ turnId }) => {
         turnDone.current = false;
         sentenceBuffer.current = "";
         sentenceSeq.current = 0;
         ttsQueue.resetTurn();
+        const id = `a-${turnId}`;
+        activeAssistantId.current = id;
         setTurns((prev) => [
           ...prev.slice(-19),
-          { id: `a-${Date.now()}`, role: "assistant", text: "", actions: [] },
+          { id, role: "assistant", text: "", actions: [] },
         ]);
         setOrbState((s) => (s === "speaking" ? s : "thinking"));
       },
@@ -138,14 +138,13 @@ export function Home() {
         }
       },
       onToolCall: ({ toolUseId, name }) => {
-        setTurns((prev) => {
-          const next = [...prev];
-          const last = next[next.length - 1];
-          if (last?.role === "assistant") {
-            next[next.length - 1] = { ...last, actions: [...last.actions, { toolUseId, name }] };
-          }
-          return next;
-        });
+        const id = activeAssistantId.current;
+        if (!id) return;
+        setTurns((prev) =>
+          prev.map((t) =>
+            t.id === id ? { ...t, actions: [...t.actions, { toolUseId, name }] } : t,
+          ),
+        );
       },
       onResponseEnd: () => {
         turnDone.current = true;
@@ -169,10 +168,16 @@ export function Home() {
   }, [settingsOpen]);
 
   const pushUserTurn = useCallback((text: string) => {
-    setTurns((prev) => [
-      ...prev.slice(-19),
-      { id: `u-${Date.now()}`, role: "user", text, actions: [] },
-    ]);
+    const userTurn: Turn = { id: `u-${Date.now()}`, role: "user", text, actions: [] };
+    setTurns((prev) => {
+      const activeId = activeAssistantId.current;
+      const idx = !turnDone.current && activeId ? prev.findIndex((t) => t.id === activeId) : -1;
+      const next =
+        idx >= 0
+          ? [...prev.slice(0, idx), userTurn, ...prev.slice(idx)]
+          : [...prev, userTurn];
+      return next.slice(-20);
+    });
   }, []);
 
   /** Orb tap — anywhere it appears. */
