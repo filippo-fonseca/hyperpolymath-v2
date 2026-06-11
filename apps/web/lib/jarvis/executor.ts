@@ -33,7 +33,7 @@
 
 import { randomUUID } from "node:crypto";
 import { TZDate } from "@date-fns/tz";
-import { sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -44,10 +44,16 @@ import {
   tasksProjects,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
-import { createEventForJarvis } from "@/lib/gcal/events";
+import {
+  createEventForJarvis,
+  deleteEvent as gcalDeleteEvent,
+  listEvents,
+  patchEvent,
+} from "@/lib/gcal/events";
 import {
   GcalNotConnectedError,
   GcalTokenRevokedError,
+  getValidGcalToken,
 } from "@/lib/gcal/token";
 import type {
   ActionExecutor,
@@ -55,9 +61,18 @@ import type {
   CreateCaptureAction,
   CreateEventAction,
   CreateTaskAction,
+  DeleteCaptureAction,
+  DeleteEventAction,
+  DeleteTaskAction,
   ExecutionContext,
   ExecutorResult,
+  FindCapturesAction,
+  FindEventsAction,
+  FindTasksAction,
   RememberFactAction,
+  UpdateCaptureAction,
+  UpdateEventAction,
+  UpdateTaskAction,
 } from "@hyperpolymath/jarvis-core";
 import {
   validateCalendarId,
@@ -367,6 +382,283 @@ export function createServerExecutor(): ActionExecutor {
           kind: "validation",
           error: err instanceof Error ? err.message : String(err),
         };
+      }
+    },
+
+    // -------------------------------------------------------------------------
+    // Phase 16 Plan 16-03 — CRUD update / delete / find methods.
+    //
+    // INVARIANT (D-3 / SECURITY): Every update/delete WHERE clause MUST include
+    // BOTH `eq(table.id, input.id)` AND `eq(table.userId, ctx.userId)`.
+    // If the row doesn't exist OR belongs to another user, rowcount === 0 and
+    // we return { ok: false, kind: "not_found" } without throwing.
+    // This is RLS-equivalent ownership re-verification at the executor boundary.
+    // -------------------------------------------------------------------------
+
+    async updateTask(
+      input: UpdateTaskAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const set: Partial<typeof tasks.$inferInsert> = {};
+      if (input.title !== undefined) set.title = input.title;
+      // `description` maps to tasks.notes column — tasks table has no description column
+      if (input.description !== undefined) set.notes = input.description;
+      if (input.priority !== undefined) set.priority = input.priority;
+      if (input.status !== undefined) set.status = input.status;
+      if (input.due !== undefined) {
+        set.dueDate = input.due === null ? null : new Date(input.due).toISOString().slice(0, 10);
+      }
+      set.updatedAt = new Date();
+
+      const rows = await db
+        .update(tasks)
+        .set(set)
+        .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
+        .returning({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          priority: tasks.priority,
+          dueDate: tasks.dueDate,
+        });
+
+      if (rows.length === 0) {
+        return { ok: false, kind: "not_found", error: "Task not found" };
+      }
+      // project_ids update: join-table management is MVP-deferred. updateTask
+      // intentionally ignores project_ids if present — cross-referencing the
+      // tasksProjects junction table (delete-all + re-insert) is a separate
+      // concern and will land in a follow-up plan.
+      return {
+        ok: true,
+        id: input.id,
+        receipt: { id: input.id, changes: set, after: rows[0] },
+      };
+    },
+
+    async deleteTask(
+      input: DeleteTaskAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const rows = await db
+        .delete(tasks)
+        .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
+        .returning({ id: tasks.id, title: tasks.title });
+
+      if (rows.length === 0) {
+        return { ok: false, kind: "not_found", error: "Task not found" };
+      }
+      return {
+        ok: true,
+        id: input.id,
+        receipt: { id: input.id, title: rows[0]!.title, deleted: true },
+      };
+    },
+
+    async updateCapture(
+      input: UpdateCaptureAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const set: Partial<typeof captures.$inferInsert> = {};
+      if (input.content !== undefined) set.content = input.content;
+      set.updatedAt = new Date();
+
+      const rows = await db
+        .update(captures)
+        .set(set)
+        .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
+        .returning({
+          id: captures.id,
+          content: captures.content,
+        });
+
+      if (rows.length === 0) {
+        return { ok: false, kind: "not_found", error: "Capture not found" };
+      }
+      // hashtags and project_ids updates are MVP-deferred: same join-table
+      // concern as updateTask.project_ids. The content update is what matters
+      // for the JARVIS correction flow ("change that qc to say X instead").
+      return {
+        ok: true,
+        id: input.id,
+        receipt: { id: input.id, changes: set, after: rows[0] },
+      };
+    },
+
+    async deleteCapture(
+      input: DeleteCaptureAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const rows = await db
+        .delete(captures)
+        .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
+        .returning({ id: captures.id, content: captures.content });
+
+      if (rows.length === 0) {
+        return { ok: false, kind: "not_found", error: "Capture not found" };
+      }
+      return {
+        ok: true,
+        id: input.id,
+        receipt: {
+          id: input.id,
+          preview: rows[0]!.content.slice(0, 80),
+          deleted: true,
+        },
+      };
+    },
+
+    async findTasks(
+      input: FindTasksAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const conditions = [eq(tasks.userId, ctx.userId)];
+      if (input.query) {
+        conditions.push(ilike(tasks.title, `%${input.query}%`));
+      }
+      if (input.status && input.status.length > 0) {
+        conditions.push(inArray(tasks.status, input.status));
+      }
+      if (input.priority && input.priority.length > 0) {
+        conditions.push(inArray(tasks.priority, input.priority));
+      }
+      // project_id filter: joining tasksProjects is straightforward but adds
+      // query complexity. For MVP, project scoping on find_tasks is deferred;
+      // document as a future improvement in the SUMMARY.
+      const rows = await db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          priority: tasks.priority,
+          dueDate: tasks.dueDate,
+        })
+        .from(tasks)
+        .where(and(...conditions))
+        .limit(10);
+
+      return { ok: true, id: "find_tasks", receipt: { matches: rows } };
+    },
+
+    async findCaptures(
+      input: FindCapturesAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const conditions = [eq(captures.userId, ctx.userId)];
+      if (input.query) {
+        conditions.push(ilike(captures.content, `%${input.query}%`));
+      }
+      if (input.since) {
+        conditions.push(sql`${captures.createdAt} >= ${new Date(input.since)}`);
+      }
+      // hashtag filter: would require joining capturesHashtags + hashtags;
+      // deferred for MVP given single-user scale and query complexity cost.
+      const rows = await db
+        .select({
+          id: captures.id,
+          preview: sql<string>`substr(${captures.content}, 1, 120)`,
+          createdAt: captures.createdAt,
+        })
+        .from(captures)
+        .where(and(...conditions))
+        .limit(10);
+
+      return { ok: true, id: "find_captures", receipt: { matches: rows } };
+    },
+
+    async updateEvent(
+      input: UpdateEventAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      try {
+        const cal = await getValidGcalToken(ctx.userId);
+        const patch: Partial<import("googleapis").calendar_v3.Schema$Event> = {};
+        if (input.title !== undefined) patch.summary = input.title;
+        if (input.description !== undefined) patch.description = input.description ?? undefined;
+        if (input.start !== undefined) {
+          patch.start = { dateTime: input.start, timeZone: ctx.userTimezone };
+        }
+        if (input.end !== undefined) {
+          patch.end = { dateTime: input.end, timeZone: ctx.userTimezone };
+        }
+        const { data } = await patchEvent(cal, input.calendar_id, input.id, patch);
+        return {
+          ok: true,
+          id: input.id,
+          receipt: {
+            id: input.id,
+            calendar_id: input.calendar_id,
+            changes: patch,
+            after: { summary: data.summary, start: data.start, end: data.end },
+          },
+        };
+      } catch (err) {
+        if (err instanceof GcalNotConnectedError) {
+          return { ok: false, kind: "not_connected", error: "Google Calendar not connected" };
+        }
+        if (err instanceof GcalTokenRevokedError) {
+          return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
+        }
+        throw err;
+      }
+    },
+
+    async deleteEvent(
+      input: DeleteEventAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      try {
+        const cal = await getValidGcalToken(ctx.userId);
+        await gcalDeleteEvent(cal, input.calendar_id, input.id);
+        return {
+          ok: true,
+          id: input.id,
+          receipt: { id: input.id, calendar_id: input.calendar_id, deleted: true },
+        };
+      } catch (err) {
+        if (err instanceof GcalNotConnectedError) {
+          return { ok: false, kind: "not_connected", error: "Google Calendar not connected" };
+        }
+        if (err instanceof GcalTokenRevokedError) {
+          return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
+        }
+        throw err;
+      }
+    },
+
+    async findEvents(
+      input: FindEventsAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      try {
+        const cal = await getValidGcalToken(ctx.userId);
+        // Phase 16 Open Question 3: search the default calendar only for MVP.
+        // Multi-calendar search requires separate list calls + dedup by event id.
+        const calendarId = ctx.defaultCalendarId ?? "primary";
+        const { data } = await listEvents(cal, {
+          calendarId,
+          q: input.query,
+          timeMin: input.time_min ?? new Date().toISOString(),
+          timeMax: input.time_max,
+          singleEvents: true,
+          maxResults: 10,
+        });
+        const matches = (data.items ?? []).map((e) => ({
+          id: e.id,
+          calendar_id: calendarId,
+          title: e.summary,
+          start: e.start,
+          end: e.end,
+        }));
+        return { ok: true, id: "find_events", receipt: { matches } };
+      } catch (err) {
+        if (err instanceof GcalNotConnectedError) {
+          return { ok: false, kind: "not_connected", error: "Google Calendar not connected" };
+        }
+        if (err instanceof GcalTokenRevokedError) {
+          return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
+        }
+        throw err;
       }
     },
   };

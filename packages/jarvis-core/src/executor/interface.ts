@@ -51,7 +51,7 @@ export type ExecutorResult =
   | {
       ok: false;
       error: string;
-      kind?: "validation" | "auth" | "network" | "revoked";
+      kind?: "validation" | "auth" | "network" | "revoked" | "not_found" | "not_connected" | "internal";
     };
 
 export interface ActionExecutor {
