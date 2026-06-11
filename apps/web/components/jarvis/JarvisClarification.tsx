@@ -52,15 +52,19 @@ export function JarvisClarification({ clarification, onReply }: Props) {
         disabled && "opacity-60",
       )}
       style={{
-        backgroundColor: "var(--surface)",
-        border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
-        // Phase 6.1 polish — neumorphic glassy depth + cyan halo (mirrors /settings tile).
-        // Paired raised/recessed shadow + inset white top highlight, layered with
-        // the JARVIS ambient cyan glow so both depths read on this hybrid surface.
+        // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
+        // Translucent surface + backdrop-blur + inset cyan inner halo + single
+        // downward outer shadow, composed under the JARVIS ambient cyan glow.
+        backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
         boxShadow:
-          "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
-          "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
-          "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)," +
+          "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
+          "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
+          "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
+          "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
+          "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)," +
           "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
