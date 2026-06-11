@@ -216,7 +216,7 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 
 JARVIS gains in-session conversational memory and full CRUD via natural language. Closes GitHub issue #15. Context engineering — NOT fine-tuning.
 
-- [ ] **SMJ-01**: `buildHistory()` in `JarvisConsole.tsx` emits Anthropic content-block arrays (`tool_use` + `tool_result`) preserving created-entity IDs across turns — replaces the flat-text history flattening
+- [x] **SMJ-01**: `buildHistory()` in `JarvisConsole.tsx` emits Anthropic content-block arrays (`tool_use` + `tool_result`) preserving created-entity IDs across turns — replaces the flat-text history flattening
 - [ ] **SMJ-02**: A session-entities scratchpad text block (last ~10 entities created/updated/deleted this session) is injected into the system prompt AFTER the Phase 11 snapshot block in `run-turn.ts`, with NO `cache_control` so it does not invalidate the 1h prompt-cache breakpoints
 - [x] **SMJ-03**: `update_task` and `delete_task` tools exist in `packages/jarvis-core/src/tools/` and executor methods in `apps/web/lib/jarvis/executor.ts` enforce `userId` ownership in every Drizzle WHERE clause (double-WHERE pattern)
 - [x] **SMJ-04**: `update_capture` and `delete_capture` tools + executor methods with same double-WHERE ownership pattern
@@ -479,7 +479,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESK-05 | Phase 14 | Pending |
 | DESK-06 | Phase 14 | Pending |
 
-| SMJ-01 | Phase 16 | Pending |
+| SMJ-01 | Phase 16 | Complete |
 | SMJ-02 | Phase 16 | Pending |
 | SMJ-03 | Phase 16 | Complete |
 | SMJ-04 | Phase 16 | Complete |

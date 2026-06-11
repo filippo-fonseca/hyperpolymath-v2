@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-06-11T22:58:39.848Z"
+stopped_at: Completed 16-smarter-jarvis-session-memory-crud 16-05-PLAN.md
+last_updated: "2026-06-11T23:06:46.157Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 35
   completed_phases: 12
   total_plans: 87
-  completed_plans: 72
+  completed_plans: 73
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 16 (smarter-jarvis-session-memory-crud) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-11
 
@@ -123,6 +123,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 16-smarter-jarvis-session-memory-crud P01 | 9 | 2 tasks | 8 files |
 | Phase 16-smarter-jarvis-session-memory-crud P03 | 312 | 3 tasks | 3 files |
 | Phase 16-smarter-jarvis-session-memory-crud P02 | 8m | 3 tasks | 14 files |
+| Phase 16-smarter-jarvis-session-memory-crud P05 | 15 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -346,6 +347,8 @@ Recent decisions affecting current work:
 - [Phase 16-smarter-jarvis-session-memory-crud]: gcalDeleteEvent alias used to avoid name collision with deleteEvent executor method
 - [Phase 16-smarter-jarvis-session-memory-crud]: _schema-utils.ts extracted from tools/index.ts to break circular import when new tool files need toJsonSchema
 - [Phase 16-smarter-jarvis-session-memory-crud]: Fabricated tool test names changed from delete_task/update_task to drop_database/exec_sql — now that those CRUD tools are real, tests must use names that will never be real tools
+- [Phase 16-smarter-jarvis-session-memory-crud]: buildHistory() rewritten to emit Anthropic content-block arrays; Pitfall 1 honored with immediate tool_result pairing
+- [Phase 16-smarter-jarvis-session-memory-crud]: Undo triple-gated to create_* tools only: handleUndoAction guard + JarvisScrollback prop + JarvisReceipt defensive check
 
 ### Pending Todos
 
@@ -370,6 +373,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-11T22:58:39.843Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-06-11T23:06:46.152Z
+Stopped at: Completed 16-smarter-jarvis-session-memory-crud 16-05-PLAN.md
 Resume file: None
