@@ -391,7 +391,10 @@ export function JarvisScrollback({
                   action={a}
                   variant={turn.textDelta ? "compact" : "default"}
                   onUndo={
-                    onUndoAction
+                    // Phase 16: undo gated to create_* tools only.
+                    // update_*, delete_*, find_* operations pass undefined so the
+                    // UndoButton is never mounted for non-reversible actions.
+                    onUndoAction && a.name.startsWith("create_")
                       ? () => onUndoAction(turn.id, a)
                       : undefined
                   }

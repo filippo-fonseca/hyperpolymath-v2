@@ -765,6 +765,10 @@ export function JarvisConsole({
   // calls onUndo synchronously after cancel()), so no race on the 5s window.
   const handleUndoAction = useCallback(
     async (turnId: string, action: ScrollbackAction) => {
+      // Phase 16: undo gated to create_* tools only. update_*, delete_*, find_*
+      // do not have server-side undo handlers and should never reach here, but
+      // this guard makes the boundary explicit and prevents accidental undo.
+      if (!action.name.startsWith("create_")) return;
       // Guard against queued placeholders (result not yet populated)
       if (!action.result || !action.result.ok) return;
       const id = (action.result as { id: string }).id;
