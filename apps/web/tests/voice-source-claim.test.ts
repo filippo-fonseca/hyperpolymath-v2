@@ -88,14 +88,14 @@ describe("source-claim module", () => {
       expect(getVoiceSourceStatus().claimed).toBe(false);
     });
 
-    it("missing PHYSICAL_TRIGGER_SECRET env returns 500", async () => {
+    it("missing PHYSICAL_TRIGGER_SECRET env returns 401 (no secret to match)", async () => {
       vi.stubEnv("PHYSICAL_TRIGGER_SECRET", "");
       const req = new Request("http://localhost/api/jarvis/voice/source/claim", {
         method: "POST",
         headers: { "x-trigger-secret": "any-secret" },
       });
       const res = await POST(req as unknown as import("next/server").NextRequest);
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(401);
     });
   });
 });

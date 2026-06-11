@@ -131,7 +131,7 @@ describe("POST /api/jarvis/voice/transcript — server-side JARVIS turn", () => 
     const res = await POST(req as unknown as import("next/server").NextRequest);
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.error).toContain("single-user");
+    expect(body.error).toContain("no user identity");
     expect(mockRunJarvisTurnStream).not.toHaveBeenCalled();
   });
 
