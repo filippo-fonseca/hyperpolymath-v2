@@ -158,6 +158,18 @@ export function buildToolDefinitions(
 // schemas for server-side re-validation matching the dispatched tool defs.
 export { zCreateCaptureFor, zCreateEventFor, zCreateTaskFor, zRememberFactFor };
 
+// Phase 16: re-export input schemas for CRUD + find tools so run-turn.ts
+// can validate model-emitted inputs before dispatching to the executor.
+export { UpdateTaskInputSchema } from "./update-task";
+export { DeleteTaskInputSchema } from "./delete-task";
+export { UpdateCaptureInputSchema } from "./update-capture";
+export { DeleteCaptureInputSchema } from "./delete-capture";
+export { UpdateEventInputSchema } from "./update-event";
+export { DeleteEventInputSchema } from "./delete-event";
+export { FindTasksInputSchema } from "./find-tasks";
+export { FindCapturesInputSchema } from "./find-captures";
+export { FindEventsInputSchema } from "./find-events";
+
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;
 void zCreateCapture;

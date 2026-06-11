@@ -21,6 +21,24 @@ import {
   zRememberFactFor,
 } from "@hyperpolymath/jarvis-core";
 import { getJarvisFactsForUser } from "@/lib/db/queries/jarvis-facts";
+import {
+  buildSessionEntitiesBlock,
+  reconstructSessionEntitiesFromHistory,
+  entityFromToolResult,
+} from "@/lib/jarvis/session-entities";
+import type { SessionEntity, JarvisToolName } from "@hyperpolymath/jarvis-core";
+// Phase 16 tool validators (via tools subpath export from jarvis-core)
+import {
+  UpdateTaskInputSchema,
+  DeleteTaskInputSchema,
+  UpdateCaptureInputSchema,
+  DeleteCaptureInputSchema,
+  UpdateEventInputSchema,
+  DeleteEventInputSchema,
+  FindTasksInputSchema,
+  FindCapturesInputSchema,
+  FindEventsInputSchema,
+} from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
   input_tokens: number;
@@ -99,6 +117,16 @@ function buildToolValidators(voiceActive: boolean) {
     create_event: zCreateEventFor({ voiceActive }),
     remember_fact: zRememberFactFor({ voiceActive }),
     ask_clarification: zAskClarificationFor({ voiceActive }),
+    // Phase 16: CRUD + find validators
+    update_task: UpdateTaskInputSchema,
+    delete_task: DeleteTaskInputSchema,
+    update_capture: UpdateCaptureInputSchema,
+    delete_capture: DeleteCaptureInputSchema,
+    update_event: UpdateEventInputSchema,
+    delete_event: DeleteEventInputSchema,
+    find_tasks: FindTasksInputSchema,
+    find_captures: FindCapturesInputSchema,
+    find_events: FindEventsInputSchema,
   } as const;
 }
 
@@ -265,7 +293,6 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     preValidatedProjectIds,
   };
 
-  const pendingActions: Promise<void>[] = [];
   const promptBuiltAt_d = new Date();
 
   const sttDoneAt_d: Date | null = opts.sttDoneAt
@@ -283,135 +310,279 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const toolChoice = opts.toolChoice ?? { type: "auto" as const };
 
   const anth = getAnthropicClient();
-  const anthStream = anth.messages.stream(
-    {
-      model: JARVIS_MODEL,
-      max_tokens: 1024,
-      system: system as unknown as never,
-      tools: tools as unknown as never,
-      tool_choice: toolChoice as unknown as never,
-      messages: anthropicMessages as unknown as never,
-    },
-    { signal: upstream.signal },
-  );
 
-  anthStream.on("contentBlock", (block: unknown) => {
-    if (firstTokenAt === null) {
-      firstTokenAt = Date.now() - startTime;
-      firstTokenAt_d = new Date();
-    }
-    const b = block as {
-      type: string;
-      id?: string;
-      name?: string;
-      input?: unknown;
-    };
-    if (b.type !== "tool_use") return;
+  // ---------------------------------------------------------------------------
+  // Phase 16 — Multi-pass agentic loop
+  //
+  // The model may call find_tasks/find_captures/find_events and then in the
+  // same user turn call update_*/delete_* on the discovered items. This loop
+  // runs up to LOOP_CAP passes, feeding tool_results back each time the model
+  // stops with stop_reason="tool_use".
+  //
+  // Pitfalls observed (from RESEARCH.md):
+  //   Pitfall 1 — tool_result content MUST be serialized to a string (JSON.stringify)
+  //   Pitfall 2 — do NOT call buildHistory() inside the loop; loopMessages starts
+  //               from anthropicMessages (already includes history)
+  //   Pitfall 3 — session-entities scratchpad MUST have NO cache_control
+  //   Anti-pattern — do NOT force tool_choice on inner passes; let model decide end_turn
+  // ---------------------------------------------------------------------------
 
-    if (opts.onQueued) {
-      opts.onQueued(b.id ?? "", b.name ?? "");
-    }
+  const LOOP_CAP = 5;
+  const loopMessages: typeof anthropicMessages = [...anthropicMessages];
 
-    const work = (async () => {
-      try {
-        const validator = toolValidators[b.name as ToolName];
-        if (!validator) {
-          opts.onError(`Unknown tool: ${b.name ?? "?"}`);
-          return;
-        }
-        const parsed = validator.safeParse(b.input);
-        if (!parsed.success) {
-          opts.onError(`Tool validation failed: ${parsed.error.message}`);
-          return;
-        }
+  // Prime session-entities scratchpad from prior-turn history so the model
+  // can reference entities created in earlier turns without a find call.
+  const sessionEntities: SessionEntity[] = reconstructSessionEntitiesFromHistory(anthropicMessages);
 
-        actionTypes.push(b.name as string);
-        let result;
-        if (b.name === "create_task") {
-          const taskData = {
-            ...(parsed.data as Parameters<typeof executor.createTask>[0]),
-          };
-          if (opts.parsedPriority) {
-            (taskData as { priority?: string }).priority = opts.parsedPriority;
-          }
-          result = await executor.createTask(
-            taskData as Parameters<typeof executor.createTask>[0],
-            ctx,
-          );
-        } else if (b.name === "create_capture") {
-          result = await executor.createCapture(
-            parsed.data as Parameters<typeof executor.createCapture>[0],
-            ctx,
-          );
-        } else if (b.name === "create_event") {
-          result = await executor.createEvent(
-            parsed.data as Parameters<typeof executor.createEvent>[0],
-            ctx,
-          );
-        } else if (b.name === "remember_fact") {
-          result = await executor.rememberFact(
-            parsed.data as Parameters<typeof executor.rememberFact>[0],
-            ctx,
-          );
-        } else if (b.name === "ask_clarification") {
-          const cdata = parsed.data as {
-            question: string;
-            options?: string[];
-            suggested_action?: { tool: string };
-          };
-          if (opts.onClarification) {
-            opts.onClarification(
-              b.id ?? "",
-              cdata.question,
-              cdata.options ?? [],
-              cdata.suggested_action ?? null,
-            );
-          }
-          result = await executor.askClarification(
-            parsed.data as Parameters<typeof executor.askClarification>[0],
-            ctx,
-          );
-        } else {
-          return;
-        }
-
-        opts.onAction(b.id ?? "", b.name as string, result);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        opts.onError(`Executor failed for ${b.name ?? "?"}: ${message}`);
-      }
-    })();
-    pendingActions.push(work);
-  });
-
-  anthStream.on("text", (delta: unknown) => {
-    if (firstTokenAt === null) {
-      firstTokenAt = Date.now() - startTime;
-      firstTokenAt_d = new Date();
-    }
-    lastTokenAt_d = new Date();
-    const s = String(delta);
-    if (s.trim().length > 0) anyTextEmitted = true;
-    opts.onTextDelta(s);
-  });
+  const totalUsage: RunTurnUsage = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_input_tokens: 0,
+    cache_creation_input_tokens: 0,
+  };
 
   try {
-    const final = await anthStream.finalMessage();
-    await Promise.allSettled(pendingActions);
-    toolLoopDoneAt_d = new Date();
+    let passCount = 0;
 
-    const finalContent = (final?.content ?? []) as Array<{
+    while (passCount < LOOP_CAP) {
+      passCount++;
+
+      // Re-build system per pass to inject the (mutating) session-entities scratchpad
+      // AFTER the snapshot block. Do NOT add cache_control here — Pitfall 3.
+      const scratchpadText = buildSessionEntitiesBlock(sessionEntities);
+      const passSystem = scratchpadText
+        ? [...system, { type: "text" as const, text: scratchpadText }]
+        : system;
+
+      const pendingActions: Promise<void>[] = [];
+      const toolResultsThisPass: {
+        id: string;
+        name: JarvisToolName;
+        input: Record<string, unknown>;
+        result: unknown;
+      }[] = [];
+
+      const anthStream = anth.messages.stream(
+        {
+          model: JARVIS_MODEL,
+          max_tokens: 1024,
+          system: passSystem as unknown as never,
+          tools: tools as unknown as never,
+          // tool_choice: only forced on pass 1; subsequent passes let the model
+          // choose end_turn vs more tools — anti-pattern prevention.
+          tool_choice: (passCount === 1 ? toolChoice : { type: "auto" as const }) as unknown as never,
+          messages: loopMessages as unknown as never,
+        },
+        { signal: upstream.signal },
+      );
+
+      anthStream.on("contentBlock", (block: unknown) => {
+        if (firstTokenAt === null) {
+          firstTokenAt = Date.now() - startTime;
+          firstTokenAt_d = new Date();
+        }
+        const b = block as {
+          type: string;
+          id?: string;
+          name?: string;
+          input?: unknown;
+        };
+        if (b.type !== "tool_use") return;
+
+        if (opts.onQueued) {
+          opts.onQueued(b.id ?? "", b.name ?? "");
+        }
+
+        const work = (async () => {
+          try {
+            const validator = toolValidators[b.name as ToolName];
+            if (!validator) {
+              opts.onError(`Unknown tool: ${b.name ?? "?"}`);
+              return;
+            }
+            const parsed = validator.safeParse(b.input);
+            if (!parsed.success) {
+              opts.onError(`Tool validation failed: ${parsed.error.message}`);
+              return;
+            }
+
+            actionTypes.push(b.name as string);
+            const toolName = b.name as JarvisToolName;
+            const toolInput = parsed.data as Record<string, unknown>;
+            let result;
+
+            if (toolName === "create_task") {
+              const taskData = {
+                ...(parsed.data as Parameters<typeof executor.createTask>[0]),
+              };
+              if (opts.parsedPriority) {
+                (taskData as { priority?: string }).priority = opts.parsedPriority;
+              }
+              result = await executor.createTask(
+                taskData as Parameters<typeof executor.createTask>[0],
+                ctx,
+              );
+            } else if (toolName === "create_capture") {
+              result = await executor.createCapture(
+                parsed.data as Parameters<typeof executor.createCapture>[0],
+                ctx,
+              );
+            } else if (toolName === "create_event") {
+              result = await executor.createEvent(
+                parsed.data as Parameters<typeof executor.createEvent>[0],
+                ctx,
+              );
+            } else if (toolName === "remember_fact") {
+              result = await executor.rememberFact(
+                parsed.data as Parameters<typeof executor.rememberFact>[0],
+                ctx,
+              );
+            } else if (toolName === "ask_clarification") {
+              const cdata = parsed.data as {
+                question: string;
+                options?: string[];
+                suggested_action?: { tool: string };
+              };
+              if (opts.onClarification) {
+                opts.onClarification(
+                  b.id ?? "",
+                  cdata.question,
+                  cdata.options ?? [],
+                  cdata.suggested_action ?? null,
+                );
+              }
+              result = await executor.askClarification(
+                parsed.data as Parameters<typeof executor.askClarification>[0],
+                ctx,
+              );
+            } else if (toolName === "update_task") {
+              result = await executor.updateTask(
+                parsed.data as Parameters<typeof executor.updateTask>[0],
+                ctx,
+              );
+            } else if (toolName === "delete_task") {
+              result = await executor.deleteTask(
+                parsed.data as Parameters<typeof executor.deleteTask>[0],
+                ctx,
+              );
+            } else if (toolName === "update_capture") {
+              result = await executor.updateCapture(
+                parsed.data as Parameters<typeof executor.updateCapture>[0],
+                ctx,
+              );
+            } else if (toolName === "delete_capture") {
+              result = await executor.deleteCapture(
+                parsed.data as Parameters<typeof executor.deleteCapture>[0],
+                ctx,
+              );
+            } else if (toolName === "update_event") {
+              result = await executor.updateEvent(
+                parsed.data as Parameters<typeof executor.updateEvent>[0],
+                ctx,
+              );
+            } else if (toolName === "delete_event") {
+              result = await executor.deleteEvent(
+                parsed.data as Parameters<typeof executor.deleteEvent>[0],
+                ctx,
+              );
+            } else if (toolName === "find_tasks") {
+              result = await executor.findTasks(
+                parsed.data as Parameters<typeof executor.findTasks>[0],
+                ctx,
+              );
+            } else if (toolName === "find_captures") {
+              result = await executor.findCaptures(
+                parsed.data as Parameters<typeof executor.findCaptures>[0],
+                ctx,
+              );
+            } else if (toolName === "find_events") {
+              result = await executor.findEvents(
+                parsed.data as Parameters<typeof executor.findEvents>[0],
+                ctx,
+              );
+            } else {
+              return;
+            }
+
+            // Collect the tool result for the feedback turn
+            toolResultsThisPass.push({
+              id: b.id ?? "",
+              name: toolName,
+              input: toolInput,
+              result,
+            });
+
+            opts.onAction(b.id ?? "", toolName, result);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            opts.onError(`Executor failed for ${b.name ?? "?"}: ${message}`);
+          }
+        })();
+        pendingActions.push(work);
+      });
+
+      anthStream.on("text", (delta: unknown) => {
+        if (firstTokenAt === null) {
+          firstTokenAt = Date.now() - startTime;
+          firstTokenAt_d = new Date();
+        }
+        lastTokenAt_d = new Date();
+        const s = String(delta);
+        if (s.trim().length > 0) anyTextEmitted = true;
+        opts.onTextDelta(s);
+      });
+
+      const final = await anthStream.finalMessage();
+      await Promise.allSettled(pendingActions);
+      toolLoopDoneAt_d = new Date();
+
+      // Sum usage from this pass into the total
+      totalUsage.input_tokens += final.usage.input_tokens ?? 0;
+      totalUsage.output_tokens += final.usage.output_tokens ?? 0;
+      totalUsage.cache_read_input_tokens += (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0;
+      totalUsage.cache_creation_input_tokens += (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0;
+
+      // Append newly-touched entities to session-entities scratchpad
+      for (const r of toolResultsThisPass) {
+        const entity = entityFromToolResult(
+          r.name,
+          r.input,
+          r.result as { ok: boolean; id?: string; receipt?: Record<string, unknown> },
+        );
+        if (entity) sessionEntities.push(entity);
+      }
+
+      // Exit loop if model chose to stop or no tools were invoked
+      if (final.stop_reason !== "tool_use") break;
+      if (toolResultsThisPass.length === 0) break; // safety: stop_reason was tool_use but nothing executed
+
+      // Build the feedback turns so the next pass can reference results
+      loopMessages.push({ role: "assistant", content: final.content as never });
+      loopMessages.push({
+        role: "user",
+        content: toolResultsThisPass.map((r) => ({
+          type: "tool_result" as const,
+          tool_use_id: r.id,
+          content: JSON.stringify(r.result),
+        })) as never,
+      });
+    }
+
+    // Emit a fallback text if the model produced neither text nor action
+    const finalContent = (loopMessages[loopMessages.length - 1]?.content ?? []) as Array<{
       type?: string;
       text?: string;
     }>;
-    const finalTextBlocks = finalContent
-      .filter(
-        (b) =>
-          b.type === "text" &&
-          typeof b.text === "string" &&
-          b.text.trim().length > 0,
-      )
-      .map((b) => b.text as string);
+    const finalTextBlocks = Array.isArray(finalContent)
+      ? finalContent
+          .filter(
+            (b) =>
+              b.type === "text" &&
+              typeof b.text === "string" &&
+              b.text.trim().length > 0,
+          )
+          .map((b) => b.text as string)
+      : [];
     if (!anyTextEmitted && finalTextBlocks.length > 0) {
       opts.onTextDelta(finalTextBlocks.join("\n"));
       anyTextEmitted = true;
@@ -421,8 +592,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       opts.onTextDelta("I didn't quite catch that, sir — try rephrasing as a thing to file.");
     }
 
-    const usage = final.usage as RunTurnUsage;
-    opts.onDone(usage);
+    opts.onDone(totalUsage);
 
     void logJarvisEvent({
       id: turnId,
@@ -430,7 +600,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       promptText: opts.input,
       voiceActive: opts.isVoice,
       actionTypes,
-      usage: usage as {
+      usage: totalUsage as {
         input_tokens?: number;
         output_tokens?: number;
         cache_read_input_tokens?: number;
