@@ -392,11 +392,11 @@ Plans:
 **UI hint**: yes (new top-level surface with planner + management + stats sub-views)
 
 ### Phase 16: Smarter JARVIS — session memory + CRUD (issue #15)
-**Goal**: JARVIS can hold a real conversation: it remembers what it just did this session and can act on follow-ups like "no, delete the qc please" — resolving "the qc" to the capture it just created and deleting it, in one turn. Closes GitHub issue #15. Built on context engineering (not fine-tuning): (1) model-visible history preserves real `tool_use`/`tool_result` blocks with created-entity IDs instead of flattened text summaries; (2) a session-entities scratchpad block (last ~10 entities touched, with IDs/types/titles) injected after the cached prompt prefix so references survive truncation without breaking the Phase 11 prompt cache; (3) new CRUD tools — `update_task`, `delete_task`, `update_capture`, `delete_capture`, `update_event`, `delete_event` — executed server-side with `userId` ownership re-verified at the executor boundary; (4) `find_tasks` / `find_captures` / `find_events` fuzzy-lookup tools plus a system-prompt resolution policy: resolve from session entities → search → `ask_clarification`; (5) multi-pass agentic loop in the JARVIS route so find → act chains complete inside a single user turn (non-find turns still terminate in one pass); (6) receipt UI variants — field-level before→after diff for updates, tombstone render for deletes, Undo gated to creates only.
+**Goal**: JARVIS can hold a real conversation: it remembers what it just did this session and can act on follow-ups like "no, delete the qc please" — resolving "the qc" to the capture it just created and deleting it, in one turn. Closes GitHub issue #15. Built on context engineering (not fine-tuning): (1) model-visible history preserves real `tool_use`/`tool_result` blocks with created-entity IDs instead of flattened text summaries; (2) a session-entities scratchpad block (last ~10 entities touched, with IDs/types/titles) injected after the cached prompt prefix so references survive truncation without breaking the Phase 11 prompt cache; (3) new CRUD tools — `update_task`, `delete_task`, `update_capture`, `delete_capture`, `update_event`, `delete_event` — executed server-side with `userId` ownership re-verified at the executor boundary; (4) `find_tasks` / `find_captures` / `find_events` fuzzy-lookup tools plus a system-prompt resolution policy: resolve from session entities → search → `ask_clarification`; (5) multi-pass agentic loop in the JARVIS route so find → act chains complete inside a single user turn (non-find turns still terminate in one pass); (6) receipt UI variants — field-level before→after diff for updates, tombstone render for deletes; (7) universal 5-second undo on every JARVIS action (create=delete, update=revert before-values, delete=restore snapshot) — supersedes the original creates-only gate, added mid-execution as plan 16-06.
 **Depends on**: Phase 5 (JARVIS core), Phase 11 (prompt cache + state priming — scratchpad placement must respect cache breakpoints)
 **Requirements**: SMJ-01 through SMJ-13 (see REQUIREMENTS.md)
 **Out of scope for this phase**: cross-session long-term memory (Anthropic memory tool), project/area CRUD via JARVIS, voice-specific behaviors — capture as backlog if needed
-**Plans**: 5 plans across 3 waves
+**Plans**: 6 plans across 4 waves
 
 Plans:
 - [x] 16-01-PLAN.md — Type contracts: ActionExecutor interface widened (9 new methods), ScrollbackAction.name union, JarvisRequestBody.history content-block widening, SessionEntity + JarvisToolName types
@@ -404,6 +404,7 @@ Plans:
 - [x] 16-03-PLAN.md — 9 new executor methods with double-WHERE ownership (tasks/captures via Drizzle, events via gcal patchEvent/deleteEvent/listEvents), cross-user ownership test
 - [x] 16-04-PLAN.md — Multi-pass agentic loop in run-turn.ts (cap 5), session-entities scratchpad after Phase 11 snapshot block (no cache_control), aggregated usage, agentic-loop Vitest
 - [x] 16-05-PLAN.md — buildHistory() emits content blocks, JarvisReceipt find/update/delete variants + INTENT_META, undo triple-gated to creates only
+- [x] 16-06-PLAN.md — Universal 5s undo (SMJ-14): receipt-carried before-snapshot for update + pre-delete row snapshot for delete, server-side inversion (`undoUpdate*` + `undoDelete*`) wired into `undoJarvisActionForUser`, capability-based frontend gate (removes 16-05's name-prefix triple-gate)
 
 ## Progress
 
@@ -430,7 +431,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
-| 16. Smarter JARVIS — session memory + CRUD | 5/5 | Complete   | 2026-06-11 |
+| 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete   | 2026-06-11 |
 
 ## Backlog
 
@@ -446,7 +447,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 5/5 plans complete
+**Plans:** 6/6 plans complete
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

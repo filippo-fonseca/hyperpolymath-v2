@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: verifying
-stopped_at: Completed 16-04-PLAN.md
-last_updated: "2026-06-11T23:11:44.496Z"
+stopped_at: Completed 16-06-PLAN.md
+last_updated: "2026-06-11T23:34:50.621Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 35
   completed_phases: 13
-  total_plans: 87
-  completed_plans: 74
+  total_plans: 88
+  completed_plans: 75
   percent: 0
 ---
 
@@ -125,6 +125,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 16-smarter-jarvis-session-memory-crud P02 | 8m | 3 tasks | 14 files |
 | Phase 16-smarter-jarvis-session-memory-crud P05 | 15 | 3 tasks | 3 files |
 | Phase 16 P04 | 18m | 3 tasks | 4 files |
+| Phase 16 P06 | 9m | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -352,6 +353,7 @@ Recent decisions affecting current work:
 - [Phase 16-smarter-jarvis-session-memory-crud]: Undo triple-gated to create_* tools only: handleUndoAction guard + JarvisScrollback prop + JarvisReceipt defensive check
 - [Phase 16]: LOOP_CAP=5: conservative cap covering all plausible find->act chains while bounding cost
 - [Phase 16]: Session-entities find_* excluded: find tools are ephemeral context, not state mutations
+- [Phase 16]: Universal undo uses SELECT-before-UPDATE in Drizzle transaction and capability-based prop gate (receipt.before/snapshot) over name-prefix checks
 
 ### Pending Todos
 
@@ -376,6 +378,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-11T23:11:44.492Z
-Stopped at: Completed 16-04-PLAN.md
+Last session: 2026-06-11T23:34:50.616Z
+Stopped at: Completed 16-06-PLAN.md
 Resume file: None

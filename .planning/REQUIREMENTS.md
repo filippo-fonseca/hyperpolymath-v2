@@ -229,6 +229,7 @@ JARVIS gains in-session conversational memory and full CRUD via natural language
 - [x] **SMJ-11**: `jarvis_turns.actions` JSONB column carries new action records with the 9 new tool names; no migration needed; persisted scrollback re-renders correctly after reload
 - [x] **SMJ-12**: `apps/web/tests/jarvis-route.test.ts` and `apps/web/tests/jarvis-adversarial.test.ts` updated — fabricated-tool tests use names that will never be real (`drop_database`, `exec_sql`); a new `tests/jarvis-executor-crud.test.ts` proves cross-user delete/update is blocked at the executor; a new `tests/jarvis-agentic-loop.test.ts` proves 2-pass find→delete terminates correctly
 - [x] **SMJ-13**: `JarvisRequestBody.history` and the client-side `JarvisRequest.history` types widened from `Array<{ role; content: string }>` to `Array<{ role; content: string | ContentBlock[] }>` — backward-compatible widening
+- [x] **SMJ-14**: Universal 5-second undo on every JARVIS mutation — supersedes SMJ-10's creates-only gate. Inversion semantics: undo `create_*` deletes the entity (reuses existing `undoJarvisActionForUser` task/capture/event delete paths); undo `update_*` writes back the `before` field snapshot captured at mutation time and persisted in the receipt; undo `delete_*` recreates the entity from the pre-delete row snapshot persisted in the receipt (tasks/captures inserted with original id via `id: snapshot.id`; gcal events re-inserted via `insertEvent` with new event id accepted). `find_*`, `remember_fact`, `ask_clarification` are not undoable (no inversion data). Frontend gating becomes capability-based (receipt carries inversion data → undoable) rather than name-prefix-based; the 16-05 triple-gate (`handleUndoAction` `startsWith("create_")` guard, `JarvisScrollback` `onUndo` prop gate, `JarvisReceipt` `isNonUndoable`) is removed. 5s countdown reuses the existing `UndoButton` / `useUndoCountdown(5, …)` pattern. In-session only (no reload undo) for MVP
 
 ### Personal Context Graph + MCP Export (Phase 999.12)
 
@@ -492,10 +493,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SMJ-11 | Phase 16 | Complete |
 | SMJ-12 | Phase 16 | Complete |
 | SMJ-13 | Phase 16 | Complete |
+| SMJ-14 | Phase 16 | Planned |
 
 **v1.1 coverage:**
-- v1.1 requirements: 41 total (across 7 categories: Telemetry, Latency, Cache, Wake, Route, Desk, Smarter JARVIS)
-- Mapped to phases: 41 / 41 (100%)
+- v1.1 requirements: 42 total (across 7 categories: Telemetry, Latency, Cache, Wake, Route, Desk, Smarter JARVIS)
+- Mapped to phases: 42 / 42 (100%)
 - Unmapped: 0
 
 **v1.1 per-phase counts:**
@@ -505,8 +507,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 12 (On-Device Wake-Word + Mic Gating): 6 requirements (WAKE-01..06)
 - Phase 13 (Haiku Fast-Path Routing): 4 requirements (ROUTE-01..04)
 - Phase 14 (JARVIS Desktop Mic Middleman): 6 requirements (DESK-01..06)
-- Phase 16 (Smarter JARVIS — Session Memory + CRUD): 13 requirements (SMJ-01..13)
+- Phase 16 (Smarter JARVIS — Session Memory + CRUD): 14 requirements (SMJ-01..14)
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-06-11 — Phase 16 (Smarter JARVIS — Session Memory + CRUD) added: 13 SMJ requirements covering rich-block history, session-entities scratchpad, 9 new tools (6 CRUD + 3 find), multi-pass agentic loop, receipt UI variants, and test contract updates. v1.1 count: 28 → 41. Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration).*
+*Last updated: 2026-06-11 — Phase 16 (Smarter JARVIS — Session Memory + CRUD) added: 13 SMJ requirements covering rich-block history, session-entities scratchpad, 9 new tools (6 CRUD + 3 find), multi-pass agentic loop, receipt UI variants, and test contract updates. v1.1 count: 28 → 41. Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration). 2026-06-11 (mid-execution scope-change): SMJ-14 added — universal 5s undo on every JARVIS action; supersedes the creates-only gate shipped by 16-05. Implemented by plan 16-06. v1.1 count: 41 → 42.*
