@@ -14,8 +14,6 @@ export const UpdateCaptureInputSchema = z
   .object({
     id: z.string().min(1),
     content: z.string().min(1).nullable(),
-    hashtags: z.array(z.string()).nullable(),
-    project_ids: z.array(z.string()).nullable(),
   })
   .strict();
 
@@ -24,6 +22,6 @@ export type UpdateCaptureInput = z.infer<typeof UpdateCaptureInputSchema>;
 export const updateCaptureTool = {
   name: "update_capture" as const,
   description:
-    "Update an existing capture by id. Pass null for every field you are NOT changing — only non-null fields are applied. The id MUST come from session entities or a find_captures result — never invent. `hashtags` replaces the full list. `project_ids` replaces the full list (provide up to 20; server drops any not owned by the user).",
+    "Update an existing capture by id. Pass null for every field you are NOT changing — only non-null fields are applied. The id MUST come from session entities or a find_captures result — never invent.",
   input_schema: toJsonSchema(UpdateCaptureInputSchema),
 };

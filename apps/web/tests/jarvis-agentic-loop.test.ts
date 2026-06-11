@@ -243,7 +243,7 @@ describe("JARVIS agentic loop", () => {
         {
           blocks: [
             { type: "text", text: "I'll find it." },
-            { type: "tool_use", id: "tu_find_1", name: "find_tasks", input: { query: "orgo", status: null, priority: null, project_id: null } },
+            { type: "tool_use", id: "tu_find_1", name: "find_tasks", input: { query: "orgo" } },
           ],
           stopReason: "tool_use",
           usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
@@ -353,7 +353,7 @@ describe("JARVIS agentic loop", () => {
         [
           {
             blocks: [
-              { type: "tool_use", id: "tu_find_cap", name: "find_tasks", input: { query: "anything", status: null, priority: null, project_id: null } },
+              { type: "tool_use", id: "tu_find_cap", name: "find_tasks", input: { query: "anything" } },
             ],
             stopReason: "tool_use",
             usage: { input_tokens: 50, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
