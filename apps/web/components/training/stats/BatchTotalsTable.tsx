@@ -19,6 +19,13 @@ interface Props {
   windowLabel: string;
 }
 
+// Soft neumorphic glassy tile — mirrors /settings page tile aesthetic.
+const TILE =
+  "rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-4 " +
+  "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+  "transition-[border-color,box-shadow] duration-200 ease-out";
+
 interface TypeAgg {
   typeId: string;
   name: string;
@@ -105,7 +112,7 @@ export function BatchTotalsTable({
   }, [activities, types, batches]);
 
   return (
-    <div className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4">
+    <div className={TILE}>
       <div className="flex items-baseline justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           By batch · {windowLabel}
