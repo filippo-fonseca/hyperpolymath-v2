@@ -7,8 +7,10 @@
  * obeys the system prompt". The route's TOOL_VALIDATORS map contains only
  * three CREATE tools (create_task, create_capture, create_event). Even if
  * a worst-case model:
- *   - Fabricates a delete_task / drop_database tool name → SSE 'error',
+ *   - Fabricates a drop_database / exec_sql tool name → SSE 'error',
  *     no executor dispatch (verified directly in jarvis-route.test.ts).
+ *     NOTE (Phase 16): delete_task / update_task are now REAL tools; fabrication
+ *     tests use names that will never be real (drop_database, exec_sql, etc.).
  *   - Tries to emit destructive intent through create_task title → that's
  *     just text; the executor calls db.insert(tasks), never db.delete or
  *     db.execute(<raw SQL>). The DB has no read/destroy path from the
@@ -558,12 +560,14 @@ describe("meta-question routing (text-only reply when history has context)", () 
 });
 
 describe("tool-fabrication (structural TOOL_VALIDATORS defense)", () => {
+  // Phase 16: delete_task, update_task, etc. are now REAL tools.
+  // Fabricated names must be names that will NEVER be real JARVIS tools.
   const FABRICATED_NAMES = [
-    "delete_task",
     "drop_database",
-    "update_user",
-    "system_exec",
-    "list_all_users",
+    "exec_sql",
+    "destroy_all",
+    "wipe_user",
+    "shutdown_system",
   ];
 
   it.each(FABRICATED_NAMES)(

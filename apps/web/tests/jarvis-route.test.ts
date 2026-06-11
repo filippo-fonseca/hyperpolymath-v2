@@ -14,8 +14,10 @@
  *      fires (verified via Anthropic SDK signal option being honored).
  *   7. After stream end: 'done' event has usage with all 4 token counts;
  *      logJarvisEvent called with correct shape.
- *   8. Fabricated tool name (e.g. "delete_task") → SSE 'error' event,
+ *   8. Fabricated tool name (e.g. "drop_database") → SSE 'error' event,
  *      NO 'action' event, executor never dispatched.
+ *      NOTE (Phase 16): delete_task is now a REAL tool. Fabricated-tool tests
+ *      must use names that will never be real (drop_database, exec_sql).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -439,20 +441,22 @@ describe("POST /api/jarvis — streaming", () => {
   });
 
   it("fabricated tool name → SSE 'error' event, NO 'action' dispatch", async () => {
+    // Phase 16: delete_task is now a real tool. Using drop_database instead —
+    // a name that will never be a real JARVIS tool.
     anthropicStreamMock.mockReturnValue(
       buildAnthropicStream({
         blocks: [
           {
             type: "tool_use",
             id: "tu_fab",
-            name: "delete_task",
+            name: "drop_database",
             input: { id: "task-1" },
           },
         ],
       }),
     );
     const res = await POST(
-      buildRequest({ input: "delete tasks", history: [] }) as never,
+      buildRequest({ input: "destroy everything", history: [] }) as never,
     );
     const events = await readSseEvents(res);
     const actions = events.filter((e) => e.event === "action");
