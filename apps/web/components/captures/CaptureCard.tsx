@@ -164,16 +164,18 @@ export function CaptureCard({
           exit={{ opacity: 0, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
           className={cn(
-            // Neumorphic glassy tile (matches /settings tile contract):
-            // dual-direction paired shadow + inset highlight + hover deepens.
-            // Compact variant (project detail Captures column) keeps a tighter
-            // padding rhythm but inherits the same pillow chrome.
-            "group relative bg-[var(--surface)] rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)]",
-            "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
-            "transition-[border-color,box-shadow] duration-200 ease-out",
+            // Glassy pill tile (matches SettingsSectionNav PROFILE pill):
+            // translucent surface + backdrop-blur + inset cyan glow + soft
+            // outer halo + thin cyan-tinged border. Hover deepens border to
+            // cyan and ramps the inset glow + outer halo.
+            "group relative rounded-xl backdrop-blur-md",
+            "bg-[color-mix(in_oklch,var(--surface)_82%,transparent)]",
+            "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)]",
+            "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)]",
+            "transition-[border-color,box-shadow,background-color] duration-200 ease-out",
             compact ? "px-3 py-2" : "px-5 py-4",
             onOpen &&
-              "cursor-pointer hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+              "cursor-pointer hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)]",
           )}
           {...(onOpen
             ? {
