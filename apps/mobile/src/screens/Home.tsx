@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVoiceRecorder } from "../audio/recorder";
 import { TtsQueue } from "../audio/tts-queue";
 import { GearIcon, KiwiMark } from "../components/icons";
+import { JarvisReceipt, type ReceiptAction } from "../components/JarvisReceipt";
 import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
 import { TextBar } from "../components/TextBar";
@@ -35,16 +36,11 @@ import { splitDeltas } from "../lib/sentence-splitter";
 import { subscribeJarvisEvents, type SseStatus } from "../lib/sse";
 import { colors, mono, serif, serifSemiBold } from "../theme";
 
-interface ActionChip {
-  toolUseId: string;
-  name: string;
-}
-
 interface Turn {
   id: string;
   role: "user" | "assistant";
   text: string;
-  actions: ActionChip[];
+  actions: ReceiptAction[];
 }
 
 const CENTER_HINT: Record<OrbState, string> = {
@@ -137,12 +133,12 @@ export function Home() {
           ttsQueue.enqueueSentence(sentence, sentenceSeq.current++);
         }
       },
-      onToolCall: ({ toolUseId, name }) => {
+      onToolCall: ({ toolUseId, name, result }) => {
         const id = activeAssistantId.current;
         if (!id) return;
         setTurns((prev) =>
           prev.map((t) =>
-            t.id === id ? { ...t, actions: [...t.actions, { toolUseId, name }] } : t,
+            t.id === id ? { ...t, actions: [...t.actions, { toolUseId, name, result }] } : t,
           ),
         );
       },
@@ -305,15 +301,9 @@ export function Home() {
                 style={[styles.turn, turn.role === "user" ? styles.turnUser : styles.turnAssistant]}
               >
                 <Text style={styles.turnText}>{turn.text || "…"}</Text>
-                {turn.actions.length > 0 && (
-                  <View style={styles.chips}>
-                    {turn.actions.map((a) => (
-                      <View key={a.toolUseId} style={styles.chip}>
-                        <Text style={styles.chipText}>{a.name.replace(/_/g, " ")}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                {turn.actions.map((a) => (
+                  <JarvisReceipt key={a.toolUseId} action={a} />
+                ))}
               </View>
             ))}
           </ScrollView>
@@ -445,24 +435,5 @@ const styles = StyleSheet.create({
     fontFamily: serif,
     fontSize: 17,
     lineHeight: 24,
-  },
-  chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 8,
-  },
-  chip: {
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  chipText: {
-    color: colors.accent,
-    fontFamily: mono,
-    fontSize: 10,
-    letterSpacing: 1,
   },
 });
