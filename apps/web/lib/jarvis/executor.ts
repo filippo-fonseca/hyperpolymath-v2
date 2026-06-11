@@ -93,13 +93,14 @@ export function createServerExecutor(): ActionExecutor {
       input: CreateTaskAction,
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
+      // Unknown/hallucinated project IDs are DROPPED, not fatal (2026-06-11):
+      // the task still lands, just unassigned — failing the whole action left
+      // the user with nothing. projectCheck.ids is the validated-owned subset.
       const projectCheck = await resolveProjectIds(ctx, input.project_ids);
-      if (!projectCheck.ok) {
-        return {
-          ok: false,
-          kind: "validation",
-          error: `Unknown projects: ${projectCheck.rejected.join(", ")}`,
-        };
+      if (projectCheck.rejected.length > 0) {
+        console.warn(
+          `[jarvis] createTask: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`,
+        );
       }
 
       const taskId = randomUUID();
@@ -169,13 +170,12 @@ export function createServerExecutor(): ActionExecutor {
       input: CreateCaptureAction,
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
+      // Same drop-don't-fail policy as createTask — see comment there.
       const projectCheck = await resolveProjectIds(ctx, input.project_ids);
-      if (!projectCheck.ok) {
-        return {
-          ok: false,
-          kind: "validation",
-          error: `Unknown projects: ${projectCheck.rejected.join(", ")}`,
-        };
+      if (projectCheck.rejected.length > 0) {
+        console.warn(
+          `[jarvis] createCapture: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`,
+        );
       }
 
       const captureId = randomUUID();

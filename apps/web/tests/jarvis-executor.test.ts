@@ -283,7 +283,7 @@ describe("executor.createTask (JARVIS-12 / JARVIS-14)", () => {
     expect((taskInsert!.values as { userId: string }).userId).not.toBe("ATTACKER");
   });
 
-  it("project_id belongs to another user → rejection, no DB write", async () => {
+  it("project_id belongs to another user → dropped; task still created, no project link", async () => {
     // PROJECT_B is USER_B's; scoped SELECT returns empty
     dbState.selectReturns.push([]);
     const executor = createServerExecutor();
@@ -291,17 +291,24 @@ describe("executor.createTask (JARVIS-12 / JARVIS-14)", () => {
       { title: "Sabotage", project_ids: [PROJECT_B] },
       ctx,
     );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.kind).toBe("validation");
-      expect(result.error).toMatch(PROJECT_B);
-    }
-    // No transactional inserts for tasks
+    // Drop-don't-fail policy (2026-06-11): unknown/foreign project ids are
+    // discarded but the task itself still lands (unassigned).
+    expect(result.ok).toBe(true);
     const taskInsert = dbState.txnInsertCalls.find((c) => {
       const v = c.values as { title?: string };
       return v.title === "Sabotage";
     });
-    expect(taskInsert).toBeUndefined();
+    expect(taskInsert).toBeDefined();
+    // The cross-tenant link must NEVER be written.
+    const linkInsert = dbState.txnInsertCalls.find((c) => {
+      const v = c.values as { projectId?: string } | Array<{ projectId?: string }>;
+      const arr = Array.isArray(v) ? v : [v];
+      return arr.some((row) => row.projectId === PROJECT_B);
+    });
+    expect(linkInsert).toBeUndefined();
+    if (result.ok) {
+      expect((result.receipt as { project_ids: string[] }).project_ids).toEqual([]);
+    }
   });
 
   it("priority defaults to P3 (JARVIS-05)", async () => {
