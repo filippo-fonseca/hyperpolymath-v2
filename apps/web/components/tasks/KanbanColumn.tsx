@@ -94,8 +94,16 @@ export function KanbanColumn({
   const ref = useRef<HTMLDivElement>(null);
   const accent = deriveAccent(STATUS_ACCENT[status].dot);
 
-  const restingShadow = `inset 0 0 0 1px ${accent.rim}`;
-  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}`;
+  // Neumorphic tile shadow stack (paired raised + recessed + inset highlight),
+  // matched to /settings tile chrome. The accent rim sits on top so each
+  // column still reads as its status hue, and the drop-target hover still
+  // lights up via the boxShadow DOM mutation below.
+  const neumorphic =
+    "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
+  const neumorphicHover =
+    "8px 8px 22px color-mix(in oklch, var(--ink) 12%, transparent), -5px -5px 16px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
+  const restingShadow = `inset 0 0 0 1px ${accent.rim}, ${neumorphic}`;
+  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, ${neumorphicHover}`;
 
   // v1 pattern: drop-target affordance via direct DOM mutation, NOT React state.
   // Setting React state on every dragover triggers a re-render of the column +

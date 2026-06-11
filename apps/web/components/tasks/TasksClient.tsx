@@ -515,14 +515,18 @@ export function TasksClient({
         </p>
       </header>
 
-      {/* Toolbar: filters + view toggle wrapped in a soft pill container. */}
+      {/* Toolbar: filters + view toggle wrapped in a soft neumorphic pill
+          container (matches /settings tile chrome — paired raised/recessed
+          shadow + inset top highlight; hover deepens edge + lift). */}
       <div
-        className="flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2"
-        style={{
-          backgroundColor: "var(--surface)",
-          boxShadow:
-            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
-        }}
+        className={cn(
+          "flex items-center justify-between gap-4 mb-5 rounded-xl px-3 py-2",
+          "border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)]",
+          "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+          "hover:border-[var(--edge-hud)]",
+          "hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+          "transition-[border-color,box-shadow] duration-200 ease-out",
+        )}
       >
         <TaskFilters projects={projects} />
         {/* Show / hide completed "lesno" tasks. Off by default per user spec —
@@ -615,7 +619,14 @@ export function TasksClient({
                 className="overflow-hidden"
               >
                 <div
-                  className="mb-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-3"
+                  className={cn(
+                    "mb-4 rounded-xl p-3",
+                    "border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)]",
+                    "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+                    "hover:border-[var(--edge-hud)]",
+                    "hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]",
+                    "transition-[border-color,box-shadow] duration-200 ease-out",
+                  )}
                   role="region"
                   aria-label="Tasks without a due date"
                 >
