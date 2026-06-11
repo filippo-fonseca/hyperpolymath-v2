@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 16-smarter-jarvis-session-memory-crud-03-PLAN.md
-last_updated: "2026-06-11T22:56:45.351Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-06-11T22:58:39.848Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 35
   completed_phases: 12
   total_plans: 87
-  completed_plans: 71
+  completed_plans: 72
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 16 (smarter-jarvis-session-memory-crud) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-11
 
@@ -122,6 +122,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 999.12-personal-context-graph-daily-mcp-export P03 | ~11min | 3 tasks | 12 files |
 | Phase 16-smarter-jarvis-session-memory-crud P01 | 9 | 2 tasks | 8 files |
 | Phase 16-smarter-jarvis-session-memory-crud P03 | 312 | 3 tasks | 3 files |
+| Phase 16-smarter-jarvis-session-memory-crud P02 | 8m | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -343,6 +344,8 @@ Recent decisions affecting current work:
 - [Phase 16-smarter-jarvis-session-memory-crud]: Content-block history widening is backward-compatible — string content still valid so existing callers compile unchanged
 - [Phase 16-smarter-jarvis-session-memory-crud]: project_ids update in updateTask/updateCapture deferred for MVP (join-table management is a separate concern)
 - [Phase 16-smarter-jarvis-session-memory-crud]: gcalDeleteEvent alias used to avoid name collision with deleteEvent executor method
+- [Phase 16-smarter-jarvis-session-memory-crud]: _schema-utils.ts extracted from tools/index.ts to break circular import when new tool files need toJsonSchema
+- [Phase 16-smarter-jarvis-session-memory-crud]: Fabricated tool test names changed from delete_task/update_task to drop_database/exec_sql — now that those CRUD tools are real, tests must use names that will never be real tools
 
 ### Pending Todos
 
@@ -367,6 +370,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-11T22:56:45.346Z
-Stopped at: Completed 16-smarter-jarvis-session-memory-crud-03-PLAN.md
+Last session: 2026-06-11T22:58:39.843Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
