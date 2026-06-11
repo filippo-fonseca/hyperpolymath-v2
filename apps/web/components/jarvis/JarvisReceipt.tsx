@@ -133,11 +133,18 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     return (
       <div
         data-status="queued"
-        className="relative rounded-sm px-2 py-1 my-1 opacity-80 overflow-hidden"
+        className="relative rounded-lg px-2 py-1 my-1 opacity-80 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out"
         style={{
           backgroundColor: "var(--surface)",
           // Static placeholder border so the outline-trace SVG draws over it
-          border: "1px solid var(--edge-hud)",
+          border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+          // Phase 6.1 polish — neumorphic glassy depth (mirrors /settings tile):
+          // paired raised/recessed shadow + inset white top highlight, layered
+          // beneath the cyan-glow halo applied on resolved receipts.
+          boxShadow:
+            "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
+            "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
+            "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)",
         }}
       >
         {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
@@ -279,27 +286,38 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // reversed (the row stays as a record, doesn't disappear from scrollback).
   const isError = !ok;
   const containerCls = cn(
-    "relative rounded-sm my-1 overflow-hidden",
+    "relative rounded-lg my-1 overflow-hidden group/receipt transition-[border-color,box-shadow] duration-200 ease-out",
     variant === "compact" ? "px-2 py-1 opacity-95" : "px-4 py-2",
     isError && !shouldReduce && "hud-error-glitch",
     undone && "opacity-50 grayscale",
   );
 
+  // Phase 6.1 polish — neumorphic glassy depth (mirrors /settings tile):
+  // paired raised/recessed shadow + inset white top highlight. On resolved
+  // receipts we layer the cyan-glow halo on TOP of the neumorphic stack so
+  // both the soft document depth and the JARVIS ambient signal coexist.
+  const neumorphicShadow =
+    "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
+    "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
+    "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
+
   const containerStyle: React.CSSProperties = {
     backgroundColor: "var(--surface)",
-    // 1px --edge-hud base border; error overrides the LEFT edge to 3px coral
-    border: "1px solid var(--edge-hud)",
+    // 1px --edge-hud (softened) base border; error overrides LEFT edge to 3px coral
+    border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
     ...(isError
       ? {
           borderLeftWidth: "3px",
           borderLeftColor: "var(--ink-coral)",
+          boxShadow: neumorphicShadow,
         }
       : {
           // Phase 6.1 Plan 02 (UI-SPEC §9b): ambient --hud-cyan-glow-soft
           // halo on resolved receipts — gives the "JARVIS bringing the
           // element online" feel via a soft surrounding glow (UI-SPEC §13
           // explicitly rejects filter-channel theatrics on this surface).
-          boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+          // Layered AFTER the neumorphic stack so both depths read.
+          boxShadow: `${neumorphicShadow}, 0 0 24px var(--hud-cyan-glow-soft)`,
         }),
   };
 
@@ -525,11 +543,16 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
       data-source="jarvis_suggested"
-      className="relative rounded-sm px-4 py-2 my-1 overflow-hidden"
+      className="relative rounded-lg px-4 py-2 my-1 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out"
       style={{
         backgroundColor: "var(--surface)",
-        border: "1px solid var(--edge-hud)",
-        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+        border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+        // Phase 6.1 polish — neumorphic glassy depth + cyan halo (mirrors /settings tile).
+        boxShadow:
+          "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
+          "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
+          "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)," +
+          "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
       <HudCornerCrops

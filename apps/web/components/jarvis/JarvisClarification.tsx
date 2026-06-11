@@ -48,13 +48,20 @@ export function JarvisClarification({ clarification, onReply }: Props) {
   return (
     <div
       className={cn(
-        "relative rounded-sm px-4 py-3 my-1 overflow-hidden",
+        "relative rounded-lg px-4 py-3 my-1 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out",
         disabled && "opacity-60",
       )}
       style={{
         backgroundColor: "var(--surface)",
-        border: "1px solid var(--edge-hud)",
-        boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
+        border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+        // Phase 6.1 polish — neumorphic glassy depth + cyan halo (mirrors /settings tile).
+        // Paired raised/recessed shadow + inset white top highlight, layered with
+        // the JARVIS ambient cyan glow so both depths read on this hybrid surface.
+        boxShadow:
+          "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
+          "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
+          "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)," +
+          "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
       {/* Phase 6.1 Plan 02 (UI-SPEC §5a): static 10px corner L-brackets frame
