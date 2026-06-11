@@ -55,7 +55,7 @@ function ChartPanel({
 }: ChartPanelProps) {
   return (
     <div
-      className={`relative ${NEUMORPHIC_TILE} bg-[var(--surface)] p-6 ${className}`}
+      className={`relative ${NEUMORPHIC_TILE} p-6 ${className}`}
     >
       <header className="mb-5 flex items-baseline justify-between gap-3">
         <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">

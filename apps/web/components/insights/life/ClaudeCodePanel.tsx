@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { Result } from '@/lib/integrations/result';
 import type { DailyUsage } from '@/lib/integrations/claude-code/usage';
+import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 // Recharts cannot resolve var(--*) at render time; literal hex per accent_constants.
 const ACCENT_HEX = '#d97706'; // ~ var(--ink-amber)
@@ -50,12 +51,11 @@ function formatTokens(n: number): string {
 function PanelChrome({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className="group rounded-xl bg-[var(--surface)] border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] hover:border-[var(--edge-hud)] p-6 transition-[border-color,box-shadow] duration-200 ease-out"
+      className={`group ${NEUMORPHIC_TILE} p-6`}
       style={
         {
           ['--panel-accent']: ACCENT_VAR,
-          boxShadow:
-            '6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 5%, transparent)',
+          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
         } as React.CSSProperties
       }
     >

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Github } from 'lucide-react';
 import { GitHubCalendar } from 'react-github-calendar';
+import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 /**
  * GitHub contributions heatmap (260607-h2k, Task 9 + D-01 + D-09).
@@ -32,12 +33,11 @@ interface Props {
 export function GithubHeatmapPanel({ username }: Props) {
   return (
     <section
-      className="group rounded-xl bg-[var(--surface)] border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] hover:border-[var(--edge-hud)] p-6 transition-[border-color,box-shadow] duration-200 ease-out"
+      className={`group ${NEUMORPHIC_TILE} p-6`}
       style={
         {
           ['--panel-accent']: ACCENT,
-          boxShadow:
-            '6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 6%, transparent)',
+          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
         } as React.CSSProperties
       }
     >
