@@ -31,6 +31,15 @@ const CORS = {
  * device bearer token, skips STT, and spawns the same server-side JARVIS
  * turn — response streams to all listeners via the physical SSE bus.
  */
+interface VoiceTextBody {
+  text?: unknown;
+  parsedDates?: Array<{ text: string; start: string; end?: string; allDay?: boolean }>;
+  parsedPriority?: "P∞" | "P1" | "P2" | "P3";
+  slashCommand?: "task" | "capture" | "event" | "ask" | null;
+  linkedProjectIds?: string[];
+  linkedHashtags?: string[];
+}
+
 export async function POST(req: NextRequest): Promise<Response> {
   const userId = await validateDesktopBearer(req);
   if (!userId) {
@@ -38,8 +47,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   let text: string;
+  let body: VoiceTextBody;
   try {
-    const body = (await req.json()) as { text?: unknown };
+    body = (await req.json()) as VoiceTextBody;
     text = typeof body.text === "string" ? body.text.trim() : "";
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS });
@@ -52,6 +62,43 @@ export async function POST(req: NextRequest): Promise<Response> {
       { error: `Text too long (max ${MAX_TEXT_CHARS} chars)` },
       { status: 413, headers: CORS },
     );
+  }
+
+  // Slash-command forcing + system hints — mirrors /api/jarvis (browser
+  // route). Keep the two in sync: /task|/capture|/event force the matching
+  // tool, /ask (or a bare meta-question) forbids tools, hints are appended
+  // to the model-visible message only — the persisted user turn stays clean.
+  const META_QUESTION_RE =
+    /^(what\s+(?:did|do|does|are|is|was|were|have|will)|did\s+(?:i|we|you)|do\s+(?:i|we|you)|have\s+(?:i|we|you)|show\s+me|tell\s+me|list\s+|summari[sz]e|recap|how\s+many|how\s+much)\b/i;
+  const askMode =
+    body.slashCommand === "ask" || (!body.slashCommand && META_QUESTION_RE.test(text));
+
+  const toolChoice: { type: "auto" } | { type: "none" } | { type: "tool"; name: string } =
+    askMode
+      ? { type: "none" as const }
+      : body.slashCommand
+        ? { type: "tool" as const, name: `create_${body.slashCommand}` }
+        : { type: "auto" as const };
+
+  let userContent = text;
+  if (body.parsedDates && body.parsedDates.length > 0) {
+    userContent += `\n\n[SYSTEM-PARSED DATES — MANDATORY: copy these ISO strings verbatim into the relevant tool field (due/start/end). Do NOT call new Date() or re-parse. If allDay=true the user gave no time-of-day; use the start value as-is. ${JSON.stringify(body.parsedDates)}]`;
+  }
+  if (body.parsedPriority) {
+    userContent += `\n\n[SYSTEM-PARSED PRIORITY — MANDATORY: the user typed an explicit priority token. Set create_task.priority to exactly "${body.parsedPriority}". Do not default to P3.]`;
+  }
+  if (askMode) {
+    userContent += `\n\n[META-QUESTION MODE${body.slashCommand === "ask" ? " (/ask)" : ""}: this turn answers a question; do NOT call any tool. Reply with 1-3 plain English sentences using the visible conversation history. The "OUTPUT FORMAT: emit tool calls only" rule does NOT apply this turn. Your prose IS the response and WILL render to the user.]`;
+  }
+  if ((body.linkedProjectIds?.length ?? 0) > 0 || (body.linkedHashtags?.length ?? 0) > 0) {
+    const parts: string[] = [];
+    if (body.linkedProjectIds && body.linkedProjectIds.length > 0) {
+      parts.push(`projects=${JSON.stringify(body.linkedProjectIds)}`);
+    }
+    if (body.linkedHashtags && body.linkedHashtags.length > 0) {
+      parts.push(`hashtags=${JSON.stringify(body.linkedHashtags)}`);
+    }
+    userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
   }
 
   const receivedAt = Date.now();
@@ -89,6 +136,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   void runJarvisTurnStream({
     userId,
     input: text,
+    messages: [{ role: "user", content: userContent }],
+    toolChoice,
+    parsedPriority: body.parsedPriority,
     isVoice: false,
     sttDoneAt: null,
     vadEndAt: undefined,

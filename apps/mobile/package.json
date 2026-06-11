@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/eb-garamond": "^0.4.2",
+    "@hyperpolymath/jarvis-core": "workspace:^",
     "expo": "~56.0.11",
     "expo-asset": "~56.0.17",
     "expo-audio": "~56.0.12",

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
 import { motion, AnimatePresence } from "motion/react";
 import { Input } from "@/components/ui/input";
@@ -48,12 +48,12 @@ export function WaitlistForm() {
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(FormSchema),
+    resolver: standardSchemaResolver(FormSchema),
     defaultValues: { email: "", website: "" },
   });
 
   const followUpForm = useForm<FollowUpValues>({
-    resolver: zodResolver(FollowUpSchema),
+    resolver: standardSchemaResolver(FollowUpSchema),
     defaultValues: { note: "" },
   });
 

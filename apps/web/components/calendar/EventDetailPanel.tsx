@@ -41,7 +41,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
@@ -248,7 +248,7 @@ export function EventDetailPanel({
     setValue,
     formState: { isDirty, errors },
   } = useForm<EventFormValues>({
-    resolver: zodResolver(EventFormSchema),
+    resolver: standardSchemaResolver(EventFormSchema),
     defaultValues: initialValues,
   });
 

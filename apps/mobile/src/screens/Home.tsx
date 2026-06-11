@@ -28,9 +28,15 @@ import { GearIcon, KiwiMark } from "../components/icons";
 import { JarvisReceipt, type ReceiptAction } from "../components/JarvisReceipt";
 import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
-import { TextBar } from "../components/TextBar";
+import { TextBar, type TextBarSubmit } from "../components/TextBar";
 import { VoiceOverlay } from "../components/VoiceOverlay";
 import { postText, postTranscript } from "../lib/api";
+import { buildMobileJarvisPayload } from "../lib/input-payload";
+import {
+  getJarvisContext,
+  refreshJarvisContext,
+  type JarvisContext,
+} from "../lib/jarvis-context";
 import { getDeviceToken, getSettings, loadSettings, onSettingsChange } from "../lib/settings";
 import { splitDeltas } from "../lib/sentence-splitter";
 import { subscribeJarvisEvents, type SseStatus } from "../lib/sse";
@@ -42,6 +48,18 @@ interface Turn {
   text: string;
   actions: ReceiptAction[];
 }
+
+const HELP_TEXT = [
+  "Commands:",
+  "  /task — force task creation",
+  "  /capture — force capture creation",
+  "  /event — force calendar event",
+  "  /ask — ask a question (text reply, no action)",
+  "  /help — show this list",
+  "",
+  "Also: $project links a project, #tag links a hashtag,",
+  "p1/p2/p3/ptop sets priority, and dates like “tmrw 5pm” are parsed.",
+].join("\n");
 
 const CENTER_HINT: Record<OrbState, string> = {
   idle: "tap to speak",
@@ -60,6 +78,7 @@ export function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [paired, setPaired] = useState(false);
+  const [context, setContext] = useState<JarvisContext>(getJarvisContext());
 
   const recorder = useVoiceRecorder();
   const scrollRef = useRef<ScrollView>(null);
@@ -80,6 +99,7 @@ export function Home() {
       ttsQueue.setVoiceId(s.voiceId);
       setPaired(Boolean(getDeviceToken()));
       setReady(true);
+      void refreshJarvisContext().then(setContext);
     });
     return onSettingsChange((s) => {
       ttsQueue.setEnabled(s.ttsEnabled);
@@ -160,7 +180,10 @@ export function Home() {
   }, [ready, settingsOpen, appendAssistantDelta, ttsQueue]);
 
   useEffect(() => {
-    if (!settingsOpen) setPaired(Boolean(getDeviceToken()));
+    if (!settingsOpen) {
+      setPaired(Boolean(getDeviceToken()));
+      void refreshJarvisContext().then(setContext);
+    }
   }, [settingsOpen]);
 
   const pushUserTurn = useCallback((text: string) => {
@@ -227,10 +250,33 @@ export function Home() {
   }, [recorder]);
 
   const handleText = useCallback(
-    async (text: string) => {
-      pushUserTurn(text);
+    async ({ text, pinnedCommand }: TextBarSubmit) => {
+      const ctx = getJarvisContext();
+      const payload = buildMobileJarvisPayload(text, ctx.timezone, ctx.projects, pinnedCommand);
+      if (!payload) return;
+
+      if (payload.isHelp) {
+        setTurns((prev) => [
+          ...prev.slice(-19),
+          {
+            id: `a-help-${Date.now()}`,
+            role: "assistant",
+            text: HELP_TEXT,
+            actions: [],
+          },
+        ]);
+        return;
+      }
+
+      pushUserTurn(payload.displayText);
       setOrbState("thinking");
-      const result = await postText(text);
+      const result = await postText(payload.input, {
+        parsedDates: payload.parsedDates,
+        parsedPriority: payload.parsedPriority,
+        slashCommand: payload.slashCommand,
+        linkedProjectIds: payload.projectIds,
+        linkedHashtags: payload.hashtags,
+      });
       if (!result) {
         setOrbState("idle");
         pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
@@ -316,7 +362,13 @@ export function Home() {
 
         {/* Text bar pinned to the bottom; KeyboardAvoidingView lifts it. */}
         <View style={{ paddingBottom: insets.bottom + 8 }}>
-          <TextBar disabled={!ready} onSubmit={(text) => void handleText(text)} />
+          <TextBar
+            disabled={!ready}
+            projects={context.projects}
+            hashtags={context.hashtags}
+            timezone={context.timezone}
+            onSubmit={(s) => void handleText(s)}
+          />
         </View>
       </KeyboardAvoidingView>
 

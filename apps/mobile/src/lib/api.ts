@@ -48,16 +48,36 @@ export async function postTranscript(args: {
   }
 }
 
+export interface PostTextOptions {
+  parsedDates?: Array<{ text: string; start: string; end?: string; allDay?: boolean }>;
+  parsedPriority?: "P∞" | "P1" | "P2" | "P3" | null;
+  slashCommand?: "task" | "capture" | "event" | "ask" | null;
+  linkedProjectIds?: string[];
+  linkedHashtags?: string[];
+}
+
 /**
  * POST /api/jarvis/voice/text
- * Text-bar fallback — same server-side turn as voice, minus STT.
+ * Text-bar fallback — same server-side turn as voice, minus STT. Carries
+ * the full composer payload (slash forcing, pre-parsed dates/priority,
+ * linked refs) mirroring the browser console.
  */
-export async function postText(text: string): Promise<{ turnId: string } | null> {
+export async function postText(
+  text: string,
+  options: PostTextOptions = {},
+): Promise<{ turnId: string } | null> {
   try {
     const res = await fetch(`${baseUrl()}/api/jarvis/voice/text`, {
       method: "POST",
       headers: { ...authHeaders(), "content-type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({
+        text,
+        parsedDates: options.parsedDates?.length ? options.parsedDates : undefined,
+        parsedPriority: options.parsedPriority ?? undefined,
+        slashCommand: options.slashCommand ?? undefined,
+        linkedProjectIds: options.linkedProjectIds?.length ? options.linkedProjectIds : undefined,
+        linkedHashtags: options.linkedHashtags?.length ? options.linkedHashtags : undefined,
+      }),
     });
     if (!res.ok) {
       console.warn(`[text] ${res.status}`);
