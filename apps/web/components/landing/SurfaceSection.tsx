@@ -100,18 +100,18 @@ export function SurfaceSection() {
               "var(--glow-hud-subtle), 0 1px 0 color-mix(in oklch, white 50%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 35%, transparent)",
           }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 whitespace-nowrap">
             <Cpu size={16} style={{ color: "var(--hud-cyan-light)" }} aria-hidden="true" />
             <p
               className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
               style={{ color: "var(--hud-cyan-light)" }}
             >
-              POLYPAD · OPTIONAL HARDWARE
+              MACROPAD + PHYSICAL VOICE DETECTOR HARDWARE
             </p>
           </div>
 
           <h3 className="mt-4 font-serif font-semibold text-[22px] leading-[1.2] text-[var(--ink)]">
-            Or build your own.
+            The Polypad.
           </h3>
 
           <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink)]">

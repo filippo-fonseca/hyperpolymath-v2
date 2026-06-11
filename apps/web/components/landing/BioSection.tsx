@@ -156,9 +156,9 @@ export function BioSection() {
           </p>
 
           <p className="font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-            I made it open-source because the methodology shouldn&rsquo;t only
-            work for me. If it does, it isn&rsquo;t a methodology. It&rsquo;s a
-            diary, and the world has plenty of those already.
+            I wrote extensive docs, so if you don&rsquo;t like my UI or my
+            approach, or you fancy a cool build, you can follow my framework
+            and make it your own.
           </p>
         </div>
     </section>

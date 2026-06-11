@@ -11,6 +11,10 @@ import { MeetKiwiSection } from "./MeetKiwiSection";
 import { ChoiceSection } from "./ChoiceSection";
 import { BuildLog } from "./BuildLog";
 import { CursorSpotlight } from "./CursorSpotlight";
+import { DiagramBannerSection } from "./DiagramBannerCard";
+import { MCPSection } from "./MCPSection";
+import { LandingSideNav } from "./LandingSideNav";
+import { FrameworkSection } from "./FrameworkSection";
 
 /**
  * Public landing manifesto — Phase 8.
@@ -32,29 +36,40 @@ export function LandingPage() {
 
       <div className="relative z-10">
       <LandingHeader />
+      <LandingSideNav />
       <main>
         {/* §01 — THESIS (cold open) */}
-        <ThesisSection />
+        <div id="thesis" className="scroll-mt-20">
+          <ThesisSection />
+        </div>
 
         <SectionDivider />
 
         {/* §02 — WHO (bio of the human) */}
-        <BioSection />
+        <div id="bio" className="scroll-mt-20">
+          <BioSection />
+        </div>
 
         <SectionDivider />
 
         {/* §03 — MEET KIWI (bio of the agent — orchestrator) */}
-        <MeetKiwiSection />
+        <div id="kiwi" className="scroll-mt-20">
+          <MeetKiwiSection />
+        </div>
 
         <SectionDivider />
 
         {/* §04 — LIVE DEMO (clickable rotating demo) */}
-        <JarvisDemo />
+        <div id="demo" className="scroll-mt-20">
+          <JarvisDemo />
+        </div>
 
         <SectionDivider />
 
         {/* §05 — THE PRIMITIVES (structure tree + spec table) */}
-        <PrimitivesTable />
+        <div id="primitives" className="scroll-mt-20">
+          <PrimitivesTable />
+        </div>
 
         {/* §06 gets EXTRA 96px breathing room before AND after (UI-SPEC §2) */}
         <div className="py-12">
@@ -62,24 +77,64 @@ export function LandingPage() {
         </div>
 
         {/* §06 — THE ENGINE (Strict Tool Use JSON contract) */}
-        <EngineSection />
+        <div id="engine" className="scroll-mt-20">
+          <EngineSection />
+        </div>
 
         <div className="py-12">
           <SectionDivider />
         </div>
 
+        {/* §06.5 — THE MCP SERVER (one-source-of-truth for external LLMs) */}
+        <div id="mcp" className="scroll-mt-20">
+          <MCPSection />
+        </div>
+
+        <SectionDivider />
+
         {/* §07 — THE SURFACE (LifeOS canvas + desktop app + Polypad) */}
-        <SurfaceSection />
+        <div id="surface" className="scroll-mt-20">
+          <SurfaceSection />
+        </div>
+
+        {/* §07.5 — THE STACK (banner SVG embed; SVG carries its own title) */}
+        <div id="stack" className="scroll-mt-20">
+          <DiagramBannerSection
+            eyebrow="§ 07.5 · THE STACK"
+            diagramSrc="/diagrams/stack.svg"
+            diagramAlt="Three surfaces — Web app, Desktop app middleman, and Polypad hardware — all feeding the Hyperpolymath backend"
+          />
+        </div>
+
+        <SectionDivider />
+
+        {/* §07.6 — THE ARCHITECTURE (banner SVG embed; SVG carries its own title) */}
+        <div id="architecture" className="scroll-mt-20">
+          <DiagramBannerSection
+            eyebrow="§ 07.6 · THE ARCHITECTURE"
+            diagramSrc="/diagrams/architecture.svg"
+            diagramAlt="Request lifecycle — Sentence to Next.js to JARVIS to Executor to Postgres / GCal, with Supabase Realtime looping back to invalidate TanStack Query"
+          />
+        </div>
+
+        <SectionDivider />
+
+        {/* §07.7 — THE FRAMEWORK (platform + framework dual-message banner) */}
+        <FrameworkSection />
 
         <SectionDivider />
 
         {/* §08 — THE CHOICE (two doors) */}
-        <ChoiceSection />
+        <div id="choice" className="scroll-mt-20">
+          <ChoiceSection />
+        </div>
 
         <SectionDivider />
 
         {/* §09 — BUILD LOG (live data + graceful degradation) */}
-        <BuildLog />
+        <div id="buildlog" className="scroll-mt-20">
+          <BuildLog />
+        </div>
       </main>
       <LandingFooter />
       </div>

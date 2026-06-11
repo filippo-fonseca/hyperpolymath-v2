@@ -175,7 +175,7 @@ function PrimitiveTree() {
           by the agent" */}
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 pb-5 mb-5 border-b border-[var(--edge-hud)]">
         <span
-          className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+          className="inline-flex items-center whitespace-nowrap font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
           style={{
             color: "var(--hud-cyan-light)",
             border: "1px solid var(--edge-hud)",
@@ -365,7 +365,7 @@ function Branch({
     >
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
         <span
-          className="inline-flex items-center font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
+          className="inline-flex items-center whitespace-nowrap font-mono text-[14px] font-medium tracking-[0.04em] px-3 py-1 rounded self-start"
           style={
             cyan
               ? {

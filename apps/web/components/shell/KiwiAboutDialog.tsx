@@ -9,15 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
 
 /**
  * "Who is Kiwi?" info modal — accessible from the sidebar.
  *
- * Wraps shadcn Dialog. Children act as the trigger (passed asChild),
- * so callers can drop any button-like element in. The modal body shows
- * a small HudCoreBubble (the in-app JARVIS centerpiece) at the top
- * followed by a friendly synopsis of who Kiwi is and what they do.
+ * Visual register matches the README hero / public landing: large serif
+ * wordmark with the kiwi glyph perched at its left shoulder, cream/canvas
+ * background, journal-paper tagline beneath, then a short body explaining
+ * what Kiwi (a.k.a. JARVIS) actually does.
  */
 
 interface KiwiAboutDialogProps {
@@ -28,53 +28,53 @@ export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          {/* Mini HudCoreBubble — same visual as the in-app JARVIS Console
-              centerpiece and the landing hero, scaled down to fit the modal
-              header. Sits inside .agent-mode-scope so any agent-only chrome
-              renders correctly. */}
-          <div className="agent-mode-scope mx-auto -mt-2 mb-2 flex items-center justify-center">
-            <div
-              style={{
-                width: 140,
-                height: 140,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div style={{ transform: "scale(0.5)", transformOrigin: "center" }}>
-                <HudCoreBubble state="thinking" />
-              </div>
+      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-[var(--edge)]">
+        {/* Hero band — mirrors the readmehero flyer: kiwi glyph + serif
+            wordmark on a cream surface, with a single italic tagline under
+            it. Generous padding so the type can breathe. */}
+        <div
+          className="px-8 pt-10 pb-7 border-b border-[var(--edge)]"
+          style={{ backgroundColor: "var(--canvas)" }}
+        >
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center justify-center gap-3 text-[var(--ink)]">
+              <KiwiIcon
+                size={40}
+                aria-hidden="true"
+                className="shrink-0"
+              />
+              <DialogTitle className="font-serif text-[36px] leading-none font-semibold tracking-[-0.01em] m-0">
+                Hyperpolymath
+              </DialogTitle>
             </div>
-          </div>
+            <DialogDescription className="text-center font-serif text-[14px] italic text-[var(--ink-muted)]">
+              A personal life-OS for people who refuse to specialize.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-          <DialogTitle className="text-center font-serif text-[24px] font-semibold leading-[1.2]">
-            Hi, I&rsquo;m Kiwi.
-          </DialogTitle>
-          <DialogDescription className="text-center font-serif italic text-[14px] text-[var(--ink-muted)]">
-            Friendly. All-knowing within your life-OS. Orchestrator by trade.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="mt-2 space-y-3 font-serif text-[14px] leading-[1.6] text-[var(--ink)]">
+        {/* Body — short, document-y prose. */}
+        <div
+          className="px-8 py-6 space-y-3 font-serif text-[14px] leading-[1.65] text-[var(--ink)]"
+          style={{ backgroundColor: "var(--surface)" }}
+        >
           <p>
-            I&rsquo;m the kiwi-bird agent at the core of Hyperpolymath.
-            Internally I&rsquo;m also called JARVIS (same bird, fancier
-            name). My one and only job is to be your{" "}
-            <span className="font-semibold">orchestrator</span>: when you
-            type or speak a sentence, I figure out which of your five
-            primitives it belongs to and route it to the right place.
+            Hi, I&rsquo;m <span className="font-semibold">Kiwi</span> —
+            internally also called <span className="font-semibold">JARVIS</span>
+            . Same bird, fancier name. I&rsquo;m the natural-language agent
+            at the core of Hyperpolymath, and my one job is to be your{" "}
+            <span className="italic">orchestrator</span>: you type or speak
+            a sentence, I figure out which of your primitives it belongs to,
+            and I route it to the right place.
           </p>
           <p>
-            Areas, projects, captures, your calendar, your tasks. I know
-            where they all live. I never make up tools that don&rsquo;t
-            exist. The schema is my contract, and Claude Sonnet 4.6 with
-            Strict Tool Use enforces it at generation time, so I
-            can&rsquo;t drift even if I tried.
+            Areas, projects, captures, your calendar, your tasks, your
+            habits, your training. I know where they all live. I never make
+            up tools that don&rsquo;t exist — the schema is my contract,
+            and Claude Sonnet 4.6 with Strict Tool Use enforces it at
+            generation time, so I can&rsquo;t drift even if I tried.
           </p>
-          <p className="text-[var(--ink-muted)] italic">
+          <p className="text-[var(--ink-muted)] italic pt-1">
             Find me on the JARVIS tab. Try typing &ldquo;coffee with brian
             4pm saturday, send the brief friday afternoon.&rdquo;
           </p>

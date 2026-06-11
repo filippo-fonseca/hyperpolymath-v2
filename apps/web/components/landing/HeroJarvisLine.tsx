@@ -33,14 +33,9 @@ type Example = {
   mode: Mode;
 };
 
-// Mix of voice + typed examples so the hero advertises both modalities.
+// Typed-only examples — the spoken modality has its own dedicated
+// VoiceInputCard sibling next to this one under the hero banner.
 const EXAMPLES: readonly Example[] = [
-  {
-    input: "schedule a run tomorrow morning",
-    verb: "scheduled",
-    body: 'gcal · tomorrow 6:00 AM · "Morning run"',
-    mode: "voice",
-  },
   {
     input: "#idea polymathy as competitive edge",
     verb: "captured",
@@ -54,10 +49,10 @@ const EXAMPLES: readonly Example[] = [
     mode: "type",
   },
   {
-    input: "remind me to call mom tonight at eight",
-    verb: "created",
-    body: "task · tonight 8:00 PM · reminder",
-    mode: "voice",
+    input: "coffee w/ sam 3pm friday",
+    verb: "scheduled",
+    body: 'gcal · fri 3:00 PM · "Coffee with Sam"',
+    mode: "type",
   },
 ] as const;
 
@@ -132,7 +127,7 @@ export function HeroJarvisLine() {
     phase === "typing" ? example.input.slice(0, typedChars) : example.input;
 
   return (
-    <div className="mt-10 flex justify-center" aria-live="polite">
+    <div className="flex justify-center" aria-live="polite">
       <motion.div
         key={exampleIdx}
         className="inline-flex flex-col items-start gap-2 px-5 py-4 rounded bg-[var(--surface-raised)] min-w-[260px] sm:min-w-[420px] max-w-[560px] w-full"

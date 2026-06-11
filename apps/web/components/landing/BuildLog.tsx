@@ -89,8 +89,9 @@ function LastCommits({ commits }: { commits: ReadonlyArray<Commit> }) {
         {commits.map((c) => (
           <div
             key={c.sha}
-            className="grid grid-cols-[80px_110px_1fr] gap-3 items-baseline font-mono font-mono-stats text-[14px] leading-[1.5]"
+            className="grid grid-cols-[28px_80px_110px_1fr] gap-3 items-center font-mono font-mono-stats text-[14px] leading-[1.5]"
           >
+            <CommitAvatar author={c.author} />
             <a
               href={`${REPO_URL}/commit/${c.sha}`}
               target="_blank"
@@ -105,6 +106,43 @@ function LastCommits({ commits }: { commits: ReadonlyArray<Commit> }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Tiny GitHub user avatar with link to the contributor's profile.
+ * Falls back to a neutral monogram bubble when the commit has no
+ * linked GitHub account (e.g. authored via email only).
+ */
+function CommitAvatar({ author }: { author: Commit["author"] }) {
+  if (!author.avatarUrl || !author.login) {
+    return (
+      <span
+        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-[var(--surface-raised)] border border-[var(--edge)] text-[10px] text-[var(--ink-muted)]"
+        aria-hidden="true"
+      >
+        ?
+      </span>
+    );
+  }
+  return (
+    <a
+      href={author.htmlUrl ?? `https://github.com/${author.login}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`@${author.login}`}
+      className="inline-block"
+    >
+      <img
+        src={`${author.avatarUrl}${author.avatarUrl.includes("?") ? "&" : "?"}s=44`}
+        alt={`${author.login} avatar`}
+        width={22}
+        height={22}
+        className="block w-[22px] h-[22px] rounded-full border border-[var(--edge)]"
+        loading="lazy"
+        decoding="async"
+      />
+    </a>
   );
 }
 

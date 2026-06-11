@@ -10,6 +10,9 @@ import {
   EyeOff,
   Settings,
   Network,
+  Github,
+  Scale,
+  Globe,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -286,32 +289,52 @@ export function Sidebar({
 
         {!collapsed ? (
           <div className="pt-3 border-t border-[var(--edge)] space-y-2">
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-              <a
-                href="https://opensource.org/licenses/MIT"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[var(--ink)] transition-colors"
-              >
-                MIT
-              </a>
-              <a
-                href="https://github.com/filippo-fonseca"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[var(--ink)] transition-colors"
-              >
-                GH
-              </a>
-              <a
-                href="https://filippofonseca.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[var(--ink)] transition-colors"
-              >
-                site →
-              </a>
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <div className="flex items-center justify-around text-[var(--ink-muted)]">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href="https://opensource.org/licenses/MIT"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="MIT License"
+                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                    >
+                      <Scale size={13} strokeWidth={1.5} />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">MIT License</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href="https://github.com/filippo-fonseca/hyperpolymath-v2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="GitHub repo"
+                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                    >
+                      <Github size={13} strokeWidth={1.5} />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">github.com/filippo-fonseca</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href="https://filippofonseca.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="filippofonseca.com"
+                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                    >
+                      <Globe size={13} strokeWidth={1.5} />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">filippofonseca.com</TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
             <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--ink-muted)] px-1">
               how you do one thing is how you do everything.
             </p>

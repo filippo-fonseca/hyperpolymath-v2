@@ -1,30 +1,22 @@
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
+
 /**
- * Section divider — three ⚜ glyphs separated by 4em of space, centered.
+ * Section divider — three small kiwi glyphs, evenly spaced and centered.
  *
- * Per UI-SPEC §5:
- *   "A single horizontal row, centered, of three ⚜ glyphs separated by 4em of
- *   space, in --ink-muted at Body 18px. Sits halfway in the 96px / 128px
- *   inter-section gap. No <hr> lines. The ornament IS the divider."
- *
- * Body 18 (one of the 4 canonical sizes — UI-SPEC §3).
- *
- * Phase 8 Plan 08-03 — LAND-SHELL (the chrome).
+ * Was originally three fleur-de-lis (⚜) glyphs per UI-SPEC §5; switched
+ * to the kiwi mark so the divider ornament matches the project's actual
+ * mascot rather than a generic Renaissance icon. Visual rhythm and
+ * spacing stay the same; just the glyph changes.
  */
 export function SectionDivider() {
   return (
     <div
-      className="text-[18px] text-[var(--ink-muted)] text-center select-none"
+      className="flex items-center justify-center gap-[4em] text-[var(--ink-muted)] select-none"
       aria-hidden="true"
     >
-      <span
-        style={{
-          letterSpacing: "4em",
-          display: "inline-block",
-          paddingLeft: "4em",
-        }}
-      >
-        ⚜⚜⚜
-      </span>
+      <KiwiIcon size={14} />
+      <KiwiIcon size={14} />
+      <KiwiIcon size={14} />
     </div>
   );
 }
