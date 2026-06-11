@@ -26,6 +26,7 @@ import {
   type Task,
   type TaskStatus,
 } from "../lib/data";
+import { celebrate } from "../components/celebrate";
 import { useCollection } from "../lib/use-collection";
 import { colors, mono, serif } from "../theme";
 import {
@@ -114,9 +115,10 @@ export function TasksScreen({ active }: { active: boolean }) {
     return groups;
   }, [data]);
 
-  const toggleDone = async (t: Task) => {
+  const toggleDone = async (t: Task, touch?: { x: number; y: number }) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const next: TaskStatus = t.status === "lesno" ? "not started" : "lesno";
+    if (next === "lesno" && touch) celebrate(touch.x, touch.y, PRIORITY_COLOR[t.priority]);
     mutate((cur) => cur?.map((x) => (x.id === t.id ? { ...x, status: next } : x)) ?? null);
     await updateTask({ id: t.id, status: next });
     void refresh();
@@ -211,7 +213,16 @@ export function TasksScreen({ active }: { active: boolean }) {
                     onPress={() => openEdit(t)}
                     style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
                   >
-                    <Pressable hitSlop={10} onPress={() => void toggleDone(t)} style={styles.ringWrap}>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={(e) =>
+                        void toggleDone(t, {
+                          x: e.nativeEvent.pageX,
+                          y: e.nativeEvent.pageY,
+                        })
+                      }
+                      style={styles.ringWrap}
+                    >
                       <View
                         style={[
                           styles.ring,

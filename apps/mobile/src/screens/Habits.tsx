@@ -24,6 +24,7 @@ import {
   type Habit,
   type HabitData,
 } from "../lib/data";
+import { celebrate } from "../components/celebrate";
 import { useCollection } from "../lib/use-collection";
 import { colors, mono, serif } from "../theme";
 import {
@@ -82,9 +83,10 @@ export function HabitsScreen({ active }: { active: boolean }) {
 
   const scheduledToday = (h: Habit) => h.daysOfWeek[todayDow] !== false;
 
-  const toggle = async (h: Habit) => {
+  const toggle = async (h: Habit, touch?: { x: number; y: number }) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const completed = !checkedToday.has(h.id);
+    if (completed && touch) celebrate(touch.x, touch.y, "#7fa57c");
     mutate((cur) =>
       cur
         ? {
@@ -173,7 +175,10 @@ export function HabitsScreen({ active }: { active: boolean }) {
             })}
           </View>
         </View>
-        <Pressable hitSlop={10} onPress={() => void toggle(h)}>
+        <Pressable
+          hitSlop={10}
+          onPress={(e) => void toggle(h, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+        >
           <View style={[styles.check, checked && styles.checkOn]}>
             {checked ? <Text style={styles.checkMark}>✓</Text> : null}
           </View>

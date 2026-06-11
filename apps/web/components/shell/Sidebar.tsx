@@ -4,7 +4,7 @@ import { useEffect, useOptimistic, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   ChevronLeft,
-  ChevronRight,
+  Pin,
   Plus,
   Eye,
   EyeOff,
@@ -93,6 +93,7 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     const storedCollapsed = localStorage.getItem("sidebar-collapsed");
@@ -102,10 +103,22 @@ export function Sidebar({
     setMounted(true);
   }, []);
 
-  function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem("sidebar-collapsed", String(next));
+  // When collapsed, hovering temporarily expands the panel as an overlay so
+  // the user can pick a destination without losing collapsed-mode page width.
+  // `effectiveCollapsed` is what every inner UI bit reads — the outer aside
+  // keeps its width tied to `collapsed` so the page layout never shifts.
+  const effectiveCollapsed = collapsed && !hovered;
+
+  function handleChevronClick() {
+    if (collapsed) {
+      // Currently hover-expanded → pin open permanently.
+      setCollapsed(false);
+      setHovered(false);
+      localStorage.setItem("sidebar-collapsed", "false");
+    } else {
+      setCollapsed(true);
+      localStorage.setItem("sidebar-collapsed", "true");
+    }
   }
 
   function toggleShowArchived() {
@@ -146,62 +159,75 @@ export function Sidebar({
 
   return (
     <aside
+      aria-label="Sidebar"
       className={cn(
-        "group/sidebar flex flex-col h-full bg-[var(--surface)] border-r border-[var(--edge)] shrink-0 overflow-hidden",
+        "relative h-full shrink-0",
         "transition-[width] duration-200 ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
-        // Prevent layout shift before mounted (localStorage read)
         !mounted && "invisible",
       )}
-      aria-label="Sidebar"
     >
-      {/* Header: Wordmark + collapse toggle.
-          When collapsed, the 64px row is too narrow for both glyphs at once,
-          so the H wordmark owns the whole row and the chevron only fades in
-          on hover/focus (positioned absolutely so it overlays the H instead
-          of pushing it). */}
-      <div className="relative flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
-        <Wordmark collapsed={collapsed} />
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={toggleCollapsed}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className={cn(
-                  "shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-[opacity,color] duration-150 ease-out",
-                  collapsed &&
-                    "absolute right-2 top-1/2 -translate-y-1/2 bg-[var(--surface)] opacity-0 pointer-events-none group-hover/sidebar:opacity-100 group-hover/sidebar:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto",
-                )}
-              >
-                {collapsed ? (
-                  <ChevronRight size={14} strokeWidth={1.5} />
-                ) : (
-                  <ChevronLeft size={14} strokeWidth={1.5} />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <div
+        onMouseEnter={() => {
+          if (collapsed) setHovered(true);
+        }}
+        onMouseLeave={() => setHovered(false)}
+        className={cn(
+          "group/sidebar absolute inset-y-0 left-0 flex flex-col bg-[var(--surface)] border-r border-[var(--edge)] overflow-hidden",
+          "transition-[width,box-shadow] duration-200 ease-in-out",
+          effectiveCollapsed ? "w-16" : "w-[260px]",
+          // When hover-expanded, float above the page content with a soft
+          // raised shadow so it reads as a temporary overlay, not a reflow.
+          collapsed && hovered &&
+            "z-50 shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]",
+        )}
+      >
+      {/* Header: collapsed mode centers the H with no chevron. Expanded
+          (truly or via hover) shows Wordmark + chevron/pin. */}
+      {effectiveCollapsed ? (
+        <div className="flex items-center justify-center px-3 py-3 border-b border-[var(--edge)]">
+          <Wordmark collapsed />
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
+          <Wordmark collapsed={false} />
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleChevronClick}
+                  aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+                  className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out"
+                >
+                  {collapsed ? (
+                    <Pin size={13} strokeWidth={1.5} />
+                  ) : (
+                    <ChevronLeft size={14} strokeWidth={1.5} />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
         {/* Primary nav — labels speak for themselves now; section header
             removed for the cleaner Arc-style layout. */}
-        <PersistentNav collapsed={collapsed} />
+        <PersistentNav collapsed={effectiveCollapsed} />
 
         {/* AREAS section — heading is now the parent link to /areas, with
             the area tree nested beneath as proper children. Active styling
             applies on the homepage AND any /areas/[id] detail page so the
             user always knows the section is "current". */}
         <div className="mt-6">
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <div className="flex items-center justify-between px-2 mb-1.5">
               <AreasParentLink />
               <AreaCreateDialog
@@ -221,7 +247,7 @@ export function Sidebar({
             </div>
           )}
 
-          {collapsed && (
+          {effectiveCollapsed && (
             <div className="flex flex-col items-center gap-1 py-1">
               {/* Collapsed-mode Areas link — keeps the homepage one click
                   away when the sidebar is narrow. */}
@@ -253,21 +279,21 @@ export function Sidebar({
           <SidebarTree
             userId={userId}
             areas={areas}
-            collapsed={collapsed}
+            collapsed={effectiveCollapsed}
             graduationYear={graduationYear}
             addOptimisticArea={addOptimisticArea}
           />
         </div>
 
         {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <div className="mt-6 px-4 mb-1.5">
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
               JARVIS
             </span>
           </div>
         )}
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <nav aria-label="JARVIS navigation" className="px-2">
             <SidebarSectionLink href="/settings/memory" label="Memory" />
           </nav>
@@ -279,15 +305,15 @@ export function Sidebar({
           middle (eye / theme / settings, all uniform size), brand meta
           at the bottom. */}
       <div className="border-t border-[var(--edge)] px-3 py-3 shrink-0 space-y-3">
-        <UserChip collapsed={collapsed} profile={profile} />
+        <UserChip collapsed={effectiveCollapsed} profile={profile} />
 
         <SidebarIconRow
-          collapsed={collapsed}
+          collapsed={effectiveCollapsed}
           showArchived={showArchived}
           toggleShowArchived={toggleShowArchived}
         />
 
-        {!collapsed ? (
+        {!effectiveCollapsed ? (
           <div className="pt-3 border-t border-[var(--edge)] space-y-2">
             <TooltipProvider delayDuration={300}>
               <div className="flex items-center justify-around text-[var(--ink-muted)]">
@@ -361,6 +387,7 @@ export function Sidebar({
             </TooltipProvider>
           </div>
         )}
+      </div>
       </div>
     </aside>
   );

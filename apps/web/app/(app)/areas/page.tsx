@@ -43,18 +43,18 @@ export default async function AreasPage() {
   return (
     <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <div className="mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
-        <Breadcrumbs items={[{ label: "Areas" }]} className="mb-6" />
-
-        <header className="mb-4 flex items-start justify-between gap-4">
-          <div className="text-center flex-1 space-y-1">
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--ink)]">
-              Areas
-            </h1>
-            <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
-              "Energy is the currency of productivity." — Ali Abdaal
-            </p>
-          </div>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <Breadcrumbs items={[{ label: "Areas" }]} />
           <AreasPageHeader userId={user.id} />
+        </div>
+
+        <header className="mb-4 text-center space-y-1">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--ink)]">
+            Areas
+          </h1>
+          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+            "Energy is the currency of productivity." — Ali Abdaal
+          </p>
         </header>
 
         <AreasTree

@@ -211,3 +211,71 @@ export function localDateString(offsetDays = 0): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+// ── Training ────────────────────────────────────────────────────────────────
+
+export type TrainingStatus = "planned" | "done" | "cancelled" | "skipped";
+export const TRAINING_STATUSES: TrainingStatus[] = ["planned", "done", "cancelled", "skipped"];
+
+export interface TrainingType {
+  id: string;
+  name: string;
+  color: string; // oklch(...) string from the web palette
+  icon: string | null;
+  hasDistance: boolean;
+}
+
+export interface TrainingActivity {
+  id: string;
+  activityTypeId: string;
+  scheduledDate: string;
+  title: string;
+  description: string | null;
+  plannedDurationMin: number | null;
+  actualDurationMin: number | null;
+  plannedDistanceKm: string | null;
+  actualDistanceKm: string | null;
+  status: TrainingStatus;
+  dayOrderIndex: number;
+}
+
+export interface TrainingData {
+  types: TrainingType[];
+  activities: TrainingActivity[];
+}
+
+export async function getTraining(start: string, end: string): Promise<TrainingData | null> {
+  return call<TrainingData>(`/api/device/training?start=${start}&end=${end}`);
+}
+
+export async function createActivity(input: {
+  activityTypeId: string;
+  scheduledDate: string;
+  title: string;
+  plannedDurationMin?: number | null;
+  plannedDistanceKm?: number | null;
+}): Promise<string | null> {
+  const data = await call<{ id: string }>("/api/device/training", { method: "POST", body: input });
+  return data?.id ?? null;
+}
+
+export async function updateActivity(input: {
+  id: string;
+  activityTypeId?: string;
+  title?: string;
+  scheduledDate?: string;
+  status?: TrainingStatus;
+  plannedDurationMin?: number | null;
+  plannedDistanceKm?: number | null;
+}): Promise<boolean> {
+  const data = await call<{ ok: boolean }>("/api/device/training", {
+    method: "PATCH",
+    body: input,
+  });
+  return data?.ok === true;
+}
+
+export async function deleteActivity(id: string): Promise<boolean> {
+  const data = await call<{ ok: boolean }>(`/api/device/training?id=${id}`, { method: "DELETE" });
+  return data?.ok === true;
+}
