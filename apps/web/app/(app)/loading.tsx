@@ -6,5 +6,5 @@ import { GlobalLoader } from "@/components/shell/GlobalLoader";
  * server-component data fetch within an (app) page that hasn't streamed yet.
  */
 export default function Loading() {
-  return <GlobalLoader />;
+  return <GlobalLoader fullscreen={false} />;
 }

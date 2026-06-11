@@ -56,12 +56,11 @@ export function GlobalLoader({ message, fullscreen = true }: Props) {
       className={
         fullscreen
           ? "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--canvas)]"
-          : "flex flex-col items-center justify-center py-16"
+          : "flex h-full w-full flex-col items-center justify-center bg-[var(--canvas)]"
       }
       style={{
-        backgroundImage: fullscreen
-          ? "radial-gradient(circle at 50% 45%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 0%, transparent 55%)"
-          : undefined,
+        backgroundImage:
+          "radial-gradient(circle at 50% 45%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 0%, transparent 55%)",
       }}
     >
       {/* Halo + Kiwi centerpiece */}
