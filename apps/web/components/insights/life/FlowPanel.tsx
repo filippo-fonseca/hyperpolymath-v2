@@ -32,12 +32,13 @@ function mondayOf(d: Date): Date {
 function PanelChrome({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className="rounded-2xl bg-[var(--surface)] border border-[var(--edge)] p-6"
+      className="group rounded-xl bg-[var(--surface)] border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] hover:border-[var(--edge-hud)] p-6 transition-[border-color,box-shadow] duration-200 ease-out"
       style={
         {
           ['--panel-accent']: ACCENT,
+          // Neumorphic dual-direction shadows + inset highlight + accent halo.
           boxShadow:
-            'inset 0 0 0 1px color-mix(in oklch, var(--panel-accent) 40%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 5%, transparent)',
+            '6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 5%, transparent)',
         } as React.CSSProperties
       }
     >
