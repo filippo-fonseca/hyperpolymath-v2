@@ -94,10 +94,51 @@ export function LandingSideNav() {
   return (
     <nav
       aria-label="Section navigation"
-      className="hidden lg:flex fixed left-6 top-1/2 -translate-y-1/2 z-30 flex-col items-start gap-3 select-none"
+      className="hidden lg:flex fixed left-6 top-1/2 -translate-y-1/2 z-30 flex-col items-start gap-3 select-none isolate"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Neumorphic pillow — soft raised surface, dual-shadow.
+          Expands width on hover to wrap labels; contracts back to the
+          rail when idle. Sits behind the buttons via z-[-1] inside an
+          isolated stacking context so it never eats pointer events. */}
+      <motion.div
+        aria-hidden="true"
+        className="absolute -inset-y-3 -left-3 rounded-2xl pointer-events-none -z-10"
+        initial={false}
+        animate={{
+          width: hovered ? 188 : 215,
+          opacity: hovered ? 1 : 0.78,
+          backgroundColor: hovered
+            ? "oklch(96% 0.006 75)"
+            : "oklch(94% 0.008 75)",
+          boxShadow: hovered
+            ? "8px 8px 20px oklch(82% 0.012 75 / 0.55), -6px -6px 16px oklch(100% 0 0 / 0.85), inset 0 0 0 1px oklch(100% 0 0 / 0.4)"
+            : "4px 4px 12px oklch(82% 0.012 75 / 0.35), -3px -3px 10px oklch(100% 0 0 / 0.6), inset 0 0 0 1px oklch(100% 0 0 / 0.25)",
+        }}
+        transition={{
+          duration: reducedMotion ? 0 : 0.42,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+      />
+      {/* Cyan hairline accent — animates in only when hovered, keeps
+          the JARVIS signature without making the idle state loud. */}
+      <motion.div
+        aria-hidden="true"
+        className="absolute left-[-10px] top-2 bottom-2 w-px rounded-full pointer-events-none -z-10"
+        initial={false}
+        animate={{
+          opacity: hovered ? 1 : 0,
+          backgroundColor: "var(--hud-cyan)",
+          boxShadow: hovered
+            ? "0 0 8px var(--hud-cyan-glow)"
+            : "0 0 0px var(--hud-cyan-glow)",
+        }}
+        transition={{
+          duration: reducedMotion ? 0 : 0.32,
+          ease: [0.25, 1, 0.5, 1],
+        }}
+      />
       {ENTRIES.map((entry) => {
         const isActive = entry.id === activeId;
         return (
@@ -105,7 +146,7 @@ export function LandingSideNav() {
             type="button"
             key={entry.id}
             onClick={() => go(entry.id)}
-            className="group flex items-center gap-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] rounded-sm pr-1 pl-0.5 py-0.5"
+            className="group flex items-center gap-3 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] rounded-sm pr-3 pl-0.5 py-0.5"
             aria-current={isActive ? "true" : undefined}
             aria-label={`Go to ${entry.label} section`}
           >
