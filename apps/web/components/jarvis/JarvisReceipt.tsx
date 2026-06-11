@@ -135,16 +135,21 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
         data-status="queued"
         className="relative rounded-lg px-2 py-1 my-1 opacity-80 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out"
         style={{
-          backgroundColor: "var(--surface)",
+          // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
+          // Translucent surface + backdrop-blur + inset cyan inner halo + single
+          // downward outer shadow. Cyan halo intentionally absent here (queued
+          // state surfaces it via the outline-trace SVG instead).
+          backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
           // Static placeholder border so the outline-trace SVG draws over it
-          border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
-          // Phase 6.1 polish — neumorphic glassy depth (mirrors /settings tile):
-          // paired raised/recessed shadow + inset white top highlight, layered
-          // beneath the cyan-glow halo applied on resolved receipts.
+          border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
           boxShadow:
-            "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
-            "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
-            "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)",
+            "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
+            "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
+            "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
+            "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
+            "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)",
         }}
       >
         {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
@@ -292,32 +297,37 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     undone && "opacity-50 grayscale",
   );
 
-  // Phase 6.1 polish — neumorphic glassy depth (mirrors /settings tile):
-  // paired raised/recessed shadow + inset white top highlight. On resolved
-  // receipts we layer the cyan-glow halo on TOP of the neumorphic stack so
-  // both the soft document depth and the JARVIS ambient signal coexist.
-  const neumorphicShadow =
-    "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
-    "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
-    "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)";
+  // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
+  // Translucent surface + backdrop-blur + inset cyan inner halo (the bit that
+  // makes it read "glassy" rather than just shadowed) + a single downward
+  // outer shadow for depth. On resolved receipts we stack the ambient
+  // --hud-cyan-glow-soft halo on top so the inner + outer cyan signals blend.
+  const glassyShadow =
+    "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
+    "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
+    "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
+    "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
+    "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)";
 
   const containerStyle: React.CSSProperties = {
-    backgroundColor: "var(--surface)",
+    backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
     // 1px --edge-hud (softened) base border; error overrides LEFT edge to 3px coral
-    border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
+    border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
     ...(isError
       ? {
           borderLeftWidth: "3px",
           borderLeftColor: "var(--ink-coral)",
-          boxShadow: neumorphicShadow,
+          boxShadow: glassyShadow,
         }
       : {
           // Phase 6.1 Plan 02 (UI-SPEC §9b): ambient --hud-cyan-glow-soft
           // halo on resolved receipts — gives the "JARVIS bringing the
           // element online" feel via a soft surrounding glow (UI-SPEC §13
           // explicitly rejects filter-channel theatrics on this surface).
-          // Layered AFTER the neumorphic stack so both depths read.
-          boxShadow: `${neumorphicShadow}, 0 0 24px var(--hud-cyan-glow-soft)`,
+          // Layered AFTER the glassy stack so inner + outer cyan signals blend.
+          boxShadow: `${glassyShadow}, 0 0 24px var(--hud-cyan-glow-soft)`,
         }),
   };
 
@@ -545,13 +555,19 @@ function SuggestedFactReceipt({ action }: { action: ScrollbackAction }) {
       data-source="jarvis_suggested"
       className="relative rounded-lg px-4 py-2 my-1 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out"
       style={{
-        backgroundColor: "var(--surface)",
-        border: "1px solid color-mix(in oklch, var(--edge-hud) 70%, transparent)",
-        // Phase 6.1 polish — neumorphic glassy depth + cyan halo (mirrors /settings tile).
+        // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
+        // Translucent surface + backdrop-blur + inset cyan inner halo + single
+        // downward outer shadow, composed under the JARVIS ambient cyan glow.
+        backgroundColor: "color-mix(in oklch, var(--surface) 82%, transparent)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
         boxShadow:
-          "6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent)," +
-          "-4px -4px 14px color-mix(in oklch, var(--surface) 70%, white)," +
-          "inset 0 1px 0 color-mix(in oklch, white 60%, transparent)," +
+          "inset 0 1px 0 color-mix(in oklch, white 12%, transparent)," +
+          "inset 0 -1px 0 color-mix(in oklch, var(--ink) 10%, transparent)," +
+          "inset 0 0 24px color-mix(in oklch, var(--hud-cyan) 6%, transparent)," +
+          "0 10px 32px color-mix(in oklch, var(--ink) 22%, transparent)," +
+          "0 2px 6px color-mix(in oklch, var(--ink) 10%, transparent)," +
           "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
