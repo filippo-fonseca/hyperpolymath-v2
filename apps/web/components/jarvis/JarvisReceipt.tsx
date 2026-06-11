@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   Brain,
   CalendarDays,
   CheckCircle2,
+  Edit3,
   FileText,
   HelpCircle,
   ListTodo,
+  Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
@@ -94,6 +97,56 @@ const INTENT_META = {
     icon: HelpCircle,
     intentDot: "var(--hud-cyan-light)",
   },
+  // Phase 16: 9 new tool names for update / delete / find operations.
+  // Color mapping per UI-SPEC §3c intent ink palette:
+  //   update_* → --ink-amber  (modification, yellow-orange like action items)
+  //   delete_* → --ink-coral  (destructive, sharp edge)
+  //   find_*   → --ink-muted  (query, neutral graphite)
+  update_task: {
+    label: "UPDATE TASK",
+    icon: Edit3,
+    intentDot: "var(--ink-amber)",
+  },
+  delete_task: {
+    label: "DELETE TASK",
+    icon: Trash2,
+    intentDot: "var(--ink-coral)",
+  },
+  update_capture: {
+    label: "UPDATE CAPTURE",
+    icon: Edit3,
+    intentDot: "var(--ink-amber)",
+  },
+  delete_capture: {
+    label: "DELETE CAPTURE",
+    icon: Trash2,
+    intentDot: "var(--ink-coral)",
+  },
+  update_event: {
+    label: "UPDATE EVENT",
+    icon: Edit3,
+    intentDot: "var(--ink-amber)",
+  },
+  delete_event: {
+    label: "DELETE EVENT",
+    icon: Trash2,
+    intentDot: "var(--ink-coral)",
+  },
+  find_tasks: {
+    label: "FIND TASKS",
+    icon: Search,
+    intentDot: "var(--ink-muted)",
+  },
+  find_captures: {
+    label: "FIND CAPTURES",
+    icon: Search,
+    intentDot: "var(--ink-muted)",
+  },
+  find_events: {
+    label: "FIND EVENTS",
+    icon: Search,
+    intentDot: "var(--ink-muted)",
+  },
 } as const;
 
 interface Props {
@@ -117,8 +170,8 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // holographic fade-in. Hooks must be called unconditionally before any
   // early returns, so this lives at the very top of the component.
   const shouldReduce = useReducedMotion();
-  // Phase 16: JarvisToolName now covers 14 tools; INTENT_META only maps the 5
-  // create/utility tools. Unknown names return undefined → early null return.
+  // Phase 16: INTENT_META now covers all 14 tools. Unknown names still return
+  // undefined → early null return as a safety net.
   const meta = (INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>)[action.name];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -217,7 +270,14 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const undone = action.undone === true;
   // Receipt is eligible for undo iff: action succeeded, has not been undone,
   // and the parent wired the onUndo callback.
-  const undoEligible = ok && !undone && typeof onUndo === "function";
+  // Phase 16: defensive belt-and-braces — update/delete/find operations are
+  // never undoable. JarvisScrollback already passes onUndo=undefined for
+  // non-create tools; this guard prevents any accidental undo rendering.
+  const isNonUndoable =
+    action.name.startsWith("update_") ||
+    action.name.startsWith("delete_") ||
+    action.name.startsWith("find_");
+  const undoEligible = ok && !undone && !isNonUndoable && typeof onUndo === "function";
 
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})
@@ -451,6 +511,50 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                 {String(receipt.type ?? "")} · remembered
               </div>
             </>
+          ) : null}
+          {/* Phase 16: Find variant — compact list of matched entities */}
+          {action.name.startsWith("find_") ? (
+            <div className="text-sm space-y-0.5">
+              {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => (
+                <div key={String(m.id ?? idx)} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
+                  <code className="text-xs opacity-60">{String(m.id ?? "").slice(0, 8)}</code>
+                  <span>{String(m.title ?? m.preview ?? m.summary ?? "—")}</span>
+                </div>
+              ))}
+              {((receipt.matches ?? []) as unknown[]).length === 0 && (
+                <em className="text-xs" style={{ color: "var(--ink-muted)" }}>no matches</em>
+              )}
+            </div>
+          ) : null}
+          {/* Phase 16: Update variant — before→after field diff */}
+          {action.name.startsWith("update_") ? (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-sm">
+              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(([field, value]) => (
+                <Fragment key={field}>
+                  <dt className="font-medium" style={{ color: "var(--ink-muted)" }}>{field}</dt>
+                  {/* TODO: enrich receipts with "before" value in a future iteration */}
+                  <dd>{"→ "}<span style={{ color: "var(--ink-amber)" }}>{String(value)}</span></dd>
+                </Fragment>
+              ))}
+              {Object.keys((receipt.changes ?? {}) as Record<string, unknown>).length === 0 ? (
+                <Fragment>
+                  <dt className="font-mono text-xs col-span-2" style={{ color: "var(--ink-muted)" }}>
+                    {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
+                  </dt>
+                </Fragment>
+              ) : null}
+            </dl>
+          ) : null}
+          {/* Phase 16: Delete variant — tombstone with strikethrough */}
+          {action.name.startsWith("delete_") ? (
+            <div className="text-sm" style={{ color: "var(--ink-coral)" }}>
+              <span className="line-through opacity-70">
+                {String(receipt.title ?? receipt.content ?? "(deleted)")}
+              </span>
+              <span className="ml-2 text-xs uppercase tracking-wide opacity-80">
+                deleted · permanent
+              </span>
+            </div>
           ) : null}
         </div>
       ) : (
