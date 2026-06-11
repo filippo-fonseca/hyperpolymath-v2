@@ -60,7 +60,7 @@ export function SettingsSectionNav() {
   }
 
   return (
-    <div className="sticky top-3 z-20 -mx-2 mb-8">
+    <div className="sticky top-3 z-20 mb-8 pr-2">
       <div
         ref={railRef}
         className="relative flex items-center gap-1 overflow-x-auto rounded-full px-2 py-1.5 backdrop-blur-md

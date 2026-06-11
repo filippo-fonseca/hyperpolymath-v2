@@ -89,16 +89,10 @@ export default async function SettingsPage() {
   return (
     <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
       <div className="max-w-2xl mx-auto">
-        <header className="flex items-center justify-between mb-6">
+        <header className="mb-6">
           <h1 className="font-serif text-4xl font-semibold text-[var(--ink)]">
             Settings
           </h1>
-          <Link
-            href="/today"
-            className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
-          >
-            Back to today
-          </Link>
         </header>
 
         <SettingsSectionNav />
@@ -168,7 +162,7 @@ export default async function SettingsPage() {
 
             <Card className={tile}>
               <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Google Calendar
+                Calendar
               </h3>
               <GcalConnectionRow status={gcalStatus} />
               {gcalStatus === "connected" && calendars.length > 0 && (
