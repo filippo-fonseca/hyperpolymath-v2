@@ -211,6 +211,25 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [ ] **DESK-05**: A Settings window inside the desktop app exposes (and persists across restarts, in the app's data dir): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model selector + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle. All changes apply live without restarting the daemon
 - [ ] **DESK-06**: `hyperpolymath` (the dev stack boot tool at `tools/hyperpolymath/hyperpolymath.mjs`) gains a `desktop` service entry in its `SERVICES` array that spawns `pnpm --filter desktop tauri dev` (idempotent — attaches to an already-running tray instance), with status reflected in the boot-script's bottom status bar (◌/●/✗ + port label). The existing `tools/jarvis-physical/bridge/` serial bridge continues to fire wake triggers unchanged
 
+
+### Smarter JARVIS — Session Memory + CRUD (Phase 16)
+
+JARVIS gains in-session conversational memory and full CRUD via natural language. Closes GitHub issue #15. Context engineering — NOT fine-tuning.
+
+- [ ] **SMJ-01**: `buildHistory()` in `JarvisConsole.tsx` emits Anthropic content-block arrays (`tool_use` + `tool_result`) preserving created-entity IDs across turns — replaces the flat-text history flattening
+- [ ] **SMJ-02**: A session-entities scratchpad text block (last ~10 entities created/updated/deleted this session) is injected into the system prompt AFTER the Phase 11 snapshot block in `run-turn.ts`, with NO `cache_control` so it does not invalidate the 1h prompt-cache breakpoints
+- [ ] **SMJ-03**: `update_task` and `delete_task` tools exist in `packages/jarvis-core/src/tools/` and executor methods in `apps/web/lib/jarvis/executor.ts` enforce `userId` ownership in every Drizzle WHERE clause (double-WHERE pattern)
+- [ ] **SMJ-04**: `update_capture` and `delete_capture` tools + executor methods with same double-WHERE ownership pattern
+- [ ] **SMJ-05**: `update_event` and `delete_event` tools + executor methods using the existing `patchEvent` / `deleteEvent` wrappers in `lib/gcal/events.ts` (gcal is source of truth — no Postgres mirror)
+- [ ] **SMJ-06**: `find_tasks`, `find_captures`, `find_events` fuzzy-lookup tools + executor methods (Drizzle `ilike` for tasks/captures; gcal `listEvents` with `q` param for events) returning compact match lists capped at 10
+- [ ] **SMJ-07**: `TOOL_USE_RULES` in `packages/jarvis-core/src/personality.ts` includes a reference-resolution policy: session entities → `find_*` → `ask_clarification`, with explicit "NEVER invent an id" language
+- [ ] **SMJ-08**: Multi-pass agentic loop in `apps/web/lib/jarvis/run-turn.ts` — loops while `finalMessage().stop_reason === "tool_use"`, cap 5 passes, feeding `tool_result` blocks back so find→act chains complete in one user turn. Single-pass turns terminate after 1 pass with no latency regression
+- [ ] **SMJ-09**: `JarvisToolDefinition` union expanded to 14 tools; `cache_control: { ttl: "1h" }` breakpoint moved from `ask_clarification` to the new last tool (`find_events`) so prompt-cache layout is preserved
+- [ ] **SMJ-10**: `ScrollbackAction.name` union expanded to include all 9 new tool names; `INTENT_META` in `JarvisReceipt.tsx` has entries for all 14 tools so no receipt renders `null`; three new receipt variants — find (compact match list), update (field-level before→after diff), delete (tombstone with strikethrough). Undo gated to creates only (triple-checked: handleUndoAction guard, JarvisScrollback onUndo prop, JarvisReceipt defensive check)
+- [ ] **SMJ-11**: `jarvis_turns.actions` JSONB column carries new action records with the 9 new tool names; no migration needed; persisted scrollback re-renders correctly after reload
+- [ ] **SMJ-12**: `apps/web/tests/jarvis-route.test.ts` and `apps/web/tests/jarvis-adversarial.test.ts` updated — fabricated-tool tests use names that will never be real (`drop_database`, `exec_sql`); a new `tests/jarvis-executor-crud.test.ts` proves cross-user delete/update is blocked at the executor; a new `tests/jarvis-agentic-loop.test.ts` proves 2-pass find→delete terminates correctly
+- [ ] **SMJ-13**: `JarvisRequestBody.history` and the client-side `JarvisRequest.history` types widened from `Array<{ role; content: string }>` to `Array<{ role; content: string | ContentBlock[] }>` — backward-compatible widening
+
 ### Personal Context Graph + MCP Export (Phase 999.12)
 
 - [x] **CTX-01**: `personal_context_snapshots` table exists with `user_id`, `captured_on` (date, one row per user per day), `schema_version` (int), `payload` (jsonb typed graph), `meta` (jsonb with counts + `no_export_filtered`), RLS scoped to `auth.uid()`, NOT added to `supabase_realtime` publication
@@ -460,9 +479,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESK-05 | Phase 14 | Pending |
 | DESK-06 | Phase 14 | Pending |
 
+| SMJ-01 | Phase 16 | Pending |
+| SMJ-02 | Phase 16 | Pending |
+| SMJ-03 | Phase 16 | Pending |
+| SMJ-04 | Phase 16 | Pending |
+| SMJ-05 | Phase 16 | Pending |
+| SMJ-06 | Phase 16 | Pending |
+| SMJ-07 | Phase 16 | Pending |
+| SMJ-08 | Phase 16 | Pending |
+| SMJ-09 | Phase 16 | Pending |
+| SMJ-10 | Phase 16 | Pending |
+| SMJ-11 | Phase 16 | Pending |
+| SMJ-12 | Phase 16 | Pending |
+| SMJ-13 | Phase 16 | Pending |
+
 **v1.1 coverage:**
-- v1.1 requirements: 28 total (across 6 categories: Telemetry, Latency, Cache, Wake, Route, Desk)
-- Mapped to phases: 28 / 28 (100%)
+- v1.1 requirements: 41 total (across 7 categories: Telemetry, Latency, Cache, Wake, Route, Desk, Smarter JARVIS)
+- Mapped to phases: 41 / 41 (100%)
 - Unmapped: 0
 
 **v1.1 per-phase counts:**
@@ -472,7 +505,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Phase 12 (On-Device Wake-Word + Mic Gating): 6 requirements (WAKE-01..06)
 - Phase 13 (Haiku Fast-Path Routing): 4 requirements (ROUTE-01..04)
 - Phase 14 (JARVIS Desktop Mic Middleman): 6 requirements (DESK-01..06)
+- Phase 16 (Smarter JARVIS — Session Memory + CRUD): 13 requirements (SMJ-01..13)
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-06-06 — Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration).*
+*Last updated: 2026-06-11 — Phase 16 (Smarter JARVIS — Session Memory + CRUD) added: 13 SMJ requirements covering rich-block history, session-entities scratchpad, 9 new tools (6 CRUD + 3 find), multi-pass agentic loop, receipt UI variants, and test contract updates. v1.1 count: 28 → 41. Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration).*

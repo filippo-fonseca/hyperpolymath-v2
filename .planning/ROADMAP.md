@@ -394,12 +394,16 @@ Plans:
 ### Phase 16: Smarter JARVIS — session memory + CRUD (issue #15)
 **Goal**: JARVIS can hold a real conversation: it remembers what it just did this session and can act on follow-ups like "no, delete the qc please" — resolving "the qc" to the capture it just created and deleting it, in one turn. Closes GitHub issue #15. Built on context engineering (not fine-tuning): (1) model-visible history preserves real `tool_use`/`tool_result` blocks with created-entity IDs instead of flattened text summaries; (2) a session-entities scratchpad block (last ~10 entities touched, with IDs/types/titles) injected after the cached prompt prefix so references survive truncation without breaking the Phase 11 prompt cache; (3) new CRUD tools — `update_task`, `delete_task`, `update_capture`, `delete_capture`, `update_event`, `delete_event` — executed server-side with `userId` ownership re-verified at the executor boundary; (4) `find_tasks` / `find_captures` / `find_events` fuzzy-lookup tools plus a system-prompt resolution policy: resolve from session entities → search → `ask_clarification`; (5) multi-pass agentic loop in the JARVIS route so find → act chains complete inside a single user turn (non-find turns still terminate in one pass); (6) receipt UI variants — field-level before→after diff for updates, tombstone render for deletes, Undo gated to creates only.
 **Depends on**: Phase 5 (JARVIS core), Phase 11 (prompt cache + state priming — scratchpad placement must respect cache breakpoints)
-**Requirements**: SMJ-01 through SMJ-TBD (defined during /gsd:plan-phase 16)
+**Requirements**: SMJ-01 through SMJ-13 (see REQUIREMENTS.md)
 **Out of scope for this phase**: cross-session long-term memory (Anthropic memory tool), project/area CRUD via JARVIS, voice-specific behaviors — capture as backlog if needed
-**Plans**: TBD
+**Plans**: 5 plans across 3 waves
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 16 to break down)
+- [ ] 16-01-PLAN.md — Type contracts: ActionExecutor interface widened (9 new methods), ScrollbackAction.name union, JarvisRequestBody.history content-block widening, SessionEntity + JarvisToolName types
+- [ ] 16-02-PLAN.md — 9 new tool definitions (6 CRUD + 3 find), buildToolDefinitions() registration, cache_control breakpoint moved to find_events, TOOL_USE_RULES resolution policy, fabricated-tool tests updated
+- [ ] 16-03-PLAN.md — 9 new executor methods with double-WHERE ownership (tasks/captures via Drizzle, events via gcal patchEvent/deleteEvent/listEvents), cross-user ownership test
+- [ ] 16-04-PLAN.md — Multi-pass agentic loop in run-turn.ts (cap 5), session-entities scratchpad after Phase 11 snapshot block (no cache_control), aggregated usage, agentic-loop Vitest
+- [ ] 16-05-PLAN.md — buildHistory() emits content blocks, JarvisReceipt find/update/delete variants + INTENT_META, undo triple-gated to creates only
 
 ## Progress
 
