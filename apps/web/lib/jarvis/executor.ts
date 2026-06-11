@@ -32,6 +32,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { TZDate } from "@date-fns/tz";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -102,6 +103,12 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const taskId = randomUUID();
+      // Default-due policy (2026-06-11): a task with no explicit due date
+      // lands TODAY in the user's timezone — undated tasks were vanishing
+      // into limbo instead of surfacing on the Today view.
+      const todayInTz = new Intl.DateTimeFormat("en-CA", {
+        timeZone: ctx.userTimezone,
+      }).format(new Date()); // YYYY-MM-DD
       try {
         await db.transaction(async (tx) => {
           await tx.insert(tasks).values({
@@ -116,7 +123,9 @@ export function createServerExecutor(): ActionExecutor {
             // The TZ-aware conversion already happened client-side in
             // chrono+TZDate (Plan 05-01 parsers); the date emitted in `due`
             // is already in the user's intended day.
-            dueDate: input.due ? new Date(input.due).toISOString().slice(0, 10) : null,
+            dueDate: input.due
+              ? new Date(input.due).toISOString().slice(0, 10)
+              : todayInTz,
           });
           if (projectCheck.ids.length > 0) {
             await tx.insert(tasksProjects).values(
@@ -135,7 +144,14 @@ export function createServerExecutor(): ActionExecutor {
             id: taskId,
             title: input.title,
             priority: input.priority ?? "P3",
-            due: input.due,
+            // Defaulted due renders as an all-day "today" on receipts —
+            // midnight in the user's tz converted to a UTC instant.
+            due:
+              input.due ??
+              new Date(
+                new TZDate(`${todayInTz}T00:00:00`, ctx.userTimezone).getTime(),
+              ).toISOString(),
+            allDay: input.due ? undefined : true,
             project_ids: projectCheck.ids,
             voice_summary: input.voice_summary,
           },

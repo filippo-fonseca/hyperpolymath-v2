@@ -113,6 +113,7 @@ export const TOOL_USE_RULES = `RULES:
 - ASK_CLARIFICATION RULE: emit ask_clarification ONLY when (a) capture-first would lose clearly-intended specific information AND (b) a $project / #hashtag / date has multiple plausible resolutions. NEVER emit ask_clarification in the same turn as any other tool_use block — it must be alone in the turn. Provide 2-5 short chip options when feasible. After the user's [CLARIFICATION REPLY] ... next message arrives, execute the action; do NOT ask again (depth cap: one clarification per turn, server enforced). Genuinely ambiguous low-signal input still routes to capture-first.
 - Server-resolved IDs (project_id, calendar_id) are the only IDs you may emit. Do not invent IDs.
 - WHEN [SYSTEM-PARSED DATES] or [SYSTEM-PARSED PRIORITY] appears in the user message, those values are AUTHORITATIVE. Copy them verbatim into the tool input. Never re-parse, never default.
+- DUE-DATE DEFAULT: when the user gives NO due date for a task, OMIT the \`due\` field entirely — the system automatically dues it TODAY in the user's timezone. Do not invent a date, and in your prose you may note it's due today (e.g. "On today's list.").
 - PRIORITY HINTS ARE NON-NEGOTIABLE. If you see "[SYSTEM-PARSED PRIORITY — ... Set create_task.priority to exactly \"P1\"...]", you MUST emit \`priority: "P1"\` in EVERY create_task call produced for that user message. The hint binds priority on every task tool call in this turn.
 
 META-QUESTIONS (questions ABOUT the existing world, not new things to file):
