@@ -39,7 +39,7 @@ This is a context-engineering phase, NOT fine-tuning. Research confirmed (Anthro
 
 ### 6. Receipt UI (LOCKED)
 - New receipt variants in JarvisReceipt: find (compact match list), update (field-level before → after diff), delete (tombstone render).
-- Undo button gated to creates only.
+- ~~Undo button gated to creates only.~~ **SUPERSEDED 2026-06-11 (user, mid-execution):** universal 5-second undo on EVERY JARVIS action — undo create = delete; undo update = revert to before-values (already captured for the diff receipt); undo delete = restore from a pre-delete row snapshot returned by the executor (gcal events re-inserted). 5s window matches the existing mobile undo and Phase 5's per-receipt undo countdown / `undoJarvisAction` infrastructure. Implemented as plan 16-06 (16-05 shipped the creates-only gate first; 16-06 removes it).
 - Persist all of this in jarvis_turns so scrollback re-renders correctly after reload.
 
 ### Claude's Discretion
