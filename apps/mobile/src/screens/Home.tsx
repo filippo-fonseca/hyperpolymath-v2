@@ -12,6 +12,7 @@
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,7 +31,8 @@ import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
 import { TextBar, type TextBarSubmit } from "../components/TextBar";
 import { VoiceOverlay } from "../components/VoiceOverlay";
-import { postText, postTranscript } from "../lib/api";
+import { ClarificationCard, type ClarificationState } from "../components/ClarificationCard";
+import { fetchTurn, postText, postTranscript } from "../lib/api";
 import { buildMobileJarvisPayload } from "../lib/input-payload";
 import {
   getJarvisContext,
@@ -47,6 +49,9 @@ interface Turn {
   role: "user" | "assistant";
   text: string;
   actions: ReceiptAction[];
+  /** Assistant turns: stream finished (response-end seen or reconciled). */
+  done: boolean;
+  clarification?: ClarificationState;
 }
 
 const HELP_TEXT = [
@@ -83,7 +88,9 @@ export function Home() {
   const recorder = useVoiceRecorder();
   const scrollRef = useRef<ScrollView>(null);
 
+  const [sseEpoch, setSseEpoch] = useState(0);
   const ttsQueue = useRef(new TtsQueue()).current;
+  const turnsRef = useRef<Turn[]>([]);
   const sentenceBuffer = useRef("");
   const sentenceSeq = useRef(0);
   const turnDone = useRef(true);
@@ -92,6 +99,17 @@ export function Home() {
   orbStateRef.current = orbState;
 
   const hasConversation = turns.length > 0;
+  turnsRef.current = turns;
+
+  // iOS kills idle sockets when the app backgrounds; react-native-sse's
+  // auto-reconnect can stall afterwards. Re-open the SSE subscription on
+  // every return to foreground (epoch bump re-runs the effect).
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") setSseEpoch((e) => e + 1);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     void loadSettings().then((s) => {
@@ -118,13 +136,28 @@ export function Home() {
     });
   }, [ttsQueue]);
 
-  const appendAssistantDelta = useCallback((delta: string) => {
-    const id = activeAssistantId.current;
-    if (!id) return;
-    setTurns((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, text: t.text + delta } : t)),
-    );
-  }, []);
+  /**
+   * Self-healing turn update: events carry the server turnId, so we mutate
+   * the matching `a-<turnId>` row wherever it sits — and if response-start
+   * was missed (dropped socket), we CREATE the turn on the fly instead of
+   * silently discarding chunks/receipts.
+   */
+  const upsertAssistantTurn = useCallback(
+    (turnId: string, mutate: (turn: Turn) => Turn) => {
+      const id = `a-${turnId}`;
+      setTurns((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = mutate(next[idx]!);
+          return next;
+        }
+        const created = mutate({ id, role: "assistant", text: "", actions: [], done: false });
+        return [...prev, created].slice(-20);
+      });
+    },
+    [],
+  );
 
   // SSE subscription — re-opened whenever settings are saved (server URL or
   // token may have changed) via the settings sheet closing.
@@ -137,33 +170,43 @@ export function Home() {
         sentenceBuffer.current = "";
         sentenceSeq.current = 0;
         ttsQueue.resetTurn();
-        const id = `a-${turnId}`;
-        activeAssistantId.current = id;
-        setTurns((prev) => [
-          ...prev.slice(-19),
-          { id, role: "assistant", text: "", actions: [] },
-        ]);
+        activeAssistantId.current = `a-${turnId}`;
+        upsertAssistantTurn(turnId, (t) => t);
         setOrbState((s) => (s === "speaking" ? s : "thinking"));
       },
-      onResponseChunk: ({ delta }) => {
-        appendAssistantDelta(delta);
+      onResponseChunk: ({ turnId, delta }) => {
+        upsertAssistantTurn(turnId, (t) => ({ ...t, text: t.text + delta }));
         const { sentences, remainder } = splitDeltas(sentenceBuffer.current, delta);
         sentenceBuffer.current = remainder;
         for (const sentence of sentences) {
           ttsQueue.enqueueSentence(sentence, sentenceSeq.current++);
         }
       },
-      onToolCall: ({ toolUseId, name, result }) => {
-        const id = activeAssistantId.current;
-        if (!id) return;
-        setTurns((prev) =>
-          prev.map((t) =>
-            t.id === id ? { ...t, actions: [...t.actions, { toolUseId, name, result }] } : t,
-          ),
-        );
+      onToolCall: ({ turnId, toolUseId, name, result }) => {
+        if (name === "ask_clarification") {
+          const receipt =
+            ((result as { receipt?: Record<string, unknown> })?.receipt ?? {}) as {
+              question?: string;
+              options?: string[];
+            };
+          upsertAssistantTurn(turnId, (t) => ({
+            ...t,
+            clarification: {
+              question: receipt.question ?? "JARVIS needs clarification.",
+              options: Array.isArray(receipt.options) ? receipt.options : [],
+              answered: false,
+            },
+          }));
+          return;
+        }
+        upsertAssistantTurn(turnId, (t) => ({
+          ...t,
+          actions: [...t.actions, { toolUseId, name, result }],
+        }));
       },
-      onResponseEnd: () => {
+      onResponseEnd: ({ turnId }) => {
         turnDone.current = true;
+        upsertAssistantTurn(turnId, (t) => ({ ...t, done: true }));
         const tail = sentenceBuffer.current.trim();
         sentenceBuffer.current = "";
         if (tail) ttsQueue.enqueueSentence(tail, sentenceSeq.current++);
@@ -177,7 +220,7 @@ export function Home() {
         }
       },
     });
-  }, [ready, settingsOpen, appendAssistantDelta, ttsQueue]);
+  }, [ready, settingsOpen, sseEpoch, upsertAssistantTurn, ttsQueue]);
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -186,15 +229,71 @@ export function Home() {
     }
   }, [settingsOpen]);
 
+  /**
+   * Reconciliation watchdog: if SSE events were missed, poll the persisted
+   * turn until it resolves and back-fill text/receipts. Reconciled text is
+   * display-only (never re-spoken).
+   */
+  const watchTurn = useCallback(
+    (turnId: string) => {
+      const id = `a-${turnId}`;
+      const startedAt = Date.now();
+      const interval = setInterval(async () => {
+        const local = turnsRef.current.find((t) => t.id === id);
+        if (local?.done || Date.now() - startedAt > 90_000) {
+          clearInterval(interval);
+          return;
+        }
+        const snapshot = await fetchTurn(turnId);
+        if (!snapshot || snapshot.status === "pending") return;
+        clearInterval(interval);
+        upsertAssistantTurn(turnId, (t) => ({
+          ...t,
+          text:
+            snapshot.status === "error" && !snapshot.text && !t.text
+              ? `⚠︎ ${snapshot.errorMessage ?? "turn failed"}`
+              : (snapshot.text?.length ?? 0) > t.text.length
+                ? (snapshot.text as string)
+                : t.text,
+          actions:
+            (snapshot.actions?.length ?? 0) > t.actions.length
+              ? (snapshot.actions as ReceiptAction[]).filter(
+                  (a) => a.name !== "ask_clarification",
+                )
+              : t.actions,
+          done: true,
+        }));
+        turnDone.current = true;
+        if (orbStateRef.current === "thinking" || orbStateRef.current === "transcribing") {
+          setOrbState("idle");
+        }
+      }, 2500);
+    },
+    [upsertAssistantTurn],
+  );
+
   const pushUserTurn = useCallback((text: string) => {
-    const userTurn: Turn = { id: `u-${Date.now()}`, role: "user", text, actions: [] };
+    const userTurn: Turn = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      text,
+      actions: [],
+      done: true,
+    };
     setTurns((prev) => {
+      // Any user send marks open clarifications as answered (web parity:
+      // last-question-wins, historical record stays).
+      const acked = prev.map((t) =>
+        t.clarification && !t.clarification.answered
+          ? { ...t, clarification: { ...t.clarification, answered: true } }
+          : t,
+      );
       const activeId = activeAssistantId.current;
-      const idx = !turnDone.current && activeId ? prev.findIndex((t) => t.id === activeId) : -1;
+      const idx = !turnDone.current && activeId ? acked.findIndex((t) => t.id === activeId) : -1;
       const next =
         idx >= 0
-          ? [...prev.slice(0, idx), userTurn, ...prev.slice(idx)]
-          : [...prev, userTurn];
+          ? [...acked.slice(0, idx), userTurn, ...acked.slice(idx)]
+          : [...acked, userTurn];
       return next.slice(-20);
     });
   }, []);
@@ -229,6 +328,7 @@ export function Home() {
       }
       pushUserTurn(result.transcript);
       setOrbState("thinking");
+      if (result.turnId) watchTurn(result.turnId);
       return;
     }
 
@@ -239,7 +339,7 @@ export function Home() {
       setOrbState("recording");
       setOverlayOpen(true);
     }
-  }, [recorder, ttsQueue, pushUserTurn]);
+  }, [recorder, ttsQueue, pushUserTurn, watchTurn]);
 
   /** Cancel button in the overlay — discard the capture, send nothing. */
   const handleCancel = useCallback(async () => {
@@ -263,26 +363,55 @@ export function Home() {
             role: "assistant",
             text: HELP_TEXT,
             actions: [],
+            done: true,
           },
         ]);
         return;
       }
 
+      // If an open clarification is on screen, this message answers it —
+      // same [CLARIFICATION REPLY] contract as the web console.
+      const answeringClarification = turnsRef.current.some(
+        (t) => t.clarification && !t.clarification.answered,
+      );
+
       pushUserTurn(payload.displayText);
       setOrbState("thinking");
-      const result = await postText(payload.input, {
-        parsedDates: payload.parsedDates,
-        parsedPriority: payload.parsedPriority,
-        slashCommand: payload.slashCommand,
-        linkedProjectIds: payload.projectIds,
-        linkedHashtags: payload.hashtags,
-      });
+      const result = await postText(
+        answeringClarification ? `[CLARIFICATION REPLY] ${payload.input}` : payload.input,
+        {
+          parsedDates: payload.parsedDates,
+          parsedPriority: payload.parsedPriority,
+          slashCommand: payload.slashCommand,
+          linkedProjectIds: payload.projectIds,
+          linkedHashtags: payload.hashtags,
+        },
+      );
       if (!result) {
         setOrbState("idle");
         pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
+        return;
       }
+      watchTurn(result.turnId);
     },
-    [pushUserTurn],
+    [pushUserTurn, watchTurn],
+  );
+
+  /** Tapped a clarification option chip. */
+  const handleClarificationReply = useCallback(
+    async (option: string) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      pushUserTurn(option);
+      setOrbState("thinking");
+      const result = await postText(`[CLARIFICATION REPLY] ${option}`);
+      if (!result) {
+        setOrbState("idle");
+        pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
+        return;
+      }
+      watchTurn(result.turnId);
+    },
+    [pushUserTurn, watchTurn],
   );
 
   const online = sseStatus === "connected";
@@ -346,10 +475,20 @@ export function Home() {
                 key={turn.id}
                 style={[styles.turn, turn.role === "user" ? styles.turnUser : styles.turnAssistant]}
               >
-                <Text style={styles.turnText}>{turn.text || "…"}</Text>
+                {turn.text ? (
+                  <Text style={styles.turnText}>{turn.text}</Text>
+                ) : !turn.done && turn.actions.length === 0 && !turn.clarification ? (
+                  <Text style={styles.turnText}>…</Text>
+                ) : null}
                 {turn.actions.map((a) => (
                   <JarvisReceipt key={a.toolUseId} action={a} />
                 ))}
+                {turn.clarification ? (
+                  <ClarificationCard
+                    clarification={turn.clarification}
+                    onReply={(opt) => void handleClarificationReply(opt)}
+                  />
+                ) : null}
               </View>
             ))}
           </ScrollView>

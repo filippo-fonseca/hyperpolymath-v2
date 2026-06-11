@@ -116,6 +116,29 @@ export async function fetchTtsPcm(args: {
   }
 }
 
+export interface TurnSnapshot {
+  status: "pending" | "done" | "error";
+  text?: string;
+  actions?: Array<{ toolUseId: string; name: string; result: unknown }>;
+  errorMessage?: string | null;
+}
+
+/**
+ * GET /api/jarvis/voice/turn?id=… — reconciliation fallback when the SSE
+ * stream misses events (backgrounded app, dropped socket).
+ */
+export async function fetchTurn(turnId: string): Promise<TurnSnapshot | null> {
+  try {
+    const res = await fetch(`${baseUrl()}/api/jarvis/voice/turn?id=${turnId}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as TurnSnapshot;
+  } catch {
+    return null;
+  }
+}
+
 /** Quick connectivity + auth probe used by the settings sheet. */
 export async function probeConnection(): Promise<
   "ok" | "voice-only" | "unauthorized" | "unreachable"
