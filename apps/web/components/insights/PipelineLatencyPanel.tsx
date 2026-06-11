@@ -59,7 +59,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
   // or fresh re-instrumentation). Copy LOCKED per must_haves.truths.
   if (stats.totalTurns === 0) {
     return (
-      <section className={`${NEUMORPHIC_TILE} bg-[var(--surface)] p-6 mb-8`}>
+      <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
         <header className="mb-4">
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">
             Pipeline Latency
@@ -101,7 +101,7 @@ export function PipelineLatencyPanel({ stats }: Props) {
     : 0;
 
   return (
-    <section className={`${NEUMORPHIC_TILE} bg-[var(--surface)] p-6 mb-8`}>
+    <section className={`${NEUMORPHIC_TILE} p-6 mb-8`}>
       <header className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <h2 className="font-serif text-lg font-semibold tracking-tight text-[var(--ink)]">

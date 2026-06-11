@@ -193,7 +193,7 @@ export function HabitsInsightsPanel({
   return (
     <div className="flex flex-col gap-4">
       {/* Controls — range pills + area chip filter + search + sort. */}
-      <div className={`flex flex-col gap-3 ${NEUMORPHIC_TILE} bg-[var(--surface)] px-4 py-3`}>
+      <div className={`flex flex-col gap-3 ${NEUMORPHIC_TILE} px-4 py-3`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface-raised)]">
             {(["7d", "28d", "90d", "all"] as Range[]).map((r) => (
@@ -296,7 +296,7 @@ export function HabitsInsightsPanel({
           return (
             <li
               key={habit.id}
-              className={`${NEUMORPHIC_TILE} bg-[var(--surface)] px-4 py-3 flex flex-col gap-2.5`}
+              className={`${NEUMORPHIC_TILE} px-4 py-3 flex flex-col gap-2.5`}
             >
               <div className="flex items-baseline justify-between gap-3">
                 <div className="flex flex-col min-w-0">

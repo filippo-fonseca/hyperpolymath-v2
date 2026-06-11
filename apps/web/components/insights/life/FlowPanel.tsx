@@ -16,6 +16,7 @@ import type { Result } from '@/lib/integrations/result';
 import type { Session } from '@/lib/integrations/flow/bucket';
 import { bucketByDayForWeek } from '@/lib/integrations/flow/bucket';
 import { FlowUploadButton } from './FlowUploadButton';
+import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 const ACCENT = '#7c3aed'; // violet-600
 // const ACCENT_DIM = '#5b21b6';
@@ -32,13 +33,12 @@ function mondayOf(d: Date): Date {
 function PanelChrome({ children }: { children: React.ReactNode }) {
   return (
     <section
-      className="group rounded-xl bg-[var(--surface)] border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] hover:border-[var(--edge-hud)] p-6 transition-[border-color,box-shadow] duration-200 ease-out"
+      className={`group ${NEUMORPHIC_TILE} p-6`}
       style={
         {
           ['--panel-accent']: ACCENT,
-          // Neumorphic dual-direction shadows + inset highlight + accent halo.
-          boxShadow:
-            '6px 6px 18px color-mix(in oklch, var(--ink) 8%, transparent), -4px -4px 14px color-mix(in oklch, var(--surface) 70%, white), inset 0 1px 0 color-mix(in oklch, white 60%, transparent), 0 0 32px color-mix(in oklch, var(--panel-accent) 5%, transparent)',
+          // Glassy pill recipe + brand-accent halo layered on top.
+          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
         } as React.CSSProperties
       }
     >
