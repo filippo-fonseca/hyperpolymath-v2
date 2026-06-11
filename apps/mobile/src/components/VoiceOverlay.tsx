@@ -6,17 +6,20 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text } from "react-native";
 
-import { colors, mono } from "../theme";
+import { colors, mono, serif } from "../theme";
 import { Orb, type OrbState } from "./Orb";
 
 export function VoiceOverlay({
   visible,
   state,
+  liveTranscript,
   onOrbPress,
   onCancel,
 }: {
   visible: boolean;
   state: OrbState;
+  /** Interim on-device transcript while dictating (device builds only). */
+  liveTranscript?: string;
   onOrbPress: () => void;
   onCancel: () => void;
 }) {
@@ -38,6 +41,11 @@ export function VoiceOverlay({
         {state === "recording" ? "LISTENING" : state === "transcribing" ? "SENDING" : "JARVIS"}
       </Text>
       <Orb state={state} size={300} onPress={onOrbPress} />
+      {liveTranscript ? (
+        <Text style={styles.transcript} numberOfLines={4}>
+          {liveTranscript}
+        </Text>
+      ) : null}
       <Text style={styles.hint}>
         {state === "recording" ? "tap the orb to send" : "one moment…"}
       </Text>
@@ -78,6 +86,15 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 12,
     letterSpacing: 2,
+  },
+  transcript: {
+    color: colors.text,
+    fontFamily: serif,
+    fontSize: 19,
+    lineHeight: 27,
+    textAlign: "center",
+    paddingHorizontal: 36,
+    marginTop: -6,
   },
   cancel: {
     marginTop: 12,

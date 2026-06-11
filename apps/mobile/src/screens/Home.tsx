@@ -9,6 +9,7 @@
 // Tapping the orb (either position) opens a full-screen dictation overlay:
 // big orb, scrim behind it, cancel button. Send or cancel collapses it back.
 
+import { File } from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -23,6 +24,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { startLiveRecognition, type LiveSession } from "../audio/live-recognition";
 import { useVoiceRecorder } from "../audio/recorder";
 import { TtsQueue } from "../audio/tts-queue";
 import { GearIcon, KiwiMark } from "../components/icons";
@@ -32,7 +34,8 @@ import { SettingsSheet } from "../components/SettingsSheet";
 import { TextBar, type TextBarSubmit } from "../components/TextBar";
 import { VoiceOverlay } from "../components/VoiceOverlay";
 import { ClarificationCard, type ClarificationState } from "../components/ClarificationCard";
-import { fetchTurn, postText, postTranscript } from "../lib/api";
+import { ThinkingWord } from "../components/ThinkingWord";
+import { fetchTurn, postText, postTranscript, postUndo, type UndoTarget } from "../lib/api";
 import { buildMobileJarvisPayload } from "../lib/input-payload";
 import {
   getJarvisContext,
@@ -86,6 +89,8 @@ export function Home() {
   const [context, setContext] = useState<JarvisContext>(getJarvisContext());
 
   const recorder = useVoiceRecorder();
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const liveSession = useRef<LiveSession | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const [sseEpoch, setSseEpoch] = useState(0);
@@ -315,12 +320,31 @@ export function Home() {
       // Send: stop capture, close the overlay, upload.
       setOrbState("transcribing");
       setOverlayOpen(false);
-      const capture = await recorder.stop();
-      if (!capture) {
+
+      let wav: Uint8Array<ArrayBuffer> | null = null;
+      const vadEndAt = Date.now();
+      if (liveSession.current) {
+        // Live-recognition path: the session persisted a 16kHz WAV.
+        const uri = await liveSession.current.stop();
+        liveSession.current = null;
+        if (uri) {
+          try {
+            wav = await new File(uri).bytes();
+          } catch (err) {
+            console.warn("[voice] failed to read live recording", err);
+          }
+        }
+      } else {
+        const capture = await recorder.stop();
+        if (capture) wav = capture.wav;
+      }
+      setLiveTranscript("");
+
+      if (!wav || wav.byteLength === 0) {
         setOrbState("idle");
         return;
       }
-      const result = await postTranscript(capture);
+      const result = await postTranscript({ wav, vadEndAt });
       if (!result) {
         setOrbState("idle");
         pushUserTurn("⚠︎ couldn't reach JARVIS — check settings");
@@ -332,8 +356,19 @@ export function Home() {
       return;
     }
 
-    // idle → open the dictation overlay and start recording
+    // idle → open the dictation overlay and start listening. Prefer the
+    // live-recognition path (interim transcript on screen + persisted WAV);
+    // fall back to the plain recorder when the native module is absent
+    // (Expo Go / pre-1.1.0 binaries).
     ttsQueue.stop();
+    setLiveTranscript("");
+    const session = await startLiveRecognition(setLiveTranscript);
+    if (session) {
+      liveSession.current = session;
+      setOrbState("recording");
+      setOverlayOpen(true);
+      return;
+    }
     const started = await recorder.start();
     if (started) {
       setOrbState("recording");
@@ -346,6 +381,12 @@ export function Home() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setOverlayOpen(false);
     setOrbState("idle");
+    setLiveTranscript("");
+    if (liveSession.current) {
+      liveSession.current.cancel();
+      liveSession.current = null;
+      return;
+    }
     await recorder.cancel();
   }, [recorder]);
 
@@ -395,6 +436,47 @@ export function Home() {
       watchTurn(result.turnId);
     },
     [pushUserTurn, watchTurn],
+  );
+
+  /** 5s receipt undo — optimistic tombstone, then server round-trip. */
+  const handleUndo = useCallback(
+    async (turnId: string, action: ReceiptAction) => {
+      const result = action.result as { ok?: boolean; id?: string; receipt?: Record<string, unknown> } | null;
+      if (!result?.ok || typeof result.id !== "string") return;
+
+      let target: UndoTarget;
+      if (action.name === "create_task") {
+        target = { kind: "task", id: result.id };
+      } else if (action.name === "create_capture") {
+        target = { kind: "capture", id: result.id };
+      } else if (action.name === "create_event") {
+        const receipt = result.receipt ?? {};
+        const calendarId =
+          typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
+        target = { kind: "event", id: result.id, calendarId };
+      } else {
+        return;
+      }
+
+      const markUndone = (undone: boolean) =>
+        setTurns((prev) =>
+          prev.map((t) =>
+            t.id === turnId
+              ? {
+                  ...t,
+                  actions: t.actions.map((a) =>
+                    a.toolUseId === action.toolUseId ? { ...a, undone } : a,
+                  ),
+                }
+              : t,
+          ),
+        );
+
+      markUndone(true);
+      const ok = await postUndo(target);
+      if (!ok) markUndone(false);
+    },
+    [],
   );
 
   /** Tapped a clarification option chip. */
@@ -478,10 +560,18 @@ export function Home() {
                 {turn.text ? (
                   <Text style={styles.turnText}>{turn.text}</Text>
                 ) : !turn.done && turn.actions.length === 0 && !turn.clarification ? (
-                  <Text style={styles.turnText}>…</Text>
+                  <ThinkingWord />
                 ) : null}
                 {turn.actions.map((a) => (
-                  <JarvisReceipt key={a.toolUseId} action={a} />
+                  <JarvisReceipt
+                    key={a.toolUseId}
+                    action={a}
+                    onUndo={
+                      ["create_task", "create_capture", "create_event"].includes(a.name)
+                        ? () => void handleUndo(turn.id, a)
+                        : undefined
+                    }
+                  />
                 ))}
                 {turn.clarification ? (
                   <ClarificationCard
@@ -514,6 +604,7 @@ export function Home() {
       <VoiceOverlay
         visible={overlayOpen}
         state={orbState}
+        liveTranscript={liveTranscript}
         onOrbPress={() => void handleOrbPress()}
         onCancel={() => void handleCancel()}
       />

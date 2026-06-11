@@ -116,6 +116,27 @@ export async function fetchTtsPcm(args: {
   }
 }
 
+export type UndoTarget =
+  | { kind: "task"; id: string }
+  | { kind: "capture"; id: string }
+  | { kind: "event"; id: string; calendarId: string };
+
+/** POST /api/jarvis/voice/undo — the 5s receipt undo, paired-device twin. */
+export async function postUndo(target: UndoTarget): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl()}/api/jarvis/voice/undo`, {
+      method: "POST",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify(target),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { ok?: boolean };
+    return data.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 export interface TurnSnapshot {
   status: "pending" | "done" | "error";
   text?: string;

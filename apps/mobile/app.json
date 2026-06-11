@@ -13,7 +13,6 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "JARVIS listens when you tap the orb so you can dictate commands.",
         "UIBackgroundModes": [
-          "audio",
           "audio"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -37,7 +36,14 @@
       "expo-secure-store",
       "expo-updates",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "JARVIS listens when you tap the orb so you can dictate commands.",
+          "speechRecognitionPermission": "JARVIS shows your words live on screen while you dictate."
+        }
+      ]
     ],
     "extra": {
       "eas": {

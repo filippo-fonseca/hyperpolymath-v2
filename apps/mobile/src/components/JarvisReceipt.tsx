@@ -4,7 +4,8 @@
 // serif body with the resolved fields (title, priority · due, hashtags,
 // start → end, key: value). Errors get the 3px coral left edge.
 
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, mono, serif } from "../theme";
 
@@ -29,6 +30,47 @@ export interface ReceiptAction {
   toolUseId: string;
   name: string;
   result: unknown;
+  /** Locally undone via the 5s window — renders as a tombstone. */
+  undone?: boolean;
+}
+
+/** 5s countdown undo button — mirrors the web receipt's UndoButton. */
+function UndoButton({ onUndo }: { onUndo: () => void }) {
+  const [seconds, setSeconds] = useState(5);
+  const [hidden, setHidden] = useState(false);
+  const cancelled = useRef(false);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          setHidden(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (hidden) return null;
+  return (
+    <Pressable
+      hitSlop={8}
+      onPress={() => {
+        if (cancelled.current) return;
+        cancelled.current = true;
+        setHidden(true);
+        onUndo();
+      }}
+      style={({ pressed }) => [styles.undo, pressed && { opacity: 0.6 }]}
+      accessibilityRole="button"
+      accessibilityLabel="Undo"
+    >
+      <Text style={styles.undoText}>Undo ({seconds})</Text>
+    </Pressable>
+  );
 }
 
 interface ActionResult {
@@ -132,7 +174,14 @@ function ReceiptBody({ name, receipt }: { name: string; receipt: Record<string, 
   return headline ? <Text style={styles.title}>{String(headline)}</Text> : null;
 }
 
-export function JarvisReceipt({ action }: { action: ReceiptAction }) {
+export function JarvisReceipt({
+  action,
+  onUndo,
+}: {
+  action: ReceiptAction;
+  /** When provided (and the action succeeded), shows the 5s undo window. */
+  onUndo?: () => void;
+}) {
   const meta = INTENT_META[action.name] ?? {
     label: action.name.replace(/_/g, " ").toUpperCase(),
     dot: INK.cyanLight,
@@ -140,18 +189,24 @@ export function JarvisReceipt({ action }: { action: ReceiptAction }) {
   const result = (action.result ?? {}) as ActionResult;
   const ok = result.ok === true;
   const receipt = ok ? (result.receipt ?? {}) : null;
+  const undone = action.undone === true;
 
   return (
-    <View style={[styles.card, !ok && styles.cardError]}>
+    <View style={[styles.card, !ok && styles.cardError, undone && styles.cardUndone]}>
       <View style={styles.headerRow}>
         <View style={[styles.dot, { backgroundColor: meta.dot }]} />
         <Text style={styles.label}>{meta.label}</Text>
         <Text style={[styles.check, { color: ok ? INK.sage : INK.coral }]}>
           {ok ? "✓" : "✕"}
         </Text>
+        {undone ? (
+          <Text style={styles.undoneLabel}>undone</Text>
+        ) : ok && onUndo ? (
+          <UndoButton onUndo={onUndo} />
+        ) : null}
       </View>
       {ok && receipt ? (
-        <View style={styles.body}>
+        <View style={[styles.body, undone && styles.bodyUndone]}>
           <ReceiptBody name={action.name} receipt={receipt} />
         </View>
       ) : (
@@ -227,5 +282,33 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 11,
     marginTop: 5,
+  },
+  cardUndone: {
+    opacity: 0.45,
+    shadowOpacity: 0,
+  },
+  bodyUndone: {
+    opacity: 0.7,
+  },
+  undoneLabel: {
+    marginLeft: "auto",
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  undo: {
+    marginLeft: "auto",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  undoText: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
 });
