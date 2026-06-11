@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, isNull } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
@@ -120,9 +120,56 @@ export async function unarchiveArea(id: string): Promise<ActionResult<null>> {
 }
 
 /**
- * AREA-04: blocks delete if any projects exist under this area.
- * Error copy from UI-SPEC §"Error States":
- *   "Can't delete an area that has projects under it."
+ * Finds the per-user "No Area" sentinel row or creates it.
+ *
+ * Sentinel signature: name === 'No Area' AND emoji IS NULL.
+ * orderIndex 9999 sorts it last in the sidebar tree without disrupting
+ * existing area ordering.
+ *
+ * Wrapped in a transaction so concurrent deletes cannot create duplicate
+ * sentinel rows.
+ *
+ * @internal — consumed only by deleteArea below.
+ */
+async function ensureNoAreaBucket(userId: string): Promise<string> {
+  return db.transaction(async (tx) => {
+    // SELECT existing sentinel
+    const [existing] = await tx
+      .select({ id: areas.id })
+      .from(areas)
+      .where(
+        and(
+          eq(areas.userId, userId),
+          eq(areas.name, "No Area"),
+          isNull(areas.emoji),
+        ),
+      )
+      .limit(1);
+
+    if (existing) return existing.id;
+
+    // INSERT new sentinel
+    const [created] = await tx
+      .insert(areas)
+      .values({
+        userId,
+        name: "No Area",
+        emoji: null,
+        orderIndex: 9999,
+        archivedAt: null,
+      })
+      .returning({ id: areas.id });
+
+    return created!.id;
+  });
+}
+
+/**
+ * Locked decision (Quick 260611-g2z #1): child projects are reassigned to a
+ * per-user "No Area" bucket on delete, NOT blocked, NOT cascade-deleted.
+ * Tasks/captures linked to those projects survive untouched — junction tables
+ * already CASCADE their join rows on project delete per PROJ-04, but the
+ * projects themselves are not deleted here.
  */
 export async function deleteArea(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
@@ -130,22 +177,43 @@ export async function deleteArea(id: string): Promise<ActionResult<null>> {
   if (!z.string().uuid().safeParse(id).success)
     return { success: false, error: "Invalid id" };
 
-  const [{ projectCount }] = await db
-    .select({ projectCount: sql<number>`COUNT(*)::int` })
-    .from(projects)
-    .where(and(eq(projects.areaId, id), eq(projects.userId, userId)));
+  // Fetch the victim area to verify ownership and check sentinel status
+  const [victim] = await db
+    .select({ id: areas.id, name: areas.name, emoji: areas.emoji })
+    .from(areas)
+    .where(and(eq(areas.id, id), eq(areas.userId, userId)))
+    .limit(1);
 
-  if (projectCount > 0) {
-    return {
-      success: false,
-      error: "Can't delete an area that has projects under it.",
-    };
+  if (!victim) return { success: false, error: "Area not found" };
+
+  // Defense: prevent deleting the sentinel to avoid a UX loop where the user
+  // deletes "No Area" only to have it re-created on the next area delete.
+  if (victim.name === "No Area" && victim.emoji === null) {
+    return { success: false, error: "Can't delete the No Area bucket." };
   }
 
-  await db
-    .delete(areas)
-    .where(and(eq(areas.id, id), eq(areas.userId, userId)));
-  return { success: true, data: null };
+  return db.transaction(async (tx) => {
+    // Count child projects
+    const [{ projectCount }] = await tx
+      .select({ projectCount: sql<number>`COUNT(*)::int` })
+      .from(projects)
+      .where(and(eq(projects.areaId, id), eq(projects.userId, userId)));
+
+    if (projectCount > 0) {
+      // Ensure (or create) the sentinel bucket, then reassign
+      const sentinelId = await ensureNoAreaBucket(userId);
+      await tx
+        .update(projects)
+        .set({ areaId: sentinelId, updatedAt: sql`now()` })
+        .where(and(eq(projects.areaId, id), eq(projects.userId, userId)));
+    }
+
+    await tx
+      .delete(areas)
+      .where(and(eq(areas.id, id), eq(areas.userId, userId)));
+
+    return { success: true, data: null };
+  });
 }
 
 /**

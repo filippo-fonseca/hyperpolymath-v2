@@ -238,6 +238,10 @@ export async function unarchiveProject(
 /**
  * PROJ-04: Delete project. tasks_projects + captures_projects ON DELETE CASCADE
  * means junction rows die with the project — Tasks and Captures themselves persist.
+ *
+ * Locked decision (Quick 260611-g2z #2): tasks/captures linked to this project lose
+ * ONLY their junction-table link; the task/capture row itself persists (acts as
+ * "Unassigned" in the UI). No cascade-delete of tasks or captures here.
  */
 export async function deleteProject(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
