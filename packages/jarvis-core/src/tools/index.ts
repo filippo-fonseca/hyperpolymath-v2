@@ -20,13 +20,29 @@
 // tools tier amortizes the 2× write cost over a full hour of turns
 // instead of paying 5-min rewrites. Requires the route to pass the
 // `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
+//
+// Phase 16 (SMJ-03/04/05/06/07/09): 9 new tools added (update_task,
+// update_capture, update_event, delete_task, delete_capture, delete_event,
+// find_tasks, find_captures, find_events). Total: 14 tools.
+// cache_control moves from ask_clarification to find_events (new LAST tool).
+// +9 tools ≈ +360 extra prompt tokens per turn (RESEARCH.md Pitfall 7).
 
 import { z } from "zod";
+import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
 import { zCreateCaptureFor, zCreateCapture } from "./create-capture";
 import { zCreateEventFor, zCreateEvent } from "./create-event";
 import { zCreateTaskFor, zCreateTask } from "./create-task";
 import { zRememberFactFor, zRememberFact } from "./remember-fact";
 import { zAskClarificationFor, zAskClarification } from "./ask-clarification";
+import { updateTaskTool } from "./update-task";
+import { deleteTaskTool } from "./delete-task";
+import { updateCaptureTool } from "./update-capture";
+import { deleteCaptureTool } from "./delete-capture";
+import { updateEventTool } from "./update-event";
+import { deleteEventTool } from "./delete-event";
+import { findTasksTool } from "./find-tasks";
+import { findCapturesTool } from "./find-captures";
+import { findEventsTool } from "./find-events";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -35,7 +51,21 @@ export { zRememberFact } from "./remember-fact";
 export { zAskClarification, zAskClarificationFor } from "./ask-clarification";
 
 export interface JarvisToolDefinition {
-  name: "create_task" | "create_capture" | "create_event" | "remember_fact" | "ask_clarification";
+  name:
+    | "create_task"
+    | "create_capture"
+    | "create_event"
+    | "remember_fact"
+    | "ask_clarification"
+    | "update_task"
+    | "delete_task"
+    | "update_capture"
+    | "delete_capture"
+    | "update_event"
+    | "delete_event"
+    | "find_tasks"
+    | "find_captures"
+    | "find_events";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header). */
@@ -47,18 +77,9 @@ export interface JarvisToolDefinition {
   cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" };
 }
 
-function toJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-  // Zod 4 emits `additionalProperties: false` by default for object schemas.
-  // We use `openapi-3.1` target to drop the `$schema` keyword (irrelevant for
-  // Anthropic) while preserving the strict-mode guarantees.
-  const json = z.toJSONSchema(schema, { target: "openapi-3.1" }) as Record<
-    string,
-    unknown
-  >;
-  // Belt-and-braces: ensure additionalProperties is explicitly false.
-  json.additionalProperties = false;
-  return json;
-}
+// Local alias so the buildToolDefinitions body below can call it without
+// changing every reference.
+const toJsonSchema = _toJsonSchema;
 
 export function buildToolDefinitions(
   opts: { voiceActive?: boolean } = {},
@@ -107,12 +128,28 @@ export function buildToolDefinitions(
         "Ask the user a single clarifying question INSTEAD of acting. Emit this ONLY when (a) capture-first would lose clearly-intended specific information AND (b) you cannot resolve a $project/#hashtag/date that has multiple plausible interpretations. NEVER emit ask_clarification in the same turn as any other tool_use block — it must be alone in the turn. Provide 2-5 short `options` chips when feasible. After your question, the user's next message will arrive prefixed `[CLARIFICATION REPLY]` — execute the action that time. Depth cap: only one ask_clarification per turn (server enforced).",
       input_schema: clarifySchema,
       strict: true,
-      // Phase 5.1: ask_clarification is now the LAST tool — cache_control breakpoint here.
-      // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so the
-      // tools tier amortizes the 2× write cost over a full hour of turns
-      // instead of paying 5-min rewrites. Requires the route to pass the
-      // `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
-      cache_control: { type: "ephemeral", ttl: "1h" },
+      // Phase 16 / CACHE: cache_control moves to find_events (new LAST tool).
+      // ask_clarification no longer carries the cache breakpoint.
+    },
+    // Phase 16 (SMJ-03 / SMJ-04 / SMJ-05 / SMJ-06 / SMJ-07 / SMJ-09):
+    // 9 new tools for CRUD (update/delete) + discovery (find_*).
+    // +9 tools ≈ +360 tokens of tool-schema token cost per turn (RESEARCH.md Pitfall 7).
+    { ...updateTaskTool, strict: true as const },
+    { ...updateCaptureTool, strict: true as const },
+    { ...updateEventTool, strict: true as const },
+    { ...deleteTaskTool, strict: true as const },
+    { ...deleteCaptureTool, strict: true as const },
+    { ...deleteEventTool, strict: true as const },
+    { ...findTasksTool, strict: true as const },
+    { ...findCapturesTool, strict: true as const },
+    {
+      ...findEventsTool,
+      strict: true as const,
+      // Phase 16 / CACHE-01 (D-06 BREAKPOINT 1): cache_control moves here —
+      // find_events is now the LAST tool in the array. TTL "1h" amortizes
+      // the 2× write cost over a full hour of turns.
+      // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
+      cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     },
   ];
 }
