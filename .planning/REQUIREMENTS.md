@@ -217,13 +217,13 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 JARVIS gains in-session conversational memory and full CRUD via natural language. Closes GitHub issue #15. Context engineering — NOT fine-tuning.
 
 - [x] **SMJ-01**: `buildHistory()` in `JarvisConsole.tsx` emits Anthropic content-block arrays (`tool_use` + `tool_result`) preserving created-entity IDs across turns — replaces the flat-text history flattening
-- [ ] **SMJ-02**: A session-entities scratchpad text block (last ~10 entities created/updated/deleted this session) is injected into the system prompt AFTER the Phase 11 snapshot block in `run-turn.ts`, with NO `cache_control` so it does not invalidate the 1h prompt-cache breakpoints
+- [x] **SMJ-02**: A session-entities scratchpad text block (last ~10 entities created/updated/deleted this session) is injected into the system prompt AFTER the Phase 11 snapshot block in `run-turn.ts`, with NO `cache_control` so it does not invalidate the 1h prompt-cache breakpoints
 - [x] **SMJ-03**: `update_task` and `delete_task` tools exist in `packages/jarvis-core/src/tools/` and executor methods in `apps/web/lib/jarvis/executor.ts` enforce `userId` ownership in every Drizzle WHERE clause (double-WHERE pattern)
 - [x] **SMJ-04**: `update_capture` and `delete_capture` tools + executor methods with same double-WHERE ownership pattern
 - [x] **SMJ-05**: `update_event` and `delete_event` tools + executor methods using the existing `patchEvent` / `deleteEvent` wrappers in `lib/gcal/events.ts` (gcal is source of truth — no Postgres mirror)
 - [x] **SMJ-06**: `find_tasks`, `find_captures`, `find_events` fuzzy-lookup tools + executor methods (Drizzle `ilike` for tasks/captures; gcal `listEvents` with `q` param for events) returning compact match lists capped at 10
 - [x] **SMJ-07**: `TOOL_USE_RULES` in `packages/jarvis-core/src/personality.ts` includes a reference-resolution policy: session entities → `find_*` → `ask_clarification`, with explicit "NEVER invent an id" language
-- [ ] **SMJ-08**: Multi-pass agentic loop in `apps/web/lib/jarvis/run-turn.ts` — loops while `finalMessage().stop_reason === "tool_use"`, cap 5 passes, feeding `tool_result` blocks back so find→act chains complete in one user turn. Single-pass turns terminate after 1 pass with no latency regression
+- [x] **SMJ-08**: Multi-pass agentic loop in `apps/web/lib/jarvis/run-turn.ts` — loops while `finalMessage().stop_reason === "tool_use"`, cap 5 passes, feeding `tool_result` blocks back so find→act chains complete in one user turn. Single-pass turns terminate after 1 pass with no latency regression
 - [x] **SMJ-09**: `JarvisToolDefinition` union expanded to 14 tools; `cache_control: { ttl: "1h" }` breakpoint moved from `ask_clarification` to the new last tool (`find_events`) so prompt-cache layout is preserved
 - [x] **SMJ-10**: `ScrollbackAction.name` union expanded to include all 9 new tool names; `INTENT_META` in `JarvisReceipt.tsx` has entries for all 14 tools so no receipt renders `null`; three new receipt variants — find (compact match list), update (field-level before→after diff), delete (tombstone with strikethrough). Undo gated to creates only (triple-checked: handleUndoAction guard, JarvisScrollback onUndo prop, JarvisReceipt defensive check)
 - [x] **SMJ-11**: `jarvis_turns.actions` JSONB column carries new action records with the 9 new tool names; no migration needed; persisted scrollback re-renders correctly after reload
@@ -480,13 +480,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESK-06 | Phase 14 | Pending |
 
 | SMJ-01 | Phase 16 | Complete |
-| SMJ-02 | Phase 16 | Pending |
+| SMJ-02 | Phase 16 | Complete |
 | SMJ-03 | Phase 16 | Complete |
 | SMJ-04 | Phase 16 | Complete |
 | SMJ-05 | Phase 16 | Complete |
 | SMJ-06 | Phase 16 | Complete |
 | SMJ-07 | Phase 16 | Complete |
-| SMJ-08 | Phase 16 | Pending |
+| SMJ-08 | Phase 16 | Complete |
 | SMJ-09 | Phase 16 | Complete |
 | SMJ-10 | Phase 16 | Complete |
 | SMJ-11 | Phase 16 | Complete |
