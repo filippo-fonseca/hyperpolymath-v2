@@ -74,6 +74,33 @@ interface Props {
 }
 
 /**
+ * Capability-based undo eligibility check.
+ *
+ * Returns true only when the action carries inversion data:
+ *   - create_*: result must carry an `id` string (the created entity id)
+ *   - update_*: receipt must carry `before` (the pre-update snapshot)
+ *   - delete_*: receipt must carry `snapshot` (the pre-delete full row)
+ *   - find_*, remember_fact, ask_clarification: never undoable
+ *
+ * This replaces the old name-prefix `a.name.startsWith("create_")` guard
+ * (Plan 16-06 Task 3 — capability-based gating per SMJ-14).
+ */
+function isUndoable(a: ScrollbackAction): boolean {
+  if (!a.result || a.result.ok !== true) return false;
+  const receipt = (a.result as { receipt?: Record<string, unknown> }).receipt ?? {};
+  if (a.name.startsWith("create_")) {
+    return typeof (a.result as { id?: string }).id === "string";
+  }
+  if (a.name.startsWith("update_")) {
+    return receipt.before !== undefined && receipt.before !== null;
+  }
+  if (a.name.startsWith("delete_")) {
+    return receipt.snapshot !== undefined && receipt.snapshot !== null;
+  }
+  return false; // find_*, remember_fact, ask_clarification
+}
+
+/**
  * Per-turn timestamp — small mono caption shown next to each turn.
  * Muted by default; lifts on hover so the eye isn't constantly distracted
  * by row metadata. Hover-title shows the full localised date+time.
@@ -391,10 +418,11 @@ export function JarvisScrollback({
                   action={a}
                   variant={turn.textDelta ? "compact" : "default"}
                   onUndo={
-                    // Phase 16: undo gated to create_* tools only.
-                    // update_*, delete_*, find_* operations pass undefined so the
-                    // UndoButton is never mounted for non-reversible actions.
-                    onUndoAction && a.name.startsWith("create_")
+                    // Capability-based gate: only pass onUndo when the action
+                    // carries inversion data (before/snapshot/id). find_*,
+                    // remember_fact, and ask_clarification never have inversion
+                    // data, so they silently receive undefined.
+                    onUndoAction && isUndoable(a)
                       ? () => onUndoAction(turn.id, a)
                       : undefined
                   }

@@ -29,7 +29,14 @@ import { captures, tasks, tasksProjects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { undoJarvisActionForUser, type UndoTarget } from "@/lib/jarvis/undo";
 
-export type { UndoTarget } from "@/lib/jarvis/undo";
+export type {
+  UndoTarget,
+  TaskBefore,
+  CaptureBefore,
+  EventBefore,
+  TaskSnapshot,
+  CaptureSnapshot,
+} from "@/lib/jarvis/undo";
 
 // ---------------------------------------------------------------------------
 // convertCaptureToTask (Plan 05-02)

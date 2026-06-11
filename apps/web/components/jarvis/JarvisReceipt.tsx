@@ -268,16 +268,10 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
 
   const ok = action.result.ok;
   const undone = action.undone === true;
-  // Receipt is eligible for undo iff: action succeeded, has not been undone,
-  // and the parent wired the onUndo callback.
-  // Phase 16: defensive belt-and-braces — update/delete/find operations are
-  // never undoable. JarvisScrollback already passes onUndo=undefined for
-  // non-create tools; this guard prevents any accidental undo rendering.
-  const isNonUndoable =
-    action.name.startsWith("update_") ||
-    action.name.startsWith("delete_") ||
-    action.name.startsWith("find_");
-  const undoEligible = ok && !undone && !isNonUndoable && typeof onUndo === "function";
+  // Eligibility is decided by the parent (JarvisScrollback) via capability
+  // check on the receipt payload (Plan 16-06 SMJ-14); receipt component is dumb.
+  // onUndo is undefined for non-undoable actions — no name-prefix check needed here.
+  const undoEligible = ok && !undone && typeof onUndo === "function";
 
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})

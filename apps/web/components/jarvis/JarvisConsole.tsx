@@ -13,6 +13,11 @@ import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "
 import {
   undoJarvisAction,
   type UndoTarget,
+  type TaskBefore,
+  type CaptureBefore,
+  type EventBefore,
+  type TaskSnapshot,
+  type CaptureSnapshot,
 } from "@/app/actions/jarvis";
 // Phase 6.1 Plan 02 — JARVIS Console chrome (UI-SPEC §5a, §6d, §6e, §9f).
 // HudCornerCrops + HudEdgeInstrumentation come from Plan 01 (shared primitives
@@ -765,33 +770,66 @@ export function JarvisConsole({
   // calls onUndo synchronously after cancel()), so no race on the 5s window.
   const handleUndoAction = useCallback(
     async (turnId: string, action: ScrollbackAction) => {
-      // Phase 16: undo gated to create_* tools only. update_*, delete_*, find_*
-      // do not have server-side undo handlers and should never reach here, but
-      // this guard makes the boundary explicit and prevents accidental undo.
-      if (!action.name.startsWith("create_")) return;
       // Guard against queued placeholders (result not yet populated)
       if (!action.result || !action.result.ok) return;
       const id = (action.result as { id: string }).id;
+      const receipt = (action.result as { receipt?: Record<string, unknown> }).receipt ?? {};
 
-      // Build the UndoTarget per action.name. For events we also need the
-      // calendarId, which the receipt payload carries on its receipt object
-      // (createEventForJarvis returns { calendarId } per Plan 05-02's GcalEventDTO).
+      // Build the UndoTarget per action.name.
+      // find_*, remember_fact, ask_clarification return early — they have no inversion.
+      // Capability guard for update_*/delete_* is enforced in JarvisScrollback (isUndoable)
+      // so if we reach here for those tools, they must have carried a before/snapshot.
       let target: UndoTarget;
-      if (action.name === "create_task") {
-        target = { kind: "task", id };
-      } else if (action.name === "create_capture") {
-        target = { kind: "capture", id };
-      } else if (action.name === "create_event") {
-        const receipt = (action.result as { receipt?: Record<string, unknown> })
-          .receipt ?? {};
-        const calendarId = typeof receipt.calendar_id === "string"
-          ? receipt.calendar_id
-          : typeof receipt.calendarId === "string"
-            ? receipt.calendarId
-            : "primary";
-        target = { kind: "event", id, calendarId };
-      } else {
-        return;
+      switch (action.name) {
+        case "create_task":
+          target = { kind: "task", id };
+          break;
+        case "create_capture":
+          target = { kind: "capture", id };
+          break;
+        case "create_event": {
+          const calendarId =
+            typeof receipt.calendar_id === "string"
+              ? receipt.calendar_id
+              : typeof receipt.calendarId === "string"
+                ? receipt.calendarId
+                : "primary";
+          target = { kind: "event", id, calendarId };
+          break;
+        }
+        case "update_task":
+          if (!receipt.before) return;
+          target = { kind: "update_task", id, before: receipt.before as TaskBefore };
+          break;
+        case "update_capture":
+          if (!receipt.before) return;
+          target = { kind: "update_capture", id, before: receipt.before as CaptureBefore };
+          break;
+        case "update_event": {
+          if (!receipt.before) return;
+          const calendarId =
+            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
+          target = { kind: "update_event", id, calendarId, before: receipt.before as EventBefore };
+          break;
+        }
+        case "delete_task":
+          if (!receipt.snapshot) return;
+          target = { kind: "delete_task", snapshot: receipt.snapshot as TaskSnapshot };
+          break;
+        case "delete_capture":
+          if (!receipt.snapshot) return;
+          target = { kind: "delete_capture", snapshot: receipt.snapshot as CaptureSnapshot };
+          break;
+        case "delete_event": {
+          if (!receipt.snapshot) return;
+          const calendarId =
+            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
+          target = { kind: "delete_event", calendarId, snapshot: receipt.snapshot as Record<string, unknown> };
+          break;
+        }
+        default:
+          // find_*, remember_fact, ask_clarification — not undoable
+          return;
       }
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
