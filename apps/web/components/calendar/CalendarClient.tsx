@@ -666,14 +666,19 @@ export function CalendarClient({
         </p>
       </header>
 
-      {/* Toolbar — wrapped in a soft pill container that matches /tasks. */}
+      {/* Toolbar — soft neumorphic glassy tile (matches /settings tile
+          contract). Paired drop + highlight shadow + inset specular edge.
+          Hover deepens border + shadow as a felt-quality cue. */}
       <div
-        className="mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2"
-        style={{
-          backgroundColor: "var(--surface)",
-          boxShadow:
-            "inset 0 0 0 1px color-mix(in oklch, var(--edge) 60%, transparent)",
-        }}
+        className={
+          "mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2 " +
+          "bg-[var(--surface)] " +
+          "border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] " +
+          "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+          "hover:border-[var(--edge-hud)] " +
+          "hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+          "transition-[border-color,box-shadow] duration-200 ease-out"
+        }
       >
         <DayWeekToggle
           view={view}

@@ -95,7 +95,13 @@ export function CalendarFilters({ calendars }: Props) {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-64 p-1.5 border-[var(--edge)] bg-[var(--surface-raised)]"
+        className={
+          // Soft neumorphic glassy tile — paired drop + highlight shadow +
+          // inset specular edge. Matches /settings tile contract.
+          "w-64 p-1.5 rounded-xl bg-[var(--surface-raised)] " +
+          "border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] " +
+          "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_10%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface-raised)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]"
+        }
       >
         <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           Show calendars
