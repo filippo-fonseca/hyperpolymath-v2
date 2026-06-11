@@ -399,7 +399,7 @@ Plans:
 **Plans**: 5 plans across 3 waves
 
 Plans:
-- [ ] 16-01-PLAN.md — Type contracts: ActionExecutor interface widened (9 new methods), ScrollbackAction.name union, JarvisRequestBody.history content-block widening, SessionEntity + JarvisToolName types
+- [x] 16-01-PLAN.md — Type contracts: ActionExecutor interface widened (9 new methods), ScrollbackAction.name union, JarvisRequestBody.history content-block widening, SessionEntity + JarvisToolName types
 - [ ] 16-02-PLAN.md — 9 new tool definitions (6 CRUD + 3 find), buildToolDefinitions() registration, cache_control breakpoint moved to find_events, TOOL_USE_RULES resolution policy, fabricated-tool tests updated
 - [ ] 16-03-PLAN.md — 9 new executor methods with double-WHERE ownership (tasks/captures via Drizzle, events via gcal patchEvent/deleteEvent/listEvents), cross-user ownership test
 - [ ] 16-04-PLAN.md — Multi-pass agentic loop in run-turn.ts (cap 5), session-entities scratchpad after Phase 11 snapshot block (no cache_control), aggregated usage, agentic-loop Vitest
@@ -430,7 +430,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 13. Haiku Fast-Path Routing | 0/TBD | Not started | - |
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
-| 16. Smarter JARVIS — session memory + CRUD | 0/TBD | Not started | - |
+| 16. Smarter JARVIS — session memory + CRUD | 1/5 | In Progress|  |
 
 ## Backlog
 
@@ -446,7 +446,7 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 
 **Requirements:** TBD (likely a new CAPT-09 or similar — define when promoting)
 
-**Plans:** 6/6 plans complete
+**Plans:** 1/5 plans executed
 
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 

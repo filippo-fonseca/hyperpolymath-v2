@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 999.12-03-PLAN.md
-last_updated: "2026-06-09T20:02:11.962Z"
+stopped_at: Completed 16-smarter-jarvis-session-memory-crud-01-PLAN.md
+last_updated: "2026-06-11T22:48:18.012Z"
 last_activity: 2026-06-11
 progress:
-  total_phases: 32
+  total_phases: 35
   completed_phases: 12
-  total_plans: 82
-  completed_plans: 68
+  total_plans: 87
+  completed_plans: 70
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 999.12 — personal-context-graph-daily-mcp-export
+**Current focus:** Phase 16 — smarter-jarvis-session-memory-crud
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 999.12 (personal-context-graph-daily-mcp-export) — EXECUTING
-Plan: 4 of 5
+Phase: 16 (smarter-jarvis-session-memory-crud) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-11 - Completed quick task 260611-g2z: sidebar-free CRUD for areas + projects
+Last activity: 2026-06-11
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -120,6 +120,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 999.12 P01 | 5min | 3 tasks | 4 files |
 | Phase 999.12 P02 | 11min | 3 tasks | 14 files |
 | Phase 999.12-personal-context-graph-daily-mcp-export P03 | ~11min | 3 tasks | 12 files |
+| Phase 16-smarter-jarvis-session-memory-crud P01 | 9 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -336,6 +337,9 @@ Recent decisions affecting current work:
 - [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Zod schemas in packages/personal-context-mcp/ duplicated verbatim from apps/web/lib/context/types.ts (MCP-01 zero-coupling). Lock-step bumps documented in PRIVACY.md §6.
 - [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: Tool registration split into makeXHandler(ctx) + registerX(server, ctx) so tests drive handlers directly without spinning up an MCP transport.
 - [Phase 999.12-personal-context-graph-daily-mcp-export]: Plan 03: get_current_context.topics[] filters NODES ONLY (edges always returned in full); get_snapshot_history capped at days=30 + metadata-only (no nodes/edges arrays) to stay under MCP response budget.
+- [Phase 16-smarter-jarvis-session-memory-crud]: ActionExecutor extension placed in executor/interface.ts (existing location) not types.ts as plan referenced
+- [Phase 16-smarter-jarvis-session-memory-crud]: ScrollbackAction.name imports JarvisToolName from jarvis-core rather than inlining the union — single source of truth
+- [Phase 16-smarter-jarvis-session-memory-crud]: Content-block history widening is backward-compatible — string content still valid so existing callers compile unchanged
 
 ### Pending Todos
 
@@ -360,6 +364,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-09T20:01:58.722Z
-Stopped at: Completed 999.12-03-PLAN.md
+Last session: 2026-06-11T22:48:18.007Z
+Stopped at: Completed 16-smarter-jarvis-session-memory-crud-01-PLAN.md
 Resume file: None
