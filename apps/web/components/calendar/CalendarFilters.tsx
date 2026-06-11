@@ -96,11 +96,16 @@ export function CalendarFilters({ calendars }: Props) {
       <PopoverContent
         align="end"
         className={
-          // Soft neumorphic glassy tile — paired drop + highlight shadow +
-          // inset specular edge. Matches /settings tile contract.
-          "w-64 p-1.5 rounded-xl bg-[var(--surface-raised)] " +
-          "border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] " +
-          "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_10%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface-raised)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)]"
+          // Glassy pill matching /settings PROFILE pill: translucent surface +
+          // backdrop-blur + inset cyan glow + soft outer halo + thin
+          // cyan-tinged border on hover.
+          "w-64 p-1.5 rounded-xl backdrop-blur-md " +
+          "bg-[color-mix(in_oklch,var(--surface-raised)_82%,transparent)] " +
+          "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] " +
+          "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] " +
+          "hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] " +
+          "hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] " +
+          "transition-[border-color,box-shadow,background-color] duration-200 ease-out"
         }
       >
         <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
