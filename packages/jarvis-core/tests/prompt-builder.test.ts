@@ -6,9 +6,8 @@ import { buildSystemPrompt } from "../src/prompt-builder";
 
 describe("JARVIS_PERSONALITY", () => {
   it("opens with the identity sentence", () => {
-    expect(JARVIS_PERSONALITY).toMatch(
-      /^You are JARVIS — a personal life-OS assistant for Filippo, a Yale undergraduate\./,
-    );
+    // User-agnostic since the going-public personality rework (name comes from USER CONTEXT block).
+    expect(JARVIS_PERSONALITY).toMatch(/^You are JARVIS — a personal life-OS assistant\./);
   });
 
   it("contains the British / formal / never-sycophantic register markers", () => {
@@ -39,19 +38,19 @@ describe("JARVIS_PERSONALITY", () => {
 });
 
 describe("buildSystemPrompt", () => {
-  it("returns 3 blocks when voiceActive omitted", () => {
+  it("returns 4 blocks when voiceActive omitted (personality, rules, user context, projects)", () => {
     const blocks = buildSystemPrompt({ projects: [] });
-    expect(blocks).toHaveLength(3);
-  });
-
-  it("returns 3 blocks when voiceActive=false", () => {
-    const blocks = buildSystemPrompt({ projects: [], voiceActive: false });
-    expect(blocks).toHaveLength(3);
-  });
-
-  it("returns 4 blocks when voiceActive=true; voice addendum at index 0", () => {
-    const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
     expect(blocks).toHaveLength(4);
+  });
+
+  it("returns 4 blocks when voiceActive=false", () => {
+    const blocks = buildSystemPrompt({ projects: [], voiceActive: false });
+    expect(blocks).toHaveLength(4);
+  });
+
+  it("returns 5 blocks when voiceActive=true; voice addendum at index 0", () => {
+    const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
+    expect(blocks).toHaveLength(5);
     // Phase 5.1: VOICE_ADDENDUM now describes leading text block behavior (not voice_summary fields)
     expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[0]?.text).toContain("JARVIS would");

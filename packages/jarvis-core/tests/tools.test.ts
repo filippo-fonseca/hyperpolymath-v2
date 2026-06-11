@@ -110,15 +110,24 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns five tools in order: create_task, create_capture, create_event, remember_fact, ask_clarification (Phase 5.1 Plan 04)", () => {
-    // Phase 5.1 Plan 04 (D-A1 / JARVIS-19): ask_clarification is the 5th tool.
+  it("returns fourteen tools in order: 5 originals then update/delete/find (Phase 16)", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(5);
-    expect(tools[0]?.name).toBe("create_task");
-    expect(tools[1]?.name).toBe("create_capture");
-    expect(tools[2]?.name).toBe("create_event");
-    expect(tools[3]?.name).toBe("remember_fact");
-    expect(tools[4]?.name).toBe("ask_clarification");
+    expect(tools.map((t) => t.name)).toEqual([
+      "create_task",
+      "create_capture",
+      "create_event",
+      "remember_fact",
+      "ask_clarification",
+      "update_task",
+      "update_capture",
+      "update_event",
+      "delete_task",
+      "delete_capture",
+      "delete_event",
+      "find_tasks",
+      "find_captures",
+      "find_events",
+    ]);
   });
 
   it("each tool has strict: true (per-tool, replaces deprecated beta header)", () => {
@@ -128,18 +137,16 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (ask_clarification in Phase 11 Plan 03)", () => {
-    // Phase 5.1 Plan 04: cache_control moves from remember_fact to ask_clarification (new LAST tool).
-    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so tier-1
-    // (tools) amortizes the 2× write cost over a full hour of turns.
+  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (find_events since Phase 16)", () => {
+    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
+    // Phase 16 moved the breakpoint from ask_clarification to find_events (new last tool).
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("ask_clarification");
+    expect(cached[0]?.name).toBe("find_events");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
-    // remember_fact must NOT carry cache_control anymore
-    const rememberFact = tools.find((t) => t.name === "remember_fact");
-    expect(rememberFact?.cache_control).toBeUndefined();
+    const askClarification = tools.find((t) => t.name === "ask_clarification");
+    expect(askClarification?.cache_control).toBeUndefined();
   });
 
   it("each tool's input_schema has additionalProperties: false (strict mode requirement)", () => {
@@ -149,11 +156,13 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("voiceActive=false (default): no voice_summary field in any schema", () => {
+  it("voiceActive=false (default): no voice_summary property in any schema", () => {
+    // Note: tool DESCRIPTIONS may mention voice_summary; only schema properties matter.
     const tools = buildToolDefinitions();
-    // remember_fact schema never has voice_summary (it's not action-content)
-    const allJson = JSON.stringify(tools);
-    expect(allJson).not.toContain("voice_summary");
+    for (const t of tools) {
+      const props = (t.input_schema as { properties?: Record<string, unknown> }).properties ?? {};
+      expect(props).not.toHaveProperty("voice_summary");
+    }
   });
 
   it("voiceActive=true: create_task / create_capture / create_event include optional voice_summary", () => {
@@ -168,14 +177,16 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("voiceActive=true: voice_summary is NOT in required (always optional)", () => {
+  it("voiceActive=true: voice_summary appears in required (strict tool use lists every property)", () => {
+    // Anthropic strict mode requires every property to appear in `required`;
+    // semantic optionality is conveyed in the field description, not the schema.
     const tools = buildToolDefinitions({ voiceActive: true });
     const actionTools = tools.filter((t) =>
       ["create_task", "create_capture", "create_event"].includes(t.name),
     );
     for (const t of actionTools) {
       const required = ((t.input_schema as { required?: string[] }).required ?? []) as string[];
-      expect(required).not.toContain("voice_summary");
+      expect(required).toContain("voice_summary");
     }
   });
 

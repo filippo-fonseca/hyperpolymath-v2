@@ -85,10 +85,10 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   });
 });
 
-describe("buildToolDefinitions — 5 tools after Plan 04 (D-A1)", () => {
-  it("returns 5 tools in order: create_task, create_capture, create_event, remember_fact, ask_clarification", () => {
+describe("buildToolDefinitions — 14 tools after Phase 16", () => {
+  it("returns 14 tools with the 5 originals first and ask_clarification 5th", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(5);
+    expect(tools).toHaveLength(14);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");
@@ -96,17 +96,16 @@ describe("buildToolDefinitions — 5 tools after Plan 04 (D-A1)", () => {
     expect(tools[4]?.name).toBe("ask_clarification");
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on ask_clarification (new LAST tool — moved from remember_fact)", () => {
-    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): TTL upgraded to "1h" so tier-1
-    // (tools) amortizes the 2× write cost over a full hour of turns.
+  it("cache_control: ephemeral with 1h TTL is set ONLY on find_events (last tool since Phase 16)", () => {
+    // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
+    // Phase 16 moved the breakpoint from ask_clarification to find_events.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("ask_clarification");
+    expect(cached[0]?.name).toBe("find_events");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
-    // remember_fact must NOT carry cache_control anymore
-    const rememberFact = tools.find((t) => t.name === "remember_fact");
-    expect(rememberFact?.cache_control).toBeUndefined();
+    const askClarification = tools.find((t) => t.name === "ask_clarification");
+    expect(askClarification?.cache_control).toBeUndefined();
   });
 
   it("each tool has strict: true", () => {

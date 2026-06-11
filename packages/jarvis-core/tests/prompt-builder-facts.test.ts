@@ -22,8 +22,8 @@ const SAMPLE_FACTS: JarvisFact[] = [
 describe("buildSystemPrompt with facts param", () => {
   it("with facts non-empty: adds a facts block as the LAST block", () => {
     const blocks = buildSystemPrompt({ projects: [], facts: SAMPLE_FACTS });
-    // Non-voice: [personality, tool rules, projects, facts] → 4 blocks
-    expect(blocks).toHaveLength(4);
+    // Non-voice: [personality, tool rules, user context, projects, facts] → 5 blocks
+    expect(blocks).toHaveLength(5);
     const lastBlock = blocks[blocks.length - 1]!;
     expect(lastBlock.text).toContain("JARVIS MEMORY");
   });
@@ -79,29 +79,29 @@ describe("buildSystemPrompt with facts param", () => {
     expect(lastBlock.text).toContain("[WORKFLOW] gym: Mon/Wed/Fri 6am");
   });
 
-  it("with facts empty array: backward-compatible (1h-TTL cache_control on projectListContext, 3 blocks)", () => {
+  it("with facts empty array: backward-compatible (1h-TTL cache_control on projectListContext, 4 blocks)", () => {
     // Phase 11 / CACHE-01 (D-06): tier-2 frozen system cache uses 1h TTL
     // regardless of which block ends up last (facts or project-list).
     const blocks = buildSystemPrompt({ projects: [], facts: [] });
-    expect(blocks).toHaveLength(3);
+    expect(blocks).toHaveLength(4);
     const lastBlock = blocks[blocks.length - 1]!;
     expect(lastBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     expect(lastBlock.text).toContain("USER PROJECTS");
   });
 
-  it("with facts omitted: backward-compatible (same as empty array, 3 blocks, 1h TTL)", () => {
+  it("with facts omitted: backward-compatible (same as empty array, 4 blocks, 1h TTL)", () => {
     const blocks = buildSystemPrompt({ projects: [] });
-    expect(blocks).toHaveLength(3);
+    expect(blocks).toHaveLength(4);
     expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("voiceActive=true + facts: returns 5 blocks [voice, personality, rules, projects, facts] with 1h TTL", () => {
+  it("voiceActive=true + facts: returns 6 blocks [voice, personality, rules, user context, projects, facts] with 1h TTL", () => {
     const blocks = buildSystemPrompt({
       projects: [],
       voiceActive: true,
       facts: SAMPLE_FACTS,
     });
-    expect(blocks).toHaveLength(5);
+    expect(blocks).toHaveLength(6);
     expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[blocks.length - 1]?.text).toContain("JARVIS MEMORY");
     expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });

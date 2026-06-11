@@ -23,16 +23,21 @@ describe("personality.ts — Phase 5.1 prose-first rewrite (JARVIS-20)", () => {
     expect(TOOL_USE_RULES).toMatch(/JARVIS MEMORY/);
   });
 
-  it("TOOL_USE_RULES says 'five tools' after Plan 04 registers ask_clarification", () => {
-    // Wave 3 left "four tools". Plan 04 updates to "five tools" (ask_clarification).
-    expect(TOOL_USE_RULES).toMatch(/five tools/);
-    expect(TOOL_USE_RULES).not.toMatch(/four tools/);
+  it("TOOL_USE_RULES says 'fourteen tools' after Phase 16 registers CRUD + find tools", () => {
+    expect(TOOL_USE_RULES).toMatch(/fourteen tools/);
+    expect(TOOL_USE_RULES).not.toMatch(/five tools/);
   });
 
-  it("Plan 04 adds ask_clarification rule + five tools + co-emit prohibition (JARVIS-19)", () => {
-    expect(TOOL_USE_RULES).toMatch(/five tools/);
+  it("keeps ask_clarification rule + co-emit prohibition (JARVIS-19) alongside fourteen tools", () => {
+    expect(TOOL_USE_RULES).toMatch(/fourteen tools/);
     expect(TOOL_USE_RULES).toMatch(/ask_clarification/);
     expect(TOOL_USE_RULES).toMatch(/alone in the turn|never.*same turn|never co-emit/i);
+  });
+
+  it("Phase 16 adds REFERENCE RESOLUTION policy (session entities → find_* → ask_clarification, never invent ids)", () => {
+    expect(TOOL_USE_RULES).toMatch(/REFERENCE RESOLUTION/);
+    expect(TOOL_USE_RULES).toMatch(/SESSION ENTITIES/);
+    expect(TOOL_USE_RULES).toMatch(/NEVER invent an id/i);
   });
 
   it("TOOL_USE_RULES contains remember_fact adversarial defense rule (D-M5)", () => {
