@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   orbOverlay: {
     position: "absolute",
-    top: -24,
+    top: -16,
     left: 0,
     right: 0,
     alignItems: "center",
