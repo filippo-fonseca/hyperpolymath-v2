@@ -297,7 +297,7 @@ export function CapturesClient({
 
   return (
     <div className="flex h-full min-h-0">
-      <aside className="w-[200px] border-r border-border p-4 overflow-y-auto shrink-0">
+      <aside className="w-[232px] p-4 pr-2 overflow-y-auto shrink-0">
         <HashtagSidebar
           hashtags={liveHashtags}
           activeHashtagId={activeTagId}

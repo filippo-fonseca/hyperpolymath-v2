@@ -538,7 +538,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Content
                   </h3>
-                  <div className="border border-border rounded-lg bg-card">
+                  <div className="rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] focus-within:border-[var(--edge-hud)] focus-within:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out">
                     <EditorContent editor={editor} />
                   </div>
                   <p className="font-sans text-[13px] text-muted-foreground italic">
@@ -566,7 +566,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Info
                   </h3>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px]">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px] p-4 rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out">
                     <dt className="text-muted-foreground">Created</dt>
                     <dd className="text-foreground">
                       {format(capture.createdAt, "PPpp")}

@@ -86,7 +86,7 @@ export function HashtagSidebar({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col p-4 rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out">
       {/* All row — filter-clear; sits above the "Hashtags" heading. */}
       <button
         type="button"
