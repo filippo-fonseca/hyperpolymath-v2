@@ -382,7 +382,7 @@ describe("JARVIS executor CRUD — ownership enforcement (Plan 16-03)", () => {
     seedTask(USER_B, { title: "shared keyword task" });
 
     // Override db.select to return ownership-filtered results
-    mockDb.select.mockImplementation(() => {
+    mockDb.select.mockImplementation((() => {
       const rows = Array.from(mockState.tasks.values()).filter(
         (r) => r.userId === USER_A,
       );
@@ -391,7 +391,7 @@ describe("JARVIS executor CRUD — ownership enforcement (Plan 16-03)", () => {
         where: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue(rows),
       };
-    });
+    }) as never);
 
     const executor = createServerExecutor();
     const result = await executor.findTasks({ query: "shared keyword" }, ctxA);
