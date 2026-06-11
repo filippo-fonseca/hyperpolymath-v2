@@ -163,41 +163,102 @@ export function JarvisConsole({
 
   // Session memory (D-06) — derive from visible scrollback at submit time.
   //
-  // Assistant turns must include a textual summary of the actions that
-  // landed on that turn (filed task/capture/event). Without this, the model
-  // sees an empty assistant turn and re-attempts the same tool calls on the
-  // next turn because nothing in history signals completion.
+  // Phase 16: buildHistory now emits Anthropic content-block arrays for
+  // assistant turns that carried tool calls. This lets the model resolve
+  // entity IDs across turns (e.g. "the task I just created" → real UUID).
+  //
+  // Anthropic API contract (Pitfall 1): every assistant turn that contains
+  // tool_use blocks MUST be immediately followed by a user turn that contains
+  // matching tool_result blocks for every tool_use id in that turn.
+  //
+  // Backward compat: assistant turns with no tool calls emit a plain string
+  // so pre-Phase-16 scrollback entries continue to work correctly.
+
+  // ContentBlock type for building Anthropic-compatible history entries.
+  type ContentBlock =
+    | { type: "text"; text: string }
+    | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+    | { type: "tool_result"; tool_use_id: string; content: string };
+
+  // Reconstruct a minimal but valid tool input from the persisted receipt.
+  // The model primarily needs the id + key label fields for entity reference
+  // resolution; perfect fidelity is not required.
+  function reconstructToolInput(action: ScrollbackAction): Record<string, unknown> {
+    const r = (action.result as { receipt?: Record<string, unknown> } | undefined)?.receipt ?? {};
+    switch (action.name) {
+      case "create_task":
+      case "update_task":
+        return { id: (action.result as { id?: string })?.id ?? r.id, title: r.title, status: r.status, priority: r.priority, due: r.due };
+      case "delete_task":
+        return { id: r.id ?? (action.result as { id?: string })?.id };
+      case "create_capture":
+      case "update_capture":
+        return { id: (action.result as { id?: string })?.id ?? r.id, content: r.content };
+      case "delete_capture":
+        return { id: r.id ?? (action.result as { id?: string })?.id };
+      case "create_event":
+      case "update_event":
+        return { id: (action.result as { id?: string })?.id ?? r.id, calendar_id: r.calendar_id, title: r.title, start: r.start, end: r.end };
+      case "delete_event":
+        return { id: r.id ?? (action.result as { id?: string })?.id, calendar_id: r.calendar_id };
+      case "find_tasks":
+      case "find_captures":
+      case "find_events":
+        return { query: r.query };
+      case "ask_clarification":
+        return { question: r.question };
+      case "remember_fact":
+        return { fact: r.fact, type: r.type };
+      default:
+        return {};
+    }
+  }
+
   const buildHistory = useCallback(
-    (current: ScrollbackTurn[]): Array<{ role: "user" | "assistant"; content: string }> => {
-      return current
-        .slice(-HISTORY_TURN_LIMIT)
-        .map((t) => {
-          if (t.kind === "user") {
-            return { role: "user" as const, content: t.text };
+    (current: ScrollbackTurn[]): Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> => {
+      const recent = current.slice(-HISTORY_TURN_LIMIT);
+      const out: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> = [];
+      for (const t of recent) {
+        if (t.kind === "user") {
+          out.push({ role: "user" as const, content: t.text });
+          continue;
+        }
+        // Assistant turn — gather done actions
+        const doneActions = (t.actions ?? []).filter((a) => a.status === "done");
+        if (doneActions.length === 0) {
+          // Plain prose assistant turn (no tool calls)
+          if (t.textDelta) out.push({ role: "assistant" as const, content: t.textDelta });
+          continue;
+        }
+        // Mixed: text preamble + tool_use blocks
+        const assistantBlocks: ContentBlock[] = [];
+        if (t.textDelta) assistantBlocks.push({ type: "text", text: t.textDelta });
+        for (const a of doneActions) {
+          assistantBlocks.push({ type: "tool_use", id: a.toolUseId, name: a.name, input: reconstructToolInput(a) });
+        }
+        out.push({ role: "assistant" as const, content: assistantBlocks });
+        // Anthropic REQUIRES that the immediately following turn carry tool_result
+        // blocks for every tool_use id in the assistant turn — Pitfall 1.
+        // Special case: ask_clarification — synthesize a tool_result using the
+        // user's clarification reply text as content (the next user turn IS the
+        // implicit response, but the API still needs a matched tool_result block).
+        const toolResultBlocks: ContentBlock[] = doneActions.map((a) => {
+          let resultContent: string;
+          if (a.name === "ask_clarification" && t.clarification?.answered) {
+            // The user's reply is the semantic content of the clarification tool_result.
+            resultContent = JSON.stringify({ answered: true, question: t.clarification.question });
+          } else {
+            resultContent = JSON.stringify(a.result ?? { ok: false, error: "no result persisted" });
           }
-          const parts: string[] = [];
-          if (t.textDelta) parts.push(t.textDelta);
-          for (const a of t.actions) {
-            if (!a.result || !a.result.ok) continue;
-            const r = (a.result as { receipt?: Record<string, unknown> })
-              .receipt ?? {};
-            if (a.name === "create_task") {
-              const title = String(r.title ?? "");
-              const pri = String(r.priority ?? "P3");
-              const due = r.due ? ` due ${r.due}` : "";
-              parts.push(`Filed TASK "${title}" (${pri}${due}).`);
-            } else if (a.name === "create_capture") {
-              const content = String(r.content ?? "").slice(0, 80);
-              parts.push(`Filed CAPTURE "${content}".`);
-            } else if (a.name === "create_event") {
-              const title = String(r.title ?? "");
-              const start = r.start ? ` ${r.start}` : "";
-              parts.push(`Filed EVENT "${title}"${start}.`);
-            }
-          }
-          return { role: "assistant" as const, content: parts.join(" ") };
-        })
-        .filter((m) => m.content.length > 0);
+          return {
+            type: "tool_result" as const,
+            tool_use_id: a.toolUseId,
+            content: resultContent,
+          };
+        });
+        out.push({ role: "user" as const, content: toolResultBlocks });
+      }
+      return out;
     },
     [],
   );
