@@ -98,12 +98,12 @@ export interface RememberFactAction {
 
 export interface UpdateTaskAction {
   id: string;
-  title?: string;
+  title?: string | null;
   description?: string | null;
-  priority?: "P∞" | "P1" | "P2" | "P3";
-  status?: "not started" | "up next" | "in progress" | "almost done" | "lesno";
+  priority?: "P∞" | "P1" | "P2" | "P3" | null;
+  status?: "not started" | "up next" | "in progress" | "almost done" | "lesno" | null;
   due?: string | null;
-  project_ids?: string[];
+  project_ids?: string[] | null;
 }
 
 export interface DeleteTaskAction {
@@ -112,9 +112,9 @@ export interface DeleteTaskAction {
 
 export interface UpdateCaptureAction {
   id: string;
-  content?: string;
-  hashtags?: string[];
-  project_ids?: string[];
+  content?: string | null;
+  hashtags?: string[] | null;
+  project_ids?: string[] | null;
 }
 
 export interface DeleteCaptureAction {
@@ -124,10 +124,10 @@ export interface DeleteCaptureAction {
 export interface UpdateEventAction {
   id: string;
   calendar_id: string;
-  title?: string;
+  title?: string | null;
   description?: string | null;
-  start?: string;
-  end?: string;
+  start?: string | null;
+  end?: string | null;
 }
 
 export interface DeleteEventAction {
@@ -136,26 +136,26 @@ export interface DeleteEventAction {
 }
 
 export interface FindTasksAction {
-  query?: string;
-  status?: Array<"not started" | "up next" | "in progress" | "almost done" | "lesno">;
-  priority?: Array<"P∞" | "P1" | "P2" | "P3">;
-  project_id?: string;
+  query?: string | null;
+  status?: Array<"not started" | "up next" | "in progress" | "almost done" | "lesno"> | null;
+  priority?: Array<"P∞" | "P1" | "P2" | "P3"> | null;
+  project_id?: string | null;
 }
 
 export interface FindCapturesAction {
-  query?: string;
-  hashtag?: string;
-  project_id?: string;
+  query?: string | null;
+  hashtag?: string | null;
+  project_id?: string | null;
   /** ISO date */
-  since?: string;
+  since?: string | null;
 }
 
 export interface FindEventsAction {
-  query?: string;
+  query?: string | null;
   /** ISO datetime */
-  time_min?: string;
+  time_min?: string | null;
   /** ISO datetime */
-  time_max?: string;
+  time_max?: string | null;
 }
 
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn

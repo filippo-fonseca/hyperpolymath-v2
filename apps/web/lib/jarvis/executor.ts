@@ -400,14 +400,16 @@ export function createServerExecutor(): ActionExecutor {
       input: UpdateTaskAction,
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
+      // Strict tool use sends ALL fields; null means "not changing" (the 24-optional
+      // grammar limit forces nullable-required schemas). "" clears clearable fields.
       const set: Partial<typeof tasks.$inferInsert> = {};
-      if (input.title !== undefined) set.title = input.title;
+      if (input.title != null) set.title = input.title;
       // `description` maps to tasks.notes column — tasks table has no description column
-      if (input.description !== undefined) set.notes = input.description;
-      if (input.priority !== undefined) set.priority = input.priority;
-      if (input.status !== undefined) set.status = input.status;
-      if (input.due !== undefined) {
-        set.dueDate = input.due === null ? null : new Date(input.due).toISOString().slice(0, 10);
+      if (input.description != null) set.notes = input.description === "" ? null : input.description;
+      if (input.priority != null) set.priority = input.priority;
+      if (input.status != null) set.status = input.status;
+      if (input.due != null) {
+        set.dueDate = input.due === "" ? null : new Date(input.due).toISOString().slice(0, 10);
       }
       set.updatedAt = new Date();
 
@@ -435,11 +437,11 @@ export function createServerExecutor(): ActionExecutor {
 
         // Build before: pick only keys mirroring `set` (excluding updatedAt)
         const prev = existing[0]!;
-        if (input.title !== undefined) beforeSnapshot.title = prev.title;
-        if (input.description !== undefined) beforeSnapshot.notes = prev.notes;
-        if (input.priority !== undefined) beforeSnapshot.priority = prev.priority;
-        if (input.status !== undefined) beforeSnapshot.status = prev.status;
-        if (input.due !== undefined) beforeSnapshot.dueDate = prev.dueDate;
+        if (input.title != null) beforeSnapshot.title = prev.title;
+        if (input.description != null) beforeSnapshot.notes = prev.notes;
+        if (input.priority != null) beforeSnapshot.priority = prev.priority;
+        if (input.status != null) beforeSnapshot.status = prev.status;
+        if (input.due != null) beforeSnapshot.dueDate = prev.dueDate;
 
         const updated = await tx
           .update(tasks)
@@ -495,7 +497,7 @@ export function createServerExecutor(): ActionExecutor {
       ctx: ExecutionContext,
     ): Promise<ExecutorResult> {
       const set: Partial<typeof captures.$inferInsert> = {};
-      if (input.content !== undefined) set.content = input.content;
+      if (input.content != null) set.content = input.content;
       set.updatedAt = new Date();
 
       // SELECT-before-UPDATE in a transaction to capture the `before` snapshot.
@@ -513,7 +515,7 @@ export function createServerExecutor(): ActionExecutor {
 
         // Build before: only keys mirroring `set` (excluding updatedAt)
         const prev = existing[0]!;
-        if (input.content !== undefined) beforeSnapshot.content = prev.content;
+        if (input.content != null) beforeSnapshot.content = prev.content;
 
         const updated = await tx
           .update(captures)
@@ -627,12 +629,12 @@ export function createServerExecutor(): ActionExecutor {
       try {
         const cal = await getValidGcalToken(ctx.userId);
         const patch: Partial<import("googleapis").calendar_v3.Schema$Event> = {};
-        if (input.title !== undefined) patch.summary = input.title;
-        if (input.description !== undefined) patch.description = input.description ?? undefined;
-        if (input.start !== undefined) {
+        if (input.title != null) patch.summary = input.title;
+        if (input.description != null) patch.description = input.description;
+        if (input.start != null) {
           patch.start = { dateTime: input.start, timeZone: ctx.userTimezone };
         }
-        if (input.end !== undefined) {
+        if (input.end != null) {
           patch.end = { dateTime: input.end, timeZone: ctx.userTimezone };
         }
 
@@ -640,10 +642,10 @@ export function createServerExecutor(): ActionExecutor {
         // Only capture keys mirroring what we're about to patch.
         const { data: existing } = await gcalGetEvent(cal, input.calendar_id, input.id);
         const before: Record<string, unknown> = {};
-        if (input.title !== undefined) before.summary = existing.summary;
-        if (input.description !== undefined) before.description = existing.description;
-        if (input.start !== undefined) before.start = existing.start;
-        if (input.end !== undefined) before.end = existing.end;
+        if (input.title != null) before.summary = existing.summary;
+        if (input.description != null) before.description = existing.description;
+        if (input.start != null) before.start = existing.start;
+        if (input.end != null) before.end = existing.end;
 
         const { data } = await patchEvent(cal, input.calendar_id, input.id, patch);
         return {
@@ -728,9 +730,9 @@ export function createServerExecutor(): ActionExecutor {
         const calendarId = ctx.defaultCalendarId ?? "primary";
         const { data } = await listEvents(cal, {
           calendarId,
-          q: input.query,
+          q: input.query ?? undefined,
           timeMin: input.time_min ?? new Date().toISOString(),
-          timeMax: input.time_max,
+          timeMax: input.time_max ?? undefined,
           singleEvents: true,
           maxResults: 10,
         });

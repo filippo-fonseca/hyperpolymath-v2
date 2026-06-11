@@ -14,7 +14,7 @@ import { toJsonSchema } from "./_schema-utils";
 
 export const FindTasksInputSchema = z
   .object({
-    query: z.string().optional(),
+    query: z.string().nullable(),
     status: z
       .array(
         z.enum([
@@ -25,9 +25,9 @@ export const FindTasksInputSchema = z
           "lesno",
         ]),
       )
-      .optional(),
-    priority: z.array(z.enum(["P∞", "P1", "P2", "P3"])).optional(),
-    project_id: z.string().optional(),
+      .nullable(),
+    priority: z.array(z.enum(["P∞", "P1", "P2", "P3"])).nullable(),
+    project_id: z.string().nullable(),
   })
   .strict();
 
@@ -36,6 +36,6 @@ export type FindTasksInput = z.infer<typeof FindTasksInputSchema>;
 export const findTasksTool = {
   name: "find_tasks" as const,
   description:
-    "Fuzzy-find tasks by title text and/or filters. Returns up to 10 matches with their ids. Use BEFORE update_task or delete_task when the target task isn't already in session entities. `query` is a free-text search against task titles. `status` filters to one or more status values. `priority` filters to one or more priority values. `project_id` filters to tasks linked to a specific project.",
+    "Fuzzy-find tasks by title text and/or filters. Pass null for any filter you are not using. Returns up to 10 matches with their ids. Use BEFORE update_task or delete_task when the target task isn't already in session entities. `query` is a free-text search against task titles. `status` filters to one or more status values. `priority` filters to one or more priority values. `project_id` filters to tasks linked to a specific project.",
   input_schema: toJsonSchema(FindTasksInputSchema),
 };

@@ -15,14 +15,14 @@ import { toJsonSchema } from "./_schema-utils";
 export const UpdateTaskInputSchema = z
   .object({
     id: z.string().min(1),
-    title: z.string().min(1).max(500).optional(),
-    description: z.string().nullable().optional(),
-    priority: z.enum(["P∞", "P1", "P2", "P3"]).optional(),
+    title: z.string().min(1).max(500).nullable(),
+    description: z.string().nullable(),
+    priority: z.enum(["P∞", "P1", "P2", "P3"]).nullable(),
     status: z
       .enum(["not started", "up next", "in progress", "almost done", "lesno"])
-      .optional(),
-    due: z.string().nullable().optional(),
-    project_ids: z.array(z.string()).optional(),
+      .nullable(),
+    due: z.string().nullable(),
+    project_ids: z.array(z.string()).nullable(),
   })
   .strict();
 
@@ -31,6 +31,6 @@ export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
 export const updateTaskTool = {
   name: "update_task" as const,
   description:
-    "Update an existing task by id. Only the fields provided are changed. The id MUST come from session entities or a find_tasks result — never invent. `priority` must be one of: P∞, P1, P2, P3. `status` must be one of: not started, up next, in progress, almost done, lesno. `due` is an ISO date string or null to clear. `project_ids` replaces the full list (provide up to 20 ids; server ignores any not owned by the user).",
+    "Update an existing task by id. Pass null for every field you are NOT changing — only non-null fields are applied. The id MUST come from session entities or a find_tasks result — never invent. `priority` must be one of: P∞, P1, P2, P3. `status` must be one of: not started, up next, in progress, almost done, lesno. `due` is an ISO date string; pass an empty string \"\" to clear the due date. `description`: pass \"\" to clear. `project_ids` replaces the full list (provide up to 20 ids; server ignores any not owned by the user).",
   input_schema: toJsonSchema(UpdateTaskInputSchema),
 };
