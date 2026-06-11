@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -37,6 +38,7 @@ import { ClarificationCard, type ClarificationState } from "../components/Clarif
 import { ThinkingWord } from "../components/ThinkingWord";
 import { fetchTurn, postText, postTranscript, postUndo, type UndoTarget } from "../lib/api";
 import { buildMobileJarvisPayload } from "../lib/input-payload";
+import { handlePairUrl } from "../lib/pair-link";
 import {
   getJarvisContext,
   refreshJarvisContext,
@@ -45,6 +47,7 @@ import {
 import { getDeviceToken, getSettings, loadSettings, onSettingsChange } from "../lib/settings";
 import { splitDeltas } from "../lib/sentence-splitter";
 import { subscribeJarvisEvents, type SseStatus } from "../lib/sse";
+import { emitDataInvalidate } from "../lib/use-collection";
 import { colors, mono, serif, serifSemiBold } from "../theme";
 
 interface Turn {
@@ -105,6 +108,22 @@ export function Home() {
 
   const hasConversation = turns.length > 0;
   turnsRef.current = turns;
+
+  // Pairing deep link (jarvis://pair?token=…&server=…): apply, re-pair,
+  // and re-open the SSE subscription against the new server.
+  useEffect(() => {
+    const apply = async (url: string | null) => {
+      if (!url) return;
+      if (await handlePairUrl(url)) {
+        setPaired(Boolean(getDeviceToken()));
+        void refreshJarvisContext().then(setContext);
+        setSseEpoch((e) => e + 1);
+      }
+    };
+    void Linking.getInitialURL().then(apply);
+    const sub = Linking.addEventListener("url", ({ url }) => void apply(url));
+    return () => sub.remove();
+  }, []);
 
   // iOS kills idle sockets when the app backgrounds; react-native-sse's
   // auto-reconnect can stall afterwards. Re-open the SSE subscription on
@@ -188,6 +207,8 @@ export function Home() {
         }
       },
       onToolCall: ({ turnId, toolUseId, name, result }) => {
+        // JARVIS just mutated data — nudge the Tasks/Habits/Captures views.
+        emitDataInvalidate();
         if (name === "ask_clarification") {
           const receipt =
             ((result as { receipt?: Record<string, unknown> })?.receipt ?? {}) as {
@@ -590,7 +611,7 @@ export function Home() {
         )}
 
         {/* Text bar pinned to the bottom; KeyboardAvoidingView lifts it. */}
-        <View style={{ paddingBottom: insets.bottom + 8 }}>
+        <View style={{ paddingBottom: 8 }}>
           <TextBar
             disabled={!ready}
             projects={context.projects}

@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { Home } from "./src/screens/Home";
+import { Root } from "./src/screens/Root";
 import { colors } from "./src/theme";
 
 export default function App() {
@@ -25,7 +25,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Home />
+      <Root />
     </SafeAreaProvider>
   );
 }
