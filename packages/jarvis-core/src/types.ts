@@ -6,6 +6,17 @@
 
 export type ActionType = "create_task" | "create_capture" | "create_event";
 
+// Phase 16: JarvisToolName — canonical union of all tool names across
+// create / update / delete / find / utility. Used by ActionExecutor, ScrollbackAction,
+// and tool-dispatch switch statements so every consumer references one source of truth.
+export type JarvisToolName =
+  | "create_task" | "create_capture" | "create_event"
+  | "remember_fact" | "ask_clarification"
+  | "update_task" | "delete_task"
+  | "update_capture" | "delete_capture"
+  | "update_event" | "delete_event"
+  | "find_tasks" | "find_captures" | "find_events";
+
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
   text: string;
@@ -78,4 +89,84 @@ export interface RememberFactAction {
   key: string;
   value: string;
   source: "user_explicit" | "jarvis_suggested";
+}
+
+// ---------------------------------------------------------------------------
+// Phase 16 — CRUD update / delete / find action input types.
+// Mirrors the CreateTask/Capture/Event shapes but for update/delete semantics.
+// ---------------------------------------------------------------------------
+
+export interface UpdateTaskAction {
+  id: string;
+  title?: string;
+  description?: string | null;
+  priority?: "P∞" | "P1" | "P2" | "P3";
+  status?: "not started" | "up next" | "in progress" | "almost done" | "lesno";
+  due?: string | null;
+  project_ids?: string[];
+}
+
+export interface DeleteTaskAction {
+  id: string;
+}
+
+export interface UpdateCaptureAction {
+  id: string;
+  content?: string;
+  hashtags?: string[];
+  project_ids?: string[];
+}
+
+export interface DeleteCaptureAction {
+  id: string;
+}
+
+export interface UpdateEventAction {
+  id: string;
+  calendar_id: string;
+  title?: string;
+  description?: string | null;
+  start?: string;
+  end?: string;
+}
+
+export interface DeleteEventAction {
+  id: string;
+  calendar_id: string;
+}
+
+export interface FindTasksAction {
+  query?: string;
+  status?: Array<"not started" | "up next" | "in progress" | "almost done" | "lesno">;
+  priority?: Array<"P∞" | "P1" | "P2" | "P3">;
+  project_id?: string;
+}
+
+export interface FindCapturesAction {
+  query?: string;
+  hashtag?: string;
+  project_id?: string;
+  /** ISO date */
+  since?: string;
+}
+
+export interface FindEventsAction {
+  query?: string;
+  /** ISO datetime */
+  time_min?: string;
+  /** ISO datetime */
+  time_max?: string;
+}
+
+// Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn
+// for the in-turn scratchpad block (enables update/delete to reference items
+// created earlier in the same session without a separate find call).
+export interface SessionEntity {
+  id: string;
+  type: "task" | "capture" | "event";
+  title?: string;
+  content?: string;
+  action: "created" | "updated" | "deleted";
+  /** ISO 8601 UTC */
+  timestamp: string;
 }

@@ -62,6 +62,18 @@ export type {
   // Phase 5.1 (D-M1 / D-M5 / JARVIS-18)
   JarvisFact,
   RememberFactAction,
+  // Phase 16 — CRUD update / delete / find + scratchpad + tool name union
+  JarvisToolName,
+  SessionEntity,
+  UpdateTaskAction,
+  DeleteTaskAction,
+  UpdateCaptureAction,
+  DeleteCaptureAction,
+  UpdateEventAction,
+  DeleteEventAction,
+  FindTasksAction,
+  FindCapturesAction,
+  FindEventsAction,
 } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
