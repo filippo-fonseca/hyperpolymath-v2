@@ -70,15 +70,17 @@ interface Props {
 
 type Tab = "today" | "manage" | "archive";
 
-// Soft neumorphic glassy tile — matches /settings page tile constant.
-// Dual-direction paired shadow + inset highlight; hover deepens border to
-// --edge-hud and intensifies the shadow. Used on Card-tier surfaces only.
+// Glassy pill tile — matches the PROFILE pill in SettingsSectionNav.
+// Translucent surface + backdrop-blur + inset cyan glow + soft outer halo
+// + thin cyan-tinged border. Hover lifts the halo and warms the cyan inset.
 const TILE_NEUMORPHIC =
-  "rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] " +
-  "bg-[var(--surface)] " +
-  "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-  "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-  "transition-[border-color,box-shadow] duration-200 ease-out";
+  "rounded-xl backdrop-blur-md " +
+  "bg-[color-mix(in_oklch,var(--surface)_82%,transparent)] " +
+  "border border-[color-mix(in_oklch,var(--edge)_55%,transparent)] " +
+  "shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--hud-cyan)_6%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] " +
+  "hover:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] " +
+  "hover:shadow-[inset_0_1px_0_color-mix(in_oklch,white_16%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_12%,transparent),inset_0_0_32px_color-mix(in_oklch,var(--hud-cyan)_12%,transparent),0_14px_40px_color-mix(in_oklch,var(--ink)_30%,transparent),0_2px_8px_color-mix(in_oklch,var(--ink)_14%,transparent)] " +
+  "transition-[border-color,box-shadow,background-color] duration-200 ease-out";
 
 const FULL_DAY_NAMES = [
   "Sunday",
@@ -538,7 +540,7 @@ function DayHabitRow({
       className={cn(
         "flex items-center gap-3 px-4 py-3",
         completed
-          ? "rounded-xl border border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,var(--surface))] shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] transition-[border-color,box-shadow] duration-200 ease-out"
+          ? "rounded-xl backdrop-blur-md border border-[color-mix(in_oklch,var(--ink-amber)_45%,var(--edge))] bg-[color-mix(in_oklch,var(--ink-amber)_8%,color-mix(in_oklch,var(--surface)_82%,transparent))] shadow-[inset_0_1px_0_color-mix(in_oklch,white_12%,transparent),inset_0_-1px_0_color-mix(in_oklch,var(--ink)_10%,transparent),inset_0_0_24px_color-mix(in_oklch,var(--ink-amber)_10%,transparent),0_10px_32px_color-mix(in_oklch,var(--ink)_22%,transparent),0_2px_6px_color-mix(in_oklch,var(--ink)_10%,transparent)] transition-[border-color,box-shadow,background-color] duration-200 ease-out"
           : TILE_NEUMORPHIC,
       )}
     >
