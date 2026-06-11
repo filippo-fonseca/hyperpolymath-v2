@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -20,13 +21,19 @@ import type { SidebarArea } from "@/lib/db/queries/sidebar";
 interface Props {
   children: React.ReactNode;
   userId: string;
-  addOptimisticArea: AreaOptimisticDispatch;
+  /**
+   * Optimistic dispatcher supplied by the Sidebar. Optional — when absent the
+   * dialog falls back to router.refresh() after a successful create so the SSR
+   * page re-fetches. This keeps the sidebar's existing instant-feedback UX
+   * while allowing the /areas page to use the same dialog without a fake dispatcher.
+   */
+  addOptimisticArea?: AreaOptimisticDispatch;
   /**
    * Length of the current active-areas list — used to assign a reasonable
    * orderIndex on the optimistic row (the server's authoritative value will
-   * arrive via the Realtime echo refetch).
+   * arrive via the Realtime echo refetch). Optional when addOptimisticArea is absent.
    */
-  currentAreaCount: number;
+  currentAreaCount?: number;
 }
 
 export function AreaCreateDialog({
@@ -35,6 +42,7 @@ export function AreaCreateDialog({
   addOptimisticArea,
   currentAreaCount,
 }: Props) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -67,18 +75,20 @@ export function AreaCreateDialog({
     const trimmedEmoji = emoji.trim() || null;
 
     startTransition(async () => {
-      // D-04: optimistic insert FIRST — sidebar flashes the new area immediately.
-      addOptimisticArea({
-        type: "insert",
-        row: {
-          id: newId,
-          name: trimmedName,
-          emoji: trimmedEmoji,
-          orderIndex: currentAreaCount,
-          archivedAt: null,
-          projects: [],
-        } satisfies SidebarArea,
-      });
+      if (addOptimisticArea) {
+        // D-04: optimistic insert FIRST — sidebar flashes the new area immediately.
+        addOptimisticArea({
+          type: "insert",
+          row: {
+            id: newId,
+            name: trimmedName,
+            emoji: trimmedEmoji,
+            orderIndex: currentAreaCount ?? 0,
+            archivedAt: null,
+            projects: [],
+          } satisfies SidebarArea,
+        });
+      }
 
       // Close the dialog optimistically — D-02 instant.
       setOpen(false);
@@ -102,8 +112,13 @@ export function AreaCreateDialog({
         return;
       }
       toast("Area created.");
-      // Realtime echo invalidates ['areas', userId] → refetch → cache settles
-      // with the canonical row carrying the same id (RT-05 dedupe → no-op).
+      if (!addOptimisticArea) {
+        // No optimistic dispatcher — re-fetch the SSR page to show the new area.
+        router.refresh();
+      }
+      // When the sidebar dispatcher IS present, the Realtime echo invalidates
+      // ['areas', userId] → refetch → cache settles with the canonical row
+      // carrying the same id (RT-05 dedupe → no-op).
     });
     // Intentionally not gating on userId here — server action enforces auth.
     void userId;
