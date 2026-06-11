@@ -52,7 +52,16 @@ function sse(event: string, data: unknown): string {
 
 interface JarvisRequestBody {
   input: string;
-  history: Array<{ role: "user" | "assistant"; content: string }>;
+  // Phase 16: Anthropic content-block-compatible — assistant turns may carry
+  // tool_use blocks, and user turns may carry tool_result blocks. String
+  // content remains valid for plain text turns (backward-compatible widening).
+  history: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{
+      type: "text" | "tool_use" | "tool_result";
+      [key: string]: unknown;
+    }>;
+  }>;
   parsedDates?: Array<{
     text: string;
     start: string;
@@ -138,7 +147,10 @@ export async function POST(req: NextRequest) {
     userContent += `\n\n[INTERNAL: This message is a reply to your previous ask_clarification. Do NOT emit another ask_clarification this turn — execute the action now using the user's clarification, or fall back to capture-first if still ambiguous. Depth cap enforced (Pitfall 2).]`;
   }
 
-  const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+  const messages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{ type: "text" | "tool_use" | "tool_result"; [key: string]: unknown }>;
+  }> = [
     ...body.history,
     { role: "user", content: userContent },
   ];

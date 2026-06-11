@@ -117,7 +117,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // holographic fade-in. Hooks must be called unconditionally before any
   // early returns, so this lives at the very top of the component.
   const shouldReduce = useReducedMotion();
-  const meta = INTENT_META[action.name];
+  // Phase 16: JarvisToolName now covers 14 tools; INTENT_META only maps the 5
+  // create/utility tools. Unknown names return undefined → early null return.
+  const meta = (INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>)[action.name];
   if (!meta) return null;
   const Icon = meta.icon;
 

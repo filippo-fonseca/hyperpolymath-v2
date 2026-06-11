@@ -18,7 +18,17 @@ import type { ParsedDate, Priority } from "@hyperpolymath/jarvis-core";
 
 export interface JarvisRequest {
   input: string;
-  history: Array<{ role: "user" | "assistant"; content: string }>;
+  // Phase 16: mirrors JarvisRequestBody.history widening in route.ts.
+  // Assistant turns carrying tool_use blocks and user turns carrying
+  // tool_result blocks are now accepted. String content remains valid
+  // for plain text turns — backward-compatible for existing callers.
+  history: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{
+      type: "text" | "tool_use" | "tool_result";
+      [key: string]: unknown;
+    }>;
+  }>;
   parsedDates?: ParsedDate[];
   /** Client-extracted priority hint (B5 fix). Server forwards to model so
    *  explicit "p1"/"p2"/"ptop" tokens are honoured even when adjacent to dates. */

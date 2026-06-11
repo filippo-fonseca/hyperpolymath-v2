@@ -50,7 +50,12 @@ export interface RunTurnOptions {
    * carry conversation history. For voice-originated turns with no history,
    * omit and let the helper build `[{role:"user", content:input}]`.
    */
-  messages?: Array<{ role: "user" | "assistant"; content: string }>;
+  // Phase 16: widened to accept content-block arrays (tool_use / tool_result)
+  // for multi-turn agentic sessions. String content remains valid.
+  messages?: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{ type: "text" | "tool_use" | "tool_result"; [key: string]: unknown }>;
+  }>;
   /**
    * Anthropic tool_choice override. Defaults to `{type:"auto"}`. Browser
    * route passes slash-command forcing when needed.
@@ -269,8 +274,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const sttDoneAtSafe =
     sttDoneAt_d && !Number.isNaN(sttDoneAt_d.getTime()) ? sttDoneAt_d : null;
 
-  const anthropicMessages: Array<{ role: "user" | "assistant"; content: string }> =
-    opts.messages ?? [{ role: "user", content: opts.input }];
+  // Phase 16: widened to accept content-block arrays alongside string content.
+  const anthropicMessages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{ type: "text" | "tool_use" | "tool_result"; [key: string]: unknown }>;
+  }> = opts.messages ?? [{ role: "user", content: opts.input }];
 
   const toolChoice = opts.toolChoice ?? { type: "auto" as const };
 

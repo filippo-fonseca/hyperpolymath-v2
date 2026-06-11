@@ -9,7 +9,13 @@
  *
  * Session memory IS the scrollback (D-06): refresh clears it. The last N
  * turns are mapped into the model's `history` field at submit time.
+ *
+ * Phase 16: ScrollbackAction.name widened to JarvisToolName to cover all 14
+ * tools (create + update + delete + find + utility). Import from jarvis-core
+ * so the union stays a single source of truth.
  */
+
+import type { JarvisToolName } from "@hyperpolymath/jarvis-core";
 
 export interface ScrollbackUserTurn {
   kind: "user";
@@ -45,7 +51,8 @@ export interface ScrollbackAssistantTurn {
 
 export interface ScrollbackAction {
   toolUseId: string;
-  name: "create_task" | "create_capture" | "create_event" | "remember_fact" | "ask_clarification";
+  /** Phase 16: widened from 5-tool literal to JarvisToolName (all 14 tools). */
+  name: JarvisToolName;
   /** Phase 5.1 D-P3: "queued" while executor pending, "done" once result arrives. */
   status?: "queued" | "done";
   /** Optional once queued placeholder lands; populated when event: action arrives. */
