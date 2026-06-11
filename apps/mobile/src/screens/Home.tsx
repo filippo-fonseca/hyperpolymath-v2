@@ -1,8 +1,13 @@
-// JARVIS mobile main screen. One central orb: tap to dictate, tap again to
-// send. The server transcribes (Groq), runs the JARVIS turn, and streams the
-// response over the physical SSE bus — the same pipeline as the desktop app.
-// A text bar underneath covers the can't-talk-right-now case via
-// /api/jarvis/voice/text.
+// JARVIS mobile main screen.
+//
+// Layout has two modes:
+//   • Empty conversation — the orb sits dead-center, Shazam-style, with the
+//     text bar at the bottom.
+//   • Active conversation (≥1 turn) — the orb docks to the header top-left
+//     (same glyph, same animations, smaller) and the conversation fills the
+//     screen.
+// Tapping the orb (either position) opens a full-screen dictation overlay:
+// big orb, scrim behind it, cancel button. Send or cancel collapses it back.
 
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,14 +24,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useVoiceRecorder } from "../audio/recorder";
 import { TtsQueue } from "../audio/tts-queue";
+import { GearIcon, KiwiMark } from "../components/icons";
 import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
 import { TextBar } from "../components/TextBar";
+import { VoiceOverlay } from "../components/VoiceOverlay";
 import { postText, postTranscript } from "../lib/api";
 import { getDeviceToken, getSettings, loadSettings, onSettingsChange } from "../lib/settings";
 import { splitDeltas } from "../lib/sentence-splitter";
 import { subscribeJarvisEvents, type SseStatus } from "../lib/sse";
-import { colors, mono } from "../theme";
+import { colors, mono, serif, serifSemiBold } from "../theme";
 
 interface ActionChip {
   toolUseId: string;
@@ -40,7 +47,7 @@ interface Turn {
   actions: ActionChip[];
 }
 
-const STATUS_LABEL: Record<OrbState, string> = {
+const CENTER_HINT: Record<OrbState, string> = {
   idle: "tap to speak",
   recording: "listening — tap to send",
   transcribing: "transcribing…",
@@ -55,6 +62,7 @@ export function Home() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [sseStatus, setSseStatus] = useState<SseStatus>("connecting");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [overlayOpen, setOverlayOpen] = useState(false);
   const [paired, setPaired] = useState(false);
 
   const recorder = useVoiceRecorder();
@@ -66,6 +74,8 @@ export function Home() {
   const turnDone = useRef(true);
   const orbStateRef = useRef<OrbState>("idle");
   orbStateRef.current = orbState;
+
+  const hasConversation = turns.length > 0;
 
   useEffect(() => {
     void loadSettings().then((s) => {
@@ -165,6 +175,7 @@ export function Home() {
     ]);
   }, []);
 
+  /** Orb tap — anywhere it appears. */
   const handleOrbPress = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -178,7 +189,9 @@ export function Home() {
     }
 
     if (orbStateRef.current === "recording") {
+      // Send: stop capture, close the overlay, upload.
       setOrbState("transcribing");
+      setOverlayOpen(false);
       const capture = await recorder.stop();
       if (!capture) {
         setOrbState("idle");
@@ -195,13 +208,22 @@ export function Home() {
       return;
     }
 
-    // idle → start recording
+    // idle → open the dictation overlay and start recording
     ttsQueue.stop();
     const started = await recorder.start();
     if (started) {
       setOrbState("recording");
+      setOverlayOpen(true);
     }
   }, [recorder, ttsQueue, pushUserTurn]);
+
+  /** Cancel button in the overlay — discard the capture, send nothing. */
+  const handleCancel = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOverlayOpen(false);
+    setOrbState("idle");
+    await recorder.cancel();
+  }, [recorder]);
 
   const handleText = useCallback(
     async (text: string) => {
@@ -216,72 +238,102 @@ export function Home() {
     [pushUserTurn],
   );
 
+  const online = sseStatus === "connected";
+
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerSide} />
-        <Text style={styles.title}>J.A.R.V.I.S.</Text>
-        <View style={[styles.headerSide, { alignItems: "flex-end" }]}>
-          <Pressable onPress={() => setSettingsOpen(true)} hitSlop={12}>
-            <Text style={styles.gear}>⚙︎</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.statusRow}>
-        <View
-          style={[
-            styles.dot,
-            { backgroundColor: sseStatus === "connected" ? colors.accent : colors.upload },
-          ]}
-        />
-        <Text style={styles.statusText}>
-          {sseStatus === "connected" ? "link active" : sseStatus}
-          {!paired ? "  ·  unpaired — open settings" : ""}
-        </Text>
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        style={styles.conversation}
-        contentContainerStyle={styles.conversationContent}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+    <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {turns.map((turn) => (
-          <View
-            key={turn.id}
-            style={[styles.turn, turn.role === "user" ? styles.turnUser : styles.turnAssistant]}
-          >
-            <Text style={turn.role === "user" ? styles.turnUserText : styles.turnAssistantText}>
-              {turn.text || "…"}
-            </Text>
-            {turn.actions.length > 0 && (
-              <View style={styles.chips}>
-                {turn.actions.map((a) => (
-                  <View key={a.toolUseId} style={styles.chip}>
-                    <Text style={styles.chipText}>{a.name.replace(/_/g, " ")}</Text>
-                  </View>
-                ))}
-              </View>
+        {/* Header: docked orb (when conversing) · logo + status · settings */}
+        <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+          <View style={styles.headerLeft}>
+            {hasConversation ? (
+              <Orb state={orbState} size={48} onPress={() => void handleOrbPress()} />
+            ) : (
+              <KiwiMark size={26} />
             )}
           </View>
-        ))}
-      </ScrollView>
 
-      <View style={styles.orbZone}>
-        <Orb state={orbState} onPress={() => void handleOrbPress()} />
-        <Text style={styles.orbHint}>{STATUS_LABEL[orbState]}</Text>
-      </View>
+          <View style={styles.headerCenter}>
+            <Text style={styles.brand}>HYPERPOLYMATH</Text>
+            <View style={styles.statusRow}>
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: online ? colors.accent : colors.upload },
+                ]}
+              />
+              <Text style={styles.statusText}>
+                {online ? "JARVIS online" : sseStatus === "connecting" ? "connecting…" : "reconnecting…"}
+                {!paired ? " · unpaired" : ""}
+              </Text>
+            </View>
+          </View>
 
-      <View style={{ paddingBottom: insets.bottom + 8 }}>
-        <TextBar disabled={!ready} onSubmit={(text) => void handleText(text)} />
-      </View>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setSettingsOpen(true)}
+              hitSlop={14}
+              style={({ pressed }) => [styles.gearButton, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <GearIcon size={26} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Body */}
+        {hasConversation ? (
+          <ScrollView
+            ref={scrollRef}
+            style={styles.flex}
+            contentContainerStyle={styles.conversationContent}
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          >
+            {turns.map((turn) => (
+              <View
+                key={turn.id}
+                style={[styles.turn, turn.role === "user" ? styles.turnUser : styles.turnAssistant]}
+              >
+                <Text style={styles.turnText}>{turn.text || "…"}</Text>
+                {turn.actions.length > 0 && (
+                  <View style={styles.chips}>
+                    {turn.actions.map((a) => (
+                      <View key={a.toolUseId} style={styles.chip}>
+                        <Text style={styles.chipText}>{a.name.replace(/_/g, " ")}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.centerStage}>
+            <Orb state={orbState} size={250} onPress={() => void handleOrbPress()} />
+            <Text style={styles.centerHint}>{CENTER_HINT[orbState]}</Text>
+          </View>
+        )}
+
+        {/* Text bar pinned to the bottom; KeyboardAvoidingView lifts it. */}
+        <View style={{ paddingBottom: insets.bottom + 8 }}>
+          <TextBar disabled={!ready} onSubmit={(text) => void handleText(text)} />
+        </View>
+      </KeyboardAvoidingView>
+
+      <VoiceOverlay
+        visible={overlayOpen}
+        state={orbState}
+        onOrbPress={() => void handleOrbPress()}
+        onCancel={() => void handleCancel()}
+      />
 
       <SettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -290,30 +342,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  flex: {
+    flex: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    minHeight: 56,
   },
-  headerSide: {
+  headerLeft: {
+    width: 56,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  headerCenter: {
     flex: 1,
+    alignItems: "center",
+    gap: 3,
   },
-  title: {
+  headerRight: {
+    width: 56,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  gearButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  brand: {
     color: colors.text,
-    fontFamily: mono,
-    fontSize: 15,
-    letterSpacing: 6,
-  },
-  gear: {
-    color: colors.textDim,
-    fontSize: 20,
+    fontFamily: serifSemiBold,
+    fontSize: 17,
+    letterSpacing: 3,
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
-    marginTop: 6,
   },
   dot: {
     width: 6,
@@ -326,12 +399,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1,
   },
-  conversation: {
+  centerStage: {
     flex: 1,
-    marginTop: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 18,
+  },
+  centerHint: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+    letterSpacing: 2,
   },
   conversationContent: {
     paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 12,
     gap: 10,
   },
@@ -353,15 +435,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.hairline,
   },
-  turnUserText: {
+  turnText: {
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  turnAssistantText: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
+    fontFamily: serif,
+    fontSize: 17,
+    lineHeight: 24,
   },
   chips: {
     flexDirection: "row",
@@ -381,16 +459,5 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 10,
     letterSpacing: 1,
-  },
-  orbZone: {
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 10,
-  },
-  orbHint: {
-    color: colors.textDim,
-    fontFamily: mono,
-    fontSize: 11,
-    letterSpacing: 2,
   },
 });

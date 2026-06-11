@@ -36,7 +36,8 @@
       ],
       "expo-secure-store",
       "expo-updates",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "eas": {

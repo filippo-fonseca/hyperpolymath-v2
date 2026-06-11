@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-import { colors, mono } from "../theme";
+import { colors, mono, serif } from "../theme";
 
 export function TextBar({
   disabled,
@@ -79,7 +79,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text,
     paddingHorizontal: 16,
-    fontSize: 15,
+    fontFamily: serif,
+    fontSize: 17,
   },
   send: {
     width: 44,

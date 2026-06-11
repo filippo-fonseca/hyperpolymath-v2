@@ -14,3 +14,6 @@ export const colors = {
 } as const;
 
 export const mono = "Menlo";
+export const serif = "EBGaramond_400Regular";
+export const serifMedium = "EBGaramond_500Medium";
+export const serifSemiBold = "EBGaramond_600SemiBold";

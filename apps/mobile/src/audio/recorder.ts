@@ -47,6 +47,7 @@ export function useVoiceRecorder(): {
   isRecording: boolean;
   start: () => Promise<boolean>;
   stop: () => Promise<CaptureResult | null>;
+  cancel: () => Promise<void>;
 } {
   const recorder = useAudioRecorder(WAV_RECORDING_OPTIONS);
   const [isRecording, setIsRecording] = useState(false);
@@ -107,5 +108,23 @@ export function useVoiceRecorder(): {
     }
   }, [recorder]);
 
-  return { recorder, isRecording, start, stop };
+  /** Discard the in-flight recording without uploading anything. */
+  const cancel = useCallback(async (): Promise<void> => {
+    if (maxTimer.current) {
+      clearTimeout(maxTimer.current);
+      maxTimer.current = null;
+    }
+    setIsRecording(false);
+    try {
+      await recorder.stop();
+    } catch {
+      // not recording
+    }
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    });
+  }, [recorder]);
+
+  return { recorder, isRecording, start, stop, cancel };
 }

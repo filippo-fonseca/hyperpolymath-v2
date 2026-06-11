@@ -2,7 +2,7 @@
 // /settings/desktop on the web app — same flow as the desktop app), voice
 // output toggle, ElevenLabs voice ID, and a connection probe.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -23,7 +23,7 @@ import {
   setDeviceToken,
   updateSettings,
 } from "../lib/settings";
-import { colors, mono } from "../theme";
+import { colors, mono, serif, serifSemiBold } from "../theme";
 
 export function SettingsSheet({
   visible,
@@ -38,6 +38,21 @@ export function SettingsSheet({
   const [ttsEnabled, setTtsEnabled] = useState(settings.ttsEnabled);
   const [voiceId, setVoiceId] = useState(settings.voiceId);
   const [probe, setProbe] = useState<string | null>(null);
+
+  // Re-sync form state from the store every time the sheet opens. The
+  // component mounts (hidden) before SecureStore finishes loading, so the
+  // useState initializers capture empty values — without this, the token
+  // field looks blank after an app reload and saving would wipe the real
+  // persisted token.
+  useEffect(() => {
+    if (!visible) return;
+    const s = getSettings();
+    setServerUrl(s.serverUrl);
+    setTtsEnabled(s.ttsEnabled);
+    setVoiceId(s.voiceId);
+    setToken(getDeviceToken() ?? "");
+    setProbe(null);
+  }, [visible]);
 
   const save = async () => {
     await updateSettings({
@@ -159,9 +174,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.accent,
-    fontFamily: mono,
-    fontSize: 14,
-    letterSpacing: 4,
+    fontFamily: serifSemiBold,
+    fontSize: 22,
+    letterSpacing: 2,
     marginBottom: 16,
   },
   label: {
@@ -173,7 +188,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: colors.textDim,
-    fontSize: 12,
+    fontFamily: serif,
+    fontSize: 14,
     marginTop: 2,
     marginBottom: 4,
   },
@@ -185,7 +201,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text,
     paddingHorizontal: 14,
-    fontSize: 14,
+    fontFamily: serif,
+    fontSize: 15,
     marginTop: 6,
   },
   switchRow: {
