@@ -143,6 +143,34 @@ function formatTodayDateInTimezone(tz: string): string {
   }).format(new Date());
 }
 
+// Uncached temporal-context block (appended after all cache breakpoints, like
+// the session-entities scratchpad). Without this the model has no idea what
+// time it is locally and guesses UTC offsets — "tonight 11pm" landed on the
+// next calendar day.
+function buildTemporalContextBlock(tz: string): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+    timeZoneName: "longOffset",
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const offset = get("timeZoneName").replace("GMT", "") || "+00:00";
+  const local = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+  return [
+    "CURRENT USER TIME:",
+    `- Local now: ${local} (${get("weekday")})`,
+    `- Timezone: ${tz} (UTC${offset})`,
+    `- When emitting due/start/end timestamps, ALWAYS use this UTC offset (e.g. ${local}:00${offset}) — never a bare Z/UTC timestamp. "tonight", "today", "tomorrow" are relative to the local time above.`,
+  ].join("\n");
+}
+
 export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const startTime = Date.now();
   const turnId = opts.turnId ?? crypto.randomUUID();
@@ -349,10 +377,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
       // Re-build system per pass to inject the (mutating) session-entities scratchpad
       // AFTER the snapshot block. Do NOT add cache_control here — Pitfall 3.
+      // The temporal-context block is also uncached (changes every minute).
       const scratchpadText = buildSessionEntitiesBlock(sessionEntities);
-      const passSystem = scratchpadText
-        ? [...system, { type: "text" as const, text: scratchpadText }]
-        : system;
+      const temporalText = buildTemporalContextBlock(
+        userRow?.timezone ?? "America/New_York",
+      );
+      const passSystem = [
+        ...system,
+        { type: "text" as const, text: temporalText },
+        ...(scratchpadText ? [{ type: "text" as const, text: scratchpadText }] : []),
+      ];
 
       const pendingActions: Promise<void>[] = [];
       const toolResultsThisPass: {

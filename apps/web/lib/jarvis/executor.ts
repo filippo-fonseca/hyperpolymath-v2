@@ -103,6 +103,16 @@ async function resolveProjectIds(
   return validateProjectIds(ctx.userId, projectIds);
 }
 
+// Calendar date (YYYY-MM-DD) of an ISO timestamp in the USER'S timezone.
+// Slicing the UTC ISO string shifted evening deadlines ("tonight 11pm" EDT
+// = 03:00Z) onto the next day. Date-only strings pass through untouched —
+// `new Date("2026-06-12")` is midnight UTC, which formats to the PREVIOUS
+// day in western timezones.
+function dateInUserTz(iso: string, tz: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(iso));
+}
+
 export function createServerExecutor(): ActionExecutor {
   return {
     async createTask(
@@ -134,15 +144,10 @@ export function createServerExecutor(): ActionExecutor {
             title: input.title,
             priority: input.priority ?? "P3", // JARVIS-05 default
             status: input.status ?? "not started", // DB enum literal w/ SPACE
-            // tasks.dueDate is a DATE column (no time component). Drizzle's
-            // date type accepts ISO yyyy-mm-dd strings; convert from the
-            // model-emitted ISO timestamp at the YYYY-MM-DD boundary.
-            // The TZ-aware conversion already happened client-side in
-            // chrono+TZDate (Plan 05-01 parsers); the date emitted in `due`
-            // is already in the user's intended day.
-            dueDate: input.due
-              ? new Date(input.due).toISOString().slice(0, 10)
-              : todayInTz,
+            // tasks.dueDate is a DATE column (no time component). Convert the
+            // model-emitted timestamp to the calendar date in the USER'S
+            // timezone, never the UTC date.
+            dueDate: input.due ? dateInUserTz(input.due, ctx.userTimezone) : todayInTz,
           });
           if (projectCheck.ids.length > 0) {
             await tx.insert(tasksProjects).values(
@@ -409,7 +414,7 @@ export function createServerExecutor(): ActionExecutor {
       if (input.priority != null) set.priority = input.priority;
       if (input.status != null) set.status = input.status;
       if (input.due != null) {
-        set.dueDate = input.due === "" ? null : new Date(input.due).toISOString().slice(0, 10);
+        set.dueDate = input.due === "" ? null : dateInUserTz(input.due, ctx.userTimezone);
       }
       set.updatedAt = new Date();
 
