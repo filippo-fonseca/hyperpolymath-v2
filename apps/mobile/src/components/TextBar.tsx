@@ -45,19 +45,53 @@ interface ActiveToken {
   start: number;
 }
 
-/** Find the trigger token the caret is currently inside (end of text). */
+/**
+ * Find the trigger token the caret is currently inside.
+ *
+ * Strategy: scan backward from the end of the string to the last whitespace
+ * boundary. If that token starts with $, # or / then return an ActiveToken
+ * describing it. This fires mid-text correctly:
+ *
+ *   "Buy milk $stor"  →  { kind: "project", query: "stor", start: 9 }
+ *   "#fitness more"   →  no match (not at end of input)
+ *   "/task"           →  { kind: "slash", query: "task", start: 0 }
+ *   "add /task"       →  null (slash not at very start — matches web behaviour)
+ *
+ * Slash commands mirror web: only fire when / is the first character of the
+ * entire input, keeping parity with JarvisInput.tsx's line-start-only rule.
+ *
+ * $ and # fire on the current token regardless of position in the input,
+ * also matching web's TipTap Mention extension which triggers mid-text.
+ */
 function findActiveToken(value: string): ActiveToken | null {
-  const m = value.match(/(^|\s)([/$#])([\p{L}\p{N}_]*)$/u);
-  if (!m) return null;
-  const trigger = m[2]!;
-  const query = m[3] ?? "";
-  const start = value.length - query.length - 1;
+  if (!value) return null;
+
+  // Isolate the current token: the trailing run of non-whitespace characters
+  // (handles spaces AND newlines, unlike a plain lastIndexOf(" ")).
+  const tokenStart = value.search(/\S+$/);
+  if (tokenStart === -1) return null; // input ends in whitespace — no token
+  const token = value.slice(tokenStart);
+
+  const trigger = token[0]!;
+
   if (trigger === "/") {
-    // Slash only counts at the very start of the message.
-    if (start !== 0) return null;
-    return { kind: "slash", query, start };
+    // Slash commands: only when / is the very first character of the full input.
+    if (tokenStart !== 0) return null;
+    const query = token.slice(1);
+    return { kind: "slash", query, start: 0 };
   }
-  return { kind: trigger === "$" ? "project" : "hashtag", query, start };
+
+  if (trigger === "$") {
+    const query = token.slice(1);
+    return { kind: "project", query, start: tokenStart };
+  }
+
+  if (trigger === "#") {
+    const query = token.slice(1);
+    return { kind: "hashtag", query, start: tokenStart };
+  }
+
+  return null;
 }
 
 export interface TextBarSubmit {
@@ -248,7 +282,7 @@ export function TextBar({
 const styles = StyleSheet.create({
   suggestions: {
     marginHorizontal: 16,
-    marginBottom: 6,
+    marginBottom: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
@@ -278,7 +312,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   chipRow: {
-    marginBottom: 6,
+    marginBottom: 16,
     maxHeight: 30,
   },
   chipRowContent: {
