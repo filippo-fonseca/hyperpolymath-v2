@@ -56,7 +56,8 @@ export function Orb({
   size?: number;
   /** Render the Hyperpolymath "H" brand mark instead of the kiwi glyph. */
   showH?: boolean;
-  onPress: () => void;
+  /** Omit to render as a pure indicator (non-pressable loader). */
+  onPress?: () => void;
 }) {
   const color = STATE_COLOR[state];
   const breathe = useRef(new Animated.Value(0)).current;
@@ -149,10 +150,13 @@ export function Orb({
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
       hitSlop={12}
-      style={({ pressed }) => [styles.root, { width: size, height: size }, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={state === "recording" ? "Stop dictating" : "Dictate to JARVIS"}
+      style={({ pressed }) => [styles.root, { width: size, height: size }, pressed && !!onPress && styles.pressed]}
+      accessibilityRole={onPress ? "button" : "image"}
+      accessibilityLabel={
+        onPress ? (state === "recording" ? "Stop dictating" : "Dictate to JARVIS") : "JARVIS status"
+      }
     >
       {/* Breathing radial glow */}
       <Animated.View
@@ -228,7 +232,7 @@ export function Orb({
         {showH ? (
           <Text
             style={{
-              color,
+              color: "#ffffff",
               fontFamily: serifSemiBold,
               fontSize: size * 0.38,
               lineHeight: size * 0.42,

@@ -9,7 +9,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CelebrationOverlay } from "../components/celebrate";
-import { HMark, TabIcon } from "../components/icons";
+import { KiwiMark, TabIcon } from "../components/icons";
 import { colors, mono } from "../theme";
 import { CapturesScreen } from "./Captures";
 import { HabitsScreen } from "./Habits";
@@ -22,10 +22,9 @@ type Tab = "tasks" | "habits" | "jarvis" | "training" | "captures";
 export function Root() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("jarvis");
-  const [hasConversation, setHasConversation] = useState(false);
   const orbPulse = useRef(new Animated.Value(1)).current;
-  // Mutable callback registered by <Home> so we can focus its composer from here.
-  const focusComposerRef = useRef<(() => void) | null>(null);
+  // Voice trigger registered by <Home> — the nav kiwi button activates dictation.
+  const voicePressRef = useRef<(() => void) | null>(null);
 
   const pulseOrb = useCallback(() => {
     Animated.sequence([
@@ -35,15 +34,11 @@ export function Root() {
   }, [orbPulse]);
 
   const handleJarvisNavPress = useCallback(() => {
-    if (tab === "jarvis" && hasConversation) {
-      // Already on JARVIS with an active conversation — focus the text composer.
-      focusComposerRef.current?.();
-      pulseOrb();
-    } else {
-      setTab("jarvis");
-      pulseOrb();
-    }
-  }, [tab, hasConversation, pulseOrb]);
+    // The nav kiwi IS the voice button: jump to JARVIS and start dictation.
+    setTab("jarvis");
+    voicePressRef.current?.();
+    pulseOrb();
+  }, [pulseOrb]);
 
   const screen = (key: Tab, node: React.ReactNode) => (
     <View
@@ -61,10 +56,7 @@ export function Root() {
         {screen("habits", <HabitsScreen active={tab === "habits"} />)}
         {screen(
           "jarvis",
-          <Home
-            onFocusComposer={(fn) => { focusComposerRef.current = fn; }}
-            onConversationChange={setHasConversation}
-          />,
+          <Home onRegisterVoicePress={(fn) => { voicePressRef.current = fn; }} />,
         )}
         {screen("training", <TrainingScreen active={tab === "training"} />)}
         {screen("captures", <CapturesScreen active={tab === "captures"} />)}
@@ -94,7 +86,7 @@ export function Root() {
             onPress={handleJarvisNavPress}
             style={({ pressed }) => [styles.orbTab, pressed && { opacity: 0.7 }]}
             accessibilityRole="button"
-            accessibilityLabel={tab === "jarvis" && hasConversation ? "Open composer" : "JARVIS"}
+            accessibilityLabel="Dictate to JARVIS"
           >
             <Animated.View
               style={[
@@ -103,7 +95,7 @@ export function Root() {
                 { transform: [{ scale: orbPulse }] },
               ]}
             >
-              <HMark size={26} color={tab === "jarvis" ? colors.accent : colors.textDim} />
+              <KiwiMark size={26} color={tab === "jarvis" ? colors.accent : colors.textDim} />
             </Animated.View>
           </Pressable>
         </View>

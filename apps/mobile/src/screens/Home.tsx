@@ -95,13 +95,11 @@ const CENTER_HINT: Record<OrbState, string> = {
 };
 
 export function Home({
-  onFocusComposer,
-  onConversationChange,
+  onRegisterVoicePress,
 }: {
-  /** Called once on mount with a `focus()` function the shell can invoke. */
-  onFocusComposer?: (focus: () => void) => void;
-  /** Called whenever the conversation non-empty state changes (for nav bar awareness). */
-  onConversationChange?: (hasMessages: boolean) => void;
+  /** Called once on mount with the orb-press handler so the bottom nav's
+   *  kiwi button can activate voice from the shell. */
+  onRegisterVoicePress?: (press: () => void) => void;
 }) {
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(false);
@@ -112,17 +110,6 @@ export function Home({
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [paired, setPaired] = useState(false);
   const [context, setContext] = useState<JarvisContext>(getJarvisContext());
-  const textBarInputRef = useRef<TextInput>(null);
-
-  // Register our keyboard-focus callback with the parent shell so the nav
-  // bar button can open the composer when the conversation is active.
-  useEffect(() => {
-    onFocusComposer?.(() => {
-      textBarInputRef.current?.focus();
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onFocusComposer]);
-
   const recorder = useVoiceRecorder();
   const [liveTranscript, setLiveTranscript] = useState("");
   const liveSession = useRef<LiveSession | null>(null);
@@ -140,12 +127,6 @@ export function Home({
 
   const hasConversation = turns.length > 0;
   turnsRef.current = turns;
-
-  // Notify the shell whenever the conversation non-empty state flips so the
-  // nav bar can change its tap behavior.
-  useEffect(() => {
-    onConversationChange?.(hasConversation);
-  }, [hasConversation, onConversationChange]);
 
   // ---------------------------------------------------------------------------
   // Session memory (Phase 16 parity) — last 10 turns in Anthropic content-block
@@ -519,6 +500,12 @@ export function Home({
     }
   }, [recorder, ttsQueue, pushUserTurn, watchTurn]);
 
+  // Register the orb-press handler with the shell — the bottom nav's kiwi
+  // button is the voice trigger.
+  useEffect(() => {
+    onRegisterVoicePress?.(() => void handleOrbPress());
+  }, [onRegisterVoicePress, handleOrbPress]);
+
   /** Cancel button in the overlay — discard the capture, send nothing. */
   const handleCancel = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -768,12 +755,7 @@ export function Home({
               Always visible — animates per orbState (idle breathing glow,
               fast spin while thinking/speaking). */}
           <View style={styles.headerRight}>
-            <Orb
-              state={orbState}
-              size={48}
-              showH
-              onPress={() => void handleOrbPress()}
-            />
+            <Orb state={orbState} size={48} showH />
           </View>
         </View>
 
@@ -828,7 +810,6 @@ export function Home({
             projects={context.projects}
             hashtags={context.hashtags}
             timezone={context.timezone}
-            focusRef={textBarInputRef}
             onSubmit={(s) => void handleText(s)}
           />
         </View>
