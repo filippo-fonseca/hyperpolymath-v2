@@ -17,7 +17,8 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "filippo.fonseca@yale.edu"
+        "appleId": "filippo.fonseca@yale.edu",
+        "ascAppId": "6779045280"
       }
     }
   }
