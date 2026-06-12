@@ -23,6 +23,10 @@ import { renderUserState, type SnapshotInputs } from "./render-user-state";
 
 interface CacheEntry {
   version: bigint;
+  /** User-tz calendar date (YYYY-MM-DD) the snapshot was rendered for.
+   *  The snapshot embeds `<today_calendar date="...">` — without this key a
+   *  quiet day across midnight kept serving YESTERDAY'S date to the model. */
+  dateKey: string;
   snapshotString: string;
   generatedAt: number; // Date.now() of the build — used for diagnostics only, NEVER concatenated into prompt content
 }
@@ -41,7 +45,7 @@ export function getOrBuild(
 ): string {
   const v = normalizeVersion(version);
   const cached = snapshotCache.get(userId);
-  if (cached && cached.version === v) {
+  if (cached && cached.version === v && cached.dateKey === inputs.todayDate) {
     return cached.snapshotString;
   }
   // Cache miss: rebuild. Fall through (no throw) — telemetry must never
@@ -60,6 +64,7 @@ export function getOrBuild(
   }
   snapshotCache.set(userId, {
     version: v,
+    dateKey: inputs.todayDate,
     snapshotString,
     generatedAt: Date.now(),
   });
