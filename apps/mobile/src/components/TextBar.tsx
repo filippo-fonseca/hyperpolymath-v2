@@ -13,7 +13,7 @@
 
 import { parseDates, parsePriority } from "@hyperpolymath/jarvis-core/parsers";
 import type { SlashCommand } from "@hyperpolymath/jarvis-core/parsers";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -70,17 +70,22 @@ export function TextBar({
   projects,
   hashtags,
   timezone,
+  focusRef,
   onSubmit,
 }: {
   disabled: boolean;
   projects: ProjectRef[];
   hashtags: HashtagRef[];
   timezone: string;
+  /** Optional ref — callers can call `.current?.focus()` to open the keyboard. */
+  focusRef?: React.RefObject<TextInput | null>;
   onSubmit: (submit: TextBarSubmit) => void;
 }) {
   const [value, setValue] = useState("");
   const [pinned, setPinned] = useState<SlashCommand | null>(null);
   const [focused, setFocused] = useState(false);
+  const internalRef = useRef<TextInput>(null);
+  const resolvedRef = focusRef ?? internalRef;
 
   const active = useMemo(() => findActiveToken(value), [value]);
 
@@ -206,6 +211,7 @@ export function TextBar({
 
       <View style={styles.row}>
         <TextInput
+          ref={resolvedRef}
           style={styles.input}
           value={value}
           onChangeText={setValue}
