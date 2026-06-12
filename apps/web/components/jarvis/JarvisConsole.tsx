@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   streamJarvis,
@@ -481,17 +482,25 @@ export function JarvisConsole({
             // Action) inside the updater triggers a router transition that
             // can fire during render and crash with "Cannot update Router
             // while rendering JarvisConsole".
+            //
+            // flushSync is REQUIRED: onDone fires from the SSE reader (not a
+            // React event), so a bare setTurns is batched and the updater runs
+            // later — `completed` stays undefined and the turn silently never
+            // persists (receipts vanished on reload). flushSync forces the
+            // updater to run before the persist check.
             let completed: ScrollbackTurn | undefined;
-            setTurns((prev) => {
-              const next = prev.map((t) =>
-                t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, status: "done" as const }
-                  : t,
-              );
-              completed = next.find(
-                (t) => t.id === assistantId && t.kind === "assistant",
-              );
-              return next;
+            flushSync(() => {
+              setTurns((prev) => {
+                const next = prev.map((t) =>
+                  t.id === assistantId && t.kind === "assistant"
+                    ? { ...t, status: "done" as const }
+                    : t,
+                );
+                completed = next.find(
+                  (t) => t.id === assistantId && t.kind === "assistant",
+                );
+                return next;
+              });
             });
             if (completed) persistTurn(completed);
 
@@ -546,17 +555,21 @@ export function JarvisConsole({
             abortRef.current = null;
           },
           onError: (message) => {
+            // flushSync for the same reason as onDone — without it the captured
+            // `errored` is undefined whenever updates are batched mid-stream.
             let errored: ScrollbackTurn | undefined;
-            setTurns((prev) => {
-              const next = prev.map((t) =>
-                t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, status: "error" as const, errorMessage: message }
-                  : t,
-              );
-              errored = next.find(
-                (t) => t.id === assistantId && t.kind === "assistant",
-              );
-              return next;
+            flushSync(() => {
+              setTurns((prev) => {
+                const next = prev.map((t) =>
+                  t.id === assistantId && t.kind === "assistant"
+                    ? { ...t, status: "error" as const, errorMessage: message }
+                    : t,
+                );
+                errored = next.find(
+                  (t) => t.id === assistantId && t.kind === "assistant",
+                );
+                return next;
+              });
             });
             if (errored) persistTurn(errored);
             setStreaming(false);
@@ -833,20 +846,24 @@ export function JarvisConsole({
       }
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
+      // flushSync guarantees the updater runs before the persist check (same
+      // batching pitfall as onDone — see comment there).
       let updated: ScrollbackTurn | undefined;
-      setTurns((prev) => {
-        const next = prev.map((t) =>
-          t.id === turnId && t.kind === "assistant"
-            ? {
-                ...t,
-                actions: t.actions.map((a) =>
-                  a.toolUseId === action.toolUseId ? { ...a, undone: true } : a,
-                ),
-              }
-            : t,
-        );
-        updated = next.find((t) => t.id === turnId && t.kind === "assistant");
-        return next;
+      flushSync(() => {
+        setTurns((prev) => {
+          const next = prev.map((t) =>
+            t.id === turnId && t.kind === "assistant"
+              ? {
+                  ...t,
+                  actions: t.actions.map((a) =>
+                    a.toolUseId === action.toolUseId ? { ...a, undone: true } : a,
+                  ),
+                }
+              : t,
+          );
+          updated = next.find((t) => t.id === turnId && t.kind === "assistant");
+          return next;
+        });
       });
       // Persist the undone state so it survives reload. Calling outside the
       // updater avoids triggering a Server Action (router transition) during
@@ -856,25 +873,27 @@ export function JarvisConsole({
       const result = await undoJarvisAction(target);
       if (!result.ok) {
         toast.error(`Couldn't undo: ${result.error}`);
-        // Revert the optimistic flag.
+        // Revert the optimistic flag (flushSync — same batching pitfall).
         let reverted: ScrollbackTurn | undefined;
-        setTurns((prev) => {
-          const next = prev.map((t) =>
-            t.id === turnId && t.kind === "assistant"
-              ? {
-                  ...t,
-                  actions: t.actions.map((a) =>
-                    a.toolUseId === action.toolUseId
-                      ? { ...a, undone: false }
-                      : a,
-                  ),
-                }
-              : t,
-          );
-          reverted = next.find(
-            (t) => t.id === turnId && t.kind === "assistant",
-          );
-          return next;
+        flushSync(() => {
+          setTurns((prev) => {
+            const next = prev.map((t) =>
+              t.id === turnId && t.kind === "assistant"
+                ? {
+                    ...t,
+                    actions: t.actions.map((a) =>
+                      a.toolUseId === action.toolUseId
+                        ? { ...a, undone: false }
+                        : a,
+                    ),
+                  }
+                : t,
+            );
+            reverted = next.find(
+              (t) => t.id === turnId && t.kind === "assistant",
+            );
+            return next;
+          });
         });
         // Re-persist with the reverted state so reload doesn't show a stale
         // "undone" badge.
