@@ -26,6 +26,7 @@ import {
 } from "../lib/data";
 import { celebrate } from "../components/celebrate";
 import { useCollection } from "../lib/use-collection";
+import { KiwiLoader } from "../components/KiwiLoader";
 import { colors, mono, serif } from "../theme";
 import {
   EmptyState,
@@ -204,6 +205,11 @@ export function HabitsScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
+        {data === null ? (
+          <View style={{ paddingTop: 80, alignItems: "center" }}>
+            <KiwiLoader size={34} />
+          </View>
+        ) : null}
         {data !== null && habits.length === 0 ? (
           <EmptyState message="No habits yet. Build the machine." />
         ) : null}

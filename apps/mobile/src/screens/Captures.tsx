@@ -20,6 +20,7 @@ import {
   type Capture,
 } from "../lib/data";
 import { useCollection } from "../lib/use-collection";
+import { KiwiLoader } from "../components/KiwiLoader";
 import { colors, mono, serif } from "../theme";
 import {
   EmptyState,
@@ -110,6 +111,11 @@ export function CapturesScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
+        {data === null ? (
+          <View style={{ paddingTop: 80, alignItems: "center" }}>
+            <KiwiLoader size={34} />
+          </View>
+        ) : null}
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing captured yet. Thoughts go here." />
         ) : null}

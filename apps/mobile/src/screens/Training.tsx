@@ -29,6 +29,7 @@ import {
 import { oklchToHex } from "../lib/oklch";
 import { celebrate } from "../components/celebrate";
 import { useCollection } from "../lib/use-collection";
+import { KiwiLoader } from "../components/KiwiLoader";
 import { colors, mono, serif } from "../theme";
 import {
   ChipRow,
@@ -177,6 +178,11 @@ export function TrainingScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
+        {data === null ? (
+          <View style={{ paddingTop: 80, alignItems: "center" }}>
+            <KiwiLoader size={34} />
+          </View>
+        ) : null}
         {data !== null && (data?.activities ?? []).length === 0 ? (
           <EmptyState message="No sessions this week. Plan one." />
         ) : null}

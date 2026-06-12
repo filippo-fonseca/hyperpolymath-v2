@@ -27,6 +27,7 @@ import {
   type TaskStatus,
 } from "../lib/data";
 import { celebrate } from "../components/celebrate";
+import { KiwiLoader } from "../components/KiwiLoader";
 import { useCollection } from "../lib/use-collection";
 import { colors, mono, serif } from "../theme";
 import {
@@ -183,6 +184,11 @@ export function TasksScreen({ active }: { active: boolean }) {
           <RefreshControl refreshing={loading} onRefresh={() => void refresh()} tintColor={colors.accent} />
         }
       >
+        {data === null ? (
+          <View style={{ paddingTop: 80, alignItems: "center" }}>
+            <KiwiLoader size={34} />
+          </View>
+        ) : null}
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing on the list. Tap + or ask JARVIS." />
         ) : null}
