@@ -15,7 +15,9 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "JARVIS does not browse your photo library; this access is only referenced by underlying system frameworks and is never used without your explicit action.",
+        "NSPhotoLibraryAddUsageDescription": "JARVIS does not save to your photo library; this access is only referenced by underlying system frameworks and is never used without your explicit action."
       }
     },
     "runtimeVersion": {
