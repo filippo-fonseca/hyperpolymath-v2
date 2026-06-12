@@ -18,12 +18,29 @@ const INK = {
   cyanLight: "#3aa6c4",
 } as const;
 
+// Muted graphite for find_* (neutral query, no mutation)
+const INK_MUTED = "#6b7280";
+
 const INTENT_META: Record<string, { label: string; dot: string }> = {
+  // Create operations
   create_task: { label: "TASK", dot: INK.amber },
   create_capture: { label: "CAPTURE", dot: INK.sage },
   create_event: { label: "EVENT", dot: INK.coral },
+  // Memory / clarification (agent-side, low chroma)
   remember_fact: { label: "MEMORY", dot: INK.cyanLight },
   ask_clarification: { label: "QUESTION", dot: INK.cyanLight },
+  // Update operations — amber (modification, same family as create)
+  update_task: { label: "UPDATE TASK", dot: INK.amber },
+  update_capture: { label: "UPDATE CAPTURE", dot: INK.amber },
+  update_event: { label: "UPDATE EVENT", dot: INK.amber },
+  // Delete operations — coral (destructive, sharp edge)
+  delete_task: { label: "DELETE TASK", dot: INK.coral },
+  delete_capture: { label: "DELETE CAPTURE", dot: INK.coral },
+  delete_event: { label: "DELETE EVENT", dot: INK.coral },
+  // Find operations — muted graphite (query, no mutation)
+  find_tasks: { label: "FIND TASKS", dot: INK_MUTED },
+  find_captures: { label: "FIND CAPTURES", dot: INK_MUTED },
+  find_events: { label: "FIND EVENTS", dot: INK_MUTED },
 };
 
 export interface ReceiptAction {
@@ -120,12 +137,12 @@ function fmtDate(iso: unknown, allDay?: boolean): string {
   });
 }
 
-function ReceiptBody({ name, receipt }: { name: string; receipt: Record<string, unknown> }) {
+function ReceiptBody({ name, receipt, undone }: { name: string; receipt: Record<string, unknown>; undone?: boolean }) {
   if (name === "create_task") {
     const projects = Array.isArray(receipt.project_ids) ? receipt.project_ids.length : 0;
     return (
       <>
-        <Text style={styles.title}>{String(receipt.title ?? "")}</Text>
+        <Text style={[styles.title, undone && styles.titleStrikethrough]}>{String(receipt.title ?? "")}</Text>
         <Text style={styles.meta}>
           {String(receipt.priority ?? "P3")}
           {receipt.due
@@ -140,7 +157,7 @@ function ReceiptBody({ name, receipt }: { name: string; receipt: Record<string, 
     const hashtags = Array.isArray(receipt.hashtags) ? (receipt.hashtags as string[]) : [];
     return (
       <>
-        <Text style={styles.title}>{String(receipt.content ?? "")}</Text>
+        <Text style={[styles.title, undone && styles.titleStrikethrough]}>{String(receipt.content ?? "")}</Text>
         {hashtags.length ? <Text style={styles.meta}>#{hashtags.join(" #")}</Text> : null}
       </>
     );
@@ -149,7 +166,7 @@ function ReceiptBody({ name, receipt }: { name: string; receipt: Record<string, 
     const allDay = typeof receipt.allDay === "boolean" ? receipt.allDay : undefined;
     return (
       <>
-        <Text style={styles.title}>{String(receipt.title ?? "")}</Text>
+        <Text style={[styles.title, undone && styles.titleStrikethrough]}>{String(receipt.title ?? "")}</Text>
         <Text style={styles.meta}>
           {fmtDate(receipt.start, allDay)} → {fmtDate(receipt.end, allDay)}
         </Text>
@@ -168,8 +185,72 @@ function ReceiptBody({ name, receipt }: { name: string; receipt: Record<string, 
       </>
     );
   }
-  // Generic fallback for tools without a bespoke body (future CRUD receipts):
-  // show whatever human-readable fields the receipt carries.
+
+  // Phase 16: Find variant — compact match list (max 5 rows + "+N more")
+  if (name.startsWith("find_")) {
+    const matches = Array.isArray(receipt.matches)
+      ? (receipt.matches as Array<Record<string, unknown>>)
+      : [];
+    const shown = matches.slice(0, 5);
+    const overflow = matches.length - shown.length;
+    if (matches.length === 0) {
+      return <Text style={styles.meta}>no matches</Text>;
+    }
+    return (
+      <>
+        {shown.map((m, idx) => (
+          <Text key={String(m.id ?? idx)} style={styles.findRow}>
+            <Text style={styles.findId}>{String(m.id ?? "").slice(0, 8)} </Text>
+            {String(m.title ?? m.preview ?? m.summary ?? "—")}
+          </Text>
+        ))}
+        {overflow > 0 ? (
+          <Text style={styles.meta}>+{overflow} more</Text>
+        ) : null}
+      </>
+    );
+  }
+
+  // Phase 16: Update variant — per-changed-field "field: before → after" rows
+  if (name.startsWith("update_")) {
+    const changes = (receipt.changes ?? {}) as Record<string, unknown>;
+    const before = (receipt.before ?? {}) as Record<string, unknown>;
+    const headline = receipt.title ?? receipt.content ?? receipt.id;
+    const fields = Object.keys(changes);
+    if (fields.length === 0) {
+      return headline ? (
+        <Text style={styles.title}>{String(headline)}</Text>
+      ) : null;
+    }
+    return (
+      <>
+        {headline ? <Text style={styles.title}>{String(headline)}</Text> : null}
+        {fields.map((field) => (
+          <Text key={field} style={styles.updateRow}>
+            <Text style={styles.updateField}>{field}: </Text>
+            {before[field] !== undefined ? (
+              <Text style={styles.updateBefore}>{String(before[field])} </Text>
+            ) : null}
+            <Text style={styles.updateArrow}>→ </Text>
+            <Text style={styles.updateAfter}>{String(changes[field])}</Text>
+          </Text>
+        ))}
+      </>
+    );
+  }
+
+  // Phase 16: Delete variant — tombstone with strikethrough title/preview
+  if (name.startsWith("delete_")) {
+    const label = receipt.title ?? receipt.content ?? receipt.preview ?? "(deleted)";
+    return (
+      <View style={styles.deleteRow}>
+        <Text style={styles.deleteTitle}>{String(label)}</Text>
+        <Text style={styles.deleteMeta}>deleted · permanent</Text>
+      </View>
+    );
+  }
+
+  // Generic fallback: show whatever human-readable headline the receipt carries.
   const headline = receipt.title ?? receipt.content ?? receipt.summary ?? receipt.key;
   return headline ? <Text style={styles.title}>{String(headline)}</Text> : null;
 }
@@ -207,7 +288,7 @@ export function JarvisReceipt({
       </View>
       {ok && receipt ? (
         <View style={[styles.body, undone && styles.bodyUndone]}>
-          <ReceiptBody name={action.name} receipt={receipt} />
+          <ReceiptBody name={action.name} receipt={receipt} undone={undone} />
         </View>
       ) : (
         <Text style={styles.error}>{result.error ?? "failed"}</Text>
@@ -310,5 +391,72 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 10,
     letterSpacing: 0.5,
+  },
+  // Strikethrough for undone create_* titles
+  titleStrikethrough: {
+    textDecorationLine: "line-through",
+    color: colors.textDim,
+  },
+  // Phase 16: find_* match list
+  findRow: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  findId: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 10,
+    opacity: 0.6,
+  },
+  // Phase 16: update_* field diff rows
+  updateRow: {
+    fontFamily: mono,
+    fontSize: 11,
+    lineHeight: 17,
+    color: colors.textDim,
+  },
+  updateField: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+  },
+  updateBefore: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+    textDecorationLine: "line-through",
+    opacity: 0.55,
+  },
+  updateArrow: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+  },
+  updateAfter: {
+    color: INK.amber,
+    fontFamily: mono,
+    fontSize: 11,
+  },
+  // Phase 16: delete_* tombstone
+  deleteRow: {
+    gap: 2,
+  },
+  deleteTitle: {
+    color: INK.coral,
+    fontFamily: serif,
+    fontSize: 15,
+    lineHeight: 20,
+    textDecorationLine: "line-through",
+    opacity: 0.7,
+  },
+  deleteMeta: {
+    color: INK.coral,
+    fontFamily: mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    opacity: 0.8,
+    textTransform: "uppercase",
   },
 });

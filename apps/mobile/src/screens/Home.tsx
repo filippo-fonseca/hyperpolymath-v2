@@ -36,7 +36,20 @@ import { TextBar, type TextBarSubmit } from "../components/TextBar";
 import { VoiceOverlay } from "../components/VoiceOverlay";
 import { ClarificationCard, type ClarificationState } from "../components/ClarificationCard";
 import { ThinkingWord } from "../components/ThinkingWord";
-import { fetchTurn, postText, postTranscript, postUndo, type UndoTarget } from "../lib/api";
+import {
+  fetchTurn,
+  postText,
+  postTranscript,
+  postUndo,
+  type UndoTarget,
+  type TaskBefore,
+  type CaptureBefore,
+  type EventBefore,
+  type TaskSnapshot,
+  type CaptureSnapshot,
+  type HistoryEntry,
+  type HistoryContentBlock,
+} from "../lib/api";
 import { buildMobileJarvisPayload } from "../lib/input-payload";
 import { handlePairUrl } from "../lib/pair-link";
 import {
@@ -108,6 +121,90 @@ export function Home() {
 
   const hasConversation = turns.length > 0;
   turnsRef.current = turns;
+
+  // ---------------------------------------------------------------------------
+  // Session memory (Phase 16 parity) — last 10 turns in Anthropic content-block
+  // format. Sent to /api/jarvis/voice/text so the model resolves entity IDs
+  // across turns ("the task I just created", "no scrap that, delete the qc").
+  //
+  // In-memory only — no persistence requirement for MVP.
+  // ---------------------------------------------------------------------------
+
+  // Reconstruct a minimal tool input from a receipt for history content blocks.
+  function reconstructToolInput(name: string, result: unknown): Record<string, unknown> {
+    const r = (result as { receipt?: Record<string, unknown> } | undefined)?.receipt ?? {};
+    const id = (result as { id?: string } | undefined)?.id ?? r.id;
+    switch (name) {
+      case "create_task":
+      case "update_task":
+        return { id, title: r.title, status: r.status, priority: r.priority, due: r.due };
+      case "delete_task":
+        return { id };
+      case "create_capture":
+      case "update_capture":
+        return { id, content: r.content };
+      case "delete_capture":
+        return { id };
+      case "create_event":
+      case "update_event":
+        return { id, calendar_id: r.calendar_id, title: r.title, start: r.start, end: r.end };
+      case "delete_event":
+        return { id, calendar_id: r.calendar_id };
+      case "find_tasks":
+      case "find_captures":
+      case "find_events":
+        return { query: r.query };
+      case "ask_clarification":
+        return { question: r.question };
+      case "remember_fact":
+        return { key: r.key, value: r.value, type: r.type };
+      default:
+        return {};
+    }
+  }
+
+  // Build Anthropic-compatible history from the last 10 turns.
+  // Each assistant turn with actions produces:
+  //   1. assistant: [text?, tool_use...]
+  //   2. user: [tool_result...] (required by Anthropic Pitfall 1)
+  function buildHistory(current: Turn[]): HistoryEntry[] {
+    const recent = current.slice(-10);
+    const out: HistoryEntry[] = [];
+    for (const t of recent) {
+      if (t.role === "user") {
+        out.push({ role: "user", content: t.text });
+        continue;
+      }
+      // Assistant turn
+      const doneActions = t.actions.filter(
+        (a) => !(a.result === undefined || a.result === null),
+      );
+      if (doneActions.length === 0) {
+        if (t.text) out.push({ role: "assistant", content: t.text });
+        continue;
+      }
+      // Mixed: text preamble + tool_use blocks
+      const assistantBlocks: HistoryContentBlock[] = [];
+      if (t.text) assistantBlocks.push({ type: "text", text: t.text });
+      for (const a of doneActions) {
+        assistantBlocks.push({
+          type: "tool_use",
+          id: a.toolUseId,
+          name: a.name,
+          input: reconstructToolInput(a.name, a.result),
+        });
+      }
+      out.push({ role: "assistant", content: assistantBlocks });
+      // Anthropic requires matching tool_result blocks in the next user turn.
+      const toolResultBlocks: HistoryContentBlock[] = doneActions.map((a) => ({
+        type: "tool_result",
+        tool_use_id: a.toolUseId,
+        content: JSON.stringify(a.result ?? { ok: false, error: "no result" }),
+      }));
+      out.push({ role: "user", content: toolResultBlocks });
+    }
+    return out;
+  }
 
   // Pairing deep link (jarvis://pair?token=…&server=…): apply, re-pair,
   // and re-open the SSE subscription against the new server.
@@ -439,6 +536,7 @@ export function Home() {
 
       pushUserTurn(payload.displayText);
       setOrbState("thinking");
+      const history = buildHistory(turnsRef.current);
       const result = await postText(
         answeringClarification ? `[CLARIFICATION REPLY] ${payload.input}` : payload.input,
         {
@@ -447,6 +545,7 @@ export function Home() {
           slashCommand: payload.slashCommand,
           linkedProjectIds: payload.projectIds,
           linkedHashtags: payload.hashtags,
+          history: history.length ? history : undefined,
         },
       );
       if (!result) {
@@ -459,24 +558,109 @@ export function Home() {
     [pushUserTurn, watchTurn],
   );
 
-  /** 5s receipt undo — optimistic tombstone, then server round-trip. */
+  /**
+   * Capability-based undo eligibility check (Phase 16 parity — mirrors
+   * JarvisScrollback.isUndoable on web):
+   *   - create_*: result must carry an `id` string
+   *   - update_*: receipt must carry `before` (pre-update snapshot)
+   *   - delete_*: receipt must carry `snapshot` (pre-delete full row)
+   *   - find_*, remember_fact, ask_clarification: never undoable
+   */
+  const isUndoable = useCallback((action: ReceiptAction): boolean => {
+    const result = action.result as { ok?: boolean; id?: string; receipt?: Record<string, unknown> } | null;
+    if (!result?.ok) return false;
+    const receipt = result.receipt ?? {};
+    if (action.name.startsWith("create_")) {
+      return typeof result.id === "string";
+    }
+    if (action.name.startsWith("update_")) {
+      return receipt.before !== undefined && receipt.before !== null;
+    }
+    if (action.name.startsWith("delete_")) {
+      return receipt.snapshot !== undefined && receipt.snapshot !== null;
+    }
+    return false; // find_*, remember_fact, ask_clarification
+  }, []);
+
+  /** 5s receipt undo — capability-based 9-arm switch, then server round-trip. */
   const handleUndo = useCallback(
     async (turnId: string, action: ReceiptAction) => {
-      const result = action.result as { ok?: boolean; id?: string; receipt?: Record<string, unknown> } | null;
-      if (!result?.ok || typeof result.id !== "string") return;
+      const result = action.result as {
+        ok?: boolean;
+        id?: string;
+        receipt?: Record<string, unknown>;
+      } | null;
+      if (!result?.ok) return;
 
+      const id = result.id ?? "";
+      const receipt = result.receipt ?? {};
+
+      // Build the UndoTarget per action.name.
+      // Capability guard is already enforced via isUndoable() at the onUndo
+      // prop site, so update_*/delete_* here carry before/snapshot.
       let target: UndoTarget;
-      if (action.name === "create_task") {
-        target = { kind: "task", id: result.id };
-      } else if (action.name === "create_capture") {
-        target = { kind: "capture", id: result.id };
-      } else if (action.name === "create_event") {
-        const receipt = result.receipt ?? {};
-        const calendarId =
-          typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
-        target = { kind: "event", id: result.id, calendarId };
-      } else {
-        return;
+      switch (action.name) {
+        case "create_task":
+          if (!id) return;
+          target = { kind: "task", id };
+          break;
+        case "create_capture":
+          if (!id) return;
+          target = { kind: "capture", id };
+          break;
+        case "create_event": {
+          if (!id) return;
+          const calendarId =
+            typeof receipt.calendar_id === "string"
+              ? receipt.calendar_id
+              : typeof receipt.calendarId === "string"
+                ? receipt.calendarId
+                : "primary";
+          target = { kind: "event", id, calendarId };
+          break;
+        }
+        case "update_task":
+          if (!id || !receipt.before) return;
+          target = { kind: "update_task", id, before: receipt.before as TaskBefore };
+          break;
+        case "update_capture":
+          if (!id || !receipt.before) return;
+          target = { kind: "update_capture", id, before: receipt.before as CaptureBefore };
+          break;
+        case "update_event": {
+          if (!id || !receipt.before) return;
+          const calendarId =
+            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
+          target = {
+            kind: "update_event",
+            id,
+            calendarId,
+            before: receipt.before as EventBefore,
+          };
+          break;
+        }
+        case "delete_task":
+          if (!receipt.snapshot) return;
+          target = { kind: "delete_task", snapshot: receipt.snapshot as TaskSnapshot };
+          break;
+        case "delete_capture":
+          if (!receipt.snapshot) return;
+          target = { kind: "delete_capture", snapshot: receipt.snapshot as CaptureSnapshot };
+          break;
+        case "delete_event": {
+          if (!receipt.snapshot) return;
+          const calendarId =
+            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
+          target = {
+            kind: "delete_event",
+            calendarId,
+            snapshot: receipt.snapshot as Record<string, unknown>,
+          };
+          break;
+        }
+        default:
+          // find_*, remember_fact, ask_clarification — not undoable
+          return;
       }
 
       const markUndone = (undone: boolean) =>
@@ -588,9 +772,7 @@ export function Home() {
                     key={a.toolUseId}
                     action={a}
                     onUndo={
-                      ["create_task", "create_capture", "create_event"].includes(a.name)
-                        ? () => void handleUndo(turn.id, a)
-                        : undefined
+                      isUndoable(a) ? () => void handleUndo(turn.id, a) : undefined
                     }
                   />
                 ))}
