@@ -76,7 +76,8 @@ vi.mock("@/lib/db", () => ({
               set: setValues as Record<string, unknown>,
               where: whereNode,
             });
-            return Promise.resolve({ rowCount: 1 });
+            // undo.ts chains .returning({id}) to detect the 0-row case
+            return { returning: vi.fn(() => Promise.resolve([{ id: "row" }])) };
           }),
         })),
       };

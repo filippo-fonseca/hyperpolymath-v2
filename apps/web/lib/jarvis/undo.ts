@@ -113,6 +113,20 @@ export type EventBefore = z.infer<typeof EventBeforeSchema>;
 export type TaskSnapshot = z.infer<typeof TaskSnapshotSchema>;
 export type CaptureSnapshot = z.infer<typeof CaptureSnapshotSchema>;
 
+// Snapshots ride through jarvis_turns JSONB, so timestamp columns arrive as
+// ISO strings — Drizzle's timestamp columns need Date objects on insert.
+function restoreSnapshotForInsert(
+  snapshot: Record<string, unknown>,
+  dateKeys: string[],
+): Record<string, unknown> {
+  const { userId: _discarded, ...snap } = snapshot;
+  void _discarded;
+  for (const k of dateKeys) {
+    if (typeof snap[k] === "string") snap[k] = new Date(snap[k] as string);
+  }
+  return snap;
+}
+
 // ---------------------------------------------------------------------------
 // undoJarvisActionForUser
 // ---------------------------------------------------------------------------
@@ -165,26 +179,26 @@ export async function undoJarvisActionForUser(
         // Cast through unknown to satisfy Drizzle's strict enum type for `status`.
         // The Zod schema already constrains the values to the correct enum literals;
         // this cast is safe because TaskBeforeSchema mirrors the DB enum shape.
-        const result = await db
+        // `.returning` (not driver rowCount, which the postgres-js driver exposes
+        // as `count`) is the driver-agnostic way to detect the 0-row case.
+        const updated = await db
           .update(tasks)
           .set(parsed.data.before as unknown as Partial<typeof tasks.$inferInsert>)
-          .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)));
-        // Drizzle returns a result with rowCount; if 0 the row doesn't exist
-        // or belongs to another user (ownership enforced by WHERE clause).
-        const rowCount = (result as unknown as { rowCount?: number })?.rowCount ?? 1;
-        if (rowCount === 0) {
+          .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)))
+          .returning({ id: tasks.id });
+        if (updated.length === 0) {
           return { ok: false, error: "Task not found" };
         }
         return { ok: true };
       }
 
       case "update_capture": {
-        const result = await db
+        const updated = await db
           .update(captures)
           .set(parsed.data.before)
-          .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)));
-        const rowCount = (result as unknown as { rowCount?: number })?.rowCount ?? 1;
-        if (rowCount === 0) {
+          .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)))
+          .returning({ id: captures.id });
+        if (updated.length === 0) {
           return { ok: false, error: "Capture not found" };
         }
         return { ok: true };
@@ -212,22 +226,27 @@ export async function undoJarvisActionForUser(
       case "delete_task": {
         // Spread the snapshot but override userId from the authenticated session.
         // Never trust snapshot.userId — ownership must come from the session.
-        const snap = parsed.data.snapshot as Record<string, unknown>;
-        const { userId: _discarded, ...snapRest } = snap;
-        void _discarded;
+        const snap = restoreSnapshotForInsert(parsed.data.snapshot as Record<string, unknown>, [
+          "createdAt",
+          "updatedAt",
+          "completedAt",
+        ]);
         await db.insert(tasks).values({
-          ...(snapRest as typeof tasks.$inferInsert),
+          ...(snap as typeof tasks.$inferInsert),
           userId,
         });
         return { ok: true };
       }
 
       case "delete_capture": {
-        const snap = parsed.data.snapshot as Record<string, unknown>;
-        const { userId: _discarded, ...snapRest } = snap;
-        void _discarded;
+        const snap = restoreSnapshotForInsert(parsed.data.snapshot as Record<string, unknown>, [
+          "createdAt",
+          "updatedAt",
+        ]);
+        // contentSearch is GENERATED ALWAYS — Postgres rejects explicit inserts.
+        delete snap.contentSearch;
         await db.insert(captures).values({
-          ...(snapRest as typeof captures.$inferInsert),
+          ...(snap as typeof captures.$inferInsert),
           userId,
         });
         return { ok: true };
