@@ -406,10 +406,20 @@ Plans:
 - [x] 16-05-PLAN.md — buildHistory() emits content blocks, JarvisReceipt find/update/delete variants + INTENT_META, undo triple-gated to creates only
 - [x] 16-06-PLAN.md — Universal 5s undo (SMJ-14): receipt-carried before-snapshot for update + pre-delete row snapshot for delete, server-side inversion (`undoUpdate*` + `undoDelete*`) wired into `undoJarvisActionForUser`, capability-based frontend gate (removes 16-05's name-prefix triple-gate)
 
+### Phase 17: Nutrition tracking tab — MyFitnessPal-style food logging with meals, macros, targets, and stats
+
+**Goal**: Log foods per day assigned to meal slots (breakfast/lunch/dinner/snacks) with macros auto-fetched from a public food database (research open MFP-derived APIs / USDA FoodData Central / Open Food Facts — MFP's own API is closed). Manual entry fallback when a food isn't found. Reusable "meals" = saved groupings of foods with exact quantities. Personal food history for instant quick-select when logging or building meals. Daily stats + macro breakdowns and a heat map visualization. User-configurable targets (calories, protein/carb/fat percentages, etc.) with live daily progress against targets as logs accumulate. Glassy/neumorphic styling matching the navbar settings pills while keeping the app's established style. Architecture must make JARVIS integration trivial later ("Jarvis, I just ate a pineapple" → log) but JARVIS tools are NOT built in this phase — requires explicit user confirmation first. Web only for now (mobile later). Data stored in Supabase/Drizzle.
+**Depends on:** Phase 1 (foundations), Phase 6.1 (visual language)
+**Requirements**: TBD (likely `NUTR-*` family)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -432,6 +442,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
+| 17. Nutrition tracking tab | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -698,4 +709,3 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
-
