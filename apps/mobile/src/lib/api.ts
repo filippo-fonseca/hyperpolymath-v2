@@ -48,12 +48,25 @@ export async function postTranscript(args: {
   }
 }
 
+// ContentBlock mirrors the Anthropic API content-block shapes used in history.
+export type HistoryContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; content: string };
+
+export type HistoryEntry = {
+  role: "user" | "assistant";
+  content: string | HistoryContentBlock[];
+};
+
 export interface PostTextOptions {
   parsedDates?: Array<{ text: string; start: string; end?: string; allDay?: boolean }>;
   parsedPriority?: "P∞" | "P1" | "P2" | "P3" | null;
   slashCommand?: "task" | "capture" | "event" | "ask" | null;
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
+  /** Conversation history — last N turns in Anthropic content-block format. */
+  history?: HistoryEntry[];
 }
 
 /**
@@ -77,6 +90,7 @@ export async function postText(
         slashCommand: options.slashCommand ?? undefined,
         linkedProjectIds: options.linkedProjectIds?.length ? options.linkedProjectIds : undefined,
         linkedHashtags: options.linkedHashtags?.length ? options.linkedHashtags : undefined,
+        history: options.history?.length ? options.history : undefined,
       }),
     });
     if (!res.ok) {
@@ -116,10 +130,64 @@ export async function fetchTtsPcm(args: {
   }
 }
 
+// ---------------------------------------------------------------------------
+// UndoTarget — full 9-kind union mirroring apps/web/lib/jarvis/undo.ts.
+// The server route /api/jarvis/voice/undo accepts all 9 kinds.
+// ---------------------------------------------------------------------------
+
+/** Fields that may be reverted for a task update undo. */
+export interface TaskBefore {
+  title?: string;
+  notes?: string | null;
+  priority?: "P∞" | "P1" | "P2" | "P3";
+  status?: string;
+  dueDate?: string | null;
+}
+
+/** Fields that may be reverted for a capture update undo. */
+export interface CaptureBefore {
+  content?: string;
+}
+
+/** Fields that may be reverted for an event update undo. */
+export interface EventBefore {
+  summary?: string;
+  description?: string | null;
+  start?: Record<string, unknown>;
+  end?: Record<string, unknown>;
+}
+
+/** Minimal task snapshot for delete undo (re-insert). */
+export interface TaskSnapshot {
+  id: string;
+  title: string;
+  notes?: string | null;
+  priority: "P∞" | "P1" | "P2" | "P3";
+  status: string;
+  dueDate?: string | null;
+  [key: string]: unknown;
+}
+
+/** Minimal capture snapshot for delete undo (re-insert). */
+export interface CaptureSnapshot {
+  id: string;
+  content: string;
+  [key: string]: unknown;
+}
+
 export type UndoTarget =
+  // Create undo — delete the created entity
   | { kind: "task"; id: string }
   | { kind: "capture"; id: string }
-  | { kind: "event"; id: string; calendarId: string };
+  | { kind: "event"; id: string; calendarId: string }
+  // Update undo — restore `before` field values
+  | { kind: "update_task"; id: string; before: TaskBefore }
+  | { kind: "update_capture"; id: string; before: CaptureBefore }
+  | { kind: "update_event"; id: string; calendarId: string; before: EventBefore }
+  // Delete undo — recreate the entity from a pre-delete snapshot
+  | { kind: "delete_task"; snapshot: TaskSnapshot }
+  | { kind: "delete_capture"; snapshot: CaptureSnapshot }
+  | { kind: "delete_event"; calendarId: string; snapshot: Record<string, unknown> };
 
 /** POST /api/jarvis/voice/undo — the 5s receipt undo, paired-device twin. */
 export async function postUndo(target: UndoTarget): Promise<boolean> {

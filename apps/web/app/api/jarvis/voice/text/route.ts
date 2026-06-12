@@ -31,6 +31,14 @@ const CORS = {
  * device bearer token, skips STT, and spawns the same server-side JARVIS
  * turn — response streams to all listeners via the physical SSE bus.
  */
+// ContentBlock mirrors the Anthropic API content-block shapes.
+// Mobile clients (Phase 16 parity) send prior-turn history so the model can
+// resolve entity references across turns (e.g. "the task I just created").
+type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; content: string };
+
 interface VoiceTextBody {
   text?: unknown;
   parsedDates?: Array<{ text: string; start: string; end?: string; allDay?: boolean }>;
@@ -38,6 +46,13 @@ interface VoiceTextBody {
   slashCommand?: "task" | "capture" | "event" | "ask" | null;
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
+  /**
+   * Optional conversation history from paired clients (mobile app, desktop).
+   * Each entry is a prior assistant or user turn. The last entry MUST be a
+   * user turn carrying tool_result blocks for any tool_use in the preceding
+   * assistant turn (Anthropic API Pitfall 1). Max 10 entries enforced below.
+   */
+  history?: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }>;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -134,10 +149,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
 
+  // Build the messages array: prior history (capped at 10 entries) followed
+  // by the current user turn with system hints injected.
+  const historyEntries = Array.isArray(body.history) ? body.history.slice(-10) : [];
+  const messages: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> = [
+    ...historyEntries,
+    { role: "user", content: userContent },
+  ];
+
   void runJarvisTurnStream({
     userId,
     input: text,
-    messages: [{ role: "user", content: userContent }],
+    messages,
     toolChoice,
     parsedPriority: body.parsedPriority,
     source: { device: identity.deviceName, input: "text" },
