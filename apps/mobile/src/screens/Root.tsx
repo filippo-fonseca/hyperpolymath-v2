@@ -4,8 +4,9 @@
 // so the JARVIS SSE stream, TTS queue, and any in-flight dictation survive
 // tab switches.
 
+import * as Haptics from "expo-haptics";
 import { useCallback, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CelebrationOverlay } from "../components/celebrate";
@@ -19,12 +20,57 @@ import { TrainingScreen } from "./Training";
 
 type Tab = "tasks" | "habits" | "jarvis" | "training" | "captures";
 
+const TAB_ORDER: Tab[] = ["tasks", "habits", "jarvis", "training", "captures"];
+
 export function Root() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>("jarvis");
   const orbPulse = useRef(new Animated.Value(1)).current;
   // Voice trigger registered by <Home> — the nav kiwi button activates dictation.
   const voicePressRef = useRef<(() => void) | null>(null);
+
+  const switchTab = useCallback((next: Tab) => {
+    setTab(next);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // Horizontal swipe to navigate tabs.
+  // Gesture is only claimed when it is clearly horizontal:
+  //   |dx| > ~16px AND |dx| > 2.5 × |dy|  →  prevents hijacking vertical
+  //   scrolling or horizontal sub-scrolls inside screens.
+  // On release, switch if |dx| > 60px or velocity > 0.3.
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => {
+        const { dx, dy } = gs;
+        return Math.abs(dx) > 16 && Math.abs(dx) > Math.abs(dy) * 2.5;
+      },
+      onPanResponderRelease: (_, gs) => {
+        const { dx, vx } = gs;
+        if (Math.abs(dx) > 60 || Math.abs(vx) > 0.3) {
+          setTab((current) => {
+            const idx = TAB_ORDER.indexOf(current);
+            if (dx < 0) {
+              // left swipe → next tab
+              const next = TAB_ORDER[Math.min(idx + 1, TAB_ORDER.length - 1)];
+              if (next && next !== current) {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                return next;
+              }
+            } else {
+              // right swipe → previous tab
+              const prev = TAB_ORDER[Math.max(idx - 1, 0)];
+              if (prev && prev !== current) {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                return prev;
+              }
+            }
+            return current;
+          });
+        }
+      },
+    }),
+  ).current;
 
   const pulseOrb = useCallback(() => {
     Animated.sequence([
@@ -35,10 +81,10 @@ export function Root() {
 
   const handleJarvisNavPress = useCallback(() => {
     // The nav kiwi IS the voice button: jump to JARVIS and start dictation.
-    setTab("jarvis");
+    switchTab("jarvis");
     voicePressRef.current?.();
     pulseOrb();
-  }, [pulseOrb]);
+  }, [pulseOrb, switchTab]);
 
   const screen = (key: Tab, node: React.ReactNode) => (
     <View
@@ -51,7 +97,7 @@ export function Root() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.stage}>
+      <View style={styles.stage} {...panResponder.panHandlers}>
         {screen("tasks", <TasksScreen active={tab === "tasks"} />)}
         {screen("habits", <HabitsScreen active={tab === "habits"} />)}
         {screen(
@@ -63,8 +109,8 @@ export function Root() {
       </View>
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <TabButton icon="tasks" label="TASKS" active={tab === "tasks"} onPress={() => setTab("tasks")} />
-        <TabButton icon="habits" label="HABITS" active={tab === "habits"} onPress={() => setTab("habits")} />
+        <TabButton icon="tasks" label="TASKS" active={tab === "tasks"} onPress={() => switchTab("tasks")} />
+        <TabButton icon="habits" label="HABITS" active={tab === "habits"} onPress={() => switchTab("habits")} />
         {/* Fixed-width gap reserves the orb's slot; the orb itself is
             absolutely centered over the bar so flex rounding can never
             nudge it off-center. */}
@@ -73,13 +119,13 @@ export function Root() {
           icon="training"
           label="TRAINING"
           active={tab === "training"}
-          onPress={() => setTab("training")}
+          onPress={() => switchTab("training")}
         />
         <TabButton
           icon="captures"
           label="CAPTURES"
           active={tab === "captures"}
-          onPress={() => setTab("captures")}
+          onPress={() => switchTab("captures")}
         />
         <View style={styles.orbOverlay} pointerEvents="box-none">
           <Pressable
