@@ -1,6 +1,7 @@
+import { Text } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
-import { colors } from "../theme";
+import { colors, serifSemiBold } from "../theme";
 import { KIWI_PATH } from "./Orb";
 
 /** Material-style gear, filled. */
@@ -21,6 +22,27 @@ export function KiwiMark({ size = 22, color = colors.accent }: { size?: number; 
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path d={KIWI_PATH} fill={color} />
     </Svg>
+  );
+}
+
+/**
+ * Hyperpolymath "H" brand mark — the letter H in EB Garamond SemiBold.
+ * Used in the nav orb and the top-right header ornament ring.
+ */
+export function HMark({ size = 22, color = colors.accent }: { size?: number; color?: string }) {
+  return (
+    <Text
+      style={{
+        color,
+        fontFamily: serifSemiBold,
+        fontSize: size,
+        lineHeight: size * 1.1,
+        includeFontPadding: false,
+      }}
+      allowFontScaling={false}
+    >
+      H
+    </Text>
   );
 }
 

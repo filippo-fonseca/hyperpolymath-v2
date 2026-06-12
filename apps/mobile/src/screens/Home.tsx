@@ -21,6 +21,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { startLiveRecognition, type LiveSession } from "../audio/live-recognition";
 import { useVoiceRecorder } from "../audio/recorder";
 import { TtsQueue } from "../audio/tts-queue";
-import { GearIcon, KiwiMark } from "../components/icons";
+import { GearIcon } from "../components/icons";
 import { JarvisReceipt, type ReceiptAction } from "../components/JarvisReceipt";
 import { Orb, type OrbState } from "../components/Orb";
 import { SettingsSheet } from "../components/SettingsSheet";
@@ -93,7 +94,15 @@ const CENTER_HINT: Record<OrbState, string> = {
   speaking: "speaking",
 };
 
-export function Home() {
+export function Home({
+  onFocusComposer,
+  onConversationChange,
+}: {
+  /** Called once on mount with a `focus()` function the shell can invoke. */
+  onFocusComposer?: (focus: () => void) => void;
+  /** Called whenever the conversation non-empty state changes (for nav bar awareness). */
+  onConversationChange?: (hasMessages: boolean) => void;
+}) {
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(false);
   const [orbState, setOrbState] = useState<OrbState>("idle");
@@ -103,6 +112,16 @@ export function Home() {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [paired, setPaired] = useState(false);
   const [context, setContext] = useState<JarvisContext>(getJarvisContext());
+  const textBarInputRef = useRef<TextInput>(null);
+
+  // Register our keyboard-focus callback with the parent shell so the nav
+  // bar button can open the composer when the conversation is active.
+  useEffect(() => {
+    onFocusComposer?.(() => {
+      textBarInputRef.current?.focus();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFocusComposer]);
 
   const recorder = useVoiceRecorder();
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -121,6 +140,12 @@ export function Home() {
 
   const hasConversation = turns.length > 0;
   turnsRef.current = turns;
+
+  // Notify the shell whenever the conversation non-empty state flips so the
+  // nav bar can change its tap behavior.
+  useEffect(() => {
+    onConversationChange?.(hasConversation);
+  }, [hasConversation, onConversationChange]);
 
   // ---------------------------------------------------------------------------
   // Session memory (Phase 16 parity) — last 10 turns in Anthropic content-block
@@ -709,33 +734,9 @@ export function Home() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Header: docked orb (when conversing) · logo + status · settings */}
+        {/* Header: settings gear (left) · "Jarvis" + status (center) · H orb (right) */}
         <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
           <View style={styles.headerLeft}>
-            {hasConversation ? (
-              <Orb state={orbState} size={48} onPress={() => void handleOrbPress()} />
-            ) : (
-              <KiwiMark size={26} />
-            )}
-          </View>
-
-          <View style={styles.headerCenter}>
-            <Text style={styles.brand}>HYPERPOLYMATH</Text>
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: online ? colors.accent : colors.upload },
-                ]}
-              />
-              <Text style={styles.statusText}>
-                {online ? "JARVIS online" : sseStatus === "connecting" ? "connecting…" : "reconnecting…"}
-                {!paired ? " · unpaired" : ""}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.headerRight}>
             <Pressable
               onPress={() => setSettingsOpen(true)}
               hitSlop={14}
@@ -745,6 +746,34 @@ export function Home() {
             >
               <GearIcon size={26} />
             </Pressable>
+          </View>
+
+          <View style={styles.headerCenter}>
+            <Text style={styles.brand}>Jarvis</Text>
+            <View style={styles.statusRow}>
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: online ? colors.accent : colors.upload },
+                ]}
+              />
+              <Text style={styles.statusText}>
+                {online ? "online" : sseStatus === "connecting" ? "connecting…" : "reconnecting…"}
+                {!paired ? " · unpaired" : ""}
+              </Text>
+            </View>
+          </View>
+
+          {/* Top-right: Hyperpolymath "H" surrounded by the orb's animated rings.
+              Always visible — animates per orbState (idle breathing glow,
+              fast spin while thinking/speaking). */}
+          <View style={styles.headerRight}>
+            <Orb
+              state={orbState}
+              size={48}
+              showH
+              onPress={() => void handleOrbPress()}
+            />
           </View>
         </View>
 
@@ -799,6 +828,7 @@ export function Home() {
             projects={context.projects}
             hashtags={context.hashtags}
             timezone={context.timezone}
+            focusRef={textBarInputRef}
             onSubmit={(s) => void handleText(s)}
           />
         </View>
@@ -860,8 +890,8 @@ const styles = StyleSheet.create({
   brand: {
     color: colors.text,
     fontFamily: serifSemiBold,
-    fontSize: 17,
-    letterSpacing: 3,
+    fontSize: 19,
+    letterSpacing: 0.5,
   },
   statusRow: {
     flexDirection: "row",

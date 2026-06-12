@@ -5,7 +5,7 @@
 // transcribing amber.
 
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -15,6 +15,8 @@ import Svg, {
   RadialGradient,
   Stop,
 } from "react-native-svg";
+
+import { serifSemiBold } from "../theme";
 
 import { colors } from "../theme";
 
@@ -47,10 +49,13 @@ const TICK_COUNT = 24;
 export function Orb({
   state,
   size = 240,
+  showH = false,
   onPress,
 }: {
   state: OrbState;
   size?: number;
+  /** Render the Hyperpolymath "H" brand mark instead of the kiwi glyph. */
+  showH?: boolean;
   onPress: () => void;
 }) {
   const color = STATE_COLOR[state];
@@ -218,11 +223,26 @@ export function Orb({
         </Svg>
       </Animated.View>
 
-      {/* Kiwi glyph */}
+      {/* Logo glyph — kiwi (default) or Hyperpolymath "H" brand mark */}
       <Animated.View style={{ transform: [{ scale: glyphScale }] }} pointerEvents="none">
-        <Svg width={size * 0.3} height={size * 0.3} viewBox="0 0 24 24">
-          <Path d={KIWI_PATH} fill={color} />
-        </Svg>
+        {showH ? (
+          <Text
+            style={{
+              color,
+              fontFamily: serifSemiBold,
+              fontSize: size * 0.38,
+              lineHeight: size * 0.42,
+              includeFontPadding: false,
+            }}
+            allowFontScaling={false}
+          >
+            H
+          </Text>
+        ) : (
+          <Svg width={size * 0.3} height={size * 0.3} viewBox="0 0 24 24">
+            <Path d={KIWI_PATH} fill={color} />
+          </Svg>
+        )}
       </Animated.View>
     </Pressable>
   );
