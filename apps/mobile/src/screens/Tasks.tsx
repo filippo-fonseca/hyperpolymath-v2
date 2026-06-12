@@ -117,8 +117,13 @@ export function TasksScreen({ active }: { active: boolean }) {
   }, [data]);
 
   const toggleDone = async (t: Task, touch?: { x: number; y: number }) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const next: TaskStatus = t.status === "lesno" ? "not started" : "lesno";
+    // Completion gets the rewarding success buzz; un-checking stays a light tick.
+    if (next === "lesno") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     if (next === "lesno" && touch) celebrate(touch.x, touch.y, PRIORITY_COLOR[t.priority]);
     mutate((cur) => cur?.map((x) => (x.id === t.id ? { ...x, status: next } : x)) ?? null);
     await updateTask({ id: t.id, status: next });

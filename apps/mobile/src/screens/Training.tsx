@@ -98,8 +98,12 @@ export function TrainingScreen({ active }: { active: boolean }) {
   }, [data]);
 
   const toggleDone = async (a: TrainingActivity, touch?: { x: number; y: number }) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const status: TrainingStatus = a.status === "done" ? "planned" : "done";
+    if (status === "done") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     if (status === "done" && touch) {
       celebrate(touch.x, touch.y, typeById.get(a.activityTypeId)?.color ?? "#7fa57c");
     }

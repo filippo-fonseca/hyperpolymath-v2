@@ -85,8 +85,12 @@ export function HabitsScreen({ active }: { active: boolean }) {
   const scheduledToday = (h: Habit) => h.daysOfWeek[todayDow] !== false;
 
   const toggle = async (h: Habit, touch?: { x: number; y: number }) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const completed = !checkedToday.has(h.id);
+    if (completed) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     if (completed && touch) celebrate(touch.x, touch.y, "#7fa57c");
     mutate((cur) =>
       cur

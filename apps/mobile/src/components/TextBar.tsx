@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 // The composer — mobile port of the browser console's power input.
 //
 //   /        → slash command picker (task / capture / event / ask / help)
@@ -174,6 +175,7 @@ export function TextBar({
 
   const applySuggestion = (key: string, label: string) => {
     if (!active) return;
+    void Haptics.selectionAsync();
     const before = value.slice(0, active.start);
     if (active.kind === "slash") {
       setPinned(key as SlashCommand);
@@ -193,6 +195,7 @@ export function TextBar({
   const submit = () => {
     const text = value.trim();
     if ((!text && !pinned) || disabled) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setValue("");
     const pinnedCommand = pinned;
     setPinned(null);

@@ -79,8 +79,15 @@ export function Root() {
     ]).start();
   }, [orbPulse]);
 
+  // Single tap: just go to the JARVIS tab — never auto-record.
   const handleJarvisNavPress = useCallback(() => {
-    // The nav kiwi IS the voice button: jump to JARVIS and start dictation.
+    switchTab("jarvis");
+    pulseOrb();
+  }, [pulseOrb, switchTab]);
+
+  // Long press: haptic, then start dictation (the kiwi IS the voice button).
+  const handleJarvisNavLongPress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     switchTab("jarvis");
     voicePressRef.current?.();
     pulseOrb();
@@ -130,9 +137,11 @@ export function Root() {
         <View style={styles.orbOverlay} pointerEvents="box-none">
           <Pressable
             onPress={handleJarvisNavPress}
+            onLongPress={handleJarvisNavLongPress}
+            delayLongPress={350}
             style={({ pressed }) => [styles.orbTab, pressed && { opacity: 0.7 }]}
             accessibilityRole="button"
-            accessibilityLabel="Dictate to JARVIS"
+            accessibilityLabel="JARVIS — long-press to dictate"
           >
             <Animated.View
               style={[

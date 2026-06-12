@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 // Action receipt — mobile twin of apps/web/components/jarvis/JarvisReceipt.tsx.
 // Intent communicated via the leading 6px dot (amber task / sage capture /
 // coral event / cyan memory), mono uppercase label row with ✓ or ✕, then a
@@ -79,6 +80,7 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
         if (cancelled.current) return;
         cancelled.current = true;
         setHidden(true);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onUndo();
       }}
       style={({ pressed }) => [styles.undo, pressed && { opacity: 0.6 }]}
