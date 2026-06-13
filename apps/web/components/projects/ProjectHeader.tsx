@@ -176,8 +176,11 @@ export function ProjectHeader({
         </div>
       </div>
 
-      {/* Header row: icon + name + class meta — serif throughout (UI-SPEC §5j) */}
-      <div className="px-8 pt-8 pb-4 flex flex-col gap-2">
+      {/* Header row: icon + name + class meta — serif throughout (UI-SPEC §5j).
+          Shares the body's horizontal measure (mx-auto max-w-[1080px] px-8
+          md:px-12) so the title's left edge lines up exactly with the TASKS
+          heading and kanban columns below. */}
+      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-8 pb-4 flex flex-col gap-2">
         {/* Area badge — small clickable pill above the title so the project's
             place in the hierarchy is always one glance away. Renders nothing
             when the area isn't supplied (e.g. server fetch failure). */}

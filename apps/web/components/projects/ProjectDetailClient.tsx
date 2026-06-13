@@ -103,7 +103,7 @@ export function ProjectDetailClient({
           user always sees Areas → {area} → {project} from inside the
           project. Live-bound to `liveProject.name` so renames refresh
           here without a navigation. */}
-      <div className="px-8 md:px-12 pt-4">
+      <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-4 pb-6">
         <Breadcrumbs
           items={[
             { label: "Areas", href: "/areas" },
