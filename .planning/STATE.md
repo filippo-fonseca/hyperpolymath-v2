@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 17-nutrition-tracking-tab/17-01-PLAN.md
-last_updated: "2026-06-13T01:26:57.847Z"
+stopped_at: Completed 17-nutrition-tracking-tab/17-02-PLAN.md
+last_updated: "2026-06-13T01:41:23.935Z"
 last_activity: 2026-06-13 -- Phase 17 execution started
 progress:
   total_phases: 36
   completed_phases: 13
   total_plans: 93
-  completed_plans: 76
+  completed_plans: 77
   percent: 36
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 17 (nutrition-tracking-tab) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-13 -- Phase 17 execution started
 
@@ -127,6 +127,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 16 P04 | 18m | 3 tasks | 4 files |
 | Phase 16 P06 | 9m | 3 tasks | 8 files |
 | Phase 17-nutrition-tracking-tab P01 | 5 | 3 tasks | 4 files |
+| Phase 17 P02 | 10 | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -358,6 +359,8 @@ Recent decisions affecting current work:
 - [Phase 16]: Universal undo uses SELECT-before-UPDATE in Drizzle transaction and capability-based prop gate (receipt.before/snapshot) over name-prefix checks
 - [Phase 17-nutrition-tracking-tab]: Snapshotted macros on food_logs (kcal, protein_g, carbs_g, fat_g) immutable to future food edits — prevents silent corruption of historical logs
 - [Phase 17-nutrition-tracking-tab]: state_version triggers on food_logs + meals only (not foods/food_serving_options/meal_items) — those tables change during setup, not JARVIS sessions
+- [Phase 17]: D-14: nutrition service functions take userId first — Server Actions are auth boundary, enabling JARVIS tool calls without HTTP context
+- [Phase 17]: logFood snapshots macros at log time (immutable to future OFF data corrections per RESEARCH Pitfall 1)
 
 ### Pending Todos
 
@@ -382,6 +385,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-13T01:26:57.839Z
-Stopped at: Completed 17-nutrition-tracking-tab/17-01-PLAN.md
+Last session: 2026-06-13T01:41:23.926Z
+Stopped at: Completed 17-nutrition-tracking-tab/17-02-PLAN.md
 Resume file: .planning/phases/17-nutrition-tracking-tab/17-UI-SPEC.md

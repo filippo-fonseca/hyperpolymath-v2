@@ -524,12 +524,12 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 - [x] **NUTR-SCHEMA-02**: `food_logs` row carries SNAPSHOTTED `kcal`/`protein_g`/`carbs_g`/`fat_g` columns; macros are not recomputed from `foods.*_per_100g` at read time (Pitfall 1)
 - [x] **NUTR-RLS-01**: All 6 nutrition tables enforce owner-only RLS (`user_id = auth.uid()`); cross-user reads return empty (integration test `tests/nutrition/rls.test.ts`)
 - [x] **NUTR-RT-01**: Realtime publication includes `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`; `RealtimeTable` union extended; `bump_user_state_version` BEFORE trigger fires on `food_logs` + `meals` writes (D-14 JARVIS state-cache hook)
-- [ ] **NUTR-MATH-01**: `computeMacros(baseAmount, food)` returns kcal/protein/carbs/fat correctly from per-100g source via `(amount / 100) × per100g`
-- [ ] **NUTR-MATH-02**: `validateMacroConsistency(macros)` flags >15% divergence from the 4/4/9 calorie rule
-- [ ] **NUTR-TARGET-01**: `deriveTargetGrams(targets)` correctly derives gram equivalents from `targetKcal` + protein/carbs/fat %
-- [ ] **NUTR-OFF-01**: `/api/nutrition/search` and `/api/nutrition/product/[barcode]` proxy Open Food Facts with required `User-Agent` header; responses parsed via Zod with missing nutriments defaulting to 0
-- [ ] **NUTR-SERVICE-01**: `nutrition-service.ts` exports `logFood`/`deleteLog`/`updateLog`/`logMeal`/`upsertFood`/`createMeal`/`listFoodLogsForDay`/`getFoodHistory`/`getNutritionTargets`/`upsertNutritionTargets`/`copyDayLogs` — all `(userId, input)` first, double-WHERE ownership; `logFood` snapshots macros on insert
-- [ ] **NUTR-D14**: All mutations live in `nutrition-service.ts`; Server Actions in `app/actions/nutrition.ts` are thin auth+Zod wrappers — same shape as Phase 16 executor, so JARVIS tools (`log_food`, `log_meal`, …) can be wired later without UI rework
+- [x] **NUTR-MATH-01**: `computeMacros(baseAmount, food)` returns kcal/protein/carbs/fat correctly from per-100g source via `(amount / 100) × per100g`
+- [x] **NUTR-MATH-02**: `validateMacroConsistency(macros)` flags >15% divergence from the 4/4/9 calorie rule
+- [x] **NUTR-TARGET-01**: `deriveTargetGrams(targets)` correctly derives gram equivalents from `targetKcal` + protein/carbs/fat %
+- [x] **NUTR-OFF-01**: `/api/nutrition/search` and `/api/nutrition/product/[barcode]` proxy Open Food Facts with required `User-Agent` header; responses parsed via Zod with missing nutriments defaulting to 0
+- [x] **NUTR-SERVICE-01**: `nutrition-service.ts` exports `logFood`/`deleteLog`/`updateLog`/`logMeal`/`upsertFood`/`createMeal`/`listFoodLogsForDay`/`getFoodHistory`/`getNutritionTargets`/`upsertNutritionTargets`/`copyDayLogs` — all `(userId, input)` first, double-WHERE ownership; `logFood` snapshots macros on insert
+- [x] **NUTR-D14**: All mutations live in `nutrition-service.ts`; Server Actions in `app/actions/nutrition.ts` are thin auth+Zod wrappers — same shape as Phase 16 executor, so JARVIS tools (`log_food`, `log_meal`, …) can be wired later without UI rework
 - [ ] **NUTR-NAV-01**: `/nutrition` route registered in `PersistentNav.tsx` and `TopTabBar.tsx` with `UtensilsCrossed` icon and label "Nutrition"
 - [ ] **NUTR-DAY-01**: Day view renders meal-slot sections (breakfast/lunch/dinner/snacks) with food log rows (44px min height); empty state copy "Nothing logged yet" + CTA "Log your first meal"
 - [ ] **NUTR-DAY-02**: Day navigator (← {date} →) with "Today"/"Yesterday"/"EEE, MMM d" formatting; "Copy yesterday" button visible only when today's logs are empty; clone via `copyYesterdayAction`
@@ -552,10 +552,10 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-RLS-01 | Phase 17 | Complete |
 | NUTR-RT-01 | Phase 17 | Complete |
 | NUTR-MATH-01..02 | Phase 17 | Pending |
-| NUTR-TARGET-01 | Phase 17 | Pending |
-| NUTR-OFF-01 | Phase 17 | Pending |
-| NUTR-SERVICE-01 | Phase 17 | Pending |
-| NUTR-D14 | Phase 17 | Pending |
+| NUTR-TARGET-01 | Phase 17 | Complete |
+| NUTR-OFF-01 | Phase 17 | Complete |
+| NUTR-SERVICE-01 | Phase 17 | Complete |
+| NUTR-D14 | Phase 17 | Complete |
 | NUTR-NAV-01 | Phase 17 | Pending |
 | NUTR-DAY-01..02 | Phase 17 | Pending |
 | NUTR-PILL-01 | Phase 17 | Pending |
