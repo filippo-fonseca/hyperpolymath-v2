@@ -1,10 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
 import { JarvisSidePanel } from "./JarvisSidePanel";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
+import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -46,6 +48,8 @@ export function AppShell({
 }: Props) {
   const pathname = usePathname() ?? "";
   const { splitOn } = useSplitScreen();
+  const { expanded } = useTasksExpanded();
+  const reduceMotion = useReducedMotion();
 
   const onJarvis =
     pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
@@ -54,13 +58,32 @@ export function AppShell({
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
-      <Sidebar
-        userId={userId}
-        initialActiveAreas={activeAreas}
-        initialAllAreas={allAreas}
-        graduationYear={graduationYear}
-        profile={profile}
-      />
+      {/* Sidebar collapses to width 0 when tasks fullscreen is on (D-08 /
+          UI-SPEC I-6). 200ms ease-out-quart; respects reduced motion. */}
+      <AnimatePresence initial={false}>
+        {!expanded && (
+          <motion.div
+            key="sidebar"
+            initial={false}
+            animate={{ width: "auto", opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
+            }
+            className="overflow-hidden shrink-0"
+          >
+            <Sidebar
+              userId={userId}
+              initialActiveAreas={activeAreas}
+              initialAllAreas={allAreas}
+              graduationYear={graduationYear}
+              profile={profile}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <main className="flex flex-1 flex-col overflow-hidden">
         <TopTabBar />
         <div className="flex flex-1 overflow-hidden">

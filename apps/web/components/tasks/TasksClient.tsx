@@ -14,10 +14,12 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
@@ -96,6 +98,10 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     tasks,
     optimisticReducer<TaskWithProjects>
   );
+
+  // Expand/fullscreen (D-08 / UI-SPEC S-7) — localStorage-backed flag shared
+  // with AppShell (which hides the sidebar). Ephemeral, never in the URL.
+  const { expanded, toggle: toggleExpanded } = useTasksExpanded();
 
   // View toggle — URL ?view= + localStorage fallback (UI-SPEC D-05)
   const [view, setView] = useQueryState("view", parseAsString.withDefault("kanban"));
@@ -457,8 +463,10 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     // No max-w cap — kanban view needs full horizontal real estate for the
     // 5 status columns. Header + toolbar happily extend to the page edge.
     <div className="flex flex-col h-screen min-h-0 overflow-hidden px-8 py-10 w-full">
-      {/* Arc-redesign page header — serif title + glance stats row. */}
-      <header className="mb-6 space-y-1.5">
+      {/* Arc-redesign page header — serif title + glance stats row, with the
+          expand/fullscreen toggle anchored top-right (D-08 / UI-SPEC S-7). */}
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div className="space-y-1.5">
         <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
           Tasks
         </h1>
@@ -475,6 +483,19 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
             <span className="text-[var(--ink-muted)]/60">· {headerStats.done} done</span>
           ) : null}
         </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          aria-label={expanded ? "Exit fullscreen" : "Expand tasks to fullscreen"}
+          className="text-[var(--ink-muted)] hover:text-[var(--ink)] p-1 rounded cursor-pointer-always transition-colors duration-150 ease-out"
+        >
+          {expanded ? (
+            <Minimize2 size={16} strokeWidth={1.5} />
+          ) : (
+            <Maximize2 size={16} strokeWidth={1.5} />
+          )}
+        </button>
       </header>
 
       {/* Universal day switcher (D-05 / UI-SPEC S-2) — one shared day control
