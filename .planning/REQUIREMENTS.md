@@ -512,3 +512,58 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 *Requirements defined: 2026-05-07*
 *Last updated: 2026-06-11 — Phase 16 (Smarter JARVIS — Session Memory + CRUD) added: 13 SMJ requirements covering rich-block history, session-entities scratchpad, 9 new tools (6 CRUD + 3 find), multi-pass agentic loop, receipt UI variants, and test contract updates. v1.1 count: 28 → 41. Phase 14 rewritten to focus on the desktop mic middleman (extender + standalone modes, persistent OS-level mic permission, voice-source claim/heartbeat, Settings UI). Previous Phase 14 scope (Cmd+Shift+Space global hotkey + FN-double-tap + HUD chrome + dismiss-interrupt) is deferred; backlog 999.7 (interrupt/stop control) un-absorbed. v1.1 count: 27 → 28 (DESK-06 added for hyperpolymath integration). 2026-06-11 (mid-execution scope-change): SMJ-14 added — universal 5s undo on every JARVIS action; supersedes the creates-only gate shipped by 16-05. Implemented by plan 16-06. v1.1 count: 41 → 42.*
+
+### Nutrition Tracking Tab (Phase 17)
+
+MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slots, reusable meals, global targets, and GitHub-style heat map.
+
+- [ ] **NUTR-SCHEMA-01**: Drizzle schema adds `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`, `nutrition_targets` tables + `meal_slot` enum, all userId-scoped
+- [ ] **NUTR-SCHEMA-02**: `food_logs` row carries SNAPSHOTTED `kcal`/`protein_g`/`carbs_g`/`fat_g` columns; macros are not recomputed from `foods.*_per_100g` at read time (Pitfall 1)
+- [ ] **NUTR-RLS-01**: All 6 nutrition tables enforce owner-only RLS (`user_id = auth.uid()`); cross-user reads return empty (integration test `tests/nutrition/rls.test.ts`)
+- [ ] **NUTR-RT-01**: Realtime publication includes `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`; `RealtimeTable` union extended; `bump_user_state_version` BEFORE trigger fires on `food_logs` + `meals` writes (D-14 JARVIS state-cache hook)
+- [ ] **NUTR-MATH-01**: `computeMacros(baseAmount, food)` returns kcal/protein/carbs/fat correctly from per-100g source via `(amount / 100) × per100g`
+- [ ] **NUTR-MATH-02**: `validateMacroConsistency(macros)` flags >15% divergence from the 4/4/9 calorie rule
+- [ ] **NUTR-TARGET-01**: `deriveTargetGrams(targets)` correctly derives gram equivalents from `targetKcal` + protein/carbs/fat %
+- [ ] **NUTR-OFF-01**: `/api/nutrition/search` and `/api/nutrition/product/[barcode]` proxy Open Food Facts with required `User-Agent` header; responses parsed via Zod with missing nutriments defaulting to 0
+- [ ] **NUTR-SERVICE-01**: `nutrition-service.ts` exports `logFood`/`deleteLog`/`updateLog`/`logMeal`/`upsertFood`/`createMeal`/`listFoodLogsForDay`/`getFoodHistory`/`getNutritionTargets`/`upsertNutritionTargets`/`copyDayLogs` — all `(userId, input)` first, double-WHERE ownership; `logFood` snapshots macros on insert
+- [ ] **NUTR-D14**: All mutations live in `nutrition-service.ts`; Server Actions in `app/actions/nutrition.ts` are thin auth+Zod wrappers — same shape as Phase 16 executor, so JARVIS tools (`log_food`, `log_meal`, …) can be wired later without UI rework
+- [ ] **NUTR-NAV-01**: `/nutrition` route registered in `PersistentNav.tsx` and `TopTabBar.tsx` with `UtensilsCrossed` icon and label "Nutrition"
+- [ ] **NUTR-DAY-01**: Day view renders meal-slot sections (breakfast/lunch/dinner/snacks) with food log rows (44px min height); empty state copy "Nothing logged yet" + CTA "Log your first meal"
+- [ ] **NUTR-DAY-02**: Day navigator (← {date} →) with "Today"/"Yesterday"/"EEE, MMM d" formatting; "Copy yesterday" button visible only when today's logs are empty; clone via `copyYesterdayAction`
+- [ ] **NUTR-PILL-01**: Meal-slot pill bar mirrors `SettingsSectionNav.tsx` exactly — `rounded-full backdrop-blur-md` rail, `motion.span layoutId="nutrition-slot-pill"` spring (stiffness 360, damping 32), uppercase mono labels at `text-[10.5px] tracking-[0.14em]`
+- [ ] **NUTR-PROGRESS-01**: Daily macro summary shows consumed kcal in `.font-mono-stats` at 28px (primary focal point) + 3 macro progress bars with `--hud-cyan` fill at 70–99% and `--ink-sage` at 100%+ (target met)
+- [ ] **NUTR-SEARCH-01**: Food search proxies OFF via `/api/nutrition/search`; debounced 300ms via `useDeferredValue`; personal history (Recents) appears instantly; OFF results section after 2+ chars
+- [ ] **NUTR-LOG-01**: Selecting a food opens `ServingPicker` with unit `Select` + quantity `Input`; live macro preview "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" updates per keystroke; Enter or "Log" button confirms
+- [ ] **NUTR-MANUAL-01**: When OFF has no results, "Can't find it? Enter it manually." opens `ManualEntryForm`; creates a food via `upsertFoodAction` with `isManual: true` and seeds default + product serving options
+- [ ] **NUTR-MEALS-01**: User can create reusable meals (name + items[]) via `MealsManagerSheet`; can log a whole meal into a chosen slot via `logMealAction` which fans out into N `food_logs` rows in one transaction
+- [ ] **NUTR-QUICKADD-01**: Global keyboard shortcut `n` opens `FoodSearch` with meal slot pre-selected by time of day (breakfast <10am / lunch 10–14 / dinner 17–21 / snacks otherwise)
+- [ ] **NUTR-TARGETS-UI-01**: `/settings/nutrition` lets the user set `targetKcal` + protein/carbs/fat %; auto-adjust keeps sum=100; Zod refine `Math.abs(sum-100) < 0.5`; live gram preview via `deriveTargetGrams`
+- [ ] **NUTR-STATS-01**: `/nutrition/stats` renders exactly 3 sections — LOGGING HISTORY (heat map), 7-DAY MACRO TREND (recharts LineChart with sage/amber/coral lines), PERSONAL BESTS (longest streak / highest single day / best adherence)
+- [ ] **NUTR-HEATMAP-01**: Heat map is plain CSS grid (52 weeks × 7 days, 10px cells, 2px gap) using `date-fns eachDayOfInterval`; 5-level adherence encoding per UI-SPEC color scale (`var(--surface)` / `oklch(30% 0.08 210)` / `oklch(45% 0.13 210)` / `oklch(60% 0.18 210)` / `var(--hud-cyan)`); tooltip "{date} — {kcal} kcal ({pct}% of target)"
+
+### Phase 17 traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| NUTR-SCHEMA-01..02 | Phase 17 | Pending |
+| NUTR-RLS-01 | Phase 17 | Pending |
+| NUTR-RT-01 | Phase 17 | Pending |
+| NUTR-MATH-01..02 | Phase 17 | Pending |
+| NUTR-TARGET-01 | Phase 17 | Pending |
+| NUTR-OFF-01 | Phase 17 | Pending |
+| NUTR-SERVICE-01 | Phase 17 | Pending |
+| NUTR-D14 | Phase 17 | Pending |
+| NUTR-NAV-01 | Phase 17 | Pending |
+| NUTR-DAY-01..02 | Phase 17 | Pending |
+| NUTR-PILL-01 | Phase 17 | Pending |
+| NUTR-PROGRESS-01 | Phase 17 | Pending |
+| NUTR-SEARCH-01 | Phase 17 | Pending |
+| NUTR-LOG-01 | Phase 17 | Pending |
+| NUTR-MANUAL-01 | Phase 17 | Pending |
+| NUTR-MEALS-01 | Phase 17 | Pending |
+| NUTR-QUICKADD-01 | Phase 17 | Pending |
+| NUTR-TARGETS-UI-01 | Phase 17 | Pending |
+| NUTR-STATS-01 | Phase 17 | Pending |
+| NUTR-HEATMAP-01 | Phase 17 | Pending |
+
+*Updated 2026-06-12 — Phase 17 (Nutrition tracking tab) added: 22 NUTR-* requirements covering schema/RLS/Realtime + math/OFF + service layer (D-14) + day view UI + search/log/manual/meals/quickadd + targets + stats/heatmap.*
