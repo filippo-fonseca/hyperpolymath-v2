@@ -20,6 +20,7 @@ import { addDays, format, startOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { TaskCard } from "./TaskCard";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
@@ -27,9 +28,23 @@ interface Props {
   tasks: TaskWithProjects[];
   onTaskClick: (id: string) => void;
   onSelectDay: (ymd: string) => void;
+  /** True while a card is being dragged on the tasks surface — enables the
+   * day rows as drop targets and lets them show a cyan drag-over accent. */
+  draggingActive?: boolean;
+  /** Fired when a dragged card is dropped onto a day row. Parent sets the
+   * task's status to "not started"and its due date to that day. */
+  onDropDay?: (ymd: string) => void;
 }
 
-export function TaskOverviewView({ tasks, onTaskClick, onSelectDay }: Props) {
+export function TaskOverviewView({
+  tasks,
+  onTaskClick,
+  onSelectDay,
+  draggingActive = false,
+  onDropDay,
+}: Props) {
+  // Which day row a card is currently hovering over during a drag.
+  const [dropOverYmd, setDropOverYmd] = useState<string | null>(null);
   // today + next 6 days as YMD strings (string equality, no Date round-trip).
   const days = useMemo(() => {
     const today = startOfDay(new Date());
@@ -56,9 +71,28 @@ export function TaskOverviewView({ tasks, onTaskClick, onSelectDay }: Props) {
       {days.map(({ ymd, date }) => {
         const dayTasks = tasks.filter((t) => t.dueDate === ymd);
         const isOpen = openDays.has(ymd);
+        const isDropOver = dropOverYmd === ymd;
         return (
           <div key={ymd}>
-            <div className="flex items-center gap-1">
+            <div
+              onDragOver={(e) => {
+                if (!draggingActive) return;
+                e.preventDefault();
+                setDropOverYmd(ymd);
+              }}
+              onDragLeave={() => setDropOverYmd((cur) => (cur === ymd ? null : cur))}
+              onDrop={(e) => {
+                if (!draggingActive) return;
+                e.preventDefault();
+                setDropOverYmd(null);
+                onDropDay?.(ymd);
+              }}
+              className={cn(
+                "flex items-center gap-1 rounded-lg transition-shadow",
+                isDropOver &&
+                  "ring-1 ring-[var(--hud-cyan)]/40 [--glass-glow-color:var(--hud-cyan)]"
+              )}
+            >
               {/* Day-row header — clicking the label re-scopes the universal
                   day and drills into kanban (S-6). The chevron is a separate
                   hit target for expand/collapse so the two actions don't fight. */}

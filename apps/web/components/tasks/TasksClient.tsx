@@ -126,6 +126,8 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   //   - dueDate → the active day (so a previously-undated inbox task lands
   //     on today's board)
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  // List-view drop area highlight (cyan glow) while a card hovers over it.
+  const [listDragOver, setListDragOver] = useState(false);
 
   // Detail panel — which task is open (URL ?task=<id>)
   const [openTaskId, setOpenTaskId] = useQueryState("task", parseAsString);
@@ -145,6 +147,18 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("tasks-show-lesno", String(showLesno));
   }, [showLesno]);
+
+  // Hide/unhide the persistent Inbox column. The Inbox is the default anchor,
+  // so this starts visible; the choice persists in localStorage like showLesno.
+  const [inboxHidden, setInboxHidden] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setInboxHidden(localStorage.getItem("tasks-inbox-hidden") === "true");
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined")
+      localStorage.setItem("tasks-inbox-hidden", String(inboxHidden));
+  }, [inboxHidden]);
 
   // Read the SAME 4 filter dimensions TaskFilters writes — single source of truth via URL.
   const [filters] = useQueryStates(
@@ -365,6 +379,43 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     });
   }, [draggedTaskId, optimisticTasks, addOptimistic, queryClient, userId, startTransition]);
 
+  // Drop a dragged card onto a specific day (List view drop area → the active
+  // day; Overview → the row's day). Forces status to "not started"and sets the
+  // due date to the target day, mirroring handleKanbanDrop's optimistic shape.
+  const handleDropOnDay = useCallback(
+    async (ymd: string) => {
+      const t = draggedTask;
+      setDraggedTaskId(null);
+      if (!t) return;
+      const needsStatus = t.status !== "not started";
+      const needsDate = t.dueDate !== ymd;
+      if (!needsStatus && !needsDate) return;
+      startTransition(() => {
+        addOptimistic({
+          type: "update",
+          id: t.id,
+          patch: {
+            ...(needsStatus ? { status: "not started" } : {}),
+            ...(needsDate ? { dueDate: ymd } : {}),
+          },
+        });
+      });
+      const r = await updateTask({
+        id: t.id,
+        ...(needsStatus ? { status: "not started" } : {}),
+        ...(needsDate ? { dueDate: ymd } : {}),
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("tasks", userId),
+      });
+    },
+    [draggedTask, addOptimistic, queryClient, userId, startTransition]
+  );
+
   async function handleCreateTask(input: {
     title: string;
     status: TaskStatus;
@@ -498,10 +549,6 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         </button>
       </header>
 
-      {/* Universal day switcher (D-05 / UI-SPEC S-2) — one shared day control
-          re-scopes kanban, list, and overview from `dateYmd`. */}
-      <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
-
       {/* Toolbar: filters + view toggle wrapped in a glassy pill container
           (matches the PROFILE pill in /settings nav — translucent surface +
           backdrop-blur + inset cyan glow + soft outer halo + thin cyan-tinged
@@ -525,34 +572,88 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
           type="button"
           onClick={() => setShowLesno((v) => !v)}
           aria-pressed={showLesno}
+          disabled={view !== "overview"}
           className={cn(
-            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border shrink-0",
-            showLesno
-              ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
+            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out border shrink-0",
+            view !== "overview"
+              ? "border-transparent text-[var(--ink-muted)]/40 cursor-not-allowed"
+              : showLesno
+                ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)] cursor-pointer"
+                : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)] cursor-pointer"
           )}
-          title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
+          title={
+            view !== "overview"
+              ? "Completed tasks always show on the selected day"
+              : showLesno
+                ? "Hide completed (lesno) tasks"
+                : "Show completed (lesno) tasks"
+          }
         >
           {showLesno ? "Hide lesno" : "Show lesno"}
         </button>
-        <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] shrink-0">
-          {(["kanban", "list", "overview"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              aria-pressed={view === v}
-              className={cn(
-                "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
-                "transition-colors duration-150 ease-out",
-                view === v
-                  ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              )}
-            >
-              {v}
-            </button>
-          ))}
+        {/* Hide / show the persistent Inbox column. */}
+        <button
+          type="button"
+          onClick={() => setInboxHidden((v) => !v)}
+          aria-pressed={inboxHidden}
+          className={cn(
+            "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border shrink-0",
+            inboxHidden
+              ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
+              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
+          )}
+          title={inboxHidden ? "Show the Inbox column" : "Hide the Inbox column"}
+        >
+          {inboxHidden ? "Show inbox" : "Hide inbox"}
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Top-level surface: Overview vs. Day. */}
+          <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]">
+            {([
+              { value: "overview", label: "overview", active: view === "overview" },
+              { value: "day", label: "day", active: view !== "overview" },
+            ] as const).map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() =>
+                  setView(t.value === "overview" ? "overview" : view === "overview" ? "kanban" : view)
+                }
+                aria-pressed={t.active}
+                className={cn(
+                  "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
+                  "transition-colors duration-150 ease-out",
+                  t.active
+                    ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {/* Day sub-toggle: Kanban vs. List — only in Day mode. */}
+          {view !== "overview" && (
+            <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]">
+              {(["kanban", "list"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  aria-pressed={view === v}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer",
+                    "transition-colors duration-150 ease-out",
+                    view === v
+                      ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
+                      : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -576,25 +677,12 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
             },
           }}
         />
-      ) : view === "list" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-          <TaskList tasks={dayFilteredTasks} onTaskClick={setOpenTaskId} addOptimistic={addOptimistic} />
-        </div>
-      ) : view === "overview" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-          <TaskOverviewView
-            tasks={filtered}
-            onTaskClick={setOpenTaskId}
-            onSelectDay={(ymd) => {
-              void setDateYmd(ymd);
-              void setView("kanban");
-            }}
-          />
-        </div>
       ) : (
-        <div className="flex flex-1 min-h-0 flex-col">
-          <div className="flex flex-row gap-4 min-h-0 flex-1">
-            {/* D-01: persistent first-class Inbox as the left anchor column. */}
+        <div className="flex flex-1 min-h-0 flex-row gap-4">
+          {/* D-01: persistent first-class Inbox — always present across every
+              view (kanban / list / overview) so dateless tasks stay visible
+              regardless of the central day-scoped surface. */}
+          {!inboxHidden && (
             <InboxColumn
               inboxTasks={inboxTasks}
               onTaskClick={setOpenTaskId}
@@ -605,25 +693,75 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
               selectedIds={selectedIds}
               onToggleSelected={(id) => toggleSelected(id)}
             />
-            <div className="flex-1 min-h-0">
-              <KanbanBoard
-                tasks={dayFilteredTasks}
-                userId={userId}
-                onTaskClick={setOpenTaskId}
-                onCreateTask={handleCreateTask}
-                onStartCreate={(s) => setDraftStatus(s)}
-                addOptimistic={addOptimistic}
-                selectionActive={selectedIds.size > 0}
-                selectedIds={selectedIds}
-                onToggleSelected={(id) => toggleSelected(id)}
-                onToggleColumnSelection={toggleColumnSelection}
-                externalDraggedTaskId={draggedTaskId}
-                externalDraggedFromStatus={draggedFromStatus}
-                onExternalDragStart={(id) => setDraggedTaskId(id)}
-                onExternalDragEnd={() => setDraggedTaskId(null)}
-                onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
-              />
-            </div>
+          )}
+
+          {/* Central area — the day-scoped surface. The DaySwitcher lives HERE
+              (not page-wide) so it visually governs the central tasks and makes
+              clear it does NOT scope the dateless Inbox. Overview is inherently
+              multi-day, so it owns its own day toggles and hides the switcher. */}
+          <div className="flex flex-1 min-h-0 flex-col">
+            {view !== "overview" && (
+              <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
+            )}
+            {view === "list" ? (
+              <div
+                onDragOver={(e) => {
+                  if (!draggedTaskId) return;
+                  e.preventDefault();
+                  setListDragOver(true);
+                }}
+                onDragLeave={() => setListDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setListDragOver(false);
+                  void handleDropOnDay(dateYmd);
+                }}
+                className={cn(
+                  "flex-1 min-h-0 overflow-y-auto -mx-2 px-2 rounded-xl transition-shadow",
+                  listDragOver &&
+                    "ring-1 ring-[var(--hud-cyan)]/30 [--glass-glow-color:var(--hud-cyan)]"
+                )}
+              >
+                <TaskList
+                  tasks={dayFilteredTasks}
+                  onTaskClick={setOpenTaskId}
+                  addOptimistic={addOptimistic}
+                />
+              </div>
+            ) : view === "overview" ? (
+              <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
+                <TaskOverviewView
+                  tasks={filtered}
+                  onTaskClick={setOpenTaskId}
+                  onSelectDay={(ymd) => {
+                    void setDateYmd(ymd);
+                    void setView("kanban");
+                  }}
+                  draggingActive={!!draggedTaskId}
+                  onDropDay={(ymd) => void handleDropOnDay(ymd)}
+                />
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0">
+                <KanbanBoard
+                  tasks={dayFilteredTasks}
+                  userId={userId}
+                  onTaskClick={setOpenTaskId}
+                  onCreateTask={handleCreateTask}
+                  onStartCreate={(s) => setDraftStatus(s)}
+                  addOptimistic={addOptimistic}
+                  selectionActive={selectedIds.size > 0}
+                  selectedIds={selectedIds}
+                  onToggleSelected={(id) => toggleSelected(id)}
+                  onToggleColumnSelection={toggleColumnSelection}
+                  externalDraggedTaskId={draggedTaskId}
+                  externalDraggedFromStatus={draggedFromStatus}
+                  onExternalDragStart={(id) => setDraggedTaskId(id)}
+                  onExternalDragEnd={() => setDraggedTaskId(null)}
+                  onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
