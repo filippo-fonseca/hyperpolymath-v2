@@ -124,15 +124,16 @@ export function TaskCard({
         }
         transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
-          "relative rounded-xl px-3.5 py-2.5",
+          // S-4 (D-09): cards adopt the settings-page glass language.
+          // rounded-lg (8px) for cards vs rounded-xl (12px) for panels.
+          "glass-tile rounded-lg relative px-3 py-2.5",
           isPending && "opacity-50",
-          isLesno && "opacity-80",
-          isSelected && "ring-2 ring-[var(--hud-cyan)] ring-offset-1 ring-offset-[var(--canvas)]"
+          // S-8: completed (lesno) cards render dimmed.
+          isLesno && "opacity-70",
+          // S-4 selected treatment: amber glow + ring (replaces the prior
+          // cyan ring — cyan stays reserved for drag-over/focus per guardrail).
+          isSelected && "[--glass-glow-color:var(--ink-amber)] ring-1 ring-[var(--ink-amber)]/40"
         )}
-        style={{
-          background: "var(--task-card-bg, var(--surface-raised))",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
-        }}
       >
         {onToggleSelected ? (
           <button
