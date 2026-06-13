@@ -14,6 +14,7 @@
  */
 
 import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import { format, subDays } from "date-fns";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -687,4 +688,138 @@ export async function copyDayLogs(
   );
 
   return { count: sourceLogs.length };
+}
+
+// ---------------------------------------------------------------------------
+// getYearlyAdherence — 365-day adherence array for the heat map (D-11)
+// ---------------------------------------------------------------------------
+
+export type DailyAdherence = {
+  date: string;
+  kcal: number;
+  targetKcal: number;
+  level: 0 | 1 | 2 | 3 | 4;
+};
+
+export async function getYearlyAdherence(
+  userId: string,
+): Promise<DailyAdherence[]> {
+  // Get targetKcal (one global per D-09)
+  const targets = await getNutritionTargets(userId);
+
+  // Aggregate kcal by log_date for the past 365 days (RLS-safe Drizzle group-by)
+  const rows = await db
+    .select({
+      date: foodLogs.logDate,
+      kcal: sql<number>`COALESCE(SUM(${foodLogs.kcal}), 0)::int`,
+    })
+    .from(foodLogs)
+    .where(
+      and(
+        eq(foodLogs.userId, userId),
+        sql`${foodLogs.logDate} >= CURRENT_DATE - INTERVAL '364 days'`,
+      ),
+    )
+    .groupBy(foodLogs.logDate);
+
+  const byDate = new Map(rows.map((r) => [r.date, Number(r.kcal)]));
+
+  // Build 365-day array including empty days
+  const out: DailyAdherence[] = [];
+  for (let i = 364; i >= 0; i--) {
+    const d = format(subDays(new Date(), i), "yyyy-MM-dd");
+    const kcal = byDate.get(d) ?? 0;
+    const ratio = targets.targetKcal > 0 ? kcal / targets.targetKcal : 0;
+    let level: 0 | 1 | 2 | 3 | 4;
+    if (kcal === 0) level = 0;
+    else if (ratio < 0.4) level = 1;
+    else if (ratio < 0.7) level = 2;
+    else if (ratio < 1.0) level = 3;
+    else level = 4;
+    out.push({ date: d, kcal, targetKcal: targets.targetKcal, level });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// get7DayMacroTrend — last 7 days of macro totals for the trend chart (D-11)
+// ---------------------------------------------------------------------------
+
+export type DailyMacros = {
+  date: string;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+};
+
+export async function get7DayMacroTrend(
+  userId: string,
+): Promise<DailyMacros[]> {
+  // Aggregate by date for last 7 days
+  const rows = await db
+    .select({
+      date: foodLogs.logDate,
+      proteinG: sql<string>`COALESCE(SUM(${foodLogs.proteinG}), 0)`,
+      carbsG: sql<string>`COALESCE(SUM(${foodLogs.carbsG}), 0)`,
+      fatG: sql<string>`COALESCE(SUM(${foodLogs.fatG}), 0)`,
+    })
+    .from(foodLogs)
+    .where(
+      and(
+        eq(foodLogs.userId, userId),
+        sql`${foodLogs.logDate} >= CURRENT_DATE - INTERVAL '6 days'`,
+      ),
+    )
+    .groupBy(foodLogs.logDate);
+
+  const byDate = new Map(rows.map((r) => [r.date, r]));
+  const out: DailyMacros[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = format(subDays(new Date(), i), "yyyy-MM-dd");
+    const r = byDate.get(d);
+    out.push({
+      date: d,
+      proteinG: Number(r?.proteinG ?? 0),
+      carbsG: Number(r?.carbsG ?? 0),
+      fatG: Number(r?.fatG ?? 0),
+    });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// getPersonalBests — longest streak, highest single-day kcal, best adherence
+// (D-12 bounded to 3 stats sections per UI-SPEC)
+// ---------------------------------------------------------------------------
+
+export async function getPersonalBests(userId: string): Promise<{
+  longestStreakDays: number;
+  highestKcal: number;
+  bestAdherencePct: number;
+}> {
+  // Pull yearly adherence and compute in JS (simple, RLS-safe)
+  const adherence = await getYearlyAdherence(userId);
+  let longest = 0;
+  let current = 0;
+  for (const d of adherence) {
+    if (d.kcal > 0) {
+      current++;
+      longest = Math.max(longest, current);
+    } else {
+      current = 0;
+    }
+  }
+  const highest = adherence.reduce((m, d) => Math.max(m, d.kcal), 0);
+  const targetKcal = adherence[0]?.targetKcal ?? 2000;
+  const bestAdherence = adherence.reduce((m, d) => {
+    const r = targetKcal > 0 ? d.kcal / targetKcal : 0;
+    // Best adherence = closest-to-1.0 ratio (over or under penalized equally)
+    const score = 1 - Math.abs(1 - Math.min(r, 2));
+    return Math.max(m, score);
+  }, 0);
+  return {
+    longestStreakDays: longest,
+    highestKcal: highest,
+    bestAdherencePct: Math.round(bestAdherence * 100),
+  };
 }
