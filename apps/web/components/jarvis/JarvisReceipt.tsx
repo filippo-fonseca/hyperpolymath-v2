@@ -469,6 +469,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                 {receipt.due
                   ? ` · due ${fmtDate(receipt.due, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}`
                   : ""}
+                {/* I-7 / D-02: undated tasks (no due) land in the Inbox.
+                    The executor sets `inbox: true` on the receipt. */}
+                {!receipt.due && receipt.inbox ? " · Added to your Inbox." : ""}
                 {Array.isArray(receipt.project_ids) &&
                 receipt.project_ids.length
                   ? ` · ${receipt.project_ids.length} project${receipt.project_ids.length > 1 ? "s" : ""}`

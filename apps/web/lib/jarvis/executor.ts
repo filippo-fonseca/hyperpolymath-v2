@@ -32,7 +32,6 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { TZDate } from "@date-fns/tz";
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -130,12 +129,11 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const taskId = randomUUID();
-      // Default-due policy (2026-06-11): a task with no explicit due date
-      // lands TODAY in the user's timezone — undated tasks were vanishing
-      // into limbo instead of surfacing on the Today view.
-      const todayInTz = new Intl.DateTimeFormat("en-CA", {
-        timeZone: ctx.userTimezone,
-      }).format(new Date()); // YYYY-MM-DD
+      // No-date → Inbox policy (Phase 19, D-02): a task with no explicit due
+      // date lands in the Inbox (dueDate = NULL), NOT silently dated to today.
+      // The model must emit an explicit `due` when the user specifies one;
+      // silence means Inbox. This reverses the prior default-due-to-today
+      // behavior so "no date" reliably reaches the first-class Inbox surface.
       try {
         await db.transaction(async (tx) => {
           await tx.insert(tasks).values({
@@ -146,8 +144,8 @@ export function createServerExecutor(): ActionExecutor {
             status: input.status ?? "not started", // DB enum literal w/ SPACE
             // tasks.dueDate is a DATE column (no time component). Convert the
             // model-emitted timestamp to the calendar date in the USER'S
-            // timezone, never the UTC date.
-            dueDate: input.due ? dateInUserTz(input.due, ctx.userTimezone) : todayInTz,
+            // timezone, never the UTC date. No due → NULL → Inbox (D-02).
+            dueDate: input.due ? dateInUserTz(input.due, ctx.userTimezone) : null,
           });
           if (projectCheck.ids.length > 0) {
             await tx.insert(tasksProjects).values(
@@ -166,14 +164,13 @@ export function createServerExecutor(): ActionExecutor {
             id: taskId,
             title: input.title,
             priority: input.priority ?? "P3",
-            // Defaulted due renders as an all-day "today" on receipts —
-            // midnight in the user's tz converted to a UTC instant.
-            due:
-              input.due ??
-              new Date(
-                new TZDate(`${todayInTz}T00:00:00`, ctx.userTimezone).getTime(),
-              ).toISOString(),
-            allDay: input.due ? undefined : true,
+            // No-date → Inbox (D-02 / I-7): an undated task carries NO due on
+            // the receipt and sets `inbox: true` so the formatter renders
+            // "Added to your Inbox." instead of synthesizing a today date.
+            due: input.due
+              ? dateInUserTz(input.due, ctx.userTimezone)
+              : undefined,
+            inbox: !input.due,
             project_ids: projectCheck.ids,
             voice_summary: input.voice_summary,
           },
