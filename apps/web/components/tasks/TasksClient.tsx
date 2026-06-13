@@ -519,7 +519,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         />
       ) : view === "list" ? (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-          <TaskList tasks={filtered} onTaskClick={setOpenTaskId} addOptimistic={addOptimistic} />
+          <TaskList tasks={dayFilteredTasks} onTaskClick={setOpenTaskId} addOptimistic={addOptimistic} />
         </div>
       ) : view === "day" ? (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
