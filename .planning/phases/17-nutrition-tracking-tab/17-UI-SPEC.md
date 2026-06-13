@@ -35,38 +35,42 @@ Declared values (multiples of 4 — matches Tailwind 4 default scale):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon-to-label gap, chip inline padding, heat-map cell gap |
-| sm | 8px | Pill bar internal padding (py-1.5), food log row padding, macro label spacing |
+| xs | 4px | Icon-to-label gap, chip inline padding |
+| sm | 8px | Food log row padding, macro label spacing |
 | md | 16px | Section padding (px-4), card body padding, dialog content padding |
 | lg | 24px | Meal slot header-to-list gap, section breaks |
 | xl | 32px | Day view top padding, stats section gaps |
 | 2xl | 48px | Major section breaks (day view ↔ heat map) |
 | 3xl | 64px | Page-level top padding (matching training tab pattern) |
 
-Exceptions:
-- Pill bar: `px-3.5 py-1.5` on pills (matches SettingsSectionNav.tsx exactly — 14px/6px)
-- Pill rail: `px-2 py-1.5` (matches SettingsSectionNav.tsx exactly)
-- Heat map cells: 10px × 10px with 2px gap (`grid-template-rows: repeat(7, 10px); gap: 2px`) — not on the 4pt grid but sized for readability at year scale
-- Food log row: 44px minimum touch target height
+**Grid exceptions — established production precedents, exempt from the 4pt grid rule:**
 
-Source: `apps/web/components/settings/SettingsSectionNav.tsx` line 66–70; heat map pattern from RESEARCH.md Pattern 5.
+- **Pill bar geometry (`px-3.5 py-1.5` = 14px / 6px) and pill rail (`px-2 py-1.5`):** Lifted verbatim from `apps/web/components/settings/SettingsSectionNav.tsx` lines 66–70. This component was user-locked as the visual reference in CONTEXT.md D-13. These values are exempt from the 4pt grid rule as established production precedents.
+- **Heat map cells (10px × 10px with 2px gap):** Non-interactive data-visualization element. Cell geometry is sized for readability at year scale (52 weeks × 7 days in a compact grid) and is not a touch target. Exempt from the 4pt grid rule as a data-visualization carve-out. `grid-template-rows: repeat(7, 10px); gap: 2px` applied exactly.
+- **Food log row minimum height:** 44px — touch target minimum, unchanged.
+
+Source: `apps/web/components/settings/SettingsSectionNav.tsx` lines 66–70; heat map pattern from RESEARCH.md Pattern 5.
 
 ---
 
 ## Typography
 
+Exactly 4 distinct sizes. No exceptions.
+
 | Role | Family | Size | Weight | Line Height | Usage |
 |------|--------|------|--------|-------------|-------|
-| Body | `var(--font-serif)` (EB Garamond) | 16px (1rem) | 400 | 1.5 | Food item names, dialog body text, notes |
-| Label mono | `var(--font-mono)` (JetBrains Mono) | 10.5px | 400 | 1 | Meal slot pill bar labels (`BREAKFAST`, `LUNCH`, `DINNER`, `SNACKS`), macro stat labels, serving unit selector label, heat map day-of-week label |
-| Stat display | `var(--font-mono)` + `.font-mono-stats` | 20px | 400 | 1.2 | Calorie total (consumed, remaining, target), macro gram totals in daily summary |
-| Heading | `var(--font-serif)` | 20px | 400 | 1.2 | Meal slot section headings ("Breakfast"), page title, dialog headings |
-| Micro label | `var(--font-mono)` | 11px | 400 | 1 | Progress bar "consumed / target" label, food log quantity display, search result brand text |
+| Mono label | `var(--font-mono)` (JetBrains Mono) | 10.5px | 400 | 1 | Meal slot pill bar labels (`BREAKFAST`, `LUNCH`, `DINNER`, `SNACKS`), macro stat labels, serving unit selector label, heat map day-of-week label, "consumed / target" progress label, food log quantity display, search result brand text, stats chart x-axis |
+| Body | `var(--font-serif)` (EB Garamond) | 16px (1rem) | 400 | 1.5 | Food item names, brand subtext (at `var(--ink-muted)`), dialog body text, notes, day navigator date label |
+| Heading / Stat display | `var(--font-serif)` + `var(--font-mono)` `.font-mono-stats` | 20px | 400 | 1.2 | Meal slot section headings ("Breakfast") and page title use `var(--font-serif)` at 20px; calorie total (consumed, remaining, target) and macro gram totals use `var(--font-mono)` `.font-mono-stats` at 20px. Same size slot, different family by semantic role. |
+| Stat large | `var(--font-mono)` `.font-mono-stats` | 28px | 400 | 1 | Calorie total in the daily macro summary bar only — the primary focal point number. All other stat displays remain at 20px. |
 
-Rules:
-- Macro percentages (protein 30% / carbs 40% / fat 30%) rendered in mono `font-mono-stats` for tabular alignment
-- Food names displayed in serif at 16px; brand subtext in `var(--ink-muted)` at 13px serif
-- All pill tab labels: uppercase, `tracking-[0.14em]` — exactly matching SettingsSectionNav.tsx
+**Rules:**
+- Brand subtext (food product brand names in search results and log rows) renders in `var(--font-serif)` at 16px with `color: var(--ink-muted)` — NOT a separate size.
+- Macro percentages (protein / carbs / fat split) rendered in `.font-mono-stats` at 20px for tabular alignment.
+- All pill tab labels: uppercase, `tracking-[0.14em]` — exactly matching SettingsSectionNav.tsx line 98.
+- 10.5px is the established production value from `SettingsSectionNav.tsx` (`text-[10.5px]`). 11px is NOT used anywhere in this phase.
+
+**Primary visual anchor:** The calorie total in the macro summary bar is the primary visual focal point of the day view. It renders at 28px in `font-mono-stats` — the only element in this phase at that size. Everything else in the stats hierarchy descends from it.
 
 Source: `apps/web/app/globals.css` `--font-serif`, `--font-mono`, `.font-mono-stats`; SettingsSectionNav.tsx line 98.
 
@@ -165,15 +169,15 @@ Mirrors `SettingsSectionNav.tsx` exactly:
 ### Daily Macro Summary Bar
 
 Sticky below the day navigator. Shows:
-- Large calorie display: consumed kcal in `font-mono-stats` at 24px, "/ {target}" in `var(--ink-muted)` at 16px mono
-- Three macro progress rows (protein, carbs, fat): label (uppercase mono 10.5px) + progress bar + gram count
+- Large calorie display: consumed kcal in `font-mono-stats` at 28px (primary focal point), "/ {target}" in `var(--ink-muted)` at 16px mono
+- Three macro progress rows (protein, carbs, fat): label (uppercase mono 10.5px) + progress bar + gram count (mono 20px)
 - Progress bar fill: `var(--hud-cyan)` at 0–99%, `var(--ink-sage)` at 100%+ (target met signal)
 - Collapses to a single-line thin strip on downward scroll via `motion/react` layout animation
 
 ### Food Log Row
 
 - Height: 44px minimum (touch target)
-- Structure: [Food name (serif 16px)] [quantity + unit (mono 12px, ink-muted)] [kcal (mono-stats 14px)] [kebab menu]
+- Structure: [Food name (serif 16px)] [quantity + unit (mono 10.5px, ink-muted)] [kcal (mono-stats 20px)] [kebab menu]
 - Hover: `glass-button` pressed inset subtly
 - Swipe-to-delete on touch: expose red `Trash2` icon button (via `pointer-fine` variant to hide swipe UI on mouse)
 - Delete: fires `use-undo-toast.ts` pattern — 5s undo window with sage-accent left-border toast
@@ -184,7 +188,7 @@ Opens as a `Sheet` (shadcn) from bottom on first load; on subsequent opens uses 
 
 - Search input: full-width, autofocus, `--ring-hud` focus ring (it is the primary action surface — JARVIS-adjacent feel)
 - Results grouped: "Recent" section header (clock icon, mono label) → personal history items; "From Open Food Facts" section header → OFF results
-- Each result: food name (serif 16px) + brand (serif 13px, ink-muted) + kcal/100g (mono 12px, ink-muted)
+- Each result: food name (serif 16px) + brand (serif 16px, ink-muted) + kcal/100g (mono 10.5px, ink-muted)
 - Keyboard: ↑/↓ navigate results, Enter selects, Escape dismisses
 - On select: inline ServingPicker appears (shadcn `Select` for unit + shadcn `Input` for quantity multiplier), confirm with Enter or "Log" button
 
@@ -208,14 +212,14 @@ Both "+ Add Food" per-slot (inline) and a global quick-add (keyboard shortcut `n
 After selecting a food:
 - `Select` (shadcn) lists serving options: product serving first (if available), then "100 g" fallback
 - `Input` (shadcn) for quantity multiplier — numeric, defaulting to 1
-- Live computed macro preview: "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" in mono 12px, ink-muted, updates on every keystroke
+- Live computed macro preview: "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" in mono 10.5px, ink-muted, updates on every keystroke
 - Confirm: "Log" button (glass-button pattern) OR Enter key
 
 ### Day Navigator
 
 - Left/right arrow buttons (ChevronLeft / ChevronRight, glass-button circle)
 - Center: date in serif 16px ("Today", "Yesterday", or "Mon, Jun 10" format via `date-fns format`)
-- "Copy from yesterday" button appears in header ONLY when today's logs are empty — label: "Copy yesterday" (mono, 11px, ink-muted)
+- "Copy from yesterday" button appears in header ONLY when today's logs are empty — label: "Copy yesterday" (mono 10.5px, ink-muted)
 
 ### Target % Auto-Adjust (Settings)
 
@@ -231,11 +235,11 @@ In the nutrition targets settings form:
 | Element | Copy |
 |---------|------|
 | Nav tab label | "Nutrition" |
-| Primary CTA | "Log food" |
+| Primary CTA (inline per-slot add) | "Log food" |
 | Search placeholder | "Search foods or enter a name…" |
 | Empty state heading (no logs today) | "Nothing logged yet" |
 | Empty state body | "Add your first meal to start tracking today's macros." |
-| Empty state CTA | "Log food" |
+| Empty state CTA | "Log your first meal" |
 | Manual entry prompt | "Can't find it? Enter it manually." |
 | Manual entry dialog heading | "Add a food manually" |
 | Log delete toast | "Food removed" |
@@ -250,6 +254,8 @@ In the nutrition targets settings form:
 | Stats page: trend section label | "7-DAY MACRO TREND" (mono uppercase) |
 | Stats page: empty heat map | "No logs yet. Your history will appear here as you log meals." |
 | Search no results | "No matches found. Try a different name or add it manually." |
+
+Note: the empty-state CTA ("Log your first meal") is intentionally distinct from the primary per-slot CTA ("Log food") to make the first-time action feel grounded rather than generic.
 
 Tone: concise, direct, document-discipline. No emoji. No exclamation points. Food is a utility surface, not a celebratory one.
 
@@ -313,7 +319,7 @@ All animation via `motion/react` (`motion` package). Respect `useReducedMotion()
 Three sections only — no dashboard bloat:
 
 1. **LOGGING HISTORY** — full-year heat map (365 days, CSS grid, adherence encoding)
-2. **7-DAY MACRO TREND** — `recharts` LineChart with three lines: protein (`--ink-sage`), carbs (`--ink-amber`), fat (`--ink-coral`). Y-axis in grams. X-axis: day abbreviation (mono 10px).
+2. **7-DAY MACRO TREND** — `recharts` LineChart with three lines: protein (`--ink-sage`), carbs (`--ink-amber`), fat (`--ink-coral`). Y-axis in grams. X-axis: day abbreviation (mono 10.5px).
 3. **PERSONAL BESTS** — compact strip: longest logging streak (days), highest single-day kcal, best adherence day. Values in `font-mono-stats` 20px, labels in mono uppercase 10.5px.
 
 No additional charts. No sodium/fiber breakdown on the stats page (targets are macros-only per D-09; secondary fields stored but not surfaced).
