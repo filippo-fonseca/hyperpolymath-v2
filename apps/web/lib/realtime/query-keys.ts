@@ -25,7 +25,13 @@ export type RealtimeTable =
   // Phase 15 — training (TRN-17)
   | "training_batches"
   | "training_activity_types"
-  | "training_activities";
+  | "training_activities"
+  // Phase 17 — nutrition (NUTR-RT-01)
+  | "foods"
+  | "food_serving_options"
+  | "food_logs"
+  | "meals"
+  | "meal_items";
 
 export function tableKey(
   table: RealtimeTable,
