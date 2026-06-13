@@ -20,6 +20,13 @@ export function zCreateTaskFor(opts: { voiceActive?: boolean }) {
     title: z.string().min(1).max(500),
     priority: PrioritySchema.optional(),
     status: StatusSchema.optional(),
+    // `due` is OPTIONAL by design (Phase 19, D-02): when the user gives no
+    // date (or says "no date"), the model MUST omit `due` entirely — the
+    // executor then routes the task to the Inbox (dueDate = NULL), never to
+    // today. The explicit "omit due → Inbox; do NOT default to today"
+    // instruction lives in the create_task tool DESCRIPTION in ./index.ts
+    // (the model reads the description, not this schema). No today/now
+    // default exists anywhere in this path.
     due: z.iso.datetime({ offset: true }).optional(),
     project_ids: z.array(z.uuid()).optional(),
     // voice_summary is REQUIRED when voiceActive — making it optional caused

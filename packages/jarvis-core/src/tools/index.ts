@@ -99,7 +99,7 @@ export function buildToolDefinitions(
     {
       name: "create_task",
       description:
-        "Create a task in the user's life-OS. Use for action items with a clear deliverable. The `priority` field MUST be emitted as exactly the value shown in any `[SYSTEM-PARSED PRIORITY]` hint in the user message (P∞ | P1 | P2 | P3). If no hint is present, omit `priority` and the server will default to P3.",
+        "Create a task in the user's life-OS. Use for action items with a clear deliverable. The `priority` field MUST be emitted as exactly the value shown in any `[SYSTEM-PARSED PRIORITY]` hint in the user message (P∞ | P1 | P2 | P3). If no hint is present, omit `priority` and the server will default to P3. DATE: If the user does not specify a date or says 'no date', omit the `due` field entirely. Omitting `due` files the task in the user's Inbox (undated). Do NOT default to today when no date is mentioned — silence means Inbox.",
       input_schema: taskSchema,
       strict: true,
     },

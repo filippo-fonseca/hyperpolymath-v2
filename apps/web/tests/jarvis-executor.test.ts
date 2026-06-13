@@ -332,6 +332,45 @@ describe("executor.createTask (JARVIS-12 / JARVIS-14)", () => {
     });
     expect((taskInsert!.values as { status: string }).status).toBe("not started");
   });
+
+  // Phase 19 / D-02 / TASK-JARVIS-01: no due date → Inbox (NULL), NOT today.
+  it("no due → dueDate is null (Inbox) and receipt signals inbox (D-02)", async () => {
+    dbState.selectReturns.push([]);
+    const executor = createServerExecutor();
+    const result = await executor.createTask({ title: "undated-task" }, ctx);
+    expect(result.ok).toBe(true);
+    const taskInsert = dbState.txnInsertCalls.find((c) => {
+      const v = c.values as { title?: string };
+      return v.title === "undated-task";
+    });
+    // The load-bearing assertion: undated tasks must reach NULL, never today.
+    expect((taskInsert!.values as { dueDate: unknown }).dueDate).toBeNull();
+    if (result.ok) {
+      const receipt = result.receipt as { due?: unknown; inbox?: unknown };
+      expect(receipt.due).toBeUndefined();
+      expect(receipt.inbox).toBe(true);
+    }
+  });
+
+  it("explicit due → dueDate is the user-tz date and receipt is not inbox (D-02)", async () => {
+    dbState.selectReturns.push([]);
+    const executor = createServerExecutor();
+    const result = await executor.createTask(
+      { title: "dated-task", due: "2026-05-14T20:00:00.000Z" },
+      ctx,
+    );
+    expect(result.ok).toBe(true);
+    const taskInsert = dbState.txnInsertCalls.find((c) => {
+      const v = c.values as { title?: string };
+      return v.title === "dated-task";
+    });
+    expect((taskInsert!.values as { dueDate: unknown }).dueDate).toBe("2026-05-14");
+    if (result.ok) {
+      const receipt = result.receipt as { due?: unknown; inbox?: unknown };
+      expect(receipt.due).toBe("2026-05-14");
+      expect(receipt.inbox).toBe(false);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
