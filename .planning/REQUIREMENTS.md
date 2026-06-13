@@ -211,7 +211,6 @@ JARVIS latency + reliability work scoped 2026-05-28. Research: `.planning/resear
 - [ ] **DESK-05**: A Settings window inside the desktop app exposes (and persists across restarts, in the app's data dir): wake-trigger mode (Extender / Standalone / Both), VAD silence threshold (ms), trigger debounce (ms), wake-word model selector + score threshold (Standalone only), transcribe endpoint URL, verbose-log toggle. All changes apply live without restarting the daemon
 - [ ] **DESK-06**: `hyperpolymath` (the dev stack boot tool at `tools/hyperpolymath/hyperpolymath.mjs`) gains a `desktop` service entry in its `SERVICES` array that spawns `pnpm --filter desktop tauri dev` (idempotent — attaches to an already-running tray instance), with status reflected in the boot-script's bottom status bar (◌/●/✗ + port label). The existing `tools/jarvis-physical/bridge/` serial bridge continues to fire wake triggers unchanged
 
-
 ### Smarter JARVIS — Session Memory + CRUD (Phase 16)
 
 JARVIS gains in-session conversational memory and full CRUD via natural language. Closes GitHub issue #15. Context engineering — NOT fine-tuning.
@@ -434,11 +433,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-05 | Phase 5 | Complete |
 
 **Coverage:**
+
 - v1 requirements: 98 total (across 13 categories — JARVIS-18..22 added by Phase 5.1 planning)
 - Mapped to phases: 98 / 98 (100%)
 - Unmapped: 0
 
 **Per-phase counts:**
+
 - Phase 1 (Foundations): 13 requirements
 - Phase 2 (Manual CRUD): 28 requirements
 - Phase 3 (Realtime): 5 requirements
@@ -496,11 +497,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SMJ-14 | Phase 16 | Planned |
 
 **v1.1 coverage:**
+
 - v1.1 requirements: 42 total (across 7 categories: Telemetry, Latency, Cache, Wake, Route, Desk, Smarter JARVIS)
 - Mapped to phases: 42 / 42 (100%)
 - Unmapped: 0
 
 **v1.1 per-phase counts:**
+
 - Phase 9 (Latency Telemetry Baseline): 3 requirements (TEL-01..03)
 - Phase 10 (TTS + Route-Boundary Latency Wins): 4 requirements (LAT-01..04)
 - Phase 11 (Prompt Cache + State Priming): 5 requirements (CACHE-01..05)
@@ -517,10 +520,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slots, reusable meals, global targets, and GitHub-style heat map.
 
-- [ ] **NUTR-SCHEMA-01**: Drizzle schema adds `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`, `nutrition_targets` tables + `meal_slot` enum, all userId-scoped
-- [ ] **NUTR-SCHEMA-02**: `food_logs` row carries SNAPSHOTTED `kcal`/`protein_g`/`carbs_g`/`fat_g` columns; macros are not recomputed from `foods.*_per_100g` at read time (Pitfall 1)
-- [ ] **NUTR-RLS-01**: All 6 nutrition tables enforce owner-only RLS (`user_id = auth.uid()`); cross-user reads return empty (integration test `tests/nutrition/rls.test.ts`)
-- [ ] **NUTR-RT-01**: Realtime publication includes `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`; `RealtimeTable` union extended; `bump_user_state_version` BEFORE trigger fires on `food_logs` + `meals` writes (D-14 JARVIS state-cache hook)
+- [x] **NUTR-SCHEMA-01**: Drizzle schema adds `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`, `nutrition_targets` tables + `meal_slot` enum, all userId-scoped
+- [x] **NUTR-SCHEMA-02**: `food_logs` row carries SNAPSHOTTED `kcal`/`protein_g`/`carbs_g`/`fat_g` columns; macros are not recomputed from `foods.*_per_100g` at read time (Pitfall 1)
+- [x] **NUTR-RLS-01**: All 6 nutrition tables enforce owner-only RLS (`user_id = auth.uid()`); cross-user reads return empty (integration test `tests/nutrition/rls.test.ts`)
+- [x] **NUTR-RT-01**: Realtime publication includes `foods`, `food_serving_options`, `food_logs`, `meals`, `meal_items`; `RealtimeTable` union extended; `bump_user_state_version` BEFORE trigger fires on `food_logs` + `meals` writes (D-14 JARVIS state-cache hook)
 - [ ] **NUTR-MATH-01**: `computeMacros(baseAmount, food)` returns kcal/protein/carbs/fat correctly from per-100g source via `(amount / 100) × per100g`
 - [ ] **NUTR-MATH-02**: `validateMacroConsistency(macros)` flags >15% divergence from the 4/4/9 calorie rule
 - [ ] **NUTR-TARGET-01**: `deriveTargetGrams(targets)` correctly derives gram equivalents from `targetKcal` + protein/carbs/fat %
@@ -546,8 +549,8 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | NUTR-SCHEMA-01..02 | Phase 17 | Pending |
-| NUTR-RLS-01 | Phase 17 | Pending |
-| NUTR-RT-01 | Phase 17 | Pending |
+| NUTR-RLS-01 | Phase 17 | Complete |
+| NUTR-RT-01 | Phase 17 | Complete |
 | NUTR-MATH-01..02 | Phase 17 | Pending |
 | NUTR-TARGET-01 | Phase 17 | Pending |
 | NUTR-OFF-01 | Phase 17 | Pending |

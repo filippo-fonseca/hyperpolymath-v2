@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: verifying
-stopped_at: Phase 17 UI-SPEC approved
-last_updated: "2026-06-13T00:52:44.609Z"
-last_activity: 2026-06-12
+status: executing
+stopped_at: Completed 17-nutrition-tracking-tab/17-01-PLAN.md
+last_updated: "2026-06-13T01:26:57.847Z"
+last_activity: 2026-06-13 -- Phase 17 execution started
 progress:
   total_phases: 36
   completed_phases: 13
-  total_plans: 88
-  completed_plans: 75
+  total_plans: 93
+  completed_plans: 76
   percent: 36
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 16 — smarter-jarvis-session-memory-crud
+**Current focus:** Phase 17 — nutrition-tracking-tab
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 999.1
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-12
+Phase: 17 (nutrition-tracking-tab) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-06-13 -- Phase 17 execution started
 
 Next: `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -126,6 +126,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 16-smarter-jarvis-session-memory-crud P05 | 15 | 3 tasks | 3 files |
 | Phase 16 P04 | 18m | 3 tasks | 4 files |
 | Phase 16 P06 | 9m | 3 tasks | 8 files |
+| Phase 17-nutrition-tracking-tab P01 | 5 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -355,6 +356,8 @@ Recent decisions affecting current work:
 - [Phase 16]: LOOP_CAP=5: conservative cap covering all plausible find->act chains while bounding cost
 - [Phase 16]: Session-entities find_* excluded: find tools are ephemeral context, not state mutations
 - [Phase 16]: Universal undo uses SELECT-before-UPDATE in Drizzle transaction and capability-based prop gate (receipt.before/snapshot) over name-prefix checks
+- [Phase 17-nutrition-tracking-tab]: Snapshotted macros on food_logs (kcal, protein_g, carbs_g, fat_g) immutable to future food edits — prevents silent corruption of historical logs
+- [Phase 17-nutrition-tracking-tab]: state_version triggers on food_logs + meals only (not foods/food_serving_options/meal_items) — those tables change during setup, not JARVIS sessions
 
 ### Pending Todos
 
@@ -379,6 +382,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-13T00:52:44.601Z
-Stopped at: Phase 17 UI-SPEC approved
+Last session: 2026-06-13T01:26:57.839Z
+Stopped at: Completed 17-nutrition-tracking-tab/17-01-PLAN.md
 Resume file: .planning/phases/17-nutrition-tracking-tab/17-UI-SPEC.md
