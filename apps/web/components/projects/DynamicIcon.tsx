@@ -15,18 +15,24 @@ interface Props {
 }
 
 /**
- * Renders a Lucide icon by name using the statically-imported curated map.
- * Returns null for unknown names (safe fallback — no runtime errors).
- * WHY static: avoids Lucide's dynamicIconImports DEV server overhead (PITFALLS Pitfall 5).
+ * Renders a project/area icon by stored value. A value present in the curated
+ * map renders as that Lucide icon; any other non-empty value is treated as an
+ * emoji string and rendered as text sized to match.
+ * WHY static map: avoids Lucide's dynamicIconImports DEV server overhead (PITFALLS Pitfall 5).
  */
-export function DynamicIcon({
-  name,
-  size = 16,
-  strokeWidth = 1.5,
-  className,
-}: Props) {
+export function DynamicIcon({ name, size = 16, strokeWidth = 1.5, className }: Props) {
   if (!name) return null;
   const Icon = CURATED_ICONS[name as CuratedIconName];
-  if (!Icon) return null;
-  return <Icon size={size} strokeWidth={strokeWidth} className={className} />;
+  if (Icon) {
+    return <Icon size={size} strokeWidth={strokeWidth} className={className} />;
+  }
+  return (
+    <span
+      aria-hidden
+      className={className}
+      style={{ fontSize: size, lineHeight: 1, display: "inline-block" }}
+    >
+      {name}
+    </span>
+  );
 }

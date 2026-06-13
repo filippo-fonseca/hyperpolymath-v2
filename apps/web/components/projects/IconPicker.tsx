@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { Folder } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { CURATED_ICONS, ICON_CATEGORIES, type CuratedIconName } from "./icon-registry";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Folder } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { CURATED_ICONS, type CuratedIconName, ICON_CATEGORIES } from "./icon-registry";
 
 interface Props {
   value: string | null;
@@ -31,11 +27,8 @@ export function IconPicker({ value, onChange }: Props) {
     if (!q) return ICON_CATEGORIES;
     return Object.fromEntries(
       Object.entries(ICON_CATEGORIES)
-        .map(([cat, icons]) => [
-          cat,
-          icons.filter((name) => name.toLowerCase().includes(q)),
-        ])
-        .filter(([, icons]) => (icons as CuratedIconName[]).length > 0),
+        .map(([cat, icons]) => [cat, icons.filter((name) => name.toLowerCase().includes(q))])
+        .filter(([, icons]) => (icons as CuratedIconName[]).length > 0)
     ) as Record<string, CuratedIconName[]>;
   }, [search]);
 
@@ -45,10 +38,19 @@ export function IconPicker({ value, onChange }: Props) {
       setOpen(false);
       setSearch("");
     },
-    [onChange, value],
+    [onChange, value]
   );
 
   const SelectedIcon = value ? CURATED_ICONS[value as CuratedIconName] : null;
+  const selectedEmoji = value && !SelectedIcon ? value : null;
+
+  const handleEmojiChange = useCallback(
+    (raw: string) => {
+      const emoji = Array.from(raw.trim()).slice(0, 2).join("");
+      onChange(emoji || null);
+    },
+    [onChange]
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,24 +61,33 @@ export function IconPicker({ value, onChange }: Props) {
           className={cn(
             "flex items-center justify-center h-9 w-9 rounded-md border border-input",
             "bg-input hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           )}
         >
           {SelectedIcon ? (
             <SelectedIcon size={18} />
+          ) : selectedEmoji ? (
+            <span className="text-[18px] leading-none">{selectedEmoji}</span>
           ) : (
             <Folder size={18} />
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[360px] p-0"
-        align="start"
-        side="bottom"
-        sideOffset={4}
-      >
-        {/* Search */}
-        <div className="p-2 border-b border-border">
+      <PopoverContent className="w-[360px] p-0" align="start" side="bottom" sideOffset={4}>
+        {/* Emoji + Search */}
+        <div className="p-2 border-b border-border space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              aria-label="Emoji"
+              placeholder="🎓"
+              value={selectedEmoji ?? ""}
+              onChange={(e) => handleEmojiChange(e.target.value)}
+              className="h-8 w-12 text-center text-[16px]"
+            />
+            <span className="font-sans text-[11px] text-muted-foreground">
+              Type or paste an emoji
+            </span>
+          </div>
           <Input
             placeholder="Search icons..."
             value={search}
@@ -107,11 +118,13 @@ export function IconPicker({ value, onChange }: Props) {
                       className={cn(
                         "flex flex-col items-center gap-1 rounded-md p-1.5 transition-colors",
                         "hover:bg-secondary",
-                        isSelected &&
-                          "bg-accent/20 ring-1 ring-inset ring-accent",
+                        isSelected && "bg-accent/20 ring-1 ring-inset ring-accent"
                       )}
                     >
-                      <Icon size={20} className={isSelected ? "text-accent-foreground" : "text-foreground"} />
+                      <Icon
+                        size={20}
+                        className={isSelected ? "text-accent-foreground" : "text-foreground"}
+                      />
                       <span className="font-sans text-[10px] text-muted-foreground truncate w-full text-center leading-tight">
                         {iconName}
                       </span>
