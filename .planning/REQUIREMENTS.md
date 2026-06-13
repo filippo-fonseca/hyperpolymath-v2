@@ -535,12 +535,12 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 - [x] **NUTR-DAY-02**: Day navigator (← {date} →) with "Today"/"Yesterday"/"EEE, MMM d" formatting; "Copy yesterday" button visible only when today's logs are empty; clone via `copyYesterdayAction`
 - [x] **NUTR-PILL-01**: Meal-slot pill bar mirrors `SettingsSectionNav.tsx` exactly — `rounded-full backdrop-blur-md` rail, `motion.span layoutId="nutrition-slot-pill"` spring (stiffness 360, damping 32), uppercase mono labels at `text-[10.5px] tracking-[0.14em]`
 - [x] **NUTR-PROGRESS-01**: Daily macro summary shows consumed kcal in `.font-mono-stats` at 28px (primary focal point) + 3 macro progress bars with `--hud-cyan` fill at 70–99% and `--ink-sage` at 100%+ (target met)
-- [ ] **NUTR-SEARCH-01**: Food search proxies OFF via `/api/nutrition/search`; debounced 300ms via `useDeferredValue`; personal history (Recents) appears instantly; OFF results section after 2+ chars
-- [ ] **NUTR-LOG-01**: Selecting a food opens `ServingPicker` with unit `Select` + quantity `Input`; live macro preview "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" updates per keystroke; Enter or "Log" button confirms
-- [ ] **NUTR-MANUAL-01**: When OFF has no results, "Can't find it? Enter it manually." opens `ManualEntryForm`; creates a food via `upsertFoodAction` with `isManual: true` and seeds default + product serving options
-- [ ] **NUTR-MEALS-01**: User can create reusable meals (name + items[]) via `MealsManagerSheet`; can log a whole meal into a chosen slot via `logMealAction` which fans out into N `food_logs` rows in one transaction
-- [ ] **NUTR-QUICKADD-01**: Global keyboard shortcut `n` opens `FoodSearch` with meal slot pre-selected by time of day (breakfast <10am / lunch 10–14 / dinner 17–21 / snacks otherwise)
-- [ ] **NUTR-TARGETS-UI-01**: `/settings/nutrition` lets the user set `targetKcal` + protein/carbs/fat %; auto-adjust keeps sum=100; Zod refine `Math.abs(sum-100) < 0.5`; live gram preview via `deriveTargetGrams`
+- [x] **NUTR-SEARCH-01**: Food search proxies OFF via `/api/nutrition/search`; debounced 300ms via `useDeferredValue`; personal history (Recents) appears instantly; OFF results section after 2+ chars
+- [x] **NUTR-LOG-01**: Selecting a food opens `ServingPicker` with unit `Select` + quantity `Input`; live macro preview "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" updates per keystroke; Enter or "Log" button confirms
+- [x] **NUTR-MANUAL-01**: When OFF has no results, "Can't find it? Enter it manually." opens `ManualEntryForm`; creates a food via `upsertFoodAction` with `isManual: true` and seeds default + product serving options
+- [x] **NUTR-MEALS-01**: User can create reusable meals (name + items[]) via `MealsManagerSheet`; can log a whole meal into a chosen slot via `logMealAction` which fans out into N `food_logs` rows in one transaction
+- [x] **NUTR-QUICKADD-01**: Global keyboard shortcut `n` opens `FoodSearch` with meal slot pre-selected by time of day (breakfast <10am / lunch 10–14 / dinner 17–21 / snacks otherwise)
+- [x] **NUTR-TARGETS-UI-01**: `/settings/nutrition` lets the user set `targetKcal` + protein/carbs/fat %; auto-adjust keeps sum=100; Zod refine `Math.abs(sum-100) < 0.5`; live gram preview via `deriveTargetGrams`
 - [x] **NUTR-STATS-01**: `/nutrition/stats` renders exactly 3 sections — LOGGING HISTORY (heat map), 7-DAY MACRO TREND (recharts LineChart with sage/amber/coral lines), PERSONAL BESTS (longest streak / highest single day / best adherence)
 - [x] **NUTR-HEATMAP-01**: Heat map is plain CSS grid (52 weeks × 7 days, 10px cells, 2px gap) using `date-fns eachDayOfInterval`; 5-level adherence encoding per UI-SPEC color scale (`var(--surface)` / `oklch(30% 0.08 210)` / `oklch(45% 0.13 210)` / `oklch(60% 0.18 210)` / `var(--hud-cyan)`); tooltip "{date} — {kcal} kcal ({pct}% of target)"
 
@@ -560,12 +560,12 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-DAY-01..02 | Phase 17 | Pending |
 | NUTR-PILL-01 | Phase 17 | Complete |
 | NUTR-PROGRESS-01 | Phase 17 | Complete |
-| NUTR-SEARCH-01 | Phase 17 | Pending |
-| NUTR-LOG-01 | Phase 17 | Pending |
-| NUTR-MANUAL-01 | Phase 17 | Pending |
-| NUTR-MEALS-01 | Phase 17 | Pending |
-| NUTR-QUICKADD-01 | Phase 17 | Pending |
-| NUTR-TARGETS-UI-01 | Phase 17 | Pending |
+| NUTR-SEARCH-01 | Phase 17 | Complete |
+| NUTR-LOG-01 | Phase 17 | Complete |
+| NUTR-MANUAL-01 | Phase 17 | Complete |
+| NUTR-MEALS-01 | Phase 17 | Complete |
+| NUTR-QUICKADD-01 | Phase 17 | Complete |
+| NUTR-TARGETS-UI-01 | Phase 17 | Complete |
 | NUTR-STATS-01 | Phase 17 | Complete |
 | NUTR-HEATMAP-01 | Phase 17 | Complete |
 
