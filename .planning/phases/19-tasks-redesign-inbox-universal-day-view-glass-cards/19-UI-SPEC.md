@@ -1,10 +1,11 @@
 ---
 phase: 19
 slug: tasks-redesign-inbox-universal-day-view-glass-cards
-status: draft
+status: approved
 shadcn_initialized: true
 preset: not applicable (existing shadcn install, components.json present)
 created: 2026-06-13
+reviewed_at: 2026-06-13
 ---
 
 # Phase 19 — UI Design Contract
@@ -62,8 +63,7 @@ All type roles reuse the existing global hierarchy. No new sizes are introduced.
 | Page heading | 36px (text-4xl) | 600 (semibold) | 1.1 | serif (EB Garamond) | "Tasks" h1 — existing |
 | Panel title / task title | 20px (text-xl) | 600 (semibold) | 1.2 | serif | TaskDetailPanel title input, Inbox section title |
 | Body / task card title | 16px (text-base) | 400 (regular) | 1.5 | serif | Task card body text, panel field values |
-| Mono caption | 11px | 400 (regular) | 1.3 | mono (JetBrains Mono) | Status pills, section headers, counts, date labels, day-switcher "Today" |
-| Mono section header | 10.5px | 400 (regular) | — | mono, `uppercase tracking-[0.18em]` | "Inbox · undated", column labels — matches `sectionHeader` from settings page |
+| Mono label | 11px | 400 (regular) | 1.3 | mono (JetBrains Mono) | All mono roles: status pills, counts, date labels, day-switcher "Today", section headers, column labels, "Inbox · undated". Use `uppercase tracking-[0.18em]` modifier to distinguish section-header variant from inline label variant — NOT a separate size. |
 
 Source: Existing codebase patterns confirmed in `TasksClient.tsx`, `KanbanDayHeader.tsx`, `settings/page.tsx`.
 
@@ -113,9 +113,11 @@ This phase introduces and restyles the following surfaces. Each specifies the ex
 Layout: fixed-width side column OR top-spanning lane (see S-1 layout note below)
 Class: glass-tile rounded-xl p-4
 Drag-target active class: [--glass-glow-color:var(--hud-cyan)] [--glass-border:color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] ring-1 ring-[var(--hud-cyan)]/30
-Section label: font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]
+Section label: font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]
 Count badge: font-mono text-[11px] tabular-nums text-[var(--ink-muted)]
 ```
+
+**Primary visual anchor:** The persistent Inbox side-column is the strongest new focal element introduced in this phase. Its fixed presence at the left edge of the tasks surface anchors the page composition and makes the "parking lot" mental model immediately legible without any toggle interaction.
 
 **S-1 Layout recommendation (Claude's Discretion):**
 Render Inbox as a **persistent left-side column** sitting alongside the kanban columns in `TasksClient`'s flex-row layout. Width: 240px fixed, flex-shrink-0. This reads as a natural "parking lot" to the left of the day-scoped work surface, matching the mental model of "everything dateless lives here." Alternative: a horizontal lane above the kanban columns (current tray approach, promoted). The side-column approach is recommended as it makes the Inbox always legible without consuming vertical real estate.
@@ -127,7 +129,7 @@ Render Inbox as a **persistent left-side column** sitting alongside the kanban c
 
 ```
 Container: flex items-center gap-2 px-1 pb-3
-Arrow buttons: Button variant="ghost" size="sm" h-7 w-7 p-0 — existing pattern preserved
+Arrow buttons: Button variant="ghost" size="sm" h-7 w-7 p-0 aria-label="Previous day" / aria-label="Next day" — existing pattern preserved
 "Today" button: font-mono text-[11px] uppercase tracking-[0.06em] h-7 px-2 — existing
 Date label: font-serif text-base text-[var(--ink)] — clickable, opens native date picker
 Picker trigger: same hidden <input type="date"> technique as KanbanDayHeader
@@ -148,7 +150,7 @@ SheetContent class: add "glass-tile" or equivalent manual token application
 Panel background: var(--glass-bg) with backdrop-filter: blur(12px) on the panel container
 Header: px-6 pt-6 pb-4 border-b border-[var(--glass-border)] (replaces hard --edge border)
 Title input: font-serif text-xl font-semibold — preserved; bottom border uses --edge-hud on focus
-Field labels (FieldSection): font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]
+Field labels (FieldSection): font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]
 Field rows: py-2 gap-2 — preserved
 Save button: glass-button rounded-md px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em]
 Cancel / Delete: ghost treatment — text-[var(--ink-muted)] hover:text-[var(--ink-coral)]
@@ -227,7 +229,7 @@ URL state: no — fullscreen is ephemeral UI preference, localStorage key "tasks
 **New state:** In kanban and list views, when a day is selected, completed tasks for that day appear in a collapsible "Done" section below the active columns. The global `showLesno` toggle remains for non-day-scoped contexts (e.g., the overview day groups).
 
 ```
-"Done" section label: font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)] "· done"
+"Done" section label: font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] "· done"
 Section container: mt-4 space-y-1 border-t border-[var(--edge)] pt-3
 Lesno cards: TaskCard with opacity-70 and a strikethrough on the title text
   Title style: line-through text-[var(--ink-muted)]
@@ -317,8 +319,8 @@ All animations disabled under `prefers-reduced-motion: reduce` (existing `@media
 | Clear due date tooltip | "Clear due date (move to Inbox)" |
 | Expand toggle label (aria) | "Expand tasks to fullscreen" / "Exit fullscreen" |
 | Lesno section header | "Done" (mono caps, below active columns for the day) |
-| Destructive: delete task | AlertDialog title: "Delete task?" + body: "This can't be undone." + confirm: "Delete" — existing AlertDialog in `TaskDetailPanel`; no change needed |
-| Discard unsaved changes | AlertDialog title: "Discard changes?" + body: "Your edits haven't been saved." + confirm: "Discard" — existing pattern; no change needed |
+| Destructive: delete task | AlertDialog title: "Delete task?" + body: "This can't be undone." + confirm: "Delete task" — update confirm button label from bare "Delete" |
+| Discard unsaved changes | AlertDialog title: "Discard changes?" + body: "Your edits haven't been saved." + confirm: "Discard changes" — update confirm button label from bare "Discard" |
 
 ---
 
