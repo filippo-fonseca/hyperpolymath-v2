@@ -391,11 +391,15 @@ export function TaskDetailPanel({
     <>
       <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
-        <SheetContent side="right" className="w-[420px] p-0 flex flex-col" showCloseButton={false}>
+        <SheetContent
+          side="right"
+          className="w-[420px] p-0 flex flex-col [background:var(--glass-bg)] [backdrop-filter:blur(12px)]"
+          showCloseButton={false}
+        >
           {task && (
             <>
               {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--edge)]">
+              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--glass-border)]">
                 <div className="flex items-start justify-between gap-3">
                   <SheetTitle className="flex-1 p-0 m-0">
                     <input
@@ -463,12 +467,31 @@ export function TaskDetailPanel({
                       onChange={(e) => set("dueDate", e.target.value)}
                       className="font-sans text-[13px] h-8 flex-1"
                     />
+                    {/* I-2 (D-03): inline clear — empties the date → Inbox on save.
+                       Reversible, so no confirm dialog. Shown only when a date set. */}
+                    {form.dueDate && (
+                      <button
+                        type="button"
+                        onClick={() => set("dueDate", "")}
+                        title="Clear due date (move to Inbox)"
+                        aria-label="Clear due date (move to Inbox)"
+                        className="p-0.5 rounded text-[var(--ink-muted)] hover:text-[var(--ink-coral)] cursor-pointer-always transition-colors duration-150"
+                      >
+                        <X size={12} strokeWidth={1.5} />
+                      </button>
+                    )}
+                    {/* MoveToMenu kept as the secondary clear path (D-03). */}
                     <MoveToMenu
                       variant="inline"
                       allowClear
                       onPick={(ymd) => set("dueDate", ymd ?? "")}
                     />
                   </div>
+                  {!form.dueDate && task?.dueDate && (
+                    <p className="font-mono text-[11px] text-[var(--ink-muted)]">
+                      Will move to Inbox
+                    </p>
+                  )}
                 </FieldSection>
 
                 {/* 4. Linked projects */}
@@ -493,7 +516,7 @@ export function TaskDetailPanel({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--edge)]">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--glass-border)]">
                 {isCreate ? (
                   <span />
                 ) : (
@@ -526,7 +549,9 @@ export function TaskDetailPanel({
                   </Button>
                   <Button
                     type="button"
+                    variant="ghost"
                     size="sm"
+                    className="glass-button rounded-md px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
@@ -550,13 +575,13 @@ export function TaskDetailPanel({
           <AlertDialogHeader>
             <AlertDialogTitle className="font-serif text-[20px]">Discard changes?</AlertDialogTitle>
             <AlertDialogDescription className="font-serif text-base">
-              Your edits to this task will be lost.
+              Your edits haven&apos;t been saved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="font-sans text-[13px]">Keep editing</AlertDialogCancel>
             <AlertDialogAction className="font-sans text-[13px]" onClick={handleConfirmDiscard}>
-              Discard
+              Discard changes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -566,9 +591,7 @@ export function TaskDetailPanel({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl font-semibold">
-              Delete this task?
-            </DialogTitle>
+            <DialogTitle className="font-serif text-xl font-semibold">Delete task?</DialogTitle>
             <DialogDescription className="font-serif text-base">
               This can&apos;t be undone.
             </DialogDescription>
@@ -608,7 +631,7 @@ function FieldSection({
   return (
     <div className="flex flex-col gap-1.5">
       {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
-      <label className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <label className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
         {label}
       </label>
       {children}
