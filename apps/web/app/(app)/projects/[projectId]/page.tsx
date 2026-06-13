@@ -1,12 +1,12 @@
-import { notFound } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { areas, projects } from "@/lib/db/schema";
-import { getTasksForProject } from "@/lib/db/queries/tasks";
 import { getCapturesForProject } from "@/lib/db/queries/captures";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
-import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
+import { getTasksForProject } from "@/lib/db/queries/tasks";
+import { areas, projects } from "@/lib/db/schema";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { notFound } from "next/navigation";
 
 interface Props {
   params: Promise<{ projectId: string }>;
@@ -48,15 +48,14 @@ export default async function ProjectDetailPage({ params }: Props) {
   // ProjectDetailClient uses `select` to derive the single project — Realtime
   // invalidation on `['projects', userId]` then automatically re-runs the
   // selector and re-renders the header (B1).
-  const { getProjectsForCurrentUser } = await import(
-    "@/app/actions/projects"
-  );
+  const { getProjectsForCurrentUser } = await import("@/app/actions/projects");
   const [
     allProjects,
     tasksForProject,
     capturesForProject,
     hashtagsForComposer,
     activeProjectsForComposer,
+    allAreas,
   ] = await Promise.all([
     getProjectsForCurrentUser(),
     getTasksForProject(user.id, projectId),
@@ -74,6 +73,11 @@ export default async function ProjectDetailPage({ params }: Props) {
       })
       .from(projects)
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+    db
+      .select({ id: areas.id, name: areas.name })
+      .from(areas)
+      .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
+      .orderBy(asc(areas.orderIndex), asc(areas.createdAt)),
   ]);
 
   return (
@@ -91,6 +95,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         name: single.areaName,
         emoji: single.areaEmoji,
       }}
+      allAreas={allAreas}
     />
   );
 }

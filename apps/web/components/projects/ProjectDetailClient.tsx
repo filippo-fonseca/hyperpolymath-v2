@@ -1,28 +1,21 @@
 "use client";
 
-import { useOptimistic } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
-import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { useQuery } from "@tanstack/react-query";
+import { useOptimistic } from "react";
+import { ProjectCapturesSection } from "./ProjectCapturesSection";
 import { ProjectHeader } from "./ProjectHeader";
 import { ProjectTasksSection } from "./ProjectTasksSection";
-import { ProjectCapturesSection } from "./ProjectCapturesSection";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 
-type ProjectRow = Awaited<
-  ReturnType<typeof getProjectsForCurrentUser>
->[number];
+type ProjectRow = Awaited<ReturnType<typeof getProjectsForCurrentUser>>[number];
 
-export type ProjectOptimisticDispatch = (
-  action: OptimisticAction<ProjectRow>,
-) => void;
+export type ProjectOptimisticDispatch = (action: OptimisticAction<ProjectRow>) => void;
 
 interface Props {
   userId: string;
@@ -39,6 +32,7 @@ interface Props {
   }>;
   graduationYear: number | null;
   area: { id: string; name: string; emoji: string | null };
+  allAreas: { id: string; name: string }[];
 }
 
 /**
@@ -70,6 +64,7 @@ export function ProjectDetailClient({
   activeProjectsForComposer,
   graduationYear,
   area,
+  allAreas,
 }: Props) {
   // Realtime invalidation source — any project mutation invalidates this key,
   // which re-runs `select` below.
@@ -88,7 +83,7 @@ export function ProjectDetailClient({
   const projectArray: ProjectRow[] = project ? [project] : [];
   const [optimisticArray, addOptimisticProject] = useOptimistic(
     projectArray,
-    optimisticReducer<ProjectRow>,
+    optimisticReducer<ProjectRow>
   );
   const liveProject = optimisticArray[0];
 
@@ -96,11 +91,7 @@ export function ProjectDetailClient({
   // case; this catches the race where the row is deleted while this page is open).
   if (!liveProject) return null;
 
-  const semesterTerm = liveProject.semesterTerm as
-    | "fall"
-    | "spring"
-    | "summer"
-    | null;
+  const semesterTerm = liveProject.semesterTerm as "fall" | "spring" | "summer" | null;
 
   return (
     // Notion-document register. Banner sits flush at top via ProjectHeader.
@@ -131,6 +122,10 @@ export function ProjectDetailClient({
           name: liveProject.name,
           icon: liveProject.icon,
           bannerUrl: liveProject.bannerUrl,
+          areaId: liveProject.areaId,
+          startDate: liveProject.startDate,
+          endDate: liveProject.endDate,
+          archivedAt: liveProject.archivedAt,
           isClass: liveProject.isClass,
           courseCode: liveProject.courseCode,
           courseTitle: liveProject.courseTitle,
@@ -144,6 +139,7 @@ export function ProjectDetailClient({
         graduationYear={graduationYear}
         addOptimisticProject={addOptimisticProject}
         area={area}
+        allAreas={allAreas}
       />
 
       <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pb-24 pt-2 flex flex-col gap-12">

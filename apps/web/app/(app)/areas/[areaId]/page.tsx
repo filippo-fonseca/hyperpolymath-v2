@@ -1,13 +1,11 @@
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { and, eq, isNull, asc } from "drizzle-orm";
+import { AreaDetailHeader } from "@/components/areas/AreaDetailHeader";
+import { AreaProjectList } from "@/components/areas/AreaProjectList";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
-import { DynamicIcon } from "@/components/projects/DynamicIcon";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
-import { AreaDetailHeader } from "@/components/areas/AreaDetailHeader";
-import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { notFound } from "next/navigation";
 
 interface Props {
   params: Promise<{ areaId: string }>;
@@ -37,6 +35,8 @@ export default async function AreaDetailPage({ params }: Props) {
     .limit(1);
   if (!area) notFound();
 
+  // Fetch active AND archived/past — the list component partitions them into
+  // Active / Archived tabs (archived hidden out of the live view, not dropped).
   const projectRows = await db
     .select({
       id: projects.id,
@@ -45,27 +45,18 @@ export default async function AreaDetailPage({ params }: Props) {
       isClass: projects.isClass,
       courseCode: projects.courseCode,
       description: projects.description,
+      endDate: projects.endDate,
+      archivedAt: projects.archivedAt,
     })
     .from(projects)
-    .where(
-      and(
-        eq(projects.areaId, areaId),
-        eq(projects.userId, user.id),
-        isNull(projects.archivedAt),
-      ),
-    )
+    .where(and(eq(projects.areaId, areaId), eq(projects.userId, user.id)))
     .orderBy(asc(projects.orderIndex), asc(projects.createdAt));
 
   // All active areas for the area picker in ProjectCreateDialog + MoveProjectDialog
   const allActiveAreas = await db
     .select({ id: areas.id, name: areas.name })
     .from(areas)
-    .where(
-      and(
-        eq(areas.userId, user.id),
-        isNull(areas.archivedAt),
-      ),
-    )
+    .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
     .orderBy(asc(areas.orderIndex), asc(areas.createdAt));
 
   return (
@@ -90,68 +81,9 @@ export default async function AreaDetailPage({ params }: Props) {
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             Projects
           </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
-            ({projectRows.length})
-          </span>
         </div>
 
-        {projectRows.length === 0 ? (
-          <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
-            <p className="font-serif italic text-base text-[var(--ink-muted)]">
-              No projects in this area yet.
-            </p>
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
-              Use the New project button above to get started.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid grid-cols-1 @sm/main:grid-cols-2 @2xl/main:grid-cols-3 gap-4">
-            {projectRows.map((p) => (
-              <li key={p.id} className="relative group">
-                <Link
-                  href={`/projects/${p.id}`}
-                  className="group flex flex-col gap-2 rounded-xl border border-[var(--edge)] bg-[var(--surface)] px-4 py-4 hover:border-[var(--edge-hud)] hover:bg-[var(--surface-raised)] transition-colors duration-150 ease-out cursor-pointer-always h-full"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <DynamicIcon
-                      name={p.icon}
-                      size={18}
-                      strokeWidth={1.5}
-                      className="text-[var(--ink-muted)] shrink-0 mt-0.5 group-hover:text-[var(--ink)] transition-colors"
-                    />
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="font-serif text-lg font-semibold text-[var(--ink)] leading-tight truncate">
-                        {p.name}
-                      </span>
-                      {p.isClass && p.courseCode ? (
-                        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                          {p.courseCode}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  {p.description ? (
-                    <p className="font-serif text-sm text-[var(--ink-muted)] line-clamp-2">
-                      {p.description}
-                    </p>
-                  ) : null}
-                </Link>
-                {/* Per-project ⋯ menu — positioned in card top-right, stops propagation */}
-                <div className="absolute top-2 right-2 z-10">
-                  <AreaProjectCardMenu
-                    projectId={p.id}
-                    projectName={p.name}
-                    projectDescription={p.description}
-                    projectIcon={p.icon}
-                    isClass={p.isClass}
-                    currentAreaId={areaId}
-                    allAreas={allActiveAreas}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AreaProjectList areaId={areaId} projects={projectRows} allAreas={allActiveAreas} />
       </div>
     </main>
   );

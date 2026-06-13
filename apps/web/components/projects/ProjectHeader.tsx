@@ -1,20 +1,26 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
-import { parseBanner } from "@/lib/utils/banner";
-import { DynamicIcon } from "./DynamicIcon";
-import { BannerPicker } from "./BannerPicker";
-import { ProjectEditClassDialog } from "./ProjectEditClassDialog";
 import { updateProject } from "@/app/actions/projects";
 import { cn } from "@/lib/utils";
+import { parseBanner } from "@/lib/utils/banner";
+import { Settings2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { BannerPicker } from "./BannerPicker";
+import { DynamicIcon } from "./DynamicIcon";
 import type { ProjectOptimisticDispatch } from "./ProjectDetailClient";
+import { ProjectEditClassDialog } from "./ProjectEditClassDialog";
+import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 
 interface ProjectData {
   id: string;
   name: string;
   icon: string | null;
   bannerUrl: string | null;
+  areaId: string;
+  startDate: string | null;
+  endDate: string | null;
+  archivedAt: string | Date | null;
   isClass: boolean;
   courseCode: string | null;
   courseTitle: string | null;
@@ -33,6 +39,8 @@ interface Props {
   /** Parent area — rendered as a small pill above the title so the user
       always knows where this project sits in the hierarchy. */
   area: { id: string; name: string; emoji: string | null } | null;
+  /** All active areas — for the "move to area" control in settings. */
+  allAreas: { id: string; name: string }[];
 }
 
 function formatTerm(term: string): string {
@@ -81,6 +89,7 @@ export function ProjectHeader({
   graduationYear,
   addOptimisticProject,
   area,
+  allAreas,
 }: Props) {
   const [, startTransition] = useTransition();
 
@@ -89,6 +98,7 @@ export function ProjectHeader({
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [editClassOpen, setEditClassOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   function handleBannerChange(newBanner: string | null) {
     addOptimisticProject({
@@ -145,11 +155,24 @@ export function ProjectHeader({
       >
         <div
           className={cn(
-            "absolute top-3 right-3",
-            "opacity-0 group-hover/banner-area:opacity-100 focus-within:opacity-100 transition-opacity",
+            "absolute top-3 right-3 flex items-center gap-2",
+            "opacity-0 group-hover/banner-area:opacity-100 focus-within:opacity-100 transition-opacity"
           )}
         >
           <BannerPicker value={project.bannerUrl} onChange={handleBannerChange} />
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Project settings"
+            className={cn(
+              "flex items-center justify-center h-8 w-8 rounded-md cursor-pointer-always",
+              "bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--edge)]",
+              "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+              "transition-colors duration-150 ease-out focus-visible:outline-none"
+            )}
+          >
+            <Settings2 size={15} strokeWidth={1.5} />
+          </button>
         </div>
       </div>
 
@@ -167,7 +190,7 @@ export function ProjectHeader({
               "text-[var(--ink-muted)] hover:text-[var(--ink)]",
               "border border-[var(--edge)] hover:border-[var(--edge-hud)]",
               "bg-[var(--surface)] hover:bg-[var(--surface-raised)]",
-              "transition-colors duration-150 ease-out cursor-pointer-always",
+              "transition-colors duration-150 ease-out cursor-pointer-always"
             )}
           >
             {area.emoji ? (
@@ -208,7 +231,7 @@ export function ProjectHeader({
                 className={cn(
                   "font-serif text-4xl font-semibold leading-tight",
                   "bg-transparent border-b border-[var(--ink-amber)] outline-none",
-                  "text-[var(--ink)] w-full",
+                  "text-[var(--ink)] w-full"
                 )}
                 autoFocus
               />
@@ -217,7 +240,7 @@ export function ProjectHeader({
                 onClick={handleNameClick}
                 className={cn(
                   "font-serif text-4xl font-semibold leading-tight",
-                  "text-[var(--ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out",
+                  "text-[var(--ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out"
                 )}
               >
                 {project.name}
@@ -241,7 +264,7 @@ export function ProjectHeader({
                   "text-[var(--ink-muted)] hover:text-[var(--ink)]",
                   "border border-transparent hover:border-[var(--edge)]",
                   "transition-colors duration-150 ease-out",
-                  "focus-visible:outline-none",
+                  "focus-visible:outline-none"
                 )}
               >
                 Edit class
@@ -256,6 +279,21 @@ export function ProjectHeader({
         onOpenChange={setEditClassOpen}
         project={project}
         graduationYear={graduationYear}
+        addOptimisticProject={addOptimisticProject}
+      />
+
+      <ProjectSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        project={{
+          id: project.id,
+          name: project.name,
+          areaId: project.areaId,
+          startDate: project.startDate,
+          endDate: project.endDate,
+          archivedAt: project.archivedAt,
+        }}
+        allAreas={allAreas}
         addOptimisticProject={addOptimisticProject}
       />
     </>
