@@ -530,7 +530,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
-| 17. Nutrition tracking tab | 5/5 | Complete   | 2026-06-13 |
+| 17. Nutrition tracking tab | 5/5 | Complete    | 2026-06-13 |
 
 ## Backlog
 
