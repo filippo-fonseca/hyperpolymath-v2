@@ -504,10 +504,38 @@ Plans:
 **UI hint**: yes
 **Wave structure**: Plan 01 (Wave 1, schema foundation — autonomous) → Plan 02 (Wave 2, server-side feature complete — autonomous) → Plan 03 (Wave 3, day-view shell — autonomous). Plans 04 + 05 run in Wave 4 in parallel: Plan 04 builds search/log/targets UI on top of Plan 03's day view; Plan 05 builds the stats subroute which only depends on Plan 02's service layer (no file conflicts with 04).
 
+### Phase 19: Tasks redesign — first-class Inbox, universal day-switching, glassy panel/cards, JARVIS no-date routing
+
+**Goal**: Turn the tasks page into a polished, day-scoped to-do surface. Make the undated bucket a **first-class persistent Inbox** (`dueDate IS NULL AND status != 'lesno'`, no 24-card truncation). Flip JARVIS's default-due policy so a dateless `create_task` lands in the Inbox (NULL) instead of defaulting to today, with an "Added to your Inbox" receipt. Add an inline clear-date affordance in the detail panel and bidirectional drag-to-Inbox (dragging from any kanban column nulls the date). Make day-switching **universal** across kanban, list, and a new overview view — list view currently ignores dates entirely, which is the explicit bug to fix. Keep the selected day's completed (`lesno`) tasks visible instead of vanishing. Add an expand/fullscreen toggle. Restyle the detail panel + cards to match the settings-page glass language (`glass-tile` / `--glass-*` tokens), with JARVIS as atmospheric mood only (cyan accent + subtle depth, no HUD theatrics). **No schema migration** — `dueDate` is already nullable.
+
+**Depends on:** Phase 1 (foundations), Phase 6.2 (Anthropic-discipline glass language), Phase 16 (JARVIS CRUD — `create_task`)
+**Requirements**: TASK-INBOX-01, TASK-INBOX-02, TASK-INBOX-03, TASK-DAY-01, TASK-DAY-02, TASK-DAY-03, TASK-DAY-04, TASK-JARVIS-01, TASK-JARVIS-02, TASK-UI-01, TASK-UI-02, TASK-UI-03, TASK-UI-04, TASK-UI-05
+**Plans:** 5 plans
+Plans:
+**Wave 1**
+
+- [ ] 19-03-PLAN.md — Glass-restyle cards + detail panel + inline clear-date affordance (D-09, D-03)
+- [ ] 19-05-PLAN.md — JARVIS no-date → Inbox (NULL) routing + "Added to your Inbox" receipt (D-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 19-01-PLAN.md — Universal day-scoping for list view + show selected day's completed tasks (D-05, D-06)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 19-02-PLAN.md — First-class persistent Inbox side-column + drag-to-Inbox nulls date (D-01, D-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 19-04-PLAN.md — Overview day-toggle view + universal day switcher + expand/fullscreen toggle (D-07, D-08)
+
+**UI hint**: yes
+**Wave structure**: Wave 1 (parallel): 19-03 (glass cards + detail panel + clear-date) and 19-05 (JARVIS NULL routing) — fully independent, no shared files. Wave 2: 19-01 (list day-scoping + day's completed) on TasksClient. Wave 3: 19-02 (persistent Inbox column + drag-to-Inbox) builds on the day-scoped selector. Wave 4: 19-04 (overview view + universal day switcher + fullscreen) integrates all prior surfaces.
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 19
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -531,6 +559,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
 | 17. Nutrition tracking tab | 5/5 | Complete    | 2026-06-13 |
+| 19. Tasks redesign — Inbox / day-universal / glass | 0/5 | Planned | - |
 
 ## Backlog
 
@@ -543,15 +572,3 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 **Why:** User notation captured 2026-05-11 during Phase 3 plan-phase walkthrough — "easy addition" that makes captures more functional without needing JARVIS.
 
 **Likely fit:** Phase 6 polish window, or a captures-domain follow-up after Phase 5 (JARVIS).
-
-**Requirements:** TASK-INBOX-01, TASK-INBOX-02, TASK-INBOX-03, TASK-DAY-01, TASK-DAY-02, TASK-DAY-03, TASK-DAY-04, TASK-JARVIS-01, TASK-JARVIS-02, TASK-UI-01, TASK-UI-02, TASK-UI-03, TASK-UI-04, TASK-UI-05
-
-**Plans:** 5 plans
-
-Plans:
-
-- [ ] 19-01-PLAN.md — Universal day-scoping for list view + show selected day's completed tasks (D-05, D-06)
-- [ ] 19-02-PLAN.md — First-class persistent Inbox side-column + drag-to-Inbox nulls date (D-01, D-04)
-- [ ] 19-03-PLAN.md — Glass-restyle cards + detail panel + inline clear-date affordance (D-09, D-03)
-- [ ] 19-04-PLAN.md — Overview day-toggle view + universal day switcher + expand/fullscreen toggle (D-07, D-08)
-- [ ] 19-05-PLAN.md — JARVIS no-date → Inbox (NULL) routing + "Added to your Inbox" receipt (D-02)
