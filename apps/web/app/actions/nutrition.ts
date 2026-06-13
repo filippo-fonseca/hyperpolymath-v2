@@ -27,6 +27,7 @@ import {
   createMeal,
   upsertNutritionTargets,
   copyDayLogs,
+  listFoodLogsForDay,
 } from "@/lib/nutrition/nutrition-service";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,22 @@ type ActionResult<T = unknown> =
 const IsoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date (YYYY-MM-DD)");
 const UuidSchema = z.string().uuid();
 const MealSlotSchema = z.enum(["breakfast", "lunch", "dinner", "snacks"]);
+
+// ---------------------------------------------------------------------------
+// listFoodLogsForDayAction — read food logs for a given date (queryFn for client)
+// ---------------------------------------------------------------------------
+
+const ListFoodLogsInput = z.object({ date: IsoDateSchema });
+
+export async function listFoodLogsForDayAction(input: unknown) {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  const parsed = ListFoodLogsInput.safeParse(input);
+  if (!parsed.success) return [];
+
+  return listFoodLogsForDay(userId, parsed.data.date);
+}
 
 // ---------------------------------------------------------------------------
 // logFoodAction — log a food item with snapshotted macros

@@ -17,6 +17,7 @@ import {
   Folder,
   X,
   Columns2,
+  UtensilsCrossed,
 } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ const ROUTE_META: Record<
   "/tasks": { label: "Tasks", icon: CheckSquare },
   "/habits": { label: "Habits", icon: Repeat },
   "/training": { label: "Training", icon: Dumbbell },
+  "/nutrition": { label: "Nutrition", icon: UtensilsCrossed },
   "/captures": { label: "Captures", icon: MessageSquare },
   "/calendar": { label: "Calendar", icon: Calendar },
   "/graph": { label: "Graph", icon: Waypoints },
