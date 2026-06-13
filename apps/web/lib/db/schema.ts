@@ -1,5 +1,6 @@
 import {
   pgTable,
+  pgEnum,
   uuid,
   text,
   timestamp,
@@ -737,3 +738,115 @@ export const personalContextSnapshots = pgTable(
     primaryKey({ columns: [t.userId, t.snapshotDate] }),
   ],
 );
+
+// ─── NUTRITION ──────────────────────────────────────────────────────────────
+// Phase 17 — nutrition tracker. Five tables, all userId-scoped with RLS in
+// migration 0029. state_version BEFORE-triggers fire on food_logs + meals so
+// JARVIS state-snapshot cache invalidates on nutrition writes (D-14 prep).
+//
+//   foods                — canonical food registry (OFF-sourced or manual)
+//   food_serving_options — per-food selectable serving units (D-05/D-06)
+//   food_logs            — per-day per-meal-slot log entries
+//   meals                — saved reusable meal groupings
+//   meal_items           — foods+servings inside a saved meal
+
+export const foods = pgTable("foods", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // OFF barcode — null for manual entries and generic foods
+  offBarcode: text("off_barcode"),
+  name: text("name").notNull(),
+  brand: text("brand"),
+  // Per-100g macros — the canonical source of truth (D-04)
+  kcalPer100g: numeric("kcal_per_100g", { precision: 8, scale: 2 }).notNull(),
+  proteinPer100g: numeric("protein_per_100g", { precision: 8, scale: 2 }).notNull(),
+  carbsPer100g: numeric("carbs_per_100g", { precision: 8, scale: 2 }).notNull(),
+  fatPer100g: numeric("fat_per_100g", { precision: 8, scale: 2 }).notNull(),
+  // Optional secondary macros — store if present in OFF data
+  fiberPer100g: numeric("fiber_per_100g", { precision: 8, scale: 2 }),
+  sodiumPer100g: numeric("sodium_per_100g", { precision: 8, scale: 2 }), // grams (÷1000 to display mg)
+  // Base unit for this food: "g" | "ml"
+  baseUnit: text("base_unit").notNull().default("g"),
+  // Manual = no OFF barcode; determines whether to offer "find in OFF" shortcut
+  isManual: boolean("is_manual").notNull().default(false),
+  // Track usage for "personal history" sort ordering (D-02)
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  useCount: integer("use_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("foods_user_last_used_idx").on(t.userId, sql`last_used_at DESC`),
+  uniqueIndex("foods_user_barcode_uniq").on(t.userId, t.offBarcode).where(sql`off_barcode IS NOT NULL`),
+]);
+
+export const foodServingOptions = pgTable("food_serving_options", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  foodId: uuid("food_id").notNull().references(() => foods.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized for RLS (pattern from tasksProjects)
+  label: text("label").notNull(),     // e.g., "1 cup", "1 slice", "100 g", "1 medium"
+  gramsOrMl: numeric("grams_or_ml", { precision: 8, scale: 2 }).notNull(), // base-unit equivalent
+  isDefault: boolean("is_default").notNull().default(false),
+  orderIndex: integer("order_index").notNull().default(0),
+}, (t) => [
+  index("food_serving_options_food_idx").on(t.foodId),
+  index("food_serving_options_user_idx").on(t.userId),
+]);
+
+export const mealSlotEnum = pgEnum("meal_slot", ["breakfast", "lunch", "dinner", "snacks"]);
+
+export const foodLogs = pgTable("food_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  logDate: date("log_date").notNull(),        // ISO date "YYYY-MM-DD" (client timezone, not server)
+  mealSlot: mealSlotEnum("meal_slot").notNull(),
+  foodId: uuid("food_id").notNull().references(() => foods.id, { onDelete: "restrict" }),
+  servingOptionId: uuid("serving_option_id").references(() => foodServingOptions.id, { onDelete: "set null" }),
+  quantity: numeric("quantity", { precision: 8, scale: 2 }).notNull(), // multiplier of serving unit
+  // Snapshotted macros at log time — immutable to future food edits (KEY PATTERN)
+  kcal: integer("kcal").notNull(),
+  proteinG: numeric("protein_g", { precision: 8, scale: 2 }).notNull(),
+  carbsG: numeric("carbs_g", { precision: 8, scale: 2 }).notNull(),
+  fatG: numeric("fat_g", { precision: 8, scale: 2 }).notNull(),
+  fiberG: numeric("fiber_g", { precision: 8, scale: 2 }),
+  // Display: quantity × servingOption.label (reconstructed in UI)
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("food_logs_user_date_idx").on(t.userId, t.logDate),
+  index("food_logs_user_date_slot_idx").on(t.userId, t.logDate, t.mealSlot),
+]);
+
+export const meals = pgTable("meals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  useCount: integer("use_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("meals_user_last_used_idx").on(t.userId, sql`last_used_at DESC`)]);
+
+export const mealItems = pgTable("meal_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mealId: uuid("meal_id").notNull().references(() => meals.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(),
+  foodId: uuid("food_id").notNull().references(() => foods.id, { onDelete: "restrict" }),
+  servingOptionId: uuid("serving_option_id").references(() => foodServingOptions.id, { onDelete: "set null" }),
+  quantity: numeric("quantity", { precision: 8, scale: 2 }).notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+}, (t) => [
+  index("meal_items_meal_idx").on(t.mealId),
+  index("meal_items_user_idx").on(t.userId),
+]);
+
+// One row per user — upserted on save (ON CONFLICT user_id DO UPDATE)
+export const nutritionTargets = pgTable("nutrition_targets", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  targetKcal: integer("target_kcal").notNull().default(2000),
+  proteinPct: numeric("protein_pct", { precision: 5, scale: 2 }).notNull().default("30"), // % of calories
+  carbsPct: numeric("carbs_pct", { precision: 5, scale: 2 }).notNull().default("40"),
+  fatPct: numeric("fat_pct", { precision: 5, scale: 2 }).notNull().default("30"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  // CHECK: protein_pct + carbs_pct + fat_pct = 100 — enforced in migration SQL
+});
