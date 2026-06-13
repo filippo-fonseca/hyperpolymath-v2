@@ -530,11 +530,11 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 - [x] **NUTR-OFF-01**: `/api/nutrition/search` and `/api/nutrition/product/[barcode]` proxy Open Food Facts with required `User-Agent` header; responses parsed via Zod with missing nutriments defaulting to 0
 - [x] **NUTR-SERVICE-01**: `nutrition-service.ts` exports `logFood`/`deleteLog`/`updateLog`/`logMeal`/`upsertFood`/`createMeal`/`listFoodLogsForDay`/`getFoodHistory`/`getNutritionTargets`/`upsertNutritionTargets`/`copyDayLogs` — all `(userId, input)` first, double-WHERE ownership; `logFood` snapshots macros on insert
 - [x] **NUTR-D14**: All mutations live in `nutrition-service.ts`; Server Actions in `app/actions/nutrition.ts` are thin auth+Zod wrappers — same shape as Phase 16 executor, so JARVIS tools (`log_food`, `log_meal`, …) can be wired later without UI rework
-- [ ] **NUTR-NAV-01**: `/nutrition` route registered in `PersistentNav.tsx` and `TopTabBar.tsx` with `UtensilsCrossed` icon and label "Nutrition"
-- [ ] **NUTR-DAY-01**: Day view renders meal-slot sections (breakfast/lunch/dinner/snacks) with food log rows (44px min height); empty state copy "Nothing logged yet" + CTA "Log your first meal"
-- [ ] **NUTR-DAY-02**: Day navigator (← {date} →) with "Today"/"Yesterday"/"EEE, MMM d" formatting; "Copy yesterday" button visible only when today's logs are empty; clone via `copyYesterdayAction`
-- [ ] **NUTR-PILL-01**: Meal-slot pill bar mirrors `SettingsSectionNav.tsx` exactly — `rounded-full backdrop-blur-md` rail, `motion.span layoutId="nutrition-slot-pill"` spring (stiffness 360, damping 32), uppercase mono labels at `text-[10.5px] tracking-[0.14em]`
-- [ ] **NUTR-PROGRESS-01**: Daily macro summary shows consumed kcal in `.font-mono-stats` at 28px (primary focal point) + 3 macro progress bars with `--hud-cyan` fill at 70–99% and `--ink-sage` at 100%+ (target met)
+- [x] **NUTR-NAV-01**: `/nutrition` route registered in `PersistentNav.tsx` and `TopTabBar.tsx` with `UtensilsCrossed` icon and label "Nutrition"
+- [x] **NUTR-DAY-01**: Day view renders meal-slot sections (breakfast/lunch/dinner/snacks) with food log rows (44px min height); empty state copy "Nothing logged yet" + CTA "Log your first meal"
+- [x] **NUTR-DAY-02**: Day navigator (← {date} →) with "Today"/"Yesterday"/"EEE, MMM d" formatting; "Copy yesterday" button visible only when today's logs are empty; clone via `copyYesterdayAction`
+- [x] **NUTR-PILL-01**: Meal-slot pill bar mirrors `SettingsSectionNav.tsx` exactly — `rounded-full backdrop-blur-md` rail, `motion.span layoutId="nutrition-slot-pill"` spring (stiffness 360, damping 32), uppercase mono labels at `text-[10.5px] tracking-[0.14em]`
+- [x] **NUTR-PROGRESS-01**: Daily macro summary shows consumed kcal in `.font-mono-stats` at 28px (primary focal point) + 3 macro progress bars with `--hud-cyan` fill at 70–99% and `--ink-sage` at 100%+ (target met)
 - [ ] **NUTR-SEARCH-01**: Food search proxies OFF via `/api/nutrition/search`; debounced 300ms via `useDeferredValue`; personal history (Recents) appears instantly; OFF results section after 2+ chars
 - [ ] **NUTR-LOG-01**: Selecting a food opens `ServingPicker` with unit `Select` + quantity `Input`; live macro preview "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" updates per keystroke; Enter or "Log" button confirms
 - [ ] **NUTR-MANUAL-01**: When OFF has no results, "Can't find it? Enter it manually." opens `ManualEntryForm`; creates a food via `upsertFoodAction` with `isManual: true` and seeds default + product serving options
@@ -556,10 +556,10 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-OFF-01 | Phase 17 | Complete |
 | NUTR-SERVICE-01 | Phase 17 | Complete |
 | NUTR-D14 | Phase 17 | Complete |
-| NUTR-NAV-01 | Phase 17 | Pending |
+| NUTR-NAV-01 | Phase 17 | Complete |
 | NUTR-DAY-01..02 | Phase 17 | Pending |
-| NUTR-PILL-01 | Phase 17 | Pending |
-| NUTR-PROGRESS-01 | Phase 17 | Pending |
+| NUTR-PILL-01 | Phase 17 | Complete |
+| NUTR-PROGRESS-01 | Phase 17 | Complete |
 | NUTR-SEARCH-01 | Phase 17 | Pending |
 | NUTR-LOG-01 | Phase 17 | Pending |
 | NUTR-MANUAL-01 | Phase 17 | Pending |

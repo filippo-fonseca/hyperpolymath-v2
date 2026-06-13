@@ -491,13 +491,13 @@ Plans:
 **Goal**: Log foods per day assigned to meal slots (breakfast/lunch/dinner/snacks) with macros auto-fetched from a public food database (research open MFP-derived APIs / USDA FoodData Central / Open Food Facts — MFP's own API is closed). Manual entry fallback when a food isn't found. Reusable "meals" = saved groupings of foods with exact quantities. Personal food history for instant quick-select when logging or building meals. Daily stats + macro breakdowns and a heat map visualization. User-configurable targets (calories, protein/carb/fat percentages, etc.) with live daily progress against targets as logs accumulate. Glassy/neumorphic styling matching the navbar settings pills while keeping the app's established style. Architecture must make JARVIS integration trivial later ("Jarvis, I just ate a pineapple" → log) but JARVIS tools are NOT built in this phase — requires explicit user confirmation first. Web only for now (mobile later). Data stored in Supabase/Drizzle.
 **Depends on:** Phase 1 (foundations), Phase 6.1 (visual language)
 **Requirements**: NUTR-SCHEMA-01, NUTR-SCHEMA-02, NUTR-RLS-01, NUTR-RT-01, NUTR-MATH-01, NUTR-MATH-02, NUTR-TARGET-01, NUTR-OFF-01, NUTR-SERVICE-01, NUTR-D14, NUTR-NAV-01, NUTR-DAY-01, NUTR-DAY-02, NUTR-PILL-01, NUTR-PROGRESS-01, NUTR-SEARCH-01, NUTR-LOG-01, NUTR-MANUAL-01, NUTR-MEALS-01, NUTR-QUICKADD-01, NUTR-TARGETS-UI-01, NUTR-STATS-01, NUTR-HEATMAP-01
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 
 - [x] 17-01-PLAN.md — Wave 1: Drizzle schema + migration 0029 (5 tables + meal_slot enum) + RLS policies + Realtime publication + bump_user_state_version triggers + RealtimeTable union + cross-user RLS test (NUTR-SCHEMA-01..02, NUTR-RLS-01, NUTR-RT-01)
 - [x] 17-02-PLAN.md — Wave 2: macro-math (computeMacros, validateMacroConsistency, deriveTargetGrams) + Zod-typed OFF client + nutrition-service.ts (11 functions, D-14 service layer) + OFF route handlers + Server Actions (NUTR-MATH-01..02, NUTR-TARGET-01, NUTR-OFF-01, NUTR-SERVICE-01, NUTR-D14)
-- [ ] 17-03-PLAN.md — Wave 3: /nutrition route + Server Component shell + NutritionClient with TanStack Query + Realtime + glass MealSlotPillBar (SettingsSectionNav mirror) + DayNavigator + DailyMacroSummary + MacroProgressBar + FoodLogRow + PersistentNav/TopTabBar registration (NUTR-NAV-01, NUTR-DAY-01..02, NUTR-PILL-01, NUTR-PROGRESS-01)
+- [x] 17-03-PLAN.md — Wave 3: /nutrition route + Server Component shell + NutritionClient with TanStack Query + Realtime + glass MealSlotPillBar (SettingsSectionNav mirror) + DayNavigator + DailyMacroSummary + MacroProgressBar + FoodLogRow + PersistentNav/TopTabBar registration (NUTR-NAV-01, NUTR-DAY-01..02, NUTR-PILL-01, NUTR-PROGRESS-01)
 - [ ] 17-04-PLAN.md — Wave 4: FoodSearch (Sheet, 300ms debounce, history-first) + ServingPicker (live macro preview) + ManualEntryForm + MealsManagerSheet + QuickAddComposer (global 'n' shortcut, time-of-day slot defaulting) + /settings/nutrition targets form (auto-adjust sum=100) (NUTR-SEARCH-01, NUTR-LOG-01, NUTR-MANUAL-01, NUTR-MEALS-01, NUTR-QUICKADD-01, NUTR-TARGETS-UI-01)
 - [ ] 17-05-PLAN.md — Wave 4 (parallel with 17-04): /nutrition/stats route + 3 stats query functions (yearly adherence, 7-day macro trend, personal bests) + NutritionHeatMap (plain CSS grid, 5-level adherence encoding) + MacroTrendChart (recharts, sage/amber/coral) + PersonalBestsStrip (NUTR-STATS-01, NUTR-HEATMAP-01)
 
@@ -530,7 +530,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 14. JARVIS Desktop Mic Middleman | 4/5 | In Progress|  |
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
-| 17. Nutrition tracking tab | 2/5 | In Progress|  |
+| 17. Nutrition tracking tab | 3/5 | In Progress|  |
 
 ## Backlog
 
@@ -812,3 +812,14 @@ Plans:
 Plans:
 
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 18: Classes surfacing — sidebar pills + Active Classes section + per-area collapse + Classes tab (/classes) grouped by semester. Active = grade IS NULL AND archived_at IS NULL.
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 18 to break down)
