@@ -1,40 +1,24 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { updateTaskStatus } from "@/app/actions/tasks";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { updateTaskStatus } from "@/app/actions/tasks";
-import { cn } from "@/lib/utils";
-import { tableKey } from "@/lib/realtime/query-keys";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
-type Status =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 // All five statuses — used for grouping. "not started"is rendered above the
 // kanban in a separate tray, so it's excluded from the column render order.
-const ALL_STATUSES: Status[] = [
-  "not started",
-  "up next",
-  "in progress",
-  "almost done",
-  "lesno",
-];
-const COLUMN_ORDER: Status[] = [
-  "up next",
-  "in progress",
-  "almost done",
-  "lesno",
-];
+const ALL_STATUSES: Status[] = ["not started", "up next", "in progress", "almost done", "lesno"];
+const COLUMN_ORDER: Status[] = ["up next", "in progress", "almost done", "lesno"];
 
 // Shared accent for the tray. Derived from the dot via color-mix against
 // canvas/surface so the tray adapts to light + dark mode (was hardcoded
@@ -108,9 +92,7 @@ export function KanbanBoard({
     localStorage.setItem("tasks-tray-expanded", String(trayExpanded));
   }, [trayExpanded]);
 
-  const tasksByStatus = ALL_STATUSES.reduce<
-    Record<Status, TaskWithProjects[]>
-  >(
+  const tasksByStatus = ALL_STATUSES.reduce<Record<Status, TaskWithProjects[]>>(
     (acc, s) => {
       acc[s] = tasks.filter((t) => t.status === s);
       return acc;
@@ -121,12 +103,10 @@ export function KanbanBoard({
       "in progress": [],
       "almost done": [],
       lesno: [],
-    },
+    }
   );
 
-  const draggedTask = draggedTaskId
-    ? tasks.find((t) => t.id === draggedTaskId) ?? null
-    : null;
+  const draggedTask = draggedTaskId ? (tasks.find((t) => t.id === draggedTaskId) ?? null) : null;
   const internalDraggedFromStatus: Status | null = draggedTask
     ? (draggedTask.status as Status)
     : null;
@@ -189,7 +169,7 @@ export function KanbanBoard({
         onDropOnTray={() => dropTaskOnStatus("not started")}
       />
 
-      <div className="flex flex-col @lg/main:flex-row gap-5 @lg/main:overflow-x-auto pb-4 pr-2 flex-1 min-h-0 @lg/main:items-stretch">
+      <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 flex-1 min-h-0 @4xl/main:items-stretch">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}
@@ -248,8 +228,7 @@ function NotStartedTray({
 }: TrayProps) {
   const [isOver, setIsOver] = useState(false);
   const accent = NOT_STARTED_ACCENT;
-  const isValidTarget =
-    draggedTaskId !== null && draggedFromStatus !== "not started";
+  const isValidTarget = draggedTaskId !== null && draggedFromStatus !== "not started";
   const showDrop = isOver && isValidTarget;
 
   return (
@@ -279,7 +258,7 @@ function NotStartedTray({
             ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, var(--glass-raise), var(--glass-drop)`
             : `inset 0 0 0 1px ${accent.rim}, var(--glass-raise), var(--glass-drop)`,
           transition: "box-shadow 160ms ease-out",
-          ["--task-card-bg"as string]: accent.cardBg,
+          ["--task-card-bg" as string]: accent.cardBg,
         } as React.CSSProperties
       }
     >
@@ -290,10 +269,7 @@ function NotStartedTray({
         aria-expanded={expanded}
       >
         <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 transition-transform shrink-0",
-            !expanded && "-rotate-90",
-          )}
+          className={cn("h-3.5 w-3.5 transition-transform shrink-0", !expanded && "-rotate-90")}
           style={{ color: accent.dot }}
         />
         <span

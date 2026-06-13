@@ -1,18 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { cn } from "@/lib/utils";
 import { AnimatePresence } from "motion/react";
+import { useRef } from "react";
 import { TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
-import { cn } from "@/lib/utils";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
-type TaskStatus =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   "not started": "Not Started",
@@ -32,7 +27,7 @@ const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
   "up next": { dot: "oklch(0.78 0.16 80)" },
   "in progress": { dot: "oklch(0.74 0.16 240)" },
   "almost done": { dot: "oklch(0.78 0.16 305)" },
-  lesno:         { dot: "oklch(0.78 0.18 160)" },
+  lesno: { dot: "oklch(0.78 0.18 160)" },
 };
 
 function deriveAccent(dot: string) {
@@ -88,9 +83,7 @@ export function KanbanColumn({
   onToggleColumnSelection,
 }: Props) {
   const taskIds = tasks.map((t) => t.id);
-  const selectedInColumn = selectedIds
-    ? taskIds.filter((id) => selectedIds.has(id)).length
-    : 0;
+  const selectedInColumn = selectedIds ? taskIds.filter((id) => selectedIds.has(id)).length : 0;
   const allSelected = taskIds.length > 0 && selectedInColumn === taskIds.length;
   const ref = useRef<HTMLDivElement>(null);
   const accent = deriveAccent(STATUS_ACCENT[status].dot);
@@ -110,8 +103,7 @@ export function KanbanColumn({
   // its task cards, which competes with Motion's layout animation on drop and
   // produces a visible "recoil"snap. Mutating boxShadow on the DOM node bypasses
   // React entirely — the affordance lights up instantly, no churn on the children.
-  const isValidTarget = (): boolean =>
-    draggedTaskId !== null && draggedFromStatus !== status;
+  const isValidTarget = (): boolean => draggedTaskId !== null && draggedFromStatus !== status;
 
   const lightUp = () => {
     if (ref.current) ref.current.style.boxShadow = hoverShadow;
@@ -123,7 +115,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col w-full @lg/main:min-w-[280px] @lg/main:max-w-[320px] @lg/main:flex-shrink-0 rounded-2xl @lg/main:h-full min-h-0 backdrop-blur-md border border-[var(--glass-border)]"
+      className="flex flex-col w-full @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0 rounded-2xl @4xl/main:h-full min-h-0 backdrop-blur-md border border-[var(--glass-border)]"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -141,25 +133,27 @@ export function KanbanColumn({
         dimDown();
         if (isValidTarget()) onDropOnColumn(status);
       }}
-      style={{
-        background: accent.bg,
-        boxShadow: restingShadow,
-        transition: "box-shadow 140ms ease-out",
-        ["--task-card-bg"as string]: accent.cardBg,
-      } as React.CSSProperties}
+      style={
+        {
+          background: accent.bg,
+          boxShadow: restingShadow,
+          transition: "box-shadow 140ms ease-out",
+          ["--task-card-bg" as string]: accent.cardBg,
+        } as React.CSSProperties
+      }
     >
-      <div className="group/colhdr flex items-center gap-2 px-4 pt-3 pb-2">
+      <div className="group/colhdr flex items-center gap-2 px-4 pt-3 pb-2 min-w-0">
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: accent.dot }}
         />
         <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold"
+          className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold truncate"
           style={{ color: accent.dot }}
         >
           {STATUS_LABELS[status]}
         </span>
-        <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
+        <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums shrink-0">
           ({tasks.length})
         </span>
         {onToggleColumnSelection && tasks.length > 0 ? (
@@ -167,12 +161,12 @@ export function KanbanColumn({
             type="button"
             onClick={() => onToggleColumnSelection(status, taskIds)}
             className={cn(
-              "ml-auto rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
               allSelected
                 ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
                 : selectionActive || selectedInColumn > 0
                   ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] opacity-0 group-hover/colhdr:opacity-100 hover:text-[var(--ink)]",
+                  : "text-[var(--ink-muted)] opacity-0 group-hover/colhdr:opacity-100 hover:text-[var(--ink)]"
             )}
             title={allSelected ? "Deselect all in column" : "Select all in column"}
           >
@@ -186,7 +180,7 @@ export function KanbanColumn({
           row-stretched height; the footer stays anchored at the bottom. */}
       <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
         <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
-          <AnimatePresence mode="popLayout"initial={false}>
+          <AnimatePresence mode="popLayout" initial={false}>
             {tasks.map((task) => (
               <TaskCard
                 key={task.id}
@@ -206,7 +200,11 @@ export function KanbanColumn({
         </div>
 
         <div className="mt-2 pt-2 border-t border-[color:color-mix(in_oklch,var(--edge)_50%,transparent)]">
-          <TaskCreateInline status={status} onCreateTask={onCreateTask} onStartCreate={onStartCreate} />
+          <TaskCreateInline
+            status={status}
+            onCreateTask={onCreateTask}
+            onStartCreate={onStartCreate}
+          />
         </div>
       </div>
     </div>
