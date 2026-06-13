@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 17-nutrition-tracking-tab/17-03-PLAN.md
-last_updated: "2026-06-13T01:52:45.412Z"
+stopped_at: Completed 17-nutrition-tracking-tab/17-05-PLAN.md
+last_updated: "2026-06-13T02:01:57.839Z"
 last_activity: 2026-06-13 -- Phase 17 execution started
 progress:
   total_phases: 37
   completed_phases: 13
   total_plans: 93
-  completed_plans: 78
+  completed_plans: 79
   percent: 35
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 17 (nutrition-tracking-tab) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-13 -- Phase 17 execution started
 
@@ -129,6 +129,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 17-nutrition-tracking-tab P01 | 5 | 3 tasks | 4 files |
 | Phase 17 P02 | 10 | 3 tasks | 9 files |
 | Phase 17 P03 | 15 | 3 tasks | 12 files |
+| Phase 17-nutrition-tracking-tab P05 | 8 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -365,6 +366,8 @@ Recent decisions affecting current work:
 - [Phase 17]: listFoodLogsForDayAction added to nutrition.ts as read action for TanStack Query queryFn — mirrors listActivitiesInRange in training.ts
 - [Phase 17]: NutritionDayView empty state checks ALL logs (not just active slot) — empty state when day is truly empty
 - [Phase 17]: FoodLogRow undo is deferred commit — re-create deferred to Plan 06
+- [Phase 17-nutrition-tracking-tab]: getPersonalBests delegates to getYearlyAdherence (one DB call) — simpler, portable to JARVIS, RLS-safe
+- [Phase 17-nutrition-tracking-tab]: Heat map uses CSS-grid with getDay() leading-cell offset for Sunday-aligned week columns — no external calendar library
 
 ### Pending Todos
 
@@ -389,6 +392,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-13T01:52:45.403Z
-Stopped at: Completed 17-nutrition-tracking-tab/17-03-PLAN.md
+Last session: 2026-06-13T02:01:57.828Z
+Stopped at: Completed 17-nutrition-tracking-tab/17-05-PLAN.md
 Resume file: .planning/phases/17-nutrition-tracking-tab/17-UI-SPEC.md

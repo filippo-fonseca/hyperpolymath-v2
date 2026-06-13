@@ -541,8 +541,8 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 - [ ] **NUTR-MEALS-01**: User can create reusable meals (name + items[]) via `MealsManagerSheet`; can log a whole meal into a chosen slot via `logMealAction` which fans out into N `food_logs` rows in one transaction
 - [ ] **NUTR-QUICKADD-01**: Global keyboard shortcut `n` opens `FoodSearch` with meal slot pre-selected by time of day (breakfast <10am / lunch 10–14 / dinner 17–21 / snacks otherwise)
 - [ ] **NUTR-TARGETS-UI-01**: `/settings/nutrition` lets the user set `targetKcal` + protein/carbs/fat %; auto-adjust keeps sum=100; Zod refine `Math.abs(sum-100) < 0.5`; live gram preview via `deriveTargetGrams`
-- [ ] **NUTR-STATS-01**: `/nutrition/stats` renders exactly 3 sections — LOGGING HISTORY (heat map), 7-DAY MACRO TREND (recharts LineChart with sage/amber/coral lines), PERSONAL BESTS (longest streak / highest single day / best adherence)
-- [ ] **NUTR-HEATMAP-01**: Heat map is plain CSS grid (52 weeks × 7 days, 10px cells, 2px gap) using `date-fns eachDayOfInterval`; 5-level adherence encoding per UI-SPEC color scale (`var(--surface)` / `oklch(30% 0.08 210)` / `oklch(45% 0.13 210)` / `oklch(60% 0.18 210)` / `var(--hud-cyan)`); tooltip "{date} — {kcal} kcal ({pct}% of target)"
+- [x] **NUTR-STATS-01**: `/nutrition/stats` renders exactly 3 sections — LOGGING HISTORY (heat map), 7-DAY MACRO TREND (recharts LineChart with sage/amber/coral lines), PERSONAL BESTS (longest streak / highest single day / best adherence)
+- [x] **NUTR-HEATMAP-01**: Heat map is plain CSS grid (52 weeks × 7 days, 10px cells, 2px gap) using `date-fns eachDayOfInterval`; 5-level adherence encoding per UI-SPEC color scale (`var(--surface)` / `oklch(30% 0.08 210)` / `oklch(45% 0.13 210)` / `oklch(60% 0.18 210)` / `var(--hud-cyan)`); tooltip "{date} — {kcal} kcal ({pct}% of target)"
 
 ### Phase 17 traceability
 
@@ -566,7 +566,7 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-MEALS-01 | Phase 17 | Pending |
 | NUTR-QUICKADD-01 | Phase 17 | Pending |
 | NUTR-TARGETS-UI-01 | Phase 17 | Pending |
-| NUTR-STATS-01 | Phase 17 | Pending |
-| NUTR-HEATMAP-01 | Phase 17 | Pending |
+| NUTR-STATS-01 | Phase 17 | Complete |
+| NUTR-HEATMAP-01 | Phase 17 | Complete |
 
 *Updated 2026-06-12 — Phase 17 (Nutrition tracking tab) added: 22 NUTR-* requirements covering schema/RLS/Realtime + math/OFF + service layer (D-14) + day view UI + search/log/manual/meals/quickadd + targets + stats/heatmap.*
