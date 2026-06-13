@@ -13,6 +13,7 @@ import { DayNavigator } from "./DayNavigator";
 import { DailyMacroSummary } from "./DailyMacroSummary";
 import { MealSlotPillBar } from "./MealSlotPillBar";
 import { NutritionDayView } from "./NutritionDayView";
+import { FoodSearch } from "./FoodSearch";
 
 type FoodHistoryItem = {
   id: string;
@@ -61,6 +62,10 @@ export function NutritionClient({
 }: Props) {
   const [date, setDate] = useState<string>(initialDate);
   const [mealSlot, setMealSlot] = useState<MealSlot>("breakfast");
+  const [searchState, setSearchState] = useState<{
+    open: boolean;
+    slot: MealSlot;
+  } | null>(null);
 
   // Realtime subscriptions — invalidate-only (Critical Pattern 3).
   // food_logs changes → refetch the day's logs.
@@ -125,8 +130,21 @@ export function NutritionClient({
           userId={userId}
           date={date}
           foodHistory={foodHistory}
+          onAddFood={(slot) => setSearchState({ open: true, slot })}
         />
       </div>
+
+      {/* Food search sheet — wired to onAddFood from MealSlot (Plan 04) */}
+      <FoodSearch
+        open={searchState?.open ?? false}
+        onOpenChange={(o) => {
+          if (!o) setSearchState(null);
+        }}
+        mealSlot={searchState?.slot ?? "breakfast"}
+        date={date}
+        foodHistory={foodHistory}
+        userId={userId}
+      />
     </div>
   );
 }
