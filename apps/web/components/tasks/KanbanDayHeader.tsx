@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { addDays, format, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
@@ -11,24 +11,15 @@ interface Props {
   /** Active day in YYYY-MM-DD form (URL-synced via TasksClient). */
   dateYmd: string;
   onDateChange: (ymd: string) => void;
-  /** Count of tasks without a due date. Clicking the pill opens the inbox tray. */
-  inboxCount: number;
-  inboxOpen: boolean;
-  onInboxToggle: () => void;
 }
 
 /**
  * Date navigator above the kanban day view. Arrows step ±1 day, Today
- * snaps back, the date label opens a native picker, and the Inbox pill
- * surfaces undated tasks (toggles a slide-down tray rendered by parent).
+ * snaps back, and the date label opens a native picker. (The Inbox is now a
+ * persistent column — no toggle lives here; Plan 04 lifts the day-nav into a
+ * universal DaySwitcher.)
  */
-export function KanbanDayHeader({
-  dateYmd,
-  onDateChange,
-  inboxCount,
-  inboxOpen,
-  onInboxToggle,
-}: Props) {
+export function KanbanDayHeader({ dateYmd, onDateChange }: Props) {
   const pickerRef = useRef<HTMLInputElement>(null);
   const date = fromYmd(dateYmd);
   const today = new Date();
@@ -104,26 +95,6 @@ export function KanbanDayHeader({
           />
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={onInboxToggle}
-        aria-pressed={inboxOpen}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out cursor-pointer-always",
-          inboxOpen
-            ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-            : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
-        )}
-      >
-        <Inbox size={12} strokeWidth={1.5} />
-        Inbox
-        {inboxCount > 0 ? (
-          <span className="rounded bg-[var(--ink-muted)]/15 px-1 text-[var(--ink)]">
-            {inboxCount}
-          </span>
-        ) : null}
-      </button>
     </div>
   );
 }
