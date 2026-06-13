@@ -18,14 +18,13 @@ import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
-import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
 import { KanbanDayHeader } from "./KanbanDayHeader";
-import { TaskCard } from "./TaskCard";
 import { TaskDayView } from "./TaskDayView";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { TaskFilters } from "./TaskFilters";
@@ -106,14 +105,11 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
 
   // Selection state (kanban day view). Cleared on view/date change.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Inbox tray (undated tasks) — collapsed by default.
-  const [inboxOpen, setInboxOpen] = useState(false);
 
   // Reset selection when the active date or view changes — selections are
   // scoped to "what's visible on this surface now."
   useEffect(() => {
     setSelectedIds(new Set());
-    setInboxOpen(false);
   }, [dateYmd, view]);
 
   // Cross-surface drag (Inbox tray → kanban columns + Not-Started tray
@@ -337,6 +333,32 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     [draggedTask, dateYmd, activeDate, addOptimistic, queryClient, userId]
   );
 
+  // D-04 / TASK-INBOX-02: drop a single card onto the Inbox column → null its
+  // due date. Mirrors handleBulkMove's optimistic shape but for the lone
+  // dragged card, and REUSES the existing bulkUpdateTaskDueDate server action
+  // (no new action — per CONTEXT). Silent optimistic on the single-card path
+  // (UI-SPEC I-1): success is its own feedback (card lands in the Inbox); only
+  // a failure surfaces a toast.
+  const handleInboxDrop = useCallback(async () => {
+    const id = draggedTaskId;
+    setDraggedTaskId(null);
+    if (!id) return;
+    const t = optimisticTasks.find((task) => task.id === id);
+    // Already undated → nothing to do (dragging an Inbox card back onto itself).
+    if (t && !t.dueDate) return;
+    startTransition(() => {
+      addOptimistic({ type: "update", id, patch: { dueDate: null } });
+    });
+    const r = await bulkUpdateTaskDueDate({ ids: [id], dueDate: null });
+    if (!r.success) {
+      toast.error("Couldn't move to Inbox. Try again.");
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: tableKey("tasks", userId),
+    });
+  }, [draggedTaskId, optimisticTasks, addOptimistic, queryClient, userId, startTransition]);
+
   async function handleCreateTask(input: {
     title: string;
     status: TaskStatus;
@@ -539,85 +561,39 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col">
-          <KanbanDayHeader
-            dateYmd={dateYmd}
-            onDateChange={(ymd) => void setDateYmd(ymd)}
-            inboxCount={inboxTasks.length}
-            inboxOpen={inboxOpen}
-            onInboxToggle={() => setInboxOpen((v) => !v)}
-          />
-          <AnimatePresence initial={false}>
-            {inboxOpen ? (
-              <motion.div
-                key="inbox-tray"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
-                className="overflow-hidden"
-              >
-                <div
-                  className={cn("mb-4 rounded-xl p-3 ", "", "glass-tile", "", "", "", "")}
-                  role="region"
-                  aria-label="Tasks without a due date"
-                >
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                      Inbox · undated
-                    </p>
-                    <p className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
-                      {inboxTasks.length}
-                    </p>
-                  </div>
-                  {inboxTasks.length === 0 ? (
-                    <p className="px-1 pb-1 font-serif text-sm text-[var(--ink-muted)]">
-                      Inbox is empty.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {inboxTasks.slice(0, 24).map((t) => (
-                        <div key={t.id} className="min-w-[220px] max-w-[260px] flex-1">
-                          <TaskCard
-                            task={t}
-                            onClick={setOpenTaskId}
-                            draggable
-                            onDragStart={(id) => setDraggedTaskId(id)}
-                            onDragEnd={() => setDraggedTaskId(null)}
-                            isDragging={draggedTaskId === t.id}
-                            selectionActive={selectedIds.size > 0}
-                            isSelected={selectedIds.has(t.id)}
-                            onToggleSelected={(id) => toggleSelected(id)}
-                          />
-                        </div>
-                      ))}
-                      {inboxTasks.length > 24 ? (
-                        <p className="self-center font-mono text-[11px] text-[var(--ink-muted)]">
-                          +{inboxTasks.length - 24} more — open the List view to see all.
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          <KanbanBoard
-            tasks={dayFilteredTasks}
-            userId={userId}
-            onTaskClick={setOpenTaskId}
-            onCreateTask={handleCreateTask}
-            onStartCreate={(s) => setDraftStatus(s)}
-            addOptimistic={addOptimistic}
-            selectionActive={selectedIds.size > 0}
-            selectedIds={selectedIds}
-            onToggleSelected={(id) => toggleSelected(id)}
-            onToggleColumnSelection={toggleColumnSelection}
-            externalDraggedTaskId={draggedTaskId}
-            externalDraggedFromStatus={draggedFromStatus}
-            onExternalDragStart={(id) => setDraggedTaskId(id)}
-            onExternalDragEnd={() => setDraggedTaskId(null)}
-            onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
-          />
+          <KanbanDayHeader dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
+          <div className="flex flex-row gap-4 min-h-0 flex-1">
+            {/* D-01: persistent first-class Inbox as the left anchor column. */}
+            <InboxColumn
+              inboxTasks={inboxTasks}
+              onTaskClick={setOpenTaskId}
+              draggedTaskId={draggedTaskId}
+              onDragStart={(id) => setDraggedTaskId(id)}
+              onDragEnd={() => setDraggedTaskId(null)}
+              onDrop={() => void handleInboxDrop()}
+              selectedIds={selectedIds}
+              onToggleSelected={(id) => toggleSelected(id)}
+            />
+            <div className="flex-1 min-h-0">
+              <KanbanBoard
+                tasks={dayFilteredTasks}
+                userId={userId}
+                onTaskClick={setOpenTaskId}
+                onCreateTask={handleCreateTask}
+                onStartCreate={(s) => setDraftStatus(s)}
+                addOptimistic={addOptimistic}
+                selectionActive={selectedIds.size > 0}
+                selectedIds={selectedIds}
+                onToggleSelected={(id) => toggleSelected(id)}
+                onToggleColumnSelection={toggleColumnSelection}
+                externalDraggedTaskId={draggedTaskId}
+                externalDraggedFromStatus={draggedFromStatus}
+                onExternalDragStart={(id) => setDraggedTaskId(id)}
+                onExternalDragEnd={() => setDraggedTaskId(null)}
+                onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
+              />
+            </div>
+          </div>
         </div>
       )}
 
