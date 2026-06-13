@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -91,6 +92,16 @@ export function NutritionClient({
   return (
     <div className="mx-auto max-w-3xl px-4 pt-16 pb-32">
       <div className="flex flex-col gap-4">
+        {/* Stats link — top-right, glass-button style */}
+        <div className="flex justify-end">
+          <Link
+            href="/nutrition/stats"
+            className="glass-button rounded-md px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          >
+            Stats
+          </Link>
+        </div>
+
         {/* 1. Day navigator */}
         <DayNavigator
           date={date}
