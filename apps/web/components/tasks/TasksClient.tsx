@@ -24,8 +24,8 @@ import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition
 import { toast } from "sonner";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
-import { KanbanDayHeader } from "./KanbanDayHeader";
-import { TaskDayView } from "./TaskDayView";
+import { DaySwitcher } from "./DaySwitcher";
+import { TaskOverviewView } from "./TaskOverviewView";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { TaskFilters } from "./TaskFilters";
 import { TaskList } from "./TaskList";
@@ -154,7 +154,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   // localStorage fallback for view (UI-SPEC: localStorage remembers user's last choice)
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("tasks-view") : null;
-    if ((stored === "list" || stored === "day") && (!view || view === "kanban")) {
+    if ((stored === "list" || stored === "overview") && (!view || view === "kanban")) {
       setView(stored);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -477,6 +477,10 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         </p>
       </header>
 
+      {/* Universal day switcher (D-05 / UI-SPEC S-2) — one shared day control
+          re-scopes kanban, list, and overview from `dateYmd`. */}
+      <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
+
       {/* Toolbar: filters + view toggle wrapped in a glassy pill container
           (matches the PROFILE pill in /settings nav — translucent surface +
           backdrop-blur + inset cyan glow + soft outer halo + thin cyan-tinged
@@ -511,7 +515,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
           {showLesno ? "Hide lesno" : "Show lesno"}
         </button>
         <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] shrink-0">
-          {(["kanban", "list", "day"] as const).map((v) => (
+          {(["kanban", "list", "overview"] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -555,13 +559,19 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
           <TaskList tasks={dayFilteredTasks} onTaskClick={setOpenTaskId} addOptimistic={addOptimistic} />
         </div>
-      ) : view === "day" ? (
+      ) : view === "overview" ? (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-          <TaskDayView tasks={filtered} onTaskClick={setOpenTaskId} />
+          <TaskOverviewView
+            tasks={filtered}
+            onTaskClick={setOpenTaskId}
+            onSelectDay={(ymd) => {
+              void setDateYmd(ymd);
+              void setView("kanban");
+            }}
+          />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col">
-          <KanbanDayHeader dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
           <div className="flex flex-row gap-4 min-h-0 flex-1">
             {/* D-01: persistent first-class Inbox as the left anchor column. */}
             <InboxColumn
