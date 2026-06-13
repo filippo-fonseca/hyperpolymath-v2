@@ -1,14 +1,55 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PriorityChip } from "./PriorityChip";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
+import { motion } from "motion/react";
+import { PriorityChip } from "./PriorityChip";
+
+/** Which property pills render on a task card. Owned + persisted by KanbanBoard. */
+export interface CardFields {
+  priority: boolean;
+  dueDate: boolean;
+  project: boolean;
+}
+
+export const DEFAULT_CARD_FIELDS: CardFields = {
+  priority: true,
+  dueDate: true,
+  project: true,
+};
+
+/** Glassy segmented pill wrapper for a single card metadata chip. */
+function CardPill({
+  children,
+  tone = "muted",
+}: {
+  children: React.ReactNode;
+  tone?: "muted" | "coral";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 shrink-0 backdrop-blur-md",
+        "font-mono text-[11px] border",
+        tone === "coral"
+          ? "border-[var(--ink-coral)]/40 text-[var(--ink-coral)]"
+          : "border-[var(--edge)] text-[var(--ink-muted)]"
+      )}
+      style={{
+        backgroundColor: "color-mix(in oklch, var(--surface-raised) 70%, transparent)",
+        boxShadow: "inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
 
 interface Props {
   task: TaskWithProjects;
   onClick: (id: string) => void;
+  cardFields?: CardFields;
   isDragging?: boolean;
   isPending?: boolean;
   draggable?: boolean;
@@ -27,6 +68,7 @@ interface Props {
 export function TaskCard({
   task,
   onClick,
+  cardFields = DEFAULT_CARD_FIELDS,
   isDragging,
   isPending,
   draggable,
@@ -41,8 +83,7 @@ export function TaskCard({
   // Parse YMD as LOCAL midnight (not UTC midnight) so a 2026-06-08 due
   // date doesn't read as 2026-06-07 in negative-UTC timezones.
   const dueLocal = task.dueDate ? new Date(task.dueDate + "T00:00:00") : null;
-  const isOverdue =
-    dueLocal !== null && task.status !== "lesno" && dueLocal < today;
+  const isOverdue = dueLocal !== null && task.status !== "lesno" && dueLocal < today;
   const isLesno = task.status === "lesno";
 
   // Tailwind's group-hover modifier on the checkbox keys off this class.
@@ -65,7 +106,7 @@ export function TaskCard({
       className={cn(
         "group/task select-none",
         draggable && "cursor-grab active:cursor-grabbing",
-        isDragging && "opacity-50",
+        isDragging && "opacity-50"
       )}
     >
       <motion.div
@@ -86,12 +127,11 @@ export function TaskCard({
           "relative rounded-xl px-3.5 py-2.5",
           isPending && "opacity-50",
           isLesno && "opacity-80",
-          isSelected && "ring-2 ring-[var(--hud-cyan)] ring-offset-1 ring-offset-[var(--canvas)]",
+          isSelected && "ring-2 ring-[var(--hud-cyan)] ring-offset-1 ring-offset-[var(--canvas)]"
         )}
         style={{
           background: "var(--task-card-bg, var(--surface-raised))",
-          boxShadow:
-            "0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
         {onToggleSelected ? (
@@ -109,7 +149,7 @@ export function TaskCard({
                 ? "opacity-100 border-[var(--hud-cyan)] bg-[var(--hud-cyan)] text-[var(--canvas)]"
                 : selectionActive
                   ? "opacity-100 border-[var(--edge)] text-transparent"
-                  : "opacity-0 group-hover/task:opacity-100 border-[var(--edge)] text-transparent",
+                  : "opacity-0 group-hover/task:opacity-100 border-[var(--edge)] text-transparent"
             )}
           >
             <Check size={11} strokeWidth={2.5} />
@@ -118,37 +158,31 @@ export function TaskCard({
         <p
           className={cn(
             "font-serif text-base line-clamp-2 mb-2",
-            isLesno
-              ? "line-through text-[var(--ink-muted)]"
-              : "text-[var(--ink)]",
+            isLesno ? "line-through text-[var(--ink-muted)]" : "text-[var(--ink)]"
           )}
         >
           {task.title}
         </p>
 
-        <div className="flex items-center justify-between gap-2">
-          <PriorityChip priority={task.priority} />
-          <div className="flex items-center gap-2 min-w-0">
-            {task.dueDate && (
-              <span
-                className={cn(
-                  "font-mono text-xs shrink-0",
-                  isOverdue
-                    ? "text-[var(--ink-coral)]"
-                    : "text-[var(--ink-muted)]",
-                )}
-              >
-                {formatDate(task.dueDate)}
-              </span>
+        {(cardFields.priority || cardFields.dueDate || cardFields.project) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {cardFields.priority && (
+              <CardPill>
+                <PriorityChip priority={task.priority} />
+                {task.priority}
+              </CardPill>
             )}
-            {task.projects.length > 0 && (
-              <span className="font-mono text-xs text-[var(--ink-muted)] truncate">
-                {task.projects[0]!.name}
+            {cardFields.dueDate && task.dueDate && (
+              <CardPill tone={isOverdue ? "coral" : "muted"}>{formatDate(task.dueDate)}</CardPill>
+            )}
+            {cardFields.project && task.projects.length > 0 && (
+              <CardPill>
+                <span className="truncate max-w-[140px]">{task.projects[0]!.name}</span>
                 {task.projects.length > 1 && ` +${task.projects.length - 1}`}
-              </span>
+              </CardPill>
             )}
           </div>
-        </div>
+        )}
       </motion.div>
     </div>
   );
@@ -158,9 +192,7 @@ function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const diff = Math.round(
-    (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff === -1) return "Yesterday";

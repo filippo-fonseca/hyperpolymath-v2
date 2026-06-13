@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
-import { HabitFrequencyBadges } from "@/components/habits/HabitFrequencySelector";
-import { toISODate, parseISODate } from "@/components/habits/date-utils";
 import type { HabitWithAreas } from "@/app/actions/habits";
+import { HabitFrequencyBadges } from "@/components/habits/HabitFrequencySelector";
+import { parseISODate, toISODate } from "@/components/habits/date-utils";
+import { cn } from "@/lib/utils";
+import { useMemo, useState } from "react";
 import { NEUMORPHIC_TILE } from "./tile-style";
 
 interface Props {
@@ -45,12 +45,7 @@ type Sort = "rate" | "streak" | "name" | "newest";
  * in URL-free local state — the page is single-user, so deep-linking the
  * filter combo isn't load-bearing yet.
  */
-export function HabitsInsightsPanel({
-  habits,
-  completions,
-  today,
-  earliestAvailable,
-}: Props) {
+export function HabitsInsightsPanel({ habits, completions, today, earliestAvailable }: Props) {
   const [range, setRange] = useState<Range>("28d");
   const [areaFilter, setAreaFilter] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -59,7 +54,7 @@ export function HabitsInsightsPanel({
   // Set for O(1) "(habitId, date) was completed" lookups.
   const doneSet = useMemo(
     () => new Set(completions.map((c) => `${c.habitId}::${c.completedDate}`)),
-    [completions],
+    [completions]
   );
 
   // Build the global timeline of days we care about for the chosen range.
@@ -72,11 +67,10 @@ export function HabitsInsightsPanel({
       Math.max(
         1,
         Math.round(
-          (parseISODate(today).getTime() -
-            parseISODate(earliestAvailable).getTime()) /
-            (1000 * 60 * 60 * 24),
-        ) + 1,
-      ),
+          (parseISODate(today).getTime() - parseISODate(earliestAvailable).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ) + 1
+      )
     );
     const out: { iso: string; dow: number }[] = [];
     for (let i = totalDays - 1; i >= 0; i--) {
@@ -91,8 +85,7 @@ export function HabitsInsightsPanel({
   const filteredHabits = useMemo(() => {
     const q = query.trim().toLowerCase();
     return habits.filter((h) => {
-      if (areaFilter && !h.areas.some((a) => a.id === areaFilter))
-        return false;
+      if (areaFilter && !h.areas.some((a) => a.id === areaFilter)) return false;
       if (q && !h.name.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -132,8 +125,7 @@ export function HabitsInsightsPanel({
         }
       }
 
-      const rate =
-        scheduled === 0 ? null : Math.round((done / scheduled) * 100);
+      const rate = scheduled === 0 ? null : Math.round((done / scheduled) * 100);
 
       return { habit: h, scheduled, done, streak, rate, createdISO };
     });
@@ -143,8 +135,7 @@ export function HabitsInsightsPanel({
     const out = [...rows];
     out.sort((a, b) => {
       if (sort === "name") return a.habit.name.localeCompare(b.habit.name);
-      if (sort === "newest")
-        return b.createdISO.localeCompare(a.createdISO);
+      if (sort === "newest") return b.createdISO.localeCompare(a.createdISO);
       if (sort === "streak") return b.streak - a.streak;
       // rate — nulls last so "no scheduled days in window" doesn't pollute
       // the top of the list.
@@ -163,21 +154,15 @@ export function HabitsInsightsPanel({
       scheduled += r.scheduled;
       done += r.done;
     }
-    const rate =
-      scheduled === 0 ? null : Math.round((done / scheduled) * 100);
+    const rate = scheduled === 0 ? null : Math.round((done / scheduled) * 100);
     return { scheduled, done, rate };
   }, [rows]);
 
   // Distinct areas across the filtered universe for the area chip row.
   const areaOptions = useMemo(() => {
-    const map = new Map<
-      string,
-      { id: string; name: string; emoji: string | null }
-    >();
+    const map = new Map<string, { id: string; name: string; emoji: string | null }>();
     for (const h of habits) for (const a of h.areas) map.set(a.id, a);
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [habits]);
 
   if (habits.length === 0) {
@@ -197,11 +182,7 @@ export function HabitsInsightsPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface-raised)]">
             {(["7d", "28d", "90d", "all"] as Range[]).map((r) => (
-              <ChipButton
-                key={r}
-                active={range === r}
-                onClick={() => setRange(r)}
-              >
+              <ChipButton key={r} active={range === r} onClick={() => setRange(r)}>
                 {RANGE_LABEL[r]}
               </ChipButton>
             ))}
@@ -215,7 +196,7 @@ export function HabitsInsightsPanel({
               className={cn(
                 "h-7 px-2 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)]",
                 "font-serif text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-                "focus:outline-none focus:border-[var(--ink-amber)] transition-colors",
+                "focus:outline-none focus:border-[var(--edge-hud)] transition-colors"
               )}
             />
             <select
@@ -224,7 +205,7 @@ export function HabitsInsightsPanel({
               className={cn(
                 "h-7 px-2 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)]",
                 "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
-                "focus:outline-none focus:border-[var(--ink-amber)]",
+                "focus:outline-none focus:border-[var(--edge-hud)]"
               )}
               aria-label="Sort habits"
             >
@@ -238,19 +219,14 @@ export function HabitsInsightsPanel({
 
         {areaOptions.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <ChipButton
-              active={areaFilter === null}
-              onClick={() => setAreaFilter(null)}
-            >
+            <ChipButton active={areaFilter === null} onClick={() => setAreaFilter(null)}>
               All areas
             </ChipButton>
             {areaOptions.map((a) => (
               <ChipButton
                 key={a.id}
                 active={areaFilter === a.id}
-                onClick={() =>
-                  setAreaFilter((prev) => (prev === a.id ? null : a.id))
-                }
+                onClick={() => setAreaFilter((prev) => (prev === a.id ? null : a.id))}
               >
                 {a.emoji ? <span aria-hidden="true">{a.emoji}</span> : null}
                 {a.name}
@@ -262,10 +238,7 @@ export function HabitsInsightsPanel({
         <div className="flex items-center gap-4 pt-1">
           <Stat label="Done" value={`${summary.done}`} />
           <Stat label="Scheduled" value={`${summary.scheduled}`} />
-          <Stat
-            label="Rate"
-            value={summary.rate === null ? "—" : `${summary.rate}%`}
-          />
+          <Stat label="Rate" value={summary.rate === null ? "—" : `${summary.rate}%`} />
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
             across {sortedRows.length} habit{sortedRows.length === 1 ? "" : "s"}
           </span>
@@ -294,30 +267,20 @@ export function HabitsInsightsPanel({
           }
 
           return (
-            <li
-              key={habit.id}
-              className={`${NEUMORPHIC_TILE} px-4 py-3 flex flex-col gap-2.5`}
-            >
+            <li key={habit.id} className={`${NEUMORPHIC_TILE} px-4 py-3 flex flex-col gap-2.5`}>
               <div className="flex items-baseline justify-between gap-3">
                 <div className="flex flex-col min-w-0">
-                  <p className="font-serif text-[15px] text-[var(--ink)] truncate">
-                    {habit.name}
-                  </p>
+                  <p className="font-serif text-[15px] text-[var(--ink)] truncate">{habit.name}</p>
                   {habit.areas.length > 0 ? (
                     <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mt-0.5 truncate">
-                      {habit.areas
-                        .map((a) => `${a.emoji ?? ""} ${a.name}`.trim())
-                        .join(" · ")}
+                      {habit.areas.map((a) => `${a.emoji ?? ""} ${a.name}`.trim()).join(" · ")}
                     </p>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
                   <Stat label="Done" value={`${done}/${scheduled}`} />
                   <Stat label="Rate" value={rate === null ? "—" : `${rate}%`} />
-                  <Stat
-                    label="Streak"
-                    value={`${streak} day${streak === 1 ? "" : "s"}`}
-                  />
+                  <Stat label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} />
                 </div>
               </div>
 
@@ -340,7 +303,7 @@ export function HabitsInsightsPanel({
                             ? "bg-[var(--ink-amber)]"
                             : d.scheduled
                               ? "bg-transparent border border-[var(--ink-muted)]/40"
-                              : "bg-transparent border border-[var(--edge)]/50",
+                              : "bg-transparent border border-[var(--edge)]/50"
                       )}
                     />
                   ))}
@@ -357,9 +320,7 @@ export function HabitsInsightsPanel({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-end leading-tight">
-      <span className="font-mono text-[14px] tabular-nums text-[var(--ink)]">
-        {value}
-      </span>
+      <span className="font-mono text-[14px] tabular-nums text-[var(--ink)]">{value}</span>
       <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
         {label}
       </span>
@@ -387,7 +348,7 @@ function ChipButton({
         "transition-colors duration-150 ease-out",
         active
           ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >
       {children}

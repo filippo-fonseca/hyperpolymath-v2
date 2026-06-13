@@ -1,19 +1,27 @@
 "use client";
 
 import { updateTaskStatus } from "@/app/actions/tasks";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
-import { TaskCard } from "./TaskCard";
+import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
+
+const CARD_FIELDS_KEY = "tasks-card-fields";
+const CARD_FIELD_LABELS: { key: keyof CardFields; label: string }[] = [
+  { key: "priority", label: "Priority" },
+  { key: "dueDate", label: "Due date" },
+  { key: "project", label: "Project(s)" },
+];
 
 // All five statuses — used for grouping. "not started"is rendered above the
 // kanban in a separate tray, so it's excluded from the column render order.
@@ -82,15 +90,29 @@ export function KanbanBoard({
     : setInternalDraggedTaskId;
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
+  // Which property pills show on each task card. Persisted so the user's
+  // view preferences survive reloads. Shared by the tasks page + project page.
+  const [cardFields, setCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS);
 
   // Persist tray expanded state across reloads.
   useEffect(() => {
     const stored = localStorage.getItem("tasks-tray-expanded");
     if (stored === "false") setTrayExpanded(false);
+    const fields = localStorage.getItem(CARD_FIELDS_KEY);
+    if (fields) {
+      try {
+        setCardFields({ ...DEFAULT_CARD_FIELDS, ...JSON.parse(fields) });
+      } catch {
+        /* ignore malformed persisted value */
+      }
+    }
   }, []);
   useEffect(() => {
     localStorage.setItem("tasks-tray-expanded", String(trayExpanded));
   }, [trayExpanded]);
+  useEffect(() => {
+    localStorage.setItem(CARD_FIELDS_KEY, JSON.stringify(cardFields));
+  }, [cardFields]);
 
   const tasksByStatus = ALL_STATUSES.reduce<Record<Status, TaskWithProjects[]>>(
     (acc, s) => {
@@ -155,6 +177,61 @@ export function KanbanBoard({
 
   return (
     <div className="flex flex-col gap-4 min-h-0 flex-1">
+      {/* Board toolbar — view settings (which property pills show on cards). */}
+      <div className="flex items-center justify-end">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 cursor-pointer-always",
+                "font-mono text-[11px] uppercase tracking-[0.08em] border border-[var(--edge)]",
+                "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+                "bg-[var(--surface)] transition-colors duration-150 ease-out"
+              )}
+            >
+              <SlidersHorizontal size={12} strokeWidth={1.5} />
+              View
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-52 p-2">
+            <p className="px-2 pb-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+              Show on cards
+            </p>
+            <div className="flex flex-col">
+              {CARD_FIELD_LABELS.map(({ key, label }) => {
+                const on = cardFields[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCardFields((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    aria-pressed={on}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 cursor-pointer-always",
+                      "font-sans text-[13px] transition-colors duration-150 ease-out",
+                      "text-[var(--ink)] hover:bg-[var(--surface)]"
+                    )}
+                  >
+                    {label}
+                    <span
+                      className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                        on
+                          ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
+                          : "border-[var(--edge)] text-transparent"
+                      )}
+                    >
+                      <Check size={11} strokeWidth={2.5} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
       <NotStartedTray
         tasks={tasksByStatus["not started"]}
         expanded={trayExpanded}
@@ -162,6 +239,7 @@ export function KanbanBoard({
         onCreateTask={onCreateTask}
         onStartCreate={onStartCreate}
         onTaskClick={onTaskClick}
+        cardFields={cardFields}
         draggedTaskId={draggedTaskId}
         draggedFromStatus={draggedFromStatus}
         onDragStart={setDraggedTaskId}
@@ -184,6 +262,7 @@ export function KanbanBoard({
             onDragEnd={() => setDraggedTaskId(null)}
             onDropOnColumn={dropTaskOnStatus}
             pendingTaskId={null}
+            cardFields={cardFields}
             selectionActive={selectionActive}
             selectedIds={selectedIds}
             onToggleSelected={onToggleSelected}
@@ -206,6 +285,7 @@ interface TrayProps {
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
   onStartCreate?: (status: Status) => void;
   onTaskClick: (id: string) => void;
+  cardFields: CardFields;
   draggedTaskId: string | null;
   draggedFromStatus: Status | null;
   onDragStart: (id: string) => void;
@@ -220,6 +300,7 @@ function NotStartedTray({
   onCreateTask,
   onStartCreate,
   onTaskClick,
+  cardFields,
   draggedTaskId,
   draggedFromStatus,
   onDragStart,
@@ -297,6 +378,7 @@ function NotStartedTray({
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 onClick={onTaskClick}
+                cardFields={cardFields}
                 isDragging={draggedTaskId === task.id}
               />
             </div>

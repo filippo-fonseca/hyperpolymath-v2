@@ -1,33 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState, useOptimistic, useTransition } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  Kanban as KanbanIcon,
-  List as ListIcon,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
 import { createTask, getTasksForCurrentUser } from "@/app/actions/tasks";
+import { KanbanBoard } from "@/components/tasks/KanbanBoard";
+import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
+import { TaskList } from "@/components/tasks/TaskList";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
-import { KanbanBoard } from "@/components/tasks/KanbanBoard";
-import { TaskList } from "@/components/tasks/TaskList";
-import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
 import { cn } from "@/lib/utils";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight, Kanban as KanbanIcon, List as ListIcon } from "lucide-react";
+import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
 
-type TaskStatus =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 interface Props {
   userId: string;
@@ -36,6 +23,7 @@ interface Props {
   projects: ReadonlyArray<{
     id: string;
     name: string;
+    icon: string | null;
     isClass: boolean;
     courseCode: string | null;
   }>;
@@ -62,18 +50,16 @@ const SHOW_LESNO_KEY = "project-tasks-show-lesno";
  * thrash a per-project key that would never be invalidated by the realtime
  * channel.
  */
-export function ProjectTasksSection({
-  userId,
-  projectId,
-  projects,
-  initialTasks,
-}: Props) {
+export function ProjectTasksSection({ userId, projectId, projects, initialTasks }: Props) {
   const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   const [view, setView] = useState<View>("kanban");
   const [collapsed, setCollapsed] = useState(false);
   const [showLesno, setShowLesno] = useState(false);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  // Draft create — clicking "Add task" in a column opens the full detail
+  // panel as a draft (mirrors /tasks) instead of the inline composer.
+  const [draftStatus, setDraftStatus] = useState<TaskStatus | null>(null);
 
   // Persist view + collapse + lesno-visibility scoped to project pages.
   useEffect(() => {
@@ -87,12 +73,10 @@ export function ProjectTasksSection({
     if (typeof window !== "undefined") localStorage.setItem(VIEW_KEY, view);
   }, [view]);
   useEffect(() => {
-    if (typeof window !== "undefined")
-      localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    if (typeof window !== "undefined") localStorage.setItem(COLLAPSED_KEY, String(collapsed));
   }, [collapsed]);
   useEffect(() => {
-    if (typeof window !== "undefined")
-      localStorage.setItem(SHOW_LESNO_KEY, String(showLesno));
+    if (typeof window !== "undefined") localStorage.setItem(SHOW_LESNO_KEY, String(showLesno));
   }, [showLesno]);
 
   // Canonical realtime subscription — shared with /tasks.
@@ -116,26 +100,23 @@ export function ProjectTasksSection({
   // Optimistic overlay — same shape as TasksClient.
   const [optimisticTasks, addOptimistic] = useOptimistic(
     allTasks,
-    optimisticReducer<TaskWithProjects>,
+    optimisticReducer<TaskWithProjects>
   );
 
   // Derive THIS project's tasks — single source of truth for both views.
   // Auto-hide completed "lesno" tasks by default per user spec; toggle in
   // the header brings them back without losing the rest of the view state.
   const projectTasks = useMemo(() => {
-    const linked = optimisticTasks.filter((t) =>
-      t.projects.some((p) => p.id === projectId),
-    );
+    const linked = optimisticTasks.filter((t) => t.projects.some((p) => p.id === projectId));
     return showLesno ? linked : linked.filter((t) => t.status !== "lesno");
   }, [optimisticTasks, projectId, showLesno]);
 
   const lesnoCount = useMemo(
     () =>
       optimisticTasks.filter(
-        (t) =>
-          t.status === "lesno" && t.projects.some((p) => p.id === projectId),
+        (t) => t.status === "lesno" && t.projects.some((p) => p.id === projectId)
       ).length,
-    [optimisticTasks, projectId],
+    [optimisticTasks, projectId]
   );
 
   async function handleCreateTask(input: { title: string; status: TaskStatus }) {
@@ -178,8 +159,25 @@ export function ProjectTasksSection({
     });
   }
 
-  const openTask = openTaskId
-    ? projectTasks.find((t) => t.id === openTaskId) ?? null
+  const openTask = openTaskId ? (projectTasks.find((t) => t.id === openTaskId) ?? null) : null;
+
+  // Synthetic draft for create mode — pre-linked to THIS project so the new
+  // task lands here. id stays constant so the panel doesn't re-init between
+  // toggles. Mirrors TasksClient's draftTask.
+  const currentProject = projects.find((p) => p.id === projectId);
+  const draftTask: TaskWithProjects | null = draftStatus
+    ? {
+        id: "__draft__",
+        title: "",
+        notes: null,
+        priority: "P3",
+        status: draftStatus,
+        dueDate: null,
+        kanbanPosition: 0,
+        completedAt: null,
+        createdAt: new Date(),
+        projects: [{ id: projectId, name: currentProject?.name ?? "" }],
+      }
     : null;
 
   return (
@@ -204,10 +202,7 @@ export function ProjectTasksSection({
           <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
             ({projectTasks.length}
             {!showLesno && lesnoCount > 0 ? (
-              <span className="text-[var(--ink-muted)]/70">
-                {" "}
-                · {lesnoCount} lesno hidden
-              </span>
+              <span className="text-[var(--ink-muted)]/70"> · {lesnoCount} lesno hidden</span>
             ) : null}
             )
           </span>
@@ -224,7 +219,7 @@ export function ProjectTasksSection({
                 "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border",
                 showLesno
                   ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
               )}
               title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
             >
@@ -252,10 +247,7 @@ export function ProjectTasksSection({
       {!collapsed && (
         <div
           id="project-tasks-body"
-          className={cn(
-            view === "kanban" ? "h-[560px] min-h-0 flex" : "",
-            "rounded-lg",
-          )}
+          className={cn(view === "kanban" ? "h-[560px] min-h-0 flex" : "", "rounded-lg")}
         >
           {view === "kanban" ? (
             <KanbanBoard
@@ -263,6 +255,7 @@ export function ProjectTasksSection({
               userId={userId}
               onTaskClick={setOpenTaskId}
               onCreateTask={handleCreateTask}
+              onStartCreate={(s) => setDraftStatus(s)}
               addOptimistic={addOptimistic}
             />
           ) : (
@@ -288,6 +281,17 @@ export function ProjectTasksSection({
           });
         }}
       />
+
+      {/* Draft panel — opens when the user clicks "Add task" in a column.
+          Pre-linked to this project via draftTask.projects. */}
+      <TaskDetailPanel
+        task={draftTask}
+        projects={projects.map((p) => ({ ...p }))}
+        open={!!draftTask}
+        onClose={() => setDraftStatus(null)}
+        addOptimistic={addOptimistic}
+        mode="create"
+      />
     </section>
   );
 }
@@ -312,7 +316,7 @@ function ViewToggle({
         "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out inline-flex items-center gap-1.5",
         active
           ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >
       {icon}

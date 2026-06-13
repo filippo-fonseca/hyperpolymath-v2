@@ -1,22 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
-import { toast } from "sonner";
-import { X } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { createTask, updateTask } from "@/app/actions/tasks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,34 +11,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { ProjectAutocomplete } from "./ProjectAutocomplete";
-import { MoveToMenu } from "./MoveToMenu";
-import { createTask, updateTask } from "@/app/actions/tasks";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import type { TasksOptimisticDispatch } from "./TasksClient";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { MoveToMenu } from "./MoveToMenu";
+import { ProjectAutocomplete } from "./ProjectAutocomplete";
+import type { TasksOptimisticDispatch } from "./TasksClient";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
-type Status =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 interface ProjectOption {
   id: string;
   name: string;
+  icon?: string | null;
   isClass: boolean;
   courseCode: string | null;
 }
@@ -78,6 +62,89 @@ interface Props {
    * existing behavior — Save calls updateTask, Delete is offered.
    */
   mode?: "edit" | "create";
+}
+
+// Per-status accent hue — mirrors KanbanColumn's STATUS_ACCENT so the pill
+// dot matches its column color exactly.
+const STATUS_PILL: { value: Status; label: string; dot: string }[] = [
+  { value: "not started", label: "Not Started", dot: "oklch(0.72 0.02 80)" },
+  { value: "up next", label: "Up Next", dot: "oklch(0.78 0.16 80)" },
+  { value: "in progress", label: "In Progress", dot: "oklch(0.74 0.16 240)" },
+  { value: "almost done", label: "Almost Done", dot: "oklch(0.78 0.16 305)" },
+  { value: "lesno", label: "Lesno", dot: "oklch(0.78 0.18 160)" },
+];
+
+// Priority shares the amber dominance ladder used by PriorityChip (alpha, not
+// hue) so the document register stays calm. P∞ is the strongest signal.
+const PRIORITY_PILL: { value: Priority; label: string; opacity: number }[] = [
+  { value: "P∞", label: "P∞", opacity: 1 },
+  { value: "P1", label: "P1", opacity: 1 },
+  { value: "P2", label: "P2", opacity: 0.6 },
+  { value: "P3", label: "P3", opacity: 0.35 },
+];
+
+/**
+ * Glassy single-select pill row. Each option is a backdrop-blurred pill with a
+ * live indicator dot; the selected pill lights its accent ring + wash. Replaces
+ * the shadcn Select for status/priority so the control reads like the kanban
+ * columns it mirrors.
+ */
+function PillGroup<T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: { value: T; label: string; color: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ariaLabel}>
+      {options.map((opt) => {
+        const selected = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "group inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
+              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
+              "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
+              selected
+                ? "text-[var(--ink)]"
+                : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]"
+            )}
+            style={
+              selected
+                ? {
+                    borderColor: opt.color,
+                    backgroundColor: `color-mix(in oklch, ${opt.color} 14%, transparent)`,
+                    boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${opt.color} 45%, transparent), 0 0 12px color-mix(in oklch, ${opt.color} 22%, transparent)`,
+                  }
+                : undefined
+            }
+          >
+            <span
+              className="inline-block h-2 w-2 rounded-full shrink-0 transition-opacity"
+              style={{
+                backgroundColor: opt.color,
+                opacity: selected ? 1 : 0.4,
+                boxShadow: selected
+                  ? `0 0 6px color-mix(in oklch, ${opt.color} 70%, transparent)`
+                  : "none",
+              }}
+            />
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 interface FormState {
@@ -126,9 +193,7 @@ export function TaskDetailPanel({
   // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
   // user attempts to close (Esc, click outside, ×) or hits Cancel while
   // dirty, queue the action and show the AlertDialog.
-  const [pendingDiscardAction, setPendingDiscardAction] = useState<
-    "close" | "cancel" | null
-  >(null);
+  const [pendingDiscardAction, setPendingDiscardAction] = useState<"close" | "cancel" | null>(null);
   const [form, setForm] = useState<FormState>({
     title: "",
     status: "not started",
@@ -279,7 +344,7 @@ export function TaskDetailPanel({
       }
       onClose();
     },
-    [dirty, onClose, isCreate],
+    [dirty, onClose, isCreate]
   );
 
   // Cancel button: confirm when dirty (edit mode only); otherwise close.
@@ -326,11 +391,7 @@ export function TaskDetailPanel({
     <>
       <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
-        <SheetContent
-          side="right"
-          className="w-[420px] p-0 flex flex-col"
-          showCloseButton={false}
-        >
+        <SheetContent side="right" className="w-[420px] p-0 flex flex-col" showCloseButton={false}>
           {task && (
             <>
               {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
@@ -346,8 +407,8 @@ export function TaskDetailPanel({
                       className={cn(
                         "font-serif text-xl font-semibold text-[var(--ink)] w-full",
                         "bg-transparent focus:outline-none border-b border-transparent",
-                        "focus:border-[var(--ink-amber)] transition-colors duration-150 ease-out",
-                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal",
+                        "focus:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
+                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal"
                       )}
                       aria-label="Task title"
                     />
@@ -365,51 +426,32 @@ export function TaskDetailPanel({
 
               {/* Body — scrollable field sections */}
               <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5">
-                {/* 1. Status */}
+                {/* 1. Status — glassy colored pills mirroring the kanban columns */}
                 <FieldSection label="Status">
-                  <Select
+                  <PillGroup
+                    ariaLabel="Status"
                     value={form.status}
-                    onValueChange={(v) => set("status", v as Status)}
-                  >
-                    <SelectTrigger className="font-sans text-[13px] h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="not started" className="font-sans text-[13px]">
-                        Not Started
-                      </SelectItem>
-                      <SelectItem value="up next" className="font-sans text-[13px]">
-                        Up Next
-                      </SelectItem>
-                      <SelectItem value="in progress" className="font-sans text-[13px]">
-                        In Progress
-                      </SelectItem>
-                      <SelectItem value="almost done" className="font-sans text-[13px]">
-                        Almost Done
-                      </SelectItem>
-                      <SelectItem value="lesno" className="font-sans text-[13px]">
-                        Lesno
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => set("status", v)}
+                    options={STATUS_PILL.map((s) => ({
+                      value: s.value,
+                      label: s.label,
+                      color: s.dot,
+                    }))}
+                  />
                 </FieldSection>
 
-                {/* 2. Priority */}
+                {/* 2. Priority — same pill treatment on the amber ladder */}
                 <FieldSection label="Priority">
-                  <Select
+                  <PillGroup
+                    ariaLabel="Priority"
                     value={form.priority}
-                    onValueChange={(v) => set("priority", v as Priority)}
-                  >
-                    <SelectTrigger className="font-sans text-[13px] h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="P∞" className="font-sans text-[13px]">P∞</SelectItem>
-                      <SelectItem value="P1" className="font-sans text-[13px]">P1</SelectItem>
-                      <SelectItem value="P2" className="font-sans text-[13px]">P2</SelectItem>
-                      <SelectItem value="P3" className="font-sans text-[13px]">P3</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => set("priority", v)}
+                    options={PRIORITY_PILL.map((p) => ({
+                      value: p.value,
+                      label: p.label,
+                      color: `color-mix(in oklch, var(--ink-amber) ${Math.round(p.opacity * 100)}%, var(--edge))`,
+                    }))}
+                  />
                 </FieldSection>
 
                 {/* 3. Due date */}
@@ -506,21 +548,14 @@ export function TaskDetailPanel({
       >
         <AlertDialogContent className="font-serif">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif text-[20px]">
-              Discard changes?
-            </AlertDialogTitle>
+            <AlertDialogTitle className="font-serif text-[20px]">Discard changes?</AlertDialogTitle>
             <AlertDialogDescription className="font-serif text-base">
               Your edits to this task will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-sans text-[13px]">
-              Keep editing
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="font-sans text-[13px]"
-              onClick={handleConfirmDiscard}
-            >
+            <AlertDialogCancel className="font-sans text-[13px]">Keep editing</AlertDialogCancel>
+            <AlertDialogAction className="font-sans text-[13px]" onClick={handleConfirmDiscard}>
               Discard
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,58 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useQueryState,
-  useQueryStates,
-  parseAsArrayOf,
-  parseAsString,
-} from "nuqs";
-import {
-  startOfDay,
-  isSameDay,
-  endOfWeek,
-  endOfMonth,
-  isAfter,
-  isBefore,
-} from "date-fns";
-import { toast } from "sonner";
-import {
+  bulkUpdateTaskDueDate,
   createTask,
   getTasksForCurrentUser,
-  bulkUpdateTaskDueDate,
   updateTask,
 } from "@/app/actions/tasks";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
-import { KanbanBoard } from "./KanbanBoard";
-import { TaskList } from "./TaskList";
-import { TaskDayView } from "./TaskDayView";
-import { TaskFilters } from "./TaskFilters";
-import { TaskDetailPanel } from "./TaskDetailPanel";
-import { KanbanDayHeader } from "./KanbanDayHeader";
-import { TaskSelectionBar } from "./TaskSelectionBar";
-import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
-import { AnimatePresence, motion } from "motion/react";
-import { TaskCard } from "./TaskCard";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { deleteTask } from "@/app/actions/tasks";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
-import { deleteTask } from "@/app/actions/tasks";
+import { Button } from "@/components/ui/button";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
+import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { KanbanBoard } from "./KanbanBoard";
+import { KanbanDayHeader } from "./KanbanDayHeader";
+import { TaskCard } from "./TaskCard";
+import { TaskDayView } from "./TaskDayView";
+import { TaskDetailPanel } from "./TaskDetailPanel";
+import { TaskFilters } from "./TaskFilters";
+import { TaskList } from "./TaskList";
+import { TaskSelectionBar } from "./TaskSelectionBar";
 
-type TaskStatus =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 interface Props {
   userId: string;
@@ -60,6 +40,7 @@ interface Props {
   projects: {
     id: string;
     name: string;
+    icon: string | null;
     isClass: boolean;
     courseCode: string | null;
   }[];
@@ -71,9 +52,7 @@ interface Props {
   };
 }
 
-export type TasksOptimisticDispatch = (
-  action: OptimisticAction<TaskWithProjects>,
-) => void;
+export type TasksOptimisticDispatch = (action: OptimisticAction<TaskWithProjects>) => void;
 
 /**
  * /tasks orchestrator — Phase 3 realtime + useOptimistic.
@@ -92,12 +71,7 @@ export type TasksOptimisticDispatch = (
  * D-03: server rejection → toast.error + silent revert (useOptimistic reverts
  *       automatically when the transition closes without committing real state).
  */
-export function TasksClient({
-  userId,
-  initialTasks,
-  projects,
-  initialFilters,
-}: Props) {
+export function TasksClient({ userId, initialTasks, projects, initialFilters }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
@@ -121,20 +95,14 @@ export function TasksClient({
   // ── Optimistic overlay (D-04 React 19) ───────────────────────────────────
   const [optimisticTasks, addOptimistic] = useOptimistic(
     tasks,
-    optimisticReducer<TaskWithProjects>,
+    optimisticReducer<TaskWithProjects>
   );
 
   // View toggle — URL ?view= + localStorage fallback (UI-SPEC D-05)
-  const [view, setView] = useQueryState(
-    "view",
-    parseAsString.withDefault("kanban"),
-  );
+  const [view, setView] = useQueryState("view", parseAsString.withDefault("kanban"));
 
   // Day-aware kanban — URL ?date=YYYY-MM-DD, defaults to today.
-  const [dateYmd, setDateYmd] = useQueryState(
-    "date",
-    parseAsString.withDefault(toYmd(new Date())),
-  );
+  const [dateYmd, setDateYmd] = useQueryState("date", parseAsString.withDefault(toYmd(new Date())));
 
   // Selection state (kanban day view). Cleared on view/date change.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -173,33 +141,24 @@ export function TasksClient({
     setShowLesno(localStorage.getItem("tasks-show-lesno") === "true");
   }, []);
   useEffect(() => {
-    if (typeof window !== "undefined")
-      localStorage.setItem("tasks-show-lesno", String(showLesno));
+    if (typeof window !== "undefined") localStorage.setItem("tasks-show-lesno", String(showLesno));
   }, [showLesno]);
 
   // Read the SAME 4 filter dimensions TaskFilters writes — single source of truth via URL.
   const [filters] = useQueryStates(
     {
-      priority: parseAsArrayOf(parseAsString).withDefault(
-        initialFilters.priority,
-      ),
+      priority: parseAsArrayOf(parseAsString).withDefault(initialFilters.priority),
       status: parseAsArrayOf(parseAsString).withDefault(initialFilters.status),
       due: parseAsArrayOf(parseAsString).withDefault(initialFilters.due),
-      project: parseAsArrayOf(parseAsString).withDefault(
-        initialFilters.project,
-      ),
+      project: parseAsArrayOf(parseAsString).withDefault(initialFilters.project),
     },
-    { shallow: false },
+    { shallow: false }
   );
 
   // localStorage fallback for view (UI-SPEC: localStorage remembers user's last choice)
   useEffect(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem("tasks-view") : null;
-    if (
-      (stored === "list" || stored === "day") &&
-      (!view || view === "kanban")
-    ) {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("tasks-view") : null;
+    if ((stored === "list" || stored === "day") && (!view || view === "kanban")) {
       setView(stored);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,24 +178,12 @@ export function TasksClient({
       // Auto-hide "lesno" (completed) unless the user explicitly opts in OR
       // they've requested lesno via an explicit status filter (that filter
       // takes precedence — the chip wouldn't make sense otherwise).
-      if (
-        !showLesno &&
-        t.status === "lesno" &&
-        !filters.status.includes("lesno")
-      )
-        return false;
-      if (
-        filters.priority.length > 0 &&
-        !filters.priority.includes(t.priority)
-      )
-        return false;
-      if (filters.status.length > 0 && !filters.status.includes(t.status))
-        return false;
+      if (!showLesno && t.status === "lesno" && !filters.status.includes("lesno")) return false;
+      if (filters.priority.length > 0 && !filters.priority.includes(t.priority)) return false;
+      if (filters.status.length > 0 && !filters.status.includes(t.status)) return false;
       if (filters.project.length > 0) {
         const taskProjectIds = t.projects.map((p) => p.id);
-        const hasMatch = taskProjectIds.some((pid) =>
-          filters.project.includes(pid),
-        );
+        const hasMatch = taskProjectIds.some((pid) => filters.project.includes(pid));
         if (!hasMatch) return false;
       }
       if (filters.due.length > 0) {
@@ -263,14 +210,7 @@ export function TasksClient({
       }
       return true;
     });
-  }, [
-    optimisticTasks,
-    filters.priority,
-    filters.status,
-    filters.due,
-    filters.project,
-    showLesno,
-  ]);
+  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno]);
 
   // Day-scoped slice of `filtered` for the kanban (default view). Tasks
   // with a due date matching `dateYmd` show in the columns; undated tasks
@@ -285,11 +225,11 @@ export function TasksClient({
   const activeDate = useMemo(() => fromYmd(dateYmd), [dateYmd]);
   const dayFilteredTasks = useMemo(
     () => filtered.filter((t) => t.dueDate === dateYmd),
-    [filtered, dateYmd],
+    [filtered, dateYmd]
   );
   const inboxTasks = useMemo(
     () => filtered.filter((t) => !t.dueDate && t.status !== "lesno"),
-    [filtered],
+    [filtered]
   );
 
   // Multi-select helpers
@@ -301,21 +241,18 @@ export function TasksClient({
       return next;
     });
   }, []);
-  const toggleColumnSelection = useCallback(
-    (_status: TaskStatus, taskIds: string[]) => {
-      setSelectedIds((prev) => {
-        const allSelected = taskIds.every((id) => prev.has(id));
-        const next = new Set(prev);
-        if (allSelected) {
-          for (const id of taskIds) next.delete(id);
-        } else {
-          for (const id of taskIds) next.add(id);
-        }
-        return next;
-      });
-    },
-    [],
-  );
+  const toggleColumnSelection = useCallback((_status: TaskStatus, taskIds: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = taskIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        for (const id of taskIds) next.delete(id);
+      } else {
+        for (const id of taskIds) next.add(id);
+      }
+      return next;
+    });
+  }, []);
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const handleBulkMove = useCallback(
@@ -341,19 +278,16 @@ export function TasksClient({
       await queryClient.invalidateQueries({
         queryKey: tableKey("tasks", userId),
       });
-      const tail =
-        newDueDate === null
-          ? "moved to Inbox"
-          : `moved to ${newDueDate}`;
+      const tail = newDueDate === null ? "moved to Inbox" : `moved to ${newDueDate}`;
       toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} ${tail}`);
       clearSelection();
     },
-    [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition],
+    [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition]
   );
 
   const draggedTask = useMemo(
-    () => (draggedTaskId ? optimisticTasks.find((t) => t.id === draggedTaskId) ?? null : null),
-    [draggedTaskId, optimisticTasks],
+    () => (draggedTaskId ? (optimisticTasks.find((t) => t.id === draggedTaskId) ?? null) : null),
+    [draggedTaskId, optimisticTasks]
   );
   const draggedFromStatus = draggedTask ? (draggedTask.status as TaskStatus) : null;
 
@@ -388,7 +322,7 @@ export function TasksClient({
         queryKey: tableKey("tasks", userId),
       });
     },
-    [draggedTask, dateYmd, activeDate, addOptimistic, queryClient, userId],
+    [draggedTask, dateYmd, activeDate, addOptimistic, queryClient, userId]
   );
 
   async function handleCreateTask(input: {
@@ -445,9 +379,7 @@ export function TasksClient({
     });
   }
 
-  const openTask = openTaskId
-    ? optimisticTasks.find((t) => t.id === openTaskId) ?? null
-    : null;
+  const openTask = openTaskId ? (optimisticTasks.find((t) => t.id === openTaskId) ?? null) : null;
 
   // Synthetic draft for create mode. id stays constant so React doesn't
   // re-init the form between toggles; the panel skips the syncing useEffect
@@ -479,9 +411,7 @@ export function TasksClient({
   const headerStats = useMemo(() => {
     const today = startOfDay(new Date());
     const open = tasks.filter((t) => t.status !== "lesno");
-    const overdue = open.filter(
-      (t) => t.dueDate && isBefore(new Date(t.dueDate), today),
-    ).length;
+    const overdue = open.filter((t) => t.dueDate && isBefore(new Date(t.dueDate), today)).length;
     return {
       open: open.length,
       overdue,
@@ -508,9 +438,7 @@ export function TasksClient({
             ) : null}
           </span>
           {headerStats.done > 0 ? (
-            <span className="text-[var(--ink-muted)]/60">
-              · {headerStats.done} done
-            </span>
+            <span className="text-[var(--ink-muted)]/60">· {headerStats.done} done</span>
           ) : null}
         </p>
       </header>
@@ -527,7 +455,7 @@ export function TasksClient({
           "",
           "",
           "",
-          "",
+          ""
         )}
       >
         <TaskFilters projects={projects} />
@@ -542,7 +470,7 @@ export function TasksClient({
             "px-2.5 py-0.5 rounded-md font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border shrink-0",
             showLesno
               ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
           )}
           title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
         >
@@ -560,7 +488,7 @@ export function TasksClient({
                 "transition-colors duration-150 ease-out",
                 view === v
                   ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
               )}
             >
               {v}
@@ -591,11 +519,7 @@ export function TasksClient({
         />
       ) : view === "list" ? (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
-          <TaskList
-            tasks={filtered}
-            onTaskClick={setOpenTaskId}
-            addOptimistic={addOptimistic}
-          />
+          <TaskList tasks={filtered} onTaskClick={setOpenTaskId} addOptimistic={addOptimistic} />
         </div>
       ) : view === "day" ? (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-2 px-2">
@@ -621,15 +545,7 @@ export function TasksClient({
                 className="overflow-hidden"
               >
                 <div
-                  className={cn(
-                    "mb-4 rounded-xl p-3 ",
-                    "",
-                    "glass-tile",
-                    "",
-                    "",
-                    "",
-                    "",
-                  )}
+                  className={cn("mb-4 rounded-xl p-3 ", "", "glass-tile", "", "", "", "")}
                   role="region"
                   aria-label="Tasks without a due date"
                 >

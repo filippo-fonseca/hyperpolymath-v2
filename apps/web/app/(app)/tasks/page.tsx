@@ -1,9 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { TasksClient } from "@/components/tasks/TasksClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { TasksClient } from "@/components/tasks/TasksClient";
+import { projects } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 
 interface Props {
   searchParams: Promise<{
@@ -35,6 +35,7 @@ export default async function TasksPage({ searchParams }: Props) {
       .select({
         id: projects.id,
         name: projects.name,
+        icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
       })

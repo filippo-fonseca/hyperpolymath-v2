@@ -1,7 +1,6 @@
 "use client";
 
-import * as React from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -11,16 +10,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import * as React from "react";
 
 interface ProjectOption {
   id: string;
   name: string;
+  icon?: string | null;
   isClass: boolean;
   courseCode: string | null;
 }
@@ -57,13 +55,26 @@ export function ProjectAutocomplete({ value, onChange, projects }: Props) {
           {selected.map((p) => (
             <span
               key={p.id}
-              className="inline-flex items-center gap-1 bg-secondary text-foreground rounded-md px-2 py-0.5 font-sans text-[13px]"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-sans text-[13px]",
+                "backdrop-blur-md border border-[var(--edge-hud)] text-[var(--ink)]",
+                "bg-[color:color-mix(in_oklch,var(--surface-raised)_82%,transparent)]",
+                "shadow-[inset_0_1px_0_var(--glass-hi),inset_0_-1px_0_var(--glass-lo)]"
+              )}
             >
+              {p.icon ? (
+                <DynamicIcon
+                  name={p.icon}
+                  size={13}
+                  strokeWidth={1.5}
+                  className="text-[var(--ink-muted)] shrink-0"
+                />
+              ) : null}
               {getLabel(p)}
               <button
                 type="button"
                 onClick={() => toggle(p.id)}
-                className="hover:opacity-70"
+                className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
                 aria-label={`Remove ${getLabel(p)}`}
               >
                 <X size={11} />
@@ -82,9 +93,7 @@ export function ProjectAutocomplete({ value, onChange, projects }: Props) {
             aria-expanded={open}
             className="w-full justify-between font-sans text-[13px] h-8"
           >
-            {selected.length === 0
-              ? "Link projects..."
-              : `${selected.length} linked`}
+            {selected.length === 0 ? "Link projects..." : `${selected.length} linked`}
             <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -105,10 +114,18 @@ export function ProjectAutocomplete({ value, onChange, projects }: Props) {
                   >
                     <Check
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        value.includes(p.id) ? "opacity-100" : "opacity-0",
+                        "mr-2 h-4 w-4 shrink-0",
+                        value.includes(p.id) ? "opacity-100" : "opacity-0"
                       )}
                     />
+                    {p.icon ? (
+                      <DynamicIcon
+                        name={p.icon}
+                        size={14}
+                        strokeWidth={1.5}
+                        className="mr-1.5 text-[var(--ink-muted)] shrink-0"
+                      />
+                    ) : null}
                     {getLabel(p)}
                   </CommandItem>
                 ))}

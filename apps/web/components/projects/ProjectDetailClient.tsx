@@ -27,6 +27,7 @@ interface Props {
   activeProjectsForComposer: ReadonlyArray<{
     id: string;
     name: string;
+    icon: string | null;
     isClass: boolean;
     courseCode: string | null;
   }>;

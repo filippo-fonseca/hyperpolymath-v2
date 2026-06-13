@@ -4,7 +4,7 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { AnimatePresence } from "motion/react";
 import { useRef } from "react";
-import { TaskCard } from "./TaskCard";
+import { type CardFields, TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
 
 type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -57,6 +57,7 @@ interface Props {
   onDragEnd: () => void;
   onDropOnColumn: (target: TaskStatus) => void;
   pendingTaskId: string | null;
+  cardFields: CardFields;
   /** Selection plumbing — when supplied, cards render their checkbox and
    * the column header gets a "select all in column"toggle. */
   selectionActive?: boolean;
@@ -77,6 +78,7 @@ export function KanbanColumn({
   onDragEnd,
   onDropOnColumn,
   pendingTaskId,
+  cardFields,
   selectionActive,
   selectedIds,
   onToggleSelected,
@@ -191,6 +193,7 @@ export function KanbanColumn({
                 onDragEnd={onDragEnd}
                 isDragging={draggedTaskId === task.id}
                 isPending={pendingTaskId === task.id}
+                cardFields={cardFields}
                 selectionActive={selectionActive}
                 isSelected={selectedIds?.has(task.id) ?? false}
                 onToggleSelected={onToggleSelected}

@@ -39,7 +39,7 @@
   /* HUD cyan family (agent-mode signature) */
   --hud-cyan: oklch(72% 0.13 210);
   --hud-cyan-bright: oklch(78% 0.16 210);
-  --hud-cyan-dim: oklch(58% 0.10 210);
+  --hud-cyan-dim: oklch(58% 0.1 210);
   --hud-cyan-light: oklch(48% 0.13 210);
   --hud-cyan-glow: rgb(34 211 238 / 0.18);
   --hud-cyan-glow-soft: rgb(34 211 238 / 0.08);
@@ -49,7 +49,7 @@
   /* Glow intensity tokens (stolen from intentionality.io --glow-subtle/medium/strong).
      Pre-baked component glow shadows — use on cards, panels, focused inputs
      inside .agent-mode-scope only. Dark mode overrides at the bottom. */
-  --glow-hud-subtle: 0 0 20px rgb(var(--hud-cyan-rgb) / 0.10);
+  --glow-hud-subtle: 0 0 20px rgb(var(--hud-cyan-rgb) / 0.1);
   --glow-hud-medium: 0 0 28px rgb(var(--hud-cyan-rgb) / 0.16);
   --glow-hud-strong: 0 0 36px rgb(var(--hud-cyan-rgb) / 0.24);
 
@@ -90,8 +90,12 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* =====================================================================
@@ -103,35 +107,40 @@
 
 /* Ambient — always-on corner crops breathe in opacity (6s cycle) */
 @keyframes hud-corner-breathe {
-  0%, 100% { opacity: 0.45; }
-  50%      { opacity: 0.6;  }
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* Focus ring breathes on idle-focused JARVIS input (2400ms cycle) */
 @keyframes hud-focus-breathe {
-  0%, 100% {
-    box-shadow:
-      0 0 0 2px var(--canvas),
-      0 0 0 1.5px var(--hud-cyan),
-      0 0 8px var(--hud-cyan-glow);
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 8px var(--hud-cyan-glow);
   }
   50% {
-    box-shadow:
-      0 0 0 2px var(--canvas),
-      0 0 0 1.5px var(--hud-cyan),
-      0 0 14px var(--hud-cyan-glow);
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 14px var(--hud-cyan-glow);
   }
 }
 
 /* Thinking ring radial sweep — 1.4s/rotation */
 @keyframes hud-thinking-sweep {
-  from { transform: rotate(0deg);   }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Streaming caret pulse — 1.1s opacity + glow loop */
 @keyframes hud-streaming-caret-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     box-shadow: 0 0 8px var(--hud-cyan-glow);
   }
@@ -143,73 +152,136 @@
 
 /* Submit ignite — 320ms overshoot border flash */
 @keyframes hud-submit-ignite-border {
-  0%   { border-color: var(--hud-cyan);        }
-  40%  { border-color: var(--hud-cyan-bright); }
-  100% { border-color: var(--hud-cyan);        }
+  0% {
+    border-color: var(--hud-cyan);
+  }
+  40% {
+    border-color: var(--hud-cyan-bright);
+  }
+  100% {
+    border-color: var(--hud-cyan);
+  }
 }
 
 /* Submit scan drop — 1px scan line drops from input into scrollback */
 @keyframes hud-submit-scan-drop {
-  0%   { transform: translateY(0);    opacity: 1; }
-  100% { transform: translateY(80px); opacity: 0; }
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(80px);
+    opacity: 0;
+  }
 }
 
 /* Scan reveal — one-shot top-to-bottom HUD wipe on done (420ms) */
 @keyframes hud-scan-reveal {
-  0%   { transform: translateY(-100%); opacity: 0; }
-  20%  { opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateY(100%);  opacity: 0; }
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 }
 
 /* Receipt outline trace — 360ms clockwise stroke-dasharray reveal */
 @keyframes hud-receipt-outline-trace {
-  from { stroke-dashoffset: var(--receipt-outline-len, 320); }
-  to   { stroke-dashoffset: 0; }
+  from {
+    stroke-dashoffset: var(--receipt-outline-len, 320);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Receipt shimmer — 1.8s loop while queued */
 @keyframes hud-receipt-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Edge instrumentation value-tick — 120ms when telemetry updates */
 @keyframes hud-edge-tick {
-  0%   { color: var(--hud-cyan-bright); }
-  100% { color: var(--ink-muted);       }
+  0% {
+    color: var(--hud-cyan-bright);
+  }
+  100% {
+    color: var(--ink-muted);
+  }
 }
 
 /* Undo wipe — 320ms left-to-right mask reveal */
 @keyframes hud-undo-wipe {
-  0%   { mask-position: 0 0;    -webkit-mask-position: 0 0;    }
-  100% { mask-position: 100% 0; -webkit-mask-position: 100% 0; }
+  0% {
+    mask-position: 0 0;
+    -webkit-mask-position: 0 0;
+  }
+  100% {
+    mask-position: 100% 0;
+    -webkit-mask-position: 100% 0;
+  }
 }
 
 /* Error glitch — 80ms translateX jitter */
 @keyframes hud-error-glitch {
-  0%   { transform: translateX(0);    }
-  25%  { transform: translateX(2px);  }
-  50%  { transform: translateX(-1px); }
-  100% { transform: translateX(0);    }
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(2px);
+  }
+  50% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 /* Core bubble — slow rotational drift (outer tick ring) */
 @keyframes hud-core-rotate-slow {
-  from { transform: rotate(0deg);   }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Core bubble — faster rotation for arc-tip sweep when JARVIS is thinking/streaming */
 @keyframes hud-core-rotate-fast {
-  from { transform: rotate(0deg);   }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Core bubble — gentle inner glow + central triangle breathing */
 @keyframes hud-core-breathe {
-  0%,  100% { transform: scale(1);    opacity: 0.85; }
-  50%       { transform: scale(1.04); opacity: 1;    }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
 }
 
 /* =====================================================================
@@ -295,9 +367,11 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    radial-gradient(circle at center, rgb(var(--hud-cyan-rgb) / 0.035) 1px, transparent 1px),
-    linear-gradient(to right, rgb(var(--hud-cyan-rgb) / 0.025) 1px, transparent 1px),
+  background-image: radial-gradient(
+      circle at center,
+      rgb(var(--hud-cyan-rgb) / 0.035) 1px,
+      transparent 1px
+    ), linear-gradient(to right, rgb(var(--hud-cyan-rgb) / 0.025) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(var(--hud-cyan-rgb) / 0.025) 1px, transparent 1px);
   background-size: 24px 24px, 48px 48px, 48px 48px;
   opacity: 0.55;
@@ -309,9 +383,11 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(700px circle at 5% 5%,   rgb(var(--hud-cyan-rgb) / 0.10), transparent 50%),
-    radial-gradient(500px circle at 95% 10%, rgb(var(--hud-cyan-rgb) / 0.05), transparent 50%),
+  background: radial-gradient(
+      700px circle at 5% 5%,
+      rgb(var(--hud-cyan-rgb) / 0.1),
+      transparent 50%
+    ), radial-gradient(500px circle at 95% 10%, rgb(var(--hud-cyan-rgb) / 0.05), transparent 50%),
     radial-gradient(400px circle at 10% 90%, rgb(var(--hud-cyan-rgb) / 0.05), transparent 50%),
     radial-gradient(600px circle at 90% 85%, rgb(var(--hud-cyan-rgb) / 0.07), transparent 50%);
   opacity: 1;
@@ -338,8 +414,7 @@
 html,
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 60%, transparent)
-    transparent;
+  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 60%, transparent) transparent;
 }
 html::-webkit-scrollbar,
 *::-webkit-scrollbar {
@@ -368,8 +443,7 @@ html::-webkit-scrollbar-thumb:hover,
 /* Thin themed scrollbar — webkit + firefox. Pairs with overflow utilities. */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent)
-    transparent;
+  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 55%, transparent) transparent;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -392,8 +466,7 @@ html::-webkit-scrollbar-thumb:hover,
    cyan glow on hover. */
 .hud-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 75%, transparent)
-    transparent;
+  scrollbar-color: color-mix(in oklch, var(--hud-cyan) 75%, transparent) transparent;
 }
 .hud-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -491,31 +564,17 @@ html::-webkit-scrollbar-thumb:hover,
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    inset 0 0 24px
-      color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent);
-  transition:
-    border-color 200ms cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1),
-    background-color 200ms cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), inset 0 0 24px
+    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent);
+  transition: border-color 200ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 200ms
+    cubic-bezier(0.25, 1, 0.5, 1), background-color 200ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 .glass-tile:hover {
   border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    inset 0 0 32px
-      color-mix(
-        in oklch,
-        var(--glass-glow-color) var(--glass-glow-hover),
-        transparent
-      );
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), inset 0 0 32px
+    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
 }
 
 .glass-button {
@@ -523,34 +582,19 @@ html::-webkit-scrollbar-thumb:hover,
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid var(--glass-border);
-  box-shadow:
-    var(--glass-raise-sm),
-    var(--glass-drop-sm),
-    inset 0 1px 0 var(--glass-hi);
-  transition:
-    border-color 150ms cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 150ms cubic-bezier(0.25, 1, 0.5, 1),
-    background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi);
+  transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 150ms
+    cubic-bezier(0.25, 1, 0.5, 1), background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 .glass-button:hover {
   border-color: color-mix(in oklch, var(--hud-cyan) 35%, var(--glass-border));
-  box-shadow:
-    var(--glass-raise-sm),
-    var(--glass-drop-sm),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 0 14px
-      color-mix(
-        in oklch,
-        var(--glass-glow-color) var(--glass-glow-hover),
-        transparent
-      );
+  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
+    14px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
 }
 .glass-button:active,
 .glass-pressed {
   background: color-mix(in oklch, var(--surface) 96%, var(--ink));
-  box-shadow:
-    inset 2px 2px 6px var(--glass-lo),
-    inset -2px -2px 5px var(--glass-hi);
+  box-shadow: inset 2px 2px 6px var(--glass-lo), inset -2px -2px 5px var(--glass-hi);
 }
 
 /* =====================================================================
@@ -617,10 +661,10 @@ select,
   --edge-hud: oklch(45% 0.06 210);
   --hud-cyan: oklch(72% 0.13 210);
   --hud-cyan-bright: oklch(78% 0.16 210);
-  --hud-cyan-dim: oklch(58% 0.10 210);
+  --hud-cyan-dim: oklch(58% 0.1 210);
   --hud-cyan-light: oklch(48% 0.13 210);
   --ink-amber: oklch(72% 0.12 75);
-  --ink-sage: oklch(68% 0.10 145);
+  --ink-sage: oklch(68% 0.1 145);
   --ink-coral: oklch(68% 0.15 25);
   --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
   --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
@@ -634,7 +678,7 @@ select,
 @media (prefers-contrast: more) {
   :root {
     --edge: oklch(60% 0.02 75);
-    --edge-hud: oklch(55% 0.10 210);
+    --edge-hud: oklch(55% 0.1 210);
     --ink-muted: oklch(35% 0.01 60);
   }
   .dark {
@@ -723,12 +767,21 @@ select,
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
   outline: none;
   box-shadow: var(--ring-doc);
+}
+
+/* Text-entry fields get a calm, neutral focus ring — NOT the amber doc ring.
+   Text inputs match :focus-visible even on mouse click, so the amber ring read
+   as a "weird orange outline" on every textbox. A subtle edge ring keeps the
+   journal-paper restraint without the brand-accent shout. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--canvas), 0 0 0 3px var(--edge-hud);
+  border-color: var(--edge-hud);
 }
 
 .agent-mode-scope button:focus-visible,
@@ -769,15 +822,15 @@ select:focus-visible,
   font-family: var(--font-serif) !important;
 }
 
-[data-sonner-toast][data-type='success'] {
+[data-sonner-toast][data-type="success"] {
   border-left-color: var(--ink-sage) !important;
 }
 
-[data-sonner-toast][data-type='error'] {
+[data-sonner-toast][data-type="error"] {
   border-left-color: var(--ink-coral) !important;
 }
 
-[data-sonner-toast][data-type='info'] {
+[data-sonner-toast][data-type="info"] {
   border-left-color: var(--ink-muted) !important;
 }
 
@@ -841,21 +894,15 @@ select:focus-visible,
 @keyframes hud-core-wake-burst {
   0% {
     transform: scale(0.95);
-    filter: drop-shadow(
-      0 0 32px color-mix(in oklch, var(--hud-cyan) 50%, transparent)
-    );
+    filter: drop-shadow(0 0 32px color-mix(in oklch, var(--hud-cyan) 50%, transparent));
   }
   40% {
     transform: scale(1.2);
-    filter: drop-shadow(
-      0 0 110px color-mix(in oklch, var(--hud-cyan) 100%, transparent)
-    );
+    filter: drop-shadow(0 0 110px color-mix(in oklch, var(--hud-cyan) 100%, transparent));
   }
   100% {
     transform: scale(1);
-    filter: drop-shadow(
-      0 0 48px color-mix(in oklch, var(--hud-cyan) 70%, transparent)
-    );
+    filter: drop-shadow(0 0 48px color-mix(in oklch, var(--hud-cyan) 70%, transparent));
   }
 }
 
@@ -869,15 +916,11 @@ select:focus-visible,
   0%,
   100% {
     transform: scale(1);
-    filter: drop-shadow(
-      0 0 44px color-mix(in oklch, var(--hud-cyan) 65%, transparent)
-    );
+    filter: drop-shadow(0 0 44px color-mix(in oklch, var(--hud-cyan) 65%, transparent));
   }
   50% {
     transform: scale(1.06);
-    filter: drop-shadow(
-      0 0 80px color-mix(in oklch, var(--hud-cyan) 95%, transparent)
-    );
+    filter: drop-shadow(0 0 80px color-mix(in oklch, var(--hud-cyan) 95%, transparent));
   }
 }
 

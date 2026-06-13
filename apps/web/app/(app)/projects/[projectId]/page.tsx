@@ -68,6 +68,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       .select({
         id: projects.id,
         name: projects.name,
+        icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
       })
