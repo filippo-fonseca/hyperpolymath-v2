@@ -593,6 +593,47 @@ export async function getFoodHistory(
 }
 
 // ---------------------------------------------------------------------------
+// listMeals — list user's saved reusable meal groups
+// ---------------------------------------------------------------------------
+
+export async function listMeals(userId: string) {
+  const mealRows = await db
+    .select({
+      id: meals.id,
+      name: meals.name,
+      description: meals.description,
+      useCount: meals.useCount,
+    })
+    .from(meals)
+    .where(eq(meals.userId, userId))
+    .orderBy(desc(meals.lastUsedAt), desc(meals.useCount), asc(meals.name));
+
+  // For each meal, fetch item count and total kcal
+  const results = await Promise.all(
+    mealRows.map(async (meal) => {
+      const items = await db
+        .select({
+          quantity: mealItems.quantity,
+          foodId: mealItems.foodId,
+          servingOptionId: mealItems.servingOptionId,
+        })
+        .from(mealItems)
+        .where(and(eq(mealItems.mealId, meal.id), eq(mealItems.userId, userId)));
+
+      return {
+        id: meal.id,
+        name: meal.name,
+        description: meal.description,
+        useCount: meal.useCount,
+        itemCount: items.length,
+      };
+    }),
+  );
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // getNutritionTargets — get user's targets, falling back to defaults
 // ---------------------------------------------------------------------------
 

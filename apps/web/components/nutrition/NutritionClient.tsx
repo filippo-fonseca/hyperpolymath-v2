@@ -14,6 +14,8 @@ import { DailyMacroSummary } from "./DailyMacroSummary";
 import { MealSlotPillBar } from "./MealSlotPillBar";
 import { NutritionDayView } from "./NutritionDayView";
 import { FoodSearch } from "./FoodSearch";
+import { QuickAddComposer } from "./QuickAddComposer";
+import { MealsManagerSheet } from "./MealsManagerSheet";
 
 type FoodHistoryItem = {
   id: string;
@@ -66,6 +68,7 @@ export function NutritionClient({
     open: boolean;
     slot: MealSlot;
   } | null>(null);
+  const [mealsOpen, setMealsOpen] = useState(false);
 
   // Realtime subscriptions — invalidate-only (Critical Pattern 3).
   // food_logs changes → refetch the day's logs.
@@ -97,8 +100,15 @@ export function NutritionClient({
   return (
     <div className="mx-auto max-w-3xl px-4 pt-16 pb-32">
       <div className="flex flex-col gap-4">
-        {/* Stats link — top-right, glass-button style */}
-        <div className="flex justify-end">
+        {/* Header row — Stats link + Meals button */}
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setMealsOpen(true)}
+            className="glass-button rounded-md px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+          >
+            Meals
+          </button>
           <Link
             href="/nutrition/stats"
             className="glass-button rounded-md px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -144,6 +154,22 @@ export function NutritionClient({
         date={date}
         foodHistory={foodHistory}
         userId={userId}
+      />
+
+      {/* Meals manager sheet — opened from Meals button in header */}
+      <MealsManagerSheet
+        open={mealsOpen}
+        onOpenChange={setMealsOpen}
+        userId={userId}
+        currentDate={date}
+        currentSlot={mealSlot}
+      />
+
+      {/* Global 'n' keyboard shortcut — QuickAddComposer (D-07) */}
+      <QuickAddComposer
+        userId={userId}
+        date={date}
+        foodHistory={foodHistory}
       />
     </div>
   );

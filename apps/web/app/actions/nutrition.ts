@@ -28,6 +28,7 @@ import {
   upsertNutritionTargets,
   copyDayLogs,
   listFoodLogsForDay,
+  listMeals,
 } from "@/lib/nutrition/nutrition-service";
 
 // ---------------------------------------------------------------------------
@@ -317,6 +318,17 @@ export async function upsertNutritionTargetsAction(
   } catch (err) {
     return { success: false, error: String(err) };
   }
+}
+
+// ---------------------------------------------------------------------------
+// listMealsAction — read saved reusable meals (queryFn for MealsManagerSheet)
+// ---------------------------------------------------------------------------
+
+export async function listMealsAction() {
+  const userId = await getUserId();
+  if (!userId) return [];
+
+  return listMeals(userId);
 }
 
 // ---------------------------------------------------------------------------
