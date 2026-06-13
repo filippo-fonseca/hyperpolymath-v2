@@ -510,7 +510,7 @@ Plans:
 
 **Depends on:** Phase 1 (foundations), Phase 6.2 (Anthropic-discipline glass language), Phase 16 (JARVIS CRUD — `create_task`)
 **Requirements**: TASK-INBOX-01, TASK-INBOX-02, TASK-INBOX-03, TASK-DAY-01, TASK-DAY-02, TASK-DAY-03, TASK-DAY-04, TASK-JARVIS-01, TASK-JARVIS-02, TASK-UI-01, TASK-UI-02, TASK-UI-03, TASK-UI-04, TASK-UI-05
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 Plans:
 **Wave 1**
 
@@ -519,7 +519,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 19-01-PLAN.md — Universal day-scoping for list view + show selected day's completed tasks (D-05, D-06)
+- [x] 19-01-PLAN.md — Universal day-scoping for list view + show selected day's completed tasks (D-05, D-06)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -559,7 +559,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 15. Training — fitness activity planner | 6/6 | Complete    | 2026-06-08 |
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
 | 17. Nutrition tracking tab | 5/5 | Complete    | 2026-06-13 |
-| 19. Tasks redesign — Inbox / day-universal / glass | 2/5 | In Progress|  |
+| 19. Tasks redesign — Inbox / day-universal / glass | 3/5 | In Progress|  |
 
 ## Backlog
 
