@@ -177,8 +177,20 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     return optimisticTasks.filter((t) => {
       // Auto-hide "lesno" (completed) unless the user explicitly opts in OR
       // they've requested lesno via an explicit status filter (that filter
-      // takes precedence — the chip wouldn't make sense otherwise).
-      if (!showLesno && t.status === "lesno" && !filters.status.includes("lesno")) return false;
+      // takes precedence — the chip wouldn't make sense otherwise) OR the
+      // task is completed on the currently-selected day (D-06): day-scoped
+      // views (kanban/list) must keep that day's done work visible rather
+      // than having it vanish on completion. The YMD string match keeps
+      // the day-survival rule scoped — lesno tasks on OTHER days still
+      // obey the global showLesno toggle. Undated lesno tasks never match
+      // dateYmd, so the Inbox stays lesno-free regardless.
+      if (
+        !showLesno &&
+        t.status === "lesno" &&
+        !filters.status.includes("lesno") &&
+        t.dueDate !== dateYmd
+      )
+        return false;
       if (filters.priority.length > 0 && !filters.priority.includes(t.priority)) return false;
       if (filters.status.length > 0 && !filters.status.includes(t.status)) return false;
       if (filters.project.length > 0) {
@@ -210,7 +222,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       }
       return true;
     });
-  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno]);
+  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno, dateYmd]);
 
   // Day-scoped slice of `filtered` for the kanban (default view). Tasks
   // with a due date matching `dateYmd` show in the columns; undated tasks
