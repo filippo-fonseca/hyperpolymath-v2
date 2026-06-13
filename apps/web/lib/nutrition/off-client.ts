@@ -49,7 +49,7 @@ const NutrimentsSchema = z
 const OffProductRawSchema = z.object({
   code: z.string().optional(),
   product_name: z.string().optional().default(""),
-  brands: z.string().optional(),
+  brands: z.union([z.string(), z.array(z.string())]).optional(),
   nutriments: NutrimentsSchema.optional().default({
     "energy-kcal_100g": 0,
     proteins_100g: 0,
@@ -105,7 +105,11 @@ export function normalizeOffProduct(raw: unknown): NormalizedOffProduct {
   return {
     offBarcode: parsed.code ?? null,
     name: parsed.product_name || "Unknown product",
-    brand: parsed.brands?.split(",")[0]?.trim() || null,
+    brand:
+      (Array.isArray(parsed.brands)
+        ? parsed.brands[0]
+        : parsed.brands?.split(",")[0]
+      )?.trim() || null,
     kcalPer100g: nm["energy-kcal_100g"] ?? 0,
     proteinPer100g: nm["proteins_100g"] ?? 0,
     carbsPer100g: nm["carbohydrates_100g"] ?? 0,
@@ -153,10 +157,17 @@ export async function offSearch(
     count?: number;
   };
 
-  return {
-    hits: (data.hits ?? []).map(normalizeOffProduct),
-    count: data.count ?? 0,
-  };
+  const hits: NormalizedOffProduct[] = [];
+  for (const raw of data.hits ?? []) {
+    try {
+      hits.push(normalizeOffProduct(raw));
+    } catch {
+      // OFF data quality varies — skip individual products that fail to parse
+      // rather than failing the entire search.
+    }
+  }
+
+  return { hits, count: data.count ?? 0 };
 }
 
 /**

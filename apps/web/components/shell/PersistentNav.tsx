@@ -66,7 +66,7 @@ const items = [
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/nutrition", label: "Nutrition", icon: UtensilsCrossed, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/nutrition", label: "Nutrition", icon: UtensilsCrossed, disabled: true, tooltip: "Coming soon", isAgent: false },
   { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
   { href: "/graph", label: "Graph", icon: Waypoints, disabled: false, tooltip: undefined, isAgent: false },
@@ -186,6 +186,20 @@ export function PersistentNav({ collapsed }: Props) {
               {!collapsed && (
                 <span className={cn("flex-1", active && "font-medium")}>
                   {item.label}
+                </span>
+              )}
+              {item.disabled && !collapsed && (
+                <span
+                  className="shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
+                  style={{
+                    background:
+                      "color-mix(in oklch, var(--ink) 6%, transparent)",
+                    boxShadow:
+                      "inset 0 0 0 1px color-mix(in oklch, var(--ink) 10%, transparent)",
+                  }}
+                  aria-hidden="true"
+                >
+                  Soon
                 </span>
               )}
               {renderBadge && !collapsed && (

@@ -1,5 +1,8 @@
 {
   "model_profile": "balanced",
+  "model_overrides": {
+    "gsd-executor": "opus"
+  },
   "commit_docs": true,
   "parallelization": true,
   "search_gitignored": false,
