@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
 stopped_at: context exhaustion at 76% (2026-06-13)
-last_updated: "2026-06-13T20:02:37.048Z"
+last_updated: "2026-06-13T20:09:53.122Z"
 last_activity: 2026-06-13 -- Phase 19 planning complete
 progress:
   total_phases: 22
-  completed_phases: 14
+  completed_phases: 15
   total_plans: 93
-  completed_plans: 80
-  percent: 64
+  completed_plans: 81
+  percent: 68
 ---
 
 # Project State
@@ -133,6 +133,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 17-nutrition-tracking-tab P05 | 8 | 3 tasks | 7 files |
 | Phase 17 P04 | 15 | 3 tasks | 11 files |
 | Phase 19 P03 | 3m | 2 tasks | 2 files |
+| Phase 19 P04 | 6m | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -374,6 +375,9 @@ Recent decisions affecting current work:
 - [Phase 17]: ManualEntryForm uses react-hook-form without zodResolver (Zod 4 z.preprocess incompatibility with hookform resolvers)
 - [Phase 17]: MealsManagerSheet create mode simplified for MVP — item picker deferred to future plan
 - [Phase ?]: Phase 19-03: selected-card ring uses --ink-amber; cyan reserved for drag-over/focus per guardrail
+- [Phase ?]: 19-04: view toggle is kanban | list | overview; standalone day mode retired (D-07)
+- [Phase ?]: 19-04: universal DaySwitcher re-scopes all views from shared dateYmd (D-05)
+- [Phase ?]: 19-04: expand/fullscreen via useTasksExpanded; AppShell collapses sidebar (D-08)
 
 ### Pending Todos
 
@@ -398,6 +402,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-13T20:02:37.039Z
+Last session: 2026-06-13T20:09:37.709Z
 Stopped at: context exhaustion at 76% (2026-06-13)
 Resume file: .planning/phases/19-tasks-redesign-inbox-universal-day-view-glass-cards/19-UI-SPEC.md
