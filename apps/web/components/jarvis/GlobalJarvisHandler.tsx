@@ -4,6 +4,12 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { streamJarvis } from "@/components/jarvis/jarvis-stream-client";
+import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
+import type {
+  ScrollbackAction,
+  ScrollbackClarification,
+  ScrollbackTurn,
+} from "./jarvis-types";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
@@ -38,6 +44,29 @@ import {
  * Mount-once contract: the listener is bound ONLY when JarvisConsole is NOT
  * mounted on the current page (currently /today). Avoids double-processing.
  */
+/**
+ * Fire-and-forget save. Mirrors JarvisConsole.persistTurn byte-for-byte:
+ * a failed save is logged but never bubbles — scrollback persistence is
+ * best-effort and must not disrupt the toast/TTS/FSM pipeline.
+ */
+function persistTurn(turn: ScrollbackTurn): void {
+  void saveJarvisTurn({
+    id: turn.id,
+    kind: turn.kind,
+    text: turn.kind === "user" ? turn.text : null,
+    textDelta: turn.kind === "assistant" ? turn.textDelta : null,
+    actions: turn.kind === "assistant" ? turn.actions : [],
+    clarification:
+      turn.kind === "assistant" ? turn.clarification ?? null : null,
+    status: turn.kind === "assistant" ? turn.status : null,
+    errorMessage:
+      turn.kind === "assistant" ? turn.errorMessage ?? null : null,
+    createdAt: turn.createdAt.toISOString(),
+  }).catch((err) => {
+    console.warn("[jarvis] persistTurn failed (non-fatal)", err);
+  });
+}
+
 export function GlobalJarvisHandler() {
   const pathname = usePathname();
   const { settings: voiceSettings } = useVoiceSettings();
@@ -86,6 +115,38 @@ export function GlobalJarvisHandler() {
       let ttsBuffer = "";
       let ttsSeq = 0;
 
+      // Persist this turn to jarvis_turns so it joins the JARVIS conversation
+      // record and surfaces live on /today (deduped by client UUID). Mirrors
+      // JarvisConsole's persist-user-immediately / persist-assistant-on-done
+      // semantics. Best-effort: persistTurn never bubbles.
+      const userTurnId = crypto.randomUUID();
+      const assistantTurnId = crypto.randomUUID();
+      const userTurn: ScrollbackTurn = {
+        kind: "user",
+        id: userTurnId,
+        text: detail.transcript,
+        createdAt: new Date(),
+      };
+      persistTurn(userTurn);
+      const assistant: {
+        kind: "assistant";
+        id: string;
+        textDelta: string;
+        actions: ScrollbackAction[];
+        clarification: ScrollbackClarification | undefined;
+        createdAt: Date;
+        status: "streaming" | "done" | "error";
+        errorMessage?: string;
+      } = {
+        kind: "assistant",
+        id: assistantTurnId,
+        textDelta: "",
+        actions: [],
+        clarification: undefined,
+        createdAt: new Date(),
+        status: "streaming",
+      };
+
       void streamJarvis(
         {
           input: detail.transcript,
@@ -103,6 +164,7 @@ export function GlobalJarvisHandler() {
             // transcripts (isVoice: true hardcoded — this component is only
             // mounted on non-/today routes and is only invoked from the
             // voice transcript event).
+            assistant.textDelta += delta;
             const { sentences, remainder } = splitDeltas(ttsBuffer, delta);
             ttsBuffer = remainder;
             for (const s of sentences) {
@@ -132,16 +194,49 @@ export function GlobalJarvisHandler() {
               collectStage("vad_end_at", new Date(vadEndAt));
             }
           },
-          onQueued: () => {
-            // No-op — receipts surface via onAction (with the real result).
+          onQueued: (data) => {
+            // Receipts (toasts) still surface via onAction with the real
+            // result. Here we ALSO push a queued placeholder action onto the
+            // persisted assistant turn so the scrollback receipt matches
+            // JarvisConsole's onQueued shape.
+            assistant.actions.push({
+              toolUseId: data.toolUseId,
+              name: data.name as ScrollbackAction["name"],
+              status: "queued",
+            });
           },
           onClarification: (data) => {
             toast(data.question, {
               description: "Tap to reply from /today",
               duration: 8000,
             });
+            assistant.clarification = {
+              toolUseId: data.toolUseId,
+              question: data.question,
+              options: data.options ?? [],
+              suggestedAction: data.suggestedAction ?? null,
+              answered: false,
+            };
           },
           onAction: (data) => {
+            // Record the action on the persisted assistant turn regardless of
+            // ok — mirror JarvisConsole.onAction (upgrade existing queued
+            // placeholder by toolUseId, else append) so the scrollback receipt
+            // persists. Toast behavior below is unchanged.
+            const existing = assistant.actions.find(
+              (a) => a.toolUseId === data.toolUseId,
+            );
+            if (existing) {
+              existing.status = "done";
+              existing.result = data.result as ScrollbackAction["result"];
+            } else {
+              assistant.actions.push({
+                toolUseId: data.toolUseId,
+                name: data.name as ScrollbackAction["name"],
+                status: "done",
+                result: data.result as ScrollbackAction["result"],
+              });
+            }
             if (!data.result?.ok) {
               toast.error(
                 data.result?.error ?? "JARVIS action failed",
@@ -202,12 +297,21 @@ export function GlobalJarvisHandler() {
               }),
             );
 
+            // Persist the completed assistant turn (plain prose, no React
+            // updater here — GlobalJarvisHandler has no scrollback state — so
+            // no flushSync is needed).
+            assistant.status = "done";
+            persistTurn(assistant);
+
             abort = null;
           },
           onError: (message) => {
             if (message !== "aborted") {
               toast.error(`JARVIS: ${message}`);
             }
+            assistant.status = "error";
+            assistant.errorMessage = message;
+            persistTurn(assistant);
             abort = null;
           },
         },
