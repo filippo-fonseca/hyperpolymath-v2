@@ -1,26 +1,22 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { requireOnboarded } from "@/lib/auth/get-user";
-import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import {
-  getHabitsForCurrentUser,
-  getHabitCompletionsInRange,
-} from "@/app/actions/habits";
-import { getCapturesForUser } from "@/lib/db/queries/captures";
-import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import {
-  getActivitiesInRange,
-  getDistanceUnit,
-} from "@/lib/db/queries/training";
-import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
+import { getHabitCompletionsInRange, getHabitsForCurrentUser } from "@/app/actions/habits";
 import { LifeOsAreasSection } from "@/components/lifeos/LifeOsAreasSection";
-import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
 import { LifeOsBentoGrid } from "@/components/lifeos/LifeOsBentoGrid";
-import { WidgetCard } from "@/components/lifeos/WidgetCard";
+import { LifeOsHero } from "@/components/lifeos/LifeOsHero";
+import { LifeOsInsightsWidget } from "@/components/lifeos/LifeOsInsightsWidget";
+import { LifeOsQuickSend } from "@/components/lifeos/LifeOsQuickSend";
 import { RecentCapturesWidget } from "@/components/lifeos/RecentCapturesWidget";
 import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
+import { WidgetCard } from "@/components/lifeos/WidgetCard";
+import { requireOnboarded } from "@/lib/auth/get-user";
+import { db } from "@/lib/db";
+import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { getInsightsData } from "@/lib/db/queries/insights";
+import { getAllTasksForUser } from "@/lib/db/queries/tasks";
+import { getActivitiesInRange, getDistanceUnit } from "@/lib/db/queries/training";
+import { projects } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +38,10 @@ export default async function LifeOsPage() {
 
   const today = new Date();
   const toISODate = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+      2,
+      "0"
+    )}`;
   const todayISO = toISODate(today);
 
   const [
@@ -55,6 +52,7 @@ export default async function LifeOsPage() {
     initialTasks,
     initialTrainingActivities,
     distanceUnit,
+    insights,
   ] = await Promise.all([
     getHabitsForCurrentUser(),
     getHabitCompletionsInRange(todayISO, todayISO),
@@ -71,22 +69,17 @@ export default async function LifeOsPage() {
     getAllTasksForUser(user.id),
     getActivitiesInRange(user.id, todayISO, todayISO),
     getDistanceUnit(user.id),
+    getInsightsData(user.id),
   ]);
 
   // Derive summary stats for the hero chips.
-  const habitsDone = initialCompletions.filter(
-    (c) => c.completedDate === todayISO,
-  ).length;
+  const habitsDone = initialCompletions.filter((c) => c.completedDate === todayISO).length;
   const habitsTotal = initialHabits.length;
-  const openTasks = initialTasks.filter(
-    (t) => t.status !== "lesno" && t.dueDate != null,
-  );
+  const openTasks = initialTasks.filter((t) => t.status !== "lesno" && t.dueDate != null);
   const tasksDueToday = openTasks.filter((t) => t.dueDate === todayISO).length;
-  const tasksOverdue = openTasks.filter(
-    (t) => (t.dueDate as string) < todayISO,
-  ).length;
+  const tasksOverdue = openTasks.filter((t) => (t.dueDate as string) < todayISO).length;
   const visibleTraining = initialTrainingActivities.filter(
-    (a) => a.status !== "cancelled" && a.status !== "skipped",
+    (a) => a.status !== "cancelled" && a.status !== "skipped"
   );
   const trainingPlanned = visibleTraining.length;
   const trainingDone = visibleTraining.filter((a) => a.status === "done").length;
@@ -108,11 +101,7 @@ export default async function LifeOsPage() {
         <LifeOsBentoGrid
           hero={
             <WidgetCard href="/tasks" ariaLabel="Open Tasks">
-              <UpcomingTasksWidget
-                userId={user.id}
-                initialTasks={initialTasks}
-                limit={7}
-              />
+              <UpcomingTasksWidget userId={user.id} initialTasks={initialTasks} limit={7} />
             </WidgetCard>
           }
           topRight={
@@ -145,6 +134,15 @@ export default async function LifeOsPage() {
             </WidgetCard>
           }
         />
+        <WidgetCard href="/insights?tab=life" ariaLabel="Open Insights">
+          <LifeOsInsightsWidget
+            jarvisTurns={insights.totalTurns}
+            habitsDone={habitsDone}
+            habitsTotal={habitsTotal}
+            trainingDone={trainingDone}
+            trainingPlanned={trainingPlanned}
+          />
+        </WidgetCard>
       </div>
     </main>
   );

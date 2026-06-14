@@ -1,19 +1,13 @@
-import { requireOnboarded } from "@/lib/auth/get-user";
-import { getInsightsData } from "@/lib/db/queries/insights";
-import {
-  getAnalyticsData,
-  getStageLatencyStats,
-} from "@/lib/db/queries/analytics";
-import {
-  getHabitCompletionsInRange,
-  getHabitsForCurrentUser,
-} from "@/app/actions/habits";
+import { getHabitCompletionsInRange, getHabitsForCurrentUser } from "@/app/actions/habits";
 import { InsightsTabs } from "@/components/insights/InsightsTabs";
+import { requireOnboarded } from "@/lib/auth/get-user";
+import { getAnalyticsData, getStageLatencyStats } from "@/lib/db/queries/analytics";
+import { getInsightsData } from "@/lib/db/queries/insights";
 // 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
 // three Result-returning calls are added to the page-level Promise.all.
 import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
-import { getStravaActivities } from "@/lib/integrations/strava/activities";
 import { getFlowSessions } from "@/lib/integrations/flow/sessions";
+import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +20,7 @@ export default async function InsightsPage({
 }) {
   const user = await requireOnboarded();
   const { tab } = await searchParams;
-  const initialTab: Tab =
-    tab === "habits" || tab === "jarvis" || tab === "life" ? tab : "life";
+  const initialTab: Tab = tab === "habits" || tab === "jarvis" || tab === "life" ? tab : "life";
 
   // 365-day window for the Habits tab. Same as analytics, matches the heatmap.
   const today = new Date();

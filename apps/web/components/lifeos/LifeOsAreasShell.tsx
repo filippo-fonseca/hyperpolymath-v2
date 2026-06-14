@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { CollapseChevron, usePersistedCollapse } from "./useSectionToggle";
 
 /**
  * LifeOsAreasShell — thin client wrapper that owns the mount animation for
@@ -15,6 +16,7 @@ import { motion, useReducedMotion } from "motion/react";
  */
 export function LifeOsAreasShell({ children }: { children: ReactNode }) {
   const prefersReducedMotion = useReducedMotion();
+  const [collapsed, toggle] = usePersistedCollapse("lifeos:areas:collapsed");
   const animProps = prefersReducedMotion
     ? { initial: false as const }
     : {
@@ -29,10 +31,13 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
 
   return (
     <motion.section className="mb-12" {...animProps}>
-      <header className="mb-4 flex items-baseline justify-between">
-        <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
-          Areas
-        </h2>
+      <header className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
+            Areas
+          </h2>
+          <CollapseChevron collapsed={collapsed} onClick={toggle} label="areas" />
+        </div>
         <Link
           href="/areas"
           className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
@@ -40,7 +45,16 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
           Open full view →
         </Link>
       </header>
-      {children}
+      <motion.div
+        initial={false}
+        animate={{ height: collapsed ? 0 : "auto", opacity: collapsed ? 0 : 1 }}
+        transition={
+          prefersReducedMotion ? { duration: 0 } : { duration: 0.32, ease: [0.25, 1, 0.5, 1] }
+        }
+        style={{ overflow: "hidden" }}
+      >
+        {children}
+      </motion.div>
     </motion.section>
   );
 }

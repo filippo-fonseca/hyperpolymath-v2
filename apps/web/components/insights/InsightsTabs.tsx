@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { InsightsCharts } from "./InsightsCharts";
-import { HabitsInsightsPanel } from "./HabitsInsightsPanel";
-import { LifeTabPanel } from "./life/LifeTabPanel";
-import { PipelineLatencyPanel } from "./PipelineLatencyPanel";
-import { EmptyState } from "@/components/shared/EmptyState";
 import type { HabitWithAreas } from "@/app/actions/habits";
-import type { Result } from "@/lib/integrations/result";
-import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
-import type { StravaData } from "@/lib/integrations/strava/activities";
-import type { Session } from "@/lib/integrations/flow/sessions";
+import { EmptyState } from "@/components/shared/EmptyState";
 import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
+import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
+import type { Session } from "@/lib/integrations/flow/sessions";
+import type { Result } from "@/lib/integrations/result";
+import type { StravaData } from "@/lib/integrations/strava/activities";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { HabitsInsightsPanel } from "./HabitsInsightsPanel";
+import { InsightsCharts } from "./InsightsCharts";
+import { PipelineLatencyPanel } from "./PipelineLatencyPanel";
+import { LifeTabPanel } from "./life/LifeTabPanel";
 
 type Tab = "life" | "habits" | "jarvis";
 
@@ -57,21 +57,9 @@ export function InsightsTabs({ initialTab = "life", jarvis, habits, life }: Prop
         aria-label="Insights view"
         className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] w-fit"
       >
-        <TabButton
-          active={tab === "life"}
-          onClick={() => setTab("life")}
-          label="Life"
-        />
-        <TabButton
-          active={tab === "habits"}
-          onClick={() => setTab("habits")}
-          label="Habits"
-        />
-        <TabButton
-          active={tab === "jarvis"}
-          onClick={() => setTab("jarvis")}
-          label="JARVIS"
-        />
+        <TabButton active={tab === "life"} onClick={() => setTab("life")} label="Life" />
+        <TabButton active={tab === "habits"} onClick={() => setTab("habits")} label="Habits" />
+        <TabButton active={tab === "jarvis"} onClick={() => setTab("jarvis")} label="JARVIS" />
       </div>
 
       {tab === "life" ? (
@@ -125,7 +113,7 @@ function TabButton({
         "transition-colors duration-150 ease-out",
         active
           ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >
       {label}
