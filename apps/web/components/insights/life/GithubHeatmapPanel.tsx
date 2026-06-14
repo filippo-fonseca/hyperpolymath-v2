@@ -1,8 +1,10 @@
 'use client';
 
+import { cloneElement } from 'react';
 import Link from 'next/link';
 import { Github } from 'lucide-react';
 import { GitHubCalendar } from 'react-github-calendar';
+import { format, parseISO } from 'date-fns';
 import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 /**
@@ -64,6 +66,13 @@ export function GithubHeatmapPanel({ username }: Props) {
           fontSize={11}
           showColorLegend={true}
           showTotalCount={true}
+          renderBlock={(block, activity) =>
+            cloneElement(
+              block,
+              {},
+              <title>{`${activity.count} contribution${activity.count === 1 ? '' : 's'} on ${format(parseISO(activity.date), 'MMM d, yyyy')}`}</title>,
+            )
+          }
         />
       ) : (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
