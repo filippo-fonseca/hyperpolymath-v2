@@ -1,6 +1,6 @@
 import type { Result } from '@/lib/integrations/result';
 import type { DailyUsage } from '@/lib/integrations/claude-code/usage';
-import type { StravaData } from '@/lib/integrations/strava/activities';
+import type { StravaData } from '@/lib/integrations/strava/types';
 import type { Session } from '@/lib/integrations/flow/sessions';
 import { GithubHeatmapPanel } from './GithubHeatmapPanel';
 import { ClaudeCodePanel } from './ClaudeCodePanel';

@@ -17,7 +17,7 @@ import {
   SPORT_LABELS,
   type SportCategory,
   type StravaData,
-} from '@/lib/integrations/strava/activities';
+} from '@/lib/integrations/strava/types';
 import { StravaDisconnectButton } from './StravaConnectionControl';
 import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 

@@ -25,53 +25,23 @@ if (clientId && clientSecret) {
   });
 }
 
-/**
- * Sports the dashboard surfaces. HIIT is how lifts are logged on Garmin
- * (no weight-training type exists there), so it lands as a generic
- * "Workout"/"HighIntensityIntervalTraining" sport on Strava — distance is
- * meaningless for it, so the panel keys HIIT off time/sessions instead.
- */
-export type SportCategory = 'Ride' | 'Run' | 'HIIT';
-export const SPORT_CATEGORIES: SportCategory[] = ['Ride', 'Run', 'HIIT'];
-export const SPORT_LABELS: Record<SportCategory, string> = {
-  Ride: 'Bike',
-  Run: 'Run',
-  HIIT: 'HIIT',
-};
+// Sports types + constants live in ./types (client-safe). This module is
+// `server-only` (it imports the Postgres db client), so its runtime values must
+// NOT be imported by client components — they import from ./types directly. We
+// import here for internal use and re-export so existing server-side imports of
+// these symbols from this module keep resolving.
+import {
+  SPORT_CATEGORIES,
+  SPORT_LABELS,
+  type Activity,
+  type SportCategory,
+  type SportSummary,
+  type StravaData,
+  type WeeklyStats,
+} from './types';
 
-export interface Activity {
-  id: number;
-  name: string;
-  type: string;
-  sportType: string;
-  category: SportCategory | null;
-  distanceMeters: number;
-  movingTimeSeconds: number;
-  startDate: string; // ISO
-  totalElevationGain: number;
-  averageSpeedMps: number;
-}
-
-export interface WeeklyStats {
-  weekStart: string; // YYYY-MM-DD (Monday)
-  distanceMeters: number;
-  movingTimeSeconds: number;
-  activityCount: number;
-}
-
-export interface SportSummary {
-  category: SportCategory;
-  weeklyStats: WeeklyStats[]; // most-recent-first; [0] = current week
-  totalDistanceMeters: number;
-  totalMovingTimeSeconds: number;
-  totalElevationGain: number;
-  totalCount: number;
-}
-
-export interface StravaData {
-  activities: Activity[];
-  sports: Record<SportCategory, SportSummary>;
-}
+export { SPORT_CATEGORIES, SPORT_LABELS };
+export type { Activity, SportCategory, SportSummary, StravaData, WeeklyStats };
 
 interface CacheEntry {
   at: number;
