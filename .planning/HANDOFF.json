@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-14T00:24:26.674Z",
+  "phase": "19",
+  "phase_name": "tasks-redesign-inbox-universal-day-view-glass-cards",
+  "phase_dir": ".planning/phases/19-tasks-redesign-inbox-universal-day-view-glass-cards",
+  "plan": 5,
+  "task": 5,
+  "total_tasks": 5,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Phase 19 execution (5 plans, 4 waves) — 9/9 decisions PASS", "status": "done", "commit": "93a51cd"},
+    {"id": 2, "name": "Finalize STATE.md + ROADMAP.md + commit verification report", "status": "done", "commit": "0a2aa39"},
+    {"id": 3, "name": "Inbox persistent across ALL views + day switcher scoped to central column", "status": "done", "commit": "93a51cd"},
+    {"id": 4, "name": "Sidebar hover-overlay clip/z-index fix (regression from fullscreen wrapper)", "status": "done", "commit": "bbc1ec6"},
+    {"id": 5, "name": "JARVIS receipt date-drift fix + morning-dump day-planning mode", "status": "done", "commit": "bbc1ec6"}
+  ],
+  "remaining_tasks": [
+    {"id": 6, "name": "Browser-verify glass visual quality, drag-to-Inbox E2E, JARVIS undated receipt, sidebar overlay, live morning-dump", "status": "not_started"},
+    {"id": 7, "name": "DECISION NEEDED: reconcile no-date policy contradiction (personality.ts:116 says no-date->today; executor routes no-date->Inbox NULL). User said no-date->today is 'correct', which conflicts with shipped Phase 19 D-02.", "status": "not_started"},
+    {"id": 8, "name": "Housekeeping: untracked phase-18 dir, malformed 999.17-{...} dir, JARVIS.Desktop .dmg", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "User is away from laptop; cannot browser-verify the 5 visual/interaction items", "type": "human_action", "workaround": "Code committed + deployed; verify on return"}
+  ],
+  "human_actions_pending": [
+    {"action": "Browser-verify the 5 items in the live app", "context": "Web-first quality bar; automated checks can't judge visuals/interaction", "blocking": false},
+    {"action": "Decide the no-date dating policy direction (Inbox vs today)", "context": "personality.ts:116 contradicts the Phase 19 executor; user implied a preference for today", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Inbox rendered in all three views (kanban/list/overview) as persistent left column; DaySwitcher moved into the central column", "rationale": "User wants undated tasks always visible; date control should visibly scope only the central day-area, not the dateless Inbox", "phase": "19"},
+    {"decision": "Sidebar wrapper clips overflow only mid-animation (sidebarAnimating state) and sits relative z-40", "rationale": "The Phase 19 fullscreen motion.div had static overflow-hidden which clipped the collapsed-mode hover overlay and trapped its z-index behind main content", "phase": "19"},
+    {"decision": "fmtDate parses YYYY-MM-DD as LOCAL midnight + treats as all-day", "rationale": "new Date('YYYY-MM-DD') is UTC midnight -> renders previous day in negative-UTC zones, so the receipt disagreed with the task's actual date", "phase": "19"},
+    {"decision": "Morning-dump tasks get explicit due dates (planned day), not the default-due path", "rationale": "Sidesteps the personality.ts:116 vs executor contradiction so day-plan tasks reliably land on the board instead of the Inbox", "phase": "19"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "On return: browser-verify the 5 items, then resolve the no-date policy contradiction (Task 7) — it gates whether morning-dump and JARVIS task creation behave as the user expects.",
+  "context_notes": "Everything is committed and pushed to origin/main (HEAD=bbc1ec6) -> Vercel production auto-deploys from apps/web. Local dev stack (supabase+web) is running in the background on local-docker Supabase (NOT prod). tsc is clean except 6 pre-existing out-of-scope errors in apps/web/tests/api-jarvis-tts.test.ts (Request vs NextRequest). The big open thread is the no-date dating policy: Phase 19 D-02 shipped no-date->Inbox(NULL) in executor.ts:148, but personality.ts:116 still tells the model no-date->today, and the user's receipt-bug message implied they actually want today. Left DB behavior as-shipped; flagged for a deliberate decision."
+}
