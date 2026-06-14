@@ -90,6 +90,7 @@ export function JarvisSidePanel() {
 
   return (
     <JarvisConsole
+      userId={payload.userId}
       userTimezone={payload.userTimezone}
       initialProjects={payload.initialProjects}
       initialHashtags={payload.initialHashtags}

@@ -37,6 +37,7 @@ import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
 } from "@/app/actions/jarvis-turns";
+import { createClient } from "@/lib/supabase/client";
 // Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
 // turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
 // then lands the LOCALLY-captured timestamp piped through the transcript event.
@@ -70,6 +71,52 @@ function persistTurn(turn: ScrollbackTurn): void {
 }
 
 /**
+ * Shape of a persisted turn row as returned by loadJarvisHistoryPage. Kept
+ * local (the action's TurnRow type isn't exported) and matches its fields.
+ */
+type JarvisTurnRow = {
+  id: string;
+  kind: "user" | "assistant";
+  text: string | null;
+  textDelta: string | null;
+  actions: unknown[];
+  clarification: unknown | null;
+  status: string | null;
+  errorMessage: string | null;
+  createdAt: Date | string;
+};
+
+/**
+ * Canonical TurnRow → ScrollbackTurn mapper. Single source of truth for the
+ * mapping previously inlined in onLoadOlder (and identically in
+ * today/page.tsx's server-side hydration, which stays inline — it's an RSC,
+ * out of scope for this client helper). Streaming rows are normalised to
+ * "done" so a turn persisted mid-stream doesn't render an infinite spinner.
+ */
+function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
+  if (r.kind === "user") {
+    return {
+      kind: "user",
+      id: r.id,
+      text: r.text ?? "",
+      createdAt: new Date(r.createdAt),
+    };
+  }
+  const rawStatus = r.status === "streaming" ? "done" : r.status;
+  return {
+    kind: "assistant",
+    id: r.id,
+    textDelta: r.textDelta ?? "",
+    actions: (r.actions as ScrollbackAction[]) ?? [],
+    status: (rawStatus as "done" | "error") ?? "done",
+    errorMessage: r.errorMessage ?? undefined,
+    clarification:
+      (r.clarification as ScrollbackClarification | null) ?? undefined,
+    createdAt: new Date(r.createdAt),
+  };
+}
+
+/**
  * JARVIS Console (D-01) — top-level orchestrator.
  *
  * Owns:
@@ -93,6 +140,8 @@ interface HashtagSource {
 }
 
 interface Props {
+  /** Authed user id — scopes the externally-created-turns realtime channel. */
+  userId: string;
   userTimezone: string;
   initialProjects: ProjectSource[];
   initialHashtags: HashtagSource[];
@@ -121,6 +170,7 @@ const HISTORY_TURN_LIMIT = 10;
 const HISTORY_PAGE_SIZE = 10;
 
 export function JarvisConsole({
+  userId,
   userTimezone,
   initialProjects,
   initialHashtags,
@@ -166,6 +216,82 @@ export function JarvisConsole({
   // synchronously before the next line runs.
   const turnsRef = useRef<ScrollbackTurn[]>(turns);
   turnsRef.current = turns;
+
+  // Live-merge externally-created jarvis_turns (Cmd+K / non-/today voice turns
+  // persisted by GlobalJarvisHandler) into the local scrollback.
+  //
+  // WHY fetch-and-merge instead of invalidate-only: this scrollback is LOCAL
+  // `useState`, not TanStack-Query-backed, so useTableSubscription's
+  // invalidate-only signal can't update it. On each jarvis_turns change we
+  // fetch the latest page and merge by id into local state. Dedup-by-id is
+  // mandatory: the console's OWN handleSubmit turns persist with the SAME id,
+  // so the realtime echo must update-in-place (or skip if mid-stream) and
+  // never append a duplicate.
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Append-if-absent, update-if-present-and-not-streaming. Never clobber a
+    // turn that is actively streaming (its local state is ahead of the DB),
+    // then re-sort chronologically.
+    function mergeById(
+      prev: ScrollbackTurn[],
+      incoming: ScrollbackTurn[],
+    ): ScrollbackTurn[] {
+      const next = [...prev];
+      const indexById = new Map(next.map((t, i) => [t.id, i] as const));
+      for (const turn of incoming) {
+        const existingIdx = indexById.get(turn.id);
+        if (existingIdx === undefined) {
+          next.push(turn);
+          indexById.set(turn.id, next.length - 1);
+          continue;
+        }
+        const existing = next[existingIdx];
+        // Skip any locally-streaming assistant turn — its in-memory state is
+        // authoritative until onDone/onError persists the final row.
+        if (existing.kind === "assistant" && existing.status === "streaming") {
+          continue;
+        }
+        next[existingIdx] = turn;
+      }
+      next.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      return next;
+    }
+
+    async function refreshAndMerge() {
+      const res = await loadJarvisHistoryPage({ limit: 20 });
+      if (!res.success) return;
+      const mapped = res.data.turns.map(mapTurnRow);
+      setTurns((prev) => mergeById(prev, mapped));
+    }
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    void (async () => {
+      // The module-private _initRealtimeAuth in useTableSubscription is NOT
+      // exported, so this standalone channel must carry the user JWT itself.
+      const { data } = await supabase.auth.getSession();
+      void supabase.realtime.setAuth(data.session?.access_token ?? null);
+      channel = supabase
+        .channel(`jarvis-console-merge:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "jarvis_turns",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void refreshAndMerge();
+          },
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   // Session memory (D-06) — derive from visible scrollback at submit time.
   //
@@ -1030,33 +1156,7 @@ export function JarvisConsole({
                 toast.error("Couldn't load older messages.");
                 return;
               }
-              const older: ScrollbackTurn[] = res.data.turns.map(
-                (r): ScrollbackTurn => {
-                  if (r.kind === "user") {
-                    return {
-                      kind: "user",
-                      id: r.id,
-                      text: r.text ?? "",
-                      createdAt: new Date(r.createdAt),
-                    };
-                  }
-                  const rawStatus =
-                    r.status === "streaming" ? "done" : r.status;
-                  return {
-                    kind: "assistant",
-                    id: r.id,
-                    textDelta: r.textDelta ?? "",
-                    actions: (r.actions as ScrollbackAction[]) ?? [],
-                    status:
-                      (rawStatus as "done" | "error") ?? "done",
-                    errorMessage: r.errorMessage ?? undefined,
-                    clarification:
-                      (r.clarification as ScrollbackClarification | null) ??
-                      undefined,
-                    createdAt: new Date(r.createdAt),
-                  };
-                },
-              );
+              const older: ScrollbackTurn[] = res.data.turns.map(mapTurnRow);
               setTurns((prev) => [...older, ...prev]);
               setHasMore(res.data.hasMore);
               setOldestAt(res.data.oldestAt ?? oldestAt);

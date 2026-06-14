@@ -12,6 +12,7 @@ import type {
 } from "@/components/jarvis/jarvis-types";
 
 export interface JarvisInitPayload {
+  userId: string;
   userTimezone: string;
   initialProjects: { id: string; name: string; icon: string | null }[];
   initialHashtags: { id: string; name: string; displayName: string }[];
@@ -82,6 +83,7 @@ export async function loadJarvisInit(): Promise<JarvisInitPayload> {
   const initialOldestAt = turnsResult.success ? turnsResult.data.oldestAt : null;
 
   return {
+    userId: user.id,
     userTimezone,
     initialProjects: projectRows.map((p) => ({
       id: p.id,

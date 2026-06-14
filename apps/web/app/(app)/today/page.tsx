@@ -85,6 +85,7 @@ export default async function TodayPage() {
 
   return (
     <JarvisConsole
+      userId={user.id}
       userTimezone={userTimezone}
       initialProjects={projectRows.map((p) => ({
         id: p.id,
