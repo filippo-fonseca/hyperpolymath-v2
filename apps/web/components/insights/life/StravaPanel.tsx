@@ -23,8 +23,10 @@ import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 const ACCENT = '#FC4C02';
 
-// HIIT is logged as a lift — distance is ~0, so it reads off time/sessions.
-const isDistanceSport = (s: SportCategory) => s !== 'HIIT';
+// Only Run is distance-based. HIIT is logged as a lift (distance ~0) and the
+// bike is a stationary trainer (distance is meaningless), so both read off
+// time/sessions instead.
+const isDistanceSport = (s: SportCategory) => s === 'Run';
 
 interface Props {
   result: Result<StravaData>;
