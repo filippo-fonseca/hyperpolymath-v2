@@ -245,6 +245,10 @@ export function KanbanBoard({
         onDragStart={setDraggedTaskId}
         onDragEnd={() => setDraggedTaskId(null)}
         onDropOnTray={() => dropTaskOnStatus("not started")}
+        selectionActive={selectionActive}
+        selectedIds={selectedIds}
+        onToggleSelected={onToggleSelected}
+        onToggleColumnSelection={onToggleColumnSelection}
       />
 
       <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 flex-1 min-h-0 @4xl/main:items-stretch">
@@ -291,6 +295,10 @@ interface TrayProps {
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onDropOnTray: () => void;
+  selectionActive?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
+  onToggleColumnSelection?: (status: Status, taskIds: string[]) => void;
 }
 
 function NotStartedTray({
@@ -306,11 +314,18 @@ function NotStartedTray({
   onDragStart,
   onDragEnd,
   onDropOnTray,
+  selectionActive,
+  selectedIds,
+  onToggleSelected,
+  onToggleColumnSelection,
 }: TrayProps) {
   const [isOver, setIsOver] = useState(false);
   const accent = NOT_STARTED_ACCENT;
   const isValidTarget = draggedTaskId !== null && draggedFromStatus !== "not started";
   const showDrop = isOver && isValidTarget;
+  const trayIds = tasks.map((t) => t.id);
+  const selectedInTray = selectedIds ? trayIds.filter((id) => selectedIds.has(id)).length : 0;
+  const allSelected = trayIds.length > 0 && selectedInTray === trayIds.length;
 
   return (
     <div
@@ -343,30 +358,49 @@ function NotStartedTray({
         } as React.CSSProperties
       }
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-4 pt-3 pb-2 cursor-pointer"
-        aria-expanded={expanded}
-      >
-        <ChevronDown
-          className={cn("h-3.5 w-3.5 transition-transform shrink-0", !expanded && "-rotate-90")}
-          style={{ color: accent.dot }}
-        />
-        <span
-          className="inline-block h-2 w-2 rounded-full shrink-0"
-          style={{ backgroundColor: accent.dot }}
-        />
-        <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold"
-          style={{ color: accent.dot }}
+      <div className="group/trayhdr flex items-center gap-2 px-4 pt-3 pb-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-2 cursor-pointer min-w-0"
+          aria-expanded={expanded}
         >
-          Not Started
-        </span>
-        <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
-          ({tasks.length})
-        </span>
-      </button>
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform shrink-0", !expanded && "-rotate-90")}
+            style={{ color: accent.dot }}
+          />
+          <span
+            className="inline-block h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: accent.dot }}
+          />
+          <span
+            className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold"
+            style={{ color: accent.dot }}
+          >
+            Not Started
+          </span>
+          <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
+            ({tasks.length})
+          </span>
+        </button>
+        {onToggleColumnSelection && tasks.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onToggleColumnSelection("not started", trayIds)}
+            className={cn(
+              "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              allSelected
+                ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
+                : selectionActive || selectedInTray > 0
+                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] opacity-0 group-hover/trayhdr:opacity-100 hover:text-[var(--ink)]"
+            )}
+            title={allSelected ? "Deselect all in tray" : "Select all in tray"}
+          >
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+        ) : null}
+      </div>
 
       {expanded && (
         <div className="flex flex-wrap gap-2.5 px-3 pb-3 min-h-[44px]">
@@ -380,6 +414,9 @@ function NotStartedTray({
                 onClick={onTaskClick}
                 cardFields={cardFields}
                 isDragging={draggedTaskId === task.id}
+                selectionActive={selectionActive}
+                isSelected={selectedIds?.has(task.id) ?? false}
+                onToggleSelected={onToggleSelected}
               />
             </div>
           ))}
