@@ -24,8 +24,13 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Trigger-Secret, X-Jarvis-Vad-End-At",
+  "Access-Control-Allow-Headers":
+    "Content-Type, X-Trigger-Secret, X-Jarvis-Vad-End-At, X-Jarvis-Probe",
 };
+
+// "Done, JARVIS" — the desktop hands-free end-of-turn phrase. Stripped from the
+// tail of the transcript so the agent never sees the control phrase as content.
+const STOP_PHRASE_TAIL = /[\s,.!?]*\bdone[,]?\s+jarvis\b[\s.!?]*$/i;
 
 export async function POST(req: NextRequest): Promise<Response> {
   // Two acceptable callers:
@@ -71,6 +76,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch (err) {
     console.error("[voice/transcript] Groq failed", err);
     return Response.json({ error: "STT failed" }, { status: 500, headers: CORS });
+  }
+
+  // Probe mode: the desktop polls a rolling audio tail to detect the
+  // "Done, JARVIS" stop phrase. Return the raw transcript ONLY — no SSE
+  // fan-out, no DB persistence, no agent run.
+  if (req.headers.get("x-jarvis-probe") === "1") {
+    return Response.json({ transcript, sttDoneAt }, { headers: CORS });
+  }
+
+  // Strip a trailing "Done, JARVIS" stop phrase before anything downstream
+  // sees it. If the user only said the phrase, drop the (empty) turn.
+  transcript = transcript.replace(STOP_PHRASE_TAIL, "").trim();
+  if (!transcript) {
+    return Response.json({ transcript: "", sttDoneAt }, { headers: CORS });
   }
 
   emitPhysicalTranscript({

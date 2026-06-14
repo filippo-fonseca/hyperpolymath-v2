@@ -117,3 +117,29 @@ export async function postTranscript(args: {
   }
   return (await res.json()) as { transcript: string; sttDoneAt: number };
 }
+
+/**
+ * POST /api/jarvis/voice/transcript  (probe mode — `x-jarvis-probe: 1`)
+ *
+ * Side-effect-free STT: the server transcribes the audio and returns the text
+ * WITHOUT fanning it out to browser tabs, persisting a turn, or running the
+ * agent. Used to poll a rolling audio tail for the "Done, JARVIS" stop phrase
+ * while the mic is open. Returns the transcript, or null on any failure
+ * (probe errors are non-fatal — the hotkey is always the reliable stop).
+ */
+export async function probeTranscript(wav: Blob): Promise<string | null> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const buf = new Uint8Array(await wav.arrayBuffer());
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/transcript`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      "content-type": "audio/wav",
+      "x-jarvis-probe": "1",
+    },
+    body: buf,
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { transcript?: string };
+  return json.transcript ?? null;
+}

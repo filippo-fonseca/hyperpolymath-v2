@@ -28,7 +28,7 @@ import {
   onTranscriptReceived,
   setManualMode,
   setVadSilenceMs,
-  startCaptureTurn,
+  toggleCaptureTurn,
   toggleExtended,
   type CaptureState,
 } from "@/audio/capture";
@@ -77,9 +77,7 @@ function renderLivePanel(): void {
   panel.setAttribute("data-extended", _extended ? "true" : "false");
 
   if (_captureState === "recording") {
-    text.textContent = _extended
-      ? "Extended — press Ctrl+Option+E to send"
-      : "Recording — speak now";
+    text.textContent = "Listening — press ⌘⌃J or say “Done, JARVIS” to send";
     cancelBtn.disabled = false;
     cancelBtn.textContent = "Cancel";
   } else if (_captureState === "uploading") {
@@ -196,7 +194,7 @@ function wireWakeButton(): void {
   const btn = document.getElementById("wake-btn");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    void startCaptureTurn();
+    void toggleCaptureTurn();
   });
 }
 
@@ -212,20 +210,23 @@ function paintActionRow(state: CaptureState, isExtended: boolean): void {
   const wakeBtn = document.getElementById("wake-btn") as HTMLButtonElement | null;
   const extendBtn = document.getElementById("extend-btn") as HTMLButtonElement | null;
   if (wakeBtn) {
-    wakeBtn.disabled = state !== "idle";
-  }
-  if (extendBtn) {
+    // Toggle button: enabled in both idle and recording. Uploading disables it.
+    wakeBtn.disabled = state === "uploading";
+    const wakeLabel = prettyHotkey(WAKE_HOTKEY);
     if (state === "recording") {
-      extendBtn.classList.add("visible");
-      extendBtn.dataset.extended = isExtended ? "true" : "false";
-      const extLabel = prettyHotkey(_activeExtendHotkey);
-      extendBtn.innerHTML = isExtended
-        ? `✓ Holding — tap to send <span class="shortcut-label">${extLabel}</span>`
-        : `⏸ Hold mic open <span class="shortcut-label">${extLabel}</span>`;
+      wakeBtn.innerHTML = `Stop &amp; send <span class="shortcut-label">${wakeLabel}</span>`;
+      wakeBtn.dataset.recording = "true";
     } else {
-      extendBtn.classList.remove("visible");
+      wakeBtn.innerHTML = `Talk to JARVIS <span class="shortcut-label">${wakeLabel}</span>`;
+      wakeBtn.dataset.recording = "false";
     }
   }
+  // The extend hotkey/button is now redundant — the open-mic model never
+  // auto-ends, so there's nothing to "hold open". Keep it hidden.
+  if (extendBtn) {
+    extendBtn.classList.remove("visible");
+  }
+  void isExtended;
 }
 
 function wireStopButton(): void {
@@ -331,7 +332,10 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
  * input surface, not a replacement.
  */
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
-  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake", () => void startCaptureTurn());
+  // Cmd+Ctrl+J is a single toggle: start a turn when idle, end-and-send when
+  // recording. Same chord stops in physical-extender mode too (the ESP32/SSE
+  // path starts the turn; this stops it).
+  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake/stop", () => void toggleCaptureTurn());
   paintHotkeyStatus(peEnabled);
 }
 

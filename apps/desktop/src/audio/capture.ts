@@ -16,9 +16,46 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
-import { postClaim, postTranscript } from "@/api/client";
+import { postClaim, postTranscript, probeTranscript } from "@/api/client";
 import { encodeWav } from "@/audio/encode-wav";
 import { VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
+
+// ─── Open-mic capture model (no silence auto-stop) ──────────────────────────
+// The mic stays open until the user explicitly ends the turn. Ending happens
+// via the Cmd+Ctrl+J toggle (hotkey/button), the "Done, JARVIS" stop phrase,
+// or the safety cap below. Brief pauses NEVER end a turn — the old VAD
+// silence-end behavior was the bug we're removing.
+
+// Safety cap so a forgotten-open mic can't record forever. Generous on purpose:
+// the whole point is hands-free long-form dumps. Groq's 25MB limit is ~13min
+// of 16kHz mono, so 4 minutes is comfortably safe.
+const SAFETY_CAP_MS = 240_000;
+
+// "Done, JARVIS" hands-free stop phrase — rolling partial-STT probe.
+const STOP_PHRASE = /\bdone[,]?\s+jarvis\b/i;
+const PROBE_INTERVAL_MS = 2_200;
+const PROBE_TAIL_SAMPLES = 16_000 * 5; // transcribe only the last ~5s
+const PROBE_MIN_SAMPLES = 16_000; // need ~1s of audio before probing
+
+let triggerPhraseEnabled = true;
+export function setTriggerPhraseEnabled(enabled: boolean): void {
+  triggerPhraseEnabled = enabled;
+}
+
+let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+let probeTimer: ReturnType<typeof setInterval> | null = null;
+let probeInFlight = false;
+
+function teardownTurnTimers(): void {
+  if (safetyTimer) {
+    clearTimeout(safetyTimer);
+    safetyTimer = null;
+  }
+  if (probeTimer) {
+    clearInterval(probeTimer);
+    probeTimer = null;
+  }
+}
 
 // Live-mutable VAD params — `main.ts` calls `setVadSilenceMs` when the user
 // adjusts the Settings "Silence wait" dropdown so the next capture turn
@@ -142,29 +179,96 @@ export async function startCaptureTurn(): Promise<void> {
     return;
   }
   cancelled = false;
-  extended = manualMode;
+  // Open-mic: the turn never auto-ends on silence. `extended` stays true for
+  // the whole turn purely to keep any downstream "is the mic held open" reads
+  // consistent; the real end-of-turn triggers are the hotkey/phrase/cap.
+  extended = true;
   emitExtended(extended);
   activeTurnFinished = false;
 
   await postClaim();
 
+  // VadSilenceDetector is reused ONLY as the audio buffer accumulator here —
+  // its silence/hard-cap return value is intentionally ignored.
   activeVad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
   activeVad.start();
 
   activeUnlisten = await listen<AudioChunkPayload>("audio-chunk", (event) => {
     if (activeTurnFinished || !activeVad) return;
     const chunk = new Float32Array(event.payload.samples);
-    const ended = activeVad.push(chunk);
-    // Extend mode suppresses VAD end-of-speech AND hard cap. The user
-    // explicitly chose to keep the mic open; trust their judgment.
-    if (ended && !extended) {
-      activeTurnFinished = true;
-      void finishTurn(activeVad);
-    }
+    // Buffer only — brief pauses must NOT end the turn.
+    activeVad.push(chunk);
   });
 
   await invoke("start_capture");
   setState("recording");
+
+  // Safety cap — unconditional end-of-turn so a forgotten mic can't run away.
+  teardownTurnTimers();
+  safetyTimer = setTimeout(() => {
+    if (!activeTurnFinished && activeVad) {
+      // eslint-disable-next-line no-console
+      console.log("[capture] safety cap reached — finishing turn");
+      activeTurnFinished = true;
+      void finishTurn(activeVad);
+    }
+  }, SAFETY_CAP_MS);
+
+  // "Done, JARVIS" rolling stop-phrase probe (side-effect-free STT).
+  if (triggerPhraseEnabled) {
+    probeTimer = setInterval(() => {
+      void runStopPhraseProbe();
+    }, PROBE_INTERVAL_MS);
+  }
+}
+
+/**
+ * Poll a rolling tail of the live buffer for the "Done, JARVIS" stop phrase.
+ * Non-blocking and best-effort: any failure is swallowed because the hotkey is
+ * always the reliable stop. One probe in flight at a time.
+ */
+async function runStopPhraseProbe(): Promise<void> {
+  if (probeInFlight || activeTurnFinished || !activeVad || currentState !== "recording") {
+    return;
+  }
+  const full = activeVad.flush();
+  if (full.length < PROBE_MIN_SAMPLES) return;
+  const tail =
+    full.length > PROBE_TAIL_SAMPLES ? full.subarray(full.length - PROBE_TAIL_SAMPLES) : full;
+  probeInFlight = true;
+  try {
+    const wav = encodeWav(tail, 16_000);
+    const text = await probeTranscript(wav);
+    if (text && STOP_PHRASE.test(text) && !activeTurnFinished && activeVad) {
+      // eslint-disable-next-line no-console
+      console.log("[capture] 'Done, JARVIS' detected — finishing turn");
+      activeTurnFinished = true;
+      void finishTurn(activeVad);
+    }
+  } catch {
+    // best-effort; ignore probe errors
+  } finally {
+    probeInFlight = false;
+  }
+}
+
+/**
+ * Single control for the Cmd+Ctrl+J chord (and the wake button): start a turn
+ * when idle, or end-and-send the current turn when recording. The same chord
+ * stops in BOTH hotkey mode and physical-extender mode.
+ */
+export async function toggleCaptureTurn(): Promise<void> {
+  if (currentState === "idle") {
+    await startCaptureTurn();
+    return;
+  }
+  if (currentState === "recording" && !activeTurnFinished && activeVad) {
+    // eslint-disable-next-line no-console
+    console.log("[capture] toggle stop — finishing turn");
+    activeTurnFinished = true;
+    void finishTurn(activeVad);
+  }
+  // uploading: ignore — the turn is already on its way.
 }
 
 /**
@@ -208,6 +312,7 @@ export function toggleExtended(): void {
 export async function cancelCaptureTurn(): Promise<void> {
   if (currentState === "idle") return;
   cancelled = true;
+  teardownTurnTimers();
   extended = false;
   emitExtended(false);
   if (activeUnlisten) {
@@ -222,6 +327,7 @@ export async function cancelCaptureTurn(): Promise<void> {
 }
 
 async function finishTurn(vad: VadSilenceDetector): Promise<void> {
+  teardownTurnTimers();
   const vadEndAt = Date.now();
   await stopCaptureTurn();
 
