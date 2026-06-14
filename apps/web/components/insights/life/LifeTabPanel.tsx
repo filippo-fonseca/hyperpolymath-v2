@@ -1,9 +1,6 @@
 import type { Result } from '@/lib/integrations/result';
 import type { DailyUsage } from '@/lib/integrations/claude-code/usage';
-import type {
-  Activity,
-  WeeklyStats,
-} from '@/lib/integrations/strava/activities';
+import type { StravaData } from '@/lib/integrations/strava/activities';
 import type { Session } from '@/lib/integrations/flow/sessions';
 import { GithubHeatmapPanel } from './GithubHeatmapPanel';
 import { ClaudeCodePanel } from './ClaudeCodePanel';
@@ -20,7 +17,7 @@ import { FlowPanel } from './FlowPanel';
 
 interface Props {
   claudeCode: Result<DailyUsage[]>;
-  strava: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
+  strava: Result<StravaData>;
   flow: Result<Session[]>;
   githubUsername: string | null;
 }

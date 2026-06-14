@@ -9,9 +9,6 @@ import {
   getHabitsForCurrentUser,
 } from "@/app/actions/habits";
 import { InsightsTabs } from "@/components/insights/InsightsTabs";
-// Phase 9 / TEL-02 — Pipeline Latency panel mounts ABOVE the existing tabs
-// per D-03 (additive placement; first thing the user sees on /insights).
-import { PipelineLatencyPanel } from "@/components/insights/PipelineLatencyPanel";
 // 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
 // three Result-returning calls are added to the page-level Promise.all.
 import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
@@ -20,8 +17,17 @@ import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 
 export const dynamic = "force-dynamic";
 
-export default async function InsightsPage() {
+type Tab = "life" | "habits" | "jarvis";
+
+export default async function InsightsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const user = await requireOnboarded();
+  const { tab } = await searchParams;
+  const initialTab: Tab =
+    tab === "habits" || tab === "jarvis" || tab === "life" ? tab : "life";
 
   // 365-day window for the Habits tab. Same as analytics, matches the heatmap.
   const today = new Date();
@@ -70,10 +76,6 @@ export default async function InsightsPage() {
   return (
     <div className="agent-mode-scope relative min-h-screen bg-[var(--canvas)] px-8 py-12">
       <main className="relative z-10 max-w-6xl mx-auto space-y-8">
-        {/* Phase 9 / TEL-02 — Pipeline Latency panel renders ABOVE the existing
-            header + tabs per D-03 (first thing the user sees on /insights;
-            Phase 6 non-regression — existing tabs continue to render unchanged). */}
-        <PipelineLatencyPanel stats={pipelineStats} />
         <header className="space-y-1.5">
           <div className="flex items-baseline gap-3">
             <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
@@ -93,7 +95,12 @@ export default async function InsightsPage() {
         </header>
 
         <InsightsTabs
-          jarvis={{ hasData: jarvisLegacy.totalTurns > 0, data: jarvisLegacy }}
+          initialTab={initialTab}
+          jarvis={{
+            hasData: jarvisLegacy.totalTurns > 0,
+            data: jarvisLegacy,
+            pipelineStats,
+          }}
           habits={{
             habits,
             completions: habitCompletions,

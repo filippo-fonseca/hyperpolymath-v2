@@ -25,10 +25,26 @@ if (clientId && clientSecret) {
   });
 }
 
+/**
+ * Sports the dashboard surfaces. HIIT is how lifts are logged on Garmin
+ * (no weight-training type exists there), so it lands as a generic
+ * "Workout"/"HighIntensityIntervalTraining" sport on Strava — distance is
+ * meaningless for it, so the panel keys HIIT off time/sessions instead.
+ */
+export type SportCategory = 'Ride' | 'Run' | 'HIIT';
+export const SPORT_CATEGORIES: SportCategory[] = ['Ride', 'Run', 'HIIT'];
+export const SPORT_LABELS: Record<SportCategory, string> = {
+  Ride: 'Bike',
+  Run: 'Run',
+  HIIT: 'HIIT',
+};
+
 export interface Activity {
   id: number;
   name: string;
   type: string;
+  sportType: string;
+  category: SportCategory | null;
   distanceMeters: number;
   movingTimeSeconds: number;
   startDate: string; // ISO
@@ -43,9 +59,23 @@ export interface WeeklyStats {
   activityCount: number;
 }
 
+export interface SportSummary {
+  category: SportCategory;
+  weeklyStats: WeeklyStats[]; // most-recent-first; [0] = current week
+  totalDistanceMeters: number;
+  totalMovingTimeSeconds: number;
+  totalElevationGain: number;
+  totalCount: number;
+}
+
+export interface StravaData {
+  activities: Activity[];
+  sports: Record<SportCategory, SportSummary>;
+}
+
 interface CacheEntry {
   at: number;
-  data: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
+  data: Result<StravaData>;
 }
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map<string, CacheEntry>();
@@ -70,6 +100,7 @@ interface RawActivity {
   id: number;
   name: string;
   type: string;
+  sport_type?: string;
   distance: number;
   moving_time: number;
   start_date: string;
@@ -77,11 +108,33 @@ interface RawActivity {
   average_speed: number;
 }
 
+/**
+ * Bucket a Strava activity into Bike / Run / HIIT. `sport_type` is the modern,
+ * granular field; `type` is the legacy enum (where HIIT collapses to
+ * "Workout"). We check both so Garmin-synced lifts land under HIIT.
+ */
+function classify(type: string, sportType: string): SportCategory | null {
+  const hay = `${sportType} ${type}`.toLowerCase();
+  if (hay.includes('ride')) return 'Ride';
+  if (hay.includes('run')) return 'Run';
+  if (
+    /highintensityintervaltraining|hiit|workout|weighttraining|crossfit/.test(
+      hay,
+    )
+  ) {
+    return 'HIIT';
+  }
+  return null;
+}
+
 function mapActivity(raw: RawActivity): Activity {
+  const sportType = raw.sport_type ?? raw.type;
   return {
     id: raw.id,
     name: raw.name,
     type: raw.type,
+    sportType,
+    category: classify(raw.type, sportType),
     distanceMeters: raw.distance ?? 0,
     movingTimeSeconds: raw.moving_time ?? 0,
     startDate: raw.start_date,
@@ -118,9 +171,24 @@ function computeWeeklyStats(activities: Activity[]): WeeklyStats[] {
   return weeks;
 }
 
+function summarizeSport(
+  category: SportCategory,
+  activities: Activity[],
+): SportSummary {
+  const ours = activities.filter((a) => a.category === category);
+  return {
+    category,
+    weeklyStats: computeWeeklyStats(ours),
+    totalDistanceMeters: ours.reduce((s, a) => s + a.distanceMeters, 0),
+    totalMovingTimeSeconds: ours.reduce((s, a) => s + a.movingTimeSeconds, 0),
+    totalElevationGain: ours.reduce((s, a) => s + a.totalElevationGain, 0),
+    totalCount: ours.length,
+  };
+}
+
 export async function getStravaActivities(
   userId: string,
-): Promise<Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>> {
+): Promise<Result<StravaData>> {
   const cached = cache.get(userId);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
 
@@ -208,7 +276,7 @@ export async function getStravaActivities(
       raw = (await strava.athlete.listActivities({
         access_token: useableAccessToken,
         after,
-        per_page: 30,
+        per_page: 100,
       })) as RawActivity[];
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -227,9 +295,13 @@ export async function getStravaActivities(
     activities.sort((a, b) =>
       a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : 0,
     );
-    const weeklyStats = computeWeeklyStats(activities);
+    const sports = {
+      Ride: summarizeSport('Ride', activities),
+      Run: summarizeSport('Run', activities),
+      HIIT: summarizeSport('HIIT', activities),
+    } satisfies Record<SportCategory, SportSummary>;
 
-    const result = ok({ activities, weeklyStats });
+    const result = ok({ activities, sports });
     cache.set(userId, { at: Date.now(), data: result });
     return result;
   } catch (e) {

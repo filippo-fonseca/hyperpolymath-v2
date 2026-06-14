@@ -5,19 +5,19 @@ import { cn } from "@/lib/utils";
 import { InsightsCharts } from "./InsightsCharts";
 import { HabitsInsightsPanel } from "./HabitsInsightsPanel";
 import { LifeTabPanel } from "./life/LifeTabPanel";
+import { PipelineLatencyPanel } from "./PipelineLatencyPanel";
 import { EmptyState } from "@/components/shared/EmptyState";
 import type { HabitWithAreas } from "@/app/actions/habits";
 import type { Result } from "@/lib/integrations/result";
 import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
-import type {
-  Activity,
-  WeeklyStats,
-} from "@/lib/integrations/strava/activities";
+import type { StravaData } from "@/lib/integrations/strava/activities";
 import type { Session } from "@/lib/integrations/flow/sessions";
+import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
 
-type Tab = "jarvis" | "habits" | "life";
+type Tab = "life" | "habits" | "jarvis";
 
 interface Props {
+  initialTab?: Tab;
   jarvis: {
     hasData: boolean;
     // Pass-through to InsightsCharts. Typed as `any` here only because the
@@ -25,6 +25,7 @@ interface Props {
     // we forward verbatim.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any;
+    pipelineStats: PipelineLatencyStats;
   };
   habits: {
     habits: HabitWithAreas[];
@@ -34,7 +35,7 @@ interface Props {
   };
   life: {
     claudeCode: Result<DailyUsage[]>;
-    strava: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
+    strava: Result<StravaData>;
     flow: Result<Session[]>;
     githubUsername: string | null;
   };
@@ -42,11 +43,12 @@ interface Props {
 
 /**
  * Insights surface tabs. Server still owns data fetching; this client just
- * picks which panel is currently visible. Tab state is in URL? — no, kept
- * local since neither panel deep-links into.
+ * picks which panel is currently visible. Life is the default (and central)
+ * surface; JARVIS analytics — including the pipeline-latency breakdown — lives
+ * last.
  */
-export function InsightsTabs({ jarvis, habits, life }: Props) {
-  const [tab, setTab] = useState<Tab>("jarvis");
+export function InsightsTabs({ initialTab = "life", jarvis, habits, life }: Props) {
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,9 +58,9 @@ export function InsightsTabs({ jarvis, habits, life }: Props) {
         className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] w-fit"
       >
         <TabButton
-          active={tab === "jarvis"}
-          onClick={() => setTab("jarvis")}
-          label="JARVIS"
+          active={tab === "life"}
+          onClick={() => setTab("life")}
+          label="Life"
         />
         <TabButton
           active={tab === "habits"}
@@ -66,21 +68,19 @@ export function InsightsTabs({ jarvis, habits, life }: Props) {
           label="Habits"
         />
         <TabButton
-          active={tab === "life"}
-          onClick={() => setTab("life")}
-          label="Life"
+          active={tab === "jarvis"}
+          onClick={() => setTab("jarvis")}
+          label="JARVIS"
         />
       </div>
 
-      {tab === "jarvis" ? (
-        jarvis.hasData ? (
-          <InsightsCharts data={jarvis.data} />
-        ) : (
-          <EmptyState
-            heading="Seven days of silence."
-            body="JARVIS hasn't logged any turns yet. Send it a message to populate this."
-          />
-        )
+      {tab === "life" ? (
+        <LifeTabPanel
+          claudeCode={life.claudeCode}
+          strava={life.strava}
+          flow={life.flow}
+          githubUsername={life.githubUsername}
+        />
       ) : tab === "habits" ? (
         <HabitsInsightsPanel
           habits={habits.habits}
@@ -89,12 +89,17 @@ export function InsightsTabs({ jarvis, habits, life }: Props) {
           earliestAvailable={habits.earliestAvailable}
         />
       ) : (
-        <LifeTabPanel
-          claudeCode={life.claudeCode}
-          strava={life.strava}
-          flow={life.flow}
-          githubUsername={life.githubUsername}
-        />
+        <div className="flex flex-col gap-6">
+          {jarvis.hasData ? (
+            <InsightsCharts data={jarvis.data} />
+          ) : (
+            <EmptyState
+              heading="Seven days of silence."
+              body="JARVIS hasn't logged any turns yet. Send it a message to populate this."
+            />
+          )}
+          <PipelineLatencyPanel stats={jarvis.pipelineStats} />
+        </div>
       )}
     </div>
   );

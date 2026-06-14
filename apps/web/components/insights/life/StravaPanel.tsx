@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -9,19 +10,24 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { cn } from '@/lib/utils';
 import type { Result } from '@/lib/integrations/result';
-import type {
-  Activity,
-  WeeklyStats,
+import {
+  SPORT_CATEGORIES,
+  SPORT_LABELS,
+  type SportCategory,
+  type StravaData,
 } from '@/lib/integrations/strava/activities';
 import { StravaDisconnectButton } from './StravaConnectionControl';
 import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
 
 const ACCENT = '#FC4C02';
-// const ACCENT_DIM = '#c43d02'; // reserved for hover/secondary use
+
+// HIIT is logged as a lift — distance is ~0, so it reads off time/sessions.
+const isDistanceSport = (s: SportCategory) => s !== 'HIIT';
 
 interface Props {
-  result: Result<{ activities: Activity[]; weeklyStats: WeeklyStats[] }>;
+  result: Result<StravaData>;
 }
 
 function PanelChrome({ children }: { children: React.ReactNode }) {
@@ -69,9 +75,16 @@ function shortWeek(weekStart: string): string {
 }
 
 export function StravaPanel({ result }: Props) {
+  // Default to the sport of the most recent activity (falls back to Run).
+  const initialSport: SportCategory = result.ok
+    ? (result.data.activities.find((a) => a.category)?.category ?? 'Run')
+    : 'Run';
+  const [sport, setSport] = useState<SportCategory>(initialSport);
+
   if (!result.ok) {
-    const isDisconnected =
-      /not connected|reconnect required/i.test(result.error);
+    const isDisconnected = /not connected|reconnect required/i.test(
+      result.error,
+    );
     return (
       <PanelChrome>
         <header className="mb-2 flex items-baseline justify-between">
@@ -98,37 +111,119 @@ export function StravaPanel({ result }: Props) {
     );
   }
 
-  const { activities, weeklyStats } = result.data;
-  // weeklyStats[0] is the current (most recent) week per data layer ordering.
-  const currentWeek = weeklyStats[0];
-  // Chart data wants chronological order (oldest left).
-  const chartData = [...weeklyStats]
-    .reverse()
-    .map((w) => ({
-      label: shortWeek(w.weekStart),
-      km: Number((w.distanceMeters / 1000).toFixed(2)),
-    }));
-  const recent = activities.slice(0, 3);
-
+  const { activities, sports } = result.data;
   return (
     <PanelChrome>
-      <header className="mb-4 flex items-baseline justify-between gap-4">
+      <header className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-baseline gap-3">
           <h3 className="font-serif text-lg text-[var(--ink)]">Strava</h3>
           <StravaDisconnectButton />
         </div>
+        <div
+          role="tablist"
+          aria-label="Sport"
+          className="flex items-center gap-0.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] p-0.5"
+        >
+          {SPORT_CATEGORIES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              aria-pressed={sport === s}
+              onClick={() => setSport(s)}
+              className={cn(
+                'rounded-sm px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always',
+                'transition-colors duration-150 ease-out',
+                sport === s
+                  ? 'bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]'
+                  : 'text-[var(--ink-muted)] hover:text-[var(--ink)]',
+              )}
+            >
+              {SPORT_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <SportView summary={sports[sport]} activities={activities} sport={sport} />
+    </PanelChrome>
+  );
+}
+
+function SportView({
+  summary,
+  activities,
+  sport,
+}: {
+  summary: StravaData['sports'][SportCategory];
+  activities: StravaData['activities'];
+  sport: SportCategory;
+}) {
+  const distanceMode = isDistanceSport(sport);
+  const currentWeek = summary.weeklyStats[0];
+
+  const chartData = useMemo(
+    () =>
+      [...summary.weeklyStats].reverse().map((w) => ({
+        label: shortWeek(w.weekStart),
+        value: distanceMode
+          ? Number((w.distanceMeters / 1000).toFixed(2))
+          : Math.round(w.movingTimeSeconds / 60),
+      })),
+    [summary.weeklyStats, distanceMode],
+  );
+
+  const recent = useMemo(
+    () => activities.filter((a) => a.category === sport).slice(0, 3),
+    [activities, sport],
+  );
+
+  if (summary.totalCount === 0) {
+    return (
+      <p className="font-mono text-xs text-[var(--ink-muted)] py-6">
+        No {SPORT_LABELS[sport].toLowerCase()} activities in the last 30 days.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-2 flex items-baseline justify-end">
         {currentWeek ? (
           <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-            <span className="text-[var(--ink)]">{formatKm(currentWeek.distanceMeters)}</span>{' '}
-            km this week
+            {distanceMode ? (
+              <>
+                <span className="text-[var(--ink)]">
+                  {formatKm(currentWeek.distanceMeters)}
+                </span>{' '}
+                km this week
+              </>
+            ) : (
+              <>
+                <span className="text-[var(--ink)]">
+                  {currentWeek.activityCount}
+                </span>{' '}
+                {currentWeek.activityCount === 1 ? 'session' : 'sessions'} ·{' '}
+                <span className="text-[var(--ink)]">
+                  {formatTime(currentWeek.movingTimeSeconds)}
+                </span>
+              </>
+            )}
           </span>
         ) : null}
-      </header>
+      </div>
 
       <div style={{ width: '100%', height: 160 }}>
         <ResponsiveContainer>
-          <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="#d4cfc4" strokeDasharray="2 4" vertical={false} />
+          <BarChart
+            data={chartData}
+            margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid
+              stroke="#d4cfc4"
+              strokeDasharray="2 4"
+              vertical={false}
+            />
             <XAxis
               dataKey="label"
               tick={{ fontSize: 10, fill: '#7c7669' }}
@@ -140,7 +235,7 @@ export function StravaPanel({ result }: Props) {
               axisLine={false}
               tickLine={false}
               width={36}
-              unit="km"
+              unit={distanceMode ? 'km' : 'm'}
             />
             <Tooltip
               cursor={{ fill: 'rgba(252, 76, 2, 0.08)' }}
@@ -150,9 +245,14 @@ export function StravaPanel({ result }: Props) {
                 borderRadius: 8,
                 fontSize: 11,
               }}
-              formatter={(v) => [`${v} km`, 'distance'] as [string, string]}
+              formatter={(v) =>
+                [
+                  distanceMode ? `${v} km` : `${v} min`,
+                  distanceMode ? 'distance' : 'time',
+                ] as [string, string]
+              }
             />
-            <Bar dataKey="km" fill={ACCENT} radius={[2, 2, 0, 0]} />
+            <Bar dataKey="value" fill={ACCENT} radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -165,19 +265,28 @@ export function StravaPanel({ result }: Props) {
               className="flex items-baseline justify-between gap-3 text-sm"
             >
               <span className="flex items-baseline gap-2 truncate">
-                <span className="font-serif text-[var(--ink)] truncate">{a.name}</span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-                  {a.type}
+                <span className="font-serif text-[var(--ink)] truncate">
+                  {a.name}
                 </span>
               </span>
               <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)] whitespace-nowrap">
-                <span className="text-[var(--ink)]">{formatKm(a.distanceMeters)}</span>{' '}
-                km · {formatTime(a.movingTimeSeconds)}
+                {distanceMode ? (
+                  <>
+                    <span className="text-[var(--ink)]">
+                      {formatKm(a.distanceMeters)}
+                    </span>{' '}
+                    km · {formatTime(a.movingTimeSeconds)}
+                  </>
+                ) : (
+                  <span className="text-[var(--ink)]">
+                    {formatTime(a.movingTimeSeconds)}
+                  </span>
+                )}
               </span>
             </li>
           ))}
         </ul>
       ) : null}
-    </PanelChrome>
+    </>
   );
 }
