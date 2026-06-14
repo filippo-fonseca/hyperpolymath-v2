@@ -192,15 +192,24 @@ export function GraphExplorer({
   // children into an overlapping ring. A collision force keyed on each node's
   // render radius (nodeRelSize·√val + padding) deterministically prevents that.
   useEffect(() => {
-    if (!fgRef.current) return;
-    fgRef.current.d3Force(
-      "collide",
+    let raf = 0;
+    const apply = () => {
+      const fg = fgRef.current;
+      // ForceGraph2D mounts asynchronously (next/dynamic chunk), so this effect
+      // can run before the graph instance exists. Wait for the ref via rAF so
+      // the force config is never silently dropped on first load.
+      if (!fg) {
+        raf = requestAnimationFrame(apply);
+        return;
+      }
       // biome-ignore lint/suspicious/noExplicitAny: untyped accessor args
-      forceCollide((n: any) => 4 * Math.sqrt(n.val) + 5),
-    );
-    fgRef.current.d3Force("charge")?.strength(-110);
-    fgRef.current.d3Force("link")?.distance(48);
-    fgRef.current.d3ReheatSimulation();
+      fg.d3Force("collide", forceCollide((n: any) => 4 * Math.sqrt(n.val) + 5));
+      fg.d3Force("charge")?.strength(-110);
+      fg.d3Force("link")?.distance(48);
+      fg.d3ReheatSimulation();
+    };
+    apply();
+    return () => cancelAnimationFrame(raf);
   }, [graphData, dims]);
 
   const presentTypes = useMemo(() => {
