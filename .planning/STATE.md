@@ -400,7 +400,7 @@ None yet.
 | 260609-luc | Add /branding page showcasing wordmark, H mark, Kiwi logo, JARVIS lockup in token-based color variations | 2026-06-09 | 13c20ae | [260609-luc-add-branding-page-showcasing-wordmark-h-](./quick/260609-luc-add-branding-page-showcasing-wordmark-h-/) |
 | 260611-g2z | Sidebar-free CRUD: areas (create/rename/emoji/delete-with-No-Area-reassign) on /areas + projects (create/rename/edit/move/delete) on /areas/[areaId] | 2026-06-11 | 989c282 | [260611-g2z-add-crud-for-areas-on-the-web-app-s-area](./quick/260611-g2z-add-crud-for-areas-on-the-web-app-s-area/) |
 | 260614-ejw | Fix calendar + task delete real-time UI (pendingDeleteIds), Not-Started tray selection, bulk-delete action, kanban whole-content vertical scroll | 2026-06-14 | 5a9231a | [260614-ejw-fix-calendar-task-delete-real-time-ui-ad](./quick/260614-ejw-fix-calendar-task-delete-real-time-ui-ad/) |
-| 260614-f44 | Advertise MCP server `instructions` in createPersonalContextServer handshake + sharpen get_current_context tool description to trigger on planning/prioritization intents | 2026-06-14 | PENDING | [260614-f44-add-mcp-server-instructions-to-createper](./quick/260614-f44-add-mcp-server-instructions-to-createper/) |
+| 260614-f44 | Advertise MCP server `instructions` in createPersonalContextServer handshake + sharpen get_current_context tool description to trigger on planning/prioritization intents | 2026-06-14 | 7b4d2f8 | [260614-f44-add-mcp-server-instructions-to-createper](./quick/260614-f44-add-mcp-server-instructions-to-createper/) |
 
 ## Session Continuity
 

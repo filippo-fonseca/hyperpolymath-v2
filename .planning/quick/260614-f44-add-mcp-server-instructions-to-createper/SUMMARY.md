@@ -34,3 +34,7 @@ None — plan executed exactly as written. No fixes were needed; typecheck and t
 ## Self-Check: PASSED
 - packages/personal-context-mcp/src/index.ts — FOUND (instructions on line 51)
 - packages/personal-context-mcp/src/tools/get-current-context.ts — FOUND (intent language lines 85-86)
+
+## Commit
+
+7b4d2f8 — see Quick Tasks Completed table in STATE.md.
