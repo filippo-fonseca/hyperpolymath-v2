@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { forceCollide } from "d3-force";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
@@ -186,6 +187,22 @@ export function GraphExplorer({
     return { graphData: { nodes: gnodes, links: glinks }, nodeById: byId, adjacency: adj };
   }, [nodes, edges]);
 
+  // Imperative force config — the default engine runs only charge + link, so
+  // high-degree nodes (e.g. an Area with 20+ child Projects) crumple their
+  // children into an overlapping ring. A collision force keyed on each node's
+  // render radius (nodeRelSize·√val + padding) deterministically prevents that.
+  useEffect(() => {
+    if (!fgRef.current) return;
+    fgRef.current.d3Force(
+      "collide",
+      // biome-ignore lint/suspicious/noExplicitAny: untyped accessor args
+      forceCollide((n: any) => 4 * Math.sqrt(n.val) + 5),
+    );
+    fgRef.current.d3Force("charge")?.strength(-110);
+    fgRef.current.d3Force("link")?.distance(48);
+    fgRef.current.d3ReheatSimulation();
+  }, [graphData, dims]);
+
   const presentTypes = useMemo(() => {
     const s = new Set<string>();
     for (const n of graphData.nodes) s.add(n.type);
@@ -317,11 +334,11 @@ export function GraphExplorer({
               linkColor={(l: any) =>
                 selectedId && (srcId(l) === selectedId || tgtId(l) === selectedId)
                   ? "rgba(255,255,255,0.55)"
-                  : "rgba(148,163,184,0.18)"
+                  : "rgba(148,163,184,0.40)"
               }
               // biome-ignore lint/suspicious/noExplicitAny: untyped accessor args
               linkWidth={(l: any) =>
-                selectedId && (srcId(l) === selectedId || tgtId(l) === selectedId) ? 1.4 : 0.5
+                selectedId && (srcId(l) === selectedId || tgtId(l) === selectedId) ? 1.4 : 1.0
               }
               nodeRelSize={4}
               warmupTicks={40}
