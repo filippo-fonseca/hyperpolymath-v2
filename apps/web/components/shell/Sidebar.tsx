@@ -276,13 +276,19 @@ export function Sidebar({
             </div>
           )}
 
-          <SidebarTree
-            userId={userId}
-            areas={areas}
-            collapsed={effectiveCollapsed}
-            graduationYear={graduationYear}
-            addOptimisticArea={addOptimisticArea}
-          />
+          {/* Area/project tree is hidden in the collapsed rail — bare emoji
+              glyphs read poorly there (issue #26). The framed "Areas" link +
+              create button above keep the section reachable; the full tree
+              returns on hover-expand / pinned-open. */}
+          {!effectiveCollapsed && (
+            <SidebarTree
+              userId={userId}
+              areas={areas}
+              collapsed={effectiveCollapsed}
+              graduationYear={graduationYear}
+              addOptimisticArea={addOptimisticArea}
+            />
+          )}
         </div>
 
         {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
