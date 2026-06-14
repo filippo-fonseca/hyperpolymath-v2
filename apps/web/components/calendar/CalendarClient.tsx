@@ -318,6 +318,21 @@ export function CalendarClient({
 
   const [, startTransition] = useTransition();
 
+  // Long-lived optimistic-delete set. Held in plain useState (NOT useOptimistic)
+  // so a deleted event stays hidden for the FULL 5s undo window — wrapping the
+  // delete in a synchronous startTransition settled instantly and let the row
+  // reappear ~immediately, then vanish ~5s later on the deferred gcal commit.
+  // gcal is the source of truth (CLAUDE.md): TanStack Query invalidate/refetch
+  // is the only cache surface — so commit drops the id only AFTER invalidate.
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const dropPending = useCallback((...ids: string[]) => {
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }, []);
+
   // Derived event list passed to the grid.
   //   - In edit mode with a live draft: append a dashed placeholder at the
   //     proposed position AND flag the original event as `isDraftEditing`
@@ -334,10 +349,15 @@ export function CalendarClient({
   // pure presentational layer — it never gets persisted, and folding it into
   // the reducer would risk it surviving the panel close path.
   const displayEvents = useMemo<GcalEvent[]>(() => {
+    // Drop optimistically-deleted events for the full undo window before any
+    // draft/preview overlay is composed on top.
+    const visible = (optimisticEvents as GcalEvent[]).filter(
+      (e) => !pendingDeleteIds.has(e.id),
+    );
     if (panelState.mode === "edit" && formDraft) {
       const editingId = panelState.event.id;
       const out: GcalEvent[] = [];
-      for (const e of optimisticEvents) {
+      for (const e of visible) {
         if (e.id === editingId) {
           out.push({ ...e, isDraftEditing: true });
         } else {
@@ -368,7 +388,7 @@ export function CalendarClient({
       // optimistic insert). Sentinel id avoids any collision with real or
       // optimistic-placeholder events.
       return [
-        ...(optimisticEvents as GcalEvent[]),
+        ...visible,
         {
           id: "__create-preview__",
           calendarId: formDraft.calendarId,
@@ -384,8 +404,8 @@ export function CalendarClient({
         },
       ];
     }
-    return optimisticEvents as GcalEvent[];
-  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar]);
+    return visible;
+  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar, pendingDeleteIds]);
 
   /**
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
@@ -545,53 +565,50 @@ export function CalendarClient({
   const { show: showUndoToast } = useUndoToast();
   const handleDelete = useCallback(
     async (eventId: string, calendarId: string) => {
+      // Capture the row BEFORE hiding it so the toast title is available and
+      // addBack is a clean drop-from-set.
       const previous = optimisticEvents.find((e) => e.id === eventId);
-      // 1. Optimistic remove — instant grid feedback (D-02)
-      startTransition(() => {
-        addOptimistic({ type: "delete", id: eventId });
-      });
+      // 1. Optimistic remove via the long-lived set — the event stays hidden
+      //    for the full 5s window (D-02), even on the race path below.
+      setPendingDeleteIds((prev) => new Set(prev).add(eventId));
       if (!previous) {
         // Race: row already gone from the cache. Fall back to immediate
         // server delete since there's nothing to addBack().
         const res = await deleteEvent({ calendarId, eventId });
         if (!res.success) {
           toast.error(res.error ?? "Failed to delete event");
+          dropPending(eventId);
           return { success: false };
         }
         void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        dropPending(eventId);
         return { success: true };
       }
       // 2. 5s Undo toast (RES-02 / UI-SPEC §8h). gcal DELETE deferred.
-      const previousRow = previous;
       showUndoToast({
         message: `"${previous.title || "Event"}"deleted`,
         optimisticRemove: () => {
-          /* already done above */
+          /* already done above via the set */
         },
         commit: async () => {
           const res = await deleteEvent({ calendarId, eventId });
           if (!res.success) {
             toast.error(res.error ?? "Failed to delete event");
-            // Restore the optimistic row since gcal rejected the delete.
-            startTransition(() => {
-              addOptimistic({ type: "insert", row: previousRow });
-            });
+            // Restore the event since gcal rejected the delete.
+            dropPending(eventId);
             return;
           }
           void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+          dropPending(eventId);
         },
         undo: () => {
           /* gcal delete only fires on commit; no server-side rollback needed */
         },
-        addBack: () => {
-          startTransition(() => {
-            addOptimistic({ type: "insert", row: previousRow });
-          });
-        },
+        addBack: () => dropPending(eventId),
       });
       return { success: true };
     },
-    [optimisticEvents, addOptimistic, qc, userId, showUndoToast],
+    [optimisticEvents, qc, userId, showUndoToast, dropPending],
   );
 
   // Cmd+K → "?create=now" — open the create panel pre-filled at the next

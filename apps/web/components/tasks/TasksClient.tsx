@@ -112,6 +112,21 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   // Selection state (kanban day view). Cleared on view/date change.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Long-lived optimistic-delete set. Held in plain useState (NOT useOptimistic)
+  // so a deleted row stays hidden for the FULL 5s undo window regardless of
+  // whether a transition is pending — useOptimistic only holds its value while
+  // a transition spans the call, which is the root cause of the reappear bug.
+  // commit fires the real delete + invalidate THEN drops the id; addBack/error
+  // just drops the id with no server call.
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const dropPending = useCallback((...ids: string[]) => {
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }, []);
+
   // Reset selection when the active date or view changes — selections are
   // scoped to "what's visible on this surface now."
   useEffect(() => {
@@ -191,6 +206,9 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   // through immediately.
   const filtered = useMemo(() => {
     return optimisticTasks.filter((t) => {
+      // Optimistically-deleted rows vanish from every surface for the full
+      // 5s undo window (survives regardless of transitions).
+      if (pendingDeleteIds.has(t.id)) return false;
       // Auto-hide "lesno" (completed) unless the user explicitly opts in OR
       // they've requested lesno via an explicit status filter (that filter
       // takes precedence — the chip wouldn't make sense otherwise) OR the
@@ -238,7 +256,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       }
       return true;
     });
-  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno, dateYmd]);
+  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno, dateYmd, pendingDeleteIds]);
 
   // Day-scoped slice of `filtered` for the kanban (default view). Tasks
   // with a due date matching `dateYmd` show in the columns; undated tasks
@@ -781,36 +799,35 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         onClose={() => setOpenTaskId(null)}
         addOptimistic={addOptimistic}
         onDeleteTask={(task) => {
-          // 1. Optimistic remove — flips UI instantly (D-02)
-          addOptimistic({ type: "delete", id: task.id });
+          // 1. Optimistic remove via the long-lived pendingDeleteIds set —
+          //    the card stays hidden for the full 5s window (D-02).
+          setPendingDeleteIds((prev) => new Set(prev).add(task.id));
           // 2. Toast with 5s Undo (RES-02 / UI-SPEC §8h)
           showUndoToast({
             message: `"${task.title}"deleted`,
             optimisticRemove: () => {
-              /* already done above */
+              /* already done above via the set */
             },
             commit: async () => {
               const r = await deleteTask(task.id);
               if (!r.success) {
                 toast.error(r.error);
                 // Server rejected the delete — restore the row.
-                startTransition(() => {
-                  addOptimistic({ type: "insert", row: task });
-                });
+                dropPending(task.id);
                 return;
               }
-              // Belt-and-suspenders refetch (matches create/status-change).
+              // Belt-and-suspenders refetch (matches create/status-change),
+              // THEN drop the id so the refetched canonical data is the
+              // single source of truth.
               await queryClient.invalidateQueries({
                 queryKey: tableKey("tasks", userId),
               });
+              dropPending(task.id);
             },
             undo: () => {
               /* Server delete only fires on commit; nothing server-side to roll back */
             },
-            addBack: () =>
-              startTransition(() => {
-                addOptimistic({ type: "insert", row: task });
-              }),
+            addBack: () => dropPending(task.id),
           });
         }}
       />
