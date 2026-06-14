@@ -7,6 +7,7 @@ import { MoveToMenu } from "./MoveToMenu";
 interface Props {
   count: number;
   onMoveTo: (dateYmd: string | null) => void;
+  onDeleteSelected: () => void;
   onClear: () => void;
   pending: boolean;
 }
@@ -17,7 +18,7 @@ interface Props {
  * a clear-selection button. Lives outside the column layout so the bar
  * stays visible while the user scrolls through tasks.
  */
-export function TaskSelectionBar({ count, onMoveTo, onClear, pending }: Props) {
+export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, pending }: Props) {
   return (
     <AnimatePresence>
       {count > 0 ? (
@@ -37,6 +38,14 @@ export function TaskSelectionBar({ count, onMoveTo, onClear, pending }: Props) {
               {count} selected
             </span>
             <MoveToMenu onPick={onMoveTo} variant="bar" allowClear disabled={pending} />
+            <button
+              type="button"
+              onClick={onDeleteSelected}
+              disabled={pending}
+              className="rounded-full px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50"
+            >
+              Delete
+            </button>
             <button
               type="button"
               onClick={onClear}

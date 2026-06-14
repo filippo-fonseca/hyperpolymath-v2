@@ -274,6 +274,31 @@ export async function bulkUpdateTaskDueDate(
   return { success: true, data: { updated: result.length } };
 }
 
+const BulkDeleteSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+});
+
+export async function bulkDeleteTasks(
+  input: unknown,
+): Promise<ActionResult<{ deleted: number }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = BulkDeleteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  const result = await db
+    .delete(tasks)
+    .where(and(inArray(tasks.id, parsed.data.ids), eq(tasks.userId, userId)))
+    .returning({ id: tasks.id });
+
+  return { success: true, data: { deleted: result.length } };
+}
+
 export async function deleteTask(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };

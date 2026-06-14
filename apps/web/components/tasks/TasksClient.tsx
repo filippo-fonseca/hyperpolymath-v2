@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  bulkDeleteTasks,
   bulkUpdateTaskDueDate,
   createTask,
   getTasksForCurrentUser,
@@ -330,6 +331,41 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     },
     [selectedIds, addOptimistic, queryClient, userId, clearSelection, startTransition]
   );
+
+  const handleBulkDelete = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    // Hide all selected rows via the SAME pendingDeleteIds set so the batch
+    // is consistent and undoable as one unit.
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+    clearSelection();
+    showUndoToast({
+      message: `${ids.length} task${ids.length === 1 ? "" : "s"} deleted`,
+      optimisticRemove: () => {
+        /* already done above via the set */
+      },
+      commit: async () => {
+        const r = await bulkDeleteTasks({ ids });
+        if (!r.success) {
+          toast.error(r.error);
+          dropPending(...ids);
+          return;
+        }
+        await queryClient.invalidateQueries({
+          queryKey: tableKey("tasks", userId),
+        });
+        dropPending(...ids);
+      },
+      undo: () => {
+        /* Server delete only fires on commit; nothing to roll back */
+      },
+      addBack: () => dropPending(...ids),
+    });
+  }, [selectedIds, clearSelection, showUndoToast, queryClient, userId, dropPending]);
 
   const draggedTask = useMemo(
     () => (draggedTaskId ? (optimisticTasks.find((t) => t.id === draggedTaskId) ?? null) : null),
@@ -787,6 +823,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       <TaskSelectionBar
         count={selectedIds.size}
         onMoveTo={(d) => void handleBulkMove(d)}
+        onDeleteSelected={handleBulkDelete}
         onClear={clearSelection}
         pending={false}
       />
