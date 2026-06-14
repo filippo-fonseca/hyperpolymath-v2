@@ -295,11 +295,25 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
    */
   function fmtDate(iso: unknown, allDay?: boolean): string {
     if (typeof iso !== "string") return String(iso ?? "");
-    const d = new Date(iso);
+
+    // Date-only string (YYYY-MM-DD) from a DATE column — e.g. a task's due
+    // date. Parse as LOCAL midnight and treat as all-day. `new Date(iso)` would
+    // read it as UTC midnight, which renders as the PREVIOUS calendar day in
+    // negative-UTC timezones, so the receipt would disagree with the task it
+    // just created (task lands on today, receipt says yesterday).
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    const d = dateOnly
+      ? (() => {
+          const [y, m, day] = iso.split("-").map(Number);
+          return new Date(y, m - 1, day);
+        })()
+      : new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
 
     let inferredAllDay: boolean;
-    if (typeof allDay === "boolean") {
+    if (dateOnly) {
+      inferredAllDay = true;
+    } else if (typeof allDay === "boolean") {
       inferredAllDay = allDay;
     } else {
       const m = d.getMinutes();

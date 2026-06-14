@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
 import { JarvisSidePanel } from "./JarvisSidePanel";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
+import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 
 interface Props {
@@ -50,6 +52,11 @@ export function AppShell({
   const { splitOn } = useSplitScreen();
   const { expanded } = useTasksExpanded();
   const reduceMotion = useReducedMotion();
+  // Clip the sidebar wrapper ONLY while the fullscreen-collapse width animation
+  // is running. At rest we must NOT clip, or the collapsed sidebar's hover
+  // overlay (an absolute 260px panel that floats past the 64px rail) gets cut
+  // off and trapped behind the main content.
+  const [sidebarAnimating, setSidebarAnimating] = useState(false);
 
   const onJarvis =
     pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
@@ -72,7 +79,15 @@ export function AppShell({
                 ? { duration: 0 }
                 : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
             }
-            className="overflow-hidden shrink-0"
+            onAnimationStart={() => setSidebarAnimating(true)}
+            onAnimationComplete={() => setSidebarAnimating(false)}
+            // `relative z-40` lifts the wrapper (and the collapsed-mode hover
+            // overlay inside it) above the main content. overflow is clipped
+            // only mid-animation; visible at rest so the overlay can escape.
+            className={cn(
+              "relative z-40 shrink-0",
+              sidebarAnimating ? "overflow-hidden" : "overflow-visible"
+            )}
           >
             <Sidebar
               userId={userId}
