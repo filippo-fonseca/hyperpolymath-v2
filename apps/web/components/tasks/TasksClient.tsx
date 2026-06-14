@@ -513,7 +513,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   return (
     // No max-w cap — kanban view needs full horizontal real estate for the
     // 5 status columns. Header + toolbar happily extend to the page edge.
-    <div className="flex flex-col h-screen min-h-0 overflow-hidden px-8 py-10 w-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden px-8 py-10 w-full">
       {/* Arc-redesign page header — serif title + glance stats row, with the
           expand/fullscreen toggle anchored top-right (D-08 / UI-SPEC S-7). */}
       <header className="mb-6 flex items-start justify-between gap-4">
