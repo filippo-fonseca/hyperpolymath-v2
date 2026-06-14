@@ -176,7 +176,7 @@ export function KanbanBoard({
   }
 
   return (
-    <div className="flex flex-col gap-4 min-h-0 flex-1">
+    <div className="flex flex-col gap-4">
       {/* Board toolbar — view settings (which property pills show on cards). */}
       <div className="flex items-center justify-end">
         <Popover>
@@ -251,7 +251,7 @@ export function KanbanBoard({
         onToggleColumnSelection={onToggleColumnSelection}
       />
 
-      <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 flex-1 min-h-0 @4xl/main:items-stretch">
+      <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 @4xl/main:items-stretch">
         {COLUMN_ORDER.map((status) => (
           <KanbanColumn
             key={status}

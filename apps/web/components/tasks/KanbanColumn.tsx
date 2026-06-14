@@ -117,7 +117,7 @@ export function KanbanColumn({
   return (
     <div
       ref={ref}
-      className="flex flex-col w-full @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0 rounded-2xl @4xl/main:h-full min-h-0 backdrop-blur-md border border-[var(--glass-border)]"
+      className="flex flex-col w-full @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0 rounded-2xl backdrop-blur-md border border-[var(--glass-border)]"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -177,11 +177,11 @@ export function KanbanColumn({
         ) : null}
       </div>
 
-      {/* Two-part column body: scrollable task list, pinned "Add task"footer.
-          flex-1 + min-h-0 lets the list shrink/scroll inside the column's
-          row-stretched height; the footer stays anchored at the bottom. */}
-      <div className="flex flex-col flex-1 min-h-0 px-3 pb-3">
-        <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+      {/* Two-part column body: task list + "Add task"footer. The whole
+          board scrolls at the page level now (no per-column internal scroll),
+          so the column grows to its content and the footer follows the list. */}
+      <div className="flex flex-col px-3 pb-3">
+        <div className="flex flex-col gap-2.5 pr-1 -mr-1">
           <AnimatePresence mode="popLayout" initial={false}>
             {tasks.map((task) => (
               <TaskCard
