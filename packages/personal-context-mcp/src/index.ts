@@ -42,10 +42,23 @@ export type CreateServerOptions = {
  * handler.
  */
 export function createPersonalContextServer(opts: CreateServerOptions): McpServer {
-  const server = new McpServer({
-    name: opts.serverName ?? "hyperpolymath-personal-context",
-    version: opts.serverVersion ?? "0.1.0",
-  });
+  const server = new McpServer(
+    {
+      name: opts.serverName ?? "hyperpolymath-personal-context",
+      version: opts.serverVersion ?? "0.1.0",
+    },
+    {
+      instructions:
+        "This server is the user's personal life-OS context (Hyperpolymath): their " +
+        "areas, projects, classes, tasks, quick captures/ideas, training activities, " +
+        "habits, and facts about them. Call the get_current_context tool at the START " +
+        "of any substantive conversation about the user's tasks, projects, classes, " +
+        "captures/ideas, priorities, or \"what should I work on / what's on my plate\" " +
+        "planning — BEFORE answering. Treat the returned snapshot as the source of " +
+        "truth about the user's life rather than guessing. The data is read-only and " +
+        "refreshes daily.",
+    },
+  );
   registerGetCurrentContext(server, {
     userId: opts.userId,
     loadSnapshot: opts.loadSnapshot,

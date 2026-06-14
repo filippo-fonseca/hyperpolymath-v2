@@ -80,9 +80,13 @@ export function registerGetCurrentContext(server: McpServer, ctx: GetCurrentCont
   const handler = makeGetCurrentContextHandler(ctx);
   server.tool(
     "get_current_context",
-    "Returns the most recent personal context snapshot for the connected user. " +
-      "Optionally filter to specific node types (topics). Use this at the start " +
-      "of any conversation to load what the agent already knows about the user.",
+    "Returns the most recent personal-context snapshot for the connected user. " +
+      "Call this FIRST — before answering — whenever the conversation involves " +
+      "planning or prioritization, questions like \"what should I do / work on\" or " +
+      "\"what's on my plate\", or any question about the user's tasks, projects, " +
+      "classes, captures, or commitments. Base your answer on the real data this " +
+      "tool returns rather than guessing. The optional `topics` parameter filters " +
+      "the snapshot to specific node types.",
     getCurrentContextParamsShape,
     async (args) => handler(args as GetCurrentContextArgs),
   );
