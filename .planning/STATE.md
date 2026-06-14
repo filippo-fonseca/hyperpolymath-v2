@@ -401,6 +401,7 @@ None yet.
 | 260611-g2z | Sidebar-free CRUD: areas (create/rename/emoji/delete-with-No-Area-reassign) on /areas + projects (create/rename/edit/move/delete) on /areas/[areaId] | 2026-06-11 | 989c282 | [260611-g2z-add-crud-for-areas-on-the-web-app-s-area](./quick/260611-g2z-add-crud-for-areas-on-the-web-app-s-area/) |
 | 260614-ejw | Fix calendar + task delete real-time UI (pendingDeleteIds), Not-Started tray selection, bulk-delete action, kanban whole-content vertical scroll | 2026-06-14 | 5a9231a | [260614-ejw-fix-calendar-task-delete-real-time-ui-ad](./quick/260614-ejw-fix-calendar-task-delete-real-time-ui-ad/) |
 | 260614-f44 | Advertise MCP server `instructions` in createPersonalContextServer handshake + sharpen get_current_context tool description to trigger on planning/prioritization intents | 2026-06-14 | 7b4d2f8 | [260614-f44-add-mcp-server-instructions-to-createper](./quick/260614-f44-add-mcp-server-instructions-to-createper/) |
+| 260614-g2d | Persist Cmd+K/voice JARVIS turns to jarvis_turns + live-merge externally-created turns into /today console scrollback via realtime (dedup-by-id, streaming-safe) | 2026-06-14 | 6415998 | [260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-](./quick/260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-/) |
 
 ## Session Continuity
 
