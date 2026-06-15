@@ -574,8 +574,12 @@ function AreaBranch({
           href={`/areas/${area.id}`}
           className={cn(
             "group relative flex flex-col gap-1 rounded-xl px-4 py-3 pr-9",
-            "border border-[var(--edge)] bg-[var(--surface)]",
-            "hover:border-[var(--edge-hud)] hover:bg-[var(--surface-raised)]",
+            // Glassier tile — translucent surface + backdrop blur. Reads the
+            // --glass-* knobs so /lifeos (under .lifeos-glass) runs frostier
+            // than /areas, both glassier than the old solid fill.
+            "border border-[var(--edge)] bg-[var(--glass-bg)]",
+            "[backdrop-filter:blur(var(--glass-blur,12px))] [-webkit-backdrop-filter:blur(var(--glass-blur,12px))]",
+            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_88%,transparent)]",
             "transition-colors duration-150 ease-out cursor-pointer-always",
           )}
         >
