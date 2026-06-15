@@ -9,12 +9,14 @@ import type { Result } from "@/lib/integrations/result";
 import type { StravaData } from "@/lib/integrations/strava/types";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import type { DevRun } from "@/lib/db/queries/dev-runs";
 import { HabitsInsightsPanel } from "./HabitsInsightsPanel";
 import { InsightsCharts } from "./InsightsCharts";
 import { PipelineLatencyPanel } from "./PipelineLatencyPanel";
+import { DevelopmentTabPanel } from "./DevelopmentTabPanel";
 import { LifeTabPanel } from "./life/LifeTabPanel";
 
-type Tab = "life" | "habits" | "jarvis";
+type Tab = "life" | "habits" | "jarvis" | "development";
 
 interface Props {
   initialTab?: Tab;
@@ -39,6 +41,9 @@ interface Props {
     flow: Result<Session[]>;
     githubUsername: string | null;
   };
+  // Owner-only. When null, the DEVELOPMENT tab is never shown and its data was
+  // never fetched (the owner gate lives in the server page).
+  development?: { runs: DevRun[] } | null;
 }
 
 /**
@@ -47,8 +52,19 @@ interface Props {
  * surface; JARVIS analytics — including the pipeline-latency breakdown — lives
  * last.
  */
-export function InsightsTabs({ initialTab = "life", jarvis, habits, life }: Props) {
+export function InsightsTabs({
+  initialTab = "life",
+  jarvis,
+  habits,
+  life,
+  development = null,
+}: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
+
+  // Coerce the effective tab: a "development" selection is only valid when the
+  // owner-only development prop is present. Otherwise fall back to life.
+  const effectiveTab: Tab =
+    tab === "development" && !development ? "life" : tab;
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,19 +73,28 @@ export function InsightsTabs({ initialTab = "life", jarvis, habits, life }: Prop
         aria-label="Insights view"
         className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)] w-fit"
       >
-        <TabButton active={tab === "life"} onClick={() => setTab("life")} label="Life" />
-        <TabButton active={tab === "habits"} onClick={() => setTab("habits")} label="Habits" />
-        <TabButton active={tab === "jarvis"} onClick={() => setTab("jarvis")} label="JARVIS" />
+        <TabButton active={effectiveTab === "life"} onClick={() => setTab("life")} label="Life" />
+        <TabButton active={effectiveTab === "habits"} onClick={() => setTab("habits")} label="Habits" />
+        <TabButton active={effectiveTab === "jarvis"} onClick={() => setTab("jarvis")} label="JARVIS" />
+        {development ? (
+          <TabButton
+            active={effectiveTab === "development"}
+            onClick={() => setTab("development")}
+            label="Development"
+          />
+        ) : null}
       </div>
 
-      {tab === "life" ? (
+      {effectiveTab === "development" && development ? (
+        <DevelopmentTabPanel runs={development.runs} />
+      ) : effectiveTab === "life" ? (
         <LifeTabPanel
           claudeCode={life.claudeCode}
           strava={life.strava}
           flow={life.flow}
           githubUsername={life.githubUsername}
         />
-      ) : tab === "habits" ? (
+      ) : effectiveTab === "habits" ? (
         <HabitsInsightsPanel
           habits={habits.habits}
           completions={habits.completions}
