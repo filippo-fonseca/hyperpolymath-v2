@@ -195,6 +195,14 @@ export const captures = pgTable(
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
+    // 260615-h74 — captures-to-issues daily cron. Both columns are additive and
+    // NULLABLE with no default, so existing rows are untouched. githubEvaluatedAt
+    // is the "already considered" marker: it is set whenever Claude has evaluated
+    // the capture (issued OR rejected) so the cron never re-evaluates it.
+    // githubIssueUrl holds the created issue URL, or stays null when no issue was
+    // filed (non-actionable or privacy-refused captures).
+    githubIssueUrl: text("github_issue_url"),
+    githubEvaluatedAt: timestamp("github_evaluated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
@@ -428,6 +436,26 @@ export const waitlist = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("waitlist_email_uniq").on(t.email)],
+);
+
+// cron_runs — 260615-h74. Idempotency ledger for daily Vercel crons. One row
+// per (job_name, run_date); the UNIQUE (job_name, run_date) index IS the
+// once-per-day lock (race-safe at the DB via insert ... onConflictDoNothing).
+// Not capture-specific, so it lives among the other top-level tables.
+export const cronRuns = pgTable(
+  "cron_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobName: text("job_name").notNull(),
+    runDate: date("run_date").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status"),
+  },
+  (t) => [
+    // This UNIQUE constraint is the once-per-day lock.
+    uniqueIndex("cron_runs_job_date_uniq").on(t.jobName, t.runDate),
+  ],
 );
 
 // ─── HABITS ────────────────────────────────────────────────────────────────
