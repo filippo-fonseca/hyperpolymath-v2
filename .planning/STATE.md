@@ -29,7 +29,7 @@ Milestone: v1.1 "Speed & Agility"
 Phase: 19 — tasks-redesign-inbox-universal-day-view-glass-cards
 Plan: 5/5 complete (19-01..19-05)
 Status: Executed — verification human_needed (automated 9/9 PASS; 3 browser items pending)
-Last activity: 2026-06-15 -- Completed quick task 260615-h74: daily captures-to-issues cron
+Last activity: 2026-06-15 -- Completed quick task 260615-n2d: show area in task project-assignment dropdown (closes #39)
 
 Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -405,6 +405,7 @@ None yet.
 | 260614-gk0 | /graph: add d3-force collision force (radius 4·√val+5) + charge/link tuning so high-degree nodes stop crumpling children; brighter base edges (0.18→0.40, width 0.5→1.0); rAF-wait for async ForceGraph ref | 2026-06-14 | 82ed8c4 | [260614-gk0-fix-graph-layout-collision-force-for-hig](./quick/260614-gk0-fix-graph-layout-collision-force-for-hig/) |
 | 260615-h74 | Daily Vercel cron turning hyperpolymath-tagged captures into spec'd GitHub issues, with four ordered security layers (constant-time auth, once-per-day DB lock, per-run cap 25, env-email eligibility + noExport hard skip) and an LLM actionability+privacy gate | 2026-06-15 | efecf07 | [260615-h74-daily-cron-turning-hyperpolymath-tagged-](./quick/260615-h74-daily-cron-turning-hyperpolymath-tagged-/) |
 | 260615-lkl | Owner-only DEVELOPMENT tab on /insights plus token-gated POST /api/dev-runs ingest and kiwi_dev_runs table; reports the local Kiwi auto-dev worker's daily runs (issues + status + branch links) | 2026-06-15 | a4e82c2 | [260615-lkl-development-tab-on-insights-with-dev-run](./quick/260615-lkl-development-tab-on-insights-with-dev-run/) |
+| 260615-n2d | Show parent area inline (right-aligned, dim) in the project-assignment dropdown on tasks; closes issue #39 | 2026-06-15 | 181ed64 | [260615-n2d-show-associated-area-in-project-assignme](./quick/260615-n2d-show-associated-area-in-project-assignme/) |
 
 ## Session Continuity
 
