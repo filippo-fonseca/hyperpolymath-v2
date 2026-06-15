@@ -35,7 +35,9 @@ import { captures, capturesHashtags, hashtags, users, cronRuns } from "@/lib/db/
 import { specCaptureAsIssue } from "@/lib/jarvis/issue-specer";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Headroom: bounded concurrency keeps a full run to roughly 20-30s, but allow
+// generous time so an unusually slow batch of Claude calls never times out.
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 const PER_RUN_CAP = 25;
