@@ -3,6 +3,7 @@ import { InsightsTabs } from "@/components/insights/InsightsTabs";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getAnalyticsData, getStageLatencyStats } from "@/lib/db/queries/analytics";
 import { getInsightsData } from "@/lib/db/queries/insights";
+import { getRecentDevRuns } from "@/lib/db/queries/dev-runs";
 // 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
 // three Result-returning calls are added to the page-level Promise.all.
 import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
@@ -11,7 +12,7 @@ import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
 export const dynamic = "force-dynamic";
 
-type Tab = "life" | "habits" | "jarvis";
+type Tab = "life" | "habits" | "jarvis" | "development";
 
 export default async function InsightsPage({
   searchParams,
@@ -20,7 +21,20 @@ export default async function InsightsPage({
 }) {
   const user = await requireOnboarded();
   const { tab } = await searchParams;
-  const initialTab: Tab = tab === "habits" || tab === "jarvis" || tab === "life" ? tab : "life";
+
+  // Owner gate for the DEVELOPMENT tab. When GITHUB_ISSUE_USER_EMAIL is unset
+  // the comparison is false (undefined === user.email), which is the correct
+  // closed default; do not loosen it.
+  const isDevOwner = user.email === process.env.GITHUB_ISSUE_USER_EMAIL;
+
+  // "development" is only a valid initial tab for the owner; a non-owner asking
+  // for ?tab=development falls back to life.
+  const initialTab: Tab =
+    tab === "development" && isDevOwner
+      ? "development"
+      : tab === "habits" || tab === "jarvis" || tab === "life"
+        ? tab
+        : "life";
 
   // 365-day window for the Habits tab. Same as analytics, matches the heatmap.
   const today = new Date();
@@ -64,6 +78,12 @@ export default async function InsightsPage({
     })),
   ]);
 
+  // Owner-only: fetch dev runs after the main load so non-owners never trigger
+  // the query. When not the owner, development stays null and the tab is hidden.
+  const development = isDevOwner
+    ? { runs: await getRecentDevRuns(user.id) }
+    : null;
+
   const totalEvents = analytics.events.length + analytics.meta.taskTotalCompleted;
 
   return (
@@ -101,6 +121,7 @@ export default async function InsightsPage({
             earliestAvailable: startISO,
           }}
           life={{ claudeCode, strava, flow, githubUsername: user.githubUsername }}
+          development={development}
         />
       </main>
     </div>
