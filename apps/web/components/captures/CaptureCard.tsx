@@ -1,19 +1,15 @@
 "use client";
 
+import { MoreHorizontal } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AnimatePresence, motion } from "motion/react";
-import { MoreHorizontal } from "lucide-react";
 
+import { deleteCapture } from "@/app/actions/captures";
+import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { RelativeTime } from "@/components/shared/RelativeTime";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { RelativeTime } from "@/components/shared/RelativeTime";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import { HashtagChip } from "./HashtagChip";
-import { deleteCapture } from "@/app/actions/captures";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
+import { HashtagChip } from "./HashtagChip";
 
 interface Props {
   capture: CaptureWithLinks;
@@ -47,6 +47,14 @@ interface Props {
    * remove the row on the next refetch.
    */
   onOptimisticDelete?: (id: string) => void;
+  /**
+   * RT-06 rollback — un-hides the row when the inline (legacy) delete's Server
+   * Action rejects. Needed because the parent overlay (useOptimisticList) now
+   * PERSISTS the optimistic delete until canonical reconciles, so it no longer
+   * auto-reverts. Only used on the inline-delete path (when onDeleteCapture is
+   * not provided).
+   */
+  onOptimisticRevert?: (id: string) => void;
   /**
    * Phase 6 Plan 06-02 (RES-02) — when provided, the card hands off the
    * entire delete flow to the parent (CapturesClient) which wraps it in
@@ -101,6 +109,7 @@ export function CaptureCard({
   compact = false,
   onOpen,
   onOptimisticDelete,
+  onOptimisticRevert,
   onDeleteCapture,
   userAvatarUrl,
   userInitials,
@@ -138,6 +147,7 @@ export function CaptureCard({
       if (!r.success) {
         toast.error(r.error);
         setRemoved(false);
+        onOptimisticRevert?.(capture.id);
         return;
       }
       toast("Capture deleted.");
@@ -174,8 +184,7 @@ export function CaptureCard({
             "",
             "",
             compact ? "px-3 py-2" : "px-5 py-4",
-            onOpen &&
-              "cursor-pointer ",
+            onOpen && "cursor-pointer "
           )}
           {...(onOpen
             ? {
@@ -191,7 +200,7 @@ export function CaptureCard({
           <div
             className={cn(
               "absolute top-2 right-2 opacity-0 transition-opacity",
-              "group-hover:opacity-100 data-[state=open]:opacity-100",
+              "group-hover:opacity-100 data-[state=open]:opacity-100"
             )}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
@@ -208,25 +217,15 @@ export function CaptureCard({
                   <MoreHorizontal size={14} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="font-serif text-base"
-              >
-                {onOpen && (
-                  <DropdownMenuItem onSelect={() => onOpen()}>
-                    Open
-                  </DropdownMenuItem>
-                )}
+              <DropdownMenuContent align="end" className="font-serif text-base">
+                {onOpen && <DropdownMenuItem onSelect={() => onOpen()}>Open</DropdownMenuItem>}
                 {isJarvisCreated && (
                   // D-14 / JARVIS-13 — only render this item for createdVia === "jarvis"
                   <DropdownMenuItem onSelect={() => setConvertOpen(true)}>
                     Convert to task
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => setConfirmOpen(true)}
-                >
+                <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -240,11 +239,7 @@ export function CaptureCard({
                   the existing AvatarFallback token. */}
               <Avatar className="h-9 w-9 flex-shrink-0">
                 {userAvatarUrl ? (
-                  <AvatarImage
-                    src={userAvatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                  />
+                  <AvatarImage src={userAvatarUrl} alt="" referrerPolicy="no-referrer" />
                 ) : null}
                 <AvatarFallback className="font-mono text-xs text-[var(--ink-muted)]">
                   {userInitials ?? "·"}
@@ -279,9 +274,7 @@ export function CaptureCard({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="font-serif">
           <DialogHeader>
-            <DialogTitle className="font-serif text-[20px]">
-              Delete this capture?
-            </DialogTitle>
+            <DialogTitle className="font-serif text-[20px]">Delete this capture?</DialogTitle>
             <DialogDescription className="font-serif text-base">
               This can't be undone.
             </DialogDescription>
@@ -295,12 +288,7 @@ export function CaptureCard({
             >
               Never mind
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={pending}
-            >
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={pending}>
               Delete capture
             </Button>
           </DialogFooter>
@@ -323,9 +311,7 @@ function CaptureBody({
   compact: boolean;
 }) {
   // Map lowercase-name → displayName lookup
-  const tagLookup = new Map(
-    capture.hashtags.map((h) => [h.name, h.displayName]),
-  );
+  const tagLookup = new Map(capture.hashtags.map((h) => [h.name, h.displayName]));
 
   // Split content on whitespace, but preserve whitespace by capturing groups
   const parts = capture.content.split(/(\s+)/);
@@ -335,13 +321,7 @@ function CaptureBody({
     if (m && m[1]) {
       const lower = m[1].toLowerCase();
       const displayName = tagLookup.get(lower) ?? m[1];
-      return (
-        <HashtagChip
-          key={`${i}-tag`}
-          displayName={displayName}
-          asButton={false}
-        />
-      );
+      return <HashtagChip key={`${i}-tag`} displayName={displayName} asButton={false} />;
     }
     return <span key={`${i}-text`}>{part}</span>;
   });

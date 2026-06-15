@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { getCapturesForCurrentUser } from "@/app/actions/captures";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
-import { CaptureComposer } from "@/components/captures/CaptureComposer";
 import { CaptureCard } from "@/components/captures/CaptureCard";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { CaptureComposer } from "@/components/captures/CaptureComposer";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 interface Props {
   userId: string;
@@ -47,9 +44,7 @@ export function ProjectCapturesSection({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setCollapsed(
-      localStorage.getItem("project-captures-collapsed") === "true",
-    );
+    setCollapsed(localStorage.getItem("project-captures-collapsed") === "true");
   }, []);
   useEffect(() => {
     if (typeof window !== "undefined")
@@ -72,17 +67,14 @@ export function ProjectCapturesSection({
     initialData: initialCaptures,
   });
 
-  const [optimisticCaptures, addOptimistic] = useOptimistic(
-    allCaptures,
-    optimisticReducer<CaptureWithLinks>,
-  );
+  // RT-06 self-reconciling overlay — pending insert/delete persist until the
+  // canonical captures cache catches up, so a project capture can't flash out
+  // and back in under a slow refetch / Realtime echo.
+  const [optimisticCaptures, addOptimistic] = useOptimisticList<CaptureWithLinks>(allCaptures);
 
   const projectCaptures = useMemo(
-    () =>
-      optimisticCaptures.filter((c) =>
-        c.projects.some((p) => p.id === projectId),
-      ),
-    [optimisticCaptures, projectId],
+    () => optimisticCaptures.filter((c) => c.projects.some((p) => p.id === projectId)),
+    [optimisticCaptures, projectId]
   );
 
   function handleOptimisticInsert(row: CaptureWithLinks) {
@@ -140,6 +132,7 @@ export function ProjectCapturesSection({
             projects={projects}
             defaultProjectIds={[projectId]}
             onOptimisticInsert={handleOptimisticInsert}
+            onOptimisticRevert={(id) => addOptimistic({ type: "revert", id })}
           />
 
           {/* Feed — vertical stack, document register, FLIP-free entry/exit. */}
@@ -160,10 +153,9 @@ export function ProjectCapturesSection({
                       capture={c}
                       compact
                       onOptimisticDelete={(id) =>
-                        startTransition(() =>
-                          addOptimistic({ type: "delete", id }),
-                        )
+                        startTransition(() => addOptimistic({ type: "delete", id }))
                       }
+                      onOptimisticRevert={(id) => addOptimistic({ type: "revert", id })}
                     />
                   </motion.div>
                 ))}
@@ -175,7 +167,6 @@ export function ProjectCapturesSection({
     </section>
   );
 }
-
 
 function EmptyCaptures() {
   return (
