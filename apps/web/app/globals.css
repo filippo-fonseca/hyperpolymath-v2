@@ -561,8 +561,8 @@ html::-webkit-scrollbar-thumb:hover,
 
 .glass-tile {
   background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+  backdrop-filter: blur(var(--glass-blur, 12px));
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
     var(--glass-lo), inset 0 0 24px
@@ -595,6 +595,37 @@ html::-webkit-scrollbar-thumb:hover,
 .glass-pressed {
   background: color-mix(in oklch, var(--surface) 96%, var(--ink));
   box-shadow: inset 2px 2px 6px var(--glass-lo), inset -2px -2px 5px var(--glass-hi);
+}
+
+/* LifeOS glassier register — scoped knob override so the homepage tiles read
+   as frosted glass over the canvas (more translucent + deeper blur) WITHOUT
+   touching the calmer glass tier used on settings, kanban, detail panels, etc.
+   Any .glass-tile / .glass-button nested under .lifeos-glass inherits these. */
+.lifeos-glass {
+  --glass-bg: color-mix(in oklch, var(--surface) 70%, transparent);
+  --glass-bg-button: color-mix(in oklch, var(--surface) 62%, transparent);
+  --glass-blur: 22px;
+}
+.dark .lifeos-glass {
+  /* Dark canvas: keep tiles readable — slightly less see-through than light. */
+  --glass-bg: color-mix(in oklch, var(--surface) 64%, transparent);
+  --glass-bg-button: color-mix(in oklch, var(--surface) 56%, transparent);
+  --glass-blur: 24px;
+}
+
+/* Glassy sonner toasts — frosted translucent surface + backdrop blur, matching
+   the app's glass tier. !important overrides sonner's injected --normal-bg
+   surface styles. Applied via <Toaster toastOptions={{ className }} />. */
+.glass-toast {
+  background: color-mix(in oklch, var(--surface) 72%, transparent) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi) !important;
+  color: var(--ink) !important;
+}
+.dark .glass-toast {
+  background: color-mix(in oklch, var(--surface) 60%, transparent) !important;
 }
 
 /* =====================================================================

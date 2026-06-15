@@ -85,7 +85,7 @@ export default async function LifeOsPage() {
   const trainingDone = visibleTraining.filter((a) => a.status === "done").length;
 
   return (
-    <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <main className="lifeos-glass relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
       <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
         <LifeOsHero
           displayName={user.displayName ?? user.email}

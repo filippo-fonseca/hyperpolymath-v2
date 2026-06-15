@@ -1,22 +1,22 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
-import { getSidebarTree } from "@/lib/db/queries/sidebar";
-import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
-import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
+import { GlobalJarvisDialog } from "@/components/jarvis/GlobalJarvisDialog";
+import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
+import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
 import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
 import { ShortcutsCheatSheet } from "@/components/shell/ShortcutsCheatSheet";
-import { QueryProvider } from "@/components/providers/QueryProvider";
-import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
-import { GlobalJarvisDialog } from "@/components/jarvis/GlobalJarvisDialog";
-import { GlobalJarvisHandler } from "@/components/jarvis/GlobalJarvisHandler";
-import { JarvisWarmer } from "@/components/jarvis/JarvisWarmer";
+import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
-import { Toaster } from "sonner";
+import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
+import { db } from "@/lib/db";
+import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
+import { getSidebarTree } from "@/lib/db/queries/sidebar";
+import { projects } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Toaster } from "sonner";
 
 export default async function AppLayout({
   children,
@@ -29,29 +29,22 @@ export default async function AppLayout({
 
   // Fetch sidebar + composer data server-side in parallel.
   // hashtags + projects feed the Cmd+K composer (single-source-of-truth per D-09).
-  const [
-    activeAreas,
-    allAreas,
-    hashtagsForComposer,
-    projectsForComposer,
-    oauthAvatar,
-  ] = await Promise.all([
-    getSidebarTree(user.id, false),
-    getSidebarTree(user.id, true),
-    getHashtagSuggestions(user.id),
-    db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        isClass: projects.isClass,
-        courseCode: projects.courseCode,
-      })
-      .from(projects)
-      .where(
-        and(eq(projects.userId, user.id), isNull(projects.archivedAt)),
-      ),
-    getAuthAvatar(),
-  ]);
+  const [activeAreas, allAreas, hashtagsForComposer, projectsForComposer, oauthAvatar] =
+    await Promise.all([
+      getSidebarTree(user.id, false),
+      getSidebarTree(user.id, true),
+      getHashtagSuggestions(user.id),
+      db
+        .select({
+          id: projects.id,
+          name: projects.name,
+          isClass: projects.isClass,
+          courseCode: projects.courseCode,
+        })
+        .from(projects)
+        .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+      getAuthAvatar(),
+    ]);
 
   return (
     <NuqsAdapter>
@@ -77,14 +70,16 @@ export default async function AppLayout({
             route EXCEPT /today (where GlobalHotkeys.focusJarvis wins). */}
         <GlobalJarvisDialog />
         {/* Capture composer — opens on Cmd+Shift+K (Cmd+K reserved for JARVIS focus) */}
-        <CommandMenu
-          hashtags={hashtagsForComposer}
-          projects={projectsForComposer}
-        />
+        <CommandMenu hashtags={hashtagsForComposer} projects={projectsForComposer} />
         {/* `?` opens shortcuts cheat sheet (when no input is focused) */}
         <ShortcutsCheatSheet />
-        {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC) */}
-        <Toaster position="bottom-right" duration={4000} />
+        {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC).
+            Glass register: translucent frosted surface (see .glass-toast). */}
+        <Toaster
+          position="bottom-right"
+          duration={4000}
+          toastOptions={{ className: "glass-toast" }}
+        />
         {/* Phase 7 Plan 07-03 — always-mounted voice lifecycle owner.
             JarvisListenerMount is a client wrapper that holds the
             dynamic({ ssr: false }) import (Next 16 forbids ssr:false in RSC).
