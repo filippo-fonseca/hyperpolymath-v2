@@ -1,6 +1,6 @@
 "use client";
 
-import { listActivitiesInRange } from "@/app/actions/training";
+import { listActivitiesInRange, listActivityTypes, listBatches } from "@/app/actions/training";
 import type { ActivityWithType, BatchRow, TypeWithBatch } from "@/lib/db/queries/training";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { type OptimisticListAction, useOptimisticList } from "@/lib/realtime/useOptimisticList";
@@ -100,19 +100,13 @@ export function TrainingClient({
   // matches automatically.
   const { data: types = initialTypes } = useQuery<TypeWithBatch[]>({
     queryKey: tableKey("training_activity_types", userId),
-    queryFn: async () => {
-      // No direct read API in lib/training; the union row shape lives on
-      // initialTypes + Realtime fanout repaints from the activities refetch.
-      // For now the seed is initialTypes; the sheet plan (15-04) introduces a
-      // dedicated `listTypes` server action when CRUD lands.
-      return initialTypes;
-    },
+    queryFn: listActivityTypes,
     initialData: initialTypes,
   });
 
   const { data: batches = initialBatches } = useQuery<BatchRow[]>({
     queryKey: tableKey("training_batches", userId),
-    queryFn: async () => initialBatches,
+    queryFn: listBatches,
     initialData: initialBatches,
   });
   // RT-06 self-reconciling overlay — instant feedback for create/move/complete/

@@ -11,8 +11,12 @@ import {
 } from "@/lib/db/schema";
 import {
   getActivitiesInRange,
+  getActivityTypes,
   getAllActivities,
+  getBatches,
   type ActivityWithType,
+  type BatchRow,
+  type TypeWithBatch,
 } from "@/lib/db/queries/training";
 
 type ActionResult<T = unknown> =
@@ -775,6 +779,25 @@ export async function listAllActivities(): Promise<ActivityWithType[]> {
   const userId = await getUserId();
   if (!userId) return [];
   return getAllActivities(userId);
+}
+
+/**
+ * Server-action wrappers for the activity types + batches lists. The /training
+ * client uses these as TanStack Query queryFns so a Realtime invalidation on
+ * `training_activity_types` / `training_batches` actually refetches fresh rows
+ * — previously the queryFns returned the static SSR seed, so type/batch edits
+ * in the Manage-Types sheet didn't appear until a full page refresh.
+ */
+export async function listActivityTypes(): Promise<TypeWithBatch[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  return getActivityTypes(userId);
+}
+
+export async function listBatches(): Promise<BatchRow[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  return getBatches(userId);
 }
 
 // ---------------------------------------------------------------------------
