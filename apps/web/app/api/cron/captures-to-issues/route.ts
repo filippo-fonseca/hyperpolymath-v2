@@ -43,6 +43,8 @@ const JOB_NAME = "captures-to-issues";
 const HASHTAG_NAME = "hyperpolymath";
 const DEFAULT_REPO = "filippo-fonseca/hyperpolymath-v2";
 const KIWI_LABEL = "kiwi-drafted";
+// Appended to every filed issue body so the provenance is always clear.
+const ISSUE_FOOTER = "\n\n---\n_Automatically generated from Filippo's notes._";
 
 export async function GET(req: Request) {
   // ===== LAYER 1: AUTH =====
@@ -159,13 +161,20 @@ export async function GET(req: Request) {
   let issued = 0;
   let skipped = 0;
   let errors = 0;
+  let deferred = 0;
 
   for (const capture of eligible) {
-    // Per-capture isolation: one failure never aborts the run.
+    // Per-capture isolation: one failure never aborts the run. A capture is
+    // marked evaluated (so never reconsidered) UNLESS it hit a transient
+    // failure (network error, GitHub 429, or GitHub 5xx), in which case it is
+    // left unmarked so the next daily run retries it. Permanent failures
+    // (GitHub 4xx) ARE marked, so a single bad capture cannot clog the daily
+    // cap forever.
+    let markEvaluated = true;
+    let issueUrl: string | null = null;
     try {
       const decision = await specCaptureAsIssue(capture.content);
 
-      let issueUrl: string | null = null;
       if (decision.actionable) {
         // Ensure the kiwi-drafted label is always present.
         const labels = decision.labels.includes(KIWI_LABEL)
@@ -183,11 +192,16 @@ export async function GET(req: Request) {
           },
           body: JSON.stringify({
             title: decision.title,
-            body: decision.body,
+            body: `${decision.body}${ISSUE_FOOTER}`,
             labels,
           }),
         });
         if (!res.ok) {
+          // Rate-limited or GitHub-side error: transient. Leave unmarked so the
+          // next run retries this capture.
+          if (res.status === 429 || res.status >= 500) {
+            markEvaluated = false;
+          }
           throw new Error(`GitHub issue create failed: ${res.status}`);
         }
         const created: unknown = await res.json();
@@ -199,10 +213,33 @@ export async function GET(req: Request) {
         ) {
           issueUrl = (created as { html_url: string }).html_url;
         }
+        issued++;
+      } else {
+        skipped++;
       }
+    } catch (err) {
+      errors++;
+      // A fetch network failure throws a TypeError: treat it as transient too.
+      if (err instanceof TypeError) {
+        markEvaluated = false;
+      }
+      console.error("[cron captures-to-issues] capture failed", {
+        captureId: capture.id,
+        transient: !markEvaluated,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
-      // PERSISTENCE: always mark evaluated (issued OR skipped) so the capture
-      // is never re-evaluated. Set the URL only when an issue was created.
+    if (!markEvaluated) {
+      // Transient failure: do not persist evaluation; retry on the next run.
+      deferred++;
+      continue;
+    }
+
+    // PERSISTENCE: mark evaluated (issued, gate-skipped, or permanent failure)
+    // so the capture is never reconsidered. Set the URL only when an issue was
+    // created. If the mark itself fails, swallow it and continue the run.
+    try {
       await db
         .update(captures)
         .set({
@@ -210,37 +247,17 @@ export async function GET(req: Request) {
           ...(issueUrl ? { githubIssueUrl: issueUrl } : {}),
         })
         .where(eq(captures.id, capture.id));
-
       processed++;
-      if (decision.actionable) {
-        issued++;
-      } else {
-        skipped++;
-      }
-    } catch (err) {
-      errors++;
-      console.error("[cron captures-to-issues] capture failed", {
+    } catch (markErr) {
+      console.error("[cron captures-to-issues] evaluated-mark failed", {
         captureId: capture.id,
-        error: err instanceof Error ? err.message : String(err),
+        error: markErr instanceof Error ? markErr.message : String(markErr),
       });
-      // Still attempt to mark evaluated so a persistently failing capture does
-      // not block the run forever. If this mark itself fails, swallow it.
-      try {
-        await db
-          .update(captures)
-          .set({ githubEvaluatedAt: sql`now()` })
-          .where(eq(captures.id, capture.id));
-      } catch (markErr) {
-        console.error("[cron captures-to-issues] evaluated-mark failed", {
-          captureId: capture.id,
-          error: markErr instanceof Error ? markErr.message : String(markErr),
-        });
-      }
     }
   }
 
   await finalizeRun(runId, errors > 0 ? "partial" : "ok");
-  return NextResponse.json({ processed, issued, skipped, errors });
+  return NextResponse.json({ processed, issued, skipped, errors, deferred });
 }
 
 // Finalize the cron_runs row for this invocation.
