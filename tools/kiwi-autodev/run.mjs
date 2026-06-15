@@ -36,6 +36,22 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const execFileP = promisify(execFile);
+
+// Serialize git worktree add/remove across the parallel issue runs. `git
+// worktree add -b` writes branch upstream config under a .git/config lock;
+// running several at once collides with "could not lock config file
+// .git/config: File exists". Worktree setup/teardown is cheap, so funnel just
+// those calls through a one-at-a-time chain while the agent work stays parallel.
+let worktreeLock = Promise.resolve();
+function withWorktreeLock(fn) {
+  const next = worktreeLock.then(fn, fn);
+  worktreeLock = next.then(
+    () => {},
+    () => {},
+  );
+  return next;
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const WEB_ENV_LOCAL = path.join(REPO_ROOT, 'apps', 'web', '.env.local');
@@ -144,10 +160,13 @@ async function runIssue(issue, runDate) {
   let timedOut = false;
 
   try {
-    // Fresh worktree off origin/main.
-    await execFileP('git', ['-C', REPO_ROOT, 'worktree', 'add', worktreeDir, '-b', branch, 'origin/main'], {
-      timeout: 60_000,
-    });
+    // Fresh worktree off origin/main. Serialized: concurrent `worktree add -b`
+    // calls collide on the .git/config lock.
+    await withWorktreeLock(() =>
+      execFileP('git', ['-C', REPO_ROOT, 'worktree', 'add', worktreeDir, '-b', branch, 'origin/main'], {
+        timeout: 60_000,
+      }),
+    );
 
     const prompt = buildPrompt(issueNumber, title);
     const logStream = createWriteStream(logPath, { flags: 'a' });
@@ -239,11 +258,14 @@ async function runIssue(issue, runDate) {
     result.recapText = '';
   }
 
-  // Tear down the worktree but KEEP the branch (it is review-only).
+  // Tear down the worktree but KEEP the branch (it is review-only). Serialized
+  // on the same lock as add so teardown never races a concurrent add.
   try {
-    await execFileP('git', ['-C', REPO_ROOT, 'worktree', 'remove', '--force', worktreeDir], {
-      timeout: 60_000,
-    });
+    await withWorktreeLock(() =>
+      execFileP('git', ['-C', REPO_ROOT, 'worktree', 'remove', '--force', worktreeDir], {
+        timeout: 60_000,
+      }),
+    );
   } catch {
     /* best-effort cleanup */
   }
