@@ -29,7 +29,7 @@ Milestone: v1.1 "Speed & Agility"
 Phase: 19 — tasks-redesign-inbox-universal-day-view-glass-cards
 Plan: 5/5 complete (19-01..19-05)
 Status: Executed — verification human_needed (automated 9/9 PASS; 3 browser items pending)
-Last activity: 2026-06-13 -- Phase 19 execution complete
+Last activity: 2026-06-15 -- Completed quick task 260615-h74: daily captures-to-issues cron
 
 Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -403,6 +403,7 @@ None yet.
 | 260614-f44 | Advertise MCP server `instructions` in createPersonalContextServer handshake + sharpen get_current_context tool description to trigger on planning/prioritization intents | 2026-06-14 | 7b4d2f8 | [260614-f44-add-mcp-server-instructions-to-createper](./quick/260614-f44-add-mcp-server-instructions-to-createper/) |
 | 260614-g2d | Persist Cmd+K/voice JARVIS turns to jarvis_turns + live-merge externally-created turns into /today console scrollback via realtime (dedup-by-id, streaming-safe) | 2026-06-14 | 6415998 | [260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-](./quick/260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-/) |
 | 260614-gk0 | /graph: add d3-force collision force (radius 4·√val+5) + charge/link tuning so high-degree nodes stop crumpling children; brighter base edges (0.18→0.40, width 0.5→1.0); rAF-wait for async ForceGraph ref | 2026-06-14 | 82ed8c4 | [260614-gk0-fix-graph-layout-collision-force-for-hig](./quick/260614-gk0-fix-graph-layout-collision-force-for-hig/) |
+| 260615-h74 | Daily Vercel cron turning hyperpolymath-tagged captures into spec'd GitHub issues, with four ordered security layers (constant-time auth, once-per-day DB lock, per-run cap 25, env-email eligibility + noExport hard skip) and an LLM actionability+privacy gate | 2026-06-15 | efecf07 | [260615-h74-daily-cron-turning-hyperpolymath-tagged-](./quick/260615-h74-daily-cron-turning-hyperpolymath-tagged-/) |
 
 ## Session Continuity
 
