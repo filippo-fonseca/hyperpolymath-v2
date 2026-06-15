@@ -12,8 +12,9 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { Button } from "@/components/ui/button";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
+import type { OptimisticAction } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
@@ -23,7 +24,7 @@ import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from 
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
-import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
@@ -94,11 +95,12 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
   useTableSubscription("tasks", userId);
   useTableSubscription("tasks_projects", userId);
 
-  // ── Optimistic overlay (D-04 React 19) ───────────────────────────────────
-  const [optimisticTasks, addOptimistic] = useOptimistic(
-    tasks,
-    optimisticReducer<TaskWithProjects>
-  );
+  // ── Optimistic overlay (RT-06 self-reconciling) ──────────────────────────
+  // Replaces React's transition-scoped useOptimistic: pending inserts/updates
+  // persist until the canonical cache catches up, so a slow refetch or echo
+  // can't make a just-created row flash out and back in. Same [items, dispatch]
+  // API, so every addOptimistic({...}) call below is unchanged.
+  const [optimisticTasks, addOptimistic] = useOptimisticList<TaskWithProjects>(tasks);
 
   // Expand/fullscreen (D-08 / UI-SPEC S-7) — localStorage-backed flag shared
   // with AppShell (which hides the sidebar). Ephemeral, never in the URL.
