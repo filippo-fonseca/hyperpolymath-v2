@@ -1,43 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
-import {
-  CheckSquare,
-  MessageSquare,
-  Calendar,
-  Settings,
-  BarChart2,
-  Info,
-  Repeat,
-  LayoutDashboard,
-  Dumbbell,
-  Waypoints,
-  UtensilsCrossed,
-} from "lucide-react";
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
-import { KiwiAboutDialog } from "./KiwiAboutDialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
+import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
 import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
+import {
+  type PolypadConnectionState,
+  subscribeToPolypadState,
+} from "@/lib/polypad/polypad-state-bus";
 import { cn } from "@/lib/utils";
 import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
-import { MicIndicatorDot } from "@/components/voice/MicIndicatorDot";
-import { DiscreetToggleButton } from "@/components/voice/DiscreetToggleButton";
 import type { MicState } from "@/lib/voice/types";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
-import { Laptop } from "lucide-react";
-import { PolypadIndicatorDot } from "@/components/polypad/PolypadIndicatorDot";
 import {
-  subscribeToPolypadState,
-  type PolypadConnectionState,
-} from "@/lib/polypad/polypad-state-bus";
+  BarChart2,
+  Calendar,
+  CheckSquare,
+  Dumbbell,
+  Info,
+  LayoutDashboard,
+  MessageSquare,
+  Repeat,
+  Settings,
+  UtensilsCrossed,
+  Waypoints,
+} from "lucide-react";
+import { Laptop } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { KiwiAboutDialog } from "./KiwiAboutDialog";
 
 /**
  * Top-level primary navigation rendered inside the Sidebar's NAVIGATE section.
@@ -60,21 +54,34 @@ import {
  * Mono uppercase tracking-wide nav labels per UI-SPEC §5e. Hover opacity
  * 0.7 → 1 over 100ms per UI-SPEC §7a.
  */
+// JARVIS is intentionally NOT here — it lives in the TopTabBar (the cyan agent
+// pill), so duplicating it in the sidebar rail was redundant.
 const items = [
-  { href: "/today", label: "JARVIS", icon: KiwiIcon, disabled: false, tooltip: undefined, isAgent: true },
-  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/nutrition", label: "Nutrition", icon: UtensilsCrossed, disabled: true, tooltip: "Coming soon", isAgent: false },
-  { href: "/captures", label: "Captures", icon: MessageSquare, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/graph", label: "Graph", icon: Waypoints, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
+  { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined },
+  { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined },
+  {
+    href: "/nutrition",
+    label: "Nutrition",
+    icon: UtensilsCrossed,
+    disabled: true,
+    tooltip: "Coming soon",
+  },
+  {
+    href: "/captures",
+    label: "Captures",
+    icon: MessageSquare,
+    disabled: false,
+    tooltip: undefined,
+  },
+  { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined },
+  { href: "/graph", label: "Graph", icon: Waypoints, disabled: false, tooltip: undefined },
   // /areas is NOT here — the sidebar AREAS section header below acts as
   // the link + active state, with the area tree nested under it as proper
   // children. Putting it in both spots was duplicate plumbing.
-  { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined, isAgent: false },
-  { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined, isAgent: false },
+  { href: "/insights", label: "Insights", icon: BarChart2, disabled: false, tooltip: undefined },
+  { href: "/settings", label: "Settings", icon: Settings, disabled: false, tooltip: undefined },
 ] as const;
 
 /**
@@ -111,8 +118,7 @@ export function PersistentNav({ collapsed }: Props) {
   // loading) is treated as "no badge" so we never flash a red dot on first
   // render before the hook resolves.
   const { data: gcalStatus } = useGcalConnectionStatus();
-  const showGcalBadge =
-    gcalStatus !== undefined && gcalStatus !== "connected";
+  const showGcalBadge = gcalStatus !== undefined && gcalStatus !== "connected";
   const { desktopClaimed } = useVoiceSourceStatus();
 
   return (
@@ -133,12 +139,11 @@ export function PersistentNav({ collapsed }: Props) {
                 "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
                 "font-serif text-[14px] tracking-tight",
                 "transition-all duration-150 ease-out",
-                active && !item.disabled
-                  ? "text-[var(--ink)]"
-                  : "text-[var(--ink-muted)]",
-                !active && !item.disabled &&
+                active && !item.disabled ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]",
+                !active &&
+                  !item.disabled &&
                   "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
-                item.disabled && "opacity-40 cursor-not-allowed",
+                item.disabled && "opacity-40 cursor-not-allowed"
               )}
               style={
                 active && !item.disabled
@@ -166,15 +171,7 @@ export function PersistentNav({ collapsed }: Props) {
               )}
               {/* Icon + collapsed-mode badge anchor. */}
               <span className="relative shrink-0">
-                <Icon
-                  size={18}
-                  strokeWidth={active ? 2 : 1.5}
-                  className={
-                    item.isAgent && active
-                      ? "text-[var(--hud-cyan)]"
-                      : undefined
-                  }
-                />
+                <Icon size={18} strokeWidth={active ? 2 : 1.5} />
                 {renderBadge && collapsed && (
                   <span
                     className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--surface)]"
@@ -184,18 +181,14 @@ export function PersistentNav({ collapsed }: Props) {
                 )}
               </span>
               {!collapsed && (
-                <span className={cn("flex-1", active && "font-medium")}>
-                  {item.label}
-                </span>
+                <span className={cn("flex-1", active && "font-medium")}>{item.label}</span>
               )}
               {item.disabled && !collapsed && (
                 <span
                   className="shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
                   style={{
-                    background:
-                      "color-mix(in oklch, var(--ink) 6%, transparent)",
-                    boxShadow:
-                      "inset 0 0 0 1px color-mix(in oklch, var(--ink) 10%, transparent)",
+                    background: "color-mix(in oklch, var(--ink) 6%, transparent)",
+                    boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--ink) 10%, transparent)",
                   }}
                   aria-hidden="true"
                 >
@@ -256,8 +249,8 @@ export function PersistentNav({ collapsed }: Props) {
             <PolypadIndicatorDotContainer collapsed={collapsed} />
           </div>
           {!collapsed && <DiscreetToggleButton />}
-          {desktopClaimed && (
-            collapsed ? (
+          {desktopClaimed &&
+            (collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
@@ -267,8 +260,7 @@ export function PersistentNav({ collapsed }: Props) {
                     className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-md"
                     style={{
                       color: "var(--hud-cyan)",
-                      background:
-                        "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
+                      background: "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
                       boxShadow:
                         "inset 0 1px 0 color-mix(in oklch, var(--ink) 0%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 18%, transparent), 0 1px 2px color-mix(in oklch, var(--ink) 12%, transparent)",
                     }}
@@ -286,8 +278,7 @@ export function PersistentNav({ collapsed }: Props) {
                 className="ml-auto inline-flex items-center gap-1.5 px-2 py-[3px] rounded-md font-mono text-[10px] uppercase tracking-[0.1em]"
                 style={{
                   color: "var(--hud-cyan)",
-                  background:
-                    "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
+                  background: "color-mix(in oklch, var(--hud-cyan) 6%, transparent)",
                   boxShadow:
                     "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 18%, transparent), 0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent)",
                 }}
@@ -295,8 +286,7 @@ export function PersistentNav({ collapsed }: Props) {
                 <Laptop size={11} strokeWidth={1.75} aria-hidden="true" />
                 <span>Desktop</span>
               </span>
-            )
-          )}
+            ))}
         </div>
 
         {/* "Meet Kiwi" info trigger — opens the KiwiAboutDialog modal.
@@ -310,16 +300,14 @@ export function PersistentNav({ collapsed }: Props) {
               "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
               "font-serif text-[14px] tracking-tight text-[var(--ink-muted)]",
               "transition-all duration-150 ease-out",
-              "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
+              "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
             )}
             aria-label="About Kiwi"
           >
             <span className="relative shrink-0">
               <Info size={16} strokeWidth={1.5} aria-hidden="true" />
             </span>
-            {!collapsed && (
-              <span className="flex-1 text-left italic">About Kiwi</span>
-            )}
+            {!collapsed && <span className="flex-1 text-left italic">About Kiwi</span>}
           </button>
         </KiwiAboutDialog>
       </nav>

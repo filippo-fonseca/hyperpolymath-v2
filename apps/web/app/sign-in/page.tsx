@@ -1,13 +1,13 @@
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { SignInButton } from "@/components/sign-in-button";
+import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { SignInButton } from "@/components/sign-in-button";
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
 
 export default async function SignInPage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (data?.claims) redirect("/today");
+  if (data?.claims) redirect("/lifeos");
 
   return (
     <main
@@ -74,8 +74,8 @@ export default async function SignInPage() {
 
           {/* Closing tagline — the brand voice. */}
           <p className="mt-8 text-center font-serif italic text-[13px] text-[var(--ink-muted)]">
-            &ldquo;I brought back the Renaissance man/woman ideal and mixed it
-            with JARVIS from Tony Stark.&rdquo;
+            &ldquo;I brought back the Renaissance man/woman ideal and mixed it with JARVIS from Tony
+            Stark.&rdquo;
           </p>
         </div>
       </section>

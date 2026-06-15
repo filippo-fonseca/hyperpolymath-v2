@@ -5,7 +5,7 @@ import { OnboardingFlow } from "@/components/onboarding-flow";
 
 export default async function OnboardingPage() {
   const user = await getUserOrRedirect();
-  if (user.onboardedAt) redirect("/today");
+  if (user.onboardedAt) redirect("/lifeos");
 
   // Prefer the user's previously-typed displayName if they bounced mid-flow;
   // otherwise fall back to whatever Google OAuth gave us.

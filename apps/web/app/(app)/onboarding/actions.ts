@@ -126,5 +126,5 @@ export async function completeOnboarding(formData: FormData): Promise<void> {
     );
   }
 
-  redirect("/today");
+  redirect("/lifeos");
 }

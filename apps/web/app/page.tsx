@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 /**
  * Root route — Phase 8 (LAND-ROUTE / SC-1).
@@ -20,8 +20,7 @@ export const metadata: Metadata = {
     "A personal life-OS for people who refuse to specialize. One inbox. One agent. One sentence.",
   openGraph: {
     title: "Hyperpolymath · Type one sentence.",
-    description:
-      "A personal life-OS for people who refuse to specialize.",
+    description: "A personal life-OS for people who refuse to specialize.",
     type: "website",
     siteName: "Hyperpolymath",
     // Note: url field intentionally OMITTED until production URL is confirmed
@@ -31,8 +30,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Hyperpolymath · Type one sentence.",
-    description:
-      "A personal life-OS for people who refuse to specialize.",
+    description: "A personal life-OS for people who refuse to specialize.",
   },
 };
 
@@ -40,7 +38,7 @@ export default async function Root() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (data?.claims) {
-    redirect("/today");
+    redirect("/lifeos");
   }
   return <LandingPage />;
 }

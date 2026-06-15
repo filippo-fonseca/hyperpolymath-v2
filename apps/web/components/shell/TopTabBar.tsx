@@ -1,27 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { useSplitScreen } from "@/lib/ui/useSplitScreen";
+import { cn } from "@/lib/utils";
+import {
+  BarChart2,
+  Calendar,
+  CheckSquare,
+  Columns2,
+  Dumbbell,
+  Folder,
+  LayoutDashboard,
+  MessageSquare,
+  Network,
+  Repeat,
+  Settings,
+  UtensilsCrossed,
+  Waypoints,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  CheckSquare,
-  MessageSquare,
-  Calendar,
-  Settings,
-  BarChart2,
-  Repeat,
-  LayoutDashboard,
-  Dumbbell,
-  Network,
-  Waypoints,
-  Folder,
-  X,
-  Columns2,
-  UtensilsCrossed,
-} from "lucide-react";
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
-import { cn } from "@/lib/utils";
-import { useSplitScreen } from "@/lib/ui/useSplitScreen";
+import { useEffect, useState } from "react";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
@@ -107,8 +107,7 @@ export function TopTabBar() {
     }
   }, [pathname]);
 
-  const onJarvis =
-    pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
+  const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
   const leftPath = onJarvis ? lastRoute : pathname || FALLBACK_LEFT_PATH;
   const leftMeta = metaForPath(leftPath);
   const LeftIcon = leftMeta.icon;
@@ -183,7 +182,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
         "transition-[background-color,color] duration-150 ease-out",
         on
           ? "bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)] text-[var(--hud-cyan)]"
-          : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]",
+          : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]"
       )}
     >
       <Columns2 size={12} strokeWidth={1.75} />
@@ -219,10 +218,8 @@ function TabPill({
         scope,
         "rounded-md transition-[background-color,color,box-shadow] duration-150 ease-out",
         active
-          ? accent
-            ? "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]"
-            : "bg-[var(--surface-raised)] shadow-[inset_0_0_0_1px_var(--edge)]"
-          : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
+          ? "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]"
+          : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
       )}
       role="tab"
       aria-selected={active}
@@ -233,10 +230,8 @@ function TabPill({
           "flex items-center gap-2 pl-2.5 pr-2 py-1.5 font-sans text-[12px] outline-none rounded-md",
           "tracking-[-0.005em]",
           active
-            ? accent
-              ? "text-[var(--hud-cyan)] font-medium"
-              : "text-[var(--ink)] font-medium"
-            : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+            ? "text-[var(--hud-cyan)] font-medium"
+            : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
         )}
       >
         {accent && active && (
@@ -245,19 +240,18 @@ function TabPill({
             className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
             style={{
               backgroundColor: "var(--hud-cyan)",
-              boxShadow:
-                "0 0 6px color-mix(in oklch, var(--hud-cyan) 70%, transparent)",
+              boxShadow: "0 0 6px color-mix(in oklch, var(--hud-cyan) 70%, transparent)",
             }}
           />
         )}
         <span
           className="shrink-0 inline-flex items-center"
           style={
-            accent
-              ? {
-                  color: active ? "var(--hud-cyan)" : "var(--ink-muted)",
-                }
-              : undefined
+            active
+              ? { color: "var(--hud-cyan)" }
+              : accent
+                ? { color: "var(--ink-muted)" }
+                : undefined
           }
         >
           {icon}
@@ -268,7 +262,7 @@ function TabPill({
             className={cn(
               "ml-1 hidden md:inline font-mono text-[9px] tracking-[0.04em] uppercase",
               active ? "opacity-50" : "opacity-40",
-              accent ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]",
+              active ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]"
             )}
             aria-hidden
           >
@@ -284,7 +278,7 @@ function TabPill({
           className={cn(
             "mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm",
             "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_8%,transparent)]",
-            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-100",
+            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-100"
           )}
         >
           <X size={10} strokeWidth={2} />
