@@ -58,35 +58,35 @@ Hyperpolymath rejects the premise. **One system. One inbox. One sentence.** Runn
 Everything below is **shipped and working** unless explicitly marked otherwise.
 
 #### Agent
-- **JARVIS console.** Streaming Claude Sonnet 4.6 with Strict Tool Use. Zero parse errors, multi-tool calls per turn.
-- **Agentic loop.** Multi-step plans: read context → act → react → continue. Full **create / read / update / delete** over tasks, captures, projects, areas, gcal events.
-- **Inline references.** `$projectname` resolves to a project ID, `#hashtag` to a tag, highlighted as chips in the composer and normalized before reaching the model.
-- **Native time language.** "tomorrow", "next thursday", "8pm sat", time ranges, M/D. All parsed.
-- **Voice mode.** "Hey JARVIS" wake-word + ambient follow-up window. ElevenLabs streaming TTS. Per-turn interrupt + stop control.
-- **Personality.** British register, formal, concise, dry, never sycophantic.
+- **JARVIS console:** Streaming Claude Sonnet 4.6 with Strict Tool Use. Zero parse errors, multi-tool calls per turn.
+- **Agentic loop:** Multi-step plans: read context → act → react → continue. Full **create / read / update / delete** over tasks, captures, projects, areas, gcal events.
+- **Inline references:** `$projectname` resolves to a project ID, `#hashtag` to a tag, highlighted as chips in the composer and normalized before reaching the model.
+- **Native time language:** "tomorrow", "next thursday", "8pm sat", time ranges, M/D. All parsed.
+- **Voice mode:** "Hey JARVIS" wake-word + ambient follow-up window. ElevenLabs streaming TTS. Per-turn interrupt + stop control.
+- **Personality:** British register, formal, concise, dry, never sycophantic.
 
 #### Surfaces
-- **LifeOS.** The homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
-- **JARVIS.** Full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
-- **Today.** The morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
-- **Areas.** Your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
-- **Projects.** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
-- **Tasks.** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
-- **Captures.** A frictionless inbox: text and hashtag-filterable, full-text search, promote to task in one click.
-- **Calendar.** Bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
-- **Habits.** Daily-habit primitive with streaks, weekly grid, completion history.
-- **Training.** Fitness and activity planner scoped to the Training area; workouts, sessions, intensity signal.
-- **Health.** Body-stat tracking surface (weight, sleep, etc.). Early days, expanding.
-- **Graph.** Visual map of areas, projects, captures, and tasks and how everything connects. Force-directed; hover to inspect.
-- **Insights.** Counters, completion rates, and a time-budget signal across areas + projects.
-- **Settings.** Profile, graduation year, gcal connection, voice + agent defaults, device pairing.
+- **LifeOS:** The homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
+- **JARVIS:** Full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
+- **Today:** The morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
+- **Areas:** Your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
+- **Projects:** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
+- **Tasks:** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
+- **Captures:** A frictionless inbox: text and hashtag-filterable, full-text search, promote to task in one click.
+- **Calendar:** Bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
+- **Habits:** Daily-habit primitive with streaks, weekly grid, completion history.
+- **Training:** Fitness and activity planner scoped to the Training area; workouts, sessions, intensity signal.
+- **Health:** Body-stat tracking surface (weight, sleep, etc.). Early days, expanding.
+- **Graph:** Visual map of areas, projects, captures, and tasks and how everything connects. Force-directed; hover to inspect.
+- **Insights:** Counters, completion rates, and a time-budget signal across areas + projects.
+- **Settings:** Profile, graduation year, gcal connection, voice + agent defaults, device pairing.
 
 #### Platform
-- **Desktop app** (Tauri / Rust). Global keyboard shortcut to summon JARVIS, mic gated behind an explicit toggle, no always-on listening.
-- **Desktop ↔ web mic bridge.** When the desktop is holding the mic, the web JARVIS console knows and stops competing. A "Voice via desktop" indicator surfaces in the nav.
-- **Realtime everywhere.** Supabase Realtime channels invalidate TanStack Query caches; every surface reflects every change instantly.
-- **Google OAuth.** Single sign-on via Supabase Auth.
-- **Auth-aware everything.** All rows scoped to `userId` from day one; RLS enforced at the row level.
+- **Desktop app** (Tauri / Rust): Global keyboard shortcut to summon JARVIS, mic gated behind an explicit toggle, no always-on listening.
+- **Desktop ↔ web mic bridge:** When the desktop is holding the mic, the web JARVIS console knows and stops competing. A "Voice via desktop" indicator surfaces in the nav.
+- **Realtime everywhere:** Supabase Realtime channels invalidate TanStack Query caches; every surface reflects every change instantly.
+- **Google OAuth:** Single sign-on via Supabase Auth.
+- **Auth-aware everything:** All rows scoped to `userId` from day one; RLS enforced at the row level.
 - **MIT, public, secrets in env only.**
 
 ---
