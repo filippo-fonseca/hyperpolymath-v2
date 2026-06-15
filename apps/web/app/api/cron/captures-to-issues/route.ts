@@ -45,6 +45,12 @@ const DEFAULT_REPO = "filippo-fonseca/hyperpolymath-v2";
 const KIWI_LABEL = "kiwi-drafted";
 // Appended to every filed issue body so the provenance is always clear.
 const ISSUE_FOOTER = "\n\n---\n_Automatically generated from Filippo's notes._";
+// How many captures to process in parallel. The Claude call dominates latency,
+// so a handful of concurrent workers keeps a full PER_RUN_CAP run inside the
+// function time budget while staying gentle on the Anthropic + GitHub APIs.
+const CONCURRENCY = 6;
+
+type CaptureOutcome = "issued" | "skipped" | "error" | "deferred";
 
 export async function GET(req: Request) {
   // ===== LAYER 1: AUTH =====
@@ -157,104 +163,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ processed: 0, issued: 0, skipped: 0, errors: 0 });
   }
 
-  let processed = 0;
-  let issued = 0;
-  let skipped = 0;
-  let errors = 0;
-  let deferred = 0;
+  // Process captures with bounded concurrency. The Claude call per capture is
+  // the latency bottleneck, so running them sequentially blows the function
+  // time budget; CONCURRENCY workers keep the run well inside maxDuration.
+  const outcomes = await mapWithConcurrency(eligible, CONCURRENCY, (capture) =>
+    processCapture(capture, repo, token),
+  );
 
-  for (const capture of eligible) {
-    // Per-capture isolation: one failure never aborts the run. A capture is
-    // marked evaluated (so never reconsidered) UNLESS it hit a transient
-    // failure (network error, GitHub 429, or GitHub 5xx), in which case it is
-    // left unmarked so the next daily run retries it. Permanent failures
-    // (GitHub 4xx) ARE marked, so a single bad capture cannot clog the daily
-    // cap forever.
-    let markEvaluated = true;
-    let issueUrl: string | null = null;
-    try {
-      const decision = await specCaptureAsIssue(capture.content);
-
-      if (decision.actionable) {
-        // Ensure the kiwi-drafted label is always present.
-        const labels = decision.labels.includes(KIWI_LABEL)
-          ? decision.labels
-          : [...decision.labels, KIWI_LABEL];
-
-        const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-            "User-Agent": "hyperpolymath-cron",
-          },
-          body: JSON.stringify({
-            title: decision.title,
-            body: `${decision.body}${ISSUE_FOOTER}`,
-            labels,
-          }),
-        });
-        if (!res.ok) {
-          // Rate-limited or GitHub-side error: transient. Leave unmarked so the
-          // next run retries this capture.
-          if (res.status === 429 || res.status >= 500) {
-            markEvaluated = false;
-          }
-          throw new Error(`GitHub issue create failed: ${res.status}`);
-        }
-        const created: unknown = await res.json();
-        if (
-          created &&
-          typeof created === "object" &&
-          "html_url" in created &&
-          typeof (created as { html_url: unknown }).html_url === "string"
-        ) {
-          issueUrl = (created as { html_url: string }).html_url;
-        }
-        issued++;
-      } else {
-        skipped++;
-      }
-    } catch (err) {
-      errors++;
-      // A fetch network failure throws a TypeError: treat it as transient too.
-      if (err instanceof TypeError) {
-        markEvaluated = false;
-      }
-      console.error("[cron captures-to-issues] capture failed", {
-        captureId: capture.id,
-        transient: !markEvaluated,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    if (!markEvaluated) {
-      // Transient failure: do not persist evaluation; retry on the next run.
-      deferred++;
-      continue;
-    }
-
-    // PERSISTENCE: mark evaluated (issued, gate-skipped, or permanent failure)
-    // so the capture is never reconsidered. Set the URL only when an issue was
-    // created. If the mark itself fails, swallow it and continue the run.
-    try {
-      await db
-        .update(captures)
-        .set({
-          githubEvaluatedAt: sql`now()`,
-          ...(issueUrl ? { githubIssueUrl: issueUrl } : {}),
-        })
-        .where(eq(captures.id, capture.id));
-      processed++;
-    } catch (markErr) {
-      console.error("[cron captures-to-issues] evaluated-mark failed", {
-        captureId: capture.id,
-        error: markErr instanceof Error ? markErr.message : String(markErr),
-      });
-    }
-  }
+  const issued = outcomes.filter((o) => o === "issued").length;
+  const skipped = outcomes.filter((o) => o === "skipped").length;
+  const errors = outcomes.filter((o) => o === "error").length;
+  const deferred = outcomes.filter((o) => o === "deferred").length;
+  const processed = issued + skipped + errors;
 
   await finalizeRun(runId, errors > 0 ? "partial" : "ok");
   return NextResponse.json({ processed, issued, skipped, errors, deferred });
@@ -266,4 +186,125 @@ async function finalizeRun(runId: string, status: string): Promise<void> {
     .update(cronRuns)
     .set({ finishedAt: sql`now()`, status })
     .where(eq(cronRuns.id, runId));
+}
+
+// Process one capture: gate it through Claude, file the issue if actionable,
+// and persist the evaluation. Per-capture isolation means one failure never
+// aborts the run. A capture is marked evaluated (so never reconsidered) UNLESS
+// it hit a transient failure (network error, GitHub 429, or GitHub 5xx), in
+// which case it is left unmarked so the next daily run retries it. Permanent
+// failures (GitHub 4xx) ARE marked, so a single bad capture cannot clog the
+// per-run cap forever.
+async function processCapture(
+  capture: { id: string; content: string },
+  repo: string,
+  token: string,
+): Promise<CaptureOutcome> {
+  let markEvaluated = true;
+  let issueUrl: string | null = null;
+  let outcome: CaptureOutcome = "skipped";
+  try {
+    const decision = await specCaptureAsIssue(capture.content);
+
+    if (decision.actionable) {
+      // Ensure the kiwi-drafted label is always present.
+      const labels = decision.labels.includes(KIWI_LABEL)
+        ? decision.labels
+        : [...decision.labels, KIWI_LABEL];
+
+      const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+          "User-Agent": "hyperpolymath-cron",
+        },
+        body: JSON.stringify({
+          title: decision.title,
+          body: `${decision.body}${ISSUE_FOOTER}`,
+          labels,
+        }),
+      });
+      if (!res.ok) {
+        // Rate-limited or GitHub-side error: transient. Leave unmarked so the
+        // next run retries this capture.
+        if (res.status === 429 || res.status >= 500) {
+          markEvaluated = false;
+        }
+        throw new Error(`GitHub issue create failed: ${res.status}`);
+      }
+      const created: unknown = await res.json();
+      if (
+        created &&
+        typeof created === "object" &&
+        "html_url" in created &&
+        typeof (created as { html_url: unknown }).html_url === "string"
+      ) {
+        issueUrl = (created as { html_url: string }).html_url;
+      }
+      outcome = "issued";
+    } else {
+      outcome = "skipped";
+    }
+  } catch (err) {
+    // A fetch network failure throws a TypeError: treat it as transient too.
+    if (err instanceof TypeError) {
+      markEvaluated = false;
+    }
+    console.error("[cron captures-to-issues] capture failed", {
+      captureId: capture.id,
+      transient: !markEvaluated,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    outcome = "error";
+  }
+
+  if (!markEvaluated) {
+    // Transient failure: do not persist evaluation; retry on the next run.
+    return "deferred";
+  }
+
+  // PERSISTENCE: mark evaluated (issued, gate-skipped, or permanent failure) so
+  // the capture is never reconsidered. Set the URL only when an issue was
+  // created. If the mark itself fails, swallow it and keep the outcome.
+  try {
+    await db
+      .update(captures)
+      .set({
+        githubEvaluatedAt: sql`now()`,
+        ...(issueUrl ? { githubIssueUrl: issueUrl } : {}),
+      })
+      .where(eq(captures.id, capture.id));
+  } catch (markErr) {
+    console.error("[cron captures-to-issues] evaluated-mark failed", {
+      captureId: capture.id,
+      error: markErr instanceof Error ? markErr.message : String(markErr),
+    });
+  }
+  return outcome;
+}
+
+// Run `worker` over `items` with at most `limit` in flight at once, preserving
+// input order in the returned results.
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  async function runNext(): Promise<void> {
+    const index = cursor++;
+    if (index >= items.length) return;
+    results[index] = await worker(items[index]);
+    return runNext();
+  }
+  const starters = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => runNext(),
+  );
+  await Promise.all(starters);
+  return results;
 }
