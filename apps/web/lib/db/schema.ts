@@ -18,6 +18,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
 import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
+// DevRunItem is single-sourced in the query helper; imported type-only here so
+// the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
+import type { DevRunItem } from "./queries/dev-runs";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -455,6 +458,40 @@ export const cronRuns = pgTable(
   (t) => [
     // This UNIQUE constraint is the once-per-day lock.
     uniqueIndex("cron_runs_job_date_uniq").on(t.jobName, t.runDate),
+  ],
+);
+
+// kiwi_dev_runs — 260615-lkl. Daily summary of the local Kiwi auto-dev worker.
+// One row per (user_id, run_date); the UNIQUE (user_id, run_date) index makes
+// the daily POST an upsert (insert ... onConflictDoUpdate), so a re-run of the
+// same day overwrites that day's row rather than appending. The owner-only
+// DEVELOPMENT tab on /insights reads these newest-first. DevRunItem is
+// single-sourced in lib/db/queries/dev-runs.ts and imported here for the
+// items jsonb column type.
+export const kiwiDevRuns = pgTable(
+  "kiwi_dev_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    runDate: date("run_date").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status"),
+    issuesAttempted: integer("issues_attempted").notNull().default(0),
+    issuesDone: integer("issues_done").notNull().default(0),
+    issuesSkipped: integer("issues_skipped").notNull().default(0),
+    issuesFailed: integer("issues_failed").notNull().default(0),
+    items: jsonb("items")
+      .notNull()
+      .default(sql`'[]'::jsonb`)
+      .$type<DevRunItem[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One row per owner per day; this UNIQUE constraint makes the ingest an upsert.
+    uniqueIndex("kiwi_dev_runs_user_date_uniq").on(t.userId, t.runDate),
   ],
 );
 
