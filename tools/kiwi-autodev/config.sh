@@ -23,6 +23,10 @@ export PER_ISSUE_TIMEOUT_MS=2700000
 # is an explicit user choice: keep it.
 export MODEL=opus
 
+# The fast model used for the pre-dispatch triage pass that picks which issues
+# are small enough to attempt. Cheap classification, so a small model is fine.
+export TRIAGE_MODEL=haiku
+
 # The GitHub issue label the daily captures-to-issues cron applies. The worker
 # only ever touches issues carrying this label.
 export LABEL=kiwi-drafted

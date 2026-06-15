@@ -63,6 +63,8 @@ const LOG_DIR = path.join(__dirname, 'logs');
 const MAX_ISSUES = Number(process.env.MAX_ISSUES ?? 3);
 const PER_ISSUE_TIMEOUT_MS = Number(process.env.PER_ISSUE_TIMEOUT_MS ?? 2700000);
 const MODEL = process.env.MODEL ?? 'opus';
+// Fast model for the pre-dispatch triage pass (issue selection).
+const TRIAGE_MODEL = process.env.TRIAGE_MODEL ?? 'haiku';
 const LABEL = process.env.LABEL ?? 'kiwi-drafted';
 const BRANCH_PREFIX = process.env.BRANCH_PREFIX ?? 'kiwi/auto';
 const REPO_SLUG = process.env.REPO_SLUG ?? 'filippo-fonseca/hyperpolymath-v2';
@@ -345,6 +347,57 @@ async function notify(message) {
   }
 }
 
+// Triage: ask a fast model which open issues are small and self-contained
+// enough to plausibly finish in one bounded /gsd:quick session, ranked
+// most-tractable first. Returns the chosen issue objects (capped at
+// MAX_ISSUES); an empty result means "nothing tractable, sit tight". Falls back
+// to oldest-first only when the triage call itself errors, so the worker still
+// functions if the fast model is unavailable.
+async function triageSelect(issues) {
+  const oldestFirst = [...issues].sort((a, b) => a.number - b.number);
+  if (oldestFirst.length === 0) return [];
+  const fallback = oldestFirst.slice(0, MAX_ISSUES);
+  try {
+    const catalog = oldestFirst
+      .map((i) => {
+        const body = (i.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+        return `#${i.number} | ${i.title} | ${body}`;
+      })
+      .join('\n');
+    const prompt = [
+      'You are triaging GitHub issues for an automated coding agent that resolves ONE issue per bounded session using a quick-fix workflow.',
+      'Choose ONLY issues small and self-contained enough to plausibly complete in a single bounded session: a focused bug fix, a small UI tweak, or a contained enhancement.',
+      'EXCLUDE anything large, architectural, multi-surface, design-ambiguous, or that needs a real planning phase.',
+      `Return STRICT JSON only: an array of issue numbers, most tractable first, at most ${MAX_ISSUES} entries. If none qualify, return []. No prose, no code fences.`,
+      '',
+      'Issues:',
+      catalog,
+    ].join('\n');
+    const { stdout } = await execFileP('claude', ['-p', '--model', TRIAGE_MODEL, prompt], {
+      timeout: 180_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const match = stdout.match(/\[[\s\S]*\]/);
+    if (!match) {
+      warn('triage returned no JSON array; falling back to oldest-first');
+      return fallback;
+    }
+    const nums = JSON.parse(match[0]);
+    if (!Array.isArray(nums)) return fallback;
+    const byNum = new Map(oldestFirst.map((i) => [i.number, i]));
+    const chosen = [];
+    for (const n of nums) {
+      const it = byNum.get(Number(n));
+      if (it && !chosen.includes(it)) chosen.push(it);
+      if (chosen.length >= MAX_ISSUES) break;
+    }
+    return chosen;
+  } catch (err) {
+    warn('triage failed; falling back to oldest-first:', err && err.message ? err.message : String(err));
+    return fallback;
+  }
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
 
@@ -374,7 +427,7 @@ async function main() {
   try {
     const { stdout } = await execFileP(
       'gh',
-      ['issue', 'list', '--repo', REPO_SLUG, '--state', 'open', '--label', LABEL, '--json', 'number,title,labels', '--limit', '100'],
+      ['issue', 'list', '--repo', REPO_SLUG, '--state', 'open', '--label', LABEL, '--json', 'number,title,labels,body', '--limit', '100'],
       { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 },
     );
     issues = JSON.parse(stdout);
@@ -382,9 +435,11 @@ async function main() {
     warn('gh issue list failed:', err && err.message ? err.message : String(err));
     issues = [];
   }
-  issues.sort((a, b) => a.number - b.number);
-  const selected = issues.slice(0, MAX_ISSUES);
-  log(`selected ${selected.length} issue(s) of ${issues.length} open ${LABEL}`);
+  const selected = await triageSelect(issues);
+  log(
+    `triage selected ${selected.length} of ${issues.length} open ${LABEL}: ` +
+      (selected.map((i) => `#${i.number}`).join(', ') || 'none (sitting tight)'),
+  );
 
   // Run all selected issues in parallel (set is already capped at MAX_ISSUES).
   // runIssue never rejects, so one failure cannot abort the batch.
