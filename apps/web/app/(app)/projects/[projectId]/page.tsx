@@ -71,8 +71,11 @@ export default async function ProjectDetailPage({ params }: Props) {
         icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
+        areaName: areas.name,
+        areaEmoji: areas.emoji,
       })
       .from(projects)
+      .leftJoin(areas, eq(projects.areaId, areas.id))
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     db
       .select({ id: areas.id, name: areas.name })
