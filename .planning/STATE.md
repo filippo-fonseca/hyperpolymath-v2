@@ -404,6 +404,7 @@ None yet.
 | 260614-g2d | Persist Cmd+K/voice JARVIS turns to jarvis_turns + live-merge externally-created turns into /today console scrollback via realtime (dedup-by-id, streaming-safe) | 2026-06-14 | 6415998 | [260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-](./quick/260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-/) |
 | 260614-gk0 | /graph: add d3-force collision force (radius 4·√val+5) + charge/link tuning so high-degree nodes stop crumpling children; brighter base edges (0.18→0.40, width 0.5→1.0); rAF-wait for async ForceGraph ref | 2026-06-14 | 82ed8c4 | [260614-gk0-fix-graph-layout-collision-force-for-hig](./quick/260614-gk0-fix-graph-layout-collision-force-for-hig/) |
 | 260615-h74 | Daily Vercel cron turning hyperpolymath-tagged captures into spec'd GitHub issues, with four ordered security layers (constant-time auth, once-per-day DB lock, per-run cap 25, env-email eligibility + noExport hard skip) and an LLM actionability+privacy gate | 2026-06-15 | efecf07 | [260615-h74-daily-cron-turning-hyperpolymath-tagged-](./quick/260615-h74-daily-cron-turning-hyperpolymath-tagged-/) |
+| 260615-lkl | Owner-only DEVELOPMENT tab on /insights plus token-gated POST /api/dev-runs ingest and kiwi_dev_runs table; reports the local Kiwi auto-dev worker's daily runs (issues + status + branch links) | 2026-06-15 | a4e82c2 | [260615-lkl-development-tab-on-insights-with-dev-run](./quick/260615-lkl-development-tab-on-insights-with-dev-run/) |
 
 ## Session Continuity
 
