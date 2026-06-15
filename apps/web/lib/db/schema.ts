@@ -461,7 +461,7 @@ export const cronRuns = pgTable(
   ],
 );
 
-// kiwi_dev_runs — 260615-lkl. Daily summary of the local Kiwi auto-dev worker.
+// kiwi_dev_runs (260615-lkl). Daily summary of the local Kiwi auto-dev worker.
 // One row per (user_id, run_date); the UNIQUE (user_id, run_date) index makes
 // the daily POST an upsert (insert ... onConflictDoUpdate), so a re-run of the
 // same day overwrites that day's row rather than appending. The owner-only
