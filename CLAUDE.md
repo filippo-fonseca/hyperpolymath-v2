@@ -231,6 +231,15 @@ Conventions not yet established. Will populate as patterns emerge during develop
 Architecture not yet mapped. Follow existing patterns found in the codebase.
 <!-- GSD:architecture-end -->
 
+## Session start: triage open issues
+
+At the start of every session, before diving into any work, load the open GitHub issues and help decide what to tackle next:
+
+1. Run `gh issue list` to pull the open issues (these include the Kiwi-drafted issues filed automatically by the daily captures-to-issues cron, labeled `kiwi-drafted`).
+2. Rank the pending issues by what is most tractable and highest-leverage to do next: weigh how self-contained each one is, how much it moves the core "Kiwi routes one sentence to the right place" value, and how cheaply it ships.
+3. Briefly present that ranking to Filippo, top pick first, with a one-line rationale for each.
+4. Ask whether to start on the top one, or whether Filippo already has his own prompt in mind. Do not start coding until he picks.
+
 <!-- GSD:workflow-start source:GSD defaults -->
 ## GSD Workflow Enforcement
 
