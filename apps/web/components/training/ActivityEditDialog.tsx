@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { deleteActivity, updateActivity } from "@/app/actions/training";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,21 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  ActivityWithType,
-  TypeWithBatch,
-} from "@/lib/db/queries/training";
-import {
-  displayToKm,
-  kmToDisplay,
-  type DistanceUnit,
-} from "@/lib/training/distance";
+import type { ActivityWithType, TypeWithBatch } from "@/lib/db/queries/training";
+import { type DistanceUnit, displayToKm, kmToDisplay } from "@/lib/training/distance";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 
 interface Props {
   activity: ActivityWithType | null;
   types: TypeWithBatch[];
   distanceUnit: DistanceUnit;
   open: boolean;
+  /** RT-06 optimistic dispatch — edits + delete reflect on the board instantly. */
+  addOptimistic: ActivityOptimisticDispatch;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -59,6 +55,7 @@ export function ActivityEditDialog({
   types,
   distanceUnit,
   open,
+  addOptimistic,
   onOpenChange,
 }: Props) {
   const [typeId, setTypeId] = useState<string>("");
@@ -74,26 +71,17 @@ export function ActivityEditDialog({
     setTypeId(activity.activityTypeId);
     setTitle(activity.title);
     setDescription(activity.description ?? "");
-    setDurationStr(
-      activity.plannedDurationMin != null
-        ? String(activity.plannedDurationMin)
-        : "",
-    );
+    setDurationStr(activity.plannedDurationMin != null ? String(activity.plannedDurationMin) : "");
     if (activity.plannedDistanceKm != null) {
       const km = Number(activity.plannedDistanceKm);
-      setDistanceStr(
-        Number.isFinite(km) ? kmToDisplay(km, distanceUnit).toFixed(2) : "",
-      );
+      setDistanceStr(Number.isFinite(km) ? kmToDisplay(km, distanceUnit).toFixed(2) : "");
     } else {
       setDistanceStr("");
     }
     setConfirmingDelete(false);
   }, [open, activity, distanceUnit]);
 
-  const selectedType = useMemo(
-    () => types.find((t) => t.id === typeId) ?? null,
-    [types, typeId],
-  );
+  const selectedType = useMemo(() => types.find((t) => t.id === typeId) ?? null, [types, typeId]);
 
   if (!activity) return null;
 
@@ -119,8 +107,7 @@ export function ActivityEditDialog({
       if (durTrim) {
         const n = Number(durTrim);
         if (Number.isFinite(n) && n > 0) {
-          (patch as Record<string, unknown>).plannedDurationMin =
-            Math.round(n);
+          (patch as Record<string, unknown>).plannedDurationMin = Math.round(n);
         }
       } else {
         (patch as Record<string, unknown>).plannedDurationMin = null;
@@ -131,8 +118,7 @@ export function ActivityEditDialog({
         if (distTrim) {
           const n = Number(distTrim);
           if (Number.isFinite(n) && n >= 0) {
-            (patch as Record<string, unknown>).plannedDistanceKm =
-              displayToKm(n, distanceUnit);
+            (patch as Record<string, unknown>).plannedDistanceKm = displayToKm(n, distanceUnit);
           }
         } else {
           (patch as Record<string, unknown>).plannedDistanceKm = null;
@@ -141,9 +127,35 @@ export function ActivityEditDialog({
         (patch as Record<string, unknown>).plannedDistanceKm = null;
       }
 
+      // Optimistic — reflect the edit on the board card immediately. Mirror the
+      // server patch onto the grid row (distance stored as a string), and swap
+      // the joined `type` if the activity type changed.
+      const gridPatch: Partial<ActivityWithType> = {
+        activityTypeId: typeId,
+        title: trimmedTitle,
+        description: description.trim() ? description.trim() : null,
+        plannedDurationMin: (patch as Record<string, unknown>).plannedDurationMin as number | null,
+        plannedDistanceKm:
+          (patch as Record<string, unknown>).plannedDistanceKm != null
+            ? String((patch as Record<string, unknown>).plannedDistanceKm)
+            : null,
+      };
+      if (selectedType && selectedType.id !== activity.type.id) {
+        gridPatch.type = {
+          id: selectedType.id,
+          name: selectedType.name,
+          color: selectedType.color,
+          hasDistance: selectedType.hasDistance,
+          batchId: selectedType.batchId,
+          icon: selectedType.icon,
+        };
+      }
+      addOptimistic({ type: "update", id: activity.id, patch: gridPatch });
+
       const res = await updateActivity(patch);
       if (!res.success) {
         toast.error(res.error || "Could not save");
+        addOptimistic({ type: "revert", id: activity.id });
         return;
       }
       toast.success("Saved");
@@ -161,9 +173,11 @@ export function ActivityEditDialog({
     if (submitting) return;
     setSubmitting(true);
     try {
+      addOptimistic({ type: "delete", id: activity.id });
       const res = await deleteActivity({ id: activity.id });
       if (!res.success) {
         toast.error(res.error || "Could not delete");
+        addOptimistic({ type: "revert", id: activity.id });
         return;
       }
       toast.success("Deleted");
@@ -178,9 +192,7 @@ export function ActivityEditDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit activity</DialogTitle>
-          <DialogDescription>
-            Scheduled for {activity.scheduledDate}
-          </DialogDescription>
+          <DialogDescription>Scheduled for {activity.scheduledDate}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -296,9 +308,7 @@ export function ActivityEditDialog({
               disabled={submitting}
               onClick={handleDelete}
               className={
-                confirmingDelete
-                  ? "text-[var(--danger,#dc2626)]"
-                  : "text-[var(--ink-muted)]"
+                confirmingDelete ? "text-[var(--danger,#dc2626)]" : "text-[var(--ink-muted)]"
               }
             >
               {confirmingDelete ? "Click again to delete" : "Delete"}

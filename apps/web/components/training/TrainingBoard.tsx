@@ -1,22 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { moveActivity } from "@/app/actions/training";
+import type { ActivityWithType, TypeWithBatch } from "@/lib/db/queries/training";
+import type { DistanceUnit } from "@/lib/training/distance";
 import {
   DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
-import { isSameDay, format } from "date-fns";
+import { format, isSameDay } from "date-fns";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { moveActivity } from "@/app/actions/training";
-import type {
-  ActivityWithType,
-  TypeWithBatch,
-} from "@/lib/db/queries/training";
-import type { DistanceUnit } from "@/lib/training/distance";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 import { TrainingDayColumn } from "./TrainingDayColumn";
 
 interface Props {
@@ -25,6 +23,8 @@ interface Props {
   activities: ActivityWithType[];
   types: TypeWithBatch[];
   distanceUnit: DistanceUnit;
+  /** RT-06 optimistic dispatch — move/create/delete reflect instantly. */
+  addOptimistic: ActivityOptimisticDispatch;
   /** Threaded through to ActivityCard — opens CompleteActivityDialog. */
   onCheckOff?: (activity: ActivityWithType) => void;
   /** Threaded through to ActivityCard — opens ActivityEditDialog. */
@@ -48,6 +48,7 @@ export function TrainingBoard({
   activities,
   types,
   distanceUnit,
+  addOptimistic,
   onCheckOff,
   onEdit,
 }: Props) {
@@ -55,7 +56,7 @@ export function TrainingBoard({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor)
   );
 
   const [isDragging, setIsDragging] = useState(false);
@@ -81,15 +82,19 @@ export function TrainingBoard({
     if (!activity) return;
     if (activity.scheduledDate === targetDate) return;
 
-    // Optimistic UX: Realtime echo will refresh the cache; we just rely on the
-    // Server Action returning + Realtime invalidating the week key.
-    void moveActivity({ id: activityId, scheduledDate: targetDate }).then(
-      (res) => {
-        if (!res.success) {
-          toast.error(res.error || "Could not move activity");
-        }
-      },
-    );
+    // Optimistic move — the card jumps to the target column instantly; the
+    // overlay holds it there until the week query refetches with the new date.
+    addOptimistic({
+      type: "update",
+      id: activityId,
+      patch: { scheduledDate: targetDate },
+    });
+    void moveActivity({ id: activityId, scheduledDate: targetDate }).then((res) => {
+      if (!res.success) {
+        toast.error(res.error || "Could not move activity");
+        addOptimistic({ type: "revert", id: activityId });
+      }
+    });
   };
 
   const today = new Date();
@@ -114,6 +119,7 @@ export function TrainingBoard({
               types={types}
               distanceUnit={distanceUnit}
               isAnyDragging={isDragging}
+              addOptimistic={addOptimistic}
               onCheckOff={onCheckOff}
               onEdit={onEdit}
             />

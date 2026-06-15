@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { completeActivity } from "@/app/actions/training";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,20 +10,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ActivityWithType } from "@/lib/db/queries/training";
-import {
-  displayToKm,
-  kmToDisplay,
-  type DistanceUnit,
-} from "@/lib/training/distance";
+import { type DistanceUnit, displayToKm, kmToDisplay } from "@/lib/training/distance";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 
 interface Props {
   activity: ActivityWithType | null;
   distanceUnit: DistanceUnit;
   open: boolean;
+  /** RT-06 optimistic dispatch — the card flips to done instantly on submit. */
+  addOptimistic: ActivityOptimisticDispatch;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -55,6 +54,7 @@ export function CompleteActivityDialog({
   activity,
   distanceUnit,
   open,
+  addOptimistic,
   onOpenChange,
 }: Props) {
   const [durationStr, setDurationStr] = useState<string>("");
@@ -65,11 +65,7 @@ export function CompleteActivityDialog({
   // reflects the latest planned values (Realtime echo of a card edit etc.).
   useEffect(() => {
     if (!open || !activity) return;
-    setDurationStr(
-      activity.plannedDurationMin != null
-        ? String(activity.plannedDurationMin)
-        : "",
-    );
+    setDurationStr(activity.plannedDurationMin != null ? String(activity.plannedDurationMin) : "");
     if (activity.type.hasDistance && activity.plannedDistanceKm != null) {
       const km = Number(activity.plannedDistanceKm);
       if (!Number.isNaN(km)) {
@@ -113,9 +109,27 @@ export function CompleteActivityDialog({
         }
       }
 
+      // Optimistic — the card flips to done immediately; the overlay holds it
+      // until the week query refetches with the canonical row.
+      addOptimistic({
+        type: "update",
+        id: activity.id,
+        patch: {
+          status: "done",
+          completedAt: new Date(),
+          ...(payload.actualDurationMin != null
+            ? { actualDurationMin: payload.actualDurationMin }
+            : {}),
+          ...(payload.actualDistanceKm != null
+            ? { actualDistanceKm: payload.actualDistanceKm.toString() }
+            : {}),
+        },
+      });
+
       const res = await completeActivity(payload);
       if (!res.success) {
         toast.error(res.error || "Could not mark done");
+        addOptimistic({ type: "revert", id: activity.id });
         return;
       }
       toast.success(skipLogging ? "Marked done" : "Logged");
@@ -146,7 +160,10 @@ export function CompleteActivityDialog({
           className="flex flex-col gap-3"
         >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="actual-duration" className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+            <Label
+              htmlFor="actual-duration"
+              className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+            >
               Actual duration (min)
             </Label>
             <Input
@@ -163,7 +180,10 @@ export function CompleteActivityDialog({
 
           {hasDistance ? (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="actual-distance" className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <Label
+                htmlFor="actual-distance"
+                className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              >
                 Actual distance ({distanceUnit})
               </Label>
               <Input
@@ -189,11 +209,7 @@ export function CompleteActivityDialog({
             >
               Skip logging — just mark done
             </Button>
-            <Button
-              type="submit"
-              autoFocus
-              disabled={submitting}
-            >
+            <Button type="submit" autoFocus disabled={submitting}>
               Mark done
             </Button>
           </DialogFooter>

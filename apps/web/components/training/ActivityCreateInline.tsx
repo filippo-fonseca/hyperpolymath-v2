@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { createActivity } from "@/app/actions/training";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +12,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { TypeWithBatch } from "@/lib/db/queries/training";
-import { displayToKm, type DistanceUnit } from "@/lib/training/distance";
+import type { ActivityWithType, TypeWithBatch } from "@/lib/db/queries/training";
+import { type DistanceUnit, displayToKm } from "@/lib/training/distance";
+import { Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 
 interface Props {
   dateISO: string;
   types: TypeWithBatch[];
   distanceUnit: DistanceUnit;
+  /** RT-06 optimistic dispatch — the new card appears instantly in the column. */
+  addOptimistic: ActivityOptimisticDispatch;
 }
 
 /**
@@ -29,11 +32,7 @@ interface Props {
  * on click. Optimistic create via client-generated UUID (RT-05 dedupe) so the
  * Realtime echo can match the optimistic insert by id when the cache refreshes.
  */
-export function ActivityCreateInline({
-  dateISO,
-  types,
-  distanceUnit,
-}: Props) {
+export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimistic }: Props) {
   const [open, setOpen] = useState(false);
   const [typeId, setTypeId] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -84,33 +83,64 @@ export function ActivityCreateInline({
       return;
     }
 
-    const plannedDurationMin = durationStr
-      ? Number.parseInt(durationStr, 10)
-      : null;
+    const plannedDurationMin = durationStr ? Number.parseInt(durationStr, 10) : null;
     const plannedDistanceKm =
       showDistance && distanceStr
         ? displayToKm(Number.parseFloat(distanceStr), distanceUnit)
         : null;
 
+    // RT-05 — client-generated UUID lets the Realtime echo dedupe by id.
+    const newId = crypto.randomUUID();
+    const durationMin = Number.isFinite(plannedDurationMin) ? plannedDurationMin : null;
+    const distanceKm =
+      plannedDistanceKm != null && Number.isFinite(plannedDistanceKm) ? plannedDistanceKm : null;
+
+    // Optimistic insert — the card shows in this column instantly. The overlay
+    // holds it until the week query refetches with the canonical row.
+    if (selectedType) {
+      const now = new Date();
+      const optimisticRow: ActivityWithType = {
+        id: newId,
+        userId: "",
+        activityTypeId: typeId,
+        scheduledDate: dateISO,
+        title: title.trim(),
+        description: null,
+        plannedDurationMin: durationMin,
+        actualDurationMin: null,
+        plannedDistanceKm: distanceKm != null ? distanceKm.toString() : null,
+        actualDistanceKm: null,
+        status: "planned",
+        dayOrderIndex: Number.MAX_SAFE_INTEGER,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        type: {
+          id: selectedType.id,
+          name: selectedType.name,
+          color: selectedType.color,
+          hasDistance: selectedType.hasDistance,
+          batchId: selectedType.batchId,
+          icon: selectedType.icon,
+        },
+      };
+      addOptimistic({ type: "insert", row: optimisticRow });
+    }
+
     setPending(true);
     const res = await createActivity({
-      // RT-05 — client-generated UUID lets the Realtime echo dedupe by id.
-      id: crypto.randomUUID(),
+      id: newId,
       activityTypeId: typeId,
       scheduledDate: dateISO,
       title: title.trim(),
-      plannedDurationMin: Number.isFinite(plannedDurationMin)
-        ? plannedDurationMin
-        : null,
-      plannedDistanceKm:
-        plannedDistanceKm != null && Number.isFinite(plannedDistanceKm)
-          ? plannedDistanceKm
-          : null,
+      plannedDurationMin: durationMin,
+      plannedDistanceKm: distanceKm,
     });
     setPending(false);
 
     if (!res.success) {
       toast.error(res.error || "Could not create activity");
+      addOptimistic({ type: "revert", id: newId });
       return;
     }
     // Keep the form open so the user can rapidly add another (Notion/Linear vibe).
@@ -189,9 +219,7 @@ export function ActivityCreateInline({
         {showDistance ? (
           <Input
             value={distanceStr}
-            onChange={(e) =>
-              setDistanceStr(e.target.value.replace(/[^\d.]/g, ""))
-            }
+            onChange={(e) => setDistanceStr(e.target.value.replace(/[^\d.]/g, ""))}
             placeholder={distanceUnit}
             inputMode="decimal"
             className="h-7 flex-1 text-xs"

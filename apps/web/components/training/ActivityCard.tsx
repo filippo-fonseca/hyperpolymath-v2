@@ -1,15 +1,6 @@
 "use client";
 
-import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
-import { motion } from "motion/react";
-import { Check, MinusCircle, MoreHorizontal, X } from "lucide-react";
-import { toast } from "sonner";
-import {
-  cancelActivity,
-  deleteActivity,
-  skipActivity,
-} from "@/app/actions/training";
+import { cancelActivity, deleteActivity, skipActivity } from "@/app/actions/training";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,12 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ActivityWithType } from "@/lib/db/queries/training";
-import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
+import { type DistanceUnit, formatDistance } from "@/lib/training/distance";
 import { cn } from "@/lib/utils";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { Check, MinusCircle, MoreHorizontal, X } from "lucide-react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 
 interface Props {
   activity: ActivityWithType;
   distanceUnit: DistanceUnit;
+  /** RT-06 optimistic dispatch — cancel/skip flip status, delete removes instantly. */
+  addOptimistic: ActivityOptimisticDispatch;
   /**
    * Optional click handler. The CompleteActivityDialog ships in plan 15-04;
    * for now the card body click is a no-op when no handler is supplied. The
@@ -46,28 +45,20 @@ interface Props {
  * Drag handle is the whole card (no separate grip). Motion `layoutId` lets the
  * card slide smoothly when the underlying list reorders after a drag.
  */
-export function ActivityCard({
-  activity,
-  distanceUnit,
-  onCheckOff,
-  onEdit,
-}: Props) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: activity.id });
+export function ActivityCard({ activity, distanceUnit, addOptimistic, onCheckOff, onEdit }: Props) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: activity.id,
+  });
 
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform) }
-    : undefined;
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
 
-  const distanceKm =
-    activity.actualDistanceKm ?? activity.plannedDistanceKm ?? null;
+  const distanceKm = activity.actualDistanceKm ?? activity.plannedDistanceKm ?? null;
   const distanceLabel =
     activity.type.hasDistance && distanceKm != null
       ? formatDistance(Number(distanceKm), distanceUnit)
       : null;
 
-  const durationMin =
-    activity.actualDurationMin ?? activity.plannedDurationMin ?? null;
+  const durationMin = activity.actualDurationMin ?? activity.plannedDurationMin ?? null;
 
   const isDone = activity.status === "done";
   const isCancelled = activity.status === "cancelled";
@@ -80,18 +71,30 @@ export function ActivityCard({
   };
 
   const handleCancel = async () => {
+    addOptimistic({ type: "update", id: activity.id, patch: { status: "cancelled" } });
     const res = await cancelActivity({ id: activity.id });
-    if (!res.success) toast.error(res.error || "Could not cancel");
+    if (!res.success) {
+      toast.error(res.error || "Could not cancel");
+      addOptimistic({ type: "revert", id: activity.id });
+    }
   };
 
   const handleSkip = async () => {
+    addOptimistic({ type: "update", id: activity.id, patch: { status: "skipped" } });
     const res = await skipActivity({ id: activity.id });
-    if (!res.success) toast.error(res.error || "Could not skip");
+    if (!res.success) {
+      toast.error(res.error || "Could not skip");
+      addOptimistic({ type: "revert", id: activity.id });
+    }
   };
 
   const handleDelete = async () => {
+    addOptimistic({ type: "delete", id: activity.id });
     const res = await deleteActivity({ id: activity.id });
-    if (!res.success) toast.error(res.error || "Could not delete");
+    if (!res.success) {
+      toast.error(res.error || "Could not delete");
+      addOptimistic({ type: "revert", id: activity.id });
+    }
   };
 
   return (
@@ -107,7 +110,7 @@ export function ActivityCard({
         "hover:shadow-md",
         isDragging && "z-10 cursor-grabbing opacity-60 shadow-lg",
         isDone && "opacity-60",
-        (isCancelled || isSkipped) && "opacity-50",
+        (isCancelled || isSkipped) && "opacity-50"
       )}
     >
       {/* 3px color stripe — type accent */}
@@ -130,7 +133,7 @@ export function ActivityCard({
               "truncate font-serif text-xs leading-tight",
               isDone && "line-through",
               isCancelled && "line-through",
-              isSkipped && "italic",
+              isSkipped && "italic"
             )}
           >
             {activity.title}
@@ -167,17 +170,11 @@ export function ActivityCard({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem
-            disabled={isDone}
-            onSelect={() => onCheckOff?.(activity)}
-          >
+          <DropdownMenuItem disabled={isDone} onSelect={() => onCheckOff?.(activity)}>
             <Check size={12} strokeWidth={1.5} className="mr-2" />
             Mark done
           </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!onEdit}
-            onSelect={() => onEdit?.(activity)}
-          >
+          <DropdownMenuItem disabled={!onEdit} onSelect={() => onEdit?.(activity)}>
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem disabled={isCancelled} onSelect={handleCancel}>
@@ -189,10 +186,7 @@ export function ActivityCard({
             Mark skipped
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={handleDelete}
-            className="text-[var(--danger,var(--ink))]"
-          >
+          <DropdownMenuItem onSelect={handleDelete} className="text-[var(--danger,var(--ink))]">
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

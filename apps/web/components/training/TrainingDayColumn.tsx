@@ -1,15 +1,13 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
-import { format } from "date-fns";
-import type {
-  ActivityWithType,
-  TypeWithBatch,
-} from "@/lib/db/queries/training";
+import type { ActivityWithType, TypeWithBatch } from "@/lib/db/queries/training";
 import type { DistanceUnit } from "@/lib/training/distance";
 import { cn } from "@/lib/utils";
+import { useDroppable } from "@dnd-kit/core";
+import { format } from "date-fns";
 import { ActivityCard } from "./ActivityCard";
 import { ActivityCreateInline } from "./ActivityCreateInline";
+import type { ActivityOptimisticDispatch } from "./TrainingClient";
 
 interface Props {
   dateISO: string;
@@ -20,6 +18,8 @@ interface Props {
   distanceUnit: DistanceUnit;
   /** True while any card in the board is being dragged — used for drop highlight. */
   isAnyDragging: boolean;
+  /** RT-06 optimistic dispatch — threaded to the cards + inline composer. */
+  addOptimistic: ActivityOptimisticDispatch;
   /** Opens the CompleteActivityDialog (15-04) for the clicked card. */
   onCheckOff?: (activity: ActivityWithType) => void;
   /** Opens the ActivityEditDialog (15-04) for the clicked card's kebab → Edit. */
@@ -38,6 +38,7 @@ export function TrainingDayColumn({
   types,
   distanceUnit,
   isAnyDragging,
+  addOptimistic,
   onCheckOff,
   onEdit,
 }: Props) {
@@ -48,13 +49,13 @@ export function TrainingDayColumn({
       <div
         className={cn(
           "flex items-baseline justify-between px-1 pb-1",
-          isToday && "border-b border-[var(--hud-cyan,var(--ink))]",
+          isToday && "border-b border-[var(--hud-cyan,var(--ink))]"
         )}
       >
         <span
           className={cn(
             "font-mono text-[10px] uppercase tracking-[0.08em]",
-            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
+            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
           )}
         >
           {format(date, "EEE")}
@@ -62,7 +63,7 @@ export function TrainingDayColumn({
         <span
           className={cn(
             "font-serif text-xs",
-            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]",
+            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
           )}
         >
           {format(date, "d")}
@@ -74,7 +75,7 @@ export function TrainingDayColumn({
         className={cn(
           "flex min-h-[80px] flex-col gap-1.5 rounded-md p-1.5 transition-colors",
           isAnyDragging && "ring-1 ring-[var(--edge)]",
-          isOver && "bg-[var(--surface)] ring-1 ring-[var(--ink)]",
+          isOver && "bg-[var(--surface)] ring-1 ring-[var(--ink)]"
         )}
       >
         {activities.map((a) => (
@@ -82,6 +83,7 @@ export function TrainingDayColumn({
             key={a.id}
             activity={a}
             distanceUnit={distanceUnit}
+            addOptimistic={addOptimistic}
             onCheckOff={onCheckOff}
             onEdit={onEdit}
           />
@@ -91,6 +93,7 @@ export function TrainingDayColumn({
           dateISO={dateISO}
           types={types}
           distanceUnit={distanceUnit}
+          addOptimistic={addOptimistic}
         />
       </div>
     </div>

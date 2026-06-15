@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { listActivitiesInRange } from "@/app/actions/training";
+import type { ActivityWithType, BatchRow, TypeWithBatch } from "@/lib/db/queries/training";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { type OptimisticListAction, useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import type { DistanceUnit } from "@/lib/training/distance";
+import { addWeeks, getWeekRange } from "@/lib/training/week";
 import { useQuery } from "@tanstack/react-query";
 import { isSameWeek, startOfWeek } from "date-fns";
-import { listActivitiesInRange } from "@/app/actions/training";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { addWeeks, getWeekRange } from "@/lib/training/week";
-import type {
-  ActivityWithType,
-  BatchRow,
-  TypeWithBatch,
-} from "@/lib/db/queries/training";
-import type { DistanceUnit } from "@/lib/training/distance";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityEditDialog } from "./ActivityEditDialog";
 import { CompleteActivityDialog } from "./CompleteActivityDialog";
 import { ManageTypesSheet } from "./ManageTypesSheet";
@@ -26,6 +23,9 @@ interface Props {
   initialBatches: BatchRow[];
   distanceUnit: DistanceUnit;
 }
+
+/** Optimistic dispatch for the activity board — threaded down to every mutating surface. */
+export type ActivityOptimisticDispatch = (action: OptimisticListAction<ActivityWithType>) => void;
 
 /**
  * /training orchestrator — mirrors TasksClient + HabitsClient.
@@ -58,18 +58,13 @@ export function TrainingClient({
 
   // D-07 — first-time empty state auto-opens the manage sheet. State lives at
   // this level (Pitfall 8) so Realtime invalidations don't close the sheet.
-  const [manageOpen, setManageOpen] = useState<boolean>(
-    initialTypes.length === 0,
-  );
+  const [manageOpen, setManageOpen] = useState<boolean>(initialTypes.length === 0);
 
   // 15-04 dialogs: card check-off opens completion; kebab → Edit opens edit.
   // State lives here (Pitfall 8) so Realtime invalidations of the underlying
   // data don't toggle the dialogs closed mid-interaction.
-  const [completionActivity, setCompletionActivity] =
-    useState<ActivityWithType | null>(null);
-  const [editActivity, setEditActivity] = useState<ActivityWithType | null>(
-    null,
-  );
+  const [completionActivity, setCompletionActivity] = useState<ActivityWithType | null>(null);
+  const [editActivity, setEditActivity] = useState<ActivityWithType | null>(null);
 
   // Realtime subscriptions.
   // - Activities are the planner's primary data.
@@ -86,30 +81,20 @@ export function TrainingClient({
   });
 
   const weekKey = useMemo(
-    () =>
-      [
-        "training_activities",
-        userId,
-        week.startISO,
-        week.endISO,
-      ] as const,
-    [userId, week.startISO, week.endISO],
+    () => ["training_activities", userId, week.startISO, week.endISO] as const,
+    [userId, week.startISO, week.endISO]
   );
 
   // Activities for the visible week. `listActivitiesInRange` is a "use server"
   // wrapper that calls `getActivitiesInRange` under the user's getClaims() id.
-  const { data: activities = initialActivities } = useQuery<ActivityWithType[]>(
-    {
-      queryKey: weekKey as unknown as readonly unknown[],
-      queryFn: () => listActivitiesInRange(week.startISO, week.endISO),
-      initialData:
-        // Only feed SSR data into the initial (current-week) query — subsequent
-        // weeks fetch fresh and start empty until the queryFn lands.
-        isSameWeek(currentWeek, new Date(), { weekStartsOn: 1 })
-          ? initialActivities
-          : undefined,
-    },
-  );
+  const { data: activities = initialActivities } = useQuery<ActivityWithType[]>({
+    queryKey: weekKey as unknown as readonly unknown[],
+    queryFn: () => listActivitiesInRange(week.startISO, week.endISO),
+    initialData:
+      // Only feed SSR data into the initial (current-week) query — subsequent
+      // weeks fetch fresh and start empty until the queryFn lands.
+      isSameWeek(currentWeek, new Date(), { weekStartsOn: 1 }) ? initialActivities : undefined,
+  });
 
   // Types + batches keyed off tableKey so the realtime invalidation prefix
   // matches automatically.
@@ -130,6 +115,12 @@ export function TrainingClient({
     queryFn: async () => initialBatches,
     initialData: initialBatches,
   });
+  // RT-06 self-reconciling overlay — instant feedback for create/move/complete/
+  // edit/delete. Pending ops persist until the windowed week query catches up,
+  // so cards don't snap back after a drag or flicker after a check-off.
+  const [optimisticActivities, addActivityOptimistic] =
+    useOptimisticList<ActivityWithType>(activities);
+
   // D-07 — re-trigger auto-open when realtime makes the types list go empty
   // (e.g. user wipes everything from another tab). Don't auto-close on populate.
   useEffect(() => {
@@ -140,19 +131,19 @@ export function TrainingClient({
   const { doneCount, plannedCount } = useMemo(() => {
     let done = 0;
     let planned = 0;
-    for (const a of activities) {
+    for (const a of optimisticActivities) {
       if (a.status === "cancelled" || a.status === "skipped") continue;
       planned += 1;
       if (a.status === "done") done += 1;
     }
     return { doneCount: done, plannedCount: planned };
-  }, [activities]);
+  }, [optimisticActivities]);
 
   const isCurrentWeek = useMemo(
     () =>
       startOfWeek(currentWeek, { weekStartsOn: 1 }).getTime() ===
       startOfWeek(new Date(), { weekStartsOn: 1 }).getTime(),
-    [currentWeek],
+    [currentWeek]
   );
 
   return (
@@ -171,9 +162,10 @@ export function TrainingClient({
       <TrainingBoard
         userId={userId}
         days={week.days}
-        activities={activities}
+        activities={optimisticActivities}
         types={types}
         distanceUnit={distanceUnit}
+        addOptimistic={addActivityOptimistic}
         onCheckOff={setCompletionActivity}
         onEdit={setEditActivity}
       />
@@ -190,6 +182,7 @@ export function TrainingClient({
         activity={completionActivity}
         distanceUnit={distanceUnit}
         open={!!completionActivity}
+        addOptimistic={addActivityOptimistic}
         onOpenChange={(o) => {
           if (!o) setCompletionActivity(null);
         }}
@@ -200,6 +193,7 @@ export function TrainingClient({
         types={types}
         distanceUnit={distanceUnit}
         open={!!editActivity}
+        addOptimistic={addActivityOptimistic}
         onOpenChange={(o) => {
           if (!o) setEditActivity(null);
         }}
