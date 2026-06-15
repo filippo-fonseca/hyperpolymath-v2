@@ -12,9 +12,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { Button } from "@/components/ui/button";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import type { OptimisticAction } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
-import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useOptimisticList, type OptimisticListAction } from "@/lib/realtime/useOptimisticList";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
@@ -55,7 +54,7 @@ interface Props {
   };
 }
 
-export type TasksOptimisticDispatch = (action: OptimisticAction<TaskWithProjects>) => void;
+export type TasksOptimisticDispatch = (action: OptimisticListAction<TaskWithProjects>) => void;
 
 /**
  * /tasks orchestrator — Phase 3 realtime + useOptimistic.
@@ -322,6 +321,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       const r = await bulkUpdateTaskDueDate({ ids, dueDate: newDueDate });
       if (!r.success) {
         toast.error(r.error);
+        for (const id of ids) addOptimistic({ type: "revert", id });
         return;
       }
       await queryClient.invalidateQueries({
@@ -400,6 +400,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       });
       if (!r.success) {
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: t.id });
         return;
       }
       await queryClient.invalidateQueries({
@@ -428,6 +429,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
     const r = await bulkUpdateTaskDueDate({ ids: [id], dueDate: null });
     if (!r.success) {
       toast.error("Couldn't move to Inbox. Try again.");
+      addOptimistic({ type: "revert", id });
       return;
     }
     await queryClient.invalidateQueries({
@@ -463,6 +465,7 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       });
       if (!r.success) {
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: t.id });
         return;
       }
       await queryClient.invalidateQueries({
@@ -510,8 +513,10 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
         projectIds: [],
       });
       if (!r.success) {
-        // D-03: silent revert + toast.error
+        // D-03: explicit revert (RT-06: the overlay no longer auto-reverts on
+        // transition close) + toast.error
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: newId });
         return;
       }
       // Belt-and-suspenders: explicit invalidate so the canonical cache catches

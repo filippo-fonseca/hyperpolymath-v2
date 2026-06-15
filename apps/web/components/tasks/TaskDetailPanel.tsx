@@ -255,6 +255,7 @@ export function TaskDetailPanel({
     });
     if (!r.success) {
       toast.error(r.error);
+      addOptimistic({ type: "revert", id: newId });
       return;
     }
     onClose();
@@ -292,8 +293,9 @@ export function TaskDetailPanel({
       projectIds: form.projectIds,
     });
     if (!r.success) {
-      // D-03: silent revert + toast.error
+      // D-03: explicit revert (RT-06: overlay no longer auto-reverts) + toast.error
       toast.error(r.error);
+      addOptimistic({ type: "revert", id: task.id });
       return;
     }
     if (form.status === "lesno" && task.status !== "lesno") {

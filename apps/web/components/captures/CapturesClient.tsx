@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useQueryState, parseAsString } from "nuqs";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { getCapturesForCurrentUser, deleteCapture } from "@/app/actions/captures";
 import {
   getHashtagsForUserAction,
@@ -42,44 +43,6 @@ interface Props {
   userAvatarUrl: string | null;
   /** Single-char fallback for `<AvatarFallback>` when no avatar URL is set. */
   userInitials: string;
-}
-
-/**
- * Phase 3 optimistic action shape over the captures feed.
- *
- * Inline here (rather than imported from a shared module) so this plan stays
- * file-disjoint from Plan 03-02's `lib/realtime/optimistic-reducer.ts` — same
- * algebra, file-disjoint. RT-05 echo dedupe: an "insert" whose id already
- * exists in state is a no-op.
- */
-type CaptureOptimisticAction =
-  | { type: "insert"; row: CaptureWithLinks }
-  | { type: "update"; id: string; patch: Partial<CaptureWithLinks> }
-  | { type: "delete"; id: string };
-
-function captureOptimisticReducer(
-  state: CaptureWithLinks[],
-  action: CaptureOptimisticAction,
-): CaptureWithLinks[] {
-  switch (action.type) {
-    case "insert": {
-      // RT-05 echo dedupe — if a row with the same id already exists, ignore.
-      // This is the linchpin of optimistic + Realtime echo correctness: the
-      // Server Action persists the caller-supplied UUID, Realtime echoes it
-      // back, and TanStack Query refetches; the refetched row carries the
-      // same id so this reducer's idempotency keeps the feed consistent.
-      if (state.some((r) => r.id === action.row.id)) return state;
-      return [action.row, ...state];
-    }
-    case "update":
-      return state.map((r) =>
-        r.id === action.id ? { ...r, ...action.patch } : r,
-      );
-    case "delete":
-      return state.filter((r) => r.id !== action.id);
-    default:
-      return state;
-  }
 }
 
 /**
@@ -189,11 +152,11 @@ export function CapturesClient({
   // in the sidebar even before a capture references them via the join.
   useTableSubscription("hashtags", userId);
 
-  // -- Optimistic plane ---------------------------------------------------
-  const [optimisticCaptures, addOptimistic] = useOptimistic(
-    liveCaptures,
-    captureOptimisticReducer,
-  );
+  // -- Optimistic plane (RT-06 self-reconciling) --------------------------
+  // Pending inserts/updates/deletes persist until the canonical feed catches
+  // up, so a composer insert (dispatched outside any transition) and the 5s
+  // undo-delete window both survive a slow Realtime echo without flickering.
+  const [optimisticCaptures, addOptimistic] = useOptimisticList<CaptureWithLinks>(liveCaptures);
 
   // -- Composition --------------------------------------------------------
   const filtered = useMemo(() => {
@@ -244,6 +207,10 @@ export function CapturesClient({
   // These wrap `addOptimistic` so consumers don't see the reducer shape.
   const handleOptimisticInsert = useCallback(
     (row: CaptureWithLinks) => addOptimistic({ type: "insert", row }),
+    [addOptimistic],
+  );
+  const handleOptimisticRevert = useCallback(
+    (id: string) => addOptimistic({ type: "revert", id }),
     [addOptimistic],
   );
   const handleOptimisticUpdate = useCallback(
@@ -316,6 +283,7 @@ export function CapturesClient({
             hashtags={hashtagSuggestions}
             projects={projects}
             onOptimisticInsert={handleOptimisticInsert}
+            onOptimisticRevert={handleOptimisticRevert}
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -355,6 +323,7 @@ export function CapturesClient({
         onClose={() => setSelectedCaptureId(null)}
         onOptimisticUpdate={handleOptimisticUpdate}
         onOptimisticDelete={handleOptimisticDelete}
+        onOptimisticRevert={handleOptimisticRevert}
         userAvatarUrl={userAvatarUrl}
         userInitials={userInitials}
       />

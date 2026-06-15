@@ -42,7 +42,7 @@
  * completes WITHOUT a confirming refetch.
  */
 
-import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -67,10 +67,7 @@ import {
 } from "@/app/actions/gcal-events";
 import { setTimezone } from "@/app/actions/gcal-calendars";
 import { detectBrowserTimezone } from "@/lib/gcal/datetime";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
 
@@ -307,14 +304,11 @@ export function CalendarClient({
     [rawEvents, effectiveTz, colorByCalendar],
   );
 
-  // Optimistic state — drives the grid. Re-syncs to `baseEvents` whenever
-  // useQuery refetches; in the meantime, dispatch insert/update/delete
-  // through `addOptimistic` for instant feedback.
-  const [optimisticEvents, addOptimistic] = useOptimistic(
-    baseEvents,
-    (state: readonly GcalEvent[], action: OptimisticAction<GcalEvent>) =>
-      optimisticReducer(state, action),
-  );
+  // Optimistic state — drives the grid (RT-06 self-reconciling). Pending
+  // insert/update/delete ops persist until the gcal query refetches and
+  // catches up, so a just-created event can't flash out before the canonical
+  // row arrives. Dispatch via `addOptimistic`; roll back with `revert`.
+  const [optimisticEvents, addOptimistic] = useOptimisticList<GcalEvent>(baseEvents);
 
   const [, startTransition] = useTransition();
 
@@ -501,8 +495,6 @@ export function CalendarClient({
         allDay?: boolean;
       },
     ) => {
-      const previous = optimisticEvents.find((e) => e.id === eventId);
-
       // Build the grid-shaped patch from the input. Always TZDate-wrap
       // dates so the grid renders the new range correctly.
       const patchForGrid: Partial<GcalEvent> = {};
@@ -537,23 +529,18 @@ export function CalendarClient({
       });
 
       if (!res.success) {
-        // Revert — re-apply the prior values via a counter-patch.
-        if (previous) {
-          startTransition(() => {
-            addOptimistic({
-              type: "update",
-              id: eventId,
-              patch: previous,
-            });
-          });
-        }
+        // RT-06 rollback — drop the optimistic patch; the grid falls back to
+        // the canonical (unchanged) event.
+        startTransition(() => {
+          addOptimistic({ type: "revert", id: eventId });
+        });
         toast.error(res.error ?? "Failed to update event");
         return { success: false };
       }
       void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
       return { success: true };
     },
-    [optimisticEvents, effectiveTz, colorByCalendar, addOptimistic, qc, userId],
+    [effectiveTz, colorByCalendar, addOptimistic, qc, userId],
   );
 
   // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for gcal event delete.

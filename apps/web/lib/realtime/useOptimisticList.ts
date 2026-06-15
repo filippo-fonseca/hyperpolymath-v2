@@ -1,7 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { OptimisticAction } from "./optimistic-reducer";
+
+/**
+ * Hook action union: the shared CRUD actions plus `revert`.
+ *
+ * `revert` is the explicit rollback that `useOptimistic` used to give for free
+ * when its transition closed on error. Because this overlay PERSISTS until
+ * canonical reconciles (the whole point — it's what kills the flash), a
+ * server rejection must explicitly drop the optimistic op for that id, or the
+ * phantom would linger until the next reconciling refetch. Dispatch
+ * `{ type: "revert", id }` in every `!success` branch.
+ */
+export type OptimisticListAction<T extends { id: string }> =
+  | OptimisticAction<T>
+  | { type: "revert"; id: string }
+  | { type: "revert-reorder" };
 
 /**
  * Self-reconciling optimistic list overlay — the flicker-free replacement for
@@ -33,7 +48,7 @@ import type { OptimisticAction } from "./optimistic-reducer";
  */
 export function useOptimisticList<T extends { id: string }>(
   canonical: readonly T[],
-): [T[], (action: OptimisticAction<T>) => void] {
+): [T[], (action: OptimisticListAction<T>) => void] {
   const [inserts, setInserts] = useState<ReadonlyMap<string, T>>(() => new Map());
   const [updates, setUpdates] = useState<ReadonlyMap<string, Partial<T>>>(
     () => new Map(),
@@ -96,7 +111,7 @@ export function useOptimisticList<T extends { id: string }>(
     setOrder((prev) => (prev ? null : prev));
   }, [canonical]);
 
-  const dispatch = useCallback((action: OptimisticAction<T>) => {
+  const dispatch = useCallback((action: OptimisticListAction<T>) => {
     switch (action.type) {
       case "insert": {
         const { row } = action;
@@ -150,6 +165,36 @@ export function useOptimisticList<T extends { id: string }>(
       }
       case "reorder": {
         setOrder(action.ids.slice());
+        break;
+      }
+      case "revert": {
+        // Explicit rollback to canonical (server rejected the mutation). Drop
+        // every pending op for this id — insert, update patch, and any hide.
+        const { id } = action;
+        setInserts((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+        setUpdates((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+        setRemoved((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        break;
+      }
+      case "revert-reorder": {
+        // Server rejected a reorder → drop the order override so the list falls
+        // back to canonical's (un-reordered) order immediately.
+        setOrder((prev) => (prev ? null : prev));
         break;
       }
     }

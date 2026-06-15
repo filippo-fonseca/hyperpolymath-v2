@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useOptimistic,
   useState,
   useTransition,
 } from "react";
@@ -23,10 +22,8 @@ import {
 } from "lucide-react";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
+import type { OptimisticAction } from "@/lib/realtime/optimistic-reducer";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import {
   getHabitsForCurrentUser,
   getHabitCompletionsInRange,
@@ -190,10 +187,11 @@ export function HabitsClient({
       })),
     [completions],
   );
-  const [optimisticCompletions, addCompletionOptimistic] = useOptimistic(
-    completionRows,
-    optimisticReducer<Completion>,
-  );
+  // RT-06 self-reconciling overlay — a toggled completion persists until the
+  // canonical range query catches up, so it can't flicker off-and-on under a
+  // slow refetch or Realtime echo.
+  const [optimisticCompletions, addCompletionOptimistic] =
+    useOptimisticList<Completion>(completionRows);
 
   const completionSet = useMemo(
     () => new Set(optimisticCompletions.map((c) => c.id)),
@@ -226,6 +224,7 @@ export function HabitsClient({
       });
       if (!r.success) {
         toast.error(r.error);
+        addCompletionOptimistic({ type: "revert", id: key });
         return;
       }
       await queryClient.invalidateQueries({

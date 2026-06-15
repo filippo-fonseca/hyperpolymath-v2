@@ -160,6 +160,7 @@ export function KanbanBoard({
       });
       if (!r.success) {
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: taskId });
         return;
       }
       // Belt-and-suspenders: force a TanStack Query refetch so the canonical

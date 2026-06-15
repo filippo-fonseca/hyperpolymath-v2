@@ -80,8 +80,10 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
       for (const [status, orderedIds] of byStatus) {
         const r = await reorderTasks({ status, orderedIds });
         if (!r.success) {
-          // D-03: silent revert (useOptimistic auto-reverts) + toast.error
+          // D-03: explicit revert (RT-06: overlay no longer auto-reverts) +
+          // toast.error. Drop the order override → fall back to canonical order.
           toast.error(r.error);
+          addOptimistic({ type: "revert-reorder" });
           return;
         }
       }

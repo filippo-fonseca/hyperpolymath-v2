@@ -105,6 +105,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         const r = await updateTask({ id: task.id, title: trimmed });
         if (!r.success) {
           toast.error(r.error);
+          addOptimistic({ type: "revert", id: task.id });
         }
       });
     }
@@ -130,6 +131,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       const r = await updateTaskStatus({ id: task.id, newStatus });
       if (!r.success) {
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: task.id });
         return;
       }
       if (r.data.becameLesno) toast("Lesno.");

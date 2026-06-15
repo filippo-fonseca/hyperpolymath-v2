@@ -1,17 +1,18 @@
 "use client";
 
-import { createTask, getTasksForCurrentUser } from "@/app/actions/tasks";
+import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
 import { TaskList } from "@/components/tasks/TaskList";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Kanban as KanbanIcon, List as ListIcon } from "lucide-react";
-import { useEffect, useMemo, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -97,19 +98,30 @@ export function ProjectTasksSection({ userId, projectId, projects, initialTasks 
     initialData: initialTasks,
   });
 
-  // Optimistic overlay — same shape as TasksClient.
-  const [optimisticTasks, addOptimistic] = useOptimistic(
-    allTasks,
-    optimisticReducer<TaskWithProjects>
-  );
+  // Optimistic overlay — same RT-06 self-reconciling hook as TasksClient.
+  const [optimisticTasks, addOptimistic] = useOptimisticList<TaskWithProjects>(allTasks);
+
+  // Long-lived optimistic-delete set (mirrors TasksClient) — held in plain
+  // state so a deleted row stays hidden for the full 5s undo window.
+  const { show: showUndoToast } = useUndoToast();
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const dropPending = useCallback((...ids: string[]) => {
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }, []);
 
   // Derive THIS project's tasks — single source of truth for both views.
   // Auto-hide completed "lesno" tasks by default per user spec; toggle in
   // the header brings them back without losing the rest of the view state.
   const projectTasks = useMemo(() => {
-    const linked = optimisticTasks.filter((t) => t.projects.some((p) => p.id === projectId));
+    const linked = optimisticTasks.filter(
+      (t) => !pendingDeleteIds.has(t.id) && t.projects.some((p) => p.id === projectId),
+    );
     return showLesno ? linked : linked.filter((t) => t.status !== "lesno");
-  }, [optimisticTasks, projectId, showLesno]);
+  }, [optimisticTasks, projectId, showLesno, pendingDeleteIds]);
 
   const lesnoCount = useMemo(
     () =>
@@ -147,6 +159,7 @@ export function ProjectTasksSection({ userId, projectId, projects, initialTasks 
       });
       if (!r.success) {
         toast.error(r.error);
+        addOptimistic({ type: "revert", id: newId });
         return;
       }
       // Same belt-and-suspenders refetch as TasksClient — guarantees the
@@ -275,9 +288,32 @@ export function ProjectTasksSection({ userId, projectId, projects, initialTasks 
         onClose={() => setOpenTaskId(null)}
         addOptimistic={addOptimistic}
         onDeleteTask={(task) => {
-          // React 19 — useOptimistic dispatches must live inside a transition.
-          startTransition(() => {
-            addOptimistic({ type: "delete", id: task.id });
+          // Hide the row for the 5s undo window via the persistent set, then
+          // commit the real server delete (mirrors TasksClient's flow).
+          setPendingDeleteIds((prev) => new Set(prev).add(task.id));
+          const preview = task.title.slice(0, 40);
+          const ellipsis = task.title.length > 40 ? "…" : "";
+          showUndoToast({
+            message: `"${preview}${ellipsis}" deleted`,
+            optimisticRemove: () => {
+              /* already hidden above via the set */
+            },
+            commit: async () => {
+              const r = await deleteTask(task.id);
+              if (!r.success) {
+                toast.error(r.error);
+                dropPending(task.id);
+                return;
+              }
+              await queryClient.invalidateQueries({
+                queryKey: tableKey("tasks", userId),
+              });
+              dropPending(task.id);
+            },
+            undo: () => {
+              /* server delete only fires on commit; nothing to roll back */
+            },
+            addBack: () => dropPending(task.id),
           });
         }}
       />

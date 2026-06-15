@@ -86,6 +86,37 @@ describe("useOptimisticList", () => {
     expect(result.current[0]).toHaveLength(0);
   });
 
+  it("revert rolls a rejected insert / update / delete back to canonical", () => {
+    const { result, rerender } = renderHook(
+      ({ canonical }) => useOptimisticList<Row>(canonical),
+      { initialProps: { canonical: [{ id: "a", title: "t", status: "x" }] as Row[] } },
+    );
+
+    // Rejected insert → revert removes the phantom row entirely.
+    act(() => {
+      result.current[1]({ type: "insert", row: { id: "b", title: "nope" } });
+    });
+    expect(result.current[0].map((r) => r.id).sort()).toEqual(["a", "b"]);
+    act(() => result.current[1]({ type: "revert", id: "b" }));
+    expect(result.current[0].map((r) => r.id)).toEqual(["a"]);
+
+    // Rejected update → revert restores canonical's field value.
+    act(() => result.current[1]({ type: "update", id: "a", patch: { status: "y" } }));
+    expect(result.current[0][0].status).toBe("y");
+    act(() => result.current[1]({ type: "revert", id: "a" }));
+    expect(result.current[0][0].status).toBe("x");
+
+    // Rejected delete → revert un-hides the row.
+    act(() => result.current[1]({ type: "delete", id: "a" }));
+    expect(result.current[0]).toHaveLength(0);
+    act(() => result.current[1]({ type: "revert", id: "a" }));
+    expect(result.current[0].map((r) => r.id)).toEqual(["a"]);
+
+    // No spurious change on the next refetch.
+    rerender({ canonical: [{ id: "a", title: "t", status: "x" }] });
+    expect(result.current[0][0].status).toBe("x");
+  });
+
   it("a Realtime echo arriving as canonical is a no-op (RT-05 dedupe parity)", () => {
     const row = { id: "a", title: "live" };
     const { result, rerender } = renderHook(

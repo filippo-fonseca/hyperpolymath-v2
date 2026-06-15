@@ -79,6 +79,12 @@ interface Props {
    */
   onOptimisticDelete?: (id: string) => void;
   /**
+   * RT-06 rollback — drops the optimistic update/delete for this id when the
+   * Server Action rejects. The feed overlay (useOptimisticList) persists
+   * pending ops until canonical reconciles, so it no longer auto-reverts.
+   */
+  onOptimisticRevert?: (id: string) => void;
+  /**
    * Signed-in user's Google profile avatar URL (from Supabase Auth metadata).
    * Rendered slightly larger (h-10 w-10) alongside the panel header — mirrors
    * the Twitter-style rhythm on feed cards for visual continuity.
@@ -174,6 +180,7 @@ export function CaptureDetailPanel({
   onClose,
   onOptimisticUpdate,
   onOptimisticDelete,
+  onOptimisticRevert,
   userAvatarUrl,
   userInitials,
 }: Props) {
@@ -387,13 +394,13 @@ export function CaptureDetailPanel({
     });
     if (!r.success) {
       toast.error(r.error);
-      // useOptimistic auto-reverts when the transition completes.
+      onOptimisticRevert?.(capture.id);
       return;
     }
     toast("Capture updated.");
     setInitialForm({ content, hashtagNames, projectIds: form.projectIds });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
-  }, [capture, parseEditor, form.projectIds, onOptimisticUpdate, projects]);
+  }, [capture, parseEditor, form.projectIds, onOptimisticUpdate, onOptimisticRevert, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -473,7 +480,7 @@ export function CaptureDetailPanel({
     const r = await deleteCapture(capture.id);
     if (!r.success) {
       toast.error(r.error);
-      // useOptimistic auto-reverts; the row reappears on the feed.
+      onOptimisticRevert?.(capture.id);
       return;
     }
     toast("Capture deleted.");

@@ -39,6 +39,12 @@ interface Props {
    * Realtime echo will populate /captures on next visit.
    */
   onOptimisticInsert?: (row: CaptureWithLinks) => void;
+  /**
+   * Rolls the optimistic insert back when the Server Action rejects. Required
+   * now that the feed overlay (useOptimisticList) persists pending rows until
+   * canonical reconciles — it no longer auto-reverts on its own.
+   */
+  onOptimisticRevert?: (id: string) => void;
   onSubmitSuccess?: () => void;
   autoFocus?: boolean;
   /**
@@ -76,6 +82,7 @@ export function CaptureComposer({
   hashtags: initialHashtags,
   projects,
   onOptimisticInsert,
+  onOptimisticRevert,
   onSubmitSuccess,
   autoFocus,
   defaultProjectIds,
@@ -239,9 +246,9 @@ export function CaptureComposer({
       });
       if (!r.success) {
         toast.error(r.error);
-        // useOptimistic auto-reverts: when the transition completes without
-        // committing real state, React rolls the optimistic row back. No
-        // explicit `addOptimistic({ type: "delete" })` needed.
+        // RT-06: the feed overlay persists optimistic rows until canonical
+        // reconciles, so a rejected insert must be rolled back explicitly.
+        onOptimisticRevert?.(newId);
         return;
       }
       toast("Captured.");
@@ -261,6 +268,7 @@ export function CaptureComposer({
     selectedProjectIds,
     onSubmitSuccess,
     onOptimisticInsert,
+    onOptimisticRevert,
     projects,
     userId,
     defaultProjectIds,
