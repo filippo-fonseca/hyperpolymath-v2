@@ -407,6 +407,7 @@ None yet.
 | 260615-lkl | Owner-only DEVELOPMENT tab on /insights plus token-gated POST /api/dev-runs ingest and kiwi_dev_runs table; reports the local Kiwi auto-dev worker's daily runs (issues + status + branch links) | 2026-06-15 | a4e82c2 | [260615-lkl-development-tab-on-insights-with-dev-run](./quick/260615-lkl-development-tab-on-insights-with-dev-run/) |
 | 260615-n2d | Show parent area inline (right-aligned, dim) in the project-assignment dropdown on tasks; closes issue #39 | 2026-06-15 | 181ed64 | [260615-n2d-show-associated-area-in-project-assignme](./quick/260615-n2d-show-associated-area-in-project-assignme/) |
 
+
 ## Session Continuity
 
 Last session: 2026-06-13T20:09:37.709Z
