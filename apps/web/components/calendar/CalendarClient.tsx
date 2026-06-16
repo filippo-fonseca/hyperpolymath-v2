@@ -42,7 +42,7 @@
  * completes WITHOUT a confirming refetch.
  */
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -327,6 +327,32 @@ export function CalendarClient({
     });
   }, []);
 
+  // Issue #16 deferred-delete durability. The 5s Undo toast defers the gcal
+  // DELETE to the toast's onAutoClose/onDismiss lifecycle. If the user
+  // refreshes or navigates away within that window the toast is torn down
+  // WITHOUT firing those callbacks, so the delete never hits gcal and the
+  // event reappears on reload. We keep each not-yet-committed delete's gcal
+  // call in a ref keyed by eventId, and flush any survivors synchronously on
+  // unmount + pagehide so the delete actually persists.
+  const pendingCommitsRef = useRef<Map<string, () => Promise<void>>>(new Map());
+  const flushPendingDeletes = useCallback(() => {
+    const commits = pendingCommitsRef.current;
+    if (commits.size === 0) return;
+    for (const commit of commits.values()) void commit();
+    commits.clear();
+  }, []);
+
+  useEffect(() => {
+    const onPageHide = () => flushPendingDeletes();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      // Component unmount (client-side navigation away from /calendar) also
+      // tears down the toast, so flush so the in-flight delete still commits.
+      flushPendingDeletes();
+    };
+  }, [flushPendingDeletes]);
+
   // Derived event list passed to the grid.
   //   - In edit mode with a live draft: append a dashed placeholder at the
   //     proposed position AND flag the original event as `isDraftEditing`
@@ -571,25 +597,39 @@ export function CalendarClient({
         dropPending(eventId);
         return { success: true };
       }
+      // The actual gcal DELETE. Registered in pendingCommitsRef so that if the
+      // page unloads or /calendar unmounts before the toast resolves, the
+      // unmount/pagehide flush still fires it (issue #16). Guarded against a
+      // double-fire (toast onAutoClose + flush racing) so we never DELETE twice.
+      let committed = false;
+      const commit = async () => {
+        if (committed) return;
+        committed = true;
+        pendingCommitsRef.current.delete(eventId);
+        const res = await deleteEvent({ calendarId, eventId });
+        if (!res.success) {
+          toast.error(res.error ?? "Failed to delete event");
+          // Restore the event since gcal rejected the delete.
+          dropPending(eventId);
+          return;
+        }
+        void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        dropPending(eventId);
+      };
+      pendingCommitsRef.current.set(eventId, commit);
+
       // 2. 5s Undo toast (RES-02 / UI-SPEC §8h). gcal DELETE deferred.
       showUndoToast({
         message: `"${previous.title || "Event"}"deleted`,
         optimisticRemove: () => {
           /* already done above via the set */
         },
-        commit: async () => {
-          const res = await deleteEvent({ calendarId, eventId });
-          if (!res.success) {
-            toast.error(res.error ?? "Failed to delete event");
-            // Restore the event since gcal rejected the delete.
-            dropPending(eventId);
-            return;
-          }
-          void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
-          dropPending(eventId);
-        },
+        commit,
         undo: () => {
-          /* gcal delete only fires on commit; no server-side rollback needed */
+          // Cancel the deferred gcal delete — drop it from the registry so the
+          // unmount/pagehide flush won't fire it after the user undid.
+          committed = true;
+          pendingCommitsRef.current.delete(eventId);
         },
         addBack: () => dropPending(eventId),
       });
