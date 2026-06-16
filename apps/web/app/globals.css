@@ -756,6 +756,20 @@ select,
   margin: 0 1px;
 }
 
+/* Live hashtag decoration (closes #41) — applied by HashtagDecorations
+   extension to plain `#word` text in the editor so the styling lands the
+   moment the tag is recognised, not only after the popover commits a Mention
+   node. Uses `display: inline` (not inline-block) so the box doesn't disrupt
+   the caret while typing mid-word. Same sage register as .hashtag-chip-inline. */
+.hashtag-chip-live {
+  background: rgb(101 163 13 / 0.14);
+  color: var(--ink-sage);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
 /* ─── JARVIS Console input (Plan 05-03 → arc redesign) ─────────────────────
    Placeholder + inline $project chips. Placeholder reads as a soft butler
    prompt: serif italic, subtle ink-muted color, no fake-italic mono. */

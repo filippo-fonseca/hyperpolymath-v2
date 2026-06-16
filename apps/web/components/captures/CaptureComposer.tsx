@@ -13,6 +13,7 @@ import {
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
+import { HashtagDecorations } from "./hashtag-decorations";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 
 interface Hashtag {
@@ -117,6 +118,9 @@ export function CaptureComposer({
         },
         suggestion: createHashtagSuggestion(() => hashtags),
       }),
+      // Live-decorate plain `#word` text so the token styling lands without
+      // waiting for the suggestion popover to commit a Mention node (#41).
+      HashtagDecorations,
     ],
     editorProps: {
       attributes: {

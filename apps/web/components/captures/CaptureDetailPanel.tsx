@@ -46,6 +46,7 @@ import {
 } from "@/components/shared/ProjectMultiSelect";
 import { RelativeTime } from "@/components/shared/RelativeTime";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
+import { HashtagDecorations } from "./hashtag-decorations";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
@@ -295,6 +296,9 @@ export function CaptureDetailPanel({
           },
           suggestion: createHashtagSuggestion(() => hashtags),
         }),
+        // Live-decorate plain `#word` text so the token styling lands without
+        // waiting for the suggestion popover to commit a Mention node (#41).
+        HashtagDecorations,
       ],
       editorProps: {
         attributes: {
