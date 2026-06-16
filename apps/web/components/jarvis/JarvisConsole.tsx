@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   streamJarvis,
@@ -28,6 +29,7 @@ import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
 // splitDeltas accumulates streaming text deltas into a rolling buffer; each
 // completed sentence is dispatched immediately via 'jarvis-voice-speak-sentence'
@@ -209,6 +211,12 @@ export function JarvisConsole({
   // status to render the "Voice via desktop" indicator pill so the user
   // knows the browser mic is intentionally disabled, not broken.
   const { desktopClaimed } = useVoiceSourceStatus();
+
+  // Issue #17: JARVIS mutations refreshed the underlying lists only via the
+  // flaky Supabase Realtime echo (and never at all for gcal events). We now
+  // invalidate the affected TanStack Query keys DIRECTLY on every successful
+  // action + undo so created/updated/deleted entities show immediately.
+  const queryClient = useQueryClient();
 
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
@@ -604,6 +612,14 @@ export function JarvisConsole({
               ),
             );
 
+            // Issue #17: refresh the lists this action touched. Fires once per
+            // action, so every action in a multi-action batch invalidates its
+            // own keys. Only invalidate on success — a failed write changed
+            // nothing. find_*/clarification map to no keys (no-op).
+            if (data.result?.ok) {
+              invalidateAfterJarvisAction(queryClient, data.name, userId);
+            }
+
             // Phase 7 Plan 07-04 (revised): TTS no longer reads from
             // receipt.voice_summary. Spoken text is the assistant's leading
             // prose, fired once in onDone after the full text has streamed
@@ -716,7 +732,7 @@ export function JarvisConsole({
         opts?.sttDoneAt ?? null,
       );
     },
-    [buildHistory, voiceCapable, voiceSettings.voiceId],
+    [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId],
   );
 
   // Voice surface migration (Phase 14 follow-up): voice never originates
@@ -834,6 +850,11 @@ export function JarvisConsole({
             : t,
         ),
       );
+      // Issue #17: desktop-run actions mutate the same tables; refresh the
+      // affected lists so the browser view reflects them without a reload.
+      if ((detail.result as { ok?: boolean } | undefined)?.ok) {
+        invalidateAfterJarvisAction(queryClient, detail.name, userId);
+      }
     }
 
     function handleResponseEnd(e: Event) {
@@ -862,7 +883,7 @@ export function JarvisConsole({
       window.removeEventListener("jarvis-tool-call", handleToolCall);
       window.removeEventListener("jarvis-response-end", handleResponseEnd);
     };
-  }, []);
+  }, [queryClient, userId]);
 
   // Quick 260607-g56: consume sessionStorage('jarvis-prefill') on mount. Set by
   // LifeOsQuickSend and GlobalJarvisDialog when they hand off a seed turn to
@@ -1032,10 +1053,14 @@ export function JarvisConsole({
         // "undone" badge.
         if (reverted) persistTurn(reverted);
       } else {
+        // Issue #17: the undo mutated the same tables the action did, so
+        // refresh the affected lists immediately rather than waiting on the
+        // Realtime echo (and so reverted gcal events reappear).
+        invalidateAfterJarvisAction(queryClient, action.name, userId);
         toast.success("Undone");
       }
     },
-    [],
+    [queryClient, userId],
   );
 
   // Phase 5.1 (D-A2 / JARVIS-19) — handle clarification reply from JarvisClarification.
