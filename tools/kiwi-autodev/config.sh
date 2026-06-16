@@ -32,9 +32,10 @@ export TRIAGE_MODEL=haiku
 export LABEL=kiwi-drafted
 
 # Earliest UTC time-of-day (HHMM) the worker is allowed to start. The cron files
-# issues at 06:00 UTC, so 0610 gives it a small buffer. Compared as a base-10
-# integer in gate.sh so a leading zero does not break the comparison.
-export EARLIEST_UTC_HHMM=0610
+# issues at 13:00 UTC, so 1400 gives it a one-hour buffer before the worker
+# picks them up. Compared as a base-10 integer in gate.sh so a leading zero does
+# not break the comparison.
+export EARLIEST_UTC_HHMM=1400
 
 # Branch namespace for every auto-dev branch. The pre-push hook hard-blocks any
 # push of refs under refs/heads/kiwi/auto/*, so these branches are review-only.
