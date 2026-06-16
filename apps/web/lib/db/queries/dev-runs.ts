@@ -14,13 +14,19 @@ import { kiwiDevRuns } from "@/lib/db/schema";
  * token-gated POST /api/dev-runs endpoint.
  */
 
-// One per-issue entry in a daily auto-dev run.
+// One per-issue entry in a daily auto-dev run. prUrl and summary are optional so
+// rows written before they existed still satisfy the type.
 export type DevRunItem = {
   issueNumber: number;
   title: string;
   status: "done" | "skipped" | "failed" | "timed-out";
   branch: string | null;
   branchUrl: string | null;
+  // Direct link to the opened review PR (distinct from branchUrl, which may be a
+  // bare branch tree). Present once the worker opens a PR for the branch.
+  prUrl?: string | null;
+  // A few-sentence, commit-derived summary of the change, mirroring the PR body.
+  summary?: string | null;
   commitCount: number;
   note: string | null;
 };

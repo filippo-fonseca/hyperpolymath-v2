@@ -33,6 +33,7 @@ import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { captures, capturesHashtags, hashtags, users, cronRuns } from "@/lib/db/schema";
 import { specCaptureAsIssue } from "@/lib/jarvis/issue-specer";
+import { reconcileResolvedIssues } from "@/lib/jarvis/issue-reconciler";
 
 export const runtime = "nodejs";
 // Headroom: bounded concurrency keeps a full run to roughly 20-30s, but allow
@@ -178,8 +179,19 @@ export async function GET(req: Request) {
   const deferred = outcomes.filter((o) => o === "deferred").length;
   const processed = issued + skipped + errors;
 
+  // Reconcile pass: auto-close open kiwi-drafted issues already resolved by
+  // recent main work. Best-effort and conservative (high-confidence only); a
+  // failure here never fails the run.
+  let autoClosed = 0;
+  try {
+    const rec = await reconcileResolvedIssues({ token, repo });
+    autoClosed = rec.closed;
+  } catch (err) {
+    console.error("[cron captures-to-issues] reconcile failed", err);
+  }
+
   await finalizeRun(runId, errors > 0 ? "partial" : "ok");
-  return NextResponse.json({ processed, issued, skipped, errors, deferred });
+  return NextResponse.json({ processed, issued, skipped, errors, deferred, autoClosed });
 }
 
 // Finalize the cron_runs row for this invocation.

@@ -25,7 +25,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Folder } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Folder,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { reorderAreas } from "@/app/actions/areas";
 import {
   reorderProjects,
@@ -62,6 +68,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SidebarArea, SidebarProject } from "@/lib/db/queries/sidebar";
 import type { AreaOptimisticDispatch } from "./Sidebar";
+import { useAreaCollapsed } from "@/lib/ui/useAreaCollapsed";
 import { cn } from "@/lib/utils";
 
 // ID prefix used to distinguish project drags from area drags in the unified DndContext
@@ -112,6 +119,11 @@ export function SidebarTree({
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Per-area collapse state persisted in localStorage. Lifted here so a
+  // single subscription drives the whole tree (rather than one per row).
+  const { isCollapsed: isAreaCollapsed, toggle: toggleAreaCollapsed } =
+    useAreaCollapsed();
 
   // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for area archive flow.
   // Replaces AreaContextMenu's inline toast.action({label: "Undo"}) pattern
@@ -308,6 +320,8 @@ export function SidebarTree({
               area={area}
               allAreas={optimisticAreas}
               collapsed={collapsed}
+              areaCollapsed={isAreaCollapsed(area.id)}
+              onToggleAreaCollapsed={() => toggleAreaCollapsed(area.id)}
               graduationYear={graduationYear ?? null}
               addOptimisticArea={addOptimisticArea}
               onArchiveWithUndo={handleArchiveAreaWithUndo}
@@ -366,6 +380,8 @@ function SortableAreaRow({
   area,
   allAreas,
   collapsed,
+  areaCollapsed,
+  onToggleAreaCollapsed,
   graduationYear,
   addOptimisticArea,
   onArchiveWithUndo,
@@ -373,6 +389,8 @@ function SortableAreaRow({
   area: SidebarArea;
   allAreas: SidebarArea[];
   collapsed: boolean;
+  areaCollapsed: boolean;
+  onToggleAreaCollapsed: () => void;
   graduationYear: number | null;
   addOptimisticArea: AreaOptimisticDispatch;
   onArchiveWithUndo?: (areaId: string, areaName: string) => void;
@@ -440,6 +458,31 @@ function SortableAreaRow({
           area.archivedAt && "opacity-50 italic line-through",
         )}
       >
+        {!collapsed && (
+          <button
+            type="button"
+            aria-label={
+              areaCollapsed ? `Expand ${area.name}` : `Collapse ${area.name}`
+            }
+            aria-expanded={!areaCollapsed}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAreaCollapsed();
+            }}
+            className={cn(
+              "sidebar-ghost-btn flex items-center justify-center h-4 w-4 shrink-0",
+              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              "transition-colors duration-100 ease-out outline-none",
+            )}
+          >
+            {areaCollapsed ? (
+              <ChevronRight className="h-3 w-3" strokeWidth={1.5} />
+            ) : (
+              <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
+            )}
+          </button>
+        )}
         <span className="sidebar-chip shrink-0 text-[13px] leading-none">
           {area.emoji ?? "·"}
         </span>
@@ -479,8 +522,9 @@ function SortableAreaRow({
         )}
       </div>
 
-      {/* Project list */}
-      {!collapsed && (
+      {/* Project list — hidden when the sidebar is rail-collapsed OR
+          the user has collapsed this specific area via the chevron. */}
+      {!collapsed && !areaCollapsed && (
         <SortableContext
           id={`sidebar-projects-${area.id}`}
           items={projectIds}

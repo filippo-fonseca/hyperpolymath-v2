@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils"
 /**
  * Phase 06.1 Plan 04 (UI-SPEC §9d) — Document-tier Input.
  *
- * bg --surface + 1px --edge border + --ink-amber focus border. Phase 6's
- * retired input inset boxShadow token (purged in Plan 06.1-01) is absent.
+ * bg --surface + 1px --edge border at rest. Focus border + ring are both
+ * painted by the global `input:focus-visible` rule in globals.css (calm
+ * neutral --edge-hud, not the amber doc ring — see comment at globals.css
+ * §"Focus-visible ring system"). The earlier amber border override here
+ * fought that global rule and produced an inconsistent amber-border-inside-
+ * cyan-ring focus state — see issue #43.
  *
- * `focus-visible:outline-none` defers to the global :focus-visible rule in
- * globals.css which paints --ring-doc (amber 2-stop ring). The border shift
- * to --ink-amber on focus is the 1px chrome change called out in UI-SPEC §9d.
- *
- * 150ms transition-colors so the border swap feels deliberate, not snappy.
+ * 150ms transition-colors keeps the resting → focus swap feeling deliberate.
  */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
@@ -25,7 +25,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
           "selection:bg-[var(--ink)] selection:text-[var(--canvas)] " +
           "file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-[var(--ink)] " +
           "transition-colors duration-150 ease-out " +
-          "focus-visible:outline-none focus-visible:border-[var(--ink-amber)] " +
+          "focus-visible:outline-none " +
           "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none " +
           "aria-invalid:border-[var(--ink-coral)]",
         "md:text-sm",
