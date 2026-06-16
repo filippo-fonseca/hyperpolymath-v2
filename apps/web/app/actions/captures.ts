@@ -15,6 +15,11 @@ import {
   getCapturesForUser,
   type CaptureWithLinks,
 } from "@/lib/db/queries/captures";
+import { hashtags } from "@/lib/db/schema";
+import {
+  suggestCaptureTags,
+  type SuggestedTag,
+} from "@/lib/captures/suggest-tags";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -333,4 +338,43 @@ export async function getCapturesForCurrentUser(
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
+}
+
+/**
+ * Smart (AI-assisted) tag suggestions for the capture composer (#36 / #40).
+ *
+ * Takes the draft text, loads the user's existing tag vocabulary, and runs one
+ * claude-sonnet-4-6 call (lib/captures/suggest-tags.ts) that prefers reusing
+ * existing tags over coining near-duplicates. The user accepts or dismisses the
+ * results in the composer — nothing is applied automatically.
+ *
+ * Fail-soft: an unauthenticated or invalid call returns an empty list rather
+ * than throwing, so the composer's suggest affordance never breaks the editor.
+ */
+const SuggestTagsSchema = z.object({
+  content: z.string().trim().min(1).max(20000),
+});
+
+export async function suggestTagsForCapture(
+  input: unknown,
+): Promise<ActionResult<SuggestedTag[]>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SuggestTagsSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  const vocab = await db
+    .select({ displayName: hashtags.displayName })
+    .from(hashtags)
+    .where(eq(hashtags.userId, userId));
+
+  const suggestions = await suggestCaptureTags(
+    parsed.data.content,
+    vocab.map((h) => h.displayName),
+  );
+  return { success: true, data: suggestions };
 }

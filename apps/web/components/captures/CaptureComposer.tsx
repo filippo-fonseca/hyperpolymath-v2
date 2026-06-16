@@ -1,20 +1,24 @@
 "use client";
 
+import Mention from "@tiptap/extension-mention";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Mention from "@tiptap/extension-mention";
 
-import { createCapture } from "@/app/actions/captures";
-import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+
+import { createCapture, suggestTagsForCapture } from "@/app/actions/captures";
 import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
-import { createHashtagSuggestion } from "./tiptap-suggestions";
-import { HashtagDecorations } from "./hashtag-decorations";
+import { Button } from "@/components/ui/button";
+import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { HashtagChip } from "./HashtagChip";
+import { HashtagDecorations } from "./hashtag-decorations";
+import { createHashtagSuggestion } from "./tiptap-suggestions";
 
 interface Hashtag {
   id: string;
@@ -89,10 +93,13 @@ export function CaptureComposer({
   defaultProjectIds,
 }: Props) {
   const [hashtags] = useState(initialHashtags);
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(
-    defaultProjectIds ?? [],
-  );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(defaultProjectIds ?? []);
   const [pending, startTransition] = useTransition();
+  // Smart tag suggestions (#36 / #40). `suggestions` holds tags the user hasn't
+  // acted on yet; accepting one appends it to the editor and drops it from the
+  // list, dismissing one just drops it. Nothing is applied without the user.
+  const [suggestions, setSuggestions] = useState<SuggestedTag[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -191,6 +198,45 @@ export function CaptureComposer({
     return { content: content.trim(), hashtagNames: finalTags };
   }
 
+  const handleSuggestTags = useCallback(async () => {
+    const { content, hashtagNames } = parseEditor();
+    if (!content || suggesting) return;
+    setSuggesting(true);
+    try {
+      const r = await suggestTagsForCapture({ content });
+      if (!r.success) {
+        toast.error(r.error);
+        return;
+      }
+      // Hide anything the user already typed as a hashtag so we don't suggest
+      // a tag that's already in the capture (case-insensitive).
+      const already = new Set(hashtagNames.map((t) => t.toLowerCase()));
+      const fresh = r.data.filter((t) => !already.has(t.name.toLowerCase()));
+      setSuggestions(fresh);
+      if (fresh.length === 0) toast("No tag suggestions.");
+    } finally {
+      setSuggesting(false);
+    }
+    // editor closure is stable; parseEditor reads from it directly
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggesting]);
+
+  const acceptSuggestion = useCallback(
+    (tag: SuggestedTag) => {
+      if (!editor) return;
+      // Append `#tag ` at the end of the document so it's picked up by the
+      // permissive plain-text hashtag parser at save time.
+      editor.commands.focus("end");
+      editor.commands.insertContent(`#${tag.name} `);
+      setSuggestions((prev) => prev.filter((t) => t.name.toLowerCase() !== tag.name.toLowerCase()));
+    },
+    [editor]
+  );
+
+  const dismissSuggestion = useCallback((tag: SuggestedTag) => {
+    setSuggestions((prev) => prev.filter((t) => t.name.toLowerCase() !== tag.name.toLowerCase()));
+  }, []);
+
   const handleSubmit = useCallback(() => {
     const { content, hashtagNames } = parseEditor();
     if (!content) return;
@@ -257,6 +303,7 @@ export function CaptureComposer({
       }
       toast("Captured.");
       editor?.commands.clearContent();
+      setSuggestions([]);
       // Reset to the original seed so a project-scoped composer keeps that
       // project pre-linked for the next capture (a quick-fire capture flow
       // on /projects/[id] shouldn't make the user re-select the project each
@@ -281,11 +328,7 @@ export function CaptureComposer({
   // Cmd+Enter submit (per UI-SPEC §Captures Composer)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (
-        e.key === "Enter" &&
-        (e.metaKey || e.ctrlKey) &&
-        editor?.isFocused
-      ) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && editor?.isFocused) {
         e.preventDefault();
         handleSubmit();
       }
@@ -308,13 +351,46 @@ export function CaptureComposer({
           placeholder="Link to projects"
         />
       </div>
+      {/* Smart tag suggestions (#36 / #40) — accept (left-click) appends the
+          tag to the note; the small x dismisses it. Nothing applies on its own. */}
+      {suggestions.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
+          <span className="font-mono text-[11px] text-[var(--ink-muted)] mr-0.5">Suggested:</span>
+          {suggestions.map((tag) => (
+            <span key={tag.name} className="inline-flex items-center gap-0.5">
+              <HashtagChip
+                displayName={tag.name}
+                isNew={!tag.existing}
+                onClick={() => acceptSuggestion(tag)}
+              />
+              <button
+                type="button"
+                aria-label={`Dismiss ${tag.name}`}
+                onClick={() => dismissSuggestion(tag)}
+                className="font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always px-0.5"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="flex items-center justify-between p-2 border-t border-[var(--edge)]">
-        <span className="font-mono text-xs text-[var(--ink-muted)]">
-          Cmd+Enter to capture
-        </span>
-        <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
-          Capture
-        </Button>
+        <button
+          type="button"
+          onClick={handleSuggestTags}
+          disabled={suggesting || !editor}
+          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-50 cursor-pointer-always"
+        >
+          <Sparkles className="size-3" aria-hidden />
+          {suggesting ? "Suggesting…" : "Suggest tags"}
+        </button>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs text-[var(--ink-muted)]">Cmd+Enter to capture</span>
+          <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
+            Capture
+          </Button>
+        </div>
       </div>
     </div>
   );
