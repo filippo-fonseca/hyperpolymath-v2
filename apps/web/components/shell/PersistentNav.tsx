@@ -133,44 +133,42 @@ export function PersistentNav({ collapsed }: Props) {
           const inner = (
             <span
               className={cn(
-                // Arc-style nav row: pill background on active, generous padding,
-                // sentence-case sans label. Larger touch target + icon for the
-                // 2026 refresh.
-                "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
+                // Glassy pill nav row — matches the AREAS/projects tree register.
+                // Idle = bare; hover = soft pill; active = raised pill (below).
+                "group relative flex items-center gap-3 rounded-[0.7rem] px-3 h-9 w-full",
                 "font-serif text-[14px] tracking-tight",
-                "transition-all duration-150 ease-out",
-                active && !item.disabled ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]",
-                !active &&
-                  !item.disabled &&
-                  "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
+                "transition-colors duration-150 ease-out",
+                !item.disabled && "sidebar-row",
+                active && !item.disabled
+                  ? "text-[var(--hud-cyan)]"
+                  : !item.disabled
+                    ? "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                    : "text-[var(--ink-muted)]",
                 item.disabled && "opacity-40 cursor-not-allowed"
               )}
-              style={
-                active && !item.disabled
-                  ? {
-                      background:
-                        "linear-gradient(95deg, color-mix(in oklch, var(--hud-cyan) 22%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 60%, transparent 100%)",
-                      boxShadow:
-                        "0 0 24px color-mix(in oklch, var(--hud-cyan) 14%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent)",
-                    }
-                  : undefined
-              }
               aria-label={item.label}
               aria-current={active ? "page" : undefined}
               aria-disabled={item.disabled}
             >
-              {/* Active accent bar — vertical cyan stripe on the left, only when active */}
-              {active && !item.disabled && !reduceMotion && (
-                <motion.span
-                  layoutId="nav-active-stripe"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full"
-                  style={{ backgroundColor: "var(--hud-cyan)" }}
-                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                  aria-hidden="true"
-                />
-              )}
+              {/* Active pill — raised glass with a whisper of cyan. Slides
+                  between items via layoutId (static under reduced motion). */}
+              {active &&
+                !item.disabled &&
+                (reduceMotion ? (
+                  <span
+                    className="sidebar-row-active sidebar-row-active-area absolute inset-0 rounded-[0.7rem]"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    className="sidebar-row-active sidebar-row-active-area absolute inset-0 rounded-[0.7rem]"
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    aria-hidden="true"
+                  />
+                ))}
               {/* Icon + collapsed-mode badge anchor. */}
-              <span className="relative shrink-0">
+              <span className="relative z-10 shrink-0">
                 <Icon size={18} strokeWidth={active ? 2 : 1.5} />
                 {renderBadge && collapsed && (
                   <span
@@ -181,11 +179,13 @@ export function PersistentNav({ collapsed }: Props) {
                 )}
               </span>
               {!collapsed && (
-                <span className={cn("flex-1", active && "font-medium")}>{item.label}</span>
+                <span className={cn("relative z-10 flex-1", active && "font-medium")}>
+                  {item.label}
+                </span>
               )}
               {item.disabled && !collapsed && (
                 <span
-                  className="shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
+                  className="relative z-10 shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
                   style={{
                     background: "color-mix(in oklch, var(--ink) 6%, transparent)",
                     boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--ink) 10%, transparent)",
@@ -197,7 +197,7 @@ export function PersistentNav({ collapsed }: Props) {
               )}
               {renderBadge && !collapsed && (
                 <span
-                  className="h-2 w-2 rounded-full shrink-0"
+                  className="relative z-10 h-2 w-2 rounded-full shrink-0"
                   style={{ backgroundColor: "var(--ink-coral)" }}
                   aria-label="Google Calendar disconnected"
                 />
@@ -297,10 +297,10 @@ export function PersistentNav({ collapsed }: Props) {
           <button
             type="button"
             className={cn(
-              "group relative flex items-center gap-3 rounded-lg px-3 h-9 w-full",
+              "sidebar-row group relative flex items-center gap-3 px-3 h-9 w-full",
               "font-serif text-[14px] tracking-tight text-[var(--ink-muted)]",
-              "transition-all duration-150 ease-out",
-              "hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
+              "transition-colors duration-150 ease-out",
+              "hover:text-[var(--ink)]"
             )}
             aria-label="About Kiwi"
           >
