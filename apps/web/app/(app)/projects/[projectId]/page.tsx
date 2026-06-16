@@ -78,7 +78,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       .leftJoin(areas, eq(projects.areaId, areas.id))
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     db
-      .select({ id: areas.id, name: areas.name })
+      .select({ id: areas.id, name: areas.name, emoji: areas.emoji })
       .from(areas)
       .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
       .orderBy(asc(areas.orderIndex), asc(areas.createdAt)),

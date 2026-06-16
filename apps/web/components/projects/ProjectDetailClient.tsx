@@ -35,7 +35,7 @@ interface Props {
   }>;
   graduationYear: number | null;
   area: { id: string; name: string; emoji: string | null };
-  allAreas: { id: string; name: string }[];
+  allAreas: { id: string; name: string; emoji: string | null }[];
 }
 
 /**
@@ -150,6 +150,7 @@ export function ProjectDetailClient({
           userId={userId}
           projectId={projectId}
           projects={activeProjectsForComposer}
+          areas={allAreas}
           initialTasks={initialTasks}
         />
 

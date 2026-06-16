@@ -1,6 +1,7 @@
 "use client";
 
 import { createTask, deleteTask, getTasksForCurrentUser } from "@/app/actions/tasks";
+import { createProject } from "@/app/actions/projects";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskDetailPanel } from "@/components/tasks/TaskDetailPanel";
 import { TaskList } from "@/components/tasks/TaskList";
@@ -30,9 +31,21 @@ interface Props {
     areaName: string | null;
     areaEmoji: string | null;
   }>;
+  /** Areas available for inline project creation (issue #34). */
+  areas: { id: string; name: string; emoji: string | null }[];
   /** SSR-hydrated tasks for THIS project. Filters the global cache below. */
   initialTasks: TaskWithProjects[];
 }
+
+type ProjectOption = {
+  id: string;
+  name: string;
+  icon: string | null;
+  isClass: boolean;
+  courseCode: string | null;
+  areaName: string | null;
+  areaEmoji: string | null;
+};
 
 type View = "kanban" | "list";
 
@@ -53,8 +66,56 @@ const SHOW_LESNO_KEY = "project-tasks-show-lesno";
  * thrash a per-project key that would never be invalidated by the realtime
  * channel.
  */
-export function ProjectTasksSection({ userId, projectId, projects, initialTasks }: Props) {
+export function ProjectTasksSection({
+  userId,
+  projectId,
+  projects: initialProjectOptions,
+  areas,
+  initialTasks,
+}: Props) {
   const queryClient = useQueryClient();
+  // Local project list so an inline-created project (issue #34) is immediately
+  // selectable in the detail panel without a navigation. Seeded from props and
+  // re-synced when the SSR prop changes.
+  const [projects, setProjects] = useState<ProjectOption[]>(() =>
+    initialProjectOptions.map((p) => ({ ...p })),
+  );
+  useEffect(() => {
+    setProjects(initialProjectOptions.map((p) => ({ ...p })));
+  }, [initialProjectOptions]);
+
+  const handleCreateProject = useCallback(
+    async (input: { name: string; areaId: string }): Promise<string | null> => {
+      const newId = crypto.randomUUID();
+      const area = areas.find((a) => a.id === input.areaId) ?? null;
+      const optimistic: ProjectOption = {
+        id: newId,
+        name: input.name,
+        icon: null,
+        isClass: false,
+        courseCode: null,
+        areaName: area?.name ?? null,
+        areaEmoji: area?.emoji ?? null,
+      };
+      setProjects((prev) => [...prev, optimistic]);
+      const r = await createProject({
+        id: newId,
+        areaId: input.areaId,
+        name: input.name,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        setProjects((prev) => prev.filter((p) => p.id !== newId));
+        return null;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("projects", userId),
+      });
+      toast("Project created.");
+      return newId;
+    },
+    [areas, queryClient, userId],
+  );
   const [, startTransition] = useTransition();
   const [view, setView] = useState<View>("kanban");
   const [collapsed, setCollapsed] = useState(false);
@@ -285,7 +346,9 @@ export function ProjectTasksSection({ userId, projectId, projects, initialTasks 
 
       <TaskDetailPanel
         task={openTask}
-        projects={projects.map((p) => ({ ...p }))}
+        projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={!!openTask}
         onClose={() => setOpenTaskId(null)}
         addOptimistic={addOptimistic}
@@ -324,7 +387,9 @@ export function ProjectTasksSection({ userId, projectId, projects, initialTasks 
           Pre-linked to this project via draftTask.projects. */}
       <TaskDetailPanel
         task={draftTask}
-        projects={projects.map((p) => ({ ...p }))}
+        projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={!!draftTask}
         onClose={() => setDraftStatus(null)}
         addOptimistic={addOptimistic}
