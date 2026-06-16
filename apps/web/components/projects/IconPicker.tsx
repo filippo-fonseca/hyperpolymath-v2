@@ -14,7 +14,7 @@ interface Props {
 
 /**
  * Lucide icon picker — 150 curated icons, categorized + searchable.
- * Per UI-SPEC §Icon Picker: 6-col grid, hover bg-secondary, selected bg-accent/20 border-accent.
+ * Per UI-SPEC §Icon Picker: 6-col grid, hover bg-secondary, selected bg-secondary + ring-ring.
  * Search is case-insensitive substring match on icon name across all categories.
  * WHY static curated map: see PITFALLS Pitfall 5 — no dynamicIconImports overhead.
  */
@@ -118,7 +118,7 @@ export function IconPicker({ value, onChange }: Props) {
                       className={cn(
                         "flex flex-col items-center gap-1 rounded-md p-1.5 transition-colors",
                         "hover:bg-secondary",
-                        isSelected && "bg-accent/20 ring-1 ring-inset ring-accent"
+                        isSelected && "bg-secondary ring-1 ring-inset ring-ring"
                       )}
                     >
                       <Icon

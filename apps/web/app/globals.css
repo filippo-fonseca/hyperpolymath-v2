@@ -81,11 +81,20 @@
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--surface);
   --color-muted-foreground: var(--ink-muted);
+  /* Accent = subtle raised hover/selected surface (shadcn semantics). Bound to
+     --surface-raised so bg-accent / hover:bg-accent / bg-accent/20 read as a
+     soft tint in BOTH modes (the token was previously undefined, so every
+     accent utility resolved to nothing and broke especially in dark mode). */
+  --color-accent: var(--surface-raised);
   --color-accent-foreground: var(--ink);
   --color-destructive: var(--ink-coral);
   --color-destructive-foreground: var(--canvas);
   --color-border: var(--edge);
   --color-input: var(--surface);
+  /* Focus ring color for ring-ring / border-ring (shadcn). Bound to the
+     theme-aware --edge-hud so focus rings track light/dark like the rest of
+     the input focus system. Previously undefined → invisible focus rings. */
+  --color-ring: var(--edge-hud);
   --radius: 0.5rem;
 }
 
