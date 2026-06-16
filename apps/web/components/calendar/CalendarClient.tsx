@@ -327,6 +327,32 @@ export function CalendarClient({
     });
   }, []);
 
+  // In-flight UPDATE ids (issue #25). Tracked so (a) the grid chip can render a
+  // busy spinner + dimmed opacity while a reschedule/edit round-trips, and
+  // (b) a second drag/resize on the SAME event is dropped while its first
+  // write is still pending (re-entrancy guard for the auto-save drag paths,
+  // which don't pass through the EventDetailPanel's usePendingAction guard).
+  const [busyUpdateIds, setBusyUpdateIds] = useState<Set<string>>(new Set());
+  const markBusy = useCallback((id: string) => {
+    setBusyUpdateIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+  const clearBusy = useCallback((id: string) => {
+    setBusyUpdateIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+  // Synchronous guard for the auto-save drag/resize paths — state flips are
+  // async, so a fast second drag could slip through before `busyUpdateIds`
+  // updates. The ref blocks it the instant the first write starts.
+  const inFlightUpdateRef = useRef<Set<string>>(new Set());
+
   // Issue #16 deferred-delete durability. The 5s Undo toast defers the gcal
   // DELETE to the toast's onAutoClose/onDismiss lifecycle. If the user
   // refreshes or navigates away within that window the toast is torn down
@@ -370,10 +396,13 @@ export function CalendarClient({
   // the reducer would risk it surviving the panel close path.
   const displayEvents = useMemo<GcalEvent[]>(() => {
     // Drop optimistically-deleted events for the full undo window before any
-    // draft/preview overlay is composed on top.
-    const visible = (optimisticEvents as GcalEvent[]).filter(
-      (e) => !pendingDeleteIds.has(e.id),
-    );
+    // draft/preview overlay is composed on top, and flag any event whose
+    // backend write is still in flight so the grid renders a busy spinner.
+    const visible = (optimisticEvents as GcalEvent[])
+      .filter((e) => !pendingDeleteIds.has(e.id))
+      .map((e) =>
+        busyUpdateIds.has(e.id) ? { ...e, isBusy: true } : e,
+      );
     if (panelState.mode === "edit" && formDraft) {
       const editingId = panelState.event.id;
       const out: GcalEvent[] = [];
@@ -425,7 +454,7 @@ export function CalendarClient({
       ];
     }
     return visible;
-  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar, pendingDeleteIds]);
+  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar, pendingDeleteIds, busyUpdateIds]);
 
   /**
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
@@ -521,6 +550,16 @@ export function CalendarClient({
         allDay?: boolean;
       },
     ) => {
+      // Re-entrancy guard for the auto-save drag/resize paths: if a write for
+      // this event is already in flight, drop the duplicate rather than racing
+      // two patches against gcal. (The panel-edit path has its own guard via
+      // usePendingAction, but it harmlessly short-circuits here too.)
+      if (inFlightUpdateRef.current.has(eventId)) {
+        return { success: false };
+      }
+      inFlightUpdateRef.current.add(eventId);
+      markBusy(eventId);
+
       // Build the grid-shaped patch from the input. Always TZDate-wrap
       // dates so the grid renders the new range correctly.
       const patchForGrid: Partial<GcalEvent> = {};
@@ -560,14 +599,30 @@ export function CalendarClient({
         startTransition(() => {
           addOptimistic({ type: "revert", id: eventId });
         });
-        toast.error(res.error ?? "Failed to update event");
+        toast.error(res.error ?? "Failed to update event", {
+          action: {
+            label: "Retry",
+            onClick: () => {
+              void handleUpdateRef.current?.(eventId, currentCalendarId, patch);
+            },
+          },
+        });
+        inFlightUpdateRef.current.delete(eventId);
+        clearBusy(eventId);
         return { success: false };
       }
       void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+      inFlightUpdateRef.current.delete(eventId);
+      clearBusy(eventId);
       return { success: true };
     },
-    [effectiveTz, colorByCalendar, addOptimistic, qc, userId],
+    [effectiveTz, colorByCalendar, addOptimistic, qc, userId, markBusy, clearBusy],
   );
+
+  // Stable ref to handleUpdate so the failure toast's Retry can re-invoke the
+  // latest closure without making the toast capture a stale one.
+  const handleUpdateRef = useRef<typeof handleUpdate | null>(null);
+  handleUpdateRef.current = handleUpdate;
 
   // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for gcal event delete.
   // The gcal API is the source of truth — committing the delete must hit

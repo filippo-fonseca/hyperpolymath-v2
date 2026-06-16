@@ -46,7 +46,8 @@ import { z } from "zod";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import { usePendingAction } from "@/components/shared/use-pending-action";
 
 import {
   Sheet,
@@ -202,7 +203,15 @@ export function EventDetailPanel({
     "close" | "cancel" | null
   >(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  // Shared CRUD pending contract (issue #25): `run` carries the synchronous
+  // re-entrancy guard (no double-submit on a fast double-click / Cmd+Enter
+  // spam) and `pending` drives the disabled+busy affordances on the footer
+  // buttons. The parent (CalendarClient) owns optimistic apply + rollback +
+  // failure toasts, so each wrapped action resolves `{ success: true }` to the
+  // hook regardless of the gcal outcome — we don't want the hook to fire a
+  // second error toast on top of the parent's. We branch the close-on-success
+  // behaviour off the underlying `{ success }` result instead.
+  const { run, pending: submitting } = usePendingAction();
 
   // Derive initial form values from panel state. Recomputed when state
   // identity changes (new event clicked or new slot dragged).
@@ -286,41 +295,44 @@ export function EventDetailPanel({
 
   const onValidSubmit = useCallback(
     async (data: EventFormValues) => {
-      setSubmitting(true);
       // Clear the live-form-state preview the moment we begin saving — the
       // parent's optimistic-insert path takes over from here and we don't
       // want the synthetic `__create-preview__` row (or edit-mode draft twin)
       // double-rendering alongside the real optimistic placeholder during the
       // network round-trip.
       if (onDraftChange) onDraftChange(null);
-      try {
-        const result: EventFormResult = {
-          title: data.title.trim(),
-          calendarId: data.calendarId,
-          start: dateTimeLocalToTZDate(data.start, userTimezone),
-          end: dateTimeLocalToTZDate(data.end, userTimezone),
-          allDay: data.allDay,
-          description:
-            data.description && data.description.trim()
-              ? data.description.trim()
-              : null,
-        };
-        const editTarget =
-          state.mode === "edit"
-            ? {
-                eventId: state.event.id,
-                currentCalendarId: state.event.calendarId,
-              }
-            : null;
-        const res = await onSave(result, editTarget);
-        if (res.success) {
-          onClose();
-        }
-      } finally {
-        setSubmitting(false);
-      }
+      const result: EventFormResult = {
+        title: data.title.trim(),
+        calendarId: data.calendarId,
+        start: dateTimeLocalToTZDate(data.start, userTimezone),
+        end: dateTimeLocalToTZDate(data.end, userTimezone),
+        allDay: data.allDay,
+        description:
+          data.description && data.description.trim()
+            ? data.description.trim()
+            : null,
+      };
+      const editTarget =
+        state.mode === "edit"
+          ? {
+              eventId: state.event.id,
+              currentCalendarId: state.event.calendarId,
+            }
+          : null;
+      // `run` is the guarded wrapper: the synchronous in-flight ref blocks a
+      // second submit, and `submitting` flips the footer buttons to busy. We
+      // resolve `{ success: true }` to the hook (the parent already toasts on
+      // failure) and close the panel only when the underlying save succeeded.
+      await run(
+        async () => {
+          const res = await onSave(result, editTarget);
+          if (res.success) onClose();
+          return { success: true } as const;
+        },
+        { retry: false },
+      );
     },
-    [state, userTimezone, onSave, onClose, onDraftChange],
+    [state, userTimezone, onSave, onClose, onDraftChange, run],
   );
 
   // Cmd+Enter to save (mirrors CaptureDetailPanel convention).
@@ -377,17 +389,20 @@ export function EventDetailPanel({
 
   const handleDeleteConfirmed = useCallback(async () => {
     if (!onDelete) return;
-    setSubmitting(true);
-    try {
-      const res = await onDelete();
-      if (res.success) {
-        setShowDeleteConfirm(false);
-        onClose();
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [onDelete, onClose]);
+    // Same guarded-pending contract as save: `run` blocks a double-confirm and
+    // `submitting` disables the dialog actions while the delete round-trips.
+    await run(
+      async () => {
+        const res = await onDelete();
+        if (res.success) {
+          setShowDeleteConfirm(false);
+          onClose();
+        }
+        return { success: true } as const;
+      },
+      { retry: false },
+    );
+  }, [onDelete, onClose, run]);
 
   // Watch allDay to drive input type swap (date vs datetime-local). When
   // toggled on, strip the time portion of the start/end to a date string.
@@ -674,7 +689,15 @@ export function EventDetailPanel({
                     disabled={
                       submitting || (state.mode === "edit" && !isDirty)
                     }
+                    aria-busy={submitting}
                   >
+                    {submitting && (
+                      <Loader2
+                        size={14}
+                        className="mr-1.5 animate-spin"
+                        aria-hidden
+                      />
+                    )}
                     {submitting ? "Saving…" : "Save event"}
                   </Button>
                 </div>
@@ -731,18 +754,32 @@ export function EventDetailPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-sans text-[13px]">
+            <AlertDialogCancel
+              className="font-sans text-[13px]"
+              disabled={submitting}
+            >
               Discard changes
             </AlertDialogCancel>
             <AlertDialogAction
               className="font-sans text-[13px]"
-              onClick={() => {
-                // We don't close the AlertDialog ourselves — handleDelete
-                // calls onClose() on success which unmounts the whole sheet.
+              disabled={submitting}
+              aria-busy={submitting}
+              onClick={(e) => {
+                // Keep the dialog open while the delete round-trips — the guard
+                // in `run` blocks a double-confirm, and handleDeleteConfirmed
+                // closes the dialog + sheet itself on success.
+                e.preventDefault();
                 void handleDeleteConfirmed();
               }}
             >
-              Delete
+              {submitting && (
+                <Loader2
+                  size={14}
+                  className="mr-1.5 animate-spin"
+                  aria-hidden
+                />
+              )}
+              {submitting ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
