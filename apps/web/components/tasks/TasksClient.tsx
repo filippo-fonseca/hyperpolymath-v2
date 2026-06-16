@@ -8,6 +8,7 @@ import {
   updateTask,
 } from "@/app/actions/tasks";
 import { deleteTask } from "@/app/actions/tasks";
+import { createProject } from "@/app/actions/projects";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { Button } from "@/components/ui/button";
@@ -36,18 +37,21 @@ import { TaskSelectionBar } from "./TaskSelectionBar";
 
 type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
+interface ProjectOption {
+  id: string;
+  name: string;
+  icon: string | null;
+  isClass: boolean;
+  courseCode: string | null;
+  areaName: string | null;
+  areaEmoji: string | null;
+}
+
 interface Props {
   userId: string;
   initialTasks: TaskWithProjects[];
-  projects: {
-    id: string;
-    name: string;
-    icon: string | null;
-    isClass: boolean;
-    courseCode: string | null;
-    areaName: string | null;
-    areaEmoji: string | null;
-  }[];
+  projects: ProjectOption[];
+  areas: { id: string; name: string; emoji: string | null }[];
   initialFilters: {
     priority: string[];
     status: string[];
@@ -75,12 +79,63 @@ export type TasksOptimisticDispatch = (action: OptimisticListAction<TaskWithProj
  * D-03: server rejection → toast.error + silent revert (useOptimistic reverts
  *       automatically when the transition closes without committing real state).
  */
-export function TasksClient({ userId, initialTasks, projects, initialFilters }: Props) {
+export function TasksClient({
+  userId,
+  initialTasks,
+  projects: initialProjects,
+  areas,
+  initialFilters,
+}: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [, startTransition] = useTransition();
   // Phase 6 Plan 06-02: sonner Undo toast helper for delete-task flow (RES-02).
   const { show: showUndoToast } = useUndoToast();
+
+  // Local projects list, seeded from SSR props. Inline project creation
+  // (issue #34) appends new projects here so they're immediately selectable in
+  // the detail panel's project picker without a full-page navigation. Re-sync
+  // when the SSR prop changes (e.g. a project created elsewhere lands on nav).
+  const [projects, setProjects] = useState<ProjectOption[]>(initialProjects);
+  useEffect(() => {
+    setProjects(initialProjects);
+  }, [initialProjects]);
+
+  // Create a project inline from the task project picker, then surface it
+  // immediately so the caller can auto-select it. Returns the new id on
+  // success, or null on failure (caller leaves selection untouched).
+  const handleCreateProject = useCallback(
+    async (input: { name: string; areaId: string }): Promise<string | null> => {
+      const newId = crypto.randomUUID();
+      const area = areas.find((a) => a.id === input.areaId) ?? null;
+      const optimistic: ProjectOption = {
+        id: newId,
+        name: input.name,
+        icon: null,
+        isClass: false,
+        courseCode: null,
+        areaName: area?.name ?? null,
+        areaEmoji: area?.emoji ?? null,
+      };
+      setProjects((prev) => [...prev, optimistic]);
+      const r = await createProject({
+        id: newId,
+        areaId: input.areaId,
+        name: input.name,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        setProjects((prev) => prev.filter((p) => p.id !== newId));
+        return null;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("projects", userId),
+      });
+      toast("Project created.");
+      return newId;
+    },
+    [areas, queryClient, userId]
+  );
 
   // ── Canonical cache (D-06 hybrid SSR + TanStack Query) ───────────────────
   const { data: tasks = initialTasks } = useQuery({
@@ -841,6 +896,8 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       <TaskDetailPanel
         task={openTask}
         projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={!!openTask}
         onClose={() => setOpenTaskId(null)}
         addOptimistic={addOptimistic}
@@ -882,6 +939,8 @@ export function TasksClient({ userId, initialTasks, projects, initialFilters }: 
       <TaskDetailPanel
         task={draftTask}
         projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={!!draftTask}
         onClose={() => setDraftStatus(null)}
         addOptimistic={addOptimistic}

@@ -48,6 +48,16 @@ interface ProjectOption {
 interface Props {
   task: TaskWithProjects | null;
   projects: ProjectOption[];
+  /**
+   * Areas the user can file a new inline-created project under (issue #34).
+   * Passed straight through to ProjectAutocomplete's create form.
+   */
+  areas: { id: string; name: string; emoji: string | null }[];
+  /**
+   * Inline project creation handler. Creates the project, surfaces it in the
+   * picker, and resolves with its id so it can be auto-linked to the task.
+   */
+  onCreateProject: (input: { name: string; areaId: string }) => Promise<string | null>;
   open: boolean;
   onClose: () => void;
   addOptimistic: TasksOptimisticDispatch;
@@ -183,6 +193,8 @@ function isDirty(a: FormState, b: FormState): boolean {
 export function TaskDetailPanel({
   task,
   projects,
+  areas,
+  onCreateProject,
   open,
   onClose,
   addOptimistic,
@@ -504,6 +516,8 @@ export function TaskDetailPanel({
                     value={form.projectIds}
                     onChange={(ids) => set("projectIds", ids)}
                     projects={projects}
+                    areas={areas}
+                    onCreateProject={onCreateProject}
                   />
                 </FieldSection>
 
