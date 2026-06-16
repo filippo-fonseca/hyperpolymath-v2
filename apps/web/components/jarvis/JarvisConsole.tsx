@@ -458,6 +458,13 @@ export function JarvisConsole({
       persistTurn(userTurn);
 
       setStreaming(true);
+      // Abort any request still in flight before starting a new one. The UI
+      // gates submits behind `disabled={streaming}`, but programmatic paths
+      // (voice transcript, clarification chips) can re-enter while a stream is
+      // open. Without this, the previous fetch leaks and both SSE readers race
+      // to mutate overlapping turn state. Mirrors GlobalJarvisHandler's
+      // abort-before-start contract.
+      abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
 
