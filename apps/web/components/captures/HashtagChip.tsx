@@ -13,12 +13,14 @@ interface Props {
 /**
  * Phase 06.1 Plan 04 (UI-SPEC §5i, §9g) — sage hashtag chip.
  *
- * Color contract:
- *   - idle    : bg rgb(101 163 13 / 0.12), text --ink
- *   - hover   : bg rgb(101 163 13 / 0.18) over 100ms --ease-out-quart
- *   - active  : bg rgb(101 163 13 / 0.22), text --ink-sage (selected/filter)
- *   - "new"   : same sage register with italic "(new)" suffix — used in the
- *     composer suggestion popover only
+ * Color contract (alpha register derived from the brand --ink-sage oklch token
+ * via color-mix, not raw Tailwind lime — see issue #43):
+ *   - idle    : bg sage @ 12%, text --ink
+ *   - hover   : bg sage @ 22% over 100ms --ease-out-quart
+ *   - active  : bg sage @ 32%, text --ink (selected/filter — deeper tint
+ *               signals selection; keeps high contrast vs. sage-on-sage)
+ *   - "new"   : bg sage @ 22%, text --ink-sage italic — used in the composer
+ *               suggestion popover only
  *
  * Type register: font-mono 12px — metadata chrome family, distinguishes the
  * chip from serif body text per UI-SPEC §4a. NO cyan anywhere on this chip;
@@ -36,13 +38,13 @@ export function HashtagChip({
   const className = cn(
     "inline-flex items-center font-mono text-xs font-normal rounded-sm px-2 py-0.5",
     "transition-colors duration-100 ease-out",
-    // Sage alpha ladder per UI-SPEC §9g
+    // Sage alpha ladder per UI-SPEC §9g — bg derived from --ink-sage via color-mix
     isSelected
-      ? "bg-[color:rgb(101_163_13_/_0.22)] text-[var(--ink-sage)]"
+      ? "bg-[color:color-mix(in_oklch,var(--ink-sage)_32%,transparent)] text-[var(--ink)]"
       : isNew
-        ? "bg-[color:rgb(101_163_13_/_0.18)] text-[var(--ink-sage)] italic"
-        : "bg-[color:rgb(101_163_13_/_0.12)] text-[var(--ink)]",
-    asButton && !isSelected && "hover:bg-[color:rgb(101_163_13_/_0.18)]",
+        ? "bg-[color:color-mix(in_oklch,var(--ink-sage)_22%,transparent)] text-[var(--ink-sage)] italic"
+        : "bg-[color:color-mix(in_oklch,var(--ink-sage)_12%,transparent)] text-[var(--ink)]",
+    asButton && !isSelected && "hover:bg-[color:color-mix(in_oklch,var(--ink-sage)_22%,transparent)]",
     asButton && "cursor-pointer-always",
   );
 
