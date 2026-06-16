@@ -44,7 +44,7 @@ interface Props {
  *   3. Hashtag rows — `#name` + count, font-sans 13px/400.
  *
  * - 200px-wide column rendered by CapturesClient
- * - Active row: text-accent + bg-secondary (color shift only, no weight change)
+ * - Active row: bg-secondary + medium weight (theme-aware; reads in light + dark)
  * - Sorted DESC by count by the server query; we render in given order
  * - Orphan tags (count === 0): hidden by default; "Show all"toggle reveals at opacity-40
  * - Click again on the active hashtag row also clears the filter (secondary affordance)
@@ -71,7 +71,7 @@ export function HashtagSidebar({
         className={cn(
           "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
           isActive
-            ? "bg-secondary text-accent"
+            ? "bg-secondary font-medium text-foreground"
             : "text-foreground hover:bg-secondary/60",
           isOrphan && !isActive && "opacity-40",
         )}
@@ -94,7 +94,7 @@ export function HashtagSidebar({
         className={cn(
           "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
           allIsActive
-            ? "bg-secondary text-accent"
+            ? "bg-secondary font-medium text-foreground"
             : "text-foreground hover:bg-secondary/60",
         )}
         aria-pressed={allIsActive}
