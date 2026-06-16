@@ -356,9 +356,44 @@ export async function deleteEvent(
   const acquired = await acquireCalendar(user.id);
   if (!acquired.ok) return acquired.result;
 
-  await acquired.cal.events.delete({
-    calendarId: parsed.data.calendarId,
-    eventId: parsed.data.eventId,
-  });
+  try {
+    await acquired.cal.events.delete({
+      calendarId: parsed.data.calendarId,
+      eventId: parsed.data.eventId,
+    });
+  } catch (e) {
+    // Delete is idempotent: gcal returns 410 Gone when the event was already
+    // deleted (or 404 when it never existed on this calendar). Either way the
+    // post-condition the caller wants ("this event is not on the calendar")
+    // already holds, so report success rather than rethrowing into the error
+    // boundary. Any other status (auth, 5xx, network) is a real failure and
+    // rethrows so the optimistic delete rolls back.
+    const status = gcalErrorStatus(e);
+    if (status === 410 || status === 404) {
+      return { success: true, data: { id: parsed.data.eventId } };
+    }
+    throw e;
+  }
   return { success: true, data: { id: parsed.data.eventId } };
+}
+
+/**
+ * Extract the HTTP status from a googleapis/gaxios error without importing the
+ * gaxios types. The thrown error exposes the status as `code` (number or
+ * numeric string) and/or `response.status` depending on the failure path.
+ */
+function gcalErrorStatus(e: unknown): number | undefined {
+  if (typeof e !== "object" || e === null) return undefined;
+  const err = e as {
+    code?: number | string;
+    status?: number;
+    response?: { status?: number };
+  };
+  const fromCode =
+    typeof err.code === "number"
+      ? err.code
+      : typeof err.code === "string" && /^\d+$/.test(err.code)
+        ? Number(err.code)
+        : undefined;
+  return fromCode ?? err.status ?? err.response?.status;
 }

@@ -291,3 +291,41 @@ describe("deleteEvent — happy path", () => {
     expect(arg.eventId).toBe("evt-canonical-id");
   });
 });
+
+describe("deleteEvent — idempotency (issue #16)", () => {
+  it("treats a 410 Gone from gcal as success (event already deleted)", async () => {
+    eventsDeleteMock.mockRejectedValueOnce(
+      Object.assign(new Error("Resource has been deleted"), { code: 410 }),
+    );
+
+    const result = await callDelete({
+      calendarId: "primary",
+      eventId: "already-gone-id",
+    });
+
+    expect(result).toEqual({ success: true, data: { id: "already-gone-id" } });
+  });
+
+  it("treats a 404 Not Found (response.status) as success", async () => {
+    eventsDeleteMock.mockRejectedValueOnce(
+      Object.assign(new Error("Not Found"), { response: { status: 404 } }),
+    );
+
+    const result = await callDelete({
+      calendarId: "primary",
+      eventId: "missing-id",
+    });
+
+    expect(result).toEqual({ success: true, data: { id: "missing-id" } });
+  });
+
+  it("rethrows non-404/410 failures (e.g. 500) so the optimistic delete rolls back", async () => {
+    eventsDeleteMock.mockRejectedValueOnce(
+      Object.assign(new Error("backend error"), { code: 500 }),
+    );
+
+    await expect(
+      callDelete({ calendarId: "primary", eventId: "evt-id" }),
+    ).rejects.toThrow("backend error");
+  });
+});
