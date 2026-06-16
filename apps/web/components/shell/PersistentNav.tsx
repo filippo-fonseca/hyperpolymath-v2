@@ -65,8 +65,8 @@ const items = [
     href: "/nutrition",
     label: "Nutrition",
     icon: UtensilsCrossed,
-    disabled: true,
-    tooltip: "Coming soon",
+    disabled: false,
+    tooltip: undefined,
   },
   {
     href: "/captures",
