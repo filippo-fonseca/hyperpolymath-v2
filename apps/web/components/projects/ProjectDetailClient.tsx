@@ -30,6 +30,8 @@ interface Props {
     icon: string | null;
     isClass: boolean;
     courseCode: string | null;
+    areaName: string | null;
+    areaEmoji: string | null;
   }>;
   graduationYear: number | null;
   area: { id: string; name: string; emoji: string | null };
