@@ -73,6 +73,18 @@ const REPORT_URL = (process.env.REPORT_URL ?? 'https://hyperpolymath.com').repla
 const log = (...args) => console.log('[kiwi-autodev]', ...args);
 const warn = (...args) => console.warn('[kiwi-autodev]', ...args);
 
+// Environment for child `claude` invocations (both triage and implementation).
+// Deleting ANTHROPIC_API_KEY guarantees the CLI authenticates via the Claude
+// subscription (Claude Code) instead of the metered Anthropic API, no matter
+// what the surrounding shell exports. Subscription billing is an explicit cost
+// choice: the API is far pricier per token. `extra` overlays extra vars (e.g.
+// KIWI_AUTOMATION so the pre-push guard fires on any push attempt).
+function claudeChildEnv(extra = {}) {
+  const env = { ...process.env, ...extra };
+  delete env.ANTHROPIC_API_KEY;
+  return env;
+}
+
 // Tiny dotenv parser (no deps): KEY=value, comments, blanks, optional quotes.
 function parseDotenv(raw) {
   const out = {};
@@ -128,13 +140,29 @@ async function commitCountFor(worktreeDir, branch) {
   }
 }
 
+// The per-issue wall-clock budget, in minutes, kept in sync with
+// PER_ISSUE_TIMEOUT_MS so the rules text never drifts from the real cap.
+const TIMEOUT_MINUTES = Math.max(1, Math.round(PER_ISSUE_TIMEOUT_MS / 60000));
+
+// Single source of truth for what makes an issue a good fit for one bounded
+// auto-dev session. Used BOTH by the triage pass (to pick issues) and by the
+// per-issue implementation prompt (to decide attempt-or-skip), so the selector
+// and the implementer apply the exact same bar and can never drift apart. This
+// is the fix for "triage picked something the implementer just skipped."
+const DOABILITY_RULES = [
+  `Each issue gets ONE unattended session under a hard ${TIMEOUT_MINUTES}-minute wall-clock cap; anything not finished by then is killed and the slot is wasted.`,
+  'A GOOD fit is small, self-contained, and certain: a focused bug fix, a small UI tweak, or a localized enhancement touching one or a few files, with a clear, unambiguous acceptance criterion and no open design questions.',
+  'A BAD fit is anything large, architectural, multi-surface, ambiguous or under-specified in scope, dependent on product/design/UX judgment, requiring a real planning phase, introducing new dependencies or database migrations, or risky to perform unattended.',
+  'When in doubt, treat the issue as too big and leave it out.',
+].join(' ');
+
 // Build the headless-Claude prompt for one issue. Plain prose, no em/en dashes.
 function buildPrompt(issueNumber, title) {
   return [
     `Resolve GitHub issue #${issueNumber} ("${title}") for this repository using the GSD quick pipeline (invoke /gsd:quick). Make small, atomic commits and reference "Closes #${issueNumber}" in a commit message.`,
     `For THIS invocation, disable inner GSD worktree isolation: set workflow.use_worktrees=false so you commit directly on the current branch with no nested worktrees.`,
     `NEVER run git push and NEVER run destructive git: no reset --hard, no push, no remote changes of any kind.`,
-    `If the issue is too large, architectural, ambiguous, or risky to do safely in one bounded session, DO NOT attempt it. Leave the branch untouched and instead write a skip recap explaining why.`,
+    `Apply these doability rules before doing anything: ${DOABILITY_RULES} If this issue is a BAD fit by those rules, DO NOT attempt it: leave the branch untouched and instead write a skip recap explaining why.`,
     `When you are done or you have decided to skip, write a per-issue recap to .kiwi-auto/ISSUE-${issueNumber}-recap.md (relative to this working directory) and commit that recap on the current branch. If you skipped, say so plainly at the top of the recap with the word "skipped".`,
   ].join(' ');
 }
@@ -158,6 +186,7 @@ async function runIssue(issue, runDate) {
     commitCount: 0,
     note: '',
     prUrl: null,
+    summary: null,
   };
 
   let timedOut = false;
@@ -183,7 +212,7 @@ async function runIssue(issue, runDate) {
         ['-p', '--dangerously-skip-permissions', '--model', MODEL, prompt],
         {
           cwd: worktreeDir,
-          env: { ...process.env, KIWI_AUTOMATION: '1' },
+          env: claudeChildEnv({ KIWI_AUTOMATION: '1' }),
           detached: true,
           stdio: ['ignore', 'pipe', 'pipe'],
         },
@@ -366,10 +395,11 @@ async function triageSelect(issues) {
       })
       .join('\n');
     const prompt = [
-      'You are triaging GitHub issues for an automated coding agent that resolves ONE issue per bounded session using a quick-fix workflow.',
-      'Choose ONLY issues small and self-contained enough to plausibly complete in a single bounded session: a focused bug fix, a small UI tweak, or a contained enhancement.',
-      'EXCLUDE anything large, architectural, multi-surface, design-ambiguous, or that needs a real planning phase.',
-      `Return STRICT JSON only: an array of issue numbers, most tractable first, at most ${MAX_ISSUES} entries. If none qualify, return []. No prose, no code fences.`,
+      'You are the triage gate for an automated coding agent. The agent resolves ONE issue per unattended session using a quick-fix workflow, and it auto-refuses anything that is not a clean, small fix.',
+      `Apply these exact rules (the implementer applies the SAME rules, so picking an issue that violates them burns a whole session for nothing): ${DOABILITY_RULES}`,
+      'Rank the qualifying issues by how small, quick, and certain they are, smallest-effort first. STRONGLY prefer quick wins: it is better to return FEWER issues (even one, or none) than to fill the list with something that will be skipped or time out.',
+      'Only include a larger-but-still-bounded issue if it genuinely fits the time cap AND there is no smaller qualifying issue left to take that slot.',
+      `Return STRICT JSON only: an array of issue numbers, smallest-effort first, at most ${MAX_ISSUES} entries. If none qualify, return []. No prose, no code fences.`,
       '',
       'Issues:',
       catalog,
@@ -377,6 +407,7 @@ async function triageSelect(issues) {
     const { stdout } = await execFileP('claude', ['-p', '--model', TRIAGE_MODEL, prompt], {
       timeout: 180_000,
       maxBuffer: 8 * 1024 * 1024,
+      env: claudeChildEnv(),
     });
     const match = stdout.match(/\[[\s\S]*\]/);
     if (!match) {
@@ -399,9 +430,47 @@ async function triageSelect(issues) {
   }
 }
 
+// Human-readable timestamp in US Eastern time. America/New_York resolves to EST
+// or EDT automatically, and timeZoneName: 'short' prints whichever is in effect.
+function easternTimestamp(d = new Date()) {
+  return d.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  });
+}
+
+// A brief summary of a branch's changes, drawn from its commit subject lines
+// (origin/main..branch), oldest-first, as a markdown bullet list. The per-issue
+// worktree is already torn down by the time this runs, but the branch ref still
+// lives in REPO_ROOT so git resolves it there. Empty string on any error.
+async function commitSummaryFor(branch) {
+  try {
+    const { stdout } = await execFileP(
+      'git',
+      ['-C', REPO_ROOT, 'log', '--reverse', '--format=%s', `origin/main..${branch}`],
+      { timeout: 30_000, maxBuffer: 4 * 1024 * 1024 },
+    );
+    const subjects = stdout
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (subjects.length === 0) return '';
+    return subjects.map((s) => `- ${s}`).join('\n');
+  } catch {
+    return '';
+  }
+}
+
 // Push a review branch and open a PR for it. Never merges. The push guard
 // allows kiwi/auto/* but hard-blocks protected branches, so this can only ever
 // create review PRs. Best-effort: returns the PR URL, or null on any failure.
+// Also sets result.summary to the commit-derived change summary.
 async function pushAndOpenPr(result) {
   const { branch, issueNumber, title, status, commitCount } = result;
   try {
@@ -412,6 +481,10 @@ async function pushAndOpenPr(result) {
     warn(`push failed for ${branch}:`, err && err.message ? err.message : String(err));
     return null;
   }
+  // Derive the change summary up front so it is set even when we reuse an
+  // existing PR below (idempotent same-day re-runs take the early return).
+  const summary = await commitSummaryFor(branch);
+  result.summary = summary || null;
   // Reuse an existing PR for this branch if one is already open.
   try {
     const { stdout } = await execFileP(
@@ -423,19 +496,25 @@ async function pushAndOpenPr(result) {
   } catch {
     /* fall through to create */
   }
+  const openedEastern = easternTimestamp();
   const prefix = status === 'done' ? '' : `[${status}] `;
-  const body = [
+  const bodyLines = [
     `Auto-generated by kiwi-autodev for issue #${issueNumber}. Review on this branch (you can check it out and test); merging is always manual.`,
     '',
+    `Opened: ${openedEastern}`,
     `Status: ${status} (${commitCount} commit(s) on ${branch}).`,
-    status === 'timed-out'
-      ? 'Note: the agent hit the per-issue time cap, so this may be incomplete.'
-      : '',
+  ];
+  if (status === 'timed-out') {
+    bodyLines.push('Note: the agent hit the per-issue time cap, so this may be incomplete.');
+  }
+  bodyLines.push(
+    '',
+    '## Summary of changes',
+    summary || '(no commit messages found)',
     '',
     `Closes #${issueNumber} on merge.`,
-  ]
-    .filter(Boolean)
-    .join('\n');
+  );
+  const body = bodyLines.join('\n');
   try {
     const { stdout } = await execFileP(
       'gh',
@@ -548,6 +627,8 @@ async function main() {
     status: r.status,
     branch: r.branch,
     branchUrl: r.prUrl ?? r.branchUrl,
+    prUrl: r.prUrl ?? null,
+    summary: (r.summary || '').trim().slice(0, 2000) || null,
     commitCount: r.commitCount,
     note: (r.note || '').trim().slice(0, 2000) || null,
   }));
