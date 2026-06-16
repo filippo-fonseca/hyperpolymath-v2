@@ -31,10 +31,18 @@ function statusBadgeClass(status: DevRunItem["status"]): string {
   }
 }
 
+// Prefer the explicit PR link, then any stored URL (older rows put the PR in
+// branchUrl), then the bare branch tree.
 function itemHref(item: DevRunItem): string | null {
+  if (item.prUrl) return item.prUrl;
   if (item.branchUrl) return item.branchUrl;
   if (item.branch) return `${REPO_TREE_BASE}/${item.branch}`;
   return null;
+}
+
+// A GitHub PR URL contains "/pull/"; anything else is a branch tree link.
+function isPrHref(href: string | null): boolean {
+  return !!href && href.includes("/pull/");
 }
 
 export function DevelopmentTabPanel({ runs }: { runs: DevRun[] }) {
@@ -69,35 +77,54 @@ export function DevelopmentTabPanel({ runs }: { runs: DevRun[] }) {
             <ul className="mt-3 flex flex-col gap-2">
               {run.items.map((item) => {
                 const href = itemHref(item);
+                const isPr = isPrHref(href);
                 return (
                   <li
                     key={`${run.id}-${item.issueNumber}`}
-                    className="flex items-center gap-3"
+                    className="flex flex-col gap-1"
                   >
-                    <span
-                      className={cn(
-                        "rounded-sm px-1.5 py-0.5 ring-1 ring-inset",
-                        LABEL_CLASS,
-                        statusBadgeClass(item.status),
-                      )}
-                    >
-                      {item.status}
-                    </span>
-                    <span className="font-serif text-sm text-[var(--ink)]">
-                      #{item.issueNumber} {item.title}
-                    </span>
-                    {href ? (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <div className="flex items-center gap-3">
+                      <span
                         className={cn(
+                          "rounded-sm px-1.5 py-0.5 ring-1 ring-inset",
                           LABEL_CLASS,
-                          "text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors",
+                          statusBadgeClass(item.status),
                         )}
                       >
-                        {item.branch ?? "branch"}
-                      </a>
+                        {item.status}
+                      </span>
+                      {href ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-serif text-sm text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors"
+                        >
+                          #{item.issueNumber} {item.title}
+                        </a>
+                      ) : (
+                        <span className="font-serif text-sm text-[var(--ink)]">
+                          #{item.issueNumber} {item.title}
+                        </span>
+                      )}
+                      {href ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(
+                            LABEL_CLASS,
+                            "shrink-0 text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] transition-colors",
+                          )}
+                        >
+                          {isPr ? "view pr ↗" : (item.branch ?? "branch ↗")}
+                        </a>
+                      ) : null}
+                    </div>
+                    {item.summary ? (
+                      <p className="whitespace-pre-line pl-1 font-serif text-xs leading-relaxed text-[var(--ink-muted)]">
+                        {item.summary}
+                      </p>
                     ) : null}
                   </li>
                 );
