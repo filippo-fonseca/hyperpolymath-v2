@@ -29,7 +29,7 @@ Milestone: v1.1 "Speed & Agility"
 Phase: 19 — tasks-redesign-inbox-universal-day-view-glass-cards
 Plan: 5/5 complete (19-01..19-05)
 Status: Executed — verification human_needed (automated 9/9 PASS; 3 browser items pending)
-Last activity: 2026-06-15 -- Completed quick task 260615-n1x: live-render #hashtags as tokens in capture inputs (closes #41)
+Last activity: 2026-06-16 -- Completed quick task 260616-3h3: harmonize hashtag chip bg with --ink-sage + align Input/Textarea focus border with global ring (closes #43)
 
 Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -407,6 +407,7 @@ None yet.
 | 260615-lkl | Owner-only DEVELOPMENT tab on /insights plus token-gated POST /api/dev-runs ingest and kiwi_dev_runs table; reports the local Kiwi auto-dev worker's daily runs (issues + status + branch links) | 2026-06-15 | a4e82c2 | [260615-lkl-development-tab-on-insights-with-dev-run](./quick/260615-lkl-development-tab-on-insights-with-dev-run/) |
 | 260615-n2d | Show parent area inline (right-aligned, dim) in the project-assignment dropdown on tasks; closes issue #39 | 2026-06-15 | 181ed64 | [260615-n2d-show-associated-area-in-project-assignme](./quick/260615-n2d-show-associated-area-in-project-assignme/) |
 | 260615-n1x | Live-render `#hashtags` as styled tokens in capture inputs without requiring Enter (closes #41) — ProseMirror decoration plugin reusing the existing parser regex; visual parity with the popover-confirmed Mention chip | 2026-06-15 | 72909bc | [260615-n1x-hashtag-realtime-tokens](./quick/260615-n1x-hashtag-realtime-tokens/) |
+| 260616-3h3 | Harmonize hashtag chip background with brand --ink-sage token (replacing raw Tailwind lime) + align Input/Textarea focus border with the calm global --edge-hud ring (closes #43) | 2026-06-16 | 29f724b | [260616-3h3-improve-syntax-highlighting-colors-and-t](./quick/260616-3h3-improve-syntax-highlighting-colors-and-t/) |
 
 ## Session Continuity
 
