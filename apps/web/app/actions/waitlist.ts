@@ -14,23 +14,26 @@
  * Hashed IP (sha256 first 16 chars) written for triage; never raw IP.
  */
 
-import { z } from "zod";
-import { headers } from "next/headers";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { waitlist } from "@/lib/db/schema";
+import { headers } from "next/headers";
+import { z } from "zod";
 
 const WaitlistSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   note: z.string().trim().max(280).optional(),
-  // Honeypot — must be empty. Real users never see this (display:none in form).
-  website: z.string().max(0).optional(),
+  // Honeypot — real users never see this (offscreen in the form). Validate it
+  // as a permissive optional string (bounded for safety) so a bot filling it
+  // still PARSES; the dedicated honeypot check below short-circuits to a silent
+  // success. A `.max(0)` here would make a tripped honeypot fail parse and fall
+  // into the "Invalid email." branch, leaking that the bot was caught and never
+  // reaching the silent-success path.
+  website: z.string().max(320).optional(),
 });
 
 export type JoinWaitlistInput = z.input<typeof WaitlistSchema>;
-export type JoinWaitlistResult =
-  | { success: true }
-  | { success: false; error: string };
+export type JoinWaitlistResult = { success: true } | { success: false; error: string };
 
 // In-memory IP bucket — survives within one serverless function instance.
 // Stronger throttle (v2): persist to Supabase + check count cross-instance.
@@ -47,18 +50,14 @@ async function getHashedIp(): Promise<string> {
 
 function checkRateLimit(hashedIp: string): boolean {
   const now = Date.now();
-  const history = (ipBucket.get(hashedIp) ?? []).filter(
-    (t) => now - t < RATE_WINDOW_MS,
-  );
+  const history = (ipBucket.get(hashedIp) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   if (history.length >= RATE_LIMIT) return false;
   history.push(now);
   ipBucket.set(hashedIp, history);
   return true;
 }
 
-export async function joinWaitlist(
-  input: unknown,
-): Promise<JoinWaitlistResult> {
+export async function joinWaitlist(input: unknown): Promise<JoinWaitlistResult> {
   const parsed = WaitlistSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: "Invalid email." };
@@ -77,21 +76,31 @@ export async function joinWaitlist(
   }
 
   try {
-    await db
-      .insert(waitlist)
-      .values({
-        email: parsed.data.email,
-        note: parsed.data.note,
-        submittedIp: hashedIp,
-      })
-      .onConflictDoNothing({ target: waitlist.email });
+    const note = parsed.data.note?.length ? parsed.data.note : undefined;
+    const insert = db.insert(waitlist).values({
+      email: parsed.data.email,
+      note,
+      submittedIp: hashedIp,
+    });
+    if (note) {
+      // A note arrived (the "what do you do?" follow-up). The email row may
+      // already exist from the first submit, so persist the note on conflict
+      // instead of silently dropping it (plain onConflictDoNothing would lose
+      // the answer). Idempotent: re-running with the same note is a no-op.
+      await insert.onConflictDoUpdate({
+        target: waitlist.email,
+        set: { note },
+      });
+    } else {
+      // First submit (email only) — idempotent, no leakage on re-submit.
+      await insert.onConflictDoNothing({ target: waitlist.email });
+    }
     return { success: true };
   } catch (e) {
     console.error("[waitlist] insert failed:", e);
     return {
       success: false,
-      error:
-        "Couldn't reach the list. Try again, or email filippo directly.",
+      error: "Couldn't reach the list. Try again, or email filippo directly.",
     };
   }
 }
