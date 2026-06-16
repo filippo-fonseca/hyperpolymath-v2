@@ -631,6 +631,66 @@ export const claudeCodeUsage = pgTable(
   ],
 );
 
+// anthropic_api_usage — daily Anthropic API (pay-as-you-go) spend + token
+// totals, mirroring claude_code_usage. Populated live from the Anthropic Cost
+// API on /insights page load with best-effort write-through (DEC-1): the live
+// fetch upserts the days it sees so the table stays warm and a future cron can
+// take over without a UI rewrite. cost stored as integer micros (USD * 1e6).
+export const anthropicApiUsage = pgTable(
+  "anthropic_api_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    costUsd: integer("cost_usd_micros"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date] }),
+  ],
+);
+
+// claude_subscription_usage — Claude Code Max-5x subscription snapshots
+// (DEC-2 / DEC-3). Deliberately small: at most one "session" row (the active
+// rolling 5-hour block, keyed by its start time) plus a handful of "week" rows
+// (keyed by ISO week-start). Upserted by the same ccusage sync pipeline; the
+// laptop sync overwrites in place on each run. Percentages shown in the UI are
+// computed against configurable approximate Max-5x limits (limits.ts) and are
+// NOT scraped real plan limits. cost stored as integer micros (USD * 1e6).
+export const claudeSubscriptionUsage = pgTable(
+  "claude_subscription_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "session" (active 5-hour block) or "week" (weekly rollup).
+    kind: text("kind").notNull(),
+    // session: the active block startTime ISO string. week: ISO week-start (YYYY-MM-DD).
+    bucketKey: text("bucket_key").notNull(),
+    costUsd: integer("cost_usd_micros"),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }),
+    windowEnd: timestamp("window_end", { withTimezone: true }),
+    // ccusage `blocks --active` projection for the current block.
+    projectedCostUsd: integer("projected_cost_usd_micros"),
+    projectedTotalTokens: bigint("projected_total_tokens", { mode: "number" }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind, t.bucketKey] }),
+  ],
+);
+
 export const habitCompletions = pgTable(
   "habit_completions",
   {
