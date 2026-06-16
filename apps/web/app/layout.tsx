@@ -29,11 +29,12 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Hyperpolymath",
+    default:
+      "Hyperpolymath | A personal life-OS for people who refuse to specialize.",
     template: "%s · Hyperpolymath",
   },
   description:
-    "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place across tasks, captures, and calendar.",
+    "I brought back the Renaissance Human, and gave them JARVIS from Tony Stark, all in one. A platform and a framework, fully open source. Use mine, or build your own.",
   applicationName: "Hyperpolymath",
   authors: [{ name: "Filippo Fonseca", url: "https://filippofonseca.com" }],
   creator: "Filippo Fonseca",
@@ -54,16 +55,18 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "Hyperpolymath",
-    title: "Hyperpolymath",
+    title:
+      "Hyperpolymath | A personal life-OS for people who refuse to specialize.",
     description:
-      "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place.",
-    // `opengraph-image.tsx` is auto-attached by Next.js file conventions.
+      "I brought back the Renaissance Human, and gave them JARVIS from Tony Stark, all in one. A platform and a framework, fully open source. Use mine, or build your own.",
+    // `opengraph-image.png` is auto-attached by Next.js file conventions.
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hyperpolymath",
+    title:
+      "Hyperpolymath | A personal life-OS for people who refuse to specialize.",
     description:
-      "A unified life-OS. Type one sentence into JARVIS — the right action lands in the right place.",
+      "I brought back the Renaissance Human, and gave them JARVIS from Tony Stark, all in one. A platform and a framework, fully open source. Use mine, or build your own.",
     creator: "@filippofonseca",
   },
   robots: {

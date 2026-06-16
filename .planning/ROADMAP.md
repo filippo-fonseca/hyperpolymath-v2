@@ -572,3 +572,17 @@ Unsequenced ideas captured during execution. Promote to active milestone via `/g
 **Why:** User notation captured 2026-05-11 during Phase 3 plan-phase walkthrough — "easy addition" that makes captures more functional without needing JARVIS.
 
 **Likely fit:** Phase 6 polish window, or a captures-domain follow-up after Phase 5 (JARVIS).
+
+### Phase 999.18: Multi-repo Kiwi auto-dev: link other repos for an automated capture-to-Claude fleet (BACKLOG)
+
+**Goal:** [Captured for future planning] Make the Kiwi auto-dev pipeline multi-repo. Once the single-repo flow on hyperpolymath-v2 is proven, allow linking other projects/repos (for example Degree Intelligence) so quick captures across repos funnel into an automated fleet of Claudes. Per-repo config (repo slug, issue label, owner email, schedule); the captures-to-issues cron and the local kiwi-autodev worker both iterate over a registry of linked repos.
+
+**Why:** User idea captured 2026-06-15 while building the hyperpolymath-v2 pipeline (captures-to-issues cron, local auto-dev worker, DEVELOPMENT tab).
+
+**Prerequisite/gate:** Confirm the hyperpolymath-v2 pipeline (capture, then daily issue cron, then local auto-dev worker on parallel branches, then DEVELOPMENT tab report) works reliably before generalizing to multiple repos.
+
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
