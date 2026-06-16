@@ -40,6 +40,8 @@ const devRunItemSchema = z.object({
   status: z.enum(["done", "skipped", "failed", "timed-out"]),
   branch: z.string().nullable().optional().default(null),
   branchUrl: z.string().nullable().optional().default(null),
+  prUrl: z.string().nullable().optional().default(null),
+  summary: z.string().nullable().optional().default(null),
   commitCount: z.number().default(0),
   note: z.string().nullable().optional().default(null),
 });
