@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Repeat,
   Settings,
+  Sunrise,
   UtensilsCrossed,
   Waypoints,
 } from "lucide-react";
@@ -58,6 +59,13 @@ import { KiwiAboutDialog } from "./KiwiAboutDialog";
 // pill), so duplicating it in the sidebar rail was redundant.
 const items = [
   { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined },
+  {
+    href: "/morning-dump",
+    label: "Morning Dump",
+    icon: Sunrise,
+    disabled: false,
+    tooltip: "Plan your day from a free-form brain dump",
+  },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined },
   { href: "/training", label: "Training", icon: Dumbbell, disabled: false, tooltip: undefined },
