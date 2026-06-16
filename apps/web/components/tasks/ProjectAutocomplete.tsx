@@ -21,6 +21,8 @@ interface ProjectOption {
   icon?: string | null;
   isClass: boolean;
   courseCode: string | null;
+  areaName?: string | null;
+  areaEmoji?: string | null;
 }
 
 interface Props {
@@ -105,30 +107,43 @@ export function ProjectAutocomplete({ value, onChange, projects }: Props) {
                 No projects found.
               </CommandEmpty>
               <CommandGroup>
-                {projects.map((p) => (
-                  <CommandItem
-                    key={p.id}
-                    value={getLabel(p)}
-                    onSelect={() => toggle(p.id)}
-                    className="font-sans text-[13px]"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4 shrink-0",
-                        value.includes(p.id) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {p.icon ? (
-                      <DynamicIcon
-                        name={p.icon}
-                        size={14}
-                        strokeWidth={1.5}
-                        className="mr-1.5 text-[var(--ink-muted)] shrink-0"
+                {projects.map((p) => {
+                  const areaLabel = p.areaName
+                    ? `${p.areaEmoji ?? ""} ${p.areaName}`.trim()
+                    : "No area";
+                  return (
+                    <CommandItem
+                      key={p.id}
+                      value={`${getLabel(p)} ${p.areaName ?? ""}`}
+                      onSelect={() => toggle(p.id)}
+                      className="font-sans text-[13px]"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4 shrink-0",
+                          value.includes(p.id) ? "opacity-100" : "opacity-0"
+                        )}
                       />
-                    ) : null}
-                    {getLabel(p)}
-                  </CommandItem>
-                ))}
+                      {p.icon ? (
+                        <DynamicIcon
+                          name={p.icon}
+                          size={14}
+                          strokeWidth={1.5}
+                          className="mr-1.5 text-[var(--ink-muted)] shrink-0"
+                        />
+                      ) : null}
+                      <span className="truncate">{getLabel(p)}</span>
+                      <span
+                        className={cn(
+                          "ml-auto pl-2 shrink-0 truncate text-[12px] text-[var(--ink-muted)]",
+                          !p.areaName && "italic opacity-70"
+                        )}
+                      >
+                        {areaLabel}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>

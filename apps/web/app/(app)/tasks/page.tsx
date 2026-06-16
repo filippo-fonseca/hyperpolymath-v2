@@ -2,7 +2,7 @@ import { TasksClient } from "@/components/tasks/TasksClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { projects } from "@/lib/db/schema";
+import { areas, projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 
 interface Props {
@@ -38,8 +38,11 @@ export default async function TasksPage({ searchParams }: Props) {
         icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
+        areaName: areas.name,
+        areaEmoji: areas.emoji,
       })
       .from(projects)
+      .leftJoin(areas, eq(projects.areaId, areas.id))
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
   ]);
 

@@ -27,6 +27,8 @@ interface Props {
     icon: string | null;
     isClass: boolean;
     courseCode: string | null;
+    areaName: string | null;
+    areaEmoji: string | null;
   }>;
   /** SSR-hydrated tasks for THIS project. Filters the global cache below. */
   initialTasks: TaskWithProjects[];

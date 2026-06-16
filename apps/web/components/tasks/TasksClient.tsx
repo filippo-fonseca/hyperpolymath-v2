@@ -45,6 +45,8 @@ interface Props {
     icon: string | null;
     isClass: boolean;
     courseCode: string | null;
+    areaName: string | null;
+    areaEmoji: string | null;
   }[];
   initialFilters: {
     priority: string[];
