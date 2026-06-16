@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { streamJarvis } from "@/components/jarvis/jarvis-stream-client";
 import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
@@ -12,6 +13,7 @@ import type {
 } from "./jarvis-types";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
 // Same wiring pattern as JarvisConsole: per-sentence dispatch on each
 // completed sentence so TTS fetches fire while later sentences are still
@@ -67,11 +69,14 @@ function persistTurn(turn: ScrollbackTurn): void {
   });
 }
 
-export function GlobalJarvisHandler() {
+export function GlobalJarvisHandler({ userId }: { userId: string }) {
   const pathname = usePathname();
   const { settings: voiceSettings } = useVoiceSettings();
   const voiceSettingsRef = useRef(voiceSettings);
   voiceSettingsRef.current = voiceSettings;
+  // Issue #17: refresh the lists a JARVIS action touched directly on the
+  // client (Realtime echo is best-effort and never covers gcal events).
+  const queryClient = useQueryClient();
 
   // /today owns its own jarvis-voice-transcript handler via JarvisConsole.
   // Bind the global handler everywhere else under (app).
@@ -243,6 +248,10 @@ export function GlobalJarvisHandler() {
               );
               return;
             }
+            // Issue #17: refresh the lists this action touched so the change
+            // shows immediately on whatever page is mounted, not just on the
+            // Realtime echo. Fires once per action → covers multi-action batches.
+            invalidateAfterJarvisAction(queryClient, data.name, userId);
             const receipt = data.result.receipt ?? {};
             const summary =
               typeof (receipt as { title?: unknown }).title === "string"
@@ -347,6 +356,8 @@ export function GlobalJarvisHandler() {
         toast.error(detail.result.error ?? "JARVIS action failed");
         return;
       }
+      // Issue #17: desktop-run action mutated the same tables — refresh.
+      invalidateAfterJarvisAction(queryClient, detail.name, userId);
       const receipt = (detail.result?.receipt ?? {}) as { title?: unknown };
       const summary =
         typeof receipt.title === "string"
@@ -364,7 +375,7 @@ export function GlobalJarvisHandler() {
       window.removeEventListener("jarvis-tool-call", handleDesktopToolCall);
       abort?.abort();
     };
-  }, [isConsolePage]);
+  }, [isConsolePage, queryClient, userId]);
 
   return null;
 }

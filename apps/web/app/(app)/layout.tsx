@@ -87,7 +87,7 @@ export default async function AppLayout({
         <JarvisListenerMount />
         {/* Phase 7 voice-everywhere — voice transcript handler for pages
             other than /today (where JarvisConsole owns the pipeline). */}
-        <GlobalJarvisHandler />
+        <GlobalJarvisHandler userId={user.id} />
         {/* Phase 7 voice-everywhere — bottom-right HUD pill showing current
             mic FSM state. Always visible when voice is enabled. */}
         <FloatingJarvisStatus />
