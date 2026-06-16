@@ -3,13 +3,28 @@
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import type { DevRun, DevRunItem } from "@/lib/db/queries/dev-runs";
+import type { Result } from "@/lib/integrations/result";
+import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
+import type { AnthropicDailyUsage } from "@/lib/integrations/anthropic-api/usage";
+import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
+import { AnthropicApiPanel } from "./development/AnthropicApiPanel";
+import { ClaudeSubscriptionPanel } from "./development/ClaudeSubscriptionPanel";
+import { ClaudeCodePanel } from "./life/ClaudeCodePanel";
 
 /**
- * 260615-lkl: owner-only DEVELOPMENT tab panel. Presentational only (no data
- * fetching). Lists daily auto-dev runs newest-first with per-issue rows and
- * branch links. The owner gate lives upstream (page + InsightsTabs); this
- * component just renders whatever runs it is handed.
+ * 260615-lkl + 260616-g0y: owner-only DEVELOPMENT tab panel. Presentational
+ * only (no data fetching). Consolidates all Claude/Anthropic spend: the
+ * Anthropic API spend-per-day panel, the Claude Code subscription session +
+ * weekly panel, the daily Claude Code tokens panel (moved here off LIFE), and
+ * the auto-dev runs list. The owner gate lives upstream (page + InsightsTabs).
  */
+
+interface DevelopmentTabPanelProps {
+  runs: DevRun[];
+  anthropicApi: Result<AnthropicDailyUsage[]>;
+  subscription: Result<SubscriptionUsage>;
+  claudeCode: Result<DailyUsage[]>;
+}
 
 const REPO_TREE_BASE = "https://github.com/filippo-fonseca/hyperpolymath-v2/tree";
 
@@ -45,19 +60,33 @@ function isPrHref(href: string | null): boolean {
   return !!href && href.includes("/pull/");
 }
 
-export function DevelopmentTabPanel({ runs }: { runs: DevRun[] }) {
-  if (runs.length === 0) {
-    return (
-      <EmptyState
-        heading="No auto-dev runs yet."
-        body="The local Kiwi auto-dev worker has not reported a run. Its daily summary will land here once it does."
-      />
-    );
-  }
-
+export function DevelopmentTabPanel({
+  runs,
+  anthropicApi,
+  subscription,
+  claudeCode,
+}: DevelopmentTabPanelProps) {
   return (
-    <div className="flex flex-col gap-4">
-      {runs.map((run) => (
+    <div className="flex flex-col gap-6">
+      {/* Spend panels: two-up on wide viewports, matching LifeTabPanel's grid. */}
+      <div className="flex flex-col gap-6 @2xl/main:grid @2xl/main:grid-cols-2">
+        <AnthropicApiPanel result={anthropicApi} />
+        <ClaudeSubscriptionPanel result={subscription} />
+        <div className="@2xl/main:col-span-2">
+          <ClaudeCodePanel result={claudeCode} />
+        </div>
+      </div>
+
+      {/* Auto-dev runs list (unchanged). EmptyState is now a section, not an
+          early return for the whole panel, so the spend panels always render. */}
+      {runs.length === 0 ? (
+        <EmptyState
+          heading="No auto-dev runs yet."
+          body="The local Kiwi auto-dev worker has not reported a run. Its daily summary will land here once it does."
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          {runs.map((run) => (
         <div
           key={run.id}
           className="rounded-md border border-[var(--edge)] bg-[var(--surface)] p-4"
@@ -132,7 +161,9 @@ export function DevelopmentTabPanel({ runs }: { runs: DevRun[] }) {
             </ul>
           ) : null}
         </div>
-      ))}
+          ))}
+        </div>
+      )}
     </div>
   );
 }

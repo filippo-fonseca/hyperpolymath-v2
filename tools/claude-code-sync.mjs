@@ -147,6 +147,117 @@ async function runCcusage(since, until) {
   return JSON.parse(stdout);
 }
 
+async function runCcusageArgs(extraArgs) {
+  // Shared bin/npx fallback + env + timeout logic, mirroring runCcusage.
+  let bin = 'ccusage';
+  let args = [...extraArgs];
+  try {
+    await execFileP('ccusage', ['--version'], { timeout: 2000 });
+  } catch {
+    bin = 'npx';
+    args = ['-y', 'ccusage', ...args];
+  }
+  const { stdout } = await execFileP(bin, args, {
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+    timeout: 60_000,
+  });
+  return JSON.parse(stdout);
+}
+
+async function runCcusageBlocksActive() {
+  return runCcusageArgs(['blocks', '--active', '--json']);
+}
+
+async function runCcusageWeekly() {
+  return runCcusageArgs(['weekly', '--json']);
+}
+
+// Map the active ccusage block (shape verified live 260616-g0y):
+//   { id, startTime, endTime, costUSD, totalTokens, isActive,
+//     tokenCounts: { inputTokens, outputTokens,
+//                    cacheReadInputTokens, cacheCreationInputTokens },
+//     projection: { totalCost, totalTokens } }
+// Tolerates snake_case and camelCase. Returns null when there is no active block.
+function mapSession(raw) {
+  const blocks = Array.isArray(raw?.blocks) ? raw.blocks : [];
+  const block = blocks.find((b) => b?.isActive ?? b?.is_active) ?? null;
+  if (!block) return null;
+  const startTime = block.startTime ?? block.start_time ?? block.id;
+  if (typeof startTime !== 'string') return null;
+  const tc = block.tokenCounts ?? block.token_counts ?? {};
+  const proj = block.projection ?? {};
+  const inputTokens = Number(tc.inputTokens ?? tc.input_tokens ?? 0);
+  const outputTokens = Number(tc.outputTokens ?? tc.output_tokens ?? 0);
+  const cacheReadTokens = Number(
+    tc.cacheReadInputTokens ?? tc.cache_read_input_tokens ?? 0,
+  );
+  const cacheCreationTokens = Number(
+    tc.cacheCreationInputTokens ?? tc.cache_creation_input_tokens ?? 0,
+  );
+  const totalTokens = Number(
+    block.totalTokens ??
+      block.total_tokens ??
+      inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens,
+  );
+  const costUsd = Number.isFinite(Number(block.costUSD ?? block.cost_usd))
+    ? Number(block.costUSD ?? block.cost_usd)
+    : null;
+  const projectedCostUsd = Number.isFinite(Number(proj.totalCost ?? proj.total_cost))
+    ? Number(proj.totalCost ?? proj.total_cost)
+    : null;
+  const projectedTotalTokens = Number.isFinite(Number(proj.totalTokens ?? proj.total_tokens))
+    ? Number(proj.totalTokens ?? proj.total_tokens)
+    : null;
+  return {
+    bucketKey: startTime,
+    costUsd,
+    totalTokens,
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheCreationTokens,
+    windowStart: startTime,
+    windowEnd: block.endTime ?? block.end_time ?? null,
+    projectedCostUsd,
+    projectedTotalTokens,
+  };
+}
+
+// Map ccusage weekly rows (shape verified live 260616-g0y):
+//   weekly: [{ period: "YYYY-MM-DD", totalCost, totalTokens,
+//              inputTokens, outputTokens,
+//              cacheCreationTokens, cacheReadTokens }, ...]
+function mapWeek(row) {
+  const weekStart = row.period ?? row.week ?? row.date;
+  if (typeof weekStart !== 'string') return null;
+  const inputTokens = Number(row.inputTokens ?? row.input_tokens ?? 0);
+  const outputTokens = Number(row.outputTokens ?? row.output_tokens ?? 0);
+  const cacheReadTokens = Number(row.cacheReadTokens ?? row.cache_read_tokens ?? 0);
+  const cacheCreationTokens = Number(
+    row.cacheCreationTokens ?? row.cache_creation_tokens ?? 0,
+  );
+  const totalTokens = Number(
+    row.totalTokens ??
+      row.total_tokens ??
+      inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens,
+  );
+  const costUsd = Number.isFinite(Number(row.totalCost))
+    ? Number(row.totalCost)
+    : Number.isFinite(Number(row.total_cost))
+    ? Number(row.total_cost)
+    : null;
+  return {
+    weekStart,
+    costUsd,
+    totalTokens,
+    inputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheCreationTokens,
+  };
+}
+
 function mapRow(row) {
   const date = row.period ?? row.date;
   if (typeof date !== 'string') return null;
@@ -204,7 +315,30 @@ async function main() {
   const days = dailyRaw.map(mapRow).filter(Boolean);
   console.log(`[claude-code-sync] mapped ${days.length} day rows`);
 
-  if (days.length === 0) {
+  // Subscription snapshots: active 5-hour block + weekly rollups. These are
+  // best-effort — a failure here must not block the daily path, which is the
+  // load-bearing one. Both ride the SAME signed POST body.
+  let session = null;
+  let weeks = [];
+  try {
+    console.log('[claude-code-sync] running ccusage blocks --active --json');
+    const blocksRaw = await runCcusageBlocksActive();
+    session = mapSession(blocksRaw);
+    console.log(`[claude-code-sync] active session: ${session ? session.bucketKey : 'none'}`);
+  } catch (e) {
+    console.warn(`[claude-code-sync] blocks --active failed (non-fatal): ${e instanceof Error ? e.message : e}`);
+  }
+  try {
+    console.log('[claude-code-sync] running ccusage weekly --json');
+    const weeklyRaw = await runCcusageWeekly();
+    const weeklyRows = Array.isArray(weeklyRaw?.weekly) ? weeklyRaw.weekly : [];
+    weeks = weeklyRows.map(mapWeek).filter(Boolean);
+    console.log(`[claude-code-sync] mapped ${weeks.length} week rows`);
+  } catch (e) {
+    console.warn(`[claude-code-sync] weekly failed (non-fatal): ${e instanceof Error ? e.message : e}`);
+  }
+
+  if (days.length === 0 && !session && weeks.length === 0) {
     console.log('[claude-code-sync] nothing to sync');
     return;
   }
@@ -222,7 +356,9 @@ async function main() {
       `private key not found at ${privKeyPath} — run \`node tools/sync-keygen.mjs\` first`,
     );
   }
-  const body = JSON.stringify({ user_id: userId, days });
+  // session + weeks ride the same signed body; the signature covers the whole
+  // body so no signing changes are needed. days is kept exactly as-is.
+  const body = JSON.stringify({ user_id: userId, days, session, weeks });
   const timestamp = String(Date.now());
   const bodyHash = createHash('sha256').update(body).digest('hex');
   const signature = sign(null, Buffer.from(`${timestamp}.${bodyHash}`), privateKey).toString('base64');
@@ -243,7 +379,10 @@ async function main() {
     throw new Error(`POST failed: ${res.status} ${body.slice(0, 300)}`);
   }
   const json = await res.json();
-  console.log(`[claude-code-sync] ok — upserted ${json.upserted ?? '?'} rows`);
+  console.log(
+    `[claude-code-sync] ok — upserted ${json.upserted ?? '?'} day rows, ` +
+      `${json.sessionUpserted ?? 0} session, ${json.weeksUpserted ?? 0} week rows`,
+  );
 }
 
 main().catch((e) => {

@@ -4,6 +4,8 @@ import type { HabitWithAreas } from "@/app/actions/habits";
 import { EmptyState } from "@/components/shared/EmptyState";
 import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
 import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
+import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
+import type { AnthropicDailyUsage } from "@/lib/integrations/anthropic-api/usage";
 import type { Session } from "@/lib/integrations/flow/sessions";
 import type { Result } from "@/lib/integrations/result";
 import type { StravaData } from "@/lib/integrations/strava/types";
@@ -36,14 +38,18 @@ interface Props {
     earliestAvailable: string;
   };
   life: {
-    claudeCode: Result<DailyUsage[]>;
     strava: Result<StravaData>;
     flow: Result<Session[]>;
     githubUsername: string | null;
   };
   // Owner-only. When null, the DEVELOPMENT tab is never shown and its data was
   // never fetched (the owner gate lives in the server page).
-  development?: { runs: DevRun[] } | null;
+  development?: {
+    runs: DevRun[];
+    anthropicApi: Result<AnthropicDailyUsage[]>;
+    subscription: Result<SubscriptionUsage>;
+    claudeCode: Result<DailyUsage[]>;
+  } | null;
 }
 
 /**
@@ -86,10 +92,14 @@ export function InsightsTabs({
       </div>
 
       {effectiveTab === "development" && development ? (
-        <DevelopmentTabPanel runs={development.runs} />
+        <DevelopmentTabPanel
+          runs={development.runs}
+          anthropicApi={development.anthropicApi}
+          subscription={development.subscription}
+          claudeCode={development.claudeCode}
+        />
       ) : effectiveTab === "life" ? (
         <LifeTabPanel
-          claudeCode={life.claudeCode}
           strava={life.strava}
           flow={life.flow}
           githubUsername={life.githubUsername}
