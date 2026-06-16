@@ -313,7 +313,7 @@ export function SidebarTree({
         items={allAreaIds}
         strategy={verticalListSortingStrategy}
       >
-        <ul className="flex flex-col gap-0.5 px-2">
+        <ul className="flex flex-col gap-1 px-2">
           {optimisticAreas.map((area) => (
             <SortableAreaRow
               key={area.id}
@@ -336,13 +336,12 @@ export function SidebarTree({
           // (UI-SPEC §5e) so the visual matches what the user grabbed.
           <div
             className={cn(
-              "flex items-center gap-2 rounded-sm px-2 py-1 select-none cursor-grabbing",
-              "font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]",
-              "bg-[var(--surface-raised)] border border-[var(--edge-hud)]",
+              "glass-button flex items-center gap-2.5 rounded-xl px-2 py-1.5 select-none cursor-grabbing",
+              "font-serif text-[13px] tracking-tight font-medium text-[var(--ink)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
           >
-            <span className="text-base leading-none shrink-0">
+            <span className="sidebar-chip shrink-0 text-[13px] leading-none">
               {activeArea.emoji ?? "·"}
             </span>
             {!collapsed && (
@@ -354,9 +353,8 @@ export function SidebarTree({
           // project sub-rows render serif).
           <div
             className={cn(
-              "flex items-center gap-2 rounded-sm px-2 py-1 select-none cursor-grabbing",
-              "font-serif text-sm text-[var(--ink-muted)]",
-              "bg-[var(--surface-raised)] border border-[var(--edge-hud)]",
+              "glass-button flex items-center gap-2 rounded-lg px-2 py-1 select-none cursor-grabbing",
+              "font-serif text-[13px] tracking-tight text-[var(--ink)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
           >
@@ -406,6 +404,8 @@ function SortableAreaRow({
     isDragging,
   } = useSortable({ id: area.id });
 
+  const pathname = usePathname();
+  const isActive = pathname === `/areas/${area.id}`;
   const [rightClickOpen, setRightClickOpen] = useState(false);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
 
@@ -440,7 +440,7 @@ function SortableAreaRow({
       style={style}
       className={cn("flex flex-col", isDragging && "opacity-0")}
     >
-      {/* Area row — mono uppercase chrome register (UI-SPEC §5e) */}
+      {/* Area row — glassy pill register: emoji chip + serif label */}
       <div
         {...attributes}
         {...listeners}
@@ -449,11 +449,11 @@ function SortableAreaRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "group/area relative flex items-center gap-2 rounded-sm px-2 py-1 select-none",
-          // Mono 12px uppercase — area-row label per UI-SPEC §5e
-          "font-mono text-xs uppercase tracking-[0.06em] text-[var(--ink-muted)]",
-          // Hover transitions text-muted → ink over 100ms (UI-SPEC §7a)
-          "hover:text-[var(--ink)] cursor-grab active:cursor-grabbing transition-colors duration-100 ease-out",
+          "group/area sidebar-row flex items-center gap-2.5 px-2 py-1.5 select-none",
+          // Clean serif label — pill-based register replaces the flat mono caps
+          "font-serif text-[13px] tracking-tight text-[var(--ink)]",
+          "cursor-grab active:cursor-grabbing",
+          isActive && "sidebar-row-active sidebar-row-active-area",
           // D-02: no opacity dim on pending — UI stays instant
           area.archivedAt && "opacity-50 italic line-through",
         )}
@@ -485,12 +485,14 @@ function SortableAreaRow({
             )}
           </button>
         )}
-        <span className="text-base leading-none shrink-0">
+        <span className="sidebar-chip shrink-0 text-[13px] leading-none">
           {area.emoji ?? "·"}
         </span>
         {!collapsed && (
           <>
-            <span className="truncate flex-1 min-w-0">{area.name}</span>
+            <span className="truncate flex-1 min-w-0 font-medium">
+              {area.name}
+            </span>
             {/* + New Project button */}
             <button
               type="button"
@@ -501,7 +503,7 @@ function SortableAreaRow({
                 openProjectCreate();
               }}
               className={cn(
-                "flex items-center justify-center h-5 w-5 rounded-sm",
+                "sidebar-ghost-btn flex items-center justify-center h-5 w-5",
                 "text-[var(--ink-muted)] hover:text-[var(--ink)]",
                 "opacity-0 group-hover/area:opacity-100 transition-opacity duration-100 ease-out",
                 "outline-none",
@@ -530,7 +532,7 @@ function SortableAreaRow({
           items={projectIds}
           strategy={verticalListSortingStrategy}
         >
-          <ul className="flex flex-col gap-0.5 pl-4 mt-0.5">
+          <ul className="sidebar-tree flex flex-col gap-0.5 mt-1 ml-3 pl-[0.85rem]">
             {area.projects.map((project) => (
               <SortableProjectRow
                 key={project.id}
@@ -590,7 +592,10 @@ function SortableProjectRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn("group/project relative", isDragging && "opacity-0")}
+      className={cn(
+        "sidebar-branch group/project relative",
+        isDragging && "opacity-0",
+      )}
     >
       <div
         {...attributes}
@@ -600,18 +605,14 @@ function SortableProjectRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "flex items-center gap-1.5 rounded-sm px-2 py-1 select-none",
-          // Serif sub-row register (UI-SPEC §5e — area labels mono,
-          // project sub-rows in serif)
-          "font-serif text-sm text-[var(--ink-muted)]",
-          "hover:text-[var(--ink)] transition-colors duration-100 ease-out",
+          "sidebar-row group/project flex items-center gap-2 px-2 py-1 select-none",
+          // Serif sub-row register (UI-SPEC §5e — project sub-rows in serif)
+          "font-serif text-[13px] tracking-tight",
           "cursor-grab active:cursor-grabbing",
-          // Active project: 1px --edge-hud left edge accent (no bg fill)
-          // mirrors the primary-nav active treatment per UI-SPEC §5e.
-          "border-l-2",
+          // Active project lifts into a soft glass pill (was a hard left edge).
           isActive
-            ? "border-l-[var(--edge-hud)] text-[var(--ink)]"
-            : "border-l-transparent",
+            ? "sidebar-row-active text-[var(--ink)]"
+            : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
           project.archivedAt && "opacity-50 italic line-through",
         )}
       >
@@ -783,7 +784,7 @@ function ProjectActionsMenu({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "flex items-center justify-center h-5 w-5 rounded-sm",
+              "sidebar-ghost-btn flex items-center justify-center h-5 w-5",
               "text-[var(--ink-muted)] hover:text-[var(--ink)]",
               "opacity-0 group-hover/project:opacity-100",
               "data-[state=open]:opacity-100 transition-opacity duration-100 ease-out",
