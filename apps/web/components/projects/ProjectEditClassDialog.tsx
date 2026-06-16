@@ -1,16 +1,14 @@
 "use client";
 
-import { useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { toast } from "sonner";
+import { updateProject } from "@/app/actions/projects";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateProject } from "@/app/actions/projects";
+import { useState, useTransition } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import type { ProjectOptimisticDispatch } from "./ProjectDetailClient";
 
 interface Props {
@@ -62,13 +62,7 @@ function getSemesterYears(graduationYear: number | null): number[] {
     for (let y = start; y <= end; y++) years.push(y);
     return years;
   }
-  return [
-    currentYear - 2,
-    currentYear - 1,
-    currentYear,
-    currentYear + 1,
-    currentYear + 2,
-  ];
+  return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
 }
 
 /**
@@ -86,6 +80,10 @@ export function ProjectEditClassDialog({
   addOptimisticProject,
 }: Props) {
   const [, startTransition] = useTransition();
+  // Explicit pending flag: the optimistic dispatch must stay inside a (fire-and-
+  // forget) transition for React's useOptimistic, but that means react-hook-form's
+  // own isSubmitting flips back before the server call settles. Track our own.
+  const [saving, setSaving] = useState(false);
   const semesterYears = getSemesterYears(graduationYear);
 
   const {
@@ -93,7 +91,7 @@ export function ProjectEditClassDialog({
     handleSubmit,
     control,
     reset,
-    formState: { isDirty, isSubmitting },
+    formState: { isDirty },
   } = useForm<FormValues>({
     defaultValues: {
       courseCode: project.courseCode ?? "",
@@ -113,21 +111,16 @@ export function ProjectEditClassDialog({
   }
 
   async function onSubmit(values: FormValues) {
+    if (saving) return;
     const patch = {
       isClass: true as const,
       courseCode: values.courseCode.trim() || null,
       courseTitle: values.courseTitle.trim() || null,
       instructor: values.instructor.trim() || null,
-      semesterTerm: (values.semesterTerm || null) as
-        | "fall"
-        | "spring"
-        | "summer"
-        | null,
-      semesterYear: values.semesterYear
-        ? parseInt(values.semesterYear, 10)
-        : null,
+      semesterTerm: (values.semesterTerm || null) as "fall" | "spring" | "summer" | null,
+      semesterYear: values.semesterYear ? Number.parseInt(values.semesterYear, 10) : null,
       grade: values.grade.trim() || null,
-      credits: values.credits ? parseInt(values.credits, 10) : null,
+      credits: values.credits ? Number.parseInt(values.credits, 10) : null,
       distributionals: values.distributionals.trim()
         ? values.distributionals
             .split(",")
@@ -137,17 +130,20 @@ export function ProjectEditClassDialog({
         : null,
     };
 
-    // D-04: optimistic class metadata update — header chip updates instantly
-    addOptimisticProject({
-      type: "update",
-      id: project.id,
-      patch,
-    });
-
+    setSaving(true);
+    // D-04: optimistic class metadata update — header chip updates instantly.
+    // The dispatch must run inside a transition (React useOptimistic), which
+    // also gives the automatic revert on rejection when the transition closes.
     startTransition(async () => {
+      addOptimisticProject({
+        type: "update",
+        id: project.id,
+        patch,
+      });
       const result = await updateProject({ id: project.id, ...patch });
+      setSaving(false);
       if (!result.success) {
-        // D-03: silent revert + toast.error
+        // D-03: silent revert (useOptimistic) + toast.error
         toast.error(result.error);
         return;
       }
@@ -293,16 +289,11 @@ export function ProjectEditClassDialog({
           </div>
 
           <DialogFooter className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save changes"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </form>
