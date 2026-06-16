@@ -1,6 +1,11 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { areas, projects } from "@/lib/db/schema";
+import {
+  isProjectExpired,
+  projectEffectiveEndISO,
+  todayISODate,
+} from "@/lib/projects/archive-status";
 
 export interface SidebarArea {
   id: string;
@@ -54,6 +59,9 @@ export async function getSidebarTree(
       orderIndex: projects.orderIndex,
       isClass: projects.isClass,
       archivedAt: projects.archivedAt,
+      endDate: projects.endDate,
+      semesterTerm: projects.semesterTerm,
+      semesterYear: projects.semesterYear,
     })
     .from(projects)
     .where(
@@ -63,8 +71,19 @@ export async function getSidebarTree(
     )
     .orderBy(asc(projects.orderIndex), asc(projects.createdAt));
 
+  const today = todayISODate();
   const projectsByArea = new Map<string, SidebarProject[]>();
   for (const p of projectRows) {
+    // Issue #55: a class past its semester, or a project past its end date,
+    // counts as archived even without an explicit archivedAt. Synthesize the
+    // timestamp so every tree surface (sidebar, /areas, /lifeos) — all of which
+    // split active vs archived on `archivedAt` — treats it consistently.
+    const effectiveArchivedAt =
+      p.archivedAt ??
+      (isProjectExpired(p, today)
+        ? new Date(`${projectEffectiveEndISO(p)}T00:00:00Z`)
+        : null);
+    if (!includeArchived && effectiveArchivedAt !== null) continue;
     const list = projectsByArea.get(p.areaId) ?? [];
     list.push({
       id: p.id,
@@ -72,7 +91,7 @@ export async function getSidebarTree(
       icon: p.icon,
       orderIndex: p.orderIndex,
       isClass: p.isClass,
-      archivedAt: p.archivedAt,
+      archivedAt: effectiveArchivedAt,
     });
     projectsByArea.set(p.areaId, list);
   }
