@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# >>> kiwi-autodev pre-push guard >>>
+# Installed by tools/kiwi-autodev/install-hook.sh. Delegates to the sidecar
+# guard. Safe to remove this whole file if you no longer want the guard.
+exec "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.husky/kiwi-autodev-pre-push" "$@"
+# <<< kiwi-autodev pre-push guard <<<
