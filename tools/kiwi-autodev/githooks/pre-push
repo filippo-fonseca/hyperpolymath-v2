@@ -1,38 +1,33 @@
 #!/usr/bin/env sh
 #
-# Kiwi auto-dev never-push guard. This is the SOLE push barrier for the worker:
-# the headless agent runs with --dangerously-skip-permissions, which bypasses
-# Claude command gating, so this git hook is what actually stops a push.
+# Kiwi auto-dev push guard.
 #
-# HARD-BLOCK the push if EITHER:
-#   - the KIWI_AUTOMATION env var is set and non-empty, OR
-#   - any pushed ref is under refs/heads/kiwi/auto/*.
+# The worker opens PRs from review branches, so it DOES push kiwi/auto/* branches.
+# It must NEVER push to a protected branch (main and friends). This hook enforces
+# exactly that for automation pushes, while leaving the user's own pushes
+# (including to main) completely untouched.
 #
-# Normal user pushes (KIWI_AUTOMATION unset AND no kiwi/auto/* ref) pass through.
+# Discriminator: the worker sets KIWI_AUTOMATION=1 in its environment. When that
+# is set, a push whose REMOTE ref is a protected branch is hard-blocked. When it
+# is unset (a normal human push), everything passes.
 #
-# git passes pushed refs on stdin, one per line:
-#   <local ref> <local sha> <remote ref> <remote sha>
+# git passes pushed refs on stdin: <local ref> <local sha> <remote ref> <remote sha>
 # POSIX sh only (Husky runs hooks under sh): no bashisms.
 
-# Block if the automation env var is set.
-if [ -n "${KIWI_AUTOMATION:-}" ]; then
-  echo "pre-push BLOCKED: KIWI_AUTOMATION is set." >&2
-  echo "The Kiwi auto-dev worker never pushes. Its branches are review-only; merge them manually." >&2
-  exit 1
-fi
+# Human pushes pass through untouched.
+[ -z "${KIWI_AUTOMATION:-}" ] && exit 0
 
-# Block if any pushed local ref is under refs/heads/kiwi/auto/*.
+# Automation: block any push whose REMOTE ref is a protected branch.
 while read -r local_ref local_sha remote_ref remote_sha; do
-  # Skip blank lines (for example a deletion with an empty local ref).
-  [ -z "${local_ref}" ] && continue
-  case "${local_ref}" in
-    refs/heads/kiwi/auto/*)
-      echo "pre-push BLOCKED: refusing to push ${local_ref}." >&2
-      echo "kiwi/auto/* branches are review-only. Inspect, then merge locally: git checkout main && git merge <branch>." >&2
+  [ -z "${remote_ref}" ] && continue
+  case "${remote_ref}" in
+    refs/heads/main|refs/heads/master|refs/heads/develop|refs/heads/release/*)
+      echo "pre-push BLOCKED: kiwi auto-dev must never push to ${remote_ref}." >&2
+      echo "It opens PRs from kiwi/auto/* review branches; merging to a protected branch is always manual." >&2
       exit 1
       ;;
   esac
 done
 
-# No automation, no kiwi/auto/* ref: allow the push.
+# Automation pushing a review branch (kiwi/auto/* or any non-protected ref): allow.
 exit 0
