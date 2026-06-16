@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { deleteProject, updateProject } from "@/app/actions/projects";
+import { MoveProjectDialog } from "@/components/areas/MoveProjectDialog";
+import { usePendingAction } from "@/components/shared/use-pending-action";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +12,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { updateProject, deleteProject } from "@/app/actions/projects";
-import { MoveProjectDialog } from "@/components/areas/MoveProjectDialog";
+import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface Props {
   projectId: string;
@@ -58,65 +58,59 @@ export function AreaProjectCardMenu({
   // Rename
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameName, setRenameName] = useState(projectName);
-  const [isRenaming, setIsRenaming] = useState(false);
+  const { run: runRename, pending: isRenaming } = usePendingAction();
 
   // Edit details
   const [editOpen, setEditOpen] = useState(false);
   const [editDescription, setEditDescription] = useState(projectDescription ?? "");
   const [editIcon, setEditIcon] = useState(projectIcon ?? "");
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const { run: runSaveEdit, pending: isSavingEdit } = usePendingAction();
 
   // Move
   const [moveOpen, setMoveOpen] = useState(false);
 
   // Delete
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { run: runDelete, pending: isDeleting } = usePendingAction();
 
   async function handleRename() {
     const trimmed = renameName.trim();
     if (!trimmed) return;
-    setIsRenaming(true);
-    const result = await updateProject({ id: projectId, name: trimmed });
-    setIsRenaming(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast("Project renamed.");
-    setRenameOpen(false);
-    router.refresh();
+    await runRename(() => updateProject({ id: projectId, name: trimmed }), {
+      success: "Project renamed.",
+      onSuccess: () => {
+        setRenameOpen(false);
+        router.refresh();
+      },
+    });
   }
 
   async function handleSaveEdit() {
-    setIsSavingEdit(true);
-    const result = await updateProject({
-      id: projectId,
-      description: editDescription.trim() || null,
-      icon: editIcon.trim() || null,
-    });
-    setIsSavingEdit(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast("Project updated.");
-    setEditOpen(false);
-    router.refresh();
+    await runSaveEdit(
+      () =>
+        updateProject({
+          id: projectId,
+          description: editDescription.trim() || null,
+          icon: editIcon.trim() || null,
+        }),
+      {
+        success: "Project updated.",
+        onSuccess: () => {
+          setEditOpen(false);
+          router.refresh();
+        },
+      }
+    );
   }
 
   async function handleDelete() {
-    setIsDeleting(true);
-    const result = await deleteProject(projectId);
-    setIsDeleting(false);
-    if (!result.success) {
-      toast.error(result.error);
-      setDeleteOpen(false);
-      return;
-    }
-    toast("Project deleted.");
-    setDeleteOpen(false);
-    router.refresh();
+    await runDelete(() => deleteProject(projectId), {
+      success: "Project deleted.",
+      onSuccess: () => {
+        setDeleteOpen(false);
+        router.refresh();
+      },
+    });
   }
 
   return (
@@ -201,17 +195,10 @@ export function AreaProjectCardMenu({
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRenameOpen(false)}
-              disabled={isRenaming}
-            >
+            <Button variant="outline" onClick={() => setRenameOpen(false)} disabled={isRenaming}>
               Never mind
             </Button>
-            <Button
-              onClick={handleRename}
-              disabled={isRenaming || !renameName.trim()}
-            >
+            <Button onClick={handleRename} disabled={isRenaming || !renameName.trim()}>
               {isRenaming ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
@@ -265,11 +252,7 @@ export function AreaProjectCardMenu({
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-              disabled={isSavingEdit}
-            >
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={isSavingEdit}>
               Never mind
             </Button>
             <Button onClick={handleSaveEdit} disabled={isSavingEdit}>
@@ -295,23 +278,15 @@ export function AreaProjectCardMenu({
           <DialogHeader>
             <DialogTitle>Delete project?</DialogTitle>
             <DialogDescription>
-              Delete &ldquo;{projectName}&rdquo;? Linked tasks and captures stay
-              in your library — they just lose this project link.
+              Delete &ldquo;{projectName}&rdquo;? Linked tasks and captures stay in your library —
+              they just lose this project link.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              disabled={isDeleting}
-            >
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
               Never mind
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete project"}
             </Button>
           </DialogFooter>

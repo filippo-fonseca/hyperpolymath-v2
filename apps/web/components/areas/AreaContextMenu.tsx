@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { archiveArea, deleteArea, unarchiveArea, updateArea } from "@/app/actions/areas";
+import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,15 +11,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  archiveArea,
-  unarchiveArea,
-  deleteArea,
-  updateArea,
-} from "@/app/actions/areas";
-import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { MoreHorizontal } from "lucide-react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 interface Props {
   areaId: string;
@@ -200,13 +195,9 @@ export function AreaActionsMenu({
             Rename
           </DropdownMenuItem>
           {isArchived ? (
-            <DropdownMenuItem onSelect={handleUnarchive}>
-              Unarchive
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleUnarchive}>Unarchive</DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onSelect={handleArchive}>
-              Archive
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleArchive}>Archive</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -226,22 +217,19 @@ export function AreaActionsMenu({
           <DialogHeader>
             <DialogTitle>Delete this area?</DialogTitle>
             <DialogDescription>
-              This will permanently remove the area. Projects inside it will
-              block deletion — archive or move them first.
+              This will permanently remove the area. Projects inside it will block deletion —
+              archive or move them first.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
+              disabled={isDeleting}
             >
               Never mind
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete area"}
             </Button>
           </DialogFooter>
@@ -266,6 +254,7 @@ export function AreaActionsMenu({
             <Button
               variant="outline"
               onClick={() => setRenameDialogOpen(false)}
+              disabled={isRenaming}
             >
               Never mind
             </Button>

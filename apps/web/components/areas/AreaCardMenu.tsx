@@ -1,16 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { deleteArea, updateArea } from "@/app/actions/areas";
+import { usePendingAction } from "@/components/shared/use-pending-action";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +11,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateArea, deleteArea } from "@/app/actions/areas";
+import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface Props {
   areaId: string;
@@ -47,10 +47,10 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
   // Edit state
   const [name, setName] = useState(areaName);
   const [emoji, setEmoji] = useState(areaEmoji ?? "");
-  const [isSaving, setIsSaving] = useState(false);
+  const { run: runSave, pending: isSaving } = usePendingAction();
 
   // Delete state
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { run: runDelete, pending: isDeleting } = usePendingAction();
 
   function openEdit() {
     setName(areaName);
@@ -62,34 +62,26 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
   async function handleSave() {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    setIsSaving(true);
-    const result = await updateArea({
-      id: areaId,
-      name: trimmedName,
-      emoji: emoji.trim() || null,
-    });
-    setIsSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast("Area updated.");
-    setEditDialogOpen(false);
-    router.refresh();
+    await runSave(
+      () => updateArea({ id: areaId, name: trimmedName, emoji: emoji.trim() || null }),
+      {
+        success: "Area updated.",
+        onSuccess: () => {
+          setEditDialogOpen(false);
+          router.refresh();
+        },
+      }
+    );
   }
 
   async function handleDelete() {
-    setIsDeleting(true);
-    const result = await deleteArea(areaId);
-    setIsDeleting(false);
-    if (!result.success) {
-      toast.error(result.error);
-      setDeleteDialogOpen(false);
-      return;
-    }
-    toast("Area deleted.");
-    setDeleteDialogOpen(false);
-    router.refresh();
+    await runDelete(() => deleteArea(areaId), {
+      success: "Area deleted.",
+      onSuccess: () => {
+        setDeleteDialogOpen(false);
+        router.refresh();
+      },
+    });
   }
 
   return (
@@ -159,11 +151,7 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditDialogOpen(false)}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={isSaving}>
               Never mind
             </Button>
             <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
@@ -179,8 +167,8 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
           <DialogHeader>
             <DialogTitle>Delete this area?</DialogTitle>
             <DialogDescription>
-              Any projects under it will be moved to the{" "}
-              <strong>No Area</strong> bucket. Tasks and captures stay intact.
+              Any projects under it will be moved to the <strong>No Area</strong> bucket. Tasks and
+              captures stay intact.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -191,11 +179,7 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
             >
               Never mind
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete area"}
             </Button>
           </DialogFooter>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Pencil, Plus } from "lucide-react";
+import { updateArea } from "@/app/actions/areas";
+import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
+import { usePendingAction } from "@/components/shared/use-pending-action";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateArea } from "@/app/actions/areas";
-import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
+import { Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface Props {
   area: { id: string; name: string; emoji: string | null };
@@ -33,19 +33,14 @@ interface Props {
  *
  * All mutations use router.refresh() (SSR page, no optimistic dispatcher).
  */
-export function AreaDetailHeader({
-  area,
-  allAreas,
-  graduationYear,
-  projectCount,
-}: Props) {
+export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount }: Props) {
   const router = useRouter();
+  const { run, pending: isSaving } = usePendingAction();
 
   // Edit area dialog
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(area.name);
   const [emoji, setEmoji] = useState(area.emoji ?? "");
-  const [isSaving, setIsSaving] = useState(false);
 
   // New project dialog
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -53,20 +48,13 @@ export function AreaDetailHeader({
   async function handleSaveEdit() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setIsSaving(true);
-    const result = await updateArea({
-      id: area.id,
-      name: trimmed,
-      emoji: emoji.trim() || null,
+    await run(() => updateArea({ id: area.id, name: trimmed, emoji: emoji.trim() || null }), {
+      success: "Area updated.",
+      onSuccess: () => {
+        setEditOpen(false);
+        router.refresh();
+      },
     });
-    setIsSaving(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast("Area updated.");
-    setEditOpen(false);
-    router.refresh();
   }
 
   function openEdit() {
@@ -148,11 +136,7 @@ export function AreaDetailHeader({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={isSaving}>
               Never mind
             </Button>
             <Button onClick={handleSaveEdit} disabled={isSaving || !name.trim()}>

@@ -7,6 +7,7 @@ import {
   unarchiveProject,
   updateProject,
 } from "@/app/actions/projects";
+import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,15 +60,15 @@ export function ProjectSettingsDialog({
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const move = usePendingAction();
+  const archive = usePendingAction();
+  const remove = usePendingAction();
 
   const [startDate, setStartDate] = useState(project.startDate ?? "");
   const [endDate, setEndDate] = useState(project.endDate ?? "");
   const [areaId, setAreaId] = useState(project.areaId);
   const [savingDates, setSavingDates] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [archiving, setArchiving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const isArchived = project.archivedAt != null;
   const datesDirty =
@@ -93,46 +94,34 @@ export function ProjectSettingsDialog({
 
   async function handleMove() {
     if (areaId === project.areaId) return;
-    setMoving(true);
-    const r = await moveProjectToArea({
-      projectId: project.id,
-      newAreaId: areaId,
+    await move.run(() => moveProjectToArea({ projectId: project.id, newAreaId: areaId }), {
+      success: "Project moved.",
+      onSuccess: () => {
+        onOpenChange(false);
+        router.push(`/areas/${areaId}`);
+      },
     });
-    setMoving(false);
-    if (!r.success) {
-      toast.error(r.error);
-      return;
-    }
-    toast("Project moved.");
-    onOpenChange(false);
-    router.push(`/areas/${areaId}`);
   }
 
   async function handleArchiveToggle() {
-    setArchiving(true);
-    const r = isArchived ? await unarchiveProject(project.id) : await archiveProject(project.id);
-    setArchiving(false);
-    if (!r.success) {
-      toast.error(r.error);
-      return;
-    }
-    toast(isArchived ? "Project unarchived." : "Project archived.");
-    router.refresh();
+    await archive.run(
+      () => (isArchived ? unarchiveProject(project.id) : archiveProject(project.id)),
+      {
+        success: isArchived ? "Project unarchived." : "Project archived.",
+        onSuccess: () => router.refresh(),
+      }
+    );
   }
 
   async function handleDelete() {
-    setDeleting(true);
-    const r = await deleteProject(project.id);
-    setDeleting(false);
-    if (!r.success) {
-      toast.error(r.error);
-      setDeleteOpen(false);
-      return;
-    }
-    toast("Project deleted.");
-    setDeleteOpen(false);
-    onOpenChange(false);
-    router.push(`/areas/${project.areaId}`);
+    await remove.run(() => deleteProject(project.id), {
+      success: "Project deleted.",
+      onSuccess: () => {
+        setDeleteOpen(false);
+        onOpenChange(false);
+        router.push(`/areas/${project.areaId}`);
+      },
+    });
   }
 
   const otherAreas = allAreas;
@@ -207,8 +196,8 @@ export function ProjectSettingsDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleMove} disabled={moving || areaId === project.areaId}>
-                  {moving ? "Moving..." : "Move"}
+                <Button onClick={handleMove} disabled={move.pending || areaId === project.areaId}>
+                  {move.pending ? "Moving..." : "Move"}
                 </Button>
               </div>
             </section>
@@ -229,8 +218,8 @@ export function ProjectSettingsDialog({
                       : "Archive to move it out of the live view."}
                   </span>
                 </div>
-                <Button variant="outline" onClick={handleArchiveToggle} disabled={archiving}>
-                  {archiving ? "..." : isArchived ? "Unarchive" : "Archive"}
+                <Button variant="outline" onClick={handleArchiveToggle} disabled={archive.pending}>
+                  {archive.pending ? "..." : isArchived ? "Unarchive" : "Archive"}
                 </Button>
               </div>
             </section>
@@ -267,11 +256,15 @@ export function ProjectSettingsDialog({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={remove.pending}
+            >
               Never mind
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete project"}
+            <Button variant="destructive" onClick={handleDelete} disabled={remove.pending}>
+              {remove.pending ? "Deleting..." : "Delete project"}
             </Button>
           </DialogFooter>
         </DialogContent>
