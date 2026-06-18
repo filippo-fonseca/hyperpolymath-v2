@@ -1,9 +1,11 @@
 # Kiwi auto-dev worker
 
-A local, unattended macOS worker that closes the loop on the daily
-captures-to-issues cron. The cron files `kiwi-drafted` issues at 06:00 UTC; this
-worker picks them up on your laptop, attempts safe fixes on isolated branches,
-and surfaces results so you can review and merge manually.
+A local, unattended macOS worker that closes the loop on GitHub issues. By
+default it considers every open issue (however it was filed: the daily
+captures-to-issues cron, `gh issue create`, the GitHub UI); set `LABEL` in
+`config.sh` to restrict it to a single label. It picks issues up on your laptop,
+attempts safe fixes on isolated branches, and surfaces results so you can review
+and merge manually.
 
 Nothing here runs automatically until you run `./install.sh`. The executor that
 created these files only created and committed them.
@@ -12,10 +14,12 @@ created these files only created and committed them.
 
 Once installed, a LaunchAgent polls every 30 minutes while you are logged in.
 Each poll runs a fast gate; the gate keeps the worker idle until the daily time
-window has opened and at least one open `kiwi-drafted` issue exists. When
-eligible, the worker:
+window has opened and at least one open candidate issue exists. When eligible,
+the worker:
 
-1. lists the open `kiwi-drafted` issues oldest-first and takes up to `MAX_ISSUES`,
+1. lists the open candidate issues (filtered by `LABEL` when set, minus any
+   carrying an `EXCLUDE_LABELS` opt-out label or already having an open
+   `kiwi/auto` PR), oldest-first, and takes up to `MAX_ISSUES`,
 2. resolves each issue in its own git worktree and branch (`kiwi/auto/<date>-issue-<n>`) off `origin/main`, in parallel, by launching headless Claude Code through the `/gsd:quick` pipeline,
 3. never pushes (branches are review-only),
 4. classifies each issue `done`, `skipped`, `failed`, or `timed-out`,
@@ -87,8 +91,10 @@ git checkout main && git merge kiwi/auto/<date>-issue-<n>
 ## Tune
 
 Edit `config.sh` to change behavior: `MAX_ISSUES`, `PER_ISSUE_TIMEOUT_MS`,
-`MODEL`, `EARLIEST_UTC_HHMM`, `LABEL`, `BRANCH_PREFIX`, `REPO_SLUG`, and
-`REPORT_URL`. The values are read by the gate and passed through to `run.mjs`.
+`MODEL`, `TRIAGE_MODEL`, `EARLIEST_UTC_HHMM`, `LABEL` (empty = every open issue;
+set = restrict to that label), `EXCLUDE_LABELS` (comma-separated opt-out labels,
+default `blocked`), `BRANCH_PREFIX`, `REPO_SLUG`, and `REPORT_URL`. The values
+are read by the gate and passed through to `run.mjs`.
 
 ## Uninstall
 

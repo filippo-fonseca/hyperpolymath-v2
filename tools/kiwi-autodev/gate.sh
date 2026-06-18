@@ -8,7 +8,8 @@
 # Conditions (all required):
 #   a. No date-stamped lock for today (run is idempotent per UTC day).
 #   b. Current UTC time-of-day is at or after EARLIEST_UTC_HHMM.
-#   c. At least one open issue carries the kiwi-drafted label.
+#   c. At least one open candidate issue exists (carrying LABEL when LABEL is
+#      set, and never carrying an EXCLUDE_LABELS opt-out label).
 set -euo pipefail
 
 # Resolve this script's own directory, then source the sibling config.
@@ -33,10 +34,27 @@ if [ "$((10#${NOW_HHMM}))" -lt "$((10#${EARLIEST_UTC_HHMM}))" ]; then
   exit 1
 fi
 
-# (c) Open-issue count: must be at least one open kiwi-drafted issue.
-OPEN_COUNT="$(gh issue list --repo "${REPO_SLUG}" --state open --label "${LABEL}" --json number --jq 'length' 2>/dev/null || echo 0)"
+# (c) Open candidate count: at least one open issue that carries LABEL (when
+# set) and carries none of the EXCLUDE_LABELS. Built as a GitHub search query so
+# the negative label filter works (gh has no --not-label flag). This mirrors the
+# candidate filter in run.mjs; the precise per-issue checks (including open-PR
+# dedup) run there, so this stays a cheap "is there anything?" pre-check.
+SEARCH=""
+if [ -n "${LABEL:-}" ]; then
+  SEARCH="label:\"${LABEL}\""
+fi
+if [ -n "${EXCLUDE_LABELS:-}" ]; then
+  IFS=',' read -ra EXCL <<< "${EXCLUDE_LABELS}"
+  for X in "${EXCL[@]}"; do
+    X="$(echo "${X}" | xargs)"
+    [ -n "${X}" ] && SEARCH="${SEARCH:+${SEARCH} }-label:\"${X}\""
+  done
+fi
+LIST_ARGS=(issue list --repo "${REPO_SLUG}" --state open --json number --jq 'length')
+[ -n "${SEARCH}" ] && LIST_ARGS+=(--search "${SEARCH}")
+OPEN_COUNT="$(gh "${LIST_ARGS[@]}" 2>/dev/null || echo 0)"
 if ! [ "${OPEN_COUNT}" -ge 1 ] 2>/dev/null; then
-  echo "kiwi-autodev gate: no open ${LABEL} issues (count=${OPEN_COUNT})" >&2
+  echo "kiwi-autodev gate: no open candidate issues (count=${OPEN_COUNT}, label='${LABEL:-<any>}', exclude='${EXCLUDE_LABELS:-<none>}')" >&2
   exit 1
 fi
 

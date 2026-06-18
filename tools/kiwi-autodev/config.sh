@@ -10,8 +10,8 @@
 # reporting is skipped with a warning and the run still succeeds. Do not add the
 # secret here, and do not commit it anywhere.
 
-# How many open kiwi-drafted issues to attempt per run (oldest-first). Each one
-# runs in its own git worktree and branch, in parallel.
+# How many open issues to attempt per run (oldest-first). Each one runs in its
+# own git worktree and branch, in parallel.
 export MAX_ISSUES=3
 
 # Per-issue wall-clock cap, in milliseconds (45 minutes). The cap is enforced
@@ -27,9 +27,18 @@ export MODEL=opus
 # are small enough to attempt. Cheap classification, so a small model is fine.
 export TRIAGE_MODEL=haiku
 
-# The GitHub issue label the daily captures-to-issues cron applies. The worker
-# only ever touches issues carrying this label.
-export LABEL=kiwi-drafted
+# Optional GitHub issue label filter. When set to a non-empty value the worker
+# ONLY considers open issues carrying this label (this is the label the daily
+# captures-to-issues cron applies). Leave it EMPTY to consider every open issue
+# regardless of how it was filed (manual `gh issue create`, the GitHub UI, the
+# cron, etc.) — triage still vets each candidate for size, so widening the net
+# does not relax the "small, self-contained" bar.
+export LABEL=
+
+# Comma-separated opt-out labels. Any open issue carrying one of these is
+# excluded from the candidate list, even when LABEL is empty. Use it to mark an
+# issue hands-off for the worker (too big, work-in-progress, a human is on it).
+export EXCLUDE_LABELS=blocked
 
 # Earliest UTC time-of-day (HHMM) the worker is allowed to start. The cron files
 # issues at 13:00 UTC, so 1400 gives it a one-hour buffer before the worker

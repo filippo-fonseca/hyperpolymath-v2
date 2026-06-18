@@ -2,8 +2,10 @@
 /**
  * Kiwi auto-dev orchestrator (260615-m68).
  *
- * Runs LOCALLY and unattended. For each open kiwi-drafted GitHub issue
- * (oldest-first, capped at MAX_ISSUES), it:
+ * Runs LOCALLY and unattended. For each open candidate GitHub issue (every
+ * open issue, or only those carrying LABEL when LABEL is set; issues carrying
+ * an EXCLUDE_LABELS opt-out label or already having an open kiwi/auto PR are
+ * skipped), oldest-first and capped at MAX_ISSUES, it:
  *   1. creates an isolated git worktree + branch off origin/main,
  *   2. launches headless Claude Code (one issue per worktree, in parallel),
  *   3. enforces a per-issue wall-clock cap in Node via a process-group kill
@@ -65,7 +67,15 @@ const PER_ISSUE_TIMEOUT_MS = Number(process.env.PER_ISSUE_TIMEOUT_MS ?? 2700000)
 const MODEL = process.env.MODEL ?? 'opus';
 // Fast model for the pre-dispatch triage pass (issue selection).
 const TRIAGE_MODEL = process.env.TRIAGE_MODEL ?? 'haiku';
-const LABEL = process.env.LABEL ?? 'kiwi-drafted';
+// Optional opt-in label. Empty means "consider every open issue" (see
+// config.sh); when set, only issues carrying it are candidates.
+const LABEL = process.env.LABEL ?? '';
+// Opt-out labels: any issue carrying one of these is never a candidate, even
+// when LABEL is empty. Comma-separated; whitespace-trimmed; case-insensitive.
+const EXCLUDE_LABELS = (process.env.EXCLUDE_LABELS ?? 'blocked')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 const BRANCH_PREFIX = process.env.BRANCH_PREFIX ?? 'kiwi/auto';
 const REPO_SLUG = process.env.REPO_SLUG ?? 'filippo-fonseca/hyperpolymath-v2';
 const REPORT_URL = (process.env.REPORT_URL ?? 'https://hyperpolymath.com').replace(/\/$/, '');
@@ -377,6 +387,30 @@ async function notify(message) {
   }
 }
 
+// Issue numbers that already have an open kiwi/auto review PR, read from the
+// PR head branches (named `${BRANCH_PREFIX}/<date>-issue-<n>`). Used to skip
+// re-attempting an issue whose prior PR is still unmerged. Best-effort: returns
+// an empty set on any error so a listing failure never blocks a run.
+async function openPrIssueNumbers() {
+  const nums = new Set();
+  try {
+    const { stdout } = await execFileP(
+      'gh',
+      ['pr', 'list', '--repo', REPO_SLUG, '--state', 'open', '--json', 'headRefName', '--limit', '200'],
+      { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 },
+    );
+    const prs = JSON.parse(stdout);
+    const re = new RegExp(`^${BRANCH_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/.*-issue-(\\d+)$`);
+    for (const pr of prs) {
+      const m = (pr.headRefName ?? '').match(re);
+      if (m) nums.add(Number(m[1]));
+    }
+  } catch (err) {
+    warn('open-PR dedup lookup failed (continuing):', err && err.message ? err.message : String(err));
+  }
+  return nums;
+}
+
 // Triage: ask a fast model which open issues are small and self-contained
 // enough to plausibly finish in one bounded /gsd:quick session, ranked
 // most-tractable first. Returns the chosen issue objects (capped at
@@ -561,22 +595,46 @@ async function main() {
     warn('git fetch origin main failed (continuing):', err && err.message ? err.message : String(err));
   }
 
-  // List eligible issues, oldest-first by number, capped at MAX_ISSUES.
+  // List candidate issues, oldest-first by number, capped at MAX_ISSUES. When
+  // LABEL is set, only issues carrying it are listed; empty LABEL lists every
+  // open issue regardless of how it was filed.
   let issues = [];
   try {
-    const { stdout } = await execFileP(
-      'gh',
-      ['issue', 'list', '--repo', REPO_SLUG, '--state', 'open', '--label', LABEL, '--json', 'number,title,labels,body', '--limit', '100'],
-      { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 },
-    );
+    const listArgs = ['issue', 'list', '--repo', REPO_SLUG, '--state', 'open', '--json', 'number,title,labels,body', '--limit', '100'];
+    if (LABEL) listArgs.push('--label', LABEL);
+    const { stdout } = await execFileP('gh', listArgs, { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 });
     issues = JSON.parse(stdout);
   } catch (err) {
     warn('gh issue list failed:', err && err.message ? err.message : String(err));
     issues = [];
   }
+
+  // Drop opt-out issues (any EXCLUDE_LABELS label) before triage so a hands-off
+  // label reliably keeps the worker away, no matter what triage would pick.
+  const beforeExclude = issues.length;
+  if (EXCLUDE_LABELS.length > 0) {
+    issues = issues.filter(
+      (i) => !(i.labels ?? []).some((l) => EXCLUDE_LABELS.includes(String(l.name ?? '').toLowerCase())),
+    );
+  }
+  const excludedByLabel = beforeExclude - issues.length;
+
+  // Skip issues that already have an open kiwi/auto review PR. Branches are
+  // date-stamped, so without this an unmerged issue would spawn a fresh
+  // duplicate PR every run — harmless with a curated kiwi-drafted queue, but a
+  // steady stream of dupes once the net is every open issue.
+  const issuesWithOpenPr = await openPrIssueNumbers();
+  const beforeDedup = issues.length;
+  if (issuesWithOpenPr.size > 0) {
+    issues = issues.filter((i) => !issuesWithOpenPr.has(i.number));
+  }
+  const skippedHasPr = beforeDedup - issues.length;
+
   const selected = await triageSelect(issues);
+  const scope = LABEL ? `${LABEL} issue(s)` : 'open issue(s)';
   log(
-    `triage selected ${selected.length} of ${issues.length} open ${LABEL}: ` +
+    `triage selected ${selected.length} of ${issues.length} candidate ${scope} ` +
+      `(excluded ${excludedByLabel} by label, skipped ${skippedHasPr} with an open PR): ` +
       (selected.map((i) => `#${i.number}`).join(', ') || 'none (sitting tight)'),
   );
 
