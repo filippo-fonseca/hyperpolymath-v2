@@ -68,7 +68,7 @@ Next steps:
       ${SCRIPT_DIR}/logs/launchd.err
       ${SCRIPT_DIR}/logs/<date>-issue-<n>.log
   - The gate keeps the worker idle until BOTH the daily time window has opened
-    (EARLIEST_UTC_HHMM in config.sh) AND at least one open kiwi-drafted issue
+    (EARLIEST_UTC_HHMM in config.sh) AND at least one open candidate issue
     exists. Until then every poll exits immediately and silently.
   - Review results in .kiwi-auto/recap-<date>.md and the DEVELOPMENT tab on
     /insights. Auto branches are review-only under kiwi/auto/*; merge manually.

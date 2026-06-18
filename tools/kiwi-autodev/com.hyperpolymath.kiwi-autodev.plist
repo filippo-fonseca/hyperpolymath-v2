@@ -11,7 +11,7 @@
   The agent polls every 30 minutes (StartInterval 1800) while you are logged in
   and also runs once at load. launchd-entry.sh runs the gate first, so most
   polls exit immediately and stay silent until the time window opens and at
-  least one open kiwi-drafted issue exists.
+  least one open candidate issue exists.
 
   SECRET: the dev-runs ingest secret is NEVER placed in this plist. run.mjs
   reads DEV_RUN_INGEST_SECRET at runtime from the environment or by parsing
