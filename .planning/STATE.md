@@ -408,6 +408,7 @@ None yet.
 | 260615-n2d | Show parent area inline (right-aligned, dim) in the project-assignment dropdown on tasks; closes issue #39 | 2026-06-15 | 181ed64 | [260615-n2d-show-associated-area-in-project-assignme](./quick/260615-n2d-show-associated-area-in-project-assignme/) |
 | 260615-n1x | Live-render `#hashtags` as styled tokens in capture inputs without requiring Enter (closes #41) — ProseMirror decoration plugin reusing the existing parser regex; visual parity with the popover-confirmed Mention chip | 2026-06-15 | 72909bc | [260615-n1x-hashtag-realtime-tokens](./quick/260615-n1x-hashtag-realtime-tokens/) |
 | 260616-3h3 | Harmonize hashtag chip background with brand --ink-sage token (replacing raw Tailwind lime) + align Input/Textarea focus border with the calm global --edge-hud ring (closes #43) | 2026-06-16 | 29f724b | [260616-3h3-improve-syntax-highlighting-colors-and-t](./quick/260616-3h3-improve-syntax-highlighting-colors-and-t/) |
+| 260618-eu2 | Widen kiwi-autodev worker beyond kiwi-drafted: optional LABEL (empty = every open issue), EXCLUDE_LABELS opt-out (default `blocked`), and open-PR dedup so the wider net does not spawn duplicate kiwi/auto PRs; triage size bar unchanged | 2026-06-18 | bd044ca | [260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr](./quick/260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr/) |
 
 ## Session Continuity
 
