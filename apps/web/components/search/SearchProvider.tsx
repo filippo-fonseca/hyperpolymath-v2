@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { fetchSearchSnapshot } from "@/lib/search/actions";
 import {
   buildSearchIndex,
@@ -32,6 +33,26 @@ export function SearchProvider({ userId, initialSnapshot, children }: ProviderPr
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
+
+  // Keep the search index live: refetch the snapshot whenever any table it
+  // indexes changes. Each subscription shares the app's singleton Realtime
+  // channel (refcount), so this adds no extra channels beyond the
+  // search-snapshot key in their invalidation fanout. Covers the core
+  // entities plus the join/derived tables that feed indexed fields
+  // (task→project links, capture tags, habit streaks).
+  const alsoInvalidate = useMemo(
+    () => [["search-snapshot", userId]] as const,
+    [userId],
+  );
+  useTableSubscription("tasks", userId, { alsoInvalidate });
+  useTableSubscription("tasks_projects", userId, { alsoInvalidate });
+  useTableSubscription("captures", userId, { alsoInvalidate });
+  useTableSubscription("captures_hashtags", userId, { alsoInvalidate });
+  useTableSubscription("hashtags", userId, { alsoInvalidate });
+  useTableSubscription("projects", userId, { alsoInvalidate });
+  useTableSubscription("areas", userId, { alsoInvalidate });
+  useTableSubscription("habits", userId, { alsoInvalidate });
+  useTableSubscription("habit_completions", userId, { alsoInvalidate });
 
   const index = useMemo(() => buildSearchIndex(data), [data]);
 
