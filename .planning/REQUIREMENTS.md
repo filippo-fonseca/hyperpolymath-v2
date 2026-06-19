@@ -570,3 +570,37 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-HEATMAP-01 | Phase 17 | Complete |
 
 *Updated 2026-06-12 — Phase 17 (Nutrition tracking tab) added: 22 NUTR-* requirements covering schema/RLS/Realtime + math/OFF + service layer (D-14) + day view UI + search/log/manual/meals/quickadd + targets + stats/heatmap.*
+
+### Journaling (Phase 20)
+
+- [ ] **JOURNAL-SCHEMA-01**: Drizzle schema adds a `journal_entries` table — `id`, `user_id` (FK → users, cascade), `date` (DATE), `main_response` (text, nullable), `notes_section` (text, nullable), `no_export` (boolean, default false), `created_at`/`updated_at` — with a `UNIQUE(user_id, date)` constraint (one entry per user per calendar day) and an index on `(user_id, date DESC)`. Migration is a hand-written `00NN_journal_entries.sql` mirroring the captures migration style.
+- [ ] **JOURNAL-RLS-01**: `journal_entries` enforces owner-only RLS (`user_id = auth.uid()`) for select/insert/update/delete; cross-user reads return empty (integration test mirroring the captures/nutrition RLS test).
+- [ ] **JOURNAL-RT-01**: Realtime publication includes `journal_entries`; the `RealtimeTable` union is extended; the `bump_user_state_version` trigger fires on `journal_entries` writes (JARVIS state-cache hook parity with other primary tables).
+- [ ] **JOURNAL-SERVICE-01**: Server Actions in `app/actions/journal.ts` expose `getJournalEntries({ startDate?, endDate?, limit? })`, `getJournalEntry(date)`, and `upsertJournalEntry({ date, mainResponse?, notesSection? })` — auth via `getClaims()`, Zod-validated input, upsert keyed on `(userId, date)` (never create duplicate rows for a day), double-WHERE ownership on update.
+- [ ] **JOURNAL-NAV-01**: `/journaling` route registered in `TopTabBar.tsx` (ROUTE_META) and `PersistentNav.tsx` with a `BookOpen`/`NotebookPen` lucide icon and label "Journaling".
+- [ ] **JOURNAL-DAY-01**: The day view lands on today, shows the fixed main prompt "What was the most storyworthy moment from today?" with a free-text response field and a separate "Notes / Misc" field; a day navigator (← {date} →, Today/Yesterday/EEE, MMM d) switches days; edits autosave (debounced) via `upsertJournalEntry` with a visible saved/saving indicator. Layout is comfortable on both web and mobile widths.
+- [ ] **JOURNAL-LIST-01**: A scrollable history/feed of past entries (most recent first) lets the user revisit and edit prior days; entries with no content render an inviting empty state rather than a blank row.
+- [ ] **JOURNAL-UI-01**: All journaling surfaces use the established glass register (`glass-tile` / `--glass-*` tokens, per-callsite accents via `--glass-border`/`--glass-glow-color`), EB Garamond serif for the prompt + entry body, warm-parchment tokens — visually consistent with the other tabs; no bespoke shadows or raw neumorphism outside the glass system.
+- [ ] **JOURNAL-NOEXPORT-01**: Each entry has a `no_export` privacy toggle in the UI; when set, the entry is excluded from the graph and the MCP export (gate honored in the loader, mirroring captures).
+- [ ] **JOURNAL-GRAPH-01**: A `journal_entry` node type is added to BOTH `packages/personal-context-mcp/src/types.ts` AND `apps/web/lib/context/types.ts`, with `CURRENT_SCHEMA_VERSION` bumped in both (kept in sync); the graph explorer renders the new node type.
+- [ ] **JOURNAL-MCP-01**: A `lib/context/nodes/journal.ts` loader (mirroring `nodes/captures.ts`, honoring `no_export`) is wired into `buildSnapshot()` so journal entries appear in the persisted snapshot consumed by the personal-context MCP server and daily export.
+- [ ] **CAP-COPY-01**: Each Quick Capture card has a copy-to-clipboard button that copies the capture's content, easy to tap/click while scrolling — always-visible or tap-target on mobile, hover-revealed on web — with brief copied feedback; uses the existing clipboard pattern if one exists, else the Clipboard API with a graceful fallback.
+
+### Phase 20 traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| JOURNAL-SCHEMA-01 | Phase 20 | Pending |
+| JOURNAL-RLS-01 | Phase 20 | Pending |
+| JOURNAL-RT-01 | Phase 20 | Pending |
+| JOURNAL-SERVICE-01 | Phase 20 | Pending |
+| JOURNAL-NAV-01 | Phase 20 | Pending |
+| JOURNAL-DAY-01 | Phase 20 | Pending |
+| JOURNAL-LIST-01 | Phase 20 | Pending |
+| JOURNAL-UI-01 | Phase 20 | Pending |
+| JOURNAL-NOEXPORT-01 | Phase 20 | Pending |
+| JOURNAL-GRAPH-01 | Phase 20 | Pending |
+| JOURNAL-MCP-01 | Phase 20 | Pending |
+| CAP-COPY-01 | Phase 20 | Pending |
+
+*Updated 2026-06-19 — Phase 20 (Journaling) added: 11 JOURNAL-* requirements (schema/RLS/Realtime + upsert-per-day service + nav + day view + history + glass UI + no-export gate + graph node + MCP loader) plus CAP-COPY-01 (Quick Capture copy button, mobile + web).*
