@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
-status: verifying
-stopped_at: context exhaustion at 84% (2026-06-19)
-last_updated: "2026-06-19T15:04:21.048Z"
-last_activity: "2026-06-16 -- Completed quick task 260616-3h3: harmonize hashtag chip bg with --ink-sage + align Input/Textarea focus border with global ring (closes #43)"
+status: executing
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-06-19T16:03:00.000Z"
+last_activity: 2026-06-19 -- Plan 20-01 complete (journaling schema foundation)
 progress:
   total_phases: 24
   completed_phases: 15
-  total_plans: 94
+  total_plans: 98
   completed_plans: 81
   percent: 63
 ---
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 17 — nutrition-tracking-tab
+**Current focus:** Phase 20 — journaling-daily-entries-prompt-notes-graph-mcp
 
 ## Current Position
 
 Milestone: v1.1 "Speed & Agility"
-Phase: 19 — tasks-redesign-inbox-universal-day-view-glass-cards
-Plan: 5/5 complete (19-01..19-05)
-Status: Executed — verification human_needed (automated 9/9 PASS; 3 browser items pending)
-Last activity: 2026-06-16 -- Completed quick task 260616-3h3: harmonize hashtag chip bg with --ink-sage + align Input/Textarea focus border with global ring (closes #43)
+Phase: 20 (journaling-daily-entries-prompt-notes-graph-mcp) — EXECUTING
+Plan: 2 of 5
+Status: Executing Phase 20
+Last activity: 2026-06-19 -- Plan 20-01 complete (journaling schema foundation: journal_entries table + migration 0030 + RLS + Realtime + state-version trigger + RealtimeTable union + cross-user RLS test)
 
 Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
 
@@ -134,6 +134,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 17 P04 | 15 | 3 tasks | 11 files |
 | Phase 19 P03 | 3m | 2 tasks | 2 files |
 | Phase 19 P04 | 6m | 3 tasks | 7 files |
+| Phase 20 P01 | ~31m | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -378,6 +379,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 19-04: view toggle is kanban | list | overview; standalone day mode retired (D-07)
 - [Phase ?]: 19-04: universal DaySwitcher re-scopes all views from shared dateYmd (D-05)
 - [Phase ?]: 19-04: expand/fullscreen via useTasksExpanded; AppShell collapses sidebar (D-08)
+- [Phase 20]: 20-01: journal_entries.date is DATE (client-local day, not server UTC); UNIQUE(user_id, date) is the upsert conflict target (one row per user per day)
+- [Phase 20]: 20-01: journaling prompt is a fixed UI constant, not a row column; no_export mirrors captures/tasks for the MCP export gate
 
 ### Pending Todos
 
@@ -412,6 +415,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-19T15:04:21.033Z
-Stopped at: context exhaustion at 84% (2026-06-19)
-Resume file: .planning/phases/19-tasks-redesign-inbox-universal-day-view-glass-cards/19-UI-SPEC.md
+Last session: 2026-06-19T16:03:00.000Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: None

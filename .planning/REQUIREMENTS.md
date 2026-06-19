@@ -573,9 +573,9 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 
 ### Journaling (Phase 20)
 
-- [ ] **JOURNAL-SCHEMA-01**: Drizzle schema adds a `journal_entries` table — `id`, `user_id` (FK → users, cascade), `date` (DATE), `main_response` (text, nullable), `notes_section` (text, nullable), `no_export` (boolean, default false), `created_at`/`updated_at` — with a `UNIQUE(user_id, date)` constraint (one entry per user per calendar day) and an index on `(user_id, date DESC)`. Migration is a hand-written `00NN_journal_entries.sql` mirroring the captures migration style.
-- [ ] **JOURNAL-RLS-01**: `journal_entries` enforces owner-only RLS (`user_id = auth.uid()`) for select/insert/update/delete; cross-user reads return empty (integration test mirroring the captures/nutrition RLS test).
-- [ ] **JOURNAL-RT-01**: Realtime publication includes `journal_entries`; the `RealtimeTable` union is extended; the `bump_user_state_version` trigger fires on `journal_entries` writes (JARVIS state-cache hook parity with other primary tables).
+- [x] **JOURNAL-SCHEMA-01**: Drizzle schema adds a `journal_entries` table — `id`, `user_id` (FK → users, cascade), `date` (DATE), `main_response` (text, nullable), `notes_section` (text, nullable), `no_export` (boolean, default false), `created_at`/`updated_at` — with a `UNIQUE(user_id, date)` constraint (one entry per user per calendar day) and an index on `(user_id, date DESC)`. Migration is a hand-written `00NN_journal_entries.sql` mirroring the captures migration style.
+- [x] **JOURNAL-RLS-01**: `journal_entries` enforces owner-only RLS (`user_id = auth.uid()`) for select/insert/update/delete; cross-user reads return empty (integration test mirroring the captures/nutrition RLS test).
+- [x] **JOURNAL-RT-01**: Realtime publication includes `journal_entries`; the `RealtimeTable` union is extended; the `bump_user_state_version` trigger fires on `journal_entries` writes (JARVIS state-cache hook parity with other primary tables).
 - [ ] **JOURNAL-SERVICE-01**: Server Actions in `app/actions/journal.ts` expose `getJournalEntries({ startDate?, endDate?, limit? })`, `getJournalEntry(date)`, and `upsertJournalEntry({ date, mainResponse?, notesSection? })` — auth via `getClaims()`, Zod-validated input, upsert keyed on `(userId, date)` (never create duplicate rows for a day), double-WHERE ownership on update.
 - [ ] **JOURNAL-NAV-01**: `/journaling` route registered in `TopTabBar.tsx` (ROUTE_META) and `PersistentNav.tsx` with a `BookOpen`/`NotebookPen` lucide icon and label "Journaling".
 - [ ] **JOURNAL-DAY-01**: The day view lands on today, shows the fixed main prompt "What was the most storyworthy moment from today?" with a free-text response field and a separate "Notes / Misc" field; a day navigator (← {date} →, Today/Yesterday/EEE, MMM d) switches days; edits autosave (debounced) via `upsertJournalEntry` with a visible saved/saving indicator. Layout is comfortable on both web and mobile widths.
@@ -590,9 +590,9 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| JOURNAL-SCHEMA-01 | Phase 20 | Pending |
-| JOURNAL-RLS-01 | Phase 20 | Pending |
-| JOURNAL-RT-01 | Phase 20 | Pending |
+| JOURNAL-SCHEMA-01 | Phase 20 | Complete (20-01) |
+| JOURNAL-RLS-01 | Phase 20 | Complete (20-01) |
+| JOURNAL-RT-01 | Phase 20 | Complete (20-01) |
 | JOURNAL-SERVICE-01 | Phase 20 | Pending |
 | JOURNAL-NAV-01 | Phase 20 | Pending |
 | JOURNAL-DAY-01 | Phase 20 | Pending |

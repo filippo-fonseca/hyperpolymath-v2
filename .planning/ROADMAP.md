@@ -542,7 +542,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 20-01-PLAN.md — Schema foundation: journalEntries Drizzle table + migration 0030 (DDL + UNIQUE(user_id,date) + (user_id,date DESC) index + owner-only RLS quartet + Realtime publication + bump_user_state_version trigger) + RealtimeTable union + cross-user RLS test (JOURNAL-SCHEMA-01, JOURNAL-RLS-01, JOURNAL-RT-01)
+- [x] 20-01-PLAN.md — Schema foundation: journalEntries Drizzle table + migration 0030 (DDL + UNIQUE(user_id,date) + (user_id,date DESC) index + owner-only RLS quartet + Realtime publication + bump_user_state_version trigger) + RealtimeTable union + cross-user RLS test (JOURNAL-SCHEMA-01, JOURNAL-RLS-01, JOURNAL-RT-01) ✅ 2026-06-19
 - [ ] 20-05-PLAN.md — *(independent)* Capture copy-to-clipboard button on CaptureCard — propagation-safe navigator.clipboard.writeText(capture.content) + Copied feedback + hover-reveal on web / touch-reachable on mobile + graceful fallback (CAP-COPY-01)
 
 **Wave 2** *(blocked on 20-01)*
