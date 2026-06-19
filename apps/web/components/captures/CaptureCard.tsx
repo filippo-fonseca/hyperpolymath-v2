@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { Check, Copy, MoreHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -119,6 +119,7 @@ export function CaptureCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // D-14 / JARVIS-13: "Convert to task"affordance is shown ONLY when this
@@ -152,6 +153,54 @@ export function CaptureCard({
       }
       toast("Capture deleted.");
     });
+  }
+
+  // CAP-COPY-01 — copy the capture's full text to the clipboard. Must stop
+  // propagation so the card's onOpen click does NOT fire. Degrades gracefully
+  // when the Clipboard API is unavailable (insecure context / old browser):
+  // falls back to document.execCommand("copy"), and on any failure surfaces a
+  // clear error toast rather than letting an unhandled rejection escape.
+  function markCopied() {
+    setCopied(true);
+    toast("Copied to clipboard.");
+    window.setTimeout(() => setCopied(false), 1200);
+  }
+
+  function legacyCopy(text: string): boolean {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const text = capture.content;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => markCopied(),
+        () => {
+          // writeText rejected (e.g. permissions) — try the legacy path.
+          if (legacyCopy(text)) markCopied();
+          else toast.error("Couldn't copy.");
+        }
+      );
+      return;
+    }
+    // No async Clipboard API at all — synchronous fallback.
+    if (legacyCopy(text)) markCopied();
+    else toast.error("Couldn't copy.");
   }
 
   // Keyboard activation parity: Enter / Space on a focused card opens detail
@@ -196,15 +245,38 @@ export function CaptureCard({
               }
             : {})}
         >
-          {/* ⋯ hover-reveal action menu — stops propagation so clicks here don't open the panel */}
+          {/* Top-right action region (copy + ⋯ menu) — stops propagation so
+              clicks here don't open the panel. */}
           <div
-            className={cn(
-              "absolute top-2 right-2 opacity-0 transition-opacity",
-              "group-hover:opacity-100 data-[state=open]:opacity-100"
-            )}
+            className="absolute top-2 right-2 flex items-center gap-0.5"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
+            {/* CAP-COPY-01 — copy-to-clipboard. Reachable on touch (base
+                opacity-100, larger tap target), hover-revealed on pointer-fine
+                devices to match the ⋯ menu affordance. */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleCopy}
+              className={cn(
+                "h-8 w-8 p-0 sm:h-7 sm:w-7",
+                "opacity-100 transition-opacity",
+                "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+              )}
+              aria-label={copied ? "Copied" : "Copy capture"}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </Button>
+
+            {/* ⋯ hover-reveal action menu */}
+            <div
+              className={cn(
+                "opacity-100 transition-opacity",
+                "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 data-[state=open]:opacity-100"
+              )}
+            >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -230,6 +302,7 @@ export function CaptureCard({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
 
           {showAvatar ? (
