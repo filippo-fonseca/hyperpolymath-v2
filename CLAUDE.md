@@ -241,6 +241,15 @@ At the start of every session, before diving into any work, load the open GitHub
 4. Ask whether to start on the top one, or whether Filippo already has his own prompt in mind. Do not start coding until he picks.
 
 <!-- GSD:workflow-start source:GSD defaults -->
+## Git workflow: commit often
+
+Commit as you go, in small focused commits, one per logical unit of work. This is a hard rule, not a preference.
+
+- When building anything with multiple parts (engine, server layer, UI components, page wiring, docs), each part gets its own commit the moment it's done. One feature normally produces several commits, never a single giant end-of-feature commit.
+- If work has already piled up before a commit, split it into focused commits by logical unit (e.g. `git reset --mixed <base>`, then stage and commit each group) instead of dumping it all in one commit. Do this proactively, without being asked.
+- Stage with explicit pathspecs (never `git add -A` / `git add .`) so each commit holds only its intended files.
+- Never push without explicit approval (see the global instructions). Commit-often does NOT imply push-often.
+
 ## GSD Workflow Enforcement
 
 Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
