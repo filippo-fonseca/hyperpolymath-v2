@@ -31,7 +31,9 @@ export type RealtimeTable =
   | "food_serving_options"
   | "food_logs"
   | "meals"
-  | "meal_items";
+  | "meal_items"
+  // Phase 20 — journaling (JOURNAL-RT-01)
+  | "journal_entries";
 
 export function tableKey(
   table: RealtimeTable,
