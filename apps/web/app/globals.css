@@ -960,3 +960,12 @@ select:focus-visible {
 .hud-core-active-throb {
   animation: hud-core-active-throb 1.5s ease-in-out infinite;
 }
+
+/* Global search — matched-substring highlight. Amber tint per the search
+   spec's "warning" mark; readable in both light and dark via --ink text. */
+.search-mark {
+  background: color-mix(in oklch, var(--ink-amber) 26%, transparent);
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 2px;
+}
