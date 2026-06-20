@@ -50,20 +50,29 @@
 }
 
 /* ---- Editor surface: borderless, transparent, inherits page type and
-   fills the column so it reads as the page, not a card. ---- */
+   stretches to fill the column so it reads as the page, not a card. The flex
+   chain (wrapper → container → editor) lets the contenteditable grow to the
+   bottom of the scroll viewport so clicking low always lands a cursor. ---- */
 .bn-container,
 .bn-editor {
   background-color: transparent;
   font-family: inherit;
 }
 
+.bn-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .bn-editor {
   /* Kill BlockNote's 54px gutter — the side menu lives in negative margin and
      we want the text flush to the page column. */
   padding-inline: 0;
-  /* Fill the page so clicking low on the page lands the cursor (Notion feel).
-     ProseMirror maps clicks in the empty tail to the nearest/last block. */
-  min-height: 60vh;
+  flex: 1 1 auto;
+  /* Fallback so the clickable surface is tall even before flex resolves. */
+  min-height: 55vh;
 }
 
 /* ---- Block-selection ring: replace the loud 4px blue outline with a soft
@@ -76,11 +85,16 @@
   box-shadow: 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent);
 }
 
-/* No focus outline anywhere inside the editing surface. */
+/* No focus ring on the editing surface. The contenteditable carries
+   tabindex="0", so the global focus-visible rule paints --ring-doc (amber)
+   as a box-shadow around the whole content box — kill both. */
+.bn-container:focus-visible,
+.bn-container :focus-visible,
 .bn-editor:focus,
 .bn-editor:focus-visible,
 .bn-editor *:focus-visible {
   outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ---- Side menu: the drag grip + add ("+") buttons. Smaller, tighter,
@@ -135,41 +149,52 @@
   color: var(--ink-muted);
 }
 
+/* The shadcn item renders its own inner DOM (Tailwind utilities): a `p-3`
+   icon wrapper [data-position=left], a `.flex-1` body whose first child is
+   `text-base` (title) and second is `text-xs` (subtext), and a right badge.
+   Override those internals directly — styling the row alone leaves the
+   oversized icon padding and 16px title untouched. */
 .bn-suggestion-menu-item {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 9px;
+  gap: 8px !important;
+  padding: 5px 7px !important;
   border-radius: 8px;
   color: var(--ink);
-  background: transparent;
-  border: none;
   cursor: pointer;
   transition: background-color 100ms var(--ease-out-quart);
 }
 .bn-suggestion-menu-item:hover,
 .bn-suggestion-menu-item[aria-selected="true"],
-.bn-suggestion-menu-item[data-selected="true"],
-.bn-suggestion-menu-item.bn-suggestion-menu-item-active {
-  background-color: color-mix(in oklch, var(--ink) 7%, transparent);
+.bn-suggestion-menu-item[data-selected="true"] {
+  background-color: color-mix(in oklch, var(--ink) 7%, transparent) !important;
+  color: var(--ink) !important;
   outline: none;
 }
 
-/* Leading glyph chip inside each row. */
-.bn-suggestion-menu-item [class*="section"]:first-child,
-.bn-suggestion-menu-item .bn-mt-icon,
-.bn-suggestion-menu-item svg {
+/* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
+.bn-suggestion-menu-item [data-position="left"] {
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
   color: var(--ink-muted);
 }
-
-.bn-suggestion-menu-item-title {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
+.bn-suggestion-menu-item [data-position="left"] svg {
+  width: 15px;
+  height: 15px;
 }
-.bn-suggestion-menu-item-subtitle,
-.bn-suggestion-menu-item-small {
-  font-size: 11px;
+
+/* Title (was text-base / 16px) + subtext (text-xs). */
+.bn-suggestion-menu-item .flex-1 > div:first-child {
+  font-size: 13px !important;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.bn-suggestion-menu-item .flex-1 > div:last-child:not(:first-child) {
+  font-size: 11px !important;
   color: var(--ink-muted);
   line-height: 1.2;
 }
