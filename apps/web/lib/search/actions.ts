@@ -11,5 +11,5 @@ import { getSearchSnapshot } from "@/lib/search/snapshot";
  */
 export async function fetchSearchSnapshot(): Promise<SearchSnapshot> {
   const user = await getUserOrRedirect();
-  return getSearchSnapshot(user.id);
+return getSearchSnapshot(user.id);
 }
