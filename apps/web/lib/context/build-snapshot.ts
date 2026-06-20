@@ -29,6 +29,7 @@ import { loadCaptures } from "./nodes/captures";
 import { loadTraining } from "./nodes/training";
 import { loadHabits } from "./nodes/habits";
 import { loadJarvisFacts } from "./nodes/jarvis-facts";
+import { loadPages } from "./nodes/pages";
 
 export { CURRENT_SCHEMA_VERSION };
 
@@ -39,7 +40,7 @@ export async function buildSnapshot(
   db: DB = defaultDb,
 ): Promise<Result<ContextSnapshot>> {
   try {
-    const [areas, projects, tasks, captures, training, habits, facts] = await Promise.all([
+    const [areas, projects, tasks, captures, training, habits, facts, pagesResult] = await Promise.all([
       loadAreas(userId, db),
       loadProjects(userId, db),
       loadTasks(userId, db),
@@ -47,6 +48,7 @@ export async function buildSnapshot(
       loadTraining(userId, db),
       loadHabits(userId, db),
       loadJarvisFacts(userId, db),
+      loadPages(userId, db),
     ]);
 
     const allNodes: Node[] = [
@@ -57,6 +59,7 @@ export async function buildSnapshot(
       ...training.nodes,
       ...habits.nodes,
       ...facts.nodes,
+      ...pagesResult.nodes,
     ];
 
     const areaIds = new Set(
@@ -71,12 +74,16 @@ export async function buildSnapshot(
     const captureNodes = captures.nodes.filter(
       (n): n is Extract<Node, { type: "capture" }> => n.type === "capture",
     );
+    const pageNodes = pagesResult.nodes.filter(
+      (n): n is Extract<Node, { type: "page" }> => n.type === "page",
+    );
 
     const edges = deriveEdges({
       areaIds,
       projects: projectNodes,
       tasks: taskNodes,
       captures: captureNodes,
+      pages: pageNodes,
       // v1 facts don't carry entity references — empty for now; future schema
       // bumps can wire fact_about edges without breaking deriveEdges' signature.
       facts: facts.nodes
@@ -99,7 +106,7 @@ export async function buildSnapshot(
         totalEdges: edges.length,
         nodeCounts,
         excludedNoExportCount:
-          tasks.excluded + captures.excluded + facts.excluded,
+          tasks.excluded + captures.excluded + facts.excluded + pagesResult.excluded,
       },
     };
 

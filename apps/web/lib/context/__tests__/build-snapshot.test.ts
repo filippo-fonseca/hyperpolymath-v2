@@ -262,6 +262,7 @@ describe("deriveEdges — pure derivation", () => {
       ],
       tasks: [],
       captures: [],
+      pages: [],
       facts: [],
     });
     expect(edges).toEqual([]);
@@ -276,6 +277,7 @@ describe("deriveEdges — pure derivation", () => {
       projects: [],
       tasks: [],
       captures: [],
+      pages: [],
       facts: [
         { id: bareFactId }, // bare — no entity ref, should NOT emit
         { id: wiredFactId, aboutEntityType: "project", aboutEntityId: projectId },
