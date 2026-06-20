@@ -11,6 +11,7 @@ import type { SearchType } from "@/lib/search";
 const TYPE_INK: Record<SearchType, string> = {
   task: "var(--hud-cyan)",
   capture: "var(--ink-sage)",
+  page: "var(--ink-violet)",
   project: "var(--ink-amber)",
   area: "var(--ink-coral)",
   habit: "var(--ink-muted)",
@@ -19,6 +20,7 @@ const TYPE_INK: Record<SearchType, string> = {
 const TYPE_LABEL: Record<SearchType, string> = {
   task: "TASK",
   capture: "CAPTURE",
+  page: "PAGE",
   project: "PROJECT",
   area: "AREA",
   habit: "HABIT",

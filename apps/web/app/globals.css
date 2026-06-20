@@ -61,6 +61,7 @@
   --ink-amber: oklch(70% 0.13 75);
   --ink-sage: oklch(62% 0.09 145);
   --ink-coral: oklch(63% 0.16 25);
+  --ink-violet: oklch(62% 0.13 295);
 
   /* Focus ring tokens (replace --shadow-nm-focus-*) */
   --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
@@ -789,6 +790,7 @@ select,
   --ink-amber: oklch(72% 0.12 75);
   --ink-sage: oklch(68% 0.1 145);
   --ink-coral: oklch(68% 0.15 25);
+  --ink-violet: oklch(68% 0.12 295);
   --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
   --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
 }

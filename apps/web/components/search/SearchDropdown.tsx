@@ -21,6 +21,7 @@ export function capResults(results: Results): Results {
   const capped: Results = {
     tasks: [],
     captures: [],
+    pages: [],
     projects: [],
     areas: [],
     habits: [],
@@ -38,6 +39,9 @@ export function capResults(results: Results): Results {
         break;
       case "capture":
         capped.captures = slice;
+        break;
+      case "page":
+        capped.pages = slice;
         break;
       case "project":
         capped.projects = slice;

@@ -49,6 +49,8 @@ export function SearchProvider({ userId, initialSnapshot, children }: ProviderPr
   useTableSubscription("captures", userId, { alsoInvalidate });
   useTableSubscription("captures_hashtags", userId, { alsoInvalidate });
   useTableSubscription("hashtags", userId, { alsoInvalidate });
+  useTableSubscription("pages", userId, { alsoInvalidate });
+  useTableSubscription("pages_projects", userId, { alsoInvalidate });
   useTableSubscription("projects", userId, { alsoInvalidate });
   useTableSubscription("areas", userId, { alsoInvalidate });
   useTableSubscription("habits", userId, { alsoInvalidate });
@@ -70,6 +72,7 @@ function useSearchIndex(): SearchEntry[] {
 const EMPTY_RESULTS: SearchResults = {
   tasks: [],
   captures: [],
+  pages: [],
   projects: [],
   areas: [],
   habits: [],
