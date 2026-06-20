@@ -9,6 +9,15 @@ interface Props {
   onSubmit: (text: string) => void;
   onCancel?: () => void;
   className?: string;
+  /** Fires on every value change — lets a host drive a live search dropdown. */
+  onValueChange?: (value: string) => void;
+  /**
+   * Optional keydown pre-handler. Runs before the composer's own key logic;
+   * return true to signal the event was fully handled (composer then bails,
+   * preserving the host's Arrow/Enter/Escape control for an attached dropdown).
+   * Cmd/Ctrl+Enter (send to JARVIS) is never offered to the interceptor.
+   */
+  keyboardInterceptor?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
 }
 
 const MAX_ROWS = 8;
@@ -37,6 +46,8 @@ export function LiteJarvisComposer({
   onSubmit,
   onCancel,
   className,
+  onValueChange,
+  keyboardInterceptor,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState("");
@@ -71,18 +82,27 @@ export function LiteJarvisComposer({
   }, [autoFocus]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Cmd/Ctrl+Enter always sends to JARVIS — never intercepted.
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       const trimmed = value.trim();
       if (!trimmed) return;
       onSubmit(trimmed);
       setValue("");
+      onValueChange?.("");
       return;
     }
+    // Let the host claim Arrow/Enter/Escape for an attached dropdown.
+    if (keyboardInterceptor?.(e)) return;
     if (e.key === "Escape") {
       e.preventDefault();
       onCancel?.();
     }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setValue(e.target.value);
+    onValueChange?.(e.target.value);
   }
 
   return (
@@ -94,13 +114,13 @@ export function LiteJarvisComposer({
         "hover:border-[var(--edge-hud)]",
         "focus-within:border-[var(--hud-cyan)]",
         "focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--hud-cyan)_10%,transparent)]",
-        className,
+        className
       )}
     >
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
         rows={1}
         placeholder={placeholder}
@@ -108,7 +128,7 @@ export function LiteJarvisComposer({
         className={cn(
           "block w-full resize-none bg-transparent outline-none",
           "font-serif text-[15px] leading-[1.5] text-[var(--ink)]",
-          "placeholder:text-[var(--ink-muted)] placeholder:italic",
+          "placeholder:text-[var(--ink-muted)] placeholder:italic"
         )}
       />
       <div className="mt-2 flex items-center justify-end">

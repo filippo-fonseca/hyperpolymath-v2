@@ -1,0 +1,242 @@
+/* =====================================================================
+   BlockNote → journal-paper / neumorphic bridge.
+
+   Strategy: remap BlockNote's own --bn-colors-* palette onto the app's
+   design tokens once, so editor text, menus, hovers, borders and the side
+   menu all track our light/dark tokens automatically. Then tighten the
+   chrome (side-menu buttons, slash menu, block-selection ring) so the
+   editor reads as part of the page rather than a third-party widget.
+   ===================================================================== */
+
+/* ---- Palette remap (light). Our tokens already flip under .dark, so the
+   dark override block below only needs to re-point the same vars to win
+   specificity against BlockNote's own [data-color-scheme=dark] rules. ---- */
+.bn-root {
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--surface-raised);
+  --bn-colors-tooltip-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: color-mix(in oklch, var(--ink) 7%, transparent);
+  --bn-colors-selected-text: var(--ink);
+  --bn-colors-selected-background: color-mix(in oklch, var(--hud-cyan) 16%, transparent);
+  --bn-colors-disabled-text: var(--ink-muted);
+  --bn-colors-disabled-background: var(--surface);
+  --bn-colors-shadow: color-mix(in oklch, var(--ink) 12%, transparent);
+  --bn-colors-border: var(--edge);
+  --bn-colors-side-menu: var(--ink-muted);
+  --bn-border-radius: 8px;
+  --bn-font-family: inherit;
+}
+
+.bn-root[data-color-scheme="dark"] {
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--surface-raised);
+  --bn-colors-tooltip-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: color-mix(in oklch, var(--ink) 10%, transparent);
+  --bn-colors-selected-text: var(--ink);
+  --bn-colors-selected-background: color-mix(in oklch, var(--hud-cyan) 20%, transparent);
+  --bn-colors-disabled-text: var(--ink-muted);
+  --bn-colors-disabled-background: var(--surface);
+  --bn-colors-shadow: oklch(0% 0 0 / 0.5);
+  --bn-colors-border: var(--edge);
+  --bn-colors-side-menu: var(--ink-muted);
+}
+
+/* ---- Editor surface: borderless, transparent, inherits page type and
+   stretches to fill the column so it reads as the page, not a card. The flex
+   chain (wrapper → container → editor) lets the contenteditable grow to the
+   bottom of the scroll viewport so clicking low always lands a cursor. ---- */
+.bn-container,
+.bn-editor {
+  background-color: transparent;
+  font-family: inherit;
+}
+
+.bn-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bn-editor {
+  /* Kill BlockNote's 54px gutter — the side menu lives in negative margin and
+     we want the text flush to the page column. */
+  padding-inline: 0;
+  flex: 1 1 auto;
+  /* Fallback so the clickable surface is tall even before flex resolves. */
+  min-height: 55vh;
+}
+
+/* ---- Block-selection ring: replace the loud 4px blue outline with a soft
+   rounded tint that matches the neumorphic register. ---- */
+.bn-block-content.ProseMirror-selectednode > *,
+.ProseMirror-selectednode > .bn-block-content > * {
+  outline: none !important;
+  border-radius: 6px;
+  background-color: color-mix(in oklch, var(--hud-cyan) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent);
+}
+
+/* No focus ring on the editing surface. The contenteditable carries
+   tabindex="0", so the global focus-visible rule paints --ring-doc (amber)
+   as a box-shadow around the whole content box — kill both. */
+.bn-container:focus-visible,
+.bn-container :focus-visible,
+.bn-editor:focus,
+.bn-editor:focus-visible,
+.bn-editor *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ---- Side menu: the drag grip + add ("+") buttons. Smaller, tighter,
+   muted by default, gently lifting on hover. ---- */
+.bn-side-menu {
+  gap: 1px;
+}
+.bn-side-menu .bn-button {
+  height: 20px !important;
+  min-width: 16px;
+  width: auto;
+  padding: 0 1px !important;
+  color: var(--ink-muted);
+  opacity: 0.55;
+  border-radius: 5px;
+  transition: opacity 120ms var(--ease-out-quart), background-color 120ms var(--ease-out-quart),
+    color 120ms var(--ease-out-quart);
+}
+.bn-side-menu .bn-button:hover {
+  opacity: 1;
+  color: var(--ink);
+  background-color: color-mix(in oklch, var(--ink) 7%, transparent);
+}
+.bn-side-menu .bn-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---- Slash ("/") suggestion menu: neumorphic glass dropdown, tight rows. ---- */
+.bn-suggestion-menu {
+  min-width: 248px;
+  padding: 5px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--surface-raised) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.bn-suggestion-menu-label {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* The shadcn item renders its own inner DOM (Tailwind utilities): a `p-3`
+   icon wrapper [data-position=left], a `.flex-1` body whose first child is
+   `text-base` (title) and second is `text-xs` (subtext), and a right badge.
+   Override those internals directly — styling the row alone leaves the
+   oversized icon padding and 16px title untouched. */
+.bn-suggestion-menu-item {
+  align-items: center;
+  gap: 8px !important;
+  padding: 5px 7px !important;
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 100ms var(--ease-out-quart);
+}
+.bn-suggestion-menu-item:hover,
+.bn-suggestion-menu-item[aria-selected="true"],
+.bn-suggestion-menu-item[data-selected="true"] {
+  background-color: color-mix(in oklch, var(--ink) 7%, transparent) !important;
+  color: var(--ink) !important;
+  outline: none;
+}
+
+/* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
+.bn-suggestion-menu-item [data-position="left"] {
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--ink-muted);
+}
+.bn-suggestion-menu-item [data-position="left"] svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Title (was text-base / 16px) + subtext (text-xs). */
+.bn-suggestion-menu-item .flex-1 > div:first-child {
+  font-size: 13px !important;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.bn-suggestion-menu-item .flex-1 > div:last-child:not(:first-child) {
+  font-size: 11px !important;
+  color: var(--ink-muted);
+  line-height: 1.2;
+}
+
+/* ---- Placeholder ("Type '/' for commands") — quieter. ---- */
+.bn-block-content:has(.ProseMirror-trailingBreak:only-child):after {
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+/* ---- Quote + divider: align to ink tokens instead of hardcoded grays. ---- */
+[data-content-type="quote"] blockquote {
+  color: var(--ink-muted);
+  border-left: 2px solid color-mix(in oklch, var(--ink-muted) 60%, transparent);
+}
+[data-content-type="divider"] hr {
+  border-top: 1px solid var(--edge);
+}
+
+/* =====================================================================
+   Callout custom block — Notion-style tinted note.
+   ===================================================================== */
+.bn-callout {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background-color: color-mix(in oklch, var(--surface) 80%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  width: 100%;
+}
+
+.bn-callout-emoji {
+  user-select: none;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.bn-callout-body {
+  flex: 1;
+  min-width: 0;
+}

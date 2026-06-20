@@ -77,6 +77,17 @@ export const NodeSchema = z.discriminatedUnion("type", [
     text: z.string(),
     createdAt: z.string(),
   }),
+  z.object({
+    type: z.literal("page"),
+    id: z.string().uuid(),
+    title: z.string(),
+    content: z.string(),
+    emoji: z.string().nullable(),
+    projectIds: z.array(z.string().uuid()),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    summary: z.string().optional(),
+  }),
 ]);
 export type Node = z.infer<typeof NodeSchema>;
 export type NodeType = Node["type"];
@@ -96,6 +107,11 @@ export const EdgeSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("capture_in_project"),
+    from: z.string().uuid(),
+    to: z.string().uuid(),
+  }),
+  z.object({
+    type: z.literal("page_in_project"),
     from: z.string().uuid(),
     to: z.string().uuid(),
   }),
