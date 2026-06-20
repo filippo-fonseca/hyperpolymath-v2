@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 20-02-PLAN.md
+stopped_at: Completed 20-03-PLAN.md
 last_updated: "2026-06-20T00:00:00.000Z"
-last_activity: 2026-06-20 -- Plan 20-02 complete (journal service layer — upsert/getOne/getMany, JOURNAL-SERVICE-01)
+last_activity: 2026-06-20 -- Plan 20-03 complete (journal_entry node in context graph + MCP dual-bump CURRENT_SCHEMA_VERSION 1→2, JOURNAL-GRAPH-01, JOURNAL-MCP-01)
 progress:
   total_phases: 24
   completed_phases: 15
   total_plans: 98
-  completed_plans: 83
+  completed_plans: 84
   percent: 65
 ---
 

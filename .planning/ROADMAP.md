@@ -548,7 +548,7 @@ Plans:
 **Wave 2** *(blocked on 20-01)*
 
 - [x] 20-02-PLAN.md — Server actions app/actions/journal.ts: upsertJournalEntry (onConflictDoUpdate on UNIQUE(user_id,date), field-preserving patch), getJournalEntry, getJournalEntries — getClaims auth, Zod, ActionResult, no revalidatePath + upsert-idempotency test (JOURNAL-SERVICE-01) ✅ 2026-06-20
-- [ ] 20-03-PLAN.md — Graph + MCP dual schema-version bump (1→2 in BOTH lib/context/types.ts and packages/personal-context-mcp/src/types.ts) + journal_entry node type + 1→2 migrator + nodes/journal.ts loader (honors no_export, returns {nodes, excluded}) + buildSnapshot wiring + GraphExplorer render (JOURNAL-GRAPH-01, JOURNAL-MCP-01, JOURNAL-NOEXPORT-01)
+- [x] 20-03-PLAN.md — Graph + MCP dual schema-version bump (1→2 in BOTH lib/context/types.ts and packages/personal-context-mcp/src/types.ts) + journal_entry node type + 1→2 migrator + nodes/journal.ts loader (honors no_export, returns {nodes, excluded}) + buildSnapshot wiring + GraphExplorer render (JOURNAL-GRAPH-01, JOURNAL-MCP-01, JOURNAL-NOEXPORT-01) ✅ 2026-06-20
 
 **Wave 3** *(blocked on 20-01, 20-02)*
 
