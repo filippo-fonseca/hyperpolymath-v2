@@ -31,7 +31,10 @@ export type RealtimeTable =
   | "food_serving_options"
   | "food_logs"
   | "meals"
-  | "meal_items";
+  | "meal_items"
+  // Phase 20 — pages (wiki-style markdown documents)
+  | "pages"
+  | "pages_projects";
 
 export function tableKey(
   table: RealtimeTable,
