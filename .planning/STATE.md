@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Speed & Agility
 status: executing
-stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-06-19T16:03:00.000Z"
-last_activity: 2026-06-19 -- Plan 20-01 complete (journaling schema foundation)
+stopped_at: Completed 20-05-PLAN.md
+last_updated: "2026-06-20T00:00:00.000Z"
+last_activity: 2026-06-20 -- Plan 20-05 complete (capture copy button CAP-COPY-01) + bundled fix(landing) hero dark-mode
 progress:
   total_phases: 24
   completed_phases: 15
   total_plans: 98
-  completed_plans: 81
-  percent: 63
+  completed_plans: 82
+  percent: 64
 ---
 
 # Project State
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 Milestone: v1.1 "Speed & Agility"
 Phase: 20 (journaling-daily-entries-prompt-notes-graph-mcp) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Executing Phase 20
-Last activity: 2026-06-19 -- Plan 20-01 complete (journaling schema foundation: journal_entries table + migration 0030 + RLS + Realtime + state-version trigger + RealtimeTable union + cross-user RLS test)
+Last activity: 2026-06-20 -- Plan 20-05 complete (CaptureCard copy-to-clipboard, CAP-COPY-01); bundled fix: landing hero dark-mode rendering repaired. Starting Wave 2: 20-02 (service layer) + 20-03 (graph/MCP).
 
 Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
 
