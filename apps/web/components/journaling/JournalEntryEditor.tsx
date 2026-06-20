@@ -38,18 +38,19 @@ export function JournalEntryEditor({ date, entry }: Props) {
   const [noExport, setNoExport] = useState(entry?.noExport ?? false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  // Keep local state in sync if the entry prop changes (e.g., date navigation
-  // loads a different entry from the query cache).
-  const prevEntryId = useRef<string | null | undefined>(entry?.id);
+  // When the query resolves and brings in a real entry (id appears for the
+  // first time), fill the fields. The parent passes key={date} so this
+  // component remounts on every date change — initial state already resets.
+  // This effect only needs to handle the null→entry transition (slow query).
   useEffect(() => {
-    if (entry?.id !== prevEntryId.current) {
-      prevEntryId.current = entry?.id;
-      setMainResponse(entry?.mainResponse ?? "");
-      setNotesSection(entry?.notesSection ?? "");
-      setNoExport(entry?.noExport ?? false);
+    if (entry) {
+      setMainResponse(entry.mainResponse ?? "");
+      setNotesSection(entry.notesSection ?? "");
+      setNoExport(entry.noExport ?? false);
       setSaveState("idle");
     }
-  }, [entry]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

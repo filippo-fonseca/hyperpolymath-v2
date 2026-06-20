@@ -6,7 +6,7 @@ import type { JournalEntry } from "@/app/actions/journal";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { DayNavigator } from "@/components/journaling/DayNavigator";
 import { JournalEntryEditor } from "@/components/journaling/JournalEntryEditor";
-import { JournalHistoryFeed } from "@/components/journaling/JournalHistoryFeed";
+import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { useState } from "react";
 
 interface Props {
@@ -89,15 +89,16 @@ export function JournalingClient({
         <DayNavigator date={selectedDate} onChange={handleSelectDate} />
       </div>
 
-      {/* Two-column on md+, single column on mobile */}
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-[3fr_2fr] md:gap-6 md:items-start">
-        {/* Left: editor */}
-        <JournalEntryEditor date={selectedDate} entry={activeEntry} />
+      {/* Two-column on md+: editor left, calendar sidebar right */}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr_260px] md:gap-5 md:items-start">
+        {/* key={selectedDate} remounts the editor on every date change so local
+            textarea state never lingers from the previous day */}
+        <JournalEntryEditor key={selectedDate} date={selectedDate} entry={activeEntry} />
 
-        {/* Right: history feed */}
-        <JournalHistoryFeed
-          entries={history}
+        {/* Calendar sidebar — month/week/year views, neumorphic selected day */}
+        <JournalCalendar
           selectedDate={selectedDate}
+          entries={history}
           onSelectDate={handleSelectDate}
         />
       </div>
