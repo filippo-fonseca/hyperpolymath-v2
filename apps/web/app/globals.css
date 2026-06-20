@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* BlockNote (shadcn variant) ships its own component classes — let Tailwind
+   scan the package so its utilities get generated. */
+@source "../node_modules/@blocknote/shadcn";
+
 /* Phase 6 Plan 06-01 — Tailwind 4 dark variant.
    Must precede any dark: utility usage. Pairs with next-themes
    attribute="class" so toggling .dark on <html> activates dark: classes
