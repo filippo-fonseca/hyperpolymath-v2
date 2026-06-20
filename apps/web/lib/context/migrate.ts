@@ -28,6 +28,22 @@ export type LegacySnapshot = {
   [k: string]: unknown;
 };
 
+/**
+ * Pure migrators keyed by the SOURCE version they migrate FROM.
+ * Each migrator lifts the payload to the next version's shape and re-parses
+ * via ContextSnapshotSchema. Additive changes (new node types) are safe to
+ * re-parse because the old payload simply lacks the new nodes — that is valid.
+ */
+const migrators: Record<number, (payload: unknown) => Result<ContextSnapshot>> = {
+  1: (payload) => {
+    // v1 → v2: added journal_entry node type (additive); re-parse is safe because
+    // v1 payloads have no journal_entry nodes and the schema accepts any cardinality.
+    const parsed = ContextSnapshotSchema.safeParse(payload);
+    if (!parsed.success) return err(`v1→v2 migration failed: ${parsed.error.message}`);
+    return ok(parsed.data);
+  },
+};
+
 export function migrate(
   payload: unknown,
   fromVersion: number,
@@ -46,7 +62,13 @@ export function migrate(
       `snapshot v${fromVersion} is newer than reader v${CURRENT_SCHEMA_VERSION}`,
     );
   }
-  // fromVersion < CURRENT and no migrator registered yet. Return opaque legacy.
+  // fromVersion < CURRENT — check migrators map before falling through to legacy.
+  const migrator = migrators[fromVersion];
+  if (migrator) {
+    return migrator(payload);
+  }
+  // No migrator registered for this version. Return opaque legacy wrapper so
+  // the caller can choose to ignore the row rather than crash.
   return ok({
     _legacy: true,
     schemaVersion: fromVersion,
