@@ -69,6 +69,7 @@ Everything below is **shipped and working** unless explicitly marked otherwise.
 - **LifeOS:** The homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
 - **JARVIS:** Full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
 - **Today:** The morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
+- **Search:** One global search across every primitive. A full-page Search surface plus a live `⌘K` dropdown over the JARVIS composer. Case-insensitive substring matching over tasks, captures (text and tags), projects, areas, and habits, grouped and ranked, with matched substrings highlighted. Purely client-side, zero new endpoints.
 - **Areas:** Your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
 - **Projects:** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
 - **Tasks:** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
