@@ -12,7 +12,7 @@ import { format } from "date-fns";
  * hashtag surfaces a capture even when the word is absent from its body.
  */
 
-export type SearchType = "area" | "project" | "task" | "capture" | "habit";
+export type SearchType = "area" | "project" | "task" | "capture" | "page" | "habit";
 
 export interface SearchEntry {
   id: string;
@@ -37,6 +37,7 @@ export interface SearchEntry {
 export interface SearchResults {
   tasks: SearchEntry[];
   captures: SearchEntry[];
+  pages: SearchEntry[];
   projects: SearchEntry[];
   areas: SearchEntry[];
   habits: SearchEntry[];
@@ -66,13 +67,21 @@ export interface SearchSnapshot {
     createdAt: string;
     updatedAt: string;
   }[];
+  pages: {
+    id: string;
+    title: string;
+    content: string;
+    emoji: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }[];
   habits: { id: string; name: string; currentStreak: number }[];
 }
 
 const PREVIEW_LEN = 80;
 
 function emptyResults(): SearchResults {
-  return { tasks: [], captures: [], projects: [], areas: [], habits: [], total: 0 };
+  return { tasks: [], captures: [], pages: [], projects: [], areas: [], habits: [], total: 0 };
 }
 
 function areaLabel(name: string, emoji: string | null): string {
@@ -163,6 +172,25 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
     });
   }
 
+  for (const p of snapshot.pages) {
+    const title = p.title.trim() || "Untitled";
+    const displayTitle = p.emoji ? `${title} ${p.emoji}` : title;
+    const body = p.content.trim();
+    const preview =
+      body.length > PREVIEW_LEN ? `${body.slice(0, PREVIEW_LEN).trimEnd()}…` : body || undefined;
+    entries.push({
+      id: p.id,
+      type: "page",
+      title: displayTitle,
+      searchText: `${title} ${body}`.toLowerCase(),
+      preview,
+      breadcrumb: [],
+      meta: safeFormat(p.updatedAt, "MMM d") ?? undefined,
+      href: `/pages/${p.id}`,
+      updatedAt: p.updatedAt || p.createdAt,
+    });
+  }
+
   for (const h of snapshot.habits) {
     entries.push({
       id: h.id,
@@ -225,6 +253,9 @@ export function search(index: SearchEntry[], query: string): SearchResults {
       case "capture":
         results.captures.push(entry);
         break;
+      case "page":
+        results.pages.push(entry);
+        break;
       case "project":
         results.projects.push(entry);
         break;
@@ -239,6 +270,7 @@ export function search(index: SearchEntry[], query: string): SearchResults {
 
   results.tasks.sort((a, b) => compareWithinGroup(a, b, q));
   results.captures.sort((a, b) => compareWithinGroup(a, b, q));
+  results.pages.sort((a, b) => compareWithinGroup(a, b, q));
   results.projects.sort((a, b) => compareWithinGroup(a, b, q));
   results.areas.sort((a, b) => compareWithinGroup(a, b, q));
   results.habits.sort((a, b) => compareWithinGroup(a, b, q));
@@ -246,6 +278,7 @@ export function search(index: SearchEntry[], query: string): SearchResults {
   results.total =
     results.tasks.length +
     results.captures.length +
+    results.pages.length +
     results.projects.length +
     results.areas.length +
     results.habits.length;
@@ -285,11 +318,19 @@ export function highlightSegments(text: string, query: string): HighlightSegment
   return segments;
 }
 
-export const SEARCH_TYPE_ORDER: SearchType[] = ["task", "capture", "project", "area", "habit"];
+export const SEARCH_TYPE_ORDER: SearchType[] = [
+  "task",
+  "capture",
+  "page",
+  "project",
+  "area",
+  "habit",
+];
 
 export const SEARCH_TYPE_LABEL: Record<SearchType, string> = {
   task: "Tasks",
   capture: "Captures",
+  page: "Pages",
   project: "Projects",
   area: "Areas",
   habit: "Habits",
@@ -301,6 +342,8 @@ export function resultsForType(results: SearchResults, type: SearchType): Search
       return results.tasks;
     case "capture":
       return results.captures;
+    case "page":
+      return results.pages;
     case "project":
       return results.projects;
     case "area":

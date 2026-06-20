@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { getPagesForUser } from "@/lib/db/queries/pages";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { loadHabits } from "@/lib/context/nodes/habits";
@@ -16,10 +17,11 @@ const CAPTURE_LIMIT = 1000;
  * so search can still surface them.
  */
 export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot> {
-  const [tree, tasks, captures, habitNodes] = await Promise.all([
+  const [tree, tasks, captures, pages, habitNodes] = await Promise.all([
     getSidebarTree(userId, true),
     getAllTasksForUser(userId),
     getCapturesForUser(userId, { limit: CAPTURE_LIMIT }),
+    getPagesForUser(userId),
     loadHabits(userId),
   ]);
 
@@ -46,6 +48,14 @@ export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot>
       tags: c.hashtags.map((h) => h.displayName),
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
+    })),
+    pages: pages.map((p) => ({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      emoji: p.emoji,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
     })),
     habits: habitNodes.nodes
       .filter((n): n is Extract<typeof n, { type: "habit" }> => n.type === "habit")
