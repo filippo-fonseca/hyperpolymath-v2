@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* BlockNote (shadcn variant) ships its own component classes — let Tailwind
+   scan the package so its utilities get generated. */
+@source "../node_modules/@blocknote/shadcn";
+
 /* Phase 6 Plan 06-01 — Tailwind 4 dark variant.
    Must precede any dark: utility usage. Pairs with next-themes
    attribute="class" so toggling .dark on <html> activates dark: classes
@@ -57,6 +61,7 @@
   --ink-amber: oklch(70% 0.13 75);
   --ink-sage: oklch(62% 0.09 145);
   --ink-coral: oklch(63% 0.16 25);
+  --ink-violet: oklch(62% 0.13 295);
 
   /* Focus ring tokens (replace --shadow-nm-focus-*) */
   --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
@@ -785,6 +790,7 @@ select,
   --ink-amber: oklch(72% 0.12 75);
   --ink-sage: oklch(68% 0.1 145);
   --ink-coral: oklch(68% 0.15 25);
+  --ink-violet: oklch(68% 0.12 295);
   --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
   --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
 }
@@ -1063,4 +1069,13 @@ select:focus-visible {
 
 .hud-core-active-throb {
   animation: hud-core-active-throb 1.5s ease-in-out infinite;
+}
+
+/* Global search — matched-substring highlight. Amber tint per the search
+   spec's "warning" mark; readable in both light and dark via --ink text. */
+.search-mark {
+  background: color-mix(in oklch, var(--ink-amber) 26%, transparent);
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 2px;
 }

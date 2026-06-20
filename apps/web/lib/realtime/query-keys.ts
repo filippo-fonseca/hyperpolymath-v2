@@ -33,7 +33,10 @@ export type RealtimeTable =
   | "meals"
   | "meal_items"
   // Phase 20 — journaling (JOURNAL-RT-01)
-  | "journal_entries";
+  | "journal_entries"
+  // Phase 20 — pages (wiki-style markdown documents)
+  | "pages"
+  | "pages_projects";
 
 export function tableKey(
   table: RealtimeTable,

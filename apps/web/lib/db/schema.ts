@@ -266,6 +266,55 @@ export const capturesProjects = pgTable("captures_projects", {
   index("captures_projects_user_idx").on(t.userId),
 ]);
 
+// ─── PAGES ──────────────────────────────────────────────────────────────────
+// Phase 20 — Notion-style markdown documents. Each page is owned by a user
+// and may be linked to zero or more projects (M:N via pages_projects junction).
+// Deleting a project cascades the junction row only; the page itself survives
+// (unlink not delete — requirement satisfied automatically by ON DELETE CASCADE
+// on the junction FK to projects, with no cascade on the pages table itself).
+
+export const pages = pgTable(
+  "pages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    // Lossy markdown mirror of content_json. Source of truth for the MCP
+    // context export, search, and portability — the editor never reads it back
+    // except to seed blocks for legacy pages with no content_json yet.
+    content: text("content").notNull().default(""),
+    // BlockNote block document — the editor's source of truth (full fidelity:
+    // callouts, etc.). Null for legacy pages, which seed from `content` markdown.
+    contentJson: jsonb("content_json"),
+    emoji: text("emoji"),
+    pinned: boolean("pinned").notNull().default(false),
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
+    // this page is filtered out of the personal-context snapshot.
+    noExport: boolean("no_export").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("pages_user_updated_desc_idx").on(t.userId, sql`updated_at DESC`),
+  ],
+);
+
+export const pagesProjects = pgTable("pages_projects", {
+  pageId: uuid("page_id")
+    .notNull()
+    .references(() => pages.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized; Server Actions enforce match with parent
+}, (t) => [
+  primaryKey({ columns: [t.pageId, t.projectId] }),
+  index("pages_projects_project_idx").on(t.projectId),
+  index("pages_projects_user_idx").on(t.userId),
+]);
+
 export const capturesHashtags = pgTable("captures_hashtags", {
   captureId: uuid("capture_id")
     .notNull()

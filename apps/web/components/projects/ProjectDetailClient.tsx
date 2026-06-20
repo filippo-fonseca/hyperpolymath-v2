@@ -3,6 +3,7 @@
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
@@ -11,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useOptimistic } from "react";
 import { ProjectCapturesSection } from "./ProjectCapturesSection";
 import { ProjectHeader } from "./ProjectHeader";
+import { ProjectPagesSection } from "./ProjectPagesSection";
 import { ProjectTasksSection } from "./ProjectTasksSection";
 
 type ProjectRow = Awaited<ReturnType<typeof getProjectsForCurrentUser>>[number];
@@ -23,6 +25,7 @@ interface Props {
   initialProjects: ProjectRow[];
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
+  initialPages: PageWithProjects[];
   hashtagsForComposer: { id: string; name: string; displayName: string }[];
   activeProjectsForComposer: ReadonlyArray<{
     id: string;
@@ -63,6 +66,7 @@ export function ProjectDetailClient({
   initialProjects,
   initialTasks,
   initialCaptures,
+  initialPages,
   hashtagsForComposer,
   activeProjectsForComposer,
   graduationYear,
@@ -175,6 +179,17 @@ export function ProjectDetailClient({
           }))}
           initialCaptures={initialCaptures}
         />
+
+        <div
+          aria-hidden="true"
+          className="h-px w-full"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, var(--edge) 20%, var(--edge) 80%, transparent)",
+          }}
+        />
+
+        <ProjectPagesSection userId={userId} projectId={projectId} initialPages={initialPages} />
       </div>
     </div>
   );

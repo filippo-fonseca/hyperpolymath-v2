@@ -27,6 +27,7 @@ export function deriveEdges(input: {
   projects: Extract<Node, { type: "project" }>[];
   tasks: Extract<Node, { type: "task" }>[];
   captures: Extract<Node, { type: "capture" }>[];
+  pages: Extract<Node, { type: "page" }>[];
   facts: FactReference[];
 }): Edge[] {
   const edges: Edge[] = [];
@@ -49,6 +50,12 @@ export function deriveEdges(input: {
     }
     for (const tag of c.tags) {
       edges.push({ type: "capture_tagged", from: c.id, tag });
+    }
+  }
+
+  for (const page of input.pages) {
+    for (const pid of page.projectIds) {
+      edges.push({ type: "page_in_project", from: page.id, to: pid });
     }
   }
 

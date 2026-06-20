@@ -33,36 +33,6 @@ type Entry = {
  */
 const channels = new Map<string, Entry>();
 
-/**
- * RT-AUTH: One-time module-level auth wiring.
- *
- * supabase-js wires `realtime.setAuth()` for SIGNED_IN and TOKEN_REFRESHED
- * auth events, but NOT for INITIAL_SESSION. When the app cold-starts with an
- * existing browser session the Realtime WebSocket therefore opens with the
- * anon key rather than the user's JWT. RLS on the remote Supabase project
- * then filters out every postgres_changes event, silently killing cross-device
- * sync and JARVIS-triggered updates.
- *
- * Fix: subscribe once to onAuthStateChange and call setAuth() for every
- * session event (including INITIAL_SESSION) so the Realtime socket always
- * carries a valid user JWT.
- *
- * The listener is registered at most once per browser session (module scope)
- * and is intentionally never cleaned up — it must outlive any single React
- * component lifecycle.
- */
-let _realtimeAuthInitialized = false;
-
-function _initRealtimeAuth(): void {
-  if (_realtimeAuthInitialized) return;
-  _realtimeAuthInitialized = true;
-
-  const supabase = createClient();
-  supabase.auth.onAuthStateChange((_event, session) => {
-    void supabase.realtime.setAuth(session?.access_token ?? null);
-  });
-}
-
 function makeKey(table: RealtimeTable, userId: string): string {
   return `${table}::${userId}`;
 }
@@ -122,11 +92,6 @@ export function useTableSubscription(
       // union across consumers).
       for (const k of extraKeysJson) existing.extraKeys.add(k);
     } else {
-      // RT-AUTH: ensure the Realtime socket has the user's JWT before the
-      // channel subscribes. Must be called before .subscribe() so the
-      // INITIAL_SESSION token is in place for the first channel join.
-      _initRealtimeAuth();
-
       const extraKeys = new Set<string>(extraKeysJson);
       const supabase = createClient();
       const channel = supabase
@@ -213,9 +178,8 @@ export function __getChannelMapForTests(): ReadonlyMap<
   );
 }
 
-/** Test-only — reset module state between tests (clears all channels + auth init flag). */
+/** Test-only — reset module state between tests. */
 export function __resetChannelsForTests(): void {
   for (const entry of channels.values()) void entry.channel.unsubscribe();
   channels.clear();
-  _realtimeAuthInitialized = false;
 }

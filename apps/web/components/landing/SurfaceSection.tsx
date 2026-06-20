@@ -37,13 +37,16 @@ export function SurfaceSection() {
         insights that fall out: every signal worth tracking lives on a
         single page called <em>LifeOS</em>. The whole system converges into
         one document so the agent and I are always looking at the same
-        thing.
+        thing. One global search reaches across all of it: hit
+        <span className="font-mono"> ⌘K</span> from anywhere, or open the
+        Search surface, and every task, capture, project, area, and habit
+        is one substring away.
       </p>
 
       <p className="mt-4 font-mono text-[13px] leading-[1.6] tracking-[0.02em] text-[var(--ink-muted)]">
-        SURFACES&nbsp;·&nbsp; LifeOS · Today · Areas · Projects · Tasks ·
-        Captures · Calendar · Habits · Training · Health · Graph · Insights
-        · JARVIS
+        SURFACES&nbsp;·&nbsp; LifeOS · Today · Search · Areas · Projects ·
+        Tasks · Captures · Calendar · Habits · Training · Health · Graph ·
+        Insights · JARVIS
       </p>
 
       {/* Twin visual artifact: the Areas tree (spine) + the Knowledge

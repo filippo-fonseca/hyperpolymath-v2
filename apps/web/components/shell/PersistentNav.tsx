@@ -19,10 +19,12 @@ import {
   Calendar,
   CheckSquare,
   Dumbbell,
+  FileText,
   Info,
   LayoutDashboard,
   MessageSquare,
   Repeat,
+  Search,
   Settings,
   UtensilsCrossed,
   Waypoints,
@@ -58,6 +60,7 @@ import { KiwiAboutDialog } from "./KiwiAboutDialog";
 // JARVIS is intentionally NOT here — it lives in the TopTabBar (the cyan agent
 // pill), so duplicating it in the sidebar rail was redundant.
 const items = [
+  { href: "/search", label: "Search", icon: Search, disabled: false, tooltip: undefined },
   { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined },
@@ -80,6 +83,13 @@ const items = [
     href: "/captures",
     label: "Captures",
     icon: MessageSquare,
+    disabled: false,
+    tooltip: undefined,
+  },
+  {
+    href: "/pages",
+    label: "Pages",
+    icon: FileText,
     disabled: false,
     tooltip: undefined,
   },
