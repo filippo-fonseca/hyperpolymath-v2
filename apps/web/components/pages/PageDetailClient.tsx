@@ -184,9 +184,11 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
 
-  // Breadcrumb from the page's primary (first) project link: Area / Project /
-  // Folder. The page can be linked to several projects; the chips row below
-  // shows the full set, so the breadcrumb just anchors the primary location.
+  // Breadcrumb from the page's primary (first) project link plus its (global,
+  // project-independent) folder. The page can be linked to several projects; the
+  // chips row below shows the full set, so the breadcrumb just anchors the
+  // primary project. The folder is page-level now (Phase 21), so it renders
+  // independent of any project link.
   const primaryLink = serverPage.projects[0] ?? null;
   const primaryProject = primaryLink
     ? initialActiveProjects.find((p) => p.id === primaryLink.id)
@@ -221,10 +223,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             </button>
           </>
         )}
-        {primaryLink?.folderName && (
+        {serverPage.folderName && (
           <>
             <span className="opacity-50">/</span>
-            <span className="truncate max-w-[200px]">{primaryLink.folderName}</span>
+            <span className="truncate max-w-[200px]">{serverPage.folderName}</span>
           </>
         )}
       </nav>

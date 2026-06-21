@@ -3,12 +3,19 @@
 import {
   createFolder,
   deleteFolder,
+  getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
   renameFolder,
+  setFolderProjects,
   setPageFolder,
 } from "@/app/actions/folders";
 import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
-import type { FolderRow } from "@/lib/db/queries/folders";
+import {
+  getEffectiveProjectIds,
+  type FolderProjectLink,
+  type FolderRow,
+  type FolderWithProjects,
+} from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -37,12 +44,13 @@ interface Props {
 }
 
 /**
- * Project-scoped pages surface. Same data model as /pages, filtered to pages
- * linked to THIS project. Pages are grouped by the folder they sit in for this
- * project-link (folder placement is per project-link, so a page can be loose
- * here yet filed elsewhere). Folders are created/renamed/deleted within the
+ * Project-scoped pages surface. Phase 21: folders are project-independent and
+ * link to projects via the folder_projects M:N junction. This section shows
+ * folders whose EFFECTIVE project set (own ∪ inherited from ancestors) includes
+ * THIS project, and the pages linked to this project grouped by their (global)
+ * page-level folder. "New folder" creates a folder and links it to this
  * project; "+ New page" creates a page pre-linked to this project (optionally
- * into a folder).
+ * placed in a folder).
  */
 export function ProjectPagesSection({ userId, projectId, initialPages }: Props) {
   const router = useRouter();
@@ -69,6 +77,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     alsoInvalidate: [tableKey("pages", userId)],
   });
   useTableSubscription("page_folders", userId);
+  useTableSubscription("folder_projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
@@ -80,25 +89,43 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     queryFn: () => getFoldersForCurrentUser(),
     initialData: [] as FolderRow[],
   });
+  const { data: folderLinks = [] } = useQuery({
+    queryKey: tableKey("folder_projects", userId),
+    queryFn: () => getFolderProjectsForCurrentUser(),
+    initialData: [] as FolderProjectLink[],
+  });
 
-  const folders = useMemo(
-    () => allFolders.filter((f) => f.projectId === projectId),
-    [allFolders, projectId]
-  );
+  // Folders effectively linked to THIS project: own folder_projects links plus
+  // links inherited from any ancestor folder (Phase 21 effective project set).
+  const folders = useMemo(() => {
+    const ownByFolder = new Map<string, string[]>();
+    for (const link of folderLinks) {
+      const list = ownByFolder.get(link.folderId);
+      if (list) list.push(link.projectId);
+      else ownByFolder.set(link.folderId, [link.projectId]);
+    }
+    const withProjects: FolderWithProjects[] = allFolders.map((f) => ({
+      ...f,
+      ownProjectIds: ownByFolder.get(f.id) ?? [],
+    }));
+    const folderMap = new Map(withProjects.map((f) => [f.id, f]));
+    return withProjects.filter((f) =>
+      getEffectiveProjectIds(f.id, folderMap).includes(projectId)
+    );
+  }, [allFolders, folderLinks, projectId]);
 
   const projectPages = useMemo(
     () => allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
     [allPages, projectId]
   );
 
-  // Group this project's pages by their folder for THIS project-link.
+  // Group this project's pages by their (global) page-level folder.
   const { byFolder, loose } = useMemo(() => {
     const folderIds = new Set(folders.map((f) => f.id));
     const byFolder = new Map<string, PageWithProjects[]>();
     const loose: PageWithProjects[] = [];
     for (const page of projectPages) {
-      const link = page.projects.find((p) => p.id === projectId);
-      const fid = link?.folderId ?? null;
+      const fid = page.folderId ?? null;
       if (fid && folderIds.has(fid)) {
         const list = byFolder.get(fid) ?? [];
         list.push(page);
@@ -113,6 +140,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
     queryClient.invalidateQueries({ queryKey: tableKey("page_folders", userId) });
+    queryClient.invalidateQueries({ queryKey: tableKey("folder_projects", userId) });
   }
 
   function toggleFolder(id: string) {
@@ -147,8 +175,13 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     if (!name) return;
     setNewFolderName("");
     setShowNewFolder(false);
-    const res = await createFolder({ projectId, name });
-    if (res.success) invalidateAll();
+    // Folders are project-independent; create then link to this project so it
+    // appears under this project's effective set.
+    const res = await createFolder({ name });
+    if (res.success) {
+      await setFolderProjects({ folderId: res.data.id, projectIds: [projectId] });
+      invalidateAll();
+    }
   }
 
   async function handleRename(id: string) {
@@ -165,7 +198,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   }
 
   async function handleMovePage(pageId: string, folderId: string | null) {
-    const res = await setPageFolder({ pageId, projectId, folderId });
+    const res = await setPageFolder({ pageId, folderId });
     if (res.success) invalidateAll();
   }
 

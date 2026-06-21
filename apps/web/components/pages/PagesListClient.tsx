@@ -1,11 +1,13 @@
 "use client";
 
-import { getFoldersForCurrentUser, getSidebarTreeForCurrentUser } from "@/app/actions/folders";
+import {
+  getFolderProjectsForCurrentUser,
+  getFoldersForCurrentUser,
+} from "@/app/actions/folders";
 import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
-import type { FolderRow } from "@/lib/db/queries/folders";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
-import { buildPagesTree, type TreePage } from "@/lib/pages/tree";
+import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
@@ -18,16 +20,20 @@ interface Props {
   userId: string;
   initialPages: PageWithProjects[];
   initialFolders: FolderRow[];
-  initialTree: SidebarArea[];
+  initialFolderProjects: FolderProjectLink[];
 }
 
 /**
- * /pages home. Renders the wiki as an Area > Project > Folder > Page tree,
- * with loose (unfiled-in-project) pages directly under their project and a
- * top-level Unfiled group for pages linked to no project. A title filter
- * narrows the tree live.
+ * /pages home. Renders the wiki as a project-independent folder hierarchy
+ * (Phase 21): root folders → subfolders → pages, plus a top-level Standalone
+ * group for pages in no folder. A title filter narrows the tree live.
  */
-export function PagesListClient({ userId, initialPages, initialFolders, initialTree }: Props) {
+export function PagesListClient({
+  userId,
+  initialPages,
+  initialFolders,
+  initialFolderProjects,
+}: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
@@ -38,6 +44,7 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
     alsoInvalidate: [tableKey("pages", userId)],
   });
   useTableSubscription("page_folders", userId);
+  useTableSubscription("folder_projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
@@ -49,10 +56,10 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
   });
-  const { data: tree = [] } = useQuery({
-    queryKey: ["pages-sidebar-tree", userId],
-    queryFn: () => getSidebarTreeForCurrentUser(),
-    initialData: initialTree,
+  const { data: folderProjects = [] } = useQuery({
+    queryKey: tableKey("folder_projects", userId),
+    queryFn: () => getFolderProjectsForCurrentUser(),
+    initialData: initialFolderProjects,
   });
 
   const q = filter.trim().toLowerCase();
@@ -62,8 +69,8 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
   );
 
   const pagesTree = useMemo(
-    () => buildPagesTree(tree, folders, visiblePages),
-    [tree, folders, visiblePages]
+    () => buildPagesTree(folders, folderProjects, visiblePages),
+    [folders, folderProjects, visiblePages]
   );
 
   function toggle(id: string) {
@@ -87,7 +94,41 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
     }
   }
 
-  const isEmpty = pagesTree.areas.length === 0 && pagesTree.unfiled.length === 0;
+  const isEmpty =
+    pagesTree.roots.length === 0 && pagesTree.standalonePages.length === 0;
+
+  function renderFolder(folder: TreeFolder, depth: number): React.ReactNode {
+    // When filtering, hide folders whose whole subtree has no matching pages.
+    if (q && !folderHasVisiblePages(folder)) return null;
+    const folderKey = `folder:${folder.id}`;
+    const folderOpen = !collapsed.has(folderKey);
+    return (
+      <div key={folder.id} className="flex flex-col">
+        <Row
+          depth={depth}
+          open={folderOpen}
+          onToggle={() => toggle(folderKey)}
+          icon={<Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
+          label={folder.name}
+          labelClass="font-serif text-[13px] text-[var(--ink)]"
+          count={folder.pages.length}
+        />
+        {folderOpen && (
+          <>
+            {folder.subfolders.map((sub) => renderFolder(sub, depth + 1))}
+            {folder.pages.map((page) => (
+              <PageRow
+                key={page.id}
+                depth={depth + 1}
+                page={page}
+                onOpen={() => router.push(`/pages/${page.id}`)}
+              />
+            ))}
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
@@ -132,100 +173,21 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          {pagesTree.areas.map((area) => {
-            const areaKey = `area:${area.id}`;
-            const areaOpen = !collapsed.has(areaKey);
-            return (
-              <div key={area.id} className="flex flex-col">
-                <Row
-                  depth={0}
-                  open={areaOpen}
-                  onToggle={() => toggle(areaKey)}
-                  icon={<span className="text-[13px] leading-none">{area.emoji ?? "🗂️"}</span>}
-                  label={area.name}
-                  labelClass="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
-                />
-                {areaOpen &&
-                  area.projects.map((proj) => {
-                    const projKey = `proj:${proj.id}`;
-                    const projOpen = !collapsed.has(projKey);
-                    return (
-                      <div key={proj.id} className="flex flex-col">
-                        <Row
-                          depth={1}
-                          open={projOpen}
-                          onToggle={() => toggle(projKey)}
-                          icon={
-                            <span className="text-[12px] leading-none">{proj.icon ?? "📁"}</span>
-                          }
-                          label={proj.name}
-                          labelClass="font-serif text-[13px] text-[var(--ink)]"
-                        />
-                        {projOpen && (
-                          <>
-                            {proj.folders.map((folder) => {
-                              if (q && folder.pages.length === 0) return null;
-                              const folderKey = `folder:${folder.id}`;
-                              const folderOpen = !collapsed.has(folderKey);
-                              return (
-                                <div key={folder.id} className="flex flex-col">
-                                  <Row
-                                    depth={2}
-                                    open={folderOpen}
-                                    onToggle={() => toggle(folderKey)}
-                                    icon={
-                                      <Folder
-                                        size={13}
-                                        strokeWidth={1.5}
-                                        className="text-[var(--ink-muted)]"
-                                      />
-                                    }
-                                    label={folder.name}
-                                    labelClass="font-serif text-[13px] text-[var(--ink)]"
-                                    count={folder.pages.length}
-                                  />
-                                  {folderOpen &&
-                                    folder.pages.map((page) => (
-                                      <PageRow
-                                        key={page.id}
-                                        depth={3}
-                                        page={page}
-                                        onOpen={() => router.push(`/pages/${page.id}`)}
-                                      />
-                                    ))}
-                                </div>
-                              );
-                            })}
-                            {proj.loosePages.map((page) => (
-                              <PageRow
-                                key={page.id}
-                                depth={2}
-                                page={page}
-                                onOpen={() => router.push(`/pages/${page.id}`)}
-                              />
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            );
-          })}
+          {pagesTree.roots.map((folder) => renderFolder(folder, 0))}
 
-          {pagesTree.unfiled.length > 0 && (
+          {pagesTree.standalonePages.length > 0 && (
             <div className="flex flex-col">
               <Row
                 depth={0}
-                open={!collapsed.has("unfiled")}
-                onToggle={() => toggle("unfiled")}
+                open={!collapsed.has("standalone")}
+                onToggle={() => toggle("standalone")}
                 icon={<Inbox size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-                label="Unfiled"
+                label="Standalone"
                 labelClass="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
-                count={pagesTree.unfiled.length}
+                count={pagesTree.standalonePages.length}
               />
-              {!collapsed.has("unfiled") &&
-                pagesTree.unfiled.map((page) => (
+              {!collapsed.has("standalone") &&
+                pagesTree.standalonePages.map((page) => (
                   <PageRow
                     key={page.id}
                     depth={1}
@@ -239,6 +201,12 @@ export function PagesListClient({ userId, initialPages, initialFolders, initialT
       )}
     </div>
   );
+}
+
+/** True if a folder or any of its descendants holds at least one page. */
+function folderHasVisiblePages(folder: TreeFolder): boolean {
+  if (folder.pages.length > 0) return true;
+  return folder.subfolders.some(folderHasVisiblePages);
 }
 
 const INDENT = 18;

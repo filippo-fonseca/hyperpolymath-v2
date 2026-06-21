@@ -1,31 +1,32 @@
 import { PagesListClient } from "@/components/pages/PagesListClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
-import { getFoldersForUser } from "@/lib/db/queries/folders";
+import { getFolderProjects, getFoldersForUser } from "@/lib/db/queries/folders";
 import { getPagesForUser } from "@/lib/db/queries/pages";
-import { getSidebarTree } from "@/lib/db/queries/sidebar";
 
 /**
  * /pages — Pages list (wiki-style markdown documents).
  *
  * Server Component shell: auth, initial fetch, then hands off to
- * PagesListClient for Realtime-backed interactivity. Areas/projects (incl.
- * archived) and folders are loaded so the home renders the full
- * Area > Project > Folder > Page tree.
+ * PagesListClient for Realtime-backed interactivity. Folders (project-
+ * independent, with their parent_id hierarchy) and their folder_projects links
+ * are loaded so the home renders the Folder > Subfolder > Page tree plus
+ * standalone pages (Phase 21).
  */
 export default async function PagesPage() {
   const user = await requireOnboarded();
-  const [initialPages, initialFolders, initialTree] = await Promise.all([
-    getPagesForUser(user.id),
-    getFoldersForUser(user.id),
-    getSidebarTree(user.id, true),
-  ]);
+  const [initialPages, initialFolders, initialFolderProjects] =
+    await Promise.all([
+      getPagesForUser(user.id),
+      getFoldersForUser(user.id),
+      getFolderProjects(user.id),
+    ]);
 
   return (
     <PagesListClient
       userId={user.id}
       initialPages={initialPages}
       initialFolders={initialFolders}
-      initialTree={initialTree}
+      initialFolderProjects={initialFolderProjects}
     />
   );
 }
