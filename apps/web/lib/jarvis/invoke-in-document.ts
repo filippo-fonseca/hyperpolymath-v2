@@ -13,7 +13,12 @@
  *     -> resolve { turnId, text, actions } on `done` (reject on `error`).
  */
 
-import { resolveScope, type ResolverBlock } from "@/lib/jarvis/scope-resolver";
+import {
+  resolveScope,
+  type ResolverBlock,
+  type ScopeKind,
+  type ScopeTarget,
+} from "@/lib/jarvis/scope-resolver";
 import {
   serializePageContext,
 } from "@/lib/jarvis/serialize-page-context";
@@ -46,10 +51,36 @@ export interface InvokeInDocumentArgs {
   onTextDelta?: (delta: string) => void;
   /** Each executed action receipt as it arrives. */
   onAction?: (action: InDocumentAction) => void;
+  /**
+   * Force a specific scope, skipping smart inference (Phase 30). Used by the
+   * Daily Page "process this page" button to deterministically run the WHOLE
+   * page through the engine regardless of cursor position. When omitted, the
+   * scope is inferred from cursorBlockId + prompt as before.
+   */
+  scopeOverride?: ScopeKind;
   /** Override the fetch endpoint (testing). */
   endpoint?: string;
   /** AbortSignal to cancel the in-flight request. */
   signal?: AbortSignal;
+}
+
+/**
+ * Build a concrete scope target for an explicit override (Phase 30). For
+ * "page" this is every top-level block (deterministic, cursor-independent).
+ * For the anchored kinds we defer to resolveScope so the override still picks
+ * the correct block/section relative to the cursor; if that resolution can't
+ * honor the requested kind (e.g. no cursor), it falls back to whatever
+ * resolveScope returns, which is always a valid non-empty target.
+ */
+function buildOverrideTarget(
+  document: ResolverBlock[],
+  cursorBlockId: string | null,
+  kind: ScopeKind,
+): ScopeTarget {
+  if (kind === "page") {
+    return { kind: "page", blockIds: document.map((b) => b.id) };
+  }
+  return resolveScope(document, cursorBlockId);
 }
 
 /** Parse a single SSE record ("event: x\ndata: {...}") into { event, data }. */
@@ -78,7 +109,9 @@ function parseSseRecord(record: string): { event: string; data: unknown } | null
 export async function invokeInDocumentJarvis(
   args: InvokeInDocumentArgs,
 ): Promise<InDocumentResult> {
-  const scope = resolveScope(args.editor.document, args.cursorBlockId, args.prompt);
+  const scope = args.scopeOverride
+    ? buildOverrideTarget(args.editor.document, args.cursorBlockId, args.scopeOverride)
+    : resolveScope(args.editor.document, args.cursorBlockId, args.prompt);
   const { targetMarkdown, pageMarkdown } = await serializePageContext(
     args.editor,
     scope,
