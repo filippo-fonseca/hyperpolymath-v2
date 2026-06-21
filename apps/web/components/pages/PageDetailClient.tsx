@@ -201,6 +201,24 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [save]);
 
+  // Cmd+F / Ctrl+F opens OUR in-page find instead of the browser's native one,
+  // but only when focus is inside this page island (the editor, title, or the
+  // search bar itself) so it never hijacks Find elsewhere in the app. Once open,
+  // a repeat Cmd+F re-focuses our input rather than reopening the browser find.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F"))) return;
+      const root = editorContainerRef.current?.closest("[data-page-island]");
+      const active = document.activeElement;
+      const focusInside = active instanceof Node && root?.contains(active);
+      if (!focusInside && !searchOpen) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen]);
+
   function handleEditorChange(json: unknown, markdown: string) {
     setContentJson(json);
     setContent(markdown);
@@ -349,7 +367,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   }, [serverPage.folderId, allFolders]);
 
   return (
-    <div className="relative flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
+    <div
+      data-page-island
+      className="relative flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full"
+    >
       {searchOpen && (
         <PageSearchBar
           query={search.query}
@@ -411,6 +432,18 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             Saved
           </span>
         )}
+
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-pressed={searchOpen}
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            searchOpen ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+          title="Find in page"
+        >
+          <Search size={13} strokeWidth={1.5} />
+        </button>
 
         <button
           type="button"
