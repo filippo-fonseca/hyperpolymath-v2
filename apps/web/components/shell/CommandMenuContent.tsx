@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, FileText } from "lucide-react";
+import { Calendar, FileText, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -103,10 +103,15 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
           type="button"
           onClick={handleNewPage}
           disabled={creatingPage}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always disabled:opacity-50"
+          aria-busy={creatingPage}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always disabled:opacity-50 disabled:cursor-wait"
         >
-          <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          <span>New page</span>
+          {creatingPage ? (
+            <Loader2 size={14} strokeWidth={1.5} className="animate-spin text-[var(--ink-muted)]" />
+          ) : (
+            <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+          )}
+          <span>{creatingPage ? "Creating…" : "New page"}</span>
           <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-[var(--ink-muted)]">
             /pages
           </span>

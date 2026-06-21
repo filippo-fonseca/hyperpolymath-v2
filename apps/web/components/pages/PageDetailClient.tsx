@@ -24,6 +24,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { Editor as BlockEditor } from "./PageBlockEditor";
+
 // BlockNote needs the browser DOM — load client-only.
 const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
 
@@ -83,6 +85,16 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const bodyEditorRef = useRef<BlockEditor | null>(null);
+
+  // Brand-new pages land here with an empty title — drop the cursor in the
+  // title input so the user can just start typing. We key off the initial
+  // server title (not the local state) so editing an existing page's title to
+  // empty doesn't re-steal focus mid-session.
+  useEffect(() => {
+    if (!initialPage.title) titleInputRef.current?.focus();
+  }, [initialPage.title]);
 
   const save = useCallback(
     async (
@@ -147,6 +159,20 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   function handleTitleChange(v: string) {
     setTitle(v);
     scheduleAutosave({ title: v });
+  }
+
+  // Title + body read as one continuous writing flow: Enter from the title
+  // input drops the cursor into the body's first block. Shift+Enter is left
+  // to its default (newline in input is a no-op anyway) so we don't fight
+  // platform conventions.
+  function handleTitleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    const editor = bodyEditorRef.current;
+    if (!editor) return;
+    const firstBlock = editor.document[0];
+    if (firstBlock) editor.setTextCursorPosition(firstBlock.id, "start");
+    editor.focus();
   }
 
   function handleEmojiCommit() {
@@ -280,9 +306,11 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
         {/* Inline title */}
         <input
+          ref={titleInputRef}
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={handleTitleKeyDown}
           placeholder="Untitled page"
           className="flex-1 text-[22px] font-serif font-medium text-[var(--ink)] bg-transparent border-none outline-none placeholder:text-[var(--ink-muted)] placeholder:font-serif placeholder:font-medium"
         />
@@ -349,6 +377,9 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           initialMarkdown={serverPage.content}
           theme={colorMode}
           onChange={handleEditorChange}
+          onEditorReady={(editor) => {
+            bodyEditorRef.current = editor;
+          }}
         />
       </div>
     </div>
