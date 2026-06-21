@@ -33,11 +33,11 @@ const validV2Payload = {
   nodes: [
     {
       type: "page" as const,
-      id: "11111111-1111-1111-1111-111111111111",
+      id: "11111111-1111-4111-8111-111111111111",
       title: "Old page",
       content: "body",
       emoji: null,
-      projectIds: ["22222222-2222-2222-2222-222222222222"],
+      projectIds: ["22222222-2222-4222-8222-222222222222"],
       createdAt: "2026-06-01T00:00:00.000Z",
       updatedAt: "2026-06-02T00:00:00.000Z",
     },
@@ -104,7 +104,7 @@ describe("migrate()", () => {
     // Backfilled to the unfiled defaults; the direct-only projectIds are untouched.
     expect(page.folderId).toBeNull();
     expect(page.folderPath).toEqual([]);
-    expect(page.projectIds).toEqual(["22222222-2222-2222-2222-222222222222"]);
+    expect(page.projectIds).toEqual(["22222222-2222-4222-8222-222222222222"]);
   });
 
   it("migrates a v1 payload all the way to v3 via the chained migrators", () => {
