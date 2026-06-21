@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
 stopped_at: —
-last_updated: "2026-06-21T22:30:00.000Z"
-last_activity: 2026-06-21 — Phase 28 (daily Wiki backup CRON to Google Drive) executed + merged to fix/pages-create-ux
+last_updated: "2026-06-21T23:10:00.000Z"
+last_activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed + merged to fix/pages-create-ux
 progress:
   total_phases: 36
-  completed_phases: 23
+  completed_phases: 24
   total_plans: 100
-  completed_plans: 96
-  percent: 56
+  completed_plans: 98
+  percent: 58
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 29 — MCP + knowledge-graph inclusion (milestone v1.2)
+**Current focus:** Phase 31 — In-document @JARVIS engine integration (milestone v1.2; runs BEFORE Phase 30)
 
 ## Current Position
 
-Phase: 29 — MCP + knowledge-graph inclusion (next; depends on Phase 999.12 snapshot pipeline)
+Phase: 31 — In-document @JARVIS engine integration (next per locked order: 31 before 30)
 Plan: — (not yet planned)
-Status: Phases 21-28 executed on fix/pages-create-ux. Build + typecheck green. Phase 28 shipped a daily Vercel cron (apps/web/app/api/cron/wiki-backup/route.ts, `0 6 * * *` UTC) that zips each user's Wiki via the Phase 27 builders (buildPagesTree + buildTreeZip + fflate zipSync) and uploads it to Google Drive idempotently (find-or-create "Hyperpolymath Wiki Backups" folder, find-or-update dated `wiki-backup-YYYY-MM-DD.zip`). Reuses the Phase 4 Google OAuth infra: extracted a shared `getAuthenticatedGoogleOAuthClient(userId)` in lib/gcal/token.ts (calendar path unchanged behaviorally), added lib/gdrive/{drive,backup}.ts, and added the `drive.file` scope to api/gcal/auth. Per-user failure isolation + CRON_SECRET bearer guard copied from snapshot-context. OPERATIONAL CAVEAT: existing Google refresh tokens predate the drive.file scope, so the user must reconnect Google once via /api/gcal/auth before Drive uploads succeed (not a code bug). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
-Last activity: 2026-06-21 — Phase 28 (daily Wiki backup CRON) executed
+Status: Phases 21-29 executed on fix/pages-create-ux. Build + typecheck green; lib/context suite 15/15 + personal-context-mcp suite 40/40 green. Phase 29 made Wiki pages flow into the personal-context snapshot + knowledge graph + MCP by default: lib/context/nodes/pages.ts loadPages now emits each page node with its EFFECTIVE project set (own direct pages_projects UNION ancestor-folder folder_projects via getFoldersWithProjects + getEffectiveProjectIds) plus folderId + root-first folderPath; added a `page_in_folder` graph edge (page_in_project edges auto-reflect the effective set); bumped the CONTEXT snapshot schema (lib/context/types.ts + mirrored packages/personal-context-mcp/src/types.ts) to v3 with a v2->v3 migrator that backfills folderId:null + folderPath:[] on historical page nodes. Per-page noExport gate: `setPageNoExport` server action (app/actions/pages.ts) + a Globe/GlobeLock nav-bar toggle in PageDetailClient.tsx (loadPages already excludes noExport pages). NOTE: browser verification of the noExport toggle is DEFERRED to the human (autonomous flow could not run an interactive browser test). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
+Last activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
 
 ### Milestone v1.2 execution method (for resumption after compaction)
-Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 29, 31 (before 30), 30, 32. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
+Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 31 (before 30), 30, 32. IMPORTANT VERIFY-STEP LESSON (Phase 29): subagents run typecheck + build but may NOT run the vitest suite, so test fixtures can rot silently. After each phase, the orchestrator MUST run `pnpm --filter web test -- --run lib/context` (and any touched package suite) from the main checkout, not just typecheck/build. Also: NEVER use bare `git stash`/`git stash pop` in this repo — there are pre-existing unrelated stashes (a feat/journaling WIP) that a blind pop will clobber; the working tree is shared across parallel sessions. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
