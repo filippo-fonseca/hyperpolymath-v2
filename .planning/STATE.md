@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
 stopped_at: —
-last_updated: "2026-06-21T21:00:00.000Z"
-last_activity: 2026-06-21 — Phase 26 (In-page content search) executed + merged to fix/pages-create-ux
+last_updated: "2026-06-21T21:45:00.000Z"
+last_activity: 2026-06-21 — Phase 27 (Markdown export) executed + merged to fix/pages-create-ux
 progress:
   total_phases: 36
-  completed_phases: 21
+  completed_phases: 22
   total_plans: 100
-  completed_plans: 93
-  percent: 52
+  completed_plans: 94
+  percent: 54
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 27 — markdown export (milestone v1.2)
+**Current focus:** Phase 28 — daily markdown export CRON to Google Drive (milestone v1.2)
 
 ## Current Position
 
-Phase: 27 — Markdown export
+Phase: 28 — Daily markdown export CRON to Google Drive
 Plan: — (not yet planned)
-Status: Phases 21-26 executed on fix/pages-create-ux. Build + typecheck green. Phase 26 shipped a custom in-page find (Cmd+F intercept + nav-bar Search button) using the CSS Custom Highlight API (no document mutation): highlights all matches across the whole doc, next/prev with scroll-to, via lib/pages/useInPageSearch.ts + PageSearchBar.tsx. Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
-Last activity: 2026-06-21 — Phase 26 (In-page content search) executed
+Status: Phases 21-27 executed on fix/pages-create-ux. Build + typecheck green. Phase 27 shipped a shared receipt-stripping markdown export module (apps/web/lib/pages/markdown-export.ts, uses fflate for zip bundles) wired into single-page (nav bar), folder + whole-tree (Wiki home), and project-docs (project page) export. Receipt contract: strip `<!-- jarvis:receipt -->...<!-- /jarvis:receipt -->` and `> [!jarvis]` callout lines (Phase 31/32 will emit these). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
+Last activity: 2026-06-21 — Phase 27 (Markdown export) executed
 
 ### Milestone v1.2 execution method (for resumption after compaction)
-Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 27, 28, 29, 31 (before 30), 30, 32. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
+Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 28, 29, 31 (before 30), 30, 32. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
