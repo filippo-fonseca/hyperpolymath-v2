@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { type PageWithProjects, getPagesForUser } from "@/lib/db/queries/pages";
 import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+// pageFolders is imported for the createPage folder-ownership check below.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -27,7 +28,8 @@ const CreatePageSchema = z.object({
   contentJson: z.unknown().optional(),
   emoji: z.string().nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
-  // Optional folder placement; applies to the project link the folder belongs to.
+  // Folder placement is page-level now (locked decision 3): it writes onto the
+  // pages row directly, independent of any project link. null/omitted = standalone.
   folderId: z.string().uuid().nullable().optional(),
 });
 
@@ -42,6 +44,22 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
     };
 
   const result = await db.transaction(async (tx) => {
+    // Only honor a folderId the user actually owns (the folder is no longer
+    // project-scoped, so there is no per-project cross-check to apply).
+    let folderId: string | null = null;
+    if (parsed.data.folderId) {
+      const [folder] = await tx
+        .select({ id: pageFolders.id })
+        .from(pageFolders)
+        .where(
+          and(
+            eq(pageFolders.id, parsed.data.folderId),
+            eq(pageFolders.userId, userId),
+          ),
+        );
+      if (folder) folderId = folder.id;
+    }
+
     const [page] = await tx
       .insert(pages)
       .values({
@@ -53,6 +71,7 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
           ? { contentJson: parsed.data.contentJson }
           : {}),
         emoji: parsed.data.emoji ?? null,
+        folderId,
       })
       .returning({ id: pages.id });
 
@@ -64,24 +83,13 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
       const ownedIds = new Set(owned.map((p) => p.id));
       const validIds = parsed.data.projectIds.filter((pid) => ownedIds.has(pid));
       if (validIds.length > 0) {
-        // A folder (if given) only applies to the project link it belongs to.
-        let folderProjectId: string | null = null;
-        if (parsed.data.folderId) {
-          const [folder] = await tx
-            .select({ projectId: pageFolders.projectId })
-            .from(pageFolders)
-            .where(
-              and(eq(pageFolders.id, parsed.data.folderId), eq(pageFolders.userId, userId))
-            );
-          if (folder) folderProjectId = folder.projectId;
-        }
+        // Direct project links only; folder placement lives on the page row.
         await tx.insert(pagesProjects).values(
           validIds.map((projectId) => ({
             pageId: page.id,
             projectId,
             userId,
-            folderId: projectId === folderProjectId ? parsed.data.folderId ?? null : null,
-          }))
+          })),
         );
       }
     }
@@ -135,13 +143,8 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
     }
 
     if (parsed.data.projectIds !== undefined) {
-      // Preserve folder placement for links that survive the relink.
-      const existing = await tx
-        .select({ projectId: pagesProjects.projectId, folderId: pagesProjects.folderId })
-        .from(pagesProjects)
-        .where(and(eq(pagesProjects.pageId, parsed.data.id), eq(pagesProjects.userId, userId)));
-      const folderByProject = new Map(existing.map((r) => [r.projectId, r.folderId]));
-
+      // Folder placement is page-level now, so relinking projects no longer
+      // touches folder placement — just replace the direct project links.
       await tx
         .delete(pagesProjects)
         .where(and(eq(pagesProjects.pageId, parsed.data.id), eq(pagesProjects.userId, userId)));
@@ -158,7 +161,6 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
               pageId: parsed.data.id,
               projectId,
               userId,
-              folderId: folderByProject.get(projectId) ?? null,
             }))
           );
         }
