@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
 stopped_at: —
-last_updated: "2026-06-21T17:00:00.000Z"
-last_activity: 2026-06-21 — Phase 21 (Wiki data-model restructure) executed; commits merged to fix/pages-create-ux
+last_updated: "2026-06-21T17:30:00.000Z"
+last_activity: 2026-06-21 — Phase 22 (Rename Pages → Wiki) executed + merged to fix/pages-create-ux
 progress:
   total_phases: 36
-  completed_phases: 16
+  completed_phases: 17
   total_plans: 100
-  completed_plans: 87
-  percent: 44
+  completed_plans: 88
+  percent: 45
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 22 — rename-pages-to-wiki (milestone v1.2)
+**Current focus:** Phase 23 — wiki-home-tree-project-docs (milestone v1.2)
 
 ## Current Position
 
-Phase: 22 — Rename Pages → Wiki
+Phase: 23 — Wiki home tree + Project Docs section
 Plan: — (not yet planned)
-Status: Phase 21 executed (8 commits on fix/pages-create-ux); remote/prod migration 0034 apply OUTSTANDING (local Docker only)
-Last activity: 2026-06-21 — Phase 21 (Wiki data-model restructure) executed
+Status: Phases 21-22 executed on fix/pages-create-ux. Build + typecheck green, /pages→/wiki 308 redirects live. Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
+Last activity: 2026-06-21 — Phase 22 (Rename Pages → Wiki) executed
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
