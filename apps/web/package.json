@@ -50,6 +50,7 @@
     "date-fns": "4",
     "drizzle-orm": "^0.36.0",
     "elevenlabs": "1.59.0",
+    "fflate": "^0.8.3",
     "googleapis": "^171.0.0",
     "groq-sdk": "1.2.0",
     "lucide-react": "^0.460.0",
