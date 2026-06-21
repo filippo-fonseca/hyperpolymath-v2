@@ -50,7 +50,7 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
       const id = crypto.randomUUID();
       const result = await createPage({ id, title: "", content: "" });
       onSubmitSuccess(); // close the Cmd+K dialog
-      if (result.success) router.push(`/pages/${result.data.id}`);
+      if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreatingPage(false);
     }
@@ -97,7 +97,7 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
       </div>
       <div className="flex flex-col gap-1 border-t border-[var(--edge)] pt-3">
         <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] px-1">
-          Pages
+          Wiki
         </span>
         <button
           type="button"
@@ -108,7 +108,7 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
           <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
           <span>New page</span>
           <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-[var(--ink-muted)]">
-            /pages
+            /wiki
           </span>
         </button>
       </div>
