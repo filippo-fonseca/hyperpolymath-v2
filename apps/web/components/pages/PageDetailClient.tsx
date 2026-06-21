@@ -7,7 +7,12 @@ import {
   getSidebarTreeForCurrentUser,
   setPageFolder,
 } from "@/app/actions/folders";
-import { deletePage, getPagesForCurrentUser, updatePage } from "@/app/actions/pages";
+import {
+  deletePage,
+  getPagesForCurrentUser,
+  setPageNoExport,
+  updatePage,
+} from "@/app/actions/pages";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +43,19 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Download, Eye, EyeOff, FileText, Lock, Search, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Download,
+  Eye,
+  EyeOff,
+  FileText,
+  Globe,
+  GlobeLock,
+  Lock,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -129,6 +146,14 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // Phase 32, so there is nothing to hide yet; this just builds the control and
   // its on/off state. Not persisted to the DB (no hideReceipts column exists).
   const [hideReceipts, setHideReceipts] = useState(false);
+  // Knowledge-graph gate (Phase 29). `noExport` excludes this page from the
+  // context snapshot, MCP export, and JARVIS knowledge graph. Optimistic local
+  // mirror of pages.no_export; the serverPage value (TanStack Query + realtime)
+  // is the source of truth and re-syncs this on any external change.
+  const [noExport, setNoExportState] = useState(serverPage.noExport);
+  useEffect(() => {
+    setNoExportState(serverPage.noExport);
+  }, [serverPage.noExport]);
   // In-page find (Phase 26). Opens via Cmd+F over the editor or the nav-bar
   // Search button; highlights matches through the CSS Custom Highlight API.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -233,6 +258,20 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   async function handleDelete() {
     await deletePage(initialPage.id);
     router.push("/wiki");
+  }
+
+  // Toggle the knowledge-graph gate (Phase 29). Optimistically flip local state,
+  // persist via the server action, then invalidate the pages query so serverPage
+  // re-syncs. On failure, roll the optimistic value back.
+  async function handleToggleNoExport() {
+    const next = !noExport;
+    setNoExportState(next);
+    const res = await setPageNoExport({ pageId: initialPage.id, noExport: next });
+    if (!res.success) {
+      setNoExportState(!next);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
   }
 
   // Client-side single-page export (WIKI-EXPORT-01). Routes through the shared
@@ -460,6 +499,31 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             <EyeOff size={13} strokeWidth={1.5} />
           ) : (
             <Eye size={13} strokeWidth={1.5} />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleToggleNoExport}
+          aria-pressed={noExport}
+          aria-label={
+            noExport
+              ? "Include in JARVIS knowledge graph"
+              : "Exclude from JARVIS knowledge graph"
+          }
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            noExport ? "text-[var(--ink-muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"
+          }`}
+          title={
+            noExport
+              ? "Excluded from JARVIS knowledge graph (click to include)"
+              : "Included in JARVIS knowledge graph (click to exclude)"
+          }
+        >
+          {noExport ? (
+            <GlobeLock size={13} strokeWidth={1.5} />
+          ) : (
+            <Globe size={13} strokeWidth={1.5} />
           )}
         </button>
 

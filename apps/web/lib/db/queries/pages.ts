@@ -15,6 +15,8 @@ export interface PageWithProjects {
   contentJson: unknown;
   emoji: string | null;
   pinned: boolean;
+  /** When true, the page is excluded from the snapshot, MCP export, and graph. */
+  noExport: boolean;
   /** The folder this page sits in globally (Phase 21: one folder per page). */
   folderId: string | null;
   folderName: string | null;
@@ -30,6 +32,7 @@ const PAGE_COLS = {
   contentJson: pages.contentJson,
   emoji: pages.emoji,
   pinned: pages.pinned,
+  noExport: pages.noExport,
   folderId: pages.folderId,
   folderName: pageFolders.name,
   createdAt: pages.createdAt,
@@ -43,6 +46,7 @@ type PageRow = {
   contentJson: unknown;
   emoji: string | null;
   pinned: boolean;
+  noExport: boolean;
   folderId: string | null;
   folderName: string | null;
   createdAt: Date;
