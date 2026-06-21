@@ -42,7 +42,7 @@ function buildFixtureSnapshot(): ContextSnapshot {
   const taskId = randomUUID();
   const captureId = randomUUID();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: "2026-06-09T00:00:00.000Z",
     nodes: [
       { type: "area", id: areaId, name: "Academics", emoji: "🎓", orderIndex: 0 },
@@ -112,7 +112,7 @@ describe("get_current_context handler", () => {
     if (!first) throw new Error("expected at least one content block");
     expect(first.type).toBe("text");
     const parsed = JSON.parse(first.text) as ContextSnapshot;
-    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.schemaVersion).toBe(3);
     expect(parsed.nodes).toHaveLength(4);
     expect(parsed.edges).toHaveLength(4);
   });

@@ -88,7 +88,7 @@ describe("GET /api/cron/snapshot-context", () => {
     mockUsers.push({ id: u1 }, { id: u2 });
 
     const fakeSnapshot = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
@@ -123,7 +123,7 @@ describe("GET /api/cron/snapshot-context", () => {
     mockUsers.push({ id: u1 }, { id: u2 }, { id: u3 });
 
     const okSnap = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
@@ -155,7 +155,7 @@ describe("GET /api/cron/snapshot-context", () => {
     mockUsers.push({ id: u1 });
 
     const okSnap = {
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],

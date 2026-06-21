@@ -260,13 +260,13 @@ describe("EdgeSchema (v1 — 5 edge types)", () => {
 });
 
 describe("ContextSnapshotSchema (top-level envelope)", () => {
-  it("exposes CURRENT_SCHEMA_VERSION = 1", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+  it("exposes CURRENT_SCHEMA_VERSION = 3", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(3);
   });
 
-  it("accepts a minimal v1 snapshot", () => {
+  it("accepts a minimal v3 snapshot", () => {
     const snap = {
-      schemaVersion: 1 as const,
+      schemaVersion: 3 as const,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
@@ -291,7 +291,7 @@ describe("ContextSnapshotSchema (top-level envelope)", () => {
     expect(ContextSnapshotSchema.safeParse(snap).success).toBe(false);
   });
 
-  it("rejects schemaVersion = 2 (future version)", () => {
+  it("rejects schemaVersion = 2 (past version — the schema only literals the current)", () => {
     const snap = {
       schemaVersion: 2,
       generatedAt: new Date().toISOString(),
