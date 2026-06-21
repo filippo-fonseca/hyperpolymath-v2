@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 
 /** A page's link to one project. Folder placement is now page-level, not per-link. */
 export interface PageProjectLink {
@@ -20,6 +20,12 @@ export interface PageWithProjects {
   /** The folder this page sits in globally (Phase 21: one folder per page). */
   folderId: string | null;
   folderName: string | null;
+  /**
+   * Daily Page marker (Phase 30). NULL = a normal page; a yyyy-MM-dd string
+   * marks this as the user's Daily Page for that day, which drives the "Daily
+   * Page" pill and the "process this page" JARVIS button in the editor.
+   */
+  dailyDate: string | null;
   createdAt: Date;
   updatedAt: Date;
   projects: PageProjectLink[];
@@ -35,6 +41,7 @@ const PAGE_COLS = {
   noExport: pages.noExport,
   folderId: pages.folderId,
   folderName: pageFolders.name,
+  dailyDate: pages.dailyDate,
   createdAt: pages.createdAt,
   updatedAt: pages.updatedAt,
 } as const;
@@ -49,6 +56,7 @@ type PageRow = {
   noExport: boolean;
   folderId: string | null;
   folderName: string | null;
+  dailyDate: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -147,4 +155,39 @@ export async function getPagesForProject(
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
   return getPagesForUser(userId, { ids });
+}
+
+/** A single Daily Page descriptor — just enough to mark a day on the calendar. */
+export interface DailyPageRef {
+  id: string;
+  /** yyyy-MM-dd. Never null here (the query filters daily_date IS NOT NULL). */
+  dailyDate: string;
+  title: string;
+}
+
+/**
+ * Every Daily Page for a user (daily_date IS NOT NULL), ascending by date.
+ * Feeds the Wiki-home calendar's marked-day dots (Phase 30, WIKI-DAILY-01).
+ * Deliberately lean — no project joins, no markdown — since the calendar only
+ * needs to know which days already have a page and where to route on click.
+ */
+export async function getDailyPagesForUser(
+  userId: string,
+): Promise<DailyPageRef[]> {
+  const rows = await db
+    .select({
+      id: pages.id,
+      dailyDate: pages.dailyDate,
+      title: pages.title,
+    })
+    .from(pages)
+    .where(and(eq(pages.userId, userId), isNotNull(pages.dailyDate)))
+    .orderBy(asc(pages.dailyDate));
+
+  // daily_date is non-null by the WHERE clause; narrow the type for callers.
+  return rows
+    .filter((r): r is { id: string; dailyDate: string; title: string } =>
+      r.dailyDate !== null,
+    )
+    .map((r) => ({ id: r.id, dailyDate: r.dailyDate, title: r.title }));
 }
