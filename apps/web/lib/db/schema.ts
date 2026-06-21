@@ -299,12 +299,22 @@ export const pages = pgTable(
     // most one folder, globally (not per project-link). NULL = standalone.
     // ON DELETE SET NULL reparents the page to standalone when its folder is gone.
     folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
+    // Phase 30 (migration 0035) — Daily Pages. NULL = a normal page; a non-NULL
+    // calendar date (yyyy-MM-dd) marks this as the user's Daily Page for that day.
+    // The partial unique index below enforces exactly one Daily Page per user per
+    // day, leaving normal pages (daily_date IS NULL) unconstrained.
+    dailyDate: date("daily_date"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("pages_user_updated_desc_idx").on(t.userId, sql`updated_at DESC`),
     index("pages_folder_idx").on(t.folderId),
+    // One Daily Page per user per day (Phase 30). Partial: only rows with a
+    // non-NULL daily_date participate, so normal pages are never constrained.
+    uniqueIndex("pages_user_daily_date_uniq")
+      .on(t.userId, t.dailyDate)
+      .where(sql`daily_date IS NOT NULL`),
   ],
 );
 
