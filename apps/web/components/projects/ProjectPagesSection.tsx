@@ -19,6 +19,11 @@ import {
   type FolderRow,
 } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import {
+  buildProjectZip,
+  downloadZipFiles,
+  safeFileName,
+} from "@/lib/pages/markdown-export";
 import { buildPagesTree, type TreeFolder } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -28,6 +33,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Download,
   FileText,
   Folder,
   FolderPlus,
@@ -229,6 +235,26 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     if (res.success) invalidateAll();
   }
 
+  // WIKI-EXPORT-03: download every page whose EFFECTIVE project set includes
+  // this project (direct links + folder inheritance) as a structure-preserving
+  // .zip laid out by each page's folder path. Receipts are stripped by the
+  // shared builder; pages with no folder land at the bundle root.
+  function handleExportDocs() {
+    const projectName = projectNames.get(projectId) ?? "project";
+    const files = buildProjectZip(
+      allFolders,
+      folderLinks,
+      allPages,
+      projectId,
+      projectName
+    );
+    downloadZipFiles(files, `${safeFileName(projectName)}-docs.zip`);
+  }
+
+  // Disable export when this project surfaces no pages at all.
+  const hasExportablePages =
+    projectPages.length > 0 || relevantRoots.length > 0;
+
   /**
    * Toggle a folder's OWN link to a project. Only `ownProjectIds` is editable;
    * inherited links are read-only (enforced by the ProjectLinker). We recompute
@@ -412,6 +438,16 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
         </button>
         {!collapsed && (
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportDocs}
+              disabled={!hasExportablePages}
+              title="Export this project's docs as a .zip of markdown files"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download size={12} strokeWidth={1.5} />
+              <span>Export docs</span>
+            </button>
             <button
               type="button"
               onClick={() => {
