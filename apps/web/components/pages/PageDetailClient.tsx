@@ -32,7 +32,7 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Check, FileText, Lock, Trash2, X } from "lucide-react";
+import { Check, Download, Eye, EyeOff, FileText, Lock, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -118,6 +118,10 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   const [showSaved, setShowSaved] = useState(false);
   const [emojiInput, setEmojiInput] = useState(serverPage.emoji ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // Local-only toggle for the per-doc nav bar. JARVIS receipts get wired in
+  // Phase 32, so there is nothing to hide yet; this just builds the control and
+  // its on/off state. Not persisted to the DB (no hideReceipts column exists).
+  const [hideReceipts, setHideReceipts] = useState(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -189,6 +193,27 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   async function handleDelete() {
     await deletePage(initialPage.id);
     router.push("/wiki");
+  }
+
+  // Client-side single-page export: download the markdown mirror as a .md file.
+  // Folder/project bulk export is a later phase; one page is enough here.
+  function handleExport() {
+    const safeName =
+      (title || "untitled")
+        .trim()
+        .replace(/[\\/:*?"<>|]/g, "-")
+        .replace(/\s+/g, " ")
+        .replace(/^\.+/, "")
+        .trim() || "untitled";
+    const blob = new Blob([content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${safeName}.md`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   function handleTitleChange(v: string) {
@@ -324,14 +349,41 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         )}
       </nav>
 
-      {/* Top bar: saved indicator + delete */}
-      <div className="flex items-center justify-end gap-2 h-6">
+      {/* Sticky per-doc nav bar: saved indicator + export, hide-receipts, delete.
+          Pinned top-right, opaque canvas background so body content scrolling
+          under it stays hidden. */}
+      <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-sm border border-[var(--edge)] bg-[var(--canvas)] px-2 py-1">
         {showSaved && (
-          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in">
+          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in mr-0.5">
             <Check size={11} strokeWidth={2} />
             Saved
           </span>
         )}
+
+        <button
+          type="button"
+          onClick={handleExport}
+          className="p-1.5 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+          title="Export as Markdown"
+        >
+          <Download size={13} strokeWidth={1.5} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setHideReceipts((v) => !v)}
+          aria-pressed={hideReceipts}
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            hideReceipts ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+          title={hideReceipts ? "Show JARVIS receipts" : "Hide JARVIS receipts"}
+        >
+          {hideReceipts ? (
+            <EyeOff size={13} strokeWidth={1.5} />
+          ) : (
+            <Eye size={13} strokeWidth={1.5} />
+          )}
+        </button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
