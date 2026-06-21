@@ -584,7 +584,15 @@ Plans:
   2. Folders nest arbitrarily deep via `parent_id`; existing folders migrate as roots with their prior project link preserved as a `folder_projects` row
   3. Assigning a folder to a project surfaces every descendant page/subfolder as belonging to that project; descendants cannot edit that inherited link
   4. A cross-user RLS test confirms `folder_projects` rows are owner-isolated
-**Plans**: TBD (`/gsd:plan-phase 21`)
+**Plans**: 2 plans
+
+**Wave 1**
+
+- [ ] 21-01-PLAN.md — Schema + migration foundation: 0034 hand-written SQL (page_folders.parent_id self-FK + no_self_parent CHECK, folder_projects junction + owner RLS quartet + Realtime + bump trigger, backfill, pages.folder_id, drop page_folders.project_id) + Drizzle schema mirror + RealtimeTable union + [BLOCKING] local apply (WIKI-MODEL-01, 02, 03)
+
+**Wave 2** *(blocked on 21-01)*
+
+- [ ] 21-02-PLAN.md — Query layer + buildPagesTree rewrite (parent_id hierarchy, in-TS ancestor walk for effective project sets + inherited/source flags) + project-independent folder/page queries (getFoldersWithProjects, getFoldersByEffectiveProject) + Server Actions (createFolder no projectId, setParentFolder cycle guard, setFolderProjects, setPageFolder→pages.folder_id) + cross-user folder_projects RLS test (WIKI-MODEL-04, 05, 06, 07)
 
 ### Phase 22: Rename Pages → Wiki
 
