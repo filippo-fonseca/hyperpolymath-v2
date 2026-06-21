@@ -28,6 +28,11 @@ import {
   type FolderWithProjects,
   getEffectiveProjectIds,
 } from "@/lib/pages/folder-projects";
+import {
+  downloadTextFile,
+  pageToMarkdown,
+  safeFileName,
+} from "@/lib/pages/markdown-export";
 import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -230,25 +235,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     router.push("/wiki");
   }
 
-  // Client-side single-page export: download the markdown mirror as a .md file.
-  // Folder/project bulk export is a later phase; one page is enough here.
+  // Client-side single-page export (WIKI-EXPORT-01). Routes through the shared
+  // markdown-export module so the file is receipt-stripped and titled exactly
+  // like every other export surface. Uses the live editor `title`/`content`
+  // (not the last-saved serverPage) so an in-progress edit exports as shown.
   function handleExport() {
-    const safeName =
-      (title || "untitled")
-        .trim()
-        .replace(/[\\/:*?"<>|]/g, "-")
-        .replace(/\s+/g, " ")
-        .replace(/^\.+/, "")
-        .trim() || "untitled";
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${safeName}.md`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    const markdown = pageToMarkdown({ id: initialPage.id, title, content });
+    downloadTextFile(markdown, `${safeFileName(title)}.md`);
   }
 
   function handleTitleChange(v: string) {
