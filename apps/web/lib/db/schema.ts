@@ -301,6 +301,27 @@ export const pages = pgTable(
   ],
 );
 
+// Wiki folders (migration 0033) — organize pages WITHIN a project. Folder
+// placement is per project-link (see pagesProjects.folderId), so a page can sit
+// in different folders across the projects it's linked to. Folders are
+// project-scoped; deleting a project cascades its folders.
+export const pageFolders = pgTable("page_folders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("page_folders_project_idx").on(t.projectId),
+  index("page_folders_user_idx").on(t.userId),
+]);
+
 export const pagesProjects = pgTable("pages_projects", {
   pageId: uuid("page_id")
     .notNull()
@@ -309,10 +330,14 @@ export const pagesProjects = pgTable("pages_projects", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull(), // denormalized; Server Actions enforce match with parent
+  // Per-link folder placement (migration 0033). NULL = loose under the project.
+  // The folder must belong to the same project (enforced in Server Actions).
+  folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
 }, (t) => [
   primaryKey({ columns: [t.pageId, t.projectId] }),
   index("pages_projects_project_idx").on(t.projectId),
   index("pages_projects_user_idx").on(t.userId),
+  index("pages_projects_folder_idx").on(t.folderId),
 ]);
 
 export const capturesHashtags = pgTable("captures_hashtags", {
