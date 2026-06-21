@@ -195,7 +195,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       preview,
       breadcrumb: [],
       meta: safeFormat(p.updatedAt, "MMM d") ?? undefined,
-      href: `/pages/${p.id}`,
+      href: `/wiki/${p.id}`,
       updatedAt: p.updatedAt || p.createdAt,
     });
   }
@@ -363,7 +363,7 @@ export const SEARCH_TYPE_ORDER: SearchType[] = [
 export const SEARCH_TYPE_LABEL: Record<SearchType, string> = {
   task: "Tasks",
   capture: "Captures",
-  page: "Pages",
+  page: "Wiki",
   journal: "Journal",
   project: "Projects",
   area: "Areas",
