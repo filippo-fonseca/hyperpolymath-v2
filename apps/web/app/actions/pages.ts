@@ -1,9 +1,15 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { type PageWithProjects, getPagesForUser } from "@/lib/db/queries/pages";
+import {
+  type DailyPageRef,
+  type PageWithProjects,
+  getDailyPagesForUser,
+  getPagesForUser,
+} from "@/lib/db/queries/pages";
 import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { dailyPageTitle, isValidDailyDate } from "@/lib/pages/daily-page";
 // pageFolders is imported for the createPage folder-ownership check below.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -216,4 +222,75 @@ export async function getPagesForCurrentUser(): Promise<PageWithProjects[]> {
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getPagesForUser(data.claims.sub);
+}
+
+/**
+ * Auth-gated SELECT for the signed-in user's Daily Pages (Phase 30).
+ * queryFn target for the Wiki-home calendar's marked-day query.
+ */
+export async function getDailyPagesForCurrentUser(): Promise<DailyPageRef[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  return getDailyPagesForUser(data.claims.sub);
+}
+
+const OpenDailyPageSchema = z.object({
+  date: z
+    .string()
+    .refine(isValidDailyDate, "Expected a yyyy-MM-dd calendar date"),
+});
+
+/**
+ * Idempotently open (creating if needed) the user's Daily Page for `date`
+ * (yyyy-MM-dd) and return its id (Phase 30, WIKI-DAILY-02).
+ *
+ * Exactly one Daily Page per user per day, race-safe: an INSERT ... ON CONFLICT
+ * DO NOTHING against the partial unique index (user_id, daily_date) can never
+ * create a duplicate even under concurrent opens. We SELECT first (the common
+ * "day already opened" path avoids a write), then guard-INSERT, then SELECT
+ * again so a concurrent insert that won the race is still returned.
+ */
+export async function openDailyPage(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = OpenDailyPageSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  const { date } = parsed.data;
+
+  // Fast path: the day's page already exists.
+  const existing = await db
+    .select({ id: pages.id })
+    .from(pages)
+    .where(and(eq(pages.userId, userId), eq(pages.dailyDate, date)))
+    .limit(1);
+  if (existing[0]) return { success: true, data: { id: existing[0].id } };
+
+  // Guarded insert. ON CONFLICT against the partial unique index makes the
+  // write a no-op when a concurrent open already created the page.
+  await db
+    .insert(pages)
+    .values({
+      userId,
+      title: dailyPageTitle(date),
+      content: "",
+      dailyDate: date,
+    })
+    .onConflictDoNothing({
+      target: [pages.userId, pages.dailyDate],
+      targetWhere: sql`daily_date IS NOT NULL`,
+    });
+
+  // Re-select: whether our insert or a racing one won, the row now exists.
+  const row = await db
+    .select({ id: pages.id })
+    .from(pages)
+    .where(and(eq(pages.userId, userId), eq(pages.dailyDate, date)))
+    .limit(1);
+  if (!row[0]) return { success: false, error: "Failed to open daily page" };
+  return { success: true, data: { id: row[0].id } };
 }
