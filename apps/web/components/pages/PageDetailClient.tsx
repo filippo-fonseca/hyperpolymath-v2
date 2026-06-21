@@ -184,8 +184,51 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
 
+  // Breadcrumb from the page's primary (first) project link: Area / Project /
+  // Folder. The page can be linked to several projects; the chips row below
+  // shows the full set, so the breadcrumb just anchors the primary location.
+  const primaryLink = serverPage.projects[0] ?? null;
+  const primaryProject = primaryLink
+    ? initialActiveProjects.find((p) => p.id === primaryLink.id)
+    : undefined;
+
   return (
     <div className="flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
+      {/* Breadcrumb: Pages / Area / Project / Folder */}
+      <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
+        <button
+          type="button"
+          onClick={() => router.push("/pages")}
+          className="hover:text-[var(--ink)] transition-colors cursor-pointer"
+        >
+          Pages
+        </button>
+        {primaryProject?.areaName && (
+          <>
+            <span className="opacity-50">/</span>
+            <span>{primaryProject.areaName}</span>
+          </>
+        )}
+        {primaryLink && (
+          <>
+            <span className="opacity-50">/</span>
+            <button
+              type="button"
+              onClick={() => router.push(`/projects/${primaryLink.id}`)}
+              className="hover:text-[var(--ink)] transition-colors cursor-pointer truncate max-w-[200px]"
+            >
+              {primaryLink.name}
+            </button>
+          </>
+        )}
+        {primaryLink?.folderName && (
+          <>
+            <span className="opacity-50">/</span>
+            <span className="truncate max-w-[200px]">{primaryLink.folderName}</span>
+          </>
+        )}
+      </nav>
+
       {/* Top bar: saved indicator + delete */}
       <div className="flex items-center justify-end gap-2 h-6">
         {showSaved && (
