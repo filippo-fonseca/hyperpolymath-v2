@@ -4,11 +4,22 @@
  * Cap: 50 most-recent pages where no_export=false, ordered by updated_at DESC.
  * Content >2000 chars gets a plain-text summary (first 300 chars, markdown
  * syntax stripped). Full content is always included for MCP consumers.
+ *
+ * Phase 29: each page node carries its EFFECTIVE project set (its own direct
+ * pages_projects links UNION the effective project set inherited from its
+ * ancestor folders) plus its folder placement (folderId) and root-first folder
+ * path names (folderPath). The effective set feeds the page_in_project edge
+ * derivation, so inherited memberships show up in the knowledge graph too.
  */
 
 import { db as defaultDb } from "@/lib/db";
 import { pagesProjects, pages as pagesTable } from "@/lib/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { getFoldersWithProjects } from "@/lib/db/queries/folders";
+import {
+  getEffectiveProjectIds,
+  type FolderWithProjects,
+} from "@/lib/pages/folder-projects";
+import { desc, eq } from "drizzle-orm";
 import type { Node } from "../types";
 
 export type DB = typeof defaultDb;
@@ -28,6 +39,30 @@ function dateToISO(d: Date | string | null): string {
   return d.toISOString();
 }
 
+/**
+ * Walk a folder's ancestor chain to the root and return the folder names in
+ * root-first order (the path that leads to the folder). Returns an empty array
+ * when the page is unfiled. Cycle-guarded with a visited set, mirroring
+ * folderPathNames in lib/pages/markdown-export.ts.
+ */
+function folderPathNames(
+  folderId: string | null,
+  folderMap: Map<string, FolderWithProjects>,
+): string[] {
+  if (!folderId) return [];
+  const chain: string[] = [];
+  const visited = new Set<string>();
+  let current: string | null = folderId;
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    const node = folderMap.get(current);
+    if (!node) break;
+    chain.push(node.name);
+    current = node.parentId;
+  }
+  return chain.reverse();
+}
+
 export async function loadPages(
   userId: string,
   db: DB = defaultDb
@@ -38,6 +73,7 @@ export async function loadPages(
       title: pagesTable.title,
       content: pagesTable.content,
       emoji: pagesTable.emoji,
+      folderId: pagesTable.folderId,
       createdAt: pagesTable.createdAt,
       updatedAt: pagesTable.updatedAt,
       noExport: pagesTable.noExport,
@@ -62,6 +98,14 @@ export async function loadPages(
     projectsByPage.set(link.pageId, arr);
   }
 
+  // Load folders once and index them so the per-page walk (effective project set
+  // + folder path) is a pure in-memory lookup. The folder/link count per user is
+  // small, so this single read is cheaper than per-page round-trips.
+  const folders = await getFoldersWithProjects(userId);
+  const folderMap = new Map<string, FolderWithProjects>(
+    folders.map((f) => [f.id, f]),
+  );
+
   let excluded = 0;
   const nodes: Node[] = [];
   for (const r of rows) {
@@ -74,13 +118,28 @@ export async function loadPages(
       r.content.length > SUMMARY_THRESHOLD
         ? stripMarkdown(r.content).slice(0, SUMMARY_LENGTH)
         : undefined;
+
+    // Effective project set: the page's own direct links unioned with the
+    // effective set of the folder it sits in (which itself cascades from its
+    // ancestors). Dedupe via a Set so a project linked both directly and through
+    // the folder appears once.
+    const directProjectIds = projectsByPage.get(r.id) ?? [];
+    const inheritedProjectIds = r.folderId
+      ? getEffectiveProjectIds(r.folderId, folderMap)
+      : [];
+    const effectiveProjectIds = [
+      ...new Set([...directProjectIds, ...inheritedProjectIds]),
+    ];
+
     nodes.push({
       type: "page" as const,
       id: r.id,
       title: r.title,
       content: r.content,
       emoji: r.emoji,
-      projectIds: projectsByPage.get(r.id) ?? [],
+      projectIds: effectiveProjectIds,
+      folderId: r.folderId ?? null,
+      folderPath: folderPathNames(r.folderId, folderMap),
       createdAt: dateToISO(r.createdAt),
       updatedAt: dateToISO(r.updatedAt),
       ...(summary !== undefined ? { summary } : {}),
