@@ -41,9 +41,12 @@ import {
 import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
+  CalendarDays,
   Check,
   Download,
   Eye,
@@ -51,8 +54,10 @@ import {
   FileText,
   Globe,
   GlobeLock,
+  Loader2,
   Lock,
   Search,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -60,6 +65,7 @@ import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { FolderPicker } from "./FolderPicker";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
@@ -163,6 +169,57 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   const titleRef = useRef<HTMLInputElement | null>(null);
   const editorFocusRef = useRef<(() => void) | null>(null);
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
+  // The live BlockNote editor, captured via PageBlockEditor.onEditorReady. Used
+  // by the Daily Page "process this page" button to run the WHOLE page through
+  // the in-document JARVIS engine (Phase 30, WIKI-DAILY-04). Held as `unknown`
+  // and cast at the invoke call site, exactly like PageBlockEditor does — the
+  // BlockNote editor's heavily-generic serializer signature is wider than the
+  // structural InvokeEditor surface, so a direct assignment would not narrow.
+  const editorRef = useRef<unknown>(null);
+  // True = a Daily Page (drives the pill + process button). NULL daily_date is
+  // a normal page; a non-NULL date marks the user's Daily Page for that day.
+  const isDailyPage = serverPage.dailyDate !== null;
+  const [processing, setProcessing] = useState(false);
+
+  /**
+   * Run the whole Daily Page through the shared in-document JARVIS engine to
+   * extract a daily plan (tasks / events / captures). Forces page scope so the
+   * cursor position never matters; the turn persists server-side and surfaces
+   * in the JARVIS conversation tab via realtime. Result is summarized in a toast.
+   */
+  // Stable so PageBlockEditor's onEditorReady effect doesn't re-run each render.
+  const handleEditorReady = useCallback((editor: unknown) => {
+    editorRef.current = editor;
+  }, []);
+
+  const handleProcessDailyPage = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor || processing) return;
+    setProcessing(true);
+    const pending = toast.loading("Processing this daily page…");
+    try {
+      const result = await invokeInDocumentJarvis({
+        editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
+        cursorBlockId: null,
+        scopeOverride: "page",
+        prompt:
+          "Process this daily page: extract tasks, events, and captures and create them.",
+        pageId: initialPage.id,
+      });
+      const summary =
+        result.actions.length > 0
+          ? formatReceiptSummary(result.actions)
+          : result.text.trim() || "Nothing to add — your day looks set.";
+      toast.success(summary, { id: pending });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not process the page.",
+        { id: pending },
+      );
+    } finally {
+      setProcessing(false);
+    }
+  }, [initialPage.id, processing]);
 
   // `content` (the markdown mirror) moves on every edit, so it doubles as the
   // signal that tells the search hook to recompute ranges after the document
@@ -636,6 +693,31 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         />
       </div>
 
+      {/* Daily Page badge + process button (Phase 30, WIKI-DAILY-03/04). Only
+          Daily Pages (daily_date IS NOT NULL) surface these. */}
+      {isDailyPage && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+            <CalendarDays size={11} strokeWidth={1.75} />
+            Daily Page
+          </span>
+          <button
+            type="button"
+            onClick={handleProcessDailyPage}
+            disabled={processing}
+            title="Run the whole page through JARVIS to extract tasks, events, and captures"
+            className="glass-button inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {processing ? (
+              <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} strokeWidth={1.75} />
+            )}
+            <span>{processing ? "Processing…" : "Process this page"}</span>
+          </button>
+        </div>
+      )}
+
       {/* Project links + folder row */}
       <div className="flex flex-wrap items-center gap-2">
         {linkedProjects.map((proj) => (
@@ -696,6 +778,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           hideReceipts={hideReceipts}
           focusRef={editorFocusRef}
           containerRef={editorContainerRef}
+          onEditorReady={handleEditorReady}
         />
       </div>
     </div>
