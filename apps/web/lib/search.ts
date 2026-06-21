@@ -12,7 +12,7 @@ import { format } from "date-fns";
  * hashtag surfaces a capture even when the word is absent from its body.
  */
 
-export type SearchType = "area" | "project" | "task" | "capture" | "page" | "habit";
+export type SearchType = "area" | "project" | "task" | "capture" | "page" | "journal" | "habit";
 
 export interface SearchEntry {
   id: string;
@@ -38,6 +38,7 @@ export interface SearchResults {
   tasks: SearchEntry[];
   captures: SearchEntry[];
   pages: SearchEntry[];
+  journal: SearchEntry[];
   projects: SearchEntry[];
   areas: SearchEntry[];
   habits: SearchEntry[];
@@ -75,13 +76,21 @@ export interface SearchSnapshot {
     createdAt: string;
     updatedAt: string;
   }[];
+  journalEntries: {
+    id: string;
+    title: string;
+    body: string;
+    date: string;
+    createdAt: string;
+    updatedAt: string;
+  }[];
   habits: { id: string; name: string; currentStreak: number }[];
 }
 
 const PREVIEW_LEN = 80;
 
 function emptyResults(): SearchResults {
-  return { tasks: [], captures: [], pages: [], projects: [], areas: [], habits: [], total: 0 };
+  return { tasks: [], captures: [], pages: [], journal: [], projects: [], areas: [], habits: [], total: 0 };
 }
 
 function areaLabel(name: string, emoji: string | null): string {
@@ -191,6 +200,24 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
     });
   }
 
+  for (const j of snapshot.journalEntries) {
+    const title = j.title.trim() || "Journal entry";
+    const body = j.body.trim();
+    const preview =
+      body.length > PREVIEW_LEN ? `${body.slice(0, PREVIEW_LEN).trimEnd()}…` : body || undefined;
+    entries.push({
+      id: j.id,
+      type: "journal",
+      title,
+      searchText: `${title} ${body}`.toLowerCase(),
+      preview,
+      breadcrumb: [],
+      meta: safeFormat(j.date, "MMM d") ?? undefined,
+      href: `/journaling?date=${j.date}`,
+      updatedAt: j.updatedAt || j.createdAt,
+    });
+  }
+
   for (const h of snapshot.habits) {
     entries.push({
       id: h.id,
@@ -256,6 +283,9 @@ export function search(index: SearchEntry[], query: string): SearchResults {
       case "page":
         results.pages.push(entry);
         break;
+      case "journal":
+        results.journal.push(entry);
+        break;
       case "project":
         results.projects.push(entry);
         break;
@@ -271,6 +301,7 @@ export function search(index: SearchEntry[], query: string): SearchResults {
   results.tasks.sort((a, b) => compareWithinGroup(a, b, q));
   results.captures.sort((a, b) => compareWithinGroup(a, b, q));
   results.pages.sort((a, b) => compareWithinGroup(a, b, q));
+  results.journal.sort((a, b) => compareWithinGroup(a, b, q));
   results.projects.sort((a, b) => compareWithinGroup(a, b, q));
   results.areas.sort((a, b) => compareWithinGroup(a, b, q));
   results.habits.sort((a, b) => compareWithinGroup(a, b, q));
@@ -279,6 +310,7 @@ export function search(index: SearchEntry[], query: string): SearchResults {
     results.tasks.length +
     results.captures.length +
     results.pages.length +
+    results.journal.length +
     results.projects.length +
     results.areas.length +
     results.habits.length;
@@ -322,6 +354,7 @@ export const SEARCH_TYPE_ORDER: SearchType[] = [
   "task",
   "capture",
   "page",
+  "journal",
   "project",
   "area",
   "habit",
@@ -331,6 +364,7 @@ export const SEARCH_TYPE_LABEL: Record<SearchType, string> = {
   task: "Tasks",
   capture: "Captures",
   page: "Pages",
+  journal: "Journal",
   project: "Projects",
   area: "Areas",
   habit: "Habits",
@@ -344,6 +378,8 @@ export function resultsForType(results: SearchResults, type: SearchType): Search
       return results.captures;
     case "page":
       return results.pages;
+    case "journal":
+      return results.journal;
     case "project":
       return results.projects;
     case "area":

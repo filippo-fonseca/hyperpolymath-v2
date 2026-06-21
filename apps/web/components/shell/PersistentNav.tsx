@@ -15,6 +15,7 @@ import type { MicState } from "@/lib/voice/types";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import {
   BarChart2,
+  BookOpen,
   Calendar,
   CheckSquare,
   Dumbbell,
@@ -70,6 +71,13 @@ const items = [
     icon: UtensilsCrossed,
     disabled: true,
     tooltip: "Coming soon",
+  },
+  {
+    href: "/journaling",
+    label: "Journal",
+    icon: BookOpen,
+    disabled: false,
+    tooltip: undefined,
   },
   {
     href: "/captures",

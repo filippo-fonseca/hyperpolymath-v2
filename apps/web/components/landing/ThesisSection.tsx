@@ -56,19 +56,23 @@ export function ThesisSection() {
           {...enter}
           className="relative overflow-hidden rounded-[24px]"
           style={{
+            // Theme-aware banner dress: --surface-raised/--surface are the warm
+            // parchment tones in light mode and dark panel tones in dark mode,
+            // so the card tracks the theme instead of staying cream while the
+            // --ink text flips to near-white (the old dark-mode breakage).
             background:
-              "linear-gradient(180deg, color-mix(in oklch, #f7f3ea 96%, transparent), color-mix(in oklch, #efe9db 96%, transparent))",
-            boxShadow:
-              "0 1px 0 color-mix(in oklch, white 78%, transparent) inset, 0 36px 80px -40px color-mix(in oklch, black 42%, transparent), 0 10px 28px -16px color-mix(in oklch, black 24%, transparent)",
+              "linear-gradient(180deg, color-mix(in oklch, var(--surface-raised) 96%, transparent), color-mix(in oklch, var(--surface) 96%, transparent))",
+            // Glass shadow tokens already invert between light/dark in globals.css.
+            boxShadow: "inset 0 1px 0 var(--glass-hi), var(--glass-drop)",
             color: "var(--ink)",
           }}
         >
-          {/* Hairline inner stroke */}
+          {/* Hairline inner stroke — --edge tracks theme (dark stroke on a
+              light card, subtle light stroke on a dark card). */}
           <div
             className="absolute inset-[0.5px] rounded-[23.5px] pointer-events-none"
             style={{
-              border:
-                "1px solid color-mix(in oklch, #1a1a1a 10%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--edge) 80%, transparent)",
             }}
           />
 

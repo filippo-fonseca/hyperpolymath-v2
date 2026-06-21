@@ -51,6 +51,7 @@ export function SearchProvider({ userId, initialSnapshot, children }: ProviderPr
   useTableSubscription("hashtags", userId, { alsoInvalidate });
   useTableSubscription("pages", userId, { alsoInvalidate });
   useTableSubscription("pages_projects", userId, { alsoInvalidate });
+  useTableSubscription("journal_entries", userId, { alsoInvalidate });
   useTableSubscription("projects", userId, { alsoInvalidate });
   useTableSubscription("areas", userId, { alsoInvalidate });
   useTableSubscription("habits", userId, { alsoInvalidate });
@@ -73,6 +74,7 @@ const EMPTY_RESULTS: SearchResults = {
   tasks: [],
   captures: [],
   pages: [],
+  journal: [],
   projects: [],
   areas: [],
   habits: [],

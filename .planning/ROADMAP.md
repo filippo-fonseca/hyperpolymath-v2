@@ -532,10 +532,35 @@ Plans:
 **UI hint**: yes
 **Wave structure**: Wave 1 (parallel): 19-03 (glass cards + detail panel + clear-date) and 19-05 (JARVIS NULL routing) — fully independent, no shared files. Wave 2: 19-01 (list day-scoping + day's completed) on TasksClient. Wave 3: 19-02 (persistent Inbox column + drag-to-Inbox) builds on the day-scoped selector. Wave 4: 19-04 (overview view + universal day switcher + fullscreen) integrates all prior surfaces.
 
+### Phase 20: Journaling — daily entries with a storyworthy prompt + notes, surfaced in graph & MCP export
+
+**Goal**: Add a "Journaling" tab. Each calendar day has exactly one journal entry (upsert per `userId`+`date`, never duplicate-create), built around a single main prompt — "What was the most storyworthy moment from today?" — with a free-text response, plus a separate **Notes / Misc** section for any extra tidbits from the day. Simple, fast, low-friction: open the tab, land on today, write, autosave. A scrollable history of past days lets you revisit/edit prior entries. Journal entries are a first-class entity: owner-only RLS, Supabase Realtime, and they appear as a new `journal_entry` node type in the personal-context graph and the daily MCP export (honoring a per-entry `no_export` privacy gate, mirroring captures). Styling uses the app's established glass register (`glass-tile` / `--glass-*` tokens, EB Garamond serif for the prompt + entry body), matching the other tabs — no bespoke shadows. Web + mobile-friendly layout for the writing surface. **Bundled minor task:** add a copy-to-clipboard button to each Quick Capture card, easy to tap/click while scrolling, working on both mobile (always-visible/tap) and web (hover-reveal).
+
+**Depends on:** Phase 1 (foundations), Phase 3 (realtime layer), Phase 6.2 (glass language), Phase 999.12 (personal context graph + daily MCP export — the snapshot/node pipeline this extends)
+**Requirements**: JOURNAL-SCHEMA-01, JOURNAL-RLS-01, JOURNAL-RT-01, JOURNAL-SERVICE-01, JOURNAL-NAV-01, JOURNAL-DAY-01, JOURNAL-LIST-01, JOURNAL-UI-01, JOURNAL-NOEXPORT-01, JOURNAL-GRAPH-01, JOURNAL-MCP-01, CAP-COPY-01
+**Plans:** 5/5 plans planned
+Plans:
+**Wave 1**
+
+- [x] 20-01-PLAN.md — Schema foundation: journalEntries Drizzle table + migration 0030 (DDL + UNIQUE(user_id,date) + (user_id,date DESC) index + owner-only RLS quartet + Realtime publication + bump_user_state_version trigger) + RealtimeTable union + cross-user RLS test (JOURNAL-SCHEMA-01, JOURNAL-RLS-01, JOURNAL-RT-01) ✅ 2026-06-19
+- [x] 20-05-PLAN.md — *(independent)* Capture copy-to-clipboard button on CaptureCard — propagation-safe navigator.clipboard.writeText(capture.content) + Copied feedback + hover-reveal on web / touch-reachable on mobile + graceful fallback (CAP-COPY-01)
+
+**Wave 2** *(blocked on 20-01)*
+
+- [x] 20-02-PLAN.md — Server actions app/actions/journal.ts: upsertJournalEntry (onConflictDoUpdate on UNIQUE(user_id,date), field-preserving patch), getJournalEntry, getJournalEntries — getClaims auth, Zod, ActionResult, no revalidatePath + upsert-idempotency test (JOURNAL-SERVICE-01) ✅ 2026-06-20
+- [x] 20-03-PLAN.md — Graph + MCP dual schema-version bump (1→2 in BOTH lib/context/types.ts and packages/personal-context-mcp/src/types.ts) + journal_entry node type + 1→2 migrator + nodes/journal.ts loader (honors no_export, returns {nodes, excluded}) + buildSnapshot wiring + GraphExplorer render (JOURNAL-GRAPH-01, JOURNAL-MCP-01, JOURNAL-NOEXPORT-01) ✅ 2026-06-20
+
+**Wave 3** *(blocked on 20-01, 20-02)*
+
+- [ ] 20-04-PLAN.md — /journaling route (force-dynamic, requireOnboarded shell) + JournalingClient (TanStack Query + Realtime) + day view (fixed serif prompt, response + Notes/Misc fields, day navigator, debounced autosave + Saved indicator, no_export toggle) + scrollable history feed + nav registration (TopTabBar + PersistentNav enabled), glass + responsive (JOURNAL-NAV-01, JOURNAL-DAY-01, JOURNAL-LIST-01, JOURNAL-UI-01)
+
+**UI hint**: yes
+**Wave structure**: Wave 1 (parallel): 20-01 (schema/migration/RLS/Realtime foundation) and 20-05 (capture copy button — fully independent, no shared files). Wave 2 (blocked on 20-01): 20-02 (server actions) and 20-03 (graph node type + MCP dual-bump + loader) — disjoint files, run in parallel. Wave 3 (blocked on 20-01 + 20-02): 20-04 (/journaling route + client + day view + history feed + nav). 20-05's CAP-COPY-01 is bundled but coupled to nothing else in the phase.
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 19
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1 → 6.2 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 19 → 20
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -560,6 +585,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 16. Smarter JARVIS — session memory + CRUD | 6/6 | Complete    | 2026-06-12 |
 | 17. Nutrition tracking tab | 5/5 | Complete    | 2026-06-13 |
 | 19. Tasks redesign — Inbox / day-universal / glass | 5/5 | Executed (verify: human_needed — 3 browser items) | 2026-06-13 |
+| 20. Journaling — daily entries + graph/MCP surfacing | 0/5 | Planned | - |
 
 ## Backlog
 

@@ -1024,3 +1024,39 @@ export const nutritionTargets = pgTable("nutrition_targets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   // CHECK: protein_pct + carbs_pct + fat_pct = 100 — enforced in migration SQL
 });
+
+// ─── JOURNALING ─────────────────────────────────────────────────────────────
+// Phase 20 — daily journal entries. One row per user per calendar day, keyed by
+// the UNIQUE(user_id, date) constraint so writes upsert via ON CONFLICT (CONTEXT
+// decision 1). The journaling prompt itself is a fixed UI constant, not a column.
+// state_version BEFORE-trigger fires on journal_entries (migration 0030) so the
+// JARVIS state-snapshot cache invalidates on journal writes, matching the other
+// primary tables.
+//
+//   journal_entries — main_response (fixed-prompt answer) + notes_section (misc)
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // DATE only, no time component — the client-local calendar day "YYYY-MM-DD",
+    // not raw server UTC (CONTEXT specific; mirrors food_logs.log_date intent).
+    date: date("date").notNull(),
+    mainResponse: text("main_response"), // nullable — response to the fixed prompt
+    notesSection: text("notes_section"), // nullable — the separate Notes / Misc field
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
+    // entry is filtered out of the personal-context snapshot. Migration 0027 lineage.
+    noExport: boolean("no_export").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One entry per user per calendar day; enforces upsert at the DB level
+    // (CONTEXT decision 1 — ON CONFLICT (user_id, date) target).
+    uniqueIndex("journal_entries_user_date_uniq").on(t.userId, t.date),
+    // History-feed ordering (most-recent-first), mirroring captures_user_created_desc_idx.
+    index("journal_entries_user_date_desc_idx").on(t.userId, sql`date DESC`),
+  ],
+);

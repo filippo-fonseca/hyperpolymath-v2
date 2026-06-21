@@ -5,6 +5,7 @@ import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { cn } from "@/lib/utils";
 import {
   BarChart2,
+  BookOpen,
   Calendar,
   CheckSquare,
   Columns2,
@@ -48,6 +49,7 @@ const ROUTE_META: Record<
   "/graph": { label: "Graph", icon: Waypoints },
   "/insights": { label: "Insights", icon: BarChart2 },
   "/settings": { label: "Settings", icon: Settings },
+  "/journaling": { label: "Journal", icon: BookOpen },
   "/areas": { label: "Areas", icon: Network },
 };
 

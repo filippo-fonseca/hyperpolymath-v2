@@ -19,7 +19,7 @@
 import { z } from "zod";
 
 /** Bump this when the Node / Edge / ContextSnapshot shape evolves. */
-export const CURRENT_SCHEMA_VERSION = 1 as const;
+export const CURRENT_SCHEMA_VERSION = 2 as const;
 
 /* ─── Node discriminated union (v1) ───────────────────────────────────── */
 
@@ -76,6 +76,14 @@ export const NodeSchema = z.discriminatedUnion("type", [
     type: z.literal("jarvis_fact"),
     id: z.string().uuid(),
     text: z.string(),
+    createdAt: z.string(),
+  }),
+  z.object({
+    type: z.literal("journal_entry"),
+    id: z.string(),
+    date: z.string(),
+    mainResponse: z.string().nullable(),
+    notesSection: z.string().nullable(),
     createdAt: z.string(),
   }),
   z.object({

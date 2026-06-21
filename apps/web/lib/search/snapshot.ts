@@ -1,11 +1,20 @@
 import "server-only";
 
+import { format } from "date-fns";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { getJournalEntriesForUser } from "@/lib/db/queries/journal";
 import { getPagesForUser } from "@/lib/db/queries/pages";
 import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { loadHabits } from "@/lib/context/nodes/habits";
 import type { SearchSnapshot } from "@/lib/search";
+
+/** Format a "YYYY-MM-DD" calendar day at local time (avoids UTC day-shift). */
+function journalTitle(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return format(parsed, "EEEE, MMM d, yyyy");
+}
 
 /** Index a generous slice of captures (perf target covers up to ~1000 nodes). */
 const CAPTURE_LIMIT = 1000;
@@ -17,11 +26,12 @@ const CAPTURE_LIMIT = 1000;
  * so search can still surface them.
  */
 export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot> {
-  const [tree, tasks, captures, pages, habitNodes] = await Promise.all([
+  const [tree, tasks, captures, pages, journal, habitNodes] = await Promise.all([
     getSidebarTree(userId, true),
     getAllTasksForUser(userId),
     getCapturesForUser(userId, { limit: CAPTURE_LIMIT }),
     getPagesForUser(userId),
+    getJournalEntriesForUser(userId),
     loadHabits(userId),
   ]);
 
@@ -56,6 +66,14 @@ export async function getSearchSnapshot(userId: string): Promise<SearchSnapshot>
       emoji: p.emoji,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
+    })),
+    journalEntries: journal.map((j) => ({
+      id: j.id,
+      title: journalTitle(j.date),
+      body: [j.mainResponse, j.notesSection].filter(Boolean).join("\n\n"),
+      date: j.date,
+      createdAt: j.createdAt.toISOString(),
+      updatedAt: j.updatedAt.toISOString(),
     })),
     habits: habitNodes.nodes
       .filter((n): n is Extract<typeof n, { type: "habit" }> => n.type === "habit")

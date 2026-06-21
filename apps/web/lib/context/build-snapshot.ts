@@ -29,6 +29,7 @@ import { loadCaptures } from "./nodes/captures";
 import { loadTraining } from "./nodes/training";
 import { loadHabits } from "./nodes/habits";
 import { loadJarvisFacts } from "./nodes/jarvis-facts";
+import { loadJournalEntries } from "./nodes/journal";
 import { loadPages } from "./nodes/pages";
 
 export { CURRENT_SCHEMA_VERSION };
@@ -40,7 +41,7 @@ export async function buildSnapshot(
   db: DB = defaultDb,
 ): Promise<Result<ContextSnapshot>> {
   try {
-    const [areas, projects, tasks, captures, training, habits, facts, pagesResult] = await Promise.all([
+    const [areas, projects, tasks, captures, training, habits, facts, journal, pagesResult] = await Promise.all([
       loadAreas(userId, db),
       loadProjects(userId, db),
       loadTasks(userId, db),
@@ -48,6 +49,7 @@ export async function buildSnapshot(
       loadTraining(userId, db),
       loadHabits(userId, db),
       loadJarvisFacts(userId, db),
+      loadJournalEntries(userId, db),
       loadPages(userId, db),
     ]);
 
@@ -59,6 +61,7 @@ export async function buildSnapshot(
       ...training.nodes,
       ...habits.nodes,
       ...facts.nodes,
+      ...journal.nodes,
       ...pagesResult.nodes,
     ];
 
@@ -106,7 +109,7 @@ export async function buildSnapshot(
         totalEdges: edges.length,
         nodeCounts,
         excludedNoExportCount:
-          tasks.excluded + captures.excluded + facts.excluded + pagesResult.excluded,
+          tasks.excluded + captures.excluded + facts.excluded + journal.excluded + pagesResult.excluded,
       },
     };
 

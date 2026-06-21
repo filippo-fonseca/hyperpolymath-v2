@@ -32,6 +32,8 @@ export type RealtimeTable =
   | "food_logs"
   | "meals"
   | "meal_items"
+  // Phase 20 — journaling (JOURNAL-RT-01)
+  | "journal_entries"
   // Phase 20 — pages (wiki-style markdown documents)
   | "pages"
   | "pages_projects";

@@ -22,6 +22,7 @@ export function capResults(results: Results): Results {
     tasks: [],
     captures: [],
     pages: [],
+    journal: [],
     projects: [],
     areas: [],
     habits: [],
@@ -42,6 +43,9 @@ export function capResults(results: Results): Results {
         break;
       case "page":
         capped.pages = slice;
+        break;
+      case "journal":
+        capped.journal = slice;
         break;
       case "project":
         capped.projects = slice;
