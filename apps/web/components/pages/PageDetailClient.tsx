@@ -312,9 +312,28 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     ? initialActiveProjects.find((p) => p.id === primaryLink.id)
     : undefined;
 
+  // Full folder ancestry (root first) for the breadcrumb: walk parentId from the
+  // page's folder up to the root via `allFolders`, then reverse so the path
+  // reads top-down. Cycle-safe with a visited guard against a corrupt chain.
+  const folderPath = useMemo(() => {
+    if (!serverPage.folderId) return [] as { id: string; name: string }[];
+    const byId = new Map(allFolders.map((f) => [f.id, f]));
+    const chain: { id: string; name: string }[] = [];
+    const visited = new Set<string>();
+    let current: string | null = serverPage.folderId;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      const node = byId.get(current);
+      if (!node) break;
+      chain.push({ id: node.id, name: node.name });
+      current = node.parentId;
+    }
+    return chain.reverse();
+  }, [serverPage.folderId, allFolders]);
+
   return (
     <div className="flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
-      {/* Breadcrumb: Wiki / Area / Project / Folder */}
+      {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page */}
       <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
         <button
           type="button"
@@ -335,18 +354,22 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             <button
               type="button"
               onClick={() => router.push(`/projects/${primaryLink.id}`)}
-              className="hover:text-[var(--ink)] transition-colors cursor-pointer truncate max-w-[200px]"
+              className="bg-[var(--surface)] border border-[var(--edge)] text-[var(--ink)] px-1.5 py-0.5 rounded-sm hover:border-[var(--ink-muted)] transition-colors cursor-pointer truncate max-w-[200px]"
             >
               {primaryLink.name}
             </button>
           </>
         )}
-        {serverPage.folderName && (
-          <>
+        {/* Full folder ancestry path, root first. */}
+        {folderPath.map((folder) => (
+          <span key={folder.id} className="flex items-center gap-1">
             <span className="opacity-50">/</span>
-            <span className="truncate max-w-[200px]">{serverPage.folderName}</span>
-          </>
-        )}
+            <span className="truncate max-w-[180px]">{folder.name}</span>
+          </span>
+        ))}
+        {/* Current page is the final, non-link segment. */}
+        <span className="opacity-50">/</span>
+        <span className="text-[var(--ink)] truncate max-w-[200px]">{title || "Untitled page"}</span>
       </nav>
 
       {/* Sticky per-doc nav bar: saved indicator + export, hide-receipts, delete.
