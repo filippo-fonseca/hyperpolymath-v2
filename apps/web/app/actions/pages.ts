@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { type PageWithProjects, getPagesForUser } from "@/lib/db/queries/pages";
-import { pages, pagesProjects, projects } from "@/lib/db/schema";
+import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -27,6 +27,8 @@ const CreatePageSchema = z.object({
   contentJson: z.unknown().optional(),
   emoji: z.string().nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
+  // Optional folder placement; applies to the project link the folder belongs to.
+  folderId: z.string().uuid().nullable().optional(),
 });
 
 export async function createPage(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -62,11 +64,23 @@ export async function createPage(input: unknown): Promise<ActionResult<{ id: str
       const ownedIds = new Set(owned.map((p) => p.id));
       const validIds = parsed.data.projectIds.filter((pid) => ownedIds.has(pid));
       if (validIds.length > 0) {
+        // A folder (if given) only applies to the project link it belongs to.
+        let folderProjectId: string | null = null;
+        if (parsed.data.folderId) {
+          const [folder] = await tx
+            .select({ projectId: pageFolders.projectId })
+            .from(pageFolders)
+            .where(
+              and(eq(pageFolders.id, parsed.data.folderId), eq(pageFolders.userId, userId))
+            );
+          if (folder) folderProjectId = folder.projectId;
+        }
         await tx.insert(pagesProjects).values(
           validIds.map((projectId) => ({
             pageId: page.id,
             projectId,
             userId,
+            folderId: projectId === folderProjectId ? parsed.data.folderId ?? null : null,
           }))
         );
       }
@@ -121,6 +135,13 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
     }
 
     if (parsed.data.projectIds !== undefined) {
+      // Preserve folder placement for links that survive the relink.
+      const existing = await tx
+        .select({ projectId: pagesProjects.projectId, folderId: pagesProjects.folderId })
+        .from(pagesProjects)
+        .where(and(eq(pagesProjects.pageId, parsed.data.id), eq(pagesProjects.userId, userId)));
+      const folderByProject = new Map(existing.map((r) => [r.projectId, r.folderId]));
+
       await tx
         .delete(pagesProjects)
         .where(and(eq(pagesProjects.pageId, parsed.data.id), eq(pagesProjects.userId, userId)));
@@ -137,6 +158,7 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
               pageId: parsed.data.id,
               projectId,
               userId,
+              folderId: folderByProject.get(projectId) ?? null,
             }))
           );
         }
