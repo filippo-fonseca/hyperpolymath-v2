@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
-stopped_at: context exhaustion at 76% (2026-06-21)
-last_updated: "2026-06-21T16:09:07.499Z"
-last_activity: 2026-06-21 — Milestone v1.2 started
+stopped_at: —
+last_updated: "2026-06-21T17:00:00.000Z"
+last_activity: 2026-06-21 — Phase 21 (Wiki data-model restructure) executed; commits merged to fix/pages-create-ux
 progress:
   total_phases: 36
-  completed_phases: 15
+  completed_phases: 16
   total_plans: 100
-  completed_plans: 85
-  percent: 42
+  completed_plans: 87
+  percent: 44
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 20 — journaling-daily-entries-prompt-notes-graph-mcp
+**Current focus:** Phase 22 — rename-pages-to-wiki (milestone v1.2)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-21 — Milestone v1.2 started
+Phase: 22 — Rename Pages → Wiki
+Plan: — (not yet planned)
+Status: Phase 21 executed (8 commits on fix/pages-create-ux); remote/prod migration 0034 apply OUTSTANDING (local Docker only)
+Last activity: 2026-06-21 — Phase 21 (Wiki data-model restructure) executed
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
