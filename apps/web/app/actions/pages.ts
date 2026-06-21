@@ -282,7 +282,7 @@ export async function openDailyPage(input: unknown): Promise<ActionResult<{ id: 
     })
     .onConflictDoNothing({
       target: [pages.userId, pages.dailyDate],
-      targetWhere: sql`daily_date IS NOT NULL`,
+      where: sql`daily_date IS NOT NULL`,
     });
 
   // Re-select: whether our insert or a racing one won, the row now exists.

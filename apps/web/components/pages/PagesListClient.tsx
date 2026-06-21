@@ -4,11 +4,17 @@ import {
   getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
 } from "@/app/actions/folders";
-import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
+import {
+  createPage,
+  getDailyPagesForCurrentUser,
+  getPagesForCurrentUser,
+  openDailyPage,
+} from "@/app/actions/pages";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
-import type { PageWithProjects } from "@/lib/db/queries/pages";
+import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
 import {
   buildFolderZip,
   buildTreeZip,
@@ -19,8 +25,9 @@ import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
+  CalendarDays,
   ChevronDown,
   ChevronRight,
   Download,
@@ -55,8 +62,14 @@ export function PagesListClient({
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // The Daily Pages calendar is shown by default; collapsible per WIKI-DAILY-01.
+  const [dailyOpen, setDailyOpen] = useState(true);
+  const [openingDay, setOpeningDay] = useState(false);
 
-  useTableSubscription("pages", userId);
+  // Any pages change also refreshes the Daily Pages calendar (new/removed days).
+  useTableSubscription("pages", userId, {
+    alsoInvalidate: [["daily-pages", userId]],
+  });
   useTableSubscription("pages_projects", userId, {
     alsoInvalidate: [tableKey("pages", userId)],
   });
@@ -82,6 +95,13 @@ export function PagesListClient({
   const { data: projects = [] } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
+    initialData: [],
+  });
+  // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
+  // "pages" realtime channel, so the subscription above already refreshes it.
+  const { data: dailyPages = [] } = useQuery<DailyPageRef[]>({
+    queryKey: ["daily-pages", userId],
+    queryFn: () => getDailyPagesForCurrentUser(),
     initialData: [],
   });
 
@@ -148,6 +168,29 @@ export function PagesListClient({
       if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
+    }
+  }
+
+  // The set of days that already have a Daily Page — dotted on the calendar.
+  const markedDays = useMemo(
+    () => new Set(dailyPages.map((d) => d.dailyDate)),
+    [dailyPages],
+  );
+
+  // Today as a local yyyy-MM-dd, used for both the calendar's initial selection
+  // and the explicit "Today" affordance (WIKI-DAILY-01).
+  const todayIso = format(new Date(), "yyyy-MM-dd");
+
+  // Selecting a day idempotently opens (creating if needed) its Daily Page,
+  // then routes into the editor (WIKI-DAILY-02).
+  async function handleOpenDay(iso: string) {
+    if (openingDay) return;
+    setOpeningDay(true);
+    try {
+      const result = await openDailyPage({ date: iso });
+      if (result.success) router.push(`/wiki/${result.data.id}`);
+    } finally {
+      setOpeningDay(false);
     }
   }
 
@@ -230,6 +273,58 @@ export function PagesListClient({
             <span>{creating ? "Creating…" : "New page"}</span>
           </button>
         </div>
+      </div>
+
+      {/* Daily Pages — collapsible calendar section (WIKI-DAILY-01). */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setDailyOpen((o) => !o)}
+            className="flex items-center gap-1.5 cursor-pointer text-left"
+            aria-expanded={dailyOpen}
+          >
+            <span className="text-[var(--ink-muted)] flex-shrink-0">
+              {dailyOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </span>
+            <CalendarDays
+              size={13}
+              strokeWidth={1.5}
+              className="text-[var(--ink-muted)] flex-shrink-0"
+            />
+            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+              Daily Pages
+            </span>
+            {dailyPages.length > 0 && (
+              <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
+                {dailyPages.length}
+              </span>
+            )}
+          </button>
+          {dailyOpen && (
+            <button
+              type="button"
+              onClick={() => handleOpenDay(todayIso)}
+              disabled={openingDay}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--hud-cyan)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {openingDay ? (
+                <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
+              ) : (
+                <CalendarDays size={12} strokeWidth={1.5} />
+              )}
+              <span>Today</span>
+            </button>
+          )}
+        </div>
+        {dailyOpen && (
+          <JournalCalendar
+            selectedDate={todayIso}
+            markedDates={markedDays}
+            onSelectDate={handleOpenDay}
+            ariaLabel="Daily Pages calendar"
+          />
+        )}
       </div>
 
       {/* Filter */}
