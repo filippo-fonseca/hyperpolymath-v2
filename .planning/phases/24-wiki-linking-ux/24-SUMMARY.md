@@ -1,53 +1,45 @@
 # Phase 24 — Wiki Linking UX — SUMMARY
 
-Status: NOT SHIPPED (planning + research only). The executing session inherited
-a context budget already at ~84% at session start, before any source file was
-read. STEP 0 (merge of `fix/pages-create-ux`, phases 21-23) completed cleanly and
-the full data layer was read and confirmed reusable, but there was not enough
-remaining budget to safely build the two large UI components + two component
-rewrites without risking a broken half-edit. Per the repo rule "commit
-incrementally so progress is preserved," the work done (environment + research +
-an execution-ready plan) was committed; the source edits are handed off.
+Status: SHIPPED. Typecheck clean (except the 6 known pre-existing
+`tests/api-jarvis-tts.test.ts` errors); `pnpm --filter web build` green with
+`/wiki` and `/wiki/[pageId]` generated.
 
-## What was done
-- STEP 0: `git merge fix/pages-create-ux` -> clean fast-forward `5946958..ce86f9e`
-  (brought in phases 21-23). Stayed on worktree branch
-  `worktree-agent-a2dedb5b23da31723`; never switched branches.
-- Verified `apps/web/lib/pages/tree.ts`, `apps/web/lib/pages/folder-projects.ts`,
-  `apps/web/components/pages/ProjectPill.tsx` all exist.
-- Read and mapped the full reusable data layer (folders.ts actions, pages.ts
-  updatePage, folder-projects.ts pure helpers, tree.ts buildPagesTree) and the
-  two target components (PageDetailClient.tsx, and confirmed
-  ProjectPagesSection.tsx is the project-page folder surface).
-- Wrote `24-PLAN.md` with an execution-ready spec: new `ProjectLinker.tsx`
-  (searchable, Area-grouped, inherited read-only) and `FolderPicker.tsx` (file
-  existing / unfiled / inline-create at chosen parent), exact edits to both
-  components, the inherited read-only enforcement rule, and a 5-commit plan.
+## What shipped
+Three capabilities, all built on the existing Phase 21-23 data layer (no DB or
+migration changes):
 
-## Key findings for the executor (saves a research pass)
-- Area grouping source: `getSidebarTreeForCurrentUser()` returns areas + projects
-  (incl. archived). Group projects by area; no-area projects under an "Unfiled"
-  heading. Confirm SidebarArea fields in `lib/db/queries/sidebar.ts`.
-- Page DIRECT links persist through `updatePage({ projectIds })`
-  (PageDetailClient.save), NOT through setFolderProjects. Folder links persist
-  through `setFolderProjects`. Do not cross these wires.
-- Inherited data is already computed: folder nodes (tree.ts) expose
-  `projectLinks[].isInherited` + `sourceFolder` (id); page pills
-  (folder-projects.ts buildPageProjectPills) expose `isInherited` +
-  `sourceFolderName`. UI must simply suppress the remove control and show
-  "inherited from {name}" when `isInherited`.
-- Inline folder hierarchy placement: a per-row PLUS affordance creates a child
-  via `createFolder({ parentId: rowId, name })`; a bottom "+ New folder" creates a
-  root (`parentId: null`). After create, `setPageFolder` moves the page in.
-- Check for an existing `cmdk` Command primitive at
-  `apps/web/components/ui/command.tsx` to power the searchable grouped list;
-  fall back to a filtered `input` + list if absent.
+1. A searchable, Area-grouped project linker (`ProjectLinker.tsx`) shared by the
+   page editor and the project Docs/Wiki folder surface. Uses the cmdk `Command`
+   primitive: one `CommandGroup` per area (heading = emoji + name), projects as
+   checkable items, live search across all groups.
+2. A folder picker (`FolderPicker.tsx`) that files a page into an existing folder,
+   leaves it unfiled, or creates a new folder inline. Hierarchy placement is
+   chosen via a per-row PLUS affordance (`createFolder({ parentId: rowId })`) or a
+   bottom "+ New folder" for a root folder; the page is then moved with
+   `setPageFolder`.
+3. Inherited project links render READ-ONLY in children: locked, muted, captioned
+   "inherited from {name}", never togglable. Inherited ids are never sent to
+   `setFolderProjects` (own set only) or `updatePage` projectIds (direct only).
 
-## Outstanding (all of the build)
-- Build `ProjectLinker.tsx` and `FolderPicker.tsx`.
-- Rewire `PageDetailClient.tsx` and `ProjectPagesSection.tsx`.
-- Run `pnpm --filter web typecheck` and `pnpm --filter web build` from repo root.
-- Then write the real shipped commit list + verification results into this file.
+## Components
+- NEW `apps/web/components/pages/ProjectLinker.tsx` (searchable Area-grouped
+  multi-select; inherited read-only section above the editable list).
+- NEW `apps/web/components/pages/FolderPicker.tsx` (file / unfiled / inline-create
+  at chosen parent, hierarchy indented by depth).
+- EDIT `apps/web/components/pages/PageDetailClient.tsx` — fetches areas
+  (`getSidebarTreeForCurrentUser`) + folders; replaces the old linker Popover with
+  `ProjectLinker`; adds `FolderPicker`; computes inherited page pills via
+  `buildPageProjectPills`; direct links persist through `updatePage`, folder moves
+  through `setPageFolder`.
+- EDIT `apps/web/components/projects/ProjectPagesSection.tsx` — folder→project
+  linking via `ProjectLinker` (own set only through `setFolderProjects`); inherited
+  folder links render read-only naming the ancestor.
 
-## Commits (this session)
-- docs(phase-24): execution-ready plan + handoff summary for Wiki Linking UX
+`lib/pages/folder-projects.ts` stays free of server/DB imports.
+
+## Commits (this phase)
+- `ccb728a` feat(wiki): searchable Area-grouped ProjectLinker component
+- `5f26cf9` feat(wiki): FolderPicker with inline folder creation + hierarchy placement
+- `00e8666` feat(wiki): page detail uses ProjectLinker + FolderPicker, inherited read-only
+- `324357c` feat(wiki): project page folder linking via ProjectLinker, inherited read-only
+- `5c27737` docs(phase-24): execution-ready plan + handoff summary
