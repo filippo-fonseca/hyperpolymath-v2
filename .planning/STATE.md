@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
-status: executing
-stopped_at: —
-last_updated: "2026-06-21T23:10:00.000Z"
-last_activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed + merged to fix/pages-create-ux
+status: verifying
+stopped_at: Phase 31 context gathered
+last_updated: "2026-06-21T20:04:06.234Z"
+last_activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
 progress:
   total_phases: 36
-  completed_phases: 24
-  total_plans: 100
-  completed_plans: 98
-  percent: 58
+  completed_phases: 19
+  total_plans: 103
+  completed_plans: 96
+  percent: 53
 ---
 
 # Project State
@@ -31,6 +31,7 @@ Status: Phases 21-29 executed on fix/pages-create-ux. Build + typecheck green; l
 Last activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
 
 ### Milestone v1.2 execution method (for resumption after compaction)
+
 Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 31 (before 30), 30, 32. IMPORTANT VERIFY-STEP LESSON (Phase 29): subagents run typecheck + build but may NOT run the vitest suite, so test fixtures can rot silently. After each phase, the orchestrator MUST run `pnpm --filter web test -- --run lib/context` (and any touched package suite) from the main checkout, not just typecheck/build. Also: NEVER use bare `git stash`/`git stash pop` in this repo — there are pre-existing unrelated stashes (a feat/journaling WIP) that a blind pop will clobber; the working tree is shared across parallel sessions. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
 
 ### v1.0 carryover (informational, not blocking v1.1)
@@ -413,6 +414,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-21T16:04:48.336Z
-Stopped at: context exhaustion at 76% (2026-06-21)
-Resume file: None
+Last session: 2026-06-21T20:04:06.219Z
+Stopped at: Phase 31 context gathered
+Resume file: .planning/phases/31-in-document-jarvis-engine-integration/31-CONTEXT.md
