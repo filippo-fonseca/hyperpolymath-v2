@@ -10,13 +10,14 @@ import {
   setPageFolder,
 } from "@/app/actions/folders";
 import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import {
-  getEffectiveProjectIds,
   type FolderProjectLink,
   type FolderRow,
-  type FolderWithProjects,
 } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import { buildPagesTree, type TreeFolder } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,6 +79,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   });
   useTableSubscription("page_folders", userId);
   useTableSubscription("folder_projects", userId);
+  useTableSubscription("projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
@@ -94,48 +96,64 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: [] as FolderProjectLink[],
   });
+  const { data: projects = [] } = useQuery({
+    queryKey: tableKey("projects", userId),
+    queryFn: () => getProjectsForCurrentUser(),
+    initialData: [],
+  });
 
-  // Folders effectively linked to THIS project: own folder_projects links plus
-  // links inherited from any ancestor folder (Phase 21 effective project set).
-  const folders = useMemo(() => {
-    const ownByFolder = new Map<string, string[]>();
-    for (const link of folderLinks) {
-      const list = ownByFolder.get(link.folderId);
-      if (list) list.push(link.projectId);
-      else ownByFolder.set(link.folderId, [link.projectId]);
-    }
-    const withProjects: FolderWithProjects[] = allFolders.map((f) => ({
-      ...f,
-      ownProjectIds: ownByFolder.get(f.id) ?? [],
-    }));
-    const folderMap = new Map(withProjects.map((f) => [f.id, f]));
-    return withProjects.filter((f) =>
-      getEffectiveProjectIds(f.id, folderMap).includes(projectId)
-    );
-  }, [allFolders, folderLinks, projectId]);
+  const projectNames = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name] as const)),
+    [projects]
+  );
+  const folderNames = useMemo(
+    () => new Map(allFolders.map((f) => [f.id, f.name] as const)),
+    [allFolders]
+  );
 
+  // Full wiki tree (effective sets + pills per folder/page), built once, then
+  // pruned to the subtrees relevant to THIS project below.
+  const tree = useMemo(
+    () => buildPagesTree(allFolders, folderLinks, allPages),
+    [allFolders, folderLinks, allPages]
+  );
+
+  // The folder subtrees whose EFFECTIVE project set includes this project, with
+  // their full descendant hierarchy preserved. A child whose effective set also
+  // includes the project nests under its parent (inheritance keeps it relevant).
+  const relevantRoots = useMemo(
+    () => pruneTreeToProject(tree.roots, projectId),
+    [tree.roots, projectId]
+  );
+
+  // Standalone pages (no folder) linked directly to this project.
+  const looseStandalone = useMemo(
+    () =>
+      tree.standalonePages.filter((p) =>
+        p.projectLinks.some((l) => l.projectId === projectId)
+      ),
+    [tree.standalonePages, projectId]
+  );
+
+  // Count of pages this project actually surfaces (folder pages in relevant
+  // subtrees that are linked to this project + loose standalone pages).
   const projectPages = useMemo(
     () => allPages.filter((p) => p.projects.some((proj) => proj.id === projectId)),
     [allPages, projectId]
   );
 
-  // Group this project's pages by their (global) page-level folder.
-  const { byFolder, loose } = useMemo(() => {
-    const folderIds = new Set(folders.map((f) => f.id));
-    const byFolder = new Map<string, PageWithProjects[]>();
-    const loose: PageWithProjects[] = [];
-    for (const page of projectPages) {
-      const fid = page.folderId ?? null;
-      if (fid && folderIds.has(fid)) {
-        const list = byFolder.get(fid) ?? [];
-        list.push(page);
-        byFolder.set(fid, list);
-      } else {
-        loose.push(page);
+  // Flat list of relevant folders for the "move page to folder" select.
+  const flatRelevantFolders = useMemo(() => {
+    const acc: FolderRow[] = [];
+    const walk = (nodes: TreeFolder[]) => {
+      for (const n of nodes) {
+        acc.push({ id: n.id, parentId: n.parentId, name: n.name, orderIndex: 0 });
+        walk(n.subfolders);
       }
-    }
-    return { byFolder, loose };
-  }, [projectPages, folders, projectId]);
+    };
+    walk(relevantRoots);
+    return acc;
+  }, [relevantRoots]);
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
@@ -200,6 +218,130 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   async function handleMovePage(pageId: string, folderId: string | null) {
     const res = await setPageFolder({ pageId, folderId });
     if (res.success) invalidateAll();
+  }
+
+  // Recursive folder renderer: nests subfolders, shows effective-project pills,
+  // marks folders whose membership in THIS project is inherited, and keeps the
+  // existing rename / new-page / delete affordances.
+  const FOLDER_INDENT = 16;
+  function renderFolderNode(folder: TreeFolder, depth: number): React.ReactNode {
+    const open = !collapsedFolders.has(folder.id);
+    const isRenaming = renamingId === folder.id;
+    const pagesIn = folder.pages;
+    // The folder's pill set for THIS surface (own + inherited). The membership
+    // in the CURRENT project is inherited when projectId is inherited but not
+    // owned — surfaced via the pill style + the "inherited" tag below.
+    const inheritedHere =
+      folder.inheritedProjectIds.includes(projectId) &&
+      !folder.ownProjectIds.includes(projectId);
+    const folderPills = folder.projectLinks.map((l) => ({
+      projectId: l.projectId,
+      isInherited: l.isInherited,
+      sourceFolderName: l.sourceFolder ? folderNames.get(l.sourceFolder) : undefined,
+    }));
+    return (
+      <div key={folder.id} className="flex flex-col" style={{ paddingLeft: depth * FOLDER_INDENT }}>
+        <div className="group/folder flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors">
+          <button
+            type="button"
+            onClick={() => toggleFolder(folder.id)}
+            className="flex items-center gap-2 min-w-0 flex-shrink text-left cursor-pointer"
+          >
+            <span className="text-[var(--ink-muted)] flex-shrink-0">
+              {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </span>
+            <Folder
+              size={13}
+              strokeWidth={1.5}
+              className="text-[var(--ink-muted)] flex-shrink-0"
+            />
+            {isRenaming ? (
+              <input
+                // biome-ignore lint/a11y/noAutofocus: intentional focus on rename
+                autoFocus
+                type="text"
+                value={renameValue}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(folder.id);
+                  if (e.key === "Escape") setRenamingId(null);
+                }}
+                className="min-w-0 px-1.5 py-0.5 text-[13px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] focus:outline-none focus:border-[var(--ink-muted)]"
+              />
+            ) : (
+              <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
+                {folder.name}
+              </span>
+            )}
+            <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)] flex-shrink-0">
+              {pagesIn.length}
+            </span>
+          </button>
+          {inheritedHere && (
+            <span
+              title="This folder is linked to this project through a parent folder"
+              className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)] border border-dashed border-[var(--edge)] rounded-sm px-1 py-px italic opacity-70 flex-shrink-0"
+            >
+              inherited
+            </span>
+          )}
+          <ProjectPillRow links={folderPills} projectNames={projectNames} className="flex-1" />
+          <div className="flex items-center gap-1 opacity-0 group-hover/folder:opacity-100 transition-opacity flex-shrink-0">
+            {isRenaming ? (
+              <>
+                <IconBtn label="Save name" onClick={() => handleRename(folder.id)}>
+                  <Check size={12} strokeWidth={1.5} />
+                </IconBtn>
+                <IconBtn label="Cancel rename" onClick={() => setRenamingId(null)}>
+                  <X size={12} strokeWidth={1.5} />
+                </IconBtn>
+              </>
+            ) : (
+              <>
+                <IconBtn label="New page in folder" onClick={() => handleNewPage(folder.id)}>
+                  <Plus size={12} strokeWidth={1.5} />
+                </IconBtn>
+                <IconBtn
+                  label="Rename folder"
+                  onClick={() => {
+                    setRenamingId(folder.id);
+                    setRenameValue(folder.name);
+                  }}
+                >
+                  <Pencil size={12} strokeWidth={1.5} />
+                </IconBtn>
+                <IconBtn label="Delete folder" onClick={() => handleDeleteFolder(folder.id)}>
+                  <Trash2 size={12} strokeWidth={1.5} />
+                </IconBtn>
+              </>
+            )}
+          </div>
+        </div>
+        {open && (
+          <div className="flex flex-col pl-6">
+            {folder.subfolders.map((sub) => renderFolderNode(sub, depth + 1))}
+            {pagesIn.length === 0 && folder.subfolders.length === 0 ? (
+              <p className="py-1.5 px-2 text-[12px] font-serif italic text-[var(--ink-muted)]">
+                Empty folder.
+              </p>
+            ) : (
+              pagesIn.map((page) => (
+                <PageRow
+                  key={page.id}
+                  page={page}
+                  folders={flatRelevantFolders}
+                  currentFolderId={folder.id}
+                  projectNames={projectNames}
+                  onOpen={() => router.push(`/wiki/${page.id}`)}
+                  onMove={(fid) => handleMovePage(page.id, fid)}
+                />
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -284,121 +426,26 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
             </div>
           )}
 
-          {projectPages.length === 0 && folders.length === 0 ? (
+          {projectPages.length === 0 && relevantRoots.length === 0 ? (
             <EmptyPages />
           ) : (
             <div className="flex flex-col gap-2">
-              {folders.map((folder) => {
-                const pagesIn = byFolder.get(folder.id) ?? [];
-                const open = !collapsedFolders.has(folder.id);
-                const isRenaming = renamingId === folder.id;
-                return (
-                  <div key={folder.id} className="flex flex-col">
-                    <div className="group/folder flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors">
-                      <button
-                        type="button"
-                        onClick={() => toggleFolder(folder.id)}
-                        className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
-                      >
-                        <span className="text-[var(--ink-muted)] flex-shrink-0">
-                          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                        </span>
-                        <Folder
-                          size={13}
-                          strokeWidth={1.5}
-                          className="text-[var(--ink-muted)] flex-shrink-0"
-                        />
-                        {isRenaming ? (
-                          <input
-                            // biome-ignore lint/a11y/noAutofocus: intentional focus on rename
-                            autoFocus
-                            type="text"
-                            value={renameValue}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleRename(folder.id);
-                              if (e.key === "Escape") setRenamingId(null);
-                            }}
-                            className="flex-1 min-w-0 px-1.5 py-0.5 text-[13px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] focus:outline-none focus:border-[var(--ink-muted)]"
-                          />
-                        ) : (
-                          <span className="flex-1 min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
-                            {folder.name}
-                          </span>
-                        )}
-                        <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)] flex-shrink-0">
-                          {pagesIn.length}
-                        </span>
-                      </button>
-                      <div className="flex items-center gap-1 opacity-0 group-hover/folder:opacity-100 transition-opacity flex-shrink-0">
-                        {isRenaming ? (
-                          <>
-                            <IconBtn label="Save name" onClick={() => handleRename(folder.id)}>
-                              <Check size={12} strokeWidth={1.5} />
-                            </IconBtn>
-                            <IconBtn label="Cancel rename" onClick={() => setRenamingId(null)}>
-                              <X size={12} strokeWidth={1.5} />
-                            </IconBtn>
-                          </>
-                        ) : (
-                          <>
-                            <IconBtn label="New page in folder" onClick={() => handleNewPage(folder.id)}>
-                              <Plus size={12} strokeWidth={1.5} />
-                            </IconBtn>
-                            <IconBtn
-                              label="Rename folder"
-                              onClick={() => {
-                                setRenamingId(folder.id);
-                                setRenameValue(folder.name);
-                              }}
-                            >
-                              <Pencil size={12} strokeWidth={1.5} />
-                            </IconBtn>
-                            <IconBtn label="Delete folder" onClick={() => handleDeleteFolder(folder.id)}>
-                              <Trash2 size={12} strokeWidth={1.5} />
-                            </IconBtn>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {open && (
-                      <div className="flex flex-col pl-6">
-                        {pagesIn.length === 0 ? (
-                          <p className="py-1.5 px-2 text-[12px] font-serif italic text-[var(--ink-muted)]">
-                            Empty folder.
-                          </p>
-                        ) : (
-                          pagesIn.map((page) => (
-                            <PageRow
-                              key={page.id}
-                              page={page}
-                              folders={folders}
-                              currentFolderId={folder.id}
-                              onOpen={() => router.push(`/wiki/${page.id}`)}
-                              onMove={(fid) => handleMovePage(page.id, fid)}
-                            />
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {relevantRoots.map((folder) => renderFolderNode(folder, 0))}
 
-              {loose.length > 0 && (
+              {looseStandalone.length > 0 && (
                 <div className="flex flex-col">
-                  {folders.length > 0 && (
+                  {relevantRoots.length > 0 && (
                     <p className="py-1 px-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
                       Unfiled
                     </p>
                   )}
-                  {loose.map((page) => (
+                  {looseStandalone.map((page) => (
                     <PageRow
                       key={page.id}
                       page={page}
-                      folders={folders}
+                      folders={flatRelevantFolders}
                       currentFolderId={null}
+                      projectNames={projectNames}
                       onOpen={() => router.push(`/wiki/${page.id}`)}
                       onMove={(fid) => handleMovePage(page.id, fid)}
                     />
@@ -413,16 +460,56 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   );
 }
 
+/**
+ * Keep only the folder subtrees whose EFFECTIVE project set includes
+ * `projectId`, preserving the descendant hierarchy. A folder is kept when its
+ * own effective set includes the project OR any descendant qualifies (so an
+ * intermediate folder is not dropped if a deeper subfolder is relevant).
+ */
+function pruneTreeToProject(
+  nodes: TreeFolder[],
+  projectId: string,
+): TreeFolder[] {
+  const out: TreeFolder[] = [];
+  for (const node of nodes) {
+    const prunedSubs = pruneTreeToProject(node.subfolders, projectId);
+    const selfRelevant = node.effectiveProjectIds.includes(projectId);
+    if (selfRelevant || prunedSubs.length > 0) {
+      out.push({
+        ...node,
+        subfolders: prunedSubs,
+        // Drop pages that are not linked to this project from the folder view.
+        pages: node.pages.filter((p) =>
+          p.projectLinks.some((l) => l.projectId === projectId)
+        ),
+      });
+    }
+  }
+  return out;
+}
+
 function PageRow({
   page,
   folders,
   currentFolderId,
+  projectNames,
   onOpen,
   onMove,
 }: {
-  page: PageWithProjects;
+  page: {
+    id: string;
+    title: string;
+    emoji: string | null;
+    updatedAt: Date;
+    projectLinks: Array<{
+      projectId: string;
+      isInherited: boolean;
+      sourceFolderName?: string;
+    }>;
+  };
   folders: FolderRow[];
   currentFolderId: string | null;
+  projectNames: Map<string, string>;
   onOpen: () => void;
   onMove: (folderId: string | null) => void;
 }) {
@@ -431,7 +518,7 @@ function PageRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
+        className="flex items-center gap-3 min-w-0 flex-shrink text-left cursor-pointer"
       >
         <span className="w-4 flex-shrink-0 text-center text-[14px] leading-none">
           {page.emoji ? (
@@ -440,10 +527,11 @@ function PageRow({
             <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
           )}
         </span>
-        <span className="flex-1 min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
+        <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
           {page.title || <span className="text-[var(--ink-muted)] italic">Untitled page</span>}
         </span>
       </button>
+      <ProjectPillRow links={page.projectLinks} projectNames={projectNames} className="flex-1" />
       <select
         value={currentFolderId ?? ""}
         onChange={(e) => onMove(e.target.value === "" ? null : e.target.value)}
