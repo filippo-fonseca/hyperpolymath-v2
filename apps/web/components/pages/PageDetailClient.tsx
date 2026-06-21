@@ -46,7 +46,7 @@ interface Props {
 const AUTOSAVE_DELAY = 1500;
 
 /**
- * /pages/[pageId] client island. Notion-style BlockNote editor with 1.5s
+ * /wiki/[pageId] client island. Notion-style BlockNote editor with 1.5s
  * autosave, emoji picker, project link management, and delete.
  */
 export function PageDetailClient({ userId, page: initialPage, initialActiveProjects }: Props) {
@@ -141,7 +141,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   async function handleDelete() {
     await deletePage(initialPage.id);
-    router.push("/pages");
+    router.push("/wiki");
   }
 
   function handleTitleChange(v: string) {

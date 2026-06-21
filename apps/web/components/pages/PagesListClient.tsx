@@ -16,7 +16,7 @@ interface Props {
 }
 
 /**
- * /pages client island. Realtime-backed list of all user pages with local
+ * /wiki client island. Realtime-backed list of all user pages with local
  * text filter and "+ New page" creation.
  */
 export function PagesListClient({ userId, initialPages }: Props) {
@@ -47,7 +47,7 @@ export function PagesListClient({ userId, initialPages }: Props) {
       const id = crypto.randomUUID();
       const result = await createPage({ id, title: "", content: "" });
       if (result.success) {
-        router.push(`/pages/${result.data.id}`);
+        router.push(`/wiki/${result.data.id}`);
       }
     } finally {
       setCreating(false);
@@ -59,7 +59,7 @@ export function PagesListClient({ userId, initialPages }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-mono text-[13px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-          Pages
+          Wiki
         </h1>
         <button
           type="button"
@@ -97,7 +97,7 @@ export function PagesListClient({ userId, initialPages }: Props) {
             <li key={page.id}>
               <button
                 type="button"
-                onClick={() => router.push(`/pages/${page.id}`)}
+                onClick={() => router.push(`/wiki/${page.id}`)}
                 className="w-full flex items-start gap-3 py-3 text-left hover:bg-[var(--surface)] px-2 rounded-sm transition-colors duration-100 cursor-pointer"
               >
                 {/* Emoji or icon */}
