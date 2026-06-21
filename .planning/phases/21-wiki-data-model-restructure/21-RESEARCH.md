@@ -731,27 +731,31 @@ This phase uses zero new libraries. All capabilities are covered by existing sta
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`pagesProjects.folderId` disposition**
    - What we know: Column added in 0033; currently stores per-project-link folder placement.
    - What's unclear: Phase 21 makes folder placement project-independent, making `folderId` on `pagesProjects` semantically wrong.
    - Recommendation: Drop `pagesProjects.folderId` in 0034 and add `pages.folder_id` instead. Planner should confirm before writing migration.
+   - RESOLVED: `pagesProjects.folderId` is dropped; folder placement moved to a direct `pages.folder_id` column (FK -> `page_folders.id`, `ON DELETE SET NULL`). See plan 21-01 Task 1 steps (8) and (9), locked decision 3.
 
 2. **Folder delete behavior: cascade vs orphan**
    - What we know: Using `ON DELETE CASCADE` on `parent_id` kills all descendants when a parent is deleted.
    - What's unclear: Is this the right UX? Orphaning (`ON DELETE SET NULL`) is safer but leaves clutter.
    - Recommendation: Use `ON DELETE CASCADE` + app-layer confirmation for non-empty folders (Phase 24 scope for UI; Phase 21 sets the schema).
+   - RESOLVED: `ON DELETE CASCADE` on both `page_folders.parent_id` and `folder_projects.folder_id` (deleting a folder deletes its subtree plus its junction rows). See plan 21-01 Task 1 steps (1) and (3), locked decisions 4 and 6.
 
 3. **`page_folders.project_id` — drop or keep as nullable?**
    - What we know: WIKI-MODEL-02 says "the required `project_id` is removed." This means drop the column.
    - What's unclear: Whether any external code (context snapshot, MCP, JARVIS tools) reads `page_folders.project_id` directly.
    - Recommendation: Search for `pageFolders.projectId` references before dropping. Found: `lib/db/queries/folders.ts` (getFoldersForProject) and `app/actions/folders.ts` (setPageFolder cross-check). Both must be updated before the column is dropped.
+   - RESOLVED: `page_folders.project_id` is dropped (the `NOT NULL` constraint is removed and the column dropped) only AFTER its data is backfilled into `folder_projects`. See plan 21-01 Task 1 steps (7) and (10); the two callers are rewritten in plan 21-02 Task 1/Task 2.
 
 4. **`FolderRow` interface shape after Phase 21**
    - What we know: `FolderRow` currently has `{ id, projectId, name, orderIndex }`.
    - What's unclear: New shape is `{ id, parentId, name, orderIndex, ownProjectIds: string[], inheritedProjectIds: string[], effectiveProjectIds: string[] }` — but this requires loading `folder_projects` alongside folders. The query currently returns only `page_folders` columns.
    - Recommendation: New `getFoldersWithProjects(userId)` query that joins `folder_projects` and assembles the `ownProjectIds` list. The ancestor walk is done in TS after loading.
+   - RESOLVED: `FolderRow` gains `parentId: string | null` and loses `projectId`; tree nodes additionally expose `effectiveProjectIds`, `inheritedProjectIds`, and a per-inherited-link `sourceFolder` (the owning ancestor folder id). See plan 21-02 Task 1, locked decisions 7 and 8.
 
 ---
 
