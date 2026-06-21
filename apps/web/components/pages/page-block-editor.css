@@ -259,3 +259,93 @@
   background-color: color-mix(in oklch, var(--ink-amber) 70%, transparent);
   color: var(--ink);
 }
+
+/* =====================================================================
+   In-document @JARVIS pill (Phase 32, JDOC-UX-02/03/04/06).
+
+   A neumorphic outlined inline pill in the mono font. It moves through
+   prompt -> loading -> receipt states via [data-status]; the receipt state
+   reads cyan (the JARVIS signature) and errors read red. The hide-receipts
+   nav toggle sets [data-hide-receipts] on the editor wrapper to collapse
+   receipt/error pills in-doc (export exclusion is handled separately).
+   ===================================================================== */
+.bn-jarvis-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+  color: var(--ink);
+  /* Neumorphic outlined surface: translucent fill, soft inner highlight,
+     1px edge that tracks the glass border tokens. */
+  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi),
+    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+  transition: background-color 140ms var(--ease-out-quart),
+    box-shadow 140ms var(--ease-out-quart), color 140ms var(--ease-out-quart);
+}
+
+.bn-jarvis-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--hud-cyan);
+}
+
+.bn-jarvis-pill-label {
+  min-width: 0;
+}
+
+/* Prompt: awaiting Cmd+Enter — quietly editable-looking. */
+.bn-jarvis-pill[data-status="prompt"] {
+  color: var(--ink-muted);
+}
+
+/* Loading: subtle cyan wash + spinning icon. */
+.bn-jarvis-pill[data-status="loading"] {
+  background: color-mix(in oklch, var(--hud-cyan) 12%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 36%, transparent);
+}
+
+/* Receipt: resolved, cyan-tinted, hoverable for the original prompt. */
+.bn-jarvis-pill[data-status="receipt"] {
+  cursor: help;
+  background: color-mix(in oklch, var(--hud-cyan) 10%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, transparent);
+}
+
+/* Error: red-tinted, still hoverable for the prompt. */
+.bn-jarvis-pill[data-status="error"] {
+  cursor: help;
+  color: oklch(0.58 0.2 25);
+  background: color-mix(in oklch, oklch(0.58 0.2 25) 8%, var(--surface-raised));
+  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 32%, transparent);
+}
+.bn-jarvis-pill[data-status="error"] .bn-jarvis-pill-icon {
+  color: oklch(0.58 0.2 25);
+}
+
+@keyframes bn-jarvis-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.bn-jarvis-spin {
+  animation: bn-jarvis-spin 0.8s linear infinite;
+}
+
+/* Hide-receipts toggle (JDOC-UX-06): collapse resolved receipt/error pills in
+   the document only. Prompt/loading pills stay visible so an in-progress
+   invocation is never lost. Export exclusion is independent of this toggle. */
+[data-hide-receipts="true"] .bn-jarvis-pill[data-status="receipt"],
+[data-hide-receipts="true"] .bn-jarvis-pill[data-status="error"] {
+  display: none;
+}
