@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * Project-scoped pages surface. Same data model as /pages, filtered to pages
+ * Project-scoped wiki surface. Same data model as /wiki, filtered to pages
  * linked to THIS project. Reads from the canonical `["pages", userId]` key —
  * derived per-project locally — so a realtime echo from any surface lands here
  * for free. "+ New page" creates a page pre-linked to this project.
@@ -64,7 +64,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
         content: "",
         projectIds: [projectId],
       });
-      if (result.success) router.push(`/pages/${result.data.id}`);
+      if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
     }
@@ -84,7 +84,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
-            Pages
+            Wiki
           </h2>
           <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
             ({projectPages.length})
@@ -113,7 +113,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
                 <li key={page.id}>
                   <button
                     type="button"
-                    onClick={() => router.push(`/pages/${page.id}`)}
+                    onClick={() => router.push(`/wiki/${page.id}`)}
                     className="w-full flex items-center gap-3 py-2 text-left hover:bg-[var(--surface)] px-2 rounded-sm transition-colors duration-100 cursor-pointer"
                   >
                     <span className="w-4 flex-shrink-0 text-center text-[14px] leading-none">
