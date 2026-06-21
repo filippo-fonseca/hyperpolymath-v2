@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: — Speed & Agility
-status: executing
-stopped_at: Completed 20-03-PLAN.md
-last_updated: "2026-06-20T00:00:00.000Z"
-last_activity: 2026-06-20 -- Plan 20-03 complete (journal_entry node in context graph + MCP dual-bump CURRENT_SCHEMA_VERSION 1→2, JOURNAL-GRAPH-01, JOURNAL-MCP-01)
+milestone: v1.2
+milestone_name: Wiki + In-Document JARVIS
+status: planning
+last_updated: "2026-06-21T15:22:05.196Z"
+last_activity: 2026-06-21
 progress:
-  total_phases: 24
-  completed_phases: 15
-  total_plans: 98
-  completed_plans: 84
-  percent: 65
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,15 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-28)
 
 ## Current Position
 
-Milestone: v1.1 "Speed & Agility"
-Phase: 20 (journaling-daily-entries-prompt-notes-graph-mcp) — EXECUTING
-Plan: 3 of 5
-Status: Executing Phase 20
-Last activity: 2026-06-20 -- Plan 20-02 complete (journal server actions — upsertJournalEntry/getJournalEntry/getJournalEntries, JOURNAL-SERVICE-01). 3 Vitest tests passing. Starting 20-03 (graph/MCP).
-
-Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
-
-Progress: [          ] 0% (0 of 6 v1.1 phases complete)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-21 — Milestone v1.2 started
 
 ### v1.0 carryover (informational, not blocking v1.1)
 

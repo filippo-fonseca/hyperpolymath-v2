@@ -128,7 +128,30 @@ A personal life-OS web app for one user (Filippo) that unifies areas, projects (
 | Calendar events not persisted locally | gcal is source of truth; avoids dual-write consistency bugs | — Pending |
 | MIT license, public repo from day one | Filippo's open-source commitment | — Pending |
 
-## Current Milestone: v1.1 Speed & Agility
+## Current Milestone: v1.2 Wiki + In-Document JARVIS
+
+**Goal:** Overhaul the Pages feature into a properly-organized **Wiki** (folders and pages independent of projects, with project links shown as pills) and bring JARVIS *into the document* — any page can invoke the same agent inline, with no separate surface.
+
+**Target features:**
+- Wiki data-model restructure — folders gain hierarchy (`parent_id`) and are decoupled from projects; folders/pages link to 0..n projects (M:N); project assignment inherits down the folder tree and is locked in descendants
+- Rename Pages → Wiki everywhere (route, nav, copy) with redirects
+- Wiki home file/folder tree + a Project Docs section showing linked folders/standalone pages with effective-project pills
+- Better linking UX — searchable, Area-segmented project linker + a folder control with inline create-in-place and hierarchy placement
+- Editor chrome — sticky per-doc nav bar (delete/export/hide-receipts), Notion-style `/h1` slash shorthand, breadcrumb trail
+- In-page content search (a real replacement for browser Cmd+F)
+- Markdown export — single page, whole folder, whole project's docs, entire Wiki tree (receipts always stripped)
+- Daily markdown export cron → Google Drive backup
+- All Wiki pages flow into the MCP export + knowledge graph by default (per-page `noExport` gate)
+- Page of the Day / Daily Pages — toggleable section, calendar, auto-created dated page, "Daily Page" pill, and an automatic "process this page" JARVIS button (absorbs/supersedes the Morning Dump PR #69)
+- In-document @JARVIS — inline invocation reusing the SAME engine, with a scope resolver (page/section/block/sub-block), real conversation-history logging + receipts, and an `@`-autocomplete / neumorphic-pill / `/Jarvis`-slash UX
+
+**Key context:**
+- Each of the 12 phases (21–32) maps to one GitHub issue; a single milestone PR closes them all
+- "Same engine everywhere" is non-negotiable: in-document JARVIS must call `jarvis-core` + `createServerExecutor` + `runJarvisTurnStream` / `/api/jarvis`, so agent improvements propagate to every surface
+- Supersedes backlog phase 999.17 (wiki-markdown-pages) and the Morning Dump PR #69 / issues #32, #33 (closed in favor of the Daily Pages auto-button)
+- Milestone v1.1 (Speed & Agility) remains partially open (Phases 12/13 not started; 2/3/5.1/6.2/7/8/14 carry over); v1.2 is the new active focus
+
+## Prior Milestone: v1.1 Speed & Agility
 
 **Goal:** Cut p50 speech-end-to-first-TTS-audio under 1.5s (today ~3–5s) without regressing JARVIS routing quality or shedding current functionality. Treat reliability gains as a side-effect of doing each pipeline stage *once and well*.
 
@@ -165,6 +188,8 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
+*Last updated: 2026-06-21 — Milestone v1.2 "Wiki + In-Document JARVIS" opened. 12 phases (21–32) across two epics: Wiki restructure/editor (folders & pages decoupled from projects with hierarchy + inheritance, rename, tree, linking, nav bar, slash shorthand, search, export, backup cron, MCP/graph, Daily Pages) and in-document @JARVIS (engine reuse + scope resolver + inline pill UX). One GitHub issue per phase; single milestone PR closes all. Supersedes backlog 999.17 and the Morning Dump PR #69 / #32 / #33. v1.1 carries over partially open. Previous note retained below for v1.1 context.*
+
 *Last updated: 2026-05-31 — Phase 11 complete (prompt-cache-state-priming). Three-tier prompt cache live end-to-end: tier-1 tools + tier-2 frozen system at 1h TTL, tier-3 user-state snapshot at 5min keyed on `users.state_version` (BIGINT column + 6 BEFORE INSERT/UPDATE/DELETE triggers on tasks/captures/projects/areas/habits/jarvis_facts), per-turn ephemera outside cache. Wired via `renderUserState()` pure XML serializer, `state-snapshot-cache.ts` in-memory map, `extended-cache-ttl-2025-04-11` beta header, and snapshot block in `/api/jarvis` route's existing Promise.all. Predictive warmer at `/api/jarvis/warm` fired by 3 UX signals (app open / input focus / mic arm) with 30s client debounce + 50min server age gate (~$0.01-0.03/day vs heartbeat's $0.90/day). CACHE-05 silent-invalidator grep gate (`cache-invalidator-gate.mjs`) wired into Husky pre-commit + Vitest CI. 426 web + 207/209 jarvis-core tests pass; 5/5 CACHE-* requirements verified. Live TTFA measurement deferred to Phase 11/12/13 joint UAT pass. **Active milestone:** v1.1 Speed & Agility. **Next active phase candidates:** Phase 12 (deadline-bound — Picovoice sunset 2026-06-30), Phase 13 (Haiku fast-path), Phase 14 (desktop shell). Carry-over from earlier milestones: Phases 2, 3, 6.2, 7, 8 still open.*
 
 *Last updated: 2026-05-28 — Milestone v1.1 "Speed & Agility" opened. Six phases scoped (9–14) targeting p50 speech→first-audio under 1.5s. Research already complete (`.planning/research/speed-agility/`). Hard deadline pressure on Phase 12: Picovoice Porcupine free tier sunsets 2026-06-30. Previous note retained below for v1.0 context.*
