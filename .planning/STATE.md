@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
-stopped_at: Phase 31 executed (engine integration shipped); Phase 32 + Phase 30 remain
-last_updated: "2026-06-21T20:35:00.000Z"
-last_activity: 2026-06-21 — Phase 31 (in-document @JARVIS engine integration) executed
+stopped_at: Phases 31 + 32 executed; context exhausted — Phase 30 (Daily Pages) remains to finish milestone v1.2
+last_updated: "2026-06-21T20:46:00.000Z"
+last_activity: 2026-06-21 — Phase 32 (in-document @JARVIS inline UX) executed
 progress:
   total_phases: 36
-  completed_phases: 20
-  total_plans: 104
-  completed_plans: 97
-  percent: 56
+  completed_phases: 21
+  total_plans: 105
+  completed_plans: 98
+  percent: 58
 ---
 
 # Project State
@@ -21,15 +21,26 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 32 — In-document @JARVIS inline UX (milestone v1.2; then Phase 30 Daily Pages)
+**Current focus:** Phase 30 — Page of the Day / Daily Pages (LAST phase of milestone v1.2)
 
 ## Current Position
 
-Phase: 32 — In-document @JARVIS inline UX (next per locked order: 31 done → 32 → 30)
+Phase: 30 — Daily Pages (next; 31 done → 32 done → 30). After 30, milestone v1.2 is content-complete.
 Plan: — (not yet planned)
+Status (Phase 32 — DONE): Plan 32-01 executed, merged ff-only onto fix/pages-create-ux. All 6 JDOC-UX wired, builds on the Phase 31 seam invokeInDocumentJarvis (no engine fork). New pure utils lib/jarvis/{receipt-summary,at-trigger,receipt-markdown}.ts + components/pages/JarvisReceiptInline.tsx + edits to PageBlockEditor.tsx/PageDetailClient.tsx/page-block-editor.css. @ autocomplete (second SuggestionMenuController, KiwiIcon), neumorphic mono prompt pill (jarvisReceipt inline content, content:"none"), Cmd/Ctrl+Enter submit, loading→receipt summary via formatReceiptSummary, hover tooltip=original prompt, /Jarvis slash item, nav hide-receipts toggle (data-hide-receipts CSS), export exclusion double-guarded (content:"none" + receiptToMarkdownComment stripped by existing stripReceipts). Tests: tests/{receipt-summary,at-trigger,strip-receipts-pill}.test.ts → 21/21 green in MAIN checkout. typecheck/build pass (only the 6 known-ignorable api-jarvis-tts errors). NOTE: ALL Phase 32 interactive browser behavior is DEFERRED to the human — menu open, pill render, Cmd+Enter round-trip, spinner, tooltip, hide toggle NOT browser-verified. Risk flagged by subagent: prompt body read as cursor block's plain text (single-block authoring assumed); updatePill rebuilds content with a PartialBlock["content"] cast — confirm in-place pill update in the browser pass. Nothing pushed.
+
+### Phase 30 — TODO (last milestone phase)
+Requirements WIKI-DAILY-01..04 (.planning/REQUIREMENTS.md): (01) toggleable "Daily Pages" section in Wiki with Journal-style calendar; (02) opening today/a day auto-creates exactly one dated Daily Page, idempotent per user per day; (03) "Daily Page" pill badge under the title; (04) Daily-Pages-only "process this page" JARVIS button that feeds the WHOLE page through the shared engine via the Phase 31 seam (invokeInDocumentJarvis with whole-page scope) — supersedes the Morning Dump PR #69 / issues #32, #33. Depends on Phase 21 (data model) + Phase 31 (pipeline) — both DONE. Suggested resume: /gsd-discuss-phase 30 (or delegate plan+execute to an Opus subagent using the same STEP-0-merge worktree method below).
+
+### Outstanding (whole milestone, before any prod merge)
+- Browser verification of Phase 29 noExport toggle, all of Phase 32 UX, and Phase 30 once built — DEFERRED to human.
+- Remote/prod Supabase migration apply (0034 + any later wiki migrations) OUTSTANDING — local Docker only.
+- Nothing pushed; one milestone PR closes all phase issues per ROADMAP.
+
 Status (Phase 31 — DONE): Plan 31-01 executed on fix/pages-create-ux. 7 new files, zero engine fork (no diffs to run-turn.ts/executor.ts/undo.ts/jarvis-core). New: lib/jarvis/scope-resolver.ts (resolveScope → block|sub-block|section|page, block-default + D-03 smart-inference default-picker), lib/jarvis/serialize-page-context.ts (live whole-page + scoped serializer, MAX_CONTEXT_CHARS=48000), app/api/jarvis/in-document/route.ts (getClaims auth, context injected on model message only per D-02, shared runJarvisTurnStream, SSE + both jarvis_turns rows persisted with FULL ScrollbackAction actions per D-09), lib/jarvis/invoke-in-document.ts (thin resolve→serialize→POST→parse-SSE client seam for Phase 32 to render on). Tests: tests/{scope-resolver,serialize-page-context,in-document-route}.test.ts → 25/25 green in the MAIN checkout (not just the worktree). typecheck/build pass (only the 6 known-ignorable api-jarvis-tts.test.ts tsc errors). Subagent ran in a worktree (harness forces stale-base isolation); commits cherry-picked clean onto fix/pages-create-ux (new files only, no conflicts). NOTE: NO browser verification of an end-to-end in-doc invocation (no UI yet — that is Phase 32; the route+seam are unit/integration-tested only). Nothing pushed.
 
 ### Prior status (Phases 21-29 — DONE)
+
 Phases 21-29 executed on fix/pages-create-ux. Build + typecheck green; lib/context suite 15/15 + personal-context-mcp suite 40/40 green. Phase 29 made Wiki pages flow into the personal-context snapshot + knowledge graph + MCP by default: lib/context/nodes/pages.ts loadPages now emits each page node with its EFFECTIVE project set (own direct pages_projects UNION ancestor-folder folder_projects via getFoldersWithProjects + getEffectiveProjectIds) plus folderId + root-first folderPath; added a `page_in_folder` graph edge (page_in_project edges auto-reflect the effective set); bumped the CONTEXT snapshot schema (lib/context/types.ts + mirrored packages/personal-context-mcp/src/types.ts) to v3 with a v2->v3 migrator that backfills folderId:null + folderPath:[] on historical page nodes. Per-page noExport gate: `setPageNoExport` server action (app/actions/pages.ts) + a Globe/GlobeLock nav-bar toggle in PageDetailClient.tsx (loadPages already excludes noExport pages). NOTE: browser verification of the noExport toggle is DEFERRED to the human (autonomous flow could not run an interactive browser test). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
 Last activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
 
@@ -417,6 +428,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-21T20:04:06.219Z
-Stopped at: Phase 31 context gathered
+Last session: 2026-06-21T20:45:30.833Z
+Stopped at: context exhaustion at 76% (2026-06-21)
 Resume file: .planning/phases/31-in-document-jarvis-engine-integration/31-CONTEXT.md
