@@ -83,6 +83,15 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Brand-new pages land here with an empty title — drop the cursor in the
+  // title input so the user can just start typing. We key off the initial
+  // server title (not the local state) so editing an existing page's title to
+  // empty doesn't re-steal focus mid-session.
+  useEffect(() => {
+    if (!initialPage.title) titleInputRef.current?.focus();
+  }, [initialPage.title]);
 
   const save = useCallback(
     async (
@@ -280,6 +289,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
         {/* Inline title */}
         <input
+          ref={titleInputRef}
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
