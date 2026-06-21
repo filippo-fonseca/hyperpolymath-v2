@@ -9,12 +9,27 @@ import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import {
+  buildFolderZip,
+  buildTreeZip,
+  downloadZipFiles,
+  safeFileName,
+} from "@/lib/pages/markdown-export";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, ChevronRight, FileText, Folder, Inbox, Loader2, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  FileText,
+  Folder,
+  Inbox,
+  Loader2,
+  Plus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -91,6 +106,30 @@ export function PagesListClient({
     [folders, folderProjects, visiblePages]
   );
 
+  // Export always works on the FULL tree (every page, never the title-filtered
+  // view) so a partial filter can never produce an incomplete bundle. The tree
+  // gives the directory layout; allPages supplies each page's markdown content.
+  const fullTree = useMemo(
+    () => buildPagesTree(folders, folderProjects, allPages),
+    [folders, folderProjects, allPages]
+  );
+
+  // WIKI-EXPORT-04: download the entire wiki as a structure-preserving .zip.
+  function handleExportAll() {
+    const files = buildTreeZip(fullTree, allPages);
+    downloadZipFiles(files, "wiki.zip");
+  }
+
+  // WIKI-EXPORT-02: download one folder (with all descendants) as a .zip whose
+  // directory layout mirrors the folder tree. Looks the folder up in the full
+  // (unfiltered) tree so the bundle is complete regardless of the live filter.
+  function handleExportFolder(folderId: string, folderName: string) {
+    const node = findFolder(fullTree.roots, folderId);
+    if (!node) return;
+    const files = buildFolderZip(node, allPages);
+    downloadZipFiles(files, `${safeFileName(folderName)}.zip`);
+  }
+
   function toggle(id: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -138,6 +177,8 @@ export function PagesListClient({
           labelClass="font-serif text-[13px] text-[var(--ink)]"
           count={folder.pages.length}
           pills={<ProjectPillRow links={folderPills} projectNames={projectNames} />}
+          onExport={() => handleExportFolder(folder.id, folder.name)}
+          exportLabel={`Export "${folder.name}" as a .zip of markdown files`}
         />
         {folderOpen && (
           <>
@@ -164,19 +205,31 @@ export function PagesListClient({
         <h1 className="font-mono text-[13px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           Wiki
         </h1>
-        <button
-          type="button"
-          onClick={handleNewPage}
-          disabled={creating}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
-        >
-          {creating ? (
-            <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
-          ) : (
-            <Plus size={13} strokeWidth={1.5} />
-          )}
-          <span>{creating ? "Creating…" : "New page"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportAll}
+            disabled={isEmpty}
+            title="Export the entire wiki as a .zip of markdown files"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download size={13} strokeWidth={1.5} />
+            <span>Export all</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleNewPage}
+            disabled={creating}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
+          >
+            {creating ? (
+              <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
+            ) : (
+              <Plus size={13} strokeWidth={1.5} />
+            )}
+            <span>{creating ? "Creating…" : "New page"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter */}
@@ -237,6 +290,16 @@ function folderHasVisiblePages(folder: TreeFolder): boolean {
   return folder.subfolders.some(folderHasVisiblePages);
 }
 
+/** Depth-first search for a folder node by id across a forest of roots. */
+function findFolder(nodes: TreeFolder[], id: string): TreeFolder | null {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const hit = findFolder(node.subfolders, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 const INDENT = 18;
 
 function Row({
@@ -248,6 +311,8 @@ function Row({
   labelClass,
   count,
   pills,
+  onExport,
+  exportLabel,
 }: {
   depth: number;
   open: boolean;
@@ -257,6 +322,8 @@ function Row({
   labelClass: string;
   count?: number;
   pills?: React.ReactNode;
+  onExport?: () => void;
+  exportLabel?: string;
 }) {
   return (
     <div
@@ -278,6 +345,16 @@ function Row({
         )}
       </button>
       {pills && <span className="ml-1 min-w-0">{pills}</span>}
+      {onExport && (
+        <button
+          type="button"
+          onClick={onExport}
+          title={exportLabel ?? "Export folder as Markdown"}
+          className="ml-auto flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity transition-colors duration-150 cursor-pointer"
+        >
+          <Download size={12} strokeWidth={1.5} />
+        </button>
+      )}
     </div>
   );
 }
