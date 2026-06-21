@@ -6,7 +6,7 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -67,8 +67,12 @@ export function PagesListClient({ userId, initialPages }: Props) {
           disabled={creating}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
         >
-          <Plus size={13} strokeWidth={1.5} />
-          <span>New page</span>
+          {creating ? (
+            <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
+          ) : (
+            <Plus size={13} strokeWidth={1.5} />
+          )}
+          <span>{creating ? "Creating…" : "New page"}</span>
         </button>
       </div>
 

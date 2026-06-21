@@ -83,6 +83,15 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const editorFocusRef = useRef<(() => void) | null>(null);
+
+  // Freshly-created pages open empty; drop the cursor straight into the title
+  // so the user can start typing without a click. Runs once on mount only.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only autofocus
+  useEffect(() => {
+    if (initialPage.title.trim() === "") titleRef.current?.focus();
+  }, []);
 
   const save = useCallback(
     async (
@@ -280,9 +289,16 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
         {/* Inline title */}
         <input
+          ref={titleRef}
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              editorFocusRef.current?.();
+            }
+          }}
           placeholder="Untitled page"
           className="flex-1 text-[22px] font-serif font-medium text-[var(--ink)] bg-transparent border-none outline-none placeholder:text-[var(--ink-muted)] placeholder:font-serif placeholder:font-medium"
         />
@@ -349,6 +365,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           initialMarkdown={serverPage.content}
           theme={colorMode}
           onChange={handleEditorChange}
+          focusRef={editorFocusRef}
         />
       </div>
     </div>

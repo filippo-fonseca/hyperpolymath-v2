@@ -66,6 +66,8 @@ interface Props {
   initialMarkdown: string;
   theme: "light" | "dark";
   onChange: (json: unknown, markdown: string) => void;
+  /** Parent-owned ref populated with a "focus the body" fn (Enter-from-title). */
+  focusRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export default function PageBlockEditor({
@@ -73,6 +75,7 @@ export default function PageBlockEditor({
   initialMarkdown,
   theme,
   onChange,
+  focusRef,
 }: Props) {
   const editor = useCreateBlockNote({
     schema,
@@ -94,6 +97,21 @@ export default function PageBlockEditor({
       })();
     }
   }, [editor, initialContentJson, initialMarkdown]);
+
+  // Expose a "focus the body" handle to the parent so pressing Enter in the
+  // title jumps the cursor into the first block, treating title + body as one
+  // continuous writing flow.
+  useEffect(() => {
+    if (!focusRef) return;
+    focusRef.current = () => {
+      const first = editor.document[0];
+      if (first) editor.setTextCursorPosition(first.id, "start");
+      editor.focus();
+    };
+    return () => {
+      focusRef.current = null;
+    };
+  }, [editor, focusRef]);
 
   // Notion-style "click anywhere to write": a click that lands on the empty
   // surface (not on a block, side menu, or popover) drops the cursor at the
