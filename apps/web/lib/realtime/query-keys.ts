@@ -37,7 +37,9 @@ export type RealtimeTable =
   // Phase 20 — pages (wiki-style markdown documents)
   | "pages"
   | "pages_projects"
-  | "page_folders";
+  | "page_folders"
+  // Phase 21 — wiki data-model restructure (folder->project M:N links)
+  | "folder_projects";
 
 export function tableKey(
   table: RealtimeTable,

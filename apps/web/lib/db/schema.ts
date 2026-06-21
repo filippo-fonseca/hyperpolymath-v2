@@ -12,9 +12,11 @@ import {
   primaryKey,
   check,
   index,
+  unique,
   uniqueIndex,
   jsonb,
   customType,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
 import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
@@ -293,33 +295,63 @@ export const pages = pgTable(
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
     // this page is filtered out of the personal-context snapshot.
     noExport: boolean("no_export").notNull().default(false),
+    // Phase 21 (migration 0034) — direct folder placement. A page lives in at
+    // most one folder, globally (not per project-link). NULL = standalone.
+    // ON DELETE SET NULL reparents the page to standalone when its folder is gone.
+    folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("pages_user_updated_desc_idx").on(t.userId, sql`updated_at DESC`),
+    index("pages_folder_idx").on(t.folderId),
   ],
 );
 
-// Wiki folders (migration 0033) — organize pages WITHIN a project. Folder
-// placement is per project-link (see pagesProjects.folderId), so a page can sit
-// in different folders across the projects it's linked to. Folders are
-// project-scoped; deleting a project cascades its folders.
+// Wiki folders (migration 0033 + 0034) — project-independent, arbitrarily
+// nestable. parent_id is a nullable self-FK (NULL = root folder); deleting a
+// parent cascades its subtree (Phase 21 locked decision 4). project_id was
+// dropped in 0034 — folder->project links now live in the folderProjects
+// junction (M:N), and a page's folder placement lives on pages.folderId.
 export const pageFolders = pgTable("page_folders", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
+  // Nullable self-FK for arbitrary-depth nesting. Lazy thunk avoids the circular
+  // reference at module init; the AnyPgColumn annotation on the thunk breaks the
+  // implicit-any type cycle Drizzle hits on self-references. ON DELETE CASCADE
+  // deletes the whole subtree.
+  parentId: uuid("parent_id").references((): AnyPgColumn => pageFolders.id, {
+    onDelete: "cascade",
+  }),
   name: text("name").notNull(),
   orderIndex: integer("order_index").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  index("page_folders_project_idx").on(t.projectId),
+  index("page_folders_parent_idx").on(t.parentId),
   index("page_folders_user_idx").on(t.userId),
+]);
+
+// folder_projects (migration 0034) — M:N folder->project links. user_id is
+// denormalized for RLS (same pattern as pages_projects). ON DELETE CASCADE on
+// both FKs. UNIQUE (folder_id, project_id) — a folder links a project at most
+// once (Phase 21 locked decision 6).
+export const folderProjects = pgTable("folder_projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  folderId: uuid("folder_id")
+    .notNull()
+    .references(() => pageFolders.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized for RLS
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  unique("folder_projects_folder_project_key").on(t.folderId, t.projectId),
+  index("folder_projects_project_idx").on(t.projectId),
+  index("folder_projects_user_idx").on(t.userId),
 ]);
 
 export const pagesProjects = pgTable("pages_projects", {
@@ -330,14 +362,10 @@ export const pagesProjects = pgTable("pages_projects", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull(), // denormalized; Server Actions enforce match with parent
-  // Per-link folder placement (migration 0033). NULL = loose under the project.
-  // The folder must belong to the same project (enforced in Server Actions).
-  folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
 }, (t) => [
   primaryKey({ columns: [t.pageId, t.projectId] }),
   index("pages_projects_project_idx").on(t.projectId),
   index("pages_projects_user_idx").on(t.userId),
-  index("pages_projects_folder_idx").on(t.folderId),
 ]);
 
 export const capturesHashtags = pgTable("captures_hashtags", {
