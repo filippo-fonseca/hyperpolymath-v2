@@ -33,11 +33,27 @@ const MONTH_NAMES = [
 
 interface Props {
   selectedDate: string;
-  entries: JournalEntry[];
+  /**
+   * Journaling supplies its entries; the dotted days are derived from their
+   * `.date`. Generalized in Phase 30 so other surfaces (the Wiki Daily Pages
+   * calendar) can pass `markedDates` directly instead — exactly one of `entries`
+   * or `markedDates` is expected, with `markedDates` taking precedence.
+   */
+  entries?: JournalEntry[];
+  /** A set of yyyy-MM-dd ISO dates to mark with a dot (Phase 30 generalization). */
+  markedDates?: Set<string>;
   onSelectDate: (date: string) => void;
+  /** Accessible label for the calendar landmark. Defaults to the journal label. */
+  ariaLabel?: string;
 }
 
-export function JournalCalendar({ selectedDate, entries, onSelectDate }: Props) {
+export function JournalCalendar({
+  selectedDate,
+  entries,
+  markedDates,
+  onSelectDate,
+  ariaLabel = "Journal calendar",
+}: Props) {
   const selected = parseISO(selectedDate);
   const [viewDate, setViewDate] = useState<Date>(selected);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -48,7 +64,8 @@ export function JournalCalendar({ selectedDate, entries, onSelectDate }: Props) 
     setViewDate(parseISO(selectedDate));
   }, [selectedDate]);
 
-  const entryDates = new Set(entries.map((e) => e.date));
+  // Marked days: prefer an explicit markedDates set, else derive from entries.
+  const entryDates = markedDates ?? new Set((entries ?? []).map((e) => e.date));
 
   function handleDayClick(day: Date) {
     onSelectDate(format(day, "yyyy-MM-dd"));
@@ -197,7 +214,8 @@ export function JournalCalendar({ selectedDate, entries, onSelectDate }: Props) 
           const isCurrentMonth = isSameMonth(monthDate, new Date());
           const isSelectedMonth = isSameMonth(monthDate, selected);
           const prefix = `${yr}-${String(i + 1).padStart(2, "0")}`;
-          const count = entries.filter((e) => e.date.startsWith(prefix)).length;
+          let count = 0;
+          for (const d of entryDates) if (d.startsWith(prefix)) count++;
 
           return (
             <button
@@ -231,7 +249,7 @@ export function JournalCalendar({ selectedDate, entries, onSelectDate }: Props) 
   return (
     <aside
       className="glass-tile rounded-2xl p-4 flex flex-col gap-3 self-start sticky top-4"
-      aria-label="Journal calendar"
+      aria-label={ariaLabel}
     >
       {/* View mode switcher */}
       <div className="flex items-center justify-center gap-1 pb-1 border-b border-[var(--edge)]">
