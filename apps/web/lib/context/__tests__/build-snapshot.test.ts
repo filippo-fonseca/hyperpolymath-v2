@@ -27,11 +27,16 @@ vi.mock("../nodes/captures", () => ({ loadCaptures: vi.fn() }));
 vi.mock("../nodes/training", () => ({ loadTraining: vi.fn() }));
 vi.mock("../nodes/habits", () => ({ loadHabits: vi.fn() }));
 vi.mock("../nodes/jarvis-facts", () => ({ loadJarvisFacts: vi.fn() }));
+vi.mock("../nodes/journal", () => ({ loadJournalEntries: vi.fn() }));
+// Phase 29 made loadPages call getFoldersWithProjects(userId), which issues
+// folder + folder_projects selects the empty `db` mock cannot serve. Mock the
+// pages loader like the others so the orchestration contract stays the focus.
+vi.mock("../nodes/pages", () => ({ loadPages: vi.fn() }));
 
 // Also stub the @/lib/db module so importing build-snapshot doesn't touch postgres.
 vi.mock("@/lib/db", () => ({ db: {} }));
 
-import { buildSnapshot } from "../build-snapshot";
+import { buildSnapshot, CURRENT_SCHEMA_VERSION } from "../build-snapshot";
 import { loadAreas } from "../nodes/areas";
 import { loadProjects } from "../nodes/projects";
 import { loadTasks } from "../nodes/tasks";
@@ -39,6 +44,8 @@ import { loadCaptures } from "../nodes/captures";
 import { loadTraining } from "../nodes/training";
 import { loadHabits } from "../nodes/habits";
 import { loadJarvisFacts } from "../nodes/jarvis-facts";
+import { loadPages } from "../nodes/pages";
+import { loadJournalEntries } from "../nodes/journal";
 
 // Zod 4's `z.string().uuid()` enforces v1–v8 format (or the all-zero / all-ff
 // sentinels). Pad-counted IDs like 00000000-…-0010 fail format because the
@@ -59,6 +66,8 @@ function setAllLoadersEmpty() {
   vi.mocked(loadTraining).mockResolvedValue(empty);
   vi.mocked(loadHabits).mockResolvedValue(empty);
   vi.mocked(loadJarvisFacts).mockResolvedValue(empty);
+  vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+  vi.mocked(loadPages).mockResolvedValue(empty);
 }
 
 beforeEach(() => {
@@ -71,7 +80,7 @@ describe("buildSnapshot — empty user", () => {
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.schemaVersion).toBe(1);
+    expect(result.data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(result.data.nodes).toEqual([]);
     expect(result.data.edges).toEqual([]);
     expect(result.data.meta.totalNodes).toBe(0);
@@ -105,6 +114,8 @@ describe("buildSnapshot — no_export rows", () => {
     vi.mocked(loadTasks).mockResolvedValue({ nodes: [], excluded: 2 });
     vi.mocked(loadCaptures).mockResolvedValue({ nodes: [], excluded: 1 });
     vi.mocked(loadJarvisFacts).mockResolvedValue({ nodes: [], excluded: 3 });
+    vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+    vi.mocked(loadPages).mockResolvedValue(empty);
 
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
@@ -122,6 +133,8 @@ describe("buildSnapshot — no_export rows", () => {
     vi.mocked(loadTraining).mockResolvedValue(empty);
     vi.mocked(loadHabits).mockResolvedValue(empty);
     vi.mocked(loadJarvisFacts).mockResolvedValue(empty);
+    vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+    vi.mocked(loadPages).mockResolvedValue(empty);
     vi.mocked(loadCaptures).mockResolvedValue({
       nodes: [
         {
@@ -204,6 +217,8 @@ describe("buildSnapshot — node assembly + edges", () => {
     vi.mocked(loadTraining).mockResolvedValue({ nodes: [], excluded: 0 });
     vi.mocked(loadHabits).mockResolvedValue({ nodes: [], excluded: 0 });
     vi.mocked(loadJarvisFacts).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadJournalEntries).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadPages).mockResolvedValue({ nodes: [], excluded: 0 });
 
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
