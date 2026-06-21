@@ -6,7 +6,7 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { ChevronDown, ChevronRight, FileText, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -95,10 +95,15 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
             type="button"
             onClick={handleNewPage}
             disabled={creating}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
+            aria-busy={creating}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           >
-            <Plus size={12} strokeWidth={1.5} />
-            <span>New page</span>
+            {creating ? (
+              <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
+            ) : (
+              <Plus size={12} strokeWidth={1.5} />
+            )}
+            <span>{creating ? "Creating…" : "New page"}</span>
           </button>
         )}
       </div>
