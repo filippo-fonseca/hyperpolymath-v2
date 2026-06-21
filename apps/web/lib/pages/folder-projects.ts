@@ -72,3 +72,60 @@ export function getEffectiveProjectIds(
   for (const pid of getInheritedProjectIds(folderId, folderMap)) acc.add(pid);
   return [...acc];
 }
+
+/**
+ * One project assignment as a render-ready pill: the project id, whether the
+ * assignment is DIRECT (a link that lives on the element itself) or INHERITED
+ * (a link that lives on an ancestor folder and cascades down), and, for an
+ * inherited assignment, the name of the ancestor folder that actually owns the
+ * link so the UI can show an "inherited from <folder>" affordance (Phase 23).
+ *
+ * This mirrors `ProjectLink` in lib/pages/tree.ts but resolves `sourceFolder`
+ * to a human-readable NAME (tree.ts keeps it as a folder id for its internal
+ * walk). Pills carry the name because that is what the UI renders.
+ */
+export interface ProjectPillLink {
+  projectId: string;
+  isInherited: boolean;
+  /** Ancestor folder name that owns an inherited link (undefined when direct). */
+  sourceFolderName?: string;
+}
+
+/**
+ * Build the pill links for a PAGE from its direct project ids (its own
+ * pages_projects rows) and the EFFECTIVE project set of the folder it sits in.
+ *
+ * Rules (Phase 23):
+ *   - Every direct project id is a DIRECT pill.
+ *   - Every project in the folder's effective set that is NOT already a direct
+ *     link becomes an INHERITED pill, attributed to the folder the page lives in
+ *     (`folderName`) since that is the nearest source the page inherits from.
+ *   - Direct wins on conflict (a project linked both directly and via the folder
+ *     renders once, as direct).
+ *
+ * Pure + client-safe: takes plain arrays, returns plain data, imports nothing.
+ */
+export function buildPageProjectPills(args: {
+  directProjectIds: string[];
+  folderName: string | null;
+  folderEffectiveProjectIds: string[];
+}): ProjectPillLink[] {
+  const { directProjectIds, folderName, folderEffectiveProjectIds } = args;
+  const direct = [...new Set(directProjectIds)];
+  const directSet = new Set(direct);
+  const pills: ProjectPillLink[] = direct.map((projectId) => ({
+    projectId,
+    isInherited: false,
+  }));
+  const seen = new Set(direct);
+  for (const projectId of folderEffectiveProjectIds) {
+    if (directSet.has(projectId) || seen.has(projectId)) continue;
+    seen.add(projectId);
+    pills.push({
+      projectId,
+      isInherited: true,
+      sourceFolderName: folderName ?? undefined,
+    });
+  }
+  return pills;
+}

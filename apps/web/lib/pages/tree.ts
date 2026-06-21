@@ -1,6 +1,8 @@
-import type {
-  FolderProjectLink,
-  FolderRow,
+import {
+  buildPageProjectPills,
+  type FolderProjectLink,
+  type FolderRow,
+  type ProjectPillLink,
 } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 
@@ -10,6 +12,13 @@ export interface TreePage {
   emoji: string | null;
   updatedAt: Date;
   pinned: boolean;
+  /**
+   * Per-page project pills (Phase 23). Direct links come from the page's own
+   * pages_projects; inherited links come from the effective project set of the
+   * folder the page sits in. Standalone pages (no folder) only ever carry direct
+   * links. Each `ProjectPillLink` flags isInherited and names the source folder.
+   */
+  projectLinks: ProjectPillLink[];
 }
 
 /**
@@ -48,13 +57,28 @@ export interface PagesTree {
   standalonePages: TreePage[];
 }
 
-function toTreePage(p: PageWithProjects): TreePage {
+/**
+ * Convert a DB page into a tree node, computing its project pills from its own
+ * direct links plus the effective project set of the folder it lives in
+ * (`folderName` / `folderEffectiveProjectIds`). Standalone pages pass a null
+ * folder name and an empty effective set, so they carry direct links only.
+ */
+function toTreePage(
+  p: PageWithProjects,
+  folderName: string | null,
+  folderEffectiveProjectIds: string[],
+): TreePage {
   return {
     id: p.id,
     title: p.title,
     emoji: p.emoji,
     updatedAt: p.updatedAt,
     pinned: p.pinned,
+    projectLinks: buildPageProjectPills({
+      directProjectIds: p.projects.map((proj) => proj.id),
+      folderName,
+      folderEffectiveProjectIds,
+    }),
   };
 }
 
@@ -133,20 +157,26 @@ export function buildPagesTree(
     folderMap.get(link.folderId)?.ownProjectIds.push(link.projectId);
   }
 
-  // Step 2: bucket pages by folder; collect standalone pages (folder_id null).
-  const pagesByFolder = new Map<string, TreePage[]>();
+  // Step 2: bucket the RAW pages by folder; collect standalone pages
+  // (folder_id null). Conversion to TreePage is deferred to Step 3 for foldered
+  // pages because a page's inherited pills depend on its folder's effective set,
+  // which is only computed once we walk ancestors below. Standalone pages have
+  // no folder, so they carry direct links only and can convert immediately.
+  const rawPagesByFolder = new Map<string, PageWithProjects[]>();
   const standalonePages: TreePage[] = [];
   for (const page of pages) {
     if (page.folderId && folderMap.has(page.folderId)) {
-      const list = pagesByFolder.get(page.folderId) ?? [];
-      list.push(toTreePage(page));
-      pagesByFolder.set(page.folderId, list);
+      const list = rawPagesByFolder.get(page.folderId) ?? [];
+      list.push(page);
+      rawPagesByFolder.set(page.folderId, list);
     } else {
-      standalonePages.push(toTreePage(page));
+      standalonePages.push(toTreePage(page, null, []));
     }
   }
 
-  // Step 3: build each folder node with its effective project set.
+  // Step 3: build each folder node with its effective project set, then convert
+  // that folder's pages into TreePages using the folder's name + effective set
+  // so each page can attach inherited pills.
   const nodes = new Map<string, TreeFolder>();
   for (const f of folders) {
     const meta = folderMap.get(f.id);
@@ -160,6 +190,9 @@ export function buildPagesTree(
       ...ownProjectIds.map((projectId) => ({ projectId, isInherited: false })),
       ...inheritedLinks,
     ];
+    const folderPages = (rawPagesByFolder.get(f.id) ?? []).map((p) =>
+      toTreePage(p, f.name, effectiveProjectIds),
+    );
     nodes.set(f.id, {
       id: f.id,
       name: f.name,
@@ -169,7 +202,7 @@ export function buildPagesTree(
       effectiveProjectIds,
       projectLinks,
       subfolders: [],
-      pages: pagesByFolder.get(f.id) ?? [],
+      pages: folderPages,
     });
   }
 
