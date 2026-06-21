@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  createFolder,
+  getFolderProjectsForCurrentUser,
+  getFoldersForCurrentUser,
+  getSidebarTreeForCurrentUser,
+  setPageFolder,
+} from "@/app/actions/folders";
 import { deletePage, getPagesForCurrentUser, updatePage } from "@/app/actions/pages";
 import {
   AlertDialog,
@@ -14,15 +21,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import {
+  buildPageProjectPills,
+  type FolderProjectLink,
+  type FolderRow,
+  type FolderWithProjects,
+  getEffectiveProjectIds,
+} from "@/lib/pages/folder-projects";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Check, FileText, Plus, Trash2, X } from "lucide-react";
+import { Check, FileText, Lock, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FolderPicker } from "./FolderPicker";
+import { ProjectLinker } from "./ProjectLinker";
 
 // BlockNote needs the browser DOM — load client-only.
 const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
@@ -51,17 +67,40 @@ const AUTOSAVE_DELAY = 1500;
  */
 export function PageDetailClient({ userId, page: initialPage, initialActiveProjects }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { resolvedTheme } = useTheme();
 
   useTableSubscription("pages", userId);
   useTableSubscription("pages_projects", userId, {
     alsoInvalidate: [tableKey("pages", userId)],
   });
+  useTableSubscription("page_folders", userId, {
+    alsoInvalidate: [tableKey("pages", userId)],
+  });
+  useTableSubscription("folder_projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
     queryFn: () => getPagesForCurrentUser(),
     initialData: [initialPage],
+  });
+  // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
+  const { data: areas = [] } = useQuery({
+    queryKey: ["sidebar-tree", userId],
+    queryFn: () => getSidebarTreeForCurrentUser(),
+    initialData: [],
+  });
+  // Folders + their direct project links resolve the page's inherited pills and
+  // feed the FolderPicker's hierarchy.
+  const { data: allFolders = [] } = useQuery({
+    queryKey: tableKey("page_folders", userId),
+    queryFn: () => getFoldersForCurrentUser(),
+    initialData: [] as FolderRow[],
+  });
+  const { data: folderLinks = [] } = useQuery({
+    queryKey: tableKey("folder_projects", userId),
+    queryFn: () => getFolderProjectsForCurrentUser(),
+    initialData: [] as FolderProjectLink[],
   });
 
   const serverPage = allPages.find((p) => p.id === initialPage.id) ?? initialPage;
@@ -79,7 +118,6 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   const [showSaved, setShowSaved] = useState(false);
   const [emojiInput, setEmojiInput] = useState(serverPage.emoji ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,12 +213,67 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     if (linkedProjectIds.includes(projectId)) return;
     const next = [...linkedProjectIds, projectId];
     setLinkedProjectIds(next);
-    setLinkOpen(false);
     scheduleAutosave({ projectIds: next });
   }
 
+  // ProjectLinker toggle: route through link/unlink so direct links keep
+  // persisting via updatePage's projectIds (never setFolderProjects).
+  function handleToggleProject(projectId: string, next: boolean) {
+    if (next) handleLinkProject(projectId);
+    else handleUnlinkProject(projectId);
+  }
+
+  async function handlePickFolder(folderId: string | null) {
+    await setPageFolder({ pageId: initialPage.id, folderId });
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+    queryClient.invalidateQueries({ queryKey: tableKey("page_folders", userId) });
+  }
+
+  // Create a child folder under `parentId`, file the page into it, refetch.
+  async function handleCreateFolder(name: string, parentId: string | null): Promise<string> {
+    const id = crypto.randomUUID();
+    const res = await createFolder({ id, name, parentId });
+    if (!res.success) throw new Error(res.error);
+    await setPageFolder({ pageId: initialPage.id, folderId: res.data.id });
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+    queryClient.invalidateQueries({ queryKey: tableKey("page_folders", userId) });
+    return res.data.id;
+  }
+
+  // Resolve a project id to a display name across every (active or archived)
+  // project the linker knows about, plus the SSR-hydrated active set.
+  const projectNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of initialActiveProjects) map.set(p.id, p.name);
+    for (const area of areas) for (const p of area.projects) map.set(p.id, p.name);
+    return map;
+  }, [areas, initialActiveProjects]);
+
+  // The page's inherited project pills: walk its folder's effective set and keep
+  // only the links it does NOT already hold directly. These render read-only.
+  const inheritedPills = useMemo(() => {
+    if (!serverPage.folderId) return [];
+    const folderMap = new Map<string, FolderWithProjects>();
+    for (const f of allFolders) folderMap.set(f.id, { ...f, ownProjectIds: [] });
+    for (const link of folderLinks) folderMap.get(link.folderId)?.ownProjectIds.push(link.projectId);
+    const folderEffectiveProjectIds = getEffectiveProjectIds(serverPage.folderId, folderMap);
+    return buildPageProjectPills({
+      directProjectIds: linkedProjectIds,
+      folderName: serverPage.folderName,
+      folderEffectiveProjectIds,
+    }).filter((pill) => pill.isInherited);
+  }, [serverPage.folderId, serverPage.folderName, allFolders, folderLinks, linkedProjectIds]);
+
+  const inheritedLinks = useMemo(
+    () =>
+      inheritedPills.map((pill) => ({
+        projectId: pill.projectId,
+        sourceFolderName: pill.sourceFolderName ?? serverPage.folderName ?? "a parent folder",
+      })),
+    [inheritedPills, serverPage.folderName]
+  );
+
   const linkedProjects = initialActiveProjects.filter((p) => linkedProjectIds.includes(p.id));
-  const unlinkableProjects = initialActiveProjects.filter((p) => !linkedProjectIds.includes(p.id));
 
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
 
@@ -349,7 +442,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         />
       </div>
 
-      {/* Project links row */}
+      {/* Project links + folder row */}
       <div className="flex flex-wrap items-center gap-2">
         {linkedProjects.map((proj) => (
           <span
@@ -367,35 +460,30 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             </button>
           </span>
         ))}
-        <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-            >
-              <Plus size={10} strokeWidth={2} />
-              Link project
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-2 flex flex-col gap-1" align="start">
-            {unlinkableProjects.length === 0 ? (
-              <p className="px-2 py-1 text-[12px] font-mono text-[var(--ink-muted)]">
-                All projects linked
-              </p>
-            ) : (
-              unlinkableProjects.map((proj) => (
-                <button
-                  key={proj.id}
-                  type="button"
-                  onClick={() => handleLinkProject(proj.id)}
-                  className="w-full text-left px-2 py-1.5 text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] rounded-sm transition-colors duration-100 cursor-pointer truncate"
-                >
-                  {proj.name}
-                </button>
-              ))
-            )}
-          </PopoverContent>
-        </Popover>
+        {/* Inherited links: read-only, no remove control (Phase 24). */}
+        {inheritedLinks.map((link) => (
+          <span
+            key={`inherited-${link.projectId}`}
+            title={`Inherited from ${link.sourceFolderName}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono italic text-[var(--ink-muted)] border border-dashed border-[var(--edge)] opacity-70"
+          >
+            <Lock size={10} strokeWidth={1.5} />
+            {projectNameById.get(link.projectId) ?? "Project"}
+            <span className="text-[10px]">from {link.sourceFolderName}</span>
+          </span>
+        ))}
+        <ProjectLinker
+          areas={areas}
+          selectedProjectIds={linkedProjectIds}
+          inheritedLinks={inheritedLinks}
+          onToggle={handleToggleProject}
+        />
+        <FolderPicker
+          folders={allFolders}
+          currentFolderId={serverPage.folderId}
+          onPick={handlePickFolder}
+          onCreate={handleCreateFolder}
+        />
       </div>
 
       {/* Last edited */}
