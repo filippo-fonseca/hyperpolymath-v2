@@ -148,6 +148,12 @@ interface Props {
    * the document.
    */
   containerRef?: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Hand the live BlockNote editor to the parent once created (Phase 30). The
+   * Daily Page "process this page" button needs the editor to run the WHOLE
+   * page through the in-document JARVIS engine. Called with `null` on unmount.
+   */
+  onEditorReady?: (editor: Editor | null) => void;
 }
 
 export default function PageBlockEditor({
@@ -159,11 +165,21 @@ export default function PageBlockEditor({
   hideReceipts = false,
   focusRef,
   containerRef,
+  onEditorReady,
 }: Props) {
   const editor = useCreateBlockNote({
     schema,
     initialContent: normalizeInitial(initialContentJson),
   });
+
+  // Expose the live editor to the parent (Phase 30). Done in an effect so the
+  // parent only ever sees the editor after mount, and gets a null on cleanup.
+  useEffect(() => {
+    onEditorReady?.(editor);
+    return () => {
+      onEditorReady?.(null);
+    };
+  }, [editor, onEditorReady]);
 
   // Legacy pages have no content_json — seed the document once from the
   // existing markdown mirror so old pages open as blocks. The resulting
