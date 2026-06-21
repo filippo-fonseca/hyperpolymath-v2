@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/snapshot-context",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/wiki-backup",
+      "schedule": "0 6 * * *"
     }
   ]
 }
