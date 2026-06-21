@@ -171,6 +171,34 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
   return { success: true, data: null };
 }
 
+const SetPageNoExportSchema = z.object({
+  pageId: z.string().uuid(),
+  noExport: z.boolean(),
+});
+
+/**
+ * Flip pages.no_export for an owned page (Phase 29). When no_export is true the
+ * page is excluded from the context snapshot, MCP export, and the knowledge
+ * graph (loadPages skips it). Mirrors updatePage's auth + user-scoped WHERE.
+ */
+export async function setPageNoExport(input: unknown): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SetPageNoExportSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  await db
+    .update(pages)
+    .set({ noExport: parsed.data.noExport })
+    .where(and(eq(pages.id, parsed.data.pageId), eq(pages.userId, userId)));
+
+  return { success: true, data: null };
+}
+
 export async function deletePage(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
