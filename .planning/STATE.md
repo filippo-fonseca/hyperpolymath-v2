@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
 status: executing
 stopped_at: —
-last_updated: "2026-06-21T17:30:00.000Z"
-last_activity: 2026-06-21 — Phase 22 (Rename Pages → Wiki) executed + merged to fix/pages-create-ux
+last_updated: "2026-06-21T18:00:00.000Z"
+last_activity: 2026-06-21 — Phase 23 (Wiki home tree + Project Docs pills) executed + merged to fix/pages-create-ux
 progress:
   total_phases: 36
-  completed_phases: 17
+  completed_phases: 18
   total_plans: 100
-  completed_plans: 88
-  percent: 45
+  completed_plans: 90
+  percent: 46
 ---
 
 # Project State
@@ -21,14 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 23 — wiki-home-tree-project-docs (milestone v1.2)
+**Current focus:** Phase 24 — wiki-linking-ux (milestone v1.2)
 
 ## Current Position
 
-Phase: 23 — Wiki home tree + Project Docs section
+Phase: 24 — Wiki linking UX
 Plan: — (not yet planned)
-Status: Phases 21-22 executed on fix/pages-create-ux. Build + typecheck green, /pages→/wiki 308 redirects live. Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
-Last activity: 2026-06-21 — Phase 22 (Rename Pages → Wiki) executed
+Status: Phases 21-23 executed on fix/pages-create-ux. Build + typecheck green. Effective-project pills + inherited/direct distinction live on /wiki home + project Docs. Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
+Last activity: 2026-06-21 — Phase 23 (Wiki home tree + Project Docs pills) executed
+
+### Milestone v1.2 execution method (for resumption after compaction)
+Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 24, 25, 26, 27, 28, 29, 31 (before 30), 30, 32.
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
