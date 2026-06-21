@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * /pages/[pageId] — Page detail editor/viewer.
+ * /wiki/[pageId] — Wiki document detail editor/viewer.
  * Server Component: auth, fetch page, fetch active projects list for link picker.
  */
 export default async function PageDetailPage({ params }: Props) {

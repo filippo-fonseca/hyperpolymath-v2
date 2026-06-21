@@ -4,7 +4,7 @@ import { getFolderProjects, getFoldersForUser } from "@/lib/db/queries/folders";
 import { getPagesForUser } from "@/lib/db/queries/pages";
 
 /**
- * /pages — Pages list (wiki-style markdown documents).
+ * /wiki — Wiki list (wiki-style markdown documents).
  *
  * Server Component shell: auth, initial fetch, then hands off to
  * PagesListClient for Realtime-backed interactivity. Folders (project-

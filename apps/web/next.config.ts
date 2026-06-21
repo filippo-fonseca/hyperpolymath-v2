@@ -25,6 +25,20 @@ const nextConfig: NextConfig = {
     // The "/" key targets the root route (the landing). Narrowest scope possible.
     "/": ["../../.planning/ROADMAP.md"],
   },
+
+  // Phase 22: the "Pages" feature was renamed to "Wiki" and the route moved
+  // from /pages to /wiki. Permanently redirect the old paths so any saved
+  // links or bookmarks still resolve. The :pageId segment is preserved.
+  async redirects() {
+    return [
+      { source: "/pages", destination: "/wiki", permanent: true },
+      {
+        source: "/pages/:pageId",
+        destination: "/wiki/:pageId",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

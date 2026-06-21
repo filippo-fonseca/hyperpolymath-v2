@@ -46,7 +46,7 @@ interface Props {
 const AUTOSAVE_DELAY = 1500;
 
 /**
- * /pages/[pageId] client island. Notion-style BlockNote editor with 1.5s
+ * /wiki/[pageId] client island. Notion-style BlockNote editor with 1.5s
  * autosave, emoji picker, project link management, and delete.
  */
 export function PageDetailClient({ userId, page: initialPage, initialActiveProjects }: Props) {
@@ -150,7 +150,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   async function handleDelete() {
     await deletePage(initialPage.id);
-    router.push("/pages");
+    router.push("/wiki");
   }
 
   function handleTitleChange(v: string) {
@@ -196,14 +196,14 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   return (
     <div className="flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
-      {/* Breadcrumb: Pages / Area / Project / Folder */}
+      {/* Breadcrumb: Wiki / Area / Project / Folder */}
       <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
         <button
           type="button"
-          onClick={() => router.push("/pages")}
+          onClick={() => router.push("/wiki")}
           className="hover:text-[var(--ink)] transition-colors cursor-pointer"
         >
-          Pages
+          Wiki
         </button>
         {primaryProject?.areaName && (
           <>

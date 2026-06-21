@@ -24,8 +24,8 @@ interface Props {
 }
 
 /**
- * /pages home. Renders the wiki as a project-independent folder hierarchy
- * (Phase 21): root folders → subfolders → pages, plus a top-level Standalone
+ * /wiki home. Renders the wiki as a project-independent folder hierarchy
+ * (Phase 21): root folders, subfolders, pages, plus a top-level Standalone
  * group for pages in no folder. A title filter narrows the tree live.
  */
 export function PagesListClient({
@@ -88,7 +88,7 @@ export function PagesListClient({
     try {
       const id = crypto.randomUUID();
       const result = await createPage({ id, title: "", content: "" });
-      if (result.success) router.push(`/pages/${result.data.id}`);
+      if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
     }
@@ -121,7 +121,7 @@ export function PagesListClient({
                 key={page.id}
                 depth={depth + 1}
                 page={page}
-                onOpen={() => router.push(`/pages/${page.id}`)}
+                onOpen={() => router.push(`/wiki/${page.id}`)}
               />
             ))}
           </>
@@ -135,7 +135,7 @@ export function PagesListClient({
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-mono text-[13px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-          Pages
+          Wiki
         </h1>
         <button
           type="button"
@@ -192,7 +192,7 @@ export function PagesListClient({
                     key={page.id}
                     depth={1}
                     page={page}
-                    onOpen={() => router.push(`/pages/${page.id}`)}
+                    onOpen={() => router.push(`/wiki/${page.id}`)}
                   />
                 ))}
             </div>

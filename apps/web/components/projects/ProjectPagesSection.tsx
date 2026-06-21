@@ -44,9 +44,9 @@ interface Props {
 }
 
 /**
- * Project-scoped pages surface. Phase 21: folders are project-independent and
+ * Project-scoped wiki surface. Phase 21: folders are project-independent and
  * link to projects via the folder_projects M:N junction. This section shows
- * folders whose EFFECTIVE project set (own ∪ inherited from ancestors) includes
+ * folders whose EFFECTIVE project set (own + inherited from ancestors) includes
  * THIS project, and the pages linked to this project grouped by their (global)
  * page-level folder. "New folder" creates a folder and links it to this
  * project; "+ New page" creates a page pre-linked to this project (optionally
@@ -164,7 +164,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
         projectIds: [projectId],
         folderId,
       });
-      if (result.success) router.push(`/pages/${result.data.id}`);
+      if (result.success) router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
     }
@@ -216,7 +216,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
-            Pages
+            Wiki
           </h2>
           <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
             ({projectPages.length})
@@ -375,7 +375,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
                               page={page}
                               folders={folders}
                               currentFolderId={folder.id}
-                              onOpen={() => router.push(`/pages/${page.id}`)}
+                              onOpen={() => router.push(`/wiki/${page.id}`)}
                               onMove={(fid) => handleMovePage(page.id, fid)}
                             />
                           ))
@@ -399,7 +399,7 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
                       page={page}
                       folders={folders}
                       currentFolderId={null}
-                      onOpen={() => router.push(`/pages/${page.id}`)}
+                      onOpen={() => router.push(`/wiki/${page.id}`)}
                       onMove={(fid) => handleMovePage(page.id, fid)}
                     />
                   ))}
