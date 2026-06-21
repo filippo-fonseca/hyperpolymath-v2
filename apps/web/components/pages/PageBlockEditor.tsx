@@ -61,6 +61,39 @@ function insertCalloutItem(editor: Editor) {
   };
 }
 
+// Terse shorthand the slash menu should accept so `/h1`, `/todo`, etc. resolve
+// straight to the matching block. `filterSuggestionItems` matches a query
+// against each item's title + aliases, so we extend the default items' aliases.
+// Keyed by the default item title (matched case-insensitively to survive any
+// casing drift in BlockNote's labels). Default titles per @blocknote/react:
+// "Heading 1/2/3", "Bullet List", "Numbered List", "Check List", "Quote",
+// "Code Block".
+const SLASH_SHORTHAND: Record<string, string[]> = {
+  "heading 1": ["h1"],
+  "heading 2": ["h2"],
+  "heading 3": ["h3"],
+  "bullet list": ["bullet"],
+  "numbered list": ["numbered"],
+  "check list": ["todo"],
+  quote: ["quote"],
+  "code block": ["code"],
+};
+
+/**
+ * Clone each default slash item, appending our shorthand aliases where the
+ * item's title matches. Non-destructive: spreads the item and its existing
+ * aliases so the defaults keep working untouched.
+ */
+function withSlashShorthand<T extends { title: string; aliases?: readonly string[] }>(
+  items: T[],
+): T[] {
+  return items.map((item) => {
+    const extra = SLASH_SHORTHAND[item.title.toLowerCase()];
+    if (!extra) return item;
+    return { ...item, aliases: [...(item.aliases ?? []), ...extra] };
+  });
+}
+
 interface Props {
   initialContentJson: unknown;
   initialMarkdown: string;
@@ -161,7 +194,10 @@ export default function PageBlockEditor({
           triggerCharacter="/"
           getItems={async (query) =>
             filterSuggestionItems(
-              [...getDefaultReactSlashMenuItems(editor), insertCalloutItem(editor)],
+              [
+                ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
+                insertCalloutItem(editor),
+              ],
               query
             )
           }
