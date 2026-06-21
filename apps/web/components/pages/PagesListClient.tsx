@@ -5,6 +5,8 @@ import {
   getFoldersForCurrentUser,
 } from "@/app/actions/folders";
 import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
@@ -45,6 +47,7 @@ export function PagesListClient({
   });
   useTableSubscription("page_folders", userId);
   useTableSubscription("folder_projects", userId);
+  useTableSubscription("projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
@@ -61,6 +64,21 @@ export function PagesListClient({
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
   });
+  const { data: projects = [] } = useQuery({
+    queryKey: tableKey("projects", userId),
+    queryFn: () => getProjectsForCurrentUser(),
+    initialData: [],
+  });
+
+  // id -> display name lookups so pills render labels, not raw uuids.
+  const projectNames = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name] as const)),
+    [projects]
+  );
+  const folderNames = useMemo(
+    () => new Map(folders.map((f) => [f.id, f.name] as const)),
+    [folders]
+  );
 
   const q = filter.trim().toLowerCase();
   const visiblePages = useMemo(
@@ -102,6 +120,13 @@ export function PagesListClient({
     if (q && !folderHasVisiblePages(folder)) return null;
     const folderKey = `folder:${folder.id}`;
     const folderOpen = !collapsed.has(folderKey);
+    // Resolve the folder's own/inherited links into render-ready pills, mapping
+    // the inherited source folder id to its name.
+    const folderPills = folder.projectLinks.map((l) => ({
+      projectId: l.projectId,
+      isInherited: l.isInherited,
+      sourceFolderName: l.sourceFolder ? folderNames.get(l.sourceFolder) : undefined,
+    }));
     return (
       <div key={folder.id} className="flex flex-col">
         <Row
@@ -112,6 +137,7 @@ export function PagesListClient({
           label={folder.name}
           labelClass="font-serif text-[13px] text-[var(--ink)]"
           count={folder.pages.length}
+          pills={<ProjectPillRow links={folderPills} projectNames={projectNames} />}
         />
         {folderOpen && (
           <>
@@ -121,6 +147,7 @@ export function PagesListClient({
                 key={page.id}
                 depth={depth + 1}
                 page={page}
+                projectNames={projectNames}
                 onOpen={() => router.push(`/wiki/${page.id}`)}
               />
             ))}
@@ -192,6 +219,7 @@ export function PagesListClient({
                     key={page.id}
                     depth={1}
                     page={page}
+                    projectNames={projectNames}
                     onOpen={() => router.push(`/wiki/${page.id}`)}
                   />
                 ))}
@@ -219,6 +247,7 @@ function Row({
   label,
   labelClass,
   count,
+  pills,
 }: {
   depth: number;
   open: boolean;
@@ -227,51 +256,66 @@ function Row({
   label: string;
   labelClass: string;
   count?: number;
+  pills?: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="group flex items-center gap-1.5 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer text-left"
+    <div
+      className="group flex items-center gap-1.5 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors"
       style={{ paddingLeft: depth * INDENT + 4 }}
     >
-      <span className="text-[var(--ink-muted)] flex-shrink-0">
-        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-      </span>
-      <span className="flex-shrink-0 w-4 text-center">{icon}</span>
-      <span className={`truncate ${labelClass}`}>{label}</span>
-      {count !== undefined && (
-        <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">{count}</span>
-      )}
-    </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center gap-1.5 min-w-0 flex-shrink cursor-pointer text-left"
+      >
+        <span className="text-[var(--ink-muted)] flex-shrink-0">
+          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span className="flex-shrink-0 w-4 text-center">{icon}</span>
+        <span className={`truncate ${labelClass}`}>{label}</span>
+        {count !== undefined && (
+          <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">{count}</span>
+        )}
+      </button>
+      {pills && <span className="ml-1 min-w-0">{pills}</span>}
+    </div>
   );
 }
 
 function PageRow({
   depth,
   page,
+  projectNames,
   onOpen,
 }: {
   depth: number;
   page: TreePage;
+  projectNames: Map<string, string>;
   onOpen: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer text-left"
+    <div
+      className="group flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors"
       style={{ paddingLeft: depth * INDENT + 22 }}
     >
-      <span className="flex-shrink-0 w-4 text-center text-[13px] leading-none">
-        {page.emoji ?? <FileText size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-      </span>
-      <span className="flex-1 min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
-        {page.title || <span className="text-[var(--ink-muted)] italic">Untitled page</span>}
-      </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer text-left"
+      >
+        <span className="flex-shrink-0 w-4 text-center text-[13px] leading-none">
+          {page.emoji ?? (
+            <FileText size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+          )}
+        </span>
+        <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
+          {page.title || <span className="text-[var(--ink-muted)] italic">Untitled page</span>}
+        </span>
+      </button>
+      <ProjectPillRow links={page.projectLinks} projectNames={projectNames} />
       <span className="flex-shrink-0 text-[10px] font-mono text-[var(--ink-muted)]">
         {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
       </span>
-    </button>
+    </div>
   );
 }
