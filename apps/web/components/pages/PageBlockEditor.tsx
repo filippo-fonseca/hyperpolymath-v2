@@ -45,7 +45,7 @@ const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, callout: calloutBlock },
 });
 
-type Editor = BlockNoteEditor<
+export type Editor = BlockNoteEditor<
   typeof schema.blockSchema,
   typeof schema.inlineContentSchema,
   typeof schema.styleSchema
@@ -66,6 +66,12 @@ interface Props {
   initialMarkdown: string;
   theme: "light" | "dark";
   onChange: (json: unknown, markdown: string) => void;
+  /**
+   * Fires once on mount with the BlockNote editor instance. Lets the parent
+   * imperatively focus the body (e.g. Enter from the title input jumps the
+   * cursor into the first block) without coupling parent to BlockNote types.
+   */
+  onEditorReady?: (editor: Editor) => void;
 }
 
 export default function PageBlockEditor({
@@ -73,11 +79,16 @@ export default function PageBlockEditor({
   initialMarkdown,
   theme,
   onChange,
+  onEditorReady,
 }: Props) {
   const editor = useCreateBlockNote({
     schema,
     initialContent: normalizeInitial(initialContentJson),
   });
+
+  useEffect(() => {
+    onEditorReady?.(editor);
+  }, [editor, onEditorReady]);
 
   // Legacy pages have no content_json — seed the document once from the
   // existing markdown mirror so old pages open as blocks. The resulting
