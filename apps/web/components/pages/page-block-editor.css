@@ -240,3 +240,22 @@
   flex: 1;
   min-width: 0;
 }
+
+/* =====================================================================
+   In-page find (Phase 26) — CSS Custom Highlight API.
+
+   Matches are painted via CSS.highlights, never by mutating the document, so
+   undo history and content_json stay clean. Every match gets a soft amber
+   wash; the active match gets a stronger, opaque amber so it stands out from
+   the rest as the user steps through. Only background/color are paintable
+   through ::highlight(), which is all we need here.
+   ===================================================================== */
+::highlight(wiki-search) {
+  background-color: color-mix(in oklch, var(--ink-amber) 28%, transparent);
+  color: var(--ink);
+}
+
+::highlight(wiki-search-active) {
+  background-color: color-mix(in oklch, var(--ink-amber) 70%, transparent);
+  color: var(--ink);
+}

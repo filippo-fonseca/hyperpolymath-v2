@@ -101,6 +101,12 @@ interface Props {
   onChange: (json: unknown, markdown: string) => void;
   /** Parent-owned ref populated with a "focus the body" fn (Enter-from-title). */
   focusRef?: React.MutableRefObject<(() => void) | null>;
+  /**
+   * Parent-owned ref to the editor wrapper. The in-page search (Phase 26) walks
+   * the `.bn-editor` content DOM under it to highlight matches without touching
+   * the document.
+   */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function PageBlockEditor({
@@ -109,6 +115,7 @@ export default function PageBlockEditor({
   theme,
   onChange,
   focusRef,
+  containerRef,
 }: Props) {
   const editor = useCreateBlockNote({
     schema,
@@ -178,7 +185,11 @@ export default function PageBlockEditor({
 
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: surface affordance mirrors the editor's own keyboard handling
-    <div className="flex flex-1 flex-col cursor-text" onMouseDown={handleSurfaceMouseDown}>
+    <div
+      ref={containerRef}
+      className="flex flex-1 flex-col cursor-text"
+      onMouseDown={handleSurfaceMouseDown}
+    >
       <BlockNoteView
         editor={editor}
         theme={theme}

@@ -28,16 +28,18 @@ import {
   type FolderWithProjects,
   getEffectiveProjectIds,
 } from "@/lib/pages/folder-projects";
+import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Download, Eye, EyeOff, FileText, Lock, Trash2, X } from "lucide-react";
+import { Check, Download, Eye, EyeOff, FileText, Lock, Search, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FolderPicker } from "./FolderPicker";
+import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 
 // BlockNote needs the browser DOM — load client-only.
@@ -122,11 +124,26 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // Phase 32, so there is nothing to hide yet; this just builds the control and
   // its on/off state. Not persisted to the DB (no hideReceipts column exists).
   const [hideReceipts, setHideReceipts] = useState(false);
+  // In-page find (Phase 26). Opens via Cmd+F over the editor or the nav-bar
+  // Search button; highlights matches through the CSS Custom Highlight API.
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
   const editorFocusRef = useRef<(() => void) | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // `content` (the markdown mirror) moves on every edit, so it doubles as the
+  // signal that tells the search hook to recompute ranges after the document
+  // changes while the box is open.
+  const search = useInPageSearch({
+    containerRef: editorContainerRef,
+    open: searchOpen,
+    contentSignal: content,
+  });
+
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
 
   // Freshly-created pages open empty; drop the cursor straight into the title
   // so the user can start typing without a click. Runs once on mount only.
@@ -332,7 +349,19 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   }, [serverPage.folderId, allFolders]);
 
   return (
-    <div className="flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
+    <div className="relative flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
+      {searchOpen && (
+        <PageSearchBar
+          query={search.query}
+          onQueryChange={search.setQuery}
+          total={search.total}
+          current={search.current}
+          onNext={search.next}
+          onPrev={search.prev}
+          onClose={closeSearch}
+        />
+      )}
+
       {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page */}
       <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
         <button
@@ -574,6 +603,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           theme={colorMode}
           onChange={handleEditorChange}
           focusRef={editorFocusRef}
+          containerRef={editorContainerRef}
         />
       </div>
     </div>
