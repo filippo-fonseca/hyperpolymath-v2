@@ -5,12 +5,14 @@ import {
   deleteFolder,
   getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
+  getSidebarTreeForCurrentUser,
   renameFolder,
   setFolderProjects,
   setPageFolder,
 } from "@/app/actions/folders";
 import { createPage, getPagesForCurrentUser } from "@/app/actions/pages";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { ProjectLinker } from "@/components/pages/ProjectLinker";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import {
   type FolderProjectLink,
@@ -99,6 +101,13 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
   const { data: projects = [] } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
+    initialData: [],
+  });
+  // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker used
+  // to edit each folder's OWN project links.
+  const { data: areas = [] } = useQuery({
+    queryKey: ["sidebar-tree", userId],
+    queryFn: () => getSidebarTreeForCurrentUser(),
     initialData: [],
   });
 
@@ -220,6 +229,24 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     if (res.success) invalidateAll();
   }
 
+  /**
+   * Toggle a folder's OWN link to a project. Only `ownProjectIds` is editable;
+   * inherited links are read-only (enforced by the ProjectLinker). We recompute
+   * the own set from the folder's current own links plus/minus the toggled id and
+   * send ONLY the own set to setFolderProjects (never the inherited ids).
+   */
+  async function handleToggleFolderProject(
+    folder: TreeFolder,
+    projectId: string,
+    next: boolean
+  ) {
+    const ownSet = new Set(folder.ownProjectIds);
+    if (next) ownSet.add(projectId);
+    else ownSet.delete(projectId);
+    const res = await setFolderProjects({ folderId: folder.id, projectIds: [...ownSet] });
+    if (res.success) invalidateAll();
+  }
+
   // Recursive folder renderer: nests subfolders, shows effective-project pills,
   // marks folders whose membership in THIS project is inherited, and keeps the
   // existing rename / new-page / delete affordances.
@@ -239,6 +266,14 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
       isInherited: l.isInherited,
       sourceFolderName: l.sourceFolder ? folderNames.get(l.sourceFolder) : undefined,
     }));
+    // Inherited folder links for the ProjectLinker's read-only section: name the
+    // owning ancestor via the folder map. These are never togglable.
+    const folderInheritedLinks = folder.projectLinks
+      .filter((l) => l.isInherited)
+      .map((l) => ({
+        projectId: l.projectId,
+        sourceFolderName: (l.sourceFolder && folderNames.get(l.sourceFolder)) || "a parent folder",
+      }));
     return (
       <div key={folder.id} className="flex flex-col" style={{ paddingLeft: depth * FOLDER_INDENT }}>
         <div className="group/folder flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors">
@@ -288,6 +323,17 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
           )}
           <ProjectPillRow links={folderPills} projectNames={projectNames} className="flex-1" />
           <div className="flex items-center gap-1 opacity-0 group-hover/folder:opacity-100 transition-opacity flex-shrink-0">
+            {!isRenaming && (
+              <ProjectLinker
+                areas={areas}
+                selectedProjectIds={folder.ownProjectIds}
+                inheritedLinks={folderInheritedLinks}
+                onToggle={(projectId, next) =>
+                  handleToggleFolderProject(folder, projectId, next)
+                }
+                triggerLabel="Projects"
+              />
+            )}
             {isRenaming ? (
               <>
                 <IconBtn label="Save name" onClick={() => handleRename(folder.id)}>
