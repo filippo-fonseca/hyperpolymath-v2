@@ -22,6 +22,7 @@ import {
   safeFileName,
 } from "@/lib/pages/markdown-export";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
+import { dailyPageTitle } from "@/lib/pages/daily-page";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
@@ -38,7 +39,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   userId: string;
@@ -65,6 +66,11 @@ export function PagesListClient({
   // The Daily Pages calendar is shown by default; collapsible per WIKI-DAILY-01.
   const [dailyOpen, setDailyOpen] = useState(true);
   const [openingDay, setOpeningDay] = useState(false);
+  // The calendar day the user has highlighted. Drives the "No daily page" panel
+  // for a past/empty day. Starts on today.
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    format(new Date(), "yyyy-MM-dd"),
+  );
 
   // Any pages change also refreshes the Daily Pages calendar (new/removed days).
   useTableSubscription("pages", userId, {
@@ -99,7 +105,9 @@ export function PagesListClient({
   });
   // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
   // "pages" realtime channel, so the subscription above already refreshes it.
-  const { data: dailyPages = [] } = useQuery<DailyPageRef[]>({
+  const { data: dailyPages = [], isFetched: dailyFetched } = useQuery<
+    DailyPageRef[]
+  >({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: [],
@@ -171,6 +179,13 @@ export function PagesListClient({
     }
   }
 
+  // Daily Pages keyed by their date, so a selected day can resolve to its
+  // existing page id (route, never create) vs. show the "No daily page" panel.
+  const dailyByDate = useMemo(
+    () => new Map(dailyPages.map((d) => [d.dailyDate, d] as const)),
+    [dailyPages],
+  );
+
   // The set of days that already have a Daily Page — dotted on the calendar.
   const markedDays = useMemo(
     () => new Set(dailyPages.map((d) => d.dailyDate)),
@@ -181,9 +196,9 @@ export function PagesListClient({
   // and the explicit "Today" affordance (WIKI-DAILY-01).
   const todayIso = format(new Date(), "yyyy-MM-dd");
 
-  // Selecting a day idempotently opens (creating if needed) its Daily Page,
-  // then routes into the editor (WIKI-DAILY-02).
-  async function handleOpenDay(iso: string) {
+  // Create (idempotently) a Daily Page for `iso` and route into it. Used by the
+  // today-auto-open, the "Today" button, and the retroactive create button.
+  async function createAndOpen(iso: string) {
     if (openingDay) return;
     setOpeningDay(true);
     try {
@@ -193,6 +208,35 @@ export function PagesListClient({
       setOpeningDay(false);
     }
   }
+
+  // Clicking a calendar day NEVER auto-creates a page (the old bug). A day that
+  // already has a page routes straight to it; any other day just becomes the
+  // selection, surfacing the "No daily page" panel with a create button.
+  function handleSelectDay(iso: string) {
+    setSelectedDate(iso);
+    const existing = dailyByDate.get(iso);
+    if (existing) router.push(`/wiki/${existing.id}`);
+  }
+
+  // First open per day (WIKI-DAILY-02): once the Daily Pages list has actually
+  // loaded from the server, if TODAY has no Daily Page yet, auto-create it and
+  // open it. Gated on `dailyFetched` so we never act on the empty initialData
+  // placeholder (which would wrongly auto-create even when today exists). The
+  // ref makes it fire at most once; a day that already has a page is left alone
+  // (no forced redirect on every Wiki visit).
+  const autoOpenedToday = useRef(false);
+  useEffect(() => {
+    if (!dailyFetched) return;
+    if (autoOpenedToday.current) return;
+    if (markedDays.has(todayIso)) return; // today already exists -> stay home.
+    autoOpenedToday.current = true;
+    void createAndOpen(todayIso);
+    // createAndOpen is stable enough for a once-per-mount auto-open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyFetched, markedDays, todayIso]);
+
+  // The page (if any) for the currently selected calendar day.
+  const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;
 
   const isEmpty =
     pagesTree.roots.length === 0 && pagesTree.standalonePages.length === 0;
@@ -304,7 +348,13 @@ export function PagesListClient({
           {dailyOpen && (
             <button
               type="button"
-              onClick={() => handleOpenDay(todayIso)}
+              // Today routes to today's page if it exists, else creates + opens
+              // it (the one create the home is allowed to trigger on demand).
+              onClick={() =>
+                markedDays.has(todayIso)
+                  ? handleSelectDay(todayIso)
+                  : void createAndOpen(todayIso)
+              }
               disabled={openingDay}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--hud-cyan)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -318,12 +368,42 @@ export function PagesListClient({
           )}
         </div>
         {dailyOpen && (
-          <JournalCalendar
-            selectedDate={todayIso}
-            markedDates={markedDays}
-            onSelectDate={handleOpenDay}
-            ariaLabel="Daily Pages calendar"
-          />
+          <>
+            <JournalCalendar
+              selectedDate={selectedDate}
+              markedDates={markedDays}
+              onSelectDate={handleSelectDay}
+              ariaLabel="Daily Pages calendar"
+            />
+            {/* "No daily page" panel — shown for a selected day that has no page
+                yet (WIKI-DAILY-02). Clicking a day never auto-creates; this is
+                the explicit, retroactive create affordance. */}
+            {!selectedDailyPage && (
+              <div className="glass-tile flex items-center justify-between gap-3 rounded-md px-3 py-2.5">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                    No daily page
+                  </span>
+                  <span className="truncate text-[13px] font-serif text-[var(--ink)]">
+                    {dailyPageTitle(selectedDate)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void createAndOpen(selectedDate)}
+                  disabled={openingDay}
+                  className="glass-button flex flex-shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-[12px] font-serif text-[var(--hud-cyan)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {openingDay ? (
+                    <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
+                  ) : (
+                    <Plus size={12} strokeWidth={1.5} />
+                  )}
+                  <span>Create daily page</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
