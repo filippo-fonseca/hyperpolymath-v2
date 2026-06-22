@@ -196,6 +196,9 @@ export const jarvisReceiptInlineSpec = createReactInlineContentSpec(
           className="bn-jarvis-pill"
           data-status={status}
           // Hover tooltip with the original prompt on resolved/loading pills.
+          // `data-prompt` drives the styled CSS tooltip (page-block-editor.css);
+          // `title` is the accessible/native fallback.
+          data-prompt={isReceipt || isError || isLoading ? prompt || undefined : undefined}
           title={isReceipt || isError || isLoading ? prompt : undefined}
           contentEditable={false}
         >

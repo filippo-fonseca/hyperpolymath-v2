@@ -270,6 +270,7 @@
    receipt/error pills in-doc (export exclusion is handled separately).
    ===================================================================== */
 .bn-jarvis-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.32em;
@@ -374,4 +375,28 @@
 [data-hide-receipts="true"] .bn-jarvis-pill[data-status="receipt"],
 [data-hide-receipts="true"] .bn-jarvis-pill[data-status="error"] {
   display: none;
+}
+
+/* Styled hover tooltip showing the original prompt (JDOC-UX-04). Instant,
+   themed bubble that replaces the slow native title delay. */
+.bn-jarvis-pill[data-prompt]:hover::after {
+  content: attr(data-prompt);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  max-width: 22rem;
+  width: max-content;
+  padding: 0.4em 0.6em;
+  border-radius: 8px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78em;
+  line-height: 1.4;
+  white-space: normal;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 18%, transparent),
+    inset 0 1px 0 var(--glass-hi);
+  pointer-events: none;
 }
