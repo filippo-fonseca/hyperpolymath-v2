@@ -5,7 +5,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { dailyPageTitle, isValidDailyDate } from "@/lib/pages/daily-page";
+import {
+  dailyDayClickAction,
+  dailyPageTitle,
+  isValidDailyDate,
+  shouldAutoOpenToday,
+} from "@/lib/pages/daily-page";
 
 describe("dailyPageTitle", () => {
   it("formats a yyyy-MM-dd date as 'Weekday, Month D, YYYY'", () => {
@@ -32,5 +37,40 @@ describe("isValidDailyDate", () => {
     expect(isValidDailyDate("not-a-date")).toBe(false);
     expect(isValidDailyDate("")).toBe(false);
     expect(isValidDailyDate("2026-13-40")).toBe(false);
+  });
+});
+
+describe("dailyDayClickAction", () => {
+  it("routes to the existing page when the day already has one", () => {
+    expect(dailyDayClickAction("2026-06-19", "page-abc")).toEqual({
+      kind: "route",
+      pageId: "page-abc",
+    });
+  });
+
+  it("only selects (never creates) a day with no page — past or otherwise", () => {
+    expect(dailyDayClickAction("2026-06-01", undefined)).toEqual({
+      kind: "select",
+    });
+  });
+});
+
+describe("shouldAutoOpenToday", () => {
+  it("auto-opens today only once the daily list has loaded and today is absent", () => {
+    expect(
+      shouldAutoOpenToday({ dailyFetched: true, todayExists: false }),
+    ).toBe(true);
+  });
+
+  it("never auto-opens before the daily list has loaded (no placeholder act)", () => {
+    expect(
+      shouldAutoOpenToday({ dailyFetched: false, todayExists: false }),
+    ).toBe(false);
+  });
+
+  it("does not force-redirect when today already has a page", () => {
+    expect(
+      shouldAutoOpenToday({ dailyFetched: true, todayExists: true }),
+    ).toBe(false);
   });
 });

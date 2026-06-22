@@ -23,3 +23,33 @@ export function isValidDailyDate(date: string): boolean {
   const d = parseISO(date);
   return !Number.isNaN(d.getTime());
 }
+
+/**
+ * What clicking a calendar day should do (Phase 30, corrected). Clicking NEVER
+ * auto-creates a page — that was the bug. A day that already has a page routes
+ * to it; any other day just becomes the selection (the UI then shows the
+ * "No daily page" + retroactive-create panel).
+ *
+ *   - "route"  -> navigate to the existing page (existingPageId is set).
+ *   - "select" -> highlight the day; no navigation, no create.
+ */
+export function dailyDayClickAction(
+  date: string,
+  existingPageId: string | undefined,
+): { kind: "route"; pageId: string } | { kind: "select" } {
+  if (existingPageId) return { kind: "route", pageId: existingPageId };
+  return { kind: "select" };
+}
+
+/**
+ * Whether the Wiki home should auto-create + open today's Daily Page on first
+ * mount (WIKI-DAILY-02). Only true once the daily-pages list has actually
+ * loaded (so we never act on the empty placeholder) AND today has no page yet.
+ * A day that already has a page is left alone — no forced redirect.
+ */
+export function shouldAutoOpenToday(args: {
+  dailyFetched: boolean;
+  todayExists: boolean;
+}): boolean {
+  return args.dailyFetched && !args.todayExists;
+}

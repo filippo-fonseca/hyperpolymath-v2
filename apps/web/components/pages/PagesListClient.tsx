@@ -22,7 +22,11 @@ import {
   safeFileName,
 } from "@/lib/pages/markdown-export";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
-import { dailyPageTitle } from "@/lib/pages/daily-page";
+import {
+  dailyDayClickAction,
+  dailyPageTitle,
+  shouldAutoOpenToday,
+} from "@/lib/pages/daily-page";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery } from "@tanstack/react-query";
@@ -214,8 +218,8 @@ export function PagesListClient({
   // selection, surfacing the "No daily page" panel with a create button.
   function handleSelectDay(iso: string) {
     setSelectedDate(iso);
-    const existing = dailyByDate.get(iso);
-    if (existing) router.push(`/wiki/${existing.id}`);
+    const action = dailyDayClickAction(iso, dailyByDate.get(iso)?.id);
+    if (action.kind === "route") router.push(`/wiki/${action.pageId}`);
   }
 
   // First open per day (WIKI-DAILY-02): once the Daily Pages list has actually
@@ -226,9 +230,15 @@ export function PagesListClient({
   // (no forced redirect on every Wiki visit).
   const autoOpenedToday = useRef(false);
   useEffect(() => {
-    if (!dailyFetched) return;
     if (autoOpenedToday.current) return;
-    if (markedDays.has(todayIso)) return; // today already exists -> stay home.
+    if (
+      !shouldAutoOpenToday({
+        dailyFetched,
+        todayExists: markedDays.has(todayIso),
+      })
+    ) {
+      return;
+    }
     autoOpenedToday.current = true;
     void createAndOpen(todayIso);
     // createAndOpen is stable enough for a once-per-mount auto-open.
