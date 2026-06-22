@@ -18,6 +18,7 @@ import {
   Network,
   Repeat,
   Settings,
+  Users,
   UtensilsCrossed,
   Waypoints,
   X,
@@ -56,6 +57,7 @@ const ROUTE_META: Record<
   "/settings": { label: "Settings", icon: Settings },
   "/journaling": { label: "Journal", icon: BookOpen },
   "/areas": { label: "Areas", icon: Network },
+  "/people": { label: "People", icon: Users },
 };
 
 function metaForPath(pathname: string): {

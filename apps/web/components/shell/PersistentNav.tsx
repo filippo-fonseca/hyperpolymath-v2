@@ -25,6 +25,7 @@ import {
   Repeat,
   Search,
   Settings,
+  Users,
   UtensilsCrossed,
   Waypoints,
 } from "lucide-react";
@@ -82,6 +83,13 @@ const items = [
     href: "/captures",
     label: "Captures",
     icon: MessageSquare,
+    disabled: false,
+    tooltip: undefined,
+  },
+  {
+    href: "/people",
+    label: "People",
+    icon: Users,
     disabled: false,
     tooltip: undefined,
   },
