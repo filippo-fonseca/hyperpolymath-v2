@@ -524,6 +524,39 @@ export const jarvisEvents = pgTable(
   (t) => [index("jarvis_events_user_created_idx").on(t.userId, sql`created_at DESC`)],
 );
 
+// jarvis_page_processing_runs — issue #92 part 5. One row per "Process this
+// page" invocation on a Daily Page. blockHashes snapshots a content hash per
+// top-level block so the next run only re-processes new/changed blocks (no
+// double-creation); processedBlockIds + actions + responseText + status feed the
+// per-page "Processing runs" history dropdown. See migration 0036.
+export const jarvisPageProcessingRuns = pgTable(
+  "jarvis_page_processing_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    pageId: uuid("page_id")
+      .notNull()
+      .references(() => pages.id, { onDelete: "cascade" }),
+    // assistant jarvis_turns row this run produced; null for 'skipped' runs.
+    turnId: uuid("turn_id"),
+    scope: text("scope").notNull().default("page"),
+    blockHashes: jsonb("block_hashes").notNull().default(sql`'{}'::jsonb`),
+    processedBlockIds: jsonb("processed_block_ids").notNull().default(sql`'[]'::jsonb`),
+    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    responseText: text("response_text"),
+    status: text("status").notNull().default("done"), // 'done' | 'error' | 'skipped'
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("jarvis_page_processing_runs_page_created_idx").on(t.pageId, sql`created_at DESC`),
+    index("jarvis_page_processing_runs_user_idx").on(t.userId),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // waitlist — Phase 8 (D-12 / LAND-WAITLIST). Anonymous email capture from the
 // public landing manifesto. FIRST table to break the userId-scoped RLS pattern.
