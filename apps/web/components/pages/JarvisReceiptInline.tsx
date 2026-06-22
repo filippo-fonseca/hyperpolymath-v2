@@ -34,9 +34,10 @@
  */
 
 import { createReactInlineContentSpec } from "@blocknote/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Undo2 } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { useUndoCountdown } from "@/components/jarvis/use-undo-countdown";
 
 import { receiptToMarkdownComment } from "@/lib/jarvis/receipt-markdown";
 
@@ -63,6 +64,24 @@ export interface JarvisPillContextValue {
    * transition. No-op when the prompt has no body.
    */
   submit: (prompt: string, nodeProps: JarvisPillProps) => void;
+  /**
+   * The 5s universal undo for a RESOLVED in-document turn (mirrors the JARVIS
+   * console). Reverses the executed actions for `turnId` via the SAME server
+   * undo path the console uses (undoJarvisAction → undoJarvisActionForUser).
+   *
+   * This NEVER aborts an in-flight turn — by the time a pill is a receipt the
+   * turn has already completed and persisted. Undo only inverts the results.
+   *
+   * Resolves `true` when at least one action was reversed, `false` otherwise
+   * (no undoable actions, or every inversion failed).
+   */
+  undo: (turnId: string) => Promise<boolean>;
+  /**
+   * Whether `turnId` has any executed actions that can be reversed. Drives
+   * whether the receipt shows an Undo affordance at all. Same capability gate
+   * the console applies: find_, remember_fact, ask_clarification report false.
+   */
+  isUndoable: (turnId: string) => boolean;
 }
 
 /** The pill's persisted props (mirror of the propSchema below). */
@@ -155,6 +174,70 @@ function JarvisPromptInput({ nodeProps }: { nodeProps: JarvisPillProps }) {
 }
 
 /**
+ * The 5s undo affordance shown on a resolved in-document receipt pill. Mirrors
+ * the JARVIS console's universal undo (Phase 16): a countdown-limited "Undo"
+ * button that reverses the turn's executed actions via the SAME server path.
+ *
+ * Lifecycle:
+ *   - Visible for ~5s after the receipt resolves (useUndoCountdown), then it
+ *     disappears (the window closes, exactly like the console).
+ *   - Clicking it cancels the countdown, calls ctx.undo(turnId), and on success
+ *     flips to an "Undone" label. On failure it restores the button (no toast
+ *     surface inline; the underlying undoJarvisAction error is swallowed here —
+ *     the console keeps the toast).
+ *
+ * IMPORTANT: this only ever runs for a RESOLVED turn. It cannot and does not
+ * abort an in-flight turn — by the time this renders the turn has completed and
+ * persisted. Undo inverts the results post-hoc, never cancels the request.
+ */
+function JarvisReceiptUndo({ turnId }: { turnId: string }) {
+  const ctx = useContext(JarvisPillContext);
+  // "live" while the 5s window is open, "undone" after a successful undo,
+  // "closed" once the window expires (no undo performed). "closed" hides it.
+  const [state, setState] = useState<"live" | "undone" | "closed">("live");
+  const busyRef = useRef(false);
+
+  const { seconds, cancel } = useUndoCountdown(5, () => {
+    // Window elapsed with no undo — drop the affordance (mirror the console).
+    setState((s) => (s === "live" ? "closed" : s));
+  });
+
+  if (state === "closed") return null;
+
+  if (state === "undone") {
+    return <span className="bn-jarvis-pill-undone">Undone</span>;
+  }
+
+  async function handleUndo() {
+    if (busyRef.current || !ctx) return;
+    busyRef.current = true;
+    cancel(); // stop the countdown the instant the user commits (no race)
+    const ok = await ctx.undo(turnId);
+    busyRef.current = false;
+    setState(ok ? "undone" : "closed");
+  }
+
+  return (
+    <button
+      type="button"
+      className="bn-jarvis-pill-undo glass-button"
+      contentEditable={false}
+      title={`Undo (${seconds}s)`}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void handleUndo();
+      }}
+    >
+      <Undo2 size={11} strokeWidth={2} aria-hidden="true" />
+      <span className="bn-jarvis-pill-undo-label">Undo</span>
+    </button>
+  );
+}
+
+/**
  * The inline content spec. Registered in PageBlockEditor's schema. Props:
  *   - prompt:  the original user instruction (shown while editing, and as the
  *              receipt hover tooltip).
@@ -174,48 +257,64 @@ export const jarvisReceiptInlineSpec = createReactInlineContentSpec(
     content: "none",
   },
   {
-    render: (props) => {
-      const nodeProps = props.inlineContent.props as JarvisPillProps;
-      const { prompt, status, summary } = nodeProps;
-
-      const isReceipt = status === "receipt";
-      const isError = status === "error";
-      const isLoading = status === "loading";
-      const isPrompt = status === "prompt";
-
-      // Receipt + error states show the resolved line; hovering reveals the
-      // original prompt (JDOC-UX-04). Loading shows the prompt being processed.
-      const label = isReceipt
-        ? summary || "No changes"
-        : isError
-          ? summary || "JARVIS failed"
-          : prompt || "@Jarvis";
-
-      return (
-        <span
-          className="bn-jarvis-pill"
-          data-status={status}
-          // Hover tooltip with the original prompt on resolved/loading pills.
-          // `data-prompt` drives the styled CSS tooltip (page-block-editor.css);
-          // `title` is the accessible/native fallback.
-          data-prompt={isReceipt || isError || isLoading ? prompt || undefined : undefined}
-          title={isReceipt || isError || isLoading ? prompt : undefined}
-          contentEditable={false}
-        >
-          <span className="bn-jarvis-pill-icon" aria-hidden="true">
-            {isLoading ? (
-              <Loader2 size={12} strokeWidth={2} className="bn-jarvis-spin" />
-            ) : (
-              <KiwiIcon size={12} />
-            )}
-          </span>
-          {isPrompt ? (
-            <JarvisPromptInput nodeProps={nodeProps} />
-          ) : (
-            <span className="bn-jarvis-pill-label">{label}</span>
-          )}
-        </span>
-      );
-    },
+    render: (props) => (
+      <JarvisPillView nodeProps={props.inlineContent.props as JarvisPillProps} />
+    ),
   },
 );
+
+/**
+ * The rendered pill (its own component so it can use hooks — the undo affordance
+ * reads JarvisPillContext for the turn's undoability). Drives all four statuses.
+ */
+function JarvisPillView({ nodeProps }: { nodeProps: JarvisPillProps }) {
+  const ctx = useContext(JarvisPillContext);
+  const { prompt, status, summary, turnId } = nodeProps;
+
+  const isReceipt = status === "receipt";
+  const isError = status === "error";
+  const isLoading = status === "loading";
+  const isPrompt = status === "prompt";
+
+  // Receipt + error states show the resolved line; hovering reveals the
+  // original prompt (JDOC-UX-04). Loading shows the prompt being processed.
+  const label = isReceipt
+    ? summary || "No changes"
+    : isError
+      ? summary || "JARVIS failed"
+      : prompt || "@Jarvis";
+
+  // Only resolved receipts whose turn actually did something reversible get the
+  // 5s undo (mirrors the console's capability gate). A `turnId` is required so
+  // the undo path knows which executed actions to invert.
+  const showUndo =
+    isReceipt && turnId.length > 0 && (ctx?.isUndoable(turnId) ?? false);
+
+  return (
+    <span
+      className="bn-jarvis-pill"
+      data-status={status}
+      // Hover tooltip with the original prompt on resolved/loading pills.
+      // `data-prompt` drives the styled CSS tooltip (page-block-editor.css);
+      // `title` is the accessible/native fallback.
+      data-prompt={isReceipt || isError || isLoading ? prompt || undefined : undefined}
+      title={isReceipt || isError || isLoading ? prompt : undefined}
+      contentEditable={false}
+    >
+      <span className="bn-jarvis-pill-icon" aria-hidden="true">
+        {isLoading ? (
+          <Loader2 size={12} strokeWidth={2} className="bn-jarvis-spin" />
+        ) : (
+          <KiwiIcon size={12} />
+        )}
+      </span>
+      {isPrompt ? (
+        <JarvisPromptInput nodeProps={nodeProps} />
+      ) : (
+        <span className="bn-jarvis-pill-label">{label}</span>
+      )}
+      {/* keyed by turnId so a brand-new receipt remounts a fresh 5s countdown */}
+      {showUndo ? <JarvisReceiptUndo key={turnId} turnId={turnId} /> : null}
+    </span>
+  );
+}
