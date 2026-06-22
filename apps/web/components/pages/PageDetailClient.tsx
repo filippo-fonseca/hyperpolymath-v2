@@ -1,6 +1,18 @@
 "use client";
 
-import { deletePage, getPagesForCurrentUser, updatePage } from "@/app/actions/pages";
+import {
+  createFolder,
+  getFolderProjectsForCurrentUser,
+  getFoldersForCurrentUser,
+  getSidebarTreeForCurrentUser,
+  setPageFolder,
+} from "@/app/actions/folders";
+import {
+  deletePage,
+  getPagesForCurrentUser,
+  setPageNoExport,
+  updatePage,
+} from "@/app/actions/pages";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,17 +26,49 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import {
+  buildPageProjectPills,
+  type FolderProjectLink,
+  type FolderRow,
+  type FolderWithProjects,
+  getEffectiveProjectIds,
+} from "@/lib/pages/folder-projects";
+import {
+  downloadTextFile,
+  pageToMarkdown,
+  safeFileName,
+} from "@/lib/pages/markdown-export";
+import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useQuery } from "@tanstack/react-query";
+import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Check, FileText, Plus, Trash2, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Download,
+  Eye,
+  EyeOff,
+  FileText,
+  Globe,
+  GlobeLock,
+  Loader2,
+  Lock,
+  Search,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import type { Editor as BlockEditor } from "./PageBlockEditor";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { FolderPicker } from "./FolderPicker";
+import { PageSearchBar } from "./PageSearchBar";
+import { ProjectLinker } from "./ProjectLinker";
 
 // BlockNote needs the browser DOM — load client-only.
 const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
@@ -48,22 +92,45 @@ interface Props {
 const AUTOSAVE_DELAY = 1500;
 
 /**
- * /pages/[pageId] client island. Notion-style BlockNote editor with 1.5s
+ * /wiki/[pageId] client island. Notion-style BlockNote editor with 1.5s
  * autosave, emoji picker, project link management, and delete.
  */
 export function PageDetailClient({ userId, page: initialPage, initialActiveProjects }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { resolvedTheme } = useTheme();
 
   useTableSubscription("pages", userId);
   useTableSubscription("pages_projects", userId, {
     alsoInvalidate: [tableKey("pages", userId)],
   });
+  useTableSubscription("page_folders", userId, {
+    alsoInvalidate: [tableKey("pages", userId)],
+  });
+  useTableSubscription("folder_projects", userId);
 
   const { data: allPages = [] } = useQuery({
     queryKey: tableKey("pages", userId),
     queryFn: () => getPagesForCurrentUser(),
     initialData: [initialPage],
+  });
+  // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
+  const { data: areas = [] } = useQuery({
+    queryKey: ["sidebar-tree", userId],
+    queryFn: () => getSidebarTreeForCurrentUser(),
+    initialData: [],
+  });
+  // Folders + their direct project links resolve the page's inherited pills and
+  // feed the FolderPicker's hierarchy.
+  const { data: allFolders = [] } = useQuery({
+    queryKey: tableKey("page_folders", userId),
+    queryFn: () => getFoldersForCurrentUser(),
+    initialData: [] as FolderRow[],
+  });
+  const { data: folderLinks = [] } = useQuery({
+    queryKey: tableKey("folder_projects", userId),
+    queryFn: () => getFolderProjectsForCurrentUser(),
+    initialData: [] as FolderProjectLink[],
   });
 
   const serverPage = allPages.find((p) => p.id === initialPage.id) ?? initialPage;
@@ -81,20 +148,96 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   const [showSaved, setShowSaved] = useState(false);
   const [emojiInput, setEmojiInput] = useState(serverPage.emoji ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
+  // Local-only toggle for the per-doc nav bar. JARVIS receipts get wired in
+  // Phase 32, so there is nothing to hide yet; this just builds the control and
+  // its on/off state. Not persisted to the DB (no hideReceipts column exists).
+  const [hideReceipts, setHideReceipts] = useState(false);
+  // Knowledge-graph gate (Phase 29). `noExport` excludes this page from the
+  // context snapshot, MCP export, and JARVIS knowledge graph. Optimistic local
+  // mirror of pages.no_export; the serverPage value (TanStack Query + realtime)
+  // is the source of truth and re-syncs this on any external change.
+  const [noExport, setNoExportState] = useState(serverPage.noExport);
+  useEffect(() => {
+    setNoExportState(serverPage.noExport);
+  }, [serverPage.noExport]);
+  // In-page find (Phase 26). Opens via Cmd+F over the editor or the nav-bar
+  // Search button; highlights matches through the CSS Custom Highlight API.
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  const bodyEditorRef = useRef<BlockEditor | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const editorFocusRef = useRef<(() => void) | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+  // The live BlockNote editor, captured via PageBlockEditor.onEditorReady. Used
+  // by the Daily Page "process this page" button to run the WHOLE page through
+  // the in-document JARVIS engine (Phase 30, WIKI-DAILY-04). Held as `unknown`
+  // and cast at the invoke call site, exactly like PageBlockEditor does — the
+  // BlockNote editor's heavily-generic serializer signature is wider than the
+  // structural InvokeEditor surface, so a direct assignment would not narrow.
+  const editorRef = useRef<unknown>(null);
+  // True = a Daily Page (drives the pill + process button). NULL daily_date is
+  // a normal page; a non-NULL date marks the user's Daily Page for that day.
+  const isDailyPage = serverPage.dailyDate !== null;
+  const [processing, setProcessing] = useState(false);
 
-  // Brand-new pages land here with an empty title — drop the cursor in the
-  // title input so the user can just start typing. We key off the initial
-  // server title (not the local state) so editing an existing page's title to
-  // empty doesn't re-steal focus mid-session.
+  /**
+   * Run the whole Daily Page through the shared in-document JARVIS engine to
+   * extract a daily plan (tasks / events / captures). Forces page scope so the
+   * cursor position never matters; the turn persists server-side and surfaces
+   * in the JARVIS conversation tab via realtime. Result is summarized in a toast.
+   */
+  // Stable so PageBlockEditor's onEditorReady effect doesn't re-run each render.
+  const handleEditorReady = useCallback((editor: unknown) => {
+    editorRef.current = editor;
+  }, []);
+
+  const handleProcessDailyPage = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor || processing) return;
+    setProcessing(true);
+    const pending = toast.loading("Processing this daily page…");
+    try {
+      const result = await invokeInDocumentJarvis({
+        editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
+        cursorBlockId: null,
+        scopeOverride: "page",
+        prompt:
+          "Process this daily page: extract tasks, events, and captures and create them.",
+        pageId: initialPage.id,
+      });
+      const summary =
+        result.actions.length > 0
+          ? formatReceiptSummary(result.actions)
+          : result.text.trim() || "Nothing to add — your day looks set.";
+      toast.success(summary, { id: pending });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not process the page.",
+        { id: pending },
+      );
+    } finally {
+      setProcessing(false);
+    }
+  }, [initialPage.id, processing]);
+
+  // `content` (the markdown mirror) moves on every edit, so it doubles as the
+  // signal that tells the search hook to recompute ranges after the document
+  // changes while the box is open.
+  const search = useInPageSearch({
+    containerRef: editorContainerRef,
+    open: searchOpen,
+    contentSignal: content,
+  });
+
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // Freshly-created pages open empty; drop the cursor straight into the title
+  // so the user can start typing without a click. Runs once on mount only.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only autofocus
   useEffect(() => {
-    if (!initialPage.title) titleInputRef.current?.focus();
-  }, [initialPage.title]);
+    if (initialPage.title.trim() === "") titleRef.current?.focus();
+  }, []);
 
   const save = useCallback(
     async (
@@ -145,6 +288,24 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [save]);
 
+  // Cmd+F / Ctrl+F opens OUR in-page find instead of the browser's native one,
+  // but only when focus is inside this page island (the editor, title, or the
+  // search bar itself) so it never hijacks Find elsewhere in the app. Once open,
+  // a repeat Cmd+F re-focuses our input rather than reopening the browser find.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F"))) return;
+      const root = editorContainerRef.current?.closest("[data-page-island]");
+      const active = document.activeElement;
+      const focusInside = active instanceof Node && root?.contains(active);
+      if (!focusInside && !searchOpen) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen]);
+
   function handleEditorChange(json: unknown, markdown: string) {
     setContentJson(json);
     setContent(markdown);
@@ -153,26 +314,35 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   async function handleDelete() {
     await deletePage(initialPage.id);
-    router.push("/pages");
+    router.push("/wiki");
+  }
+
+  // Toggle the knowledge-graph gate (Phase 29). Optimistically flip local state,
+  // persist via the server action, then invalidate the pages query so serverPage
+  // re-syncs. On failure, roll the optimistic value back.
+  async function handleToggleNoExport() {
+    const next = !noExport;
+    setNoExportState(next);
+    const res = await setPageNoExport({ pageId: initialPage.id, noExport: next });
+    if (!res.success) {
+      setNoExportState(!next);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+  }
+
+  // Client-side single-page export (WIKI-EXPORT-01). Routes through the shared
+  // markdown-export module so the file is receipt-stripped and titled exactly
+  // like every other export surface. Uses the live editor `title`/`content`
+  // (not the last-saved serverPage) so an in-progress edit exports as shown.
+  function handleExport() {
+    const markdown = pageToMarkdown({ id: initialPage.id, title, content });
+    downloadTextFile(markdown, `${safeFileName(title)}.md`);
   }
 
   function handleTitleChange(v: string) {
     setTitle(v);
     scheduleAutosave({ title: v });
-  }
-
-  // Title + body read as one continuous writing flow: Enter from the title
-  // input drops the cursor into the body's first block. Shift+Enter is left
-  // to its default (newline in input is a no-op anyway) so we don't fight
-  // platform conventions.
-  function handleTitleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
-    e.preventDefault();
-    const editor = bodyEditorRef.current;
-    if (!editor) return;
-    const firstBlock = editor.document[0];
-    if (firstBlock) editor.setTextCursorPosition(firstBlock.id, "start");
-    editor.focus();
   }
 
   function handleEmojiCommit() {
@@ -192,25 +362,227 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     if (linkedProjectIds.includes(projectId)) return;
     const next = [...linkedProjectIds, projectId];
     setLinkedProjectIds(next);
-    setLinkOpen(false);
     scheduleAutosave({ projectIds: next });
   }
 
+  // ProjectLinker toggle: route through link/unlink so direct links keep
+  // persisting via updatePage's projectIds (never setFolderProjects).
+  function handleToggleProject(projectId: string, next: boolean) {
+    if (next) handleLinkProject(projectId);
+    else handleUnlinkProject(projectId);
+  }
+
+  async function handlePickFolder(folderId: string | null) {
+    await setPageFolder({ pageId: initialPage.id, folderId });
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+    queryClient.invalidateQueries({ queryKey: tableKey("page_folders", userId) });
+  }
+
+  // Create a child folder under `parentId`, file the page into it, refetch.
+  async function handleCreateFolder(name: string, parentId: string | null): Promise<string> {
+    const id = crypto.randomUUID();
+    const res = await createFolder({ id, name, parentId });
+    if (!res.success) throw new Error(res.error);
+    await setPageFolder({ pageId: initialPage.id, folderId: res.data.id });
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+    queryClient.invalidateQueries({ queryKey: tableKey("page_folders", userId) });
+    return res.data.id;
+  }
+
+  // Resolve a project id to a display name across every (active or archived)
+  // project the linker knows about, plus the SSR-hydrated active set.
+  const projectNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of initialActiveProjects) map.set(p.id, p.name);
+    for (const area of areas) for (const p of area.projects) map.set(p.id, p.name);
+    return map;
+  }, [areas, initialActiveProjects]);
+
+  // The page's inherited project pills: walk its folder's effective set and keep
+  // only the links it does NOT already hold directly. These render read-only.
+  const inheritedPills = useMemo(() => {
+    if (!serverPage.folderId) return [];
+    const folderMap = new Map<string, FolderWithProjects>();
+    for (const f of allFolders) folderMap.set(f.id, { ...f, ownProjectIds: [] });
+    for (const link of folderLinks) folderMap.get(link.folderId)?.ownProjectIds.push(link.projectId);
+    const folderEffectiveProjectIds = getEffectiveProjectIds(serverPage.folderId, folderMap);
+    return buildPageProjectPills({
+      directProjectIds: linkedProjectIds,
+      folderName: serverPage.folderName,
+      folderEffectiveProjectIds,
+    }).filter((pill) => pill.isInherited);
+  }, [serverPage.folderId, serverPage.folderName, allFolders, folderLinks, linkedProjectIds]);
+
+  const inheritedLinks = useMemo(
+    () =>
+      inheritedPills.map((pill) => ({
+        projectId: pill.projectId,
+        sourceFolderName: pill.sourceFolderName ?? serverPage.folderName ?? "a parent folder",
+      })),
+    [inheritedPills, serverPage.folderName]
+  );
+
   const linkedProjects = initialActiveProjects.filter((p) => linkedProjectIds.includes(p.id));
-  const unlinkableProjects = initialActiveProjects.filter((p) => !linkedProjectIds.includes(p.id));
 
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
 
+  // Breadcrumb from the page's primary (first) project link plus its (global,
+  // project-independent) folder. The page can be linked to several projects; the
+  // chips row below shows the full set, so the breadcrumb just anchors the
+  // primary project. The folder is page-level now (Phase 21), so it renders
+  // independent of any project link.
+  const primaryLink = serverPage.projects[0] ?? null;
+  const primaryProject = primaryLink
+    ? initialActiveProjects.find((p) => p.id === primaryLink.id)
+    : undefined;
+
+  // Full folder ancestry (root first) for the breadcrumb: walk parentId from the
+  // page's folder up to the root via `allFolders`, then reverse so the path
+  // reads top-down. Cycle-safe with a visited guard against a corrupt chain.
+  const folderPath = useMemo(() => {
+    if (!serverPage.folderId) return [] as { id: string; name: string }[];
+    const byId = new Map(allFolders.map((f) => [f.id, f]));
+    const chain: { id: string; name: string }[] = [];
+    const visited = new Set<string>();
+    let current: string | null = serverPage.folderId;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      const node = byId.get(current);
+      if (!node) break;
+      chain.push({ id: node.id, name: node.name });
+      current = node.parentId;
+    }
+    return chain.reverse();
+  }, [serverPage.folderId, allFolders]);
+
   return (
-    <div className="flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full">
-      {/* Top bar: saved indicator + delete */}
-      <div className="flex items-center justify-end gap-2 h-6">
+    <div
+      data-page-island
+      className="relative flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full"
+    >
+      {searchOpen && (
+        <PageSearchBar
+          query={search.query}
+          onQueryChange={search.setQuery}
+          total={search.total}
+          current={search.current}
+          onNext={search.next}
+          onPrev={search.prev}
+          onClose={closeSearch}
+        />
+      )}
+
+      {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page */}
+      <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="hover:text-[var(--ink)] transition-colors cursor-pointer"
+        >
+          Wiki
+        </button>
+        {primaryProject?.areaName && (
+          <>
+            <span className="opacity-50">/</span>
+            <span>{primaryProject.areaName}</span>
+          </>
+        )}
+        {primaryLink && (
+          <>
+            <span className="opacity-50">/</span>
+            <button
+              type="button"
+              onClick={() => router.push(`/projects/${primaryLink.id}`)}
+              className="bg-[var(--surface)] border border-[var(--edge)] text-[var(--ink)] px-1.5 py-0.5 rounded-sm hover:border-[var(--ink-muted)] transition-colors cursor-pointer truncate max-w-[200px]"
+            >
+              {primaryLink.name}
+            </button>
+          </>
+        )}
+        {/* Full folder ancestry path, root first. */}
+        {folderPath.map((folder) => (
+          <span key={folder.id} className="flex items-center gap-1">
+            <span className="opacity-50">/</span>
+            <span className="truncate max-w-[180px]">{folder.name}</span>
+          </span>
+        ))}
+        {/* Current page is the final, non-link segment. */}
+        <span className="opacity-50">/</span>
+        <span className="text-[var(--ink)] truncate max-w-[200px]">{title || "Untitled page"}</span>
+      </nav>
+
+      {/* Sticky per-doc nav bar: saved indicator + export, hide-receipts, delete.
+          Pinned top-right, opaque canvas background so body content scrolling
+          under it stays hidden. */}
+      <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-sm border border-[var(--edge)] bg-[var(--canvas)] px-2 py-1">
         {showSaved && (
-          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in">
+          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in mr-0.5">
             <Check size={11} strokeWidth={2} />
             Saved
           </span>
         )}
+
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-pressed={searchOpen}
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            searchOpen ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+          title="Find in page"
+        >
+          <Search size={13} strokeWidth={1.5} />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          className="p-1.5 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+          title="Export as Markdown"
+        >
+          <Download size={13} strokeWidth={1.5} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setHideReceipts((v) => !v)}
+          aria-pressed={hideReceipts}
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            hideReceipts ? "text-[var(--ink)]" : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          }`}
+          title={hideReceipts ? "Show JARVIS receipts" : "Hide JARVIS receipts"}
+        >
+          {hideReceipts ? (
+            <EyeOff size={13} strokeWidth={1.5} />
+          ) : (
+            <Eye size={13} strokeWidth={1.5} />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleToggleNoExport}
+          aria-pressed={noExport}
+          aria-label={
+            noExport
+              ? "Include in JARVIS knowledge graph"
+              : "Exclude from JARVIS knowledge graph"
+          }
+          className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
+            noExport ? "text-[var(--ink-muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"
+          }`}
+          title={
+            noExport
+              ? "Excluded from JARVIS knowledge graph (click to include)"
+              : "Included in JARVIS knowledge graph (click to exclude)"
+          }
+        >
+          {noExport ? (
+            <GlobeLock size={13} strokeWidth={1.5} />
+          ) : (
+            <Globe size={13} strokeWidth={1.5} />
+          )}
+        </button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -306,17 +678,47 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
         {/* Inline title */}
         <input
-          ref={titleInputRef}
+          ref={titleRef}
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
-          onKeyDown={handleTitleKeyDown}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              editorFocusRef.current?.();
+            }
+          }}
           placeholder="Untitled page"
           className="flex-1 text-[22px] font-serif font-medium text-[var(--ink)] bg-transparent border-none outline-none placeholder:text-[var(--ink-muted)] placeholder:font-serif placeholder:font-medium"
         />
       </div>
 
-      {/* Project links row */}
+      {/* Daily Page badge + process button (Phase 30, WIKI-DAILY-03/04). Only
+          Daily Pages (daily_date IS NOT NULL) surface these. */}
+      {isDailyPage && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+            <CalendarDays size={11} strokeWidth={1.75} />
+            Daily Page
+          </span>
+          <button
+            type="button"
+            onClick={handleProcessDailyPage}
+            disabled={processing}
+            title="Run the whole page through JARVIS to extract tasks, events, and captures"
+            className="glass-button inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {processing ? (
+              <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} strokeWidth={1.75} />
+            )}
+            <span>{processing ? "Processing…" : "Process this page"}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Project links + folder row */}
       <div className="flex flex-wrap items-center gap-2">
         {linkedProjects.map((proj) => (
           <span
@@ -334,35 +736,30 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             </button>
           </span>
         ))}
-        <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] border border-dashed border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
-            >
-              <Plus size={10} strokeWidth={2} />
-              Link project
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-2 flex flex-col gap-1" align="start">
-            {unlinkableProjects.length === 0 ? (
-              <p className="px-2 py-1 text-[12px] font-mono text-[var(--ink-muted)]">
-                All projects linked
-              </p>
-            ) : (
-              unlinkableProjects.map((proj) => (
-                <button
-                  key={proj.id}
-                  type="button"
-                  onClick={() => handleLinkProject(proj.id)}
-                  className="w-full text-left px-2 py-1.5 text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] rounded-sm transition-colors duration-100 cursor-pointer truncate"
-                >
-                  {proj.name}
-                </button>
-              ))
-            )}
-          </PopoverContent>
-        </Popover>
+        {/* Inherited links: read-only, no remove control (Phase 24). */}
+        {inheritedLinks.map((link) => (
+          <span
+            key={`inherited-${link.projectId}`}
+            title={`Inherited from ${link.sourceFolderName}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-[12px] font-mono italic text-[var(--ink-muted)] border border-dashed border-[var(--edge)] opacity-70"
+          >
+            <Lock size={10} strokeWidth={1.5} />
+            {projectNameById.get(link.projectId) ?? "Project"}
+            <span className="text-[10px]">from {link.sourceFolderName}</span>
+          </span>
+        ))}
+        <ProjectLinker
+          areas={areas}
+          selectedProjectIds={linkedProjectIds}
+          inheritedLinks={inheritedLinks}
+          onToggle={handleToggleProject}
+        />
+        <FolderPicker
+          folders={allFolders}
+          currentFolderId={serverPage.folderId}
+          onPick={handlePickFolder}
+          onCreate={handleCreateFolder}
+        />
       </div>
 
       {/* Last edited */}
@@ -377,9 +774,12 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           initialMarkdown={serverPage.content}
           theme={colorMode}
           onChange={handleEditorChange}
-          onEditorReady={(editor) => {
-            bodyEditorRef.current = editor;
-          }}
+          pageId={initialPage.id}
+          userId={userId}
+          hideReceipts={hideReceipts}
+          focusRef={editorFocusRef}
+          containerRef={editorContainerRef}
+          onEditorReady={handleEditorReady}
         />
       </div>
     </div>

@@ -19,7 +19,7 @@
 import { z } from "zod";
 
 /** Bump this when the Node / Edge / ContextSnapshot shape evolves. */
-export const CURRENT_SCHEMA_VERSION = 2 as const;
+export const CURRENT_SCHEMA_VERSION = 3 as const;
 
 /* ─── Node discriminated union (v1) ───────────────────────────────────── */
 
@@ -92,7 +92,13 @@ export const NodeSchema = z.discriminatedUnion("type", [
     title: z.string(),
     content: z.string(),
     emoji: z.string().nullable(),
+    // EFFECTIVE project set: the page's own direct links UNION the project set
+    // inherited from its ancestor folders (Phase 29).
     projectIds: z.array(z.string().uuid()),
+    // Folder placement (null when unfiled) and the root-first folder path names
+    // that lead to the page (empty array when unfiled). Phase 29.
+    folderId: z.string().uuid().nullable(),
+    folderPath: z.array(z.string()),
     createdAt: z.string(),
     updatedAt: z.string(),
     summary: z.string().optional(),
@@ -121,6 +127,11 @@ export const EdgeSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("page_in_project"),
+    from: z.string().uuid(),
+    to: z.string().uuid(),
+  }),
+  z.object({
+    type: z.literal("page_in_folder"),
     from: z.string().uuid(),
     to: z.string().uuid(),
   }),

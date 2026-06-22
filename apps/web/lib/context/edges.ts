@@ -57,6 +57,9 @@ export function deriveEdges(input: {
     for (const pid of page.projectIds) {
       edges.push({ type: "page_in_project", from: page.id, to: pid });
     }
+    if (page.folderId) {
+      edges.push({ type: "page_in_folder", from: page.id, to: page.folderId });
+    }
   }
 
   for (const f of input.facts) {

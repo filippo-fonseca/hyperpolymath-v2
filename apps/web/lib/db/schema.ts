@@ -12,9 +12,11 @@ import {
   primaryKey,
   check,
   index,
+  unique,
   uniqueIndex,
   jsonb,
   customType,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
 import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
@@ -293,13 +295,74 @@ export const pages = pgTable(
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
     // this page is filtered out of the personal-context snapshot.
     noExport: boolean("no_export").notNull().default(false),
+    // Phase 21 (migration 0034) — direct folder placement. A page lives in at
+    // most one folder, globally (not per project-link). NULL = standalone.
+    // ON DELETE SET NULL reparents the page to standalone when its folder is gone.
+    folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
+    // Phase 30 (migration 0035) — Daily Pages. NULL = a normal page; a non-NULL
+    // calendar date (yyyy-MM-dd) marks this as the user's Daily Page for that day.
+    // The partial unique index below enforces exactly one Daily Page per user per
+    // day, leaving normal pages (daily_date IS NULL) unconstrained.
+    dailyDate: date("daily_date"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("pages_user_updated_desc_idx").on(t.userId, sql`updated_at DESC`),
+    index("pages_folder_idx").on(t.folderId),
+    // One Daily Page per user per day (Phase 30). Partial: only rows with a
+    // non-NULL daily_date participate, so normal pages are never constrained.
+    uniqueIndex("pages_user_daily_date_uniq")
+      .on(t.userId, t.dailyDate)
+      .where(sql`daily_date IS NOT NULL`),
   ],
 );
+
+// Wiki folders (migration 0033 + 0034) — project-independent, arbitrarily
+// nestable. parent_id is a nullable self-FK (NULL = root folder); deleting a
+// parent cascades its subtree (Phase 21 locked decision 4). project_id was
+// dropped in 0034 — folder->project links now live in the folderProjects
+// junction (M:N), and a page's folder placement lives on pages.folderId.
+export const pageFolders = pgTable("page_folders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // Nullable self-FK for arbitrary-depth nesting. Lazy thunk avoids the circular
+  // reference at module init; the AnyPgColumn annotation on the thunk breaks the
+  // implicit-any type cycle Drizzle hits on self-references. ON DELETE CASCADE
+  // deletes the whole subtree.
+  parentId: uuid("parent_id").references((): AnyPgColumn => pageFolders.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("page_folders_parent_idx").on(t.parentId),
+  index("page_folders_user_idx").on(t.userId),
+]);
+
+// folder_projects (migration 0034) — M:N folder->project links. user_id is
+// denormalized for RLS (same pattern as pages_projects). ON DELETE CASCADE on
+// both FKs. UNIQUE (folder_id, project_id) — a folder links a project at most
+// once (Phase 21 locked decision 6).
+export const folderProjects = pgTable("folder_projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  folderId: uuid("folder_id")
+    .notNull()
+    .references(() => pageFolders.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized for RLS
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  unique("folder_projects_folder_project_key").on(t.folderId, t.projectId),
+  index("folder_projects_project_idx").on(t.projectId),
+  index("folder_projects_user_idx").on(t.userId),
+]);
 
 export const pagesProjects = pgTable("pages_projects", {
   pageId: uuid("page_id")
