@@ -24,13 +24,34 @@ import type {
   CaptureSnapshot,
 } from "@/app/actions/jarvis";
 
-/** The minimal action shape this mapper needs (subset of ScrollbackAction). */
+/**
+ * The minimal action shape this mapper needs. `result` is intentionally
+ * `unknown` so BOTH callers fit without a cast:
+ *   - the console's ScrollbackAction (`result: {ok,id,receipt} | {ok:false,…}`),
+ *   - the in-document InDocumentAction (`result: unknown` straight off the SSE).
+ * The shape is narrowed at runtime below before any field is read.
+ */
 export interface UndoableActionLike {
   name: string;
-  result?:
-    | { ok: true; id: string; receipt: Record<string, unknown> }
-    | { ok: false; error: string; kind?: string }
-    | undefined;
+  result?: unknown;
+}
+
+/** A successfully-executed action result, the only shape we can invert. */
+interface OkResult {
+  ok: true;
+  id: string;
+  receipt?: Record<string, unknown>;
+}
+
+function asOkResult(result: unknown): OkResult | null {
+  if (typeof result !== "object" || result === null) return null;
+  const r = result as { ok?: unknown; id?: unknown; receipt?: unknown };
+  if (r.ok !== true || typeof r.id !== "string") return null;
+  const receipt =
+    typeof r.receipt === "object" && r.receipt !== null
+      ? (r.receipt as Record<string, unknown>)
+      : {};
+  return { ok: true, id: r.id, receipt };
 }
 
 /**
@@ -40,9 +61,10 @@ export interface UndoableActionLike {
  */
 export function actionToUndoTarget(action: UndoableActionLike): UndoTarget | null {
   // Queued placeholders / failed actions have nothing to invert.
-  if (!action.result || !action.result.ok) return null;
-  const id = action.result.id;
-  const receipt = action.result.receipt ?? {};
+  const okResult = asOkResult(action.result);
+  if (!okResult) return null;
+  const id = okResult.id;
+  const receipt = okResult.receipt ?? {};
 
   switch (action.name) {
     case "create_task":
