@@ -8,6 +8,7 @@ import { readSplitScreen } from '@/lib/ui/useSplitScreen';
 const JARVIS_PATH = '/today';
 const FALLBACK_LEFT_PATH = '/lifeos';
 const TAB_STORAGE_KEY = 'top-tab-last-route';
+const TODAY_ROUTE_KEY = 'top-tab-today-route';
 
 /**
  * Phase 6 Plan 06-03: global Cmd+K listener (AES-05, D-02, UI-SPEC §11c).
@@ -32,10 +33,10 @@ export function GlobalHotkeys() {
         return;
       }
 
-      // Ctrl+1 / Ctrl+2 → tab swap. Not Cmd — browsers claim Cmd+digit on Mac.
-      // Skip Alt and Shift to avoid hijacking native browser combos.
+      // Ctrl+1 / Ctrl+2 / Ctrl+3 → tab swap. Not Cmd — browsers claim Cmd+digit
+      // on Mac. Skip Alt and Shift to avoid hijacking native browser combos.
       if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-      if (e.key !== '1' && e.key !== '2') return;
+      if (e.key !== '1' && e.key !== '2' && e.key !== '3') return;
 
       // Skip when typing — let inputs see the digit.
       const target = e.target as HTMLElement | null;
@@ -53,7 +54,15 @@ export function GlobalHotkeys() {
       if (readSplitScreen()) return;
 
       e.preventDefault();
-      if (e.key === '2') {
+      if (e.key === '3') {
+        // Pinned Today tab — only acts when a daily page exists for today.
+        try {
+          const todayRoute = localStorage.getItem(TODAY_ROUTE_KEY);
+          if (todayRoute && todayRoute !== pathname) router.push(todayRoute);
+        } catch {
+          // ignore
+        }
+      } else if (e.key === '2') {
         router.push(JARVIS_PATH);
       } else {
         let dest: string = FALLBACK_LEFT_PATH;

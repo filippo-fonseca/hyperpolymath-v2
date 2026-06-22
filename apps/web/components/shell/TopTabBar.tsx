@@ -1,12 +1,14 @@
 "use client";
 
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { useTodayDailyPage } from "@/lib/pages/useTodayDailyPage";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { cn } from "@/lib/utils";
 import {
   BarChart2,
   BookOpen,
   Calendar,
+  CalendarDays,
   CheckSquare,
   Columns2,
   Dumbbell,
@@ -27,6 +29,9 @@ import { useEffect, useState } from "react";
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
 const STORAGE_KEY = "top-tab-last-route";
+// Mirror of today's daily-page route, written here so GlobalHotkeys can route
+// Ctrl+3 to it without re-querying.
+const TODAY_ROUTE_KEY = "top-tab-today-route";
 
 const ROUTE_META: Record<
   string,
@@ -90,12 +95,19 @@ function metaForPath(pathname: string): {
  * Keyboard shortcuts (handled in GlobalHotkeys, NOT here):
  *   Ctrl+1 → left tab · Ctrl+2 → JARVIS. Both no-op while split-screen is on.
  */
-export function TopTabBar() {
+export function TopTabBar({ userId }: { userId: string }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { splitOn, setSplitOn } = useSplitScreen();
+  const { today } = useTodayDailyPage(userId);
 
   const [lastRoute, setLastRoute] = useState<string>(FALLBACK_LEFT_PATH);
+
+  // Today's daily page is a pinned tab (issue #92, part 3). It sits outside the
+  // dynamic left/JARVIS swap pair, so — like JARVIS — its route must not be
+  // remembered as the "last left route" or the two would collapse onto one tab.
+  const todayPath = today ? `/wiki/${today.id}` : null;
+  const onToday = todayPath !== null && pathname === todayPath;
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -103,14 +115,25 @@ export function TopTabBar() {
   }, []);
 
   useEffect(() => {
-    if (pathname && pathname !== JARVIS_PATH) {
+    if (pathname && pathname !== JARVIS_PATH && pathname !== todayPath) {
       setLastRoute(pathname);
       localStorage.setItem(STORAGE_KEY, pathname);
     }
-  }, [pathname]);
+  }, [pathname, todayPath]);
+
+  // Expose today's route to GlobalHotkeys (Ctrl+3) via the same localStorage
+  // bridge the left tab uses.
+  useEffect(() => {
+    try {
+      if (todayPath) localStorage.setItem(TODAY_ROUTE_KEY, todayPath);
+      else localStorage.removeItem(TODAY_ROUTE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [todayPath]);
 
   const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
-  const leftPath = onJarvis ? lastRoute : pathname || FALLBACK_LEFT_PATH;
+  const leftPath = onJarvis || onToday ? lastRoute : pathname || FALLBACK_LEFT_PATH;
   const leftMeta = metaForPath(leftPath);
   const LeftIcon = leftMeta.icon;
 
@@ -139,9 +162,20 @@ export function TopTabBar() {
       className="relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
       style={{ minHeight: 40 }}
     >
+      {todayPath && (
+        <TabPill
+          href={todayPath}
+          active={onToday && !splitOn}
+          accent={false}
+          label="Today"
+          icon={<CalendarDays size={13} strokeWidth={1.75} />}
+          kbd="⌃3"
+        />
+      )}
+
       <TabPill
         href={leftPath}
-        active={!onJarvis && !splitOn}
+        active={!onJarvis && !onToday && !splitOn}
         accent={false}
         label={leftMeta.label}
         icon={<LeftIcon size={13} strokeWidth={1.75} />}

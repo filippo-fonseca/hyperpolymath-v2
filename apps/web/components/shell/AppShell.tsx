@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
+import { DailyAutoOpen } from "./DailyAutoOpen";
 import { JarvisSidePanel } from "./JarvisSidePanel";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
@@ -100,7 +101,8 @@ export function AppShell({
         )}
       </AnimatePresence>
       <main className="flex flex-1 flex-col overflow-hidden">
-        <TopTabBar />
+        <DailyAutoOpen userId={userId} />
+        <TopTabBar userId={userId} />
         <div className="flex flex-1 overflow-hidden">
           <div className="@container/main flex-1 overflow-auto">{children}</div>
           {showPanel && (
