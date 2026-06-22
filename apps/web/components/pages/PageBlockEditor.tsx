@@ -4,6 +4,15 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/shadcn/style.css";
 import "./page-block-editor.css";
 
+import { undoJarvisAction } from "@/app/actions/jarvis";
+import { resolveOrCreatePerson } from "@/app/actions/people";
+import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import type { PersonWithStats } from "@/lib/db/queries/people";
+import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
+import { JARVIS_ALIASES, JARVIS_LABEL, hasPromptBody } from "@/lib/jarvis/at-trigger";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
+import { type InDocumentAction, invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import {
   type BlockNoteEditor,
   BlockNoteSchema,
@@ -20,34 +29,15 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 import { useQueryClient } from "@tanstack/react-query";
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
-import {
-  JARVIS_ALIASES,
-  JARVIS_LABEL,
-  hasPromptBody,
-} from "@/lib/jarvis/at-trigger";
-import {
-  type InDocumentAction,
-  invokeInDocumentJarvis,
-} from "@/lib/jarvis/invoke-in-document";
-import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
-import { undoJarvisAction } from "@/app/actions/jarvis";
-import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   JARVIS_RECEIPT_TYPE,
   type JarvisPillProps,
   JarvisPillProvider,
   jarvisReceiptInlineSpec,
 } from "./JarvisReceiptInline";
-import { resolveOrCreatePerson } from "@/app/actions/people";
-import type { PersonWithStats } from "@/lib/db/queries/people";
-import {
-  PERSON_MENTION_TYPE,
-  personMentionInlineSpec,
-} from "./PersonMentionInline";
+import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInline";
 
 // Notion-style callout: a leading emoji plus editable inline content on a
 // tinted surface. Not a standard markdown block — it degrades to its inner
@@ -119,7 +109,7 @@ const SLASH_SHORTHAND: Record<string, string[]> = {
  * aliases so the defaults keep working untouched.
  */
 function withSlashShorthand<T extends { title: string; aliases?: readonly string[] }>(
-  items: T[],
+  items: T[]
 ): T[] {
   return items.map((item) => {
     const extra = SLASH_SHORTHAND[item.title.toLowerCase()];
@@ -279,10 +269,7 @@ export default function PageBlockEditor({
             type?: string;
             props?: JarvisPillProps;
           };
-          if (
-            c?.type !== JARVIS_RECEIPT_TYPE ||
-            c.props?.status !== "prompt"
-          ) {
+          if (c?.type !== JARVIS_RECEIPT_TYPE || c.props?.status !== "prompt") {
             continue;
           }
           promptPillCount++;
@@ -295,7 +282,7 @@ export default function PageBlockEditor({
       // Only trust the fallback when it is unambiguous (a single prompt pill).
       return promptPillCount === 1 ? fallback : null;
     },
-    [editor],
+    [editor]
   );
 
   /** Update a pill's props in place by walking the block's content array. */
@@ -303,7 +290,7 @@ export default function PageBlockEditor({
     (
       blockId: string,
       pillIndex: number,
-      props: { status?: string; summary?: string; turnId?: string; prompt?: string },
+      props: { status?: string; summary?: string; turnId?: string; prompt?: string }
     ) => {
       const block = editor.document.find((b) => b.id === blockId);
       if (!block || !Array.isArray(block.content)) return;
@@ -318,7 +305,7 @@ export default function PageBlockEditor({
         content: nextContent as unknown as PartialBlock["content"],
       });
     },
-    [editor],
+    [editor]
   );
 
   /**
@@ -342,9 +329,7 @@ export default function PageBlockEditor({
       void (async () => {
         try {
           const result = await invokeInDocumentJarvis({
-            editor: editor as unknown as Parameters<
-              typeof invokeInDocumentJarvis
-            >[0]["editor"],
+            editor: editor as unknown as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
             cursorBlockId: blockId,
             prompt,
             pageId,
@@ -370,7 +355,7 @@ export default function PageBlockEditor({
         }
       })();
     },
-    [editor, locatePromptPill, pageId, updatePill],
+    [editor, locatePromptPill, pageId, updatePill]
   );
 
   /**
@@ -422,13 +407,13 @@ export default function PageBlockEditor({
       }
       return anyReversed;
     },
-    [queryClient, userId],
+    [queryClient, userId]
   );
 
   // The seam the pill's editable input + receipt undo call into.
   const pillContextValue = useMemo(
     () => ({ submit: submitPill, undo: undoTurn, isUndoable: isTurnUndoable }),
-    [submitPill, undoTurn, isTurnUndoable],
+    [submitPill, undoTurn, isTurnUndoable]
   );
 
   // Notion-style "click anywhere to write": a click that lands on the empty
@@ -508,11 +493,11 @@ export default function PageBlockEditor({
             getItems={async (query) => {
               const base = filterSuggestionItems(
                 [jarvisAtItem(editor), ...peopleAtItems(editor, people)],
-                query,
+                query
               );
               const trimmed = query.trim();
               const exact = people.some(
-                (person) => person.name.toLowerCase() === trimmed.toLowerCase(),
+                (person) => person.name.toLowerCase() === trimmed.toLowerCase()
               );
               if (trimmed.length > 0 && !exact) {
                 base.push(createPersonAtItem(editor, trimmed, onPersonCreated));
@@ -552,17 +537,11 @@ function jarvisAtItem(editor: Editor): DefaultReactSuggestionItem {
 /** Insert a person mention pill at the cursor, plus a trailing space so the
  * cursor can leave the atom and continue typing cleanly. */
 function insertPersonMention(editor: Editor, personId: string, name: string) {
-  editor.insertInlineContent([
-    { type: PERSON_MENTION_TYPE, props: { personId, name } },
-    " ",
-  ]);
+  editor.insertInlineContent([{ type: PERSON_MENTION_TYPE, props: { personId, name } }, " "]);
 }
 
 /** One `@` menu item per existing person. Selecting it inserts the mention. */
-function peopleAtItems(
-  editor: Editor,
-  people: PersonWithStats[],
-): DefaultReactSuggestionItem[] {
+function peopleAtItems(editor: Editor, people: PersonWithStats[]): DefaultReactSuggestionItem[] {
   return people.map((person) => ({
     title: person.name,
     subtext: person.email ?? undefined,
@@ -578,7 +557,7 @@ function peopleAtItems(
 function createPersonAtItem(
   editor: Editor,
   query: string,
-  onPersonCreated?: () => void,
+  onPersonCreated?: () => void
 ): DefaultReactSuggestionItem {
   return {
     title: `Create "${query}"`,

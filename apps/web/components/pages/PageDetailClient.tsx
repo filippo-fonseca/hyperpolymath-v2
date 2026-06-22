@@ -13,6 +13,7 @@ import {
   setPageNoExport,
   updatePage,
 } from "@/app/actions/pages";
+import { getPeopleForCurrentUser, reconcilePersonReferences } from "@/app/actions/people";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,23 +27,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
+import type { PersonWithStats } from "@/lib/db/queries/people";
+import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import {
-  buildPageProjectPills,
   type FolderProjectLink,
   type FolderRow,
   type FolderWithProjects,
+  buildPageProjectPills,
   getEffectiveProjectIds,
 } from "@/lib/pages/folder-projects";
-import {
-  downloadTextFile,
-  pageToMarkdown,
-  safeFileName,
-} from "@/lib/pages/markdown-export";
+import { downloadTextFile, pageToMarkdown, safeFileName } from "@/lib/pages/markdown-export";
 import { useInPageSearch } from "@/lib/pages/useInPageSearch";
+import { extractPersonIdsFromBlockNote } from "@/lib/people/extract-mentions";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
-import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -133,6 +132,25 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     initialData: [] as FolderProjectLink[],
   });
 
+  // People feed the `@`-mention menu in the editor; people_references keeps the
+  // mention counts live. Mirrors PeopleClient's query + dual subscription so the
+  // menu reflects inline-created people (and external edits) without a reload.
+  const { data: people = [] } = useQuery({
+    queryKey: tableKey("people", userId),
+    queryFn: getPeopleForCurrentUser,
+    initialData: [] as PersonWithStats[],
+  });
+  useTableSubscription("people", userId);
+  useTableSubscription("people_references", userId, {
+    alsoInvalidate: [tableKey("people", userId)],
+  });
+
+  // After the `@` menu inline-creates a person, refetch so it's mentionable
+  // again immediately (the create lands before Realtime echoes the new row).
+  const refreshPeople = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: tableKey("people", userId) });
+  }, [queryClient, userId]);
+
   const serverPage = allPages.find((p) => p.id === initialPage.id) ?? initialPage;
 
   // Local edit state. `content` is the markdown mirror; `contentJson` is the
@@ -202,8 +220,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
         cursorBlockId: null,
         scopeOverride: "page",
-        prompt:
-          "Process this daily page: extract tasks, events, and captures and create them.",
+        prompt: "Process this daily page: extract tasks, events, and captures and create them.",
         pageId: initialPage.id,
       });
       const summary =
@@ -212,10 +229,9 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           : result.text.trim() || "Nothing to add — your day looks set.";
       toast.success(summary, { id: pending });
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Could not process the page.",
-        { id: pending },
-      );
+      toast.error(err instanceof Error ? err.message : "Could not process the page.", {
+        id: pending,
+      });
     } finally {
       setProcessing(false);
     }
@@ -249,13 +265,23 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         projectIds: string[];
       }>
     ) => {
+      const savedJson =
+        overrides && "contentJson" in overrides ? overrides.contentJson : contentJson;
       await updatePage({
         id: initialPage.id,
         title: overrides?.title ?? title,
         content: overrides?.content ?? content,
-        contentJson: overrides && "contentJson" in overrides ? overrides.contentJson : contentJson,
+        contentJson: savedJson,
         emoji: overrides?.emoji !== undefined ? overrides.emoji : emoji,
         projectIds: overrides?.projectIds !== undefined ? overrides.projectIds : linkedProjectIds,
+      });
+      // Keep people_references in sync with the page's @-mentions on the same
+      // (debounced) cadence as the content save. Idempotent: it diffs the
+      // desired ids against the stored rows, so unchanged content is a no-op.
+      await reconcilePersonReferences({
+        fromType: "page",
+        fromId: initialPage.id,
+        personIds: extractPersonIdsFromBlockNote(savedJson),
       });
       setSavedAt(new Date());
       setShowSaved(true);
@@ -404,7 +430,8 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     if (!serverPage.folderId) return [];
     const folderMap = new Map<string, FolderWithProjects>();
     for (const f of allFolders) folderMap.set(f.id, { ...f, ownProjectIds: [] });
-    for (const link of folderLinks) folderMap.get(link.folderId)?.ownProjectIds.push(link.projectId);
+    for (const link of folderLinks)
+      folderMap.get(link.folderId)?.ownProjectIds.push(link.projectId);
     const folderEffectiveProjectIds = getEffectiveProjectIds(serverPage.folderId, folderMap);
     return buildPageProjectPills({
       directProjectIds: linkedProjectIds,
@@ -564,9 +591,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           onClick={handleToggleNoExport}
           aria-pressed={noExport}
           aria-label={
-            noExport
-              ? "Include in JARVIS knowledge graph"
-              : "Exclude from JARVIS knowledge graph"
+            noExport ? "Include in JARVIS knowledge graph" : "Exclude from JARVIS knowledge graph"
           }
           className={`p-1.5 rounded-sm transition-colors duration-150 cursor-pointer hover:bg-[var(--surface)] ${
             noExport ? "text-[var(--ink-muted)] hover:text-[var(--ink)]" : "text-[var(--ink)]"
@@ -780,6 +805,8 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           focusRef={editorFocusRef}
           containerRef={editorContainerRef}
           onEditorReady={handleEditorReady}
+          people={people}
+          onPersonCreated={refreshPeople}
         />
       </div>
     </div>
