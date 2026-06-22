@@ -775,6 +775,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           theme={colorMode}
           onChange={handleEditorChange}
           pageId={initialPage.id}
+          userId={userId}
           hideReceipts={hideReceipts}
           focusRef={editorFocusRef}
           containerRef={editorContainerRef}

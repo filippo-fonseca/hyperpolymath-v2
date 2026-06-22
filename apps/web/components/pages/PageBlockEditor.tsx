@@ -21,14 +21,21 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
+import { useQueryClient } from "@tanstack/react-query";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import {
   JARVIS_ALIASES,
   JARVIS_LABEL,
   hasPromptBody,
 } from "@/lib/jarvis/at-trigger";
-import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import {
+  type InDocumentAction,
+  invokeInDocumentJarvis,
+} from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import { undoJarvisAction } from "@/app/actions/jarvis";
+import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
 import {
   JARVIS_RECEIPT_TYPE,
   type JarvisPillProps,
@@ -140,6 +147,12 @@ interface Props {
   onChange: (json: unknown, markdown: string) => void;
   /** The page id, forwarded to the in-document JARVIS seam. */
   pageId: string;
+  /**
+   * The authenticated user id. Used after an in-document undo to invalidate the
+   * TanStack Query keys the reversed actions touch (tasks/captures/calendar),
+   * mirroring the console — purely additive over the Realtime echo.
+   */
+  userId: string;
   /** When true, resolved receipt pills are hidden in-doc (JDOC-UX-06). */
   hideReceipts?: boolean;
   /** Parent-owned ref populated with a "focus the body" fn (Enter-from-title). */
@@ -164,6 +177,7 @@ export default function PageBlockEditor({
   theme,
   onChange,
   pageId,
+  userId,
   hideReceipts = false,
   focusRef,
   containerRef,
@@ -173,6 +187,17 @@ export default function PageBlockEditor({
     schema,
     initialContent: normalizeInitial(initialContentJson),
   });
+
+  const queryClient = useQueryClient();
+
+  // Executed actions per resolved turn, keyed by turnId. Populated when a turn
+  // resolves (submitPill success) so the receipt pill's 5s undo can invert the
+  // SAME actions the console would, via the SAME server path. Held in a ref —
+  // it's read on demand by the undo handler and never needs to trigger a render
+  // (the pill re-reads via isUndoable on the next render after props change).
+  // The undone set tracks turns already reversed so a double-click is a no-op.
+  const turnActionsRef = useRef<Map<string, InDocumentAction[]>>(new Map());
+  const undoneTurnsRef = useRef<Set<string>>(new Set());
 
   // Expose the live editor to the parent (Phase 30). Done in an effect so the
   // parent only ever sees the editor after mount, and gets a null on cleanup.
@@ -305,6 +330,11 @@ export default function PageBlockEditor({
             pageId,
           });
           const summary = formatReceiptSummary(result.actions);
+          // Stash the executed actions so the receipt pill's 5s undo can invert
+          // them via the shared server path. Keyed by the persisted turnId.
+          if (result.turnId) {
+            turnActionsRef.current.set(result.turnId, result.actions);
+          }
           updatePill(blockId, pillIndex, {
             status: "receipt",
             summary,
@@ -323,10 +353,62 @@ export default function PageBlockEditor({
     [editor, locatePromptPill, pageId, updatePill],
   );
 
-  // The seam the pill's editable input calls on Cmd/Ctrl+Enter.
+  /**
+   * Does this resolved turn have any reversible action? Same capability gate
+   * the console applies: an action is undoable iff actionToUndoTarget returns a
+   * non-null target (create/update/delete with the needed before/snapshot).
+   * Already-undone turns report false so the affordance won't re-appear.
+   */
+  const isTurnUndoable = useCallback((turnId: string): boolean => {
+    if (undoneTurnsRef.current.has(turnId)) return false;
+    const actions = turnActionsRef.current.get(turnId);
+    if (!actions || actions.length === 0) return false;
+    return actions.some((a) => actionToUndoTarget(a) !== null);
+  }, []);
+
+  /**
+   * Reverse a resolved in-document turn's executed actions — the SAME 5s
+   * universal undo the console offers (Phase 16). For each action we build its
+   * UndoTarget via the shared mapper and call the SAME server action the
+   * console uses (undoJarvisAction → undoJarvisActionForUser). This never
+   * touches the in-flight request: the turn has already completed and persisted
+   * by the time a receipt (and thus this affordance) exists. We only invert the
+   * results. Returns true if at least one action was reversed.
+   */
+  const undoTurn = useCallback(
+    async (turnId: string): Promise<boolean> => {
+      if (undoneTurnsRef.current.has(turnId)) return true;
+      const actions = turnActionsRef.current.get(turnId);
+      if (!actions || actions.length === 0) return false;
+
+      // Mark undone up-front so a second click (or a re-render) is a no-op.
+      undoneTurnsRef.current.add(turnId);
+
+      let anyReversed = false;
+      for (const action of actions) {
+        const target = actionToUndoTarget(action);
+        if (!target) continue;
+        const res = await undoJarvisAction(target);
+        if (res.ok) {
+          anyReversed = true;
+          // Refresh the lists the reversed action touched (mirrors console);
+          // additive over the Realtime echo, and required for gcal events.
+          invalidateAfterJarvisAction(queryClient, action.name, userId);
+        }
+      }
+      if (!anyReversed) {
+        // Nothing actually reversed (every inversion failed) — allow a retry.
+        undoneTurnsRef.current.delete(turnId);
+      }
+      return anyReversed;
+    },
+    [queryClient, userId],
+  );
+
+  // The seam the pill's editable input + receipt undo call into.
   const pillContextValue = useMemo(
-    () => ({ submit: submitPill }),
-    [submitPill],
+    () => ({ submit: submitPill, undo: undoTurn, isUndoable: isTurnUndoable }),
+    [submitPill, undoTurn, isTurnUndoable],
   );
 
   // Notion-style "click anywhere to write": a click that lands on the empty
