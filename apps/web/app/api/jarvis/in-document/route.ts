@@ -134,7 +134,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
 
-  void db
+  // Durable persistence (D-02): these inserts MUST commit before the response
+  // stream closes. As fire-and-forget `void` promises they were getting dropped
+  // on Vercel — the function freezes once the stream closes, so the processing
+  // turn never landed in jarvis_turns and never appeared in the JARVIS console.
+  // Capture both promises and await them before `controller.close()`.
+  const userTurnPersist = db
     .insert(jarvisTurns)
     .values({
       id: userTurnId,
@@ -155,9 +160,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let assistantText = "";
   const assistantActions: PersistedAction[] = [];
+  let assistantPersist: Promise<unknown> = Promise.resolve();
 
   function persistAssistant(status: "done" | "error", errorMessage: string | null) {
-    void db
+    assistantPersist = db
       .insert(jarvisTurns)
       .values({
         id: turnId,
@@ -243,6 +249,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         },
       });
 
+      // Ensure the turn rows are committed before we close the stream, so the
+      // JARVIS console (which loads/merges jarvis_turns) reliably sees them.
+      await Promise.allSettled([userTurnPersist, assistantPersist]);
       req.signal.removeEventListener("abort", onAbort);
       controller.close();
     },
