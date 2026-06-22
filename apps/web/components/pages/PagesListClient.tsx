@@ -50,6 +50,7 @@ interface Props {
   initialPages: PageWithProjects[];
   initialFolders: FolderRow[];
   initialFolderProjects: FolderProjectLink[];
+  initialDailyPages: DailyPageRef[];
 }
 
 /**
@@ -62,6 +63,7 @@ export function PagesListClient({
   initialPages,
   initialFolders,
   initialFolderProjects,
+  initialDailyPages,
 }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState("");
@@ -109,12 +111,12 @@ export function PagesListClient({
   });
   // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
   // "pages" realtime channel, so the subscription above already refreshes it.
-  const { data: dailyPages = [], isFetched: dailyFetched } = useQuery<
+  const { data: dailyPages = [], isSuccess: dailyReady } = useQuery<
     DailyPageRef[]
   >({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
-    initialData: [],
+    initialData: initialDailyPages,
   });
 
   // id -> display name lookups so pills render labels, not raw uuids.
@@ -233,7 +235,7 @@ export function PagesListClient({
     if (autoOpenedToday.current) return;
     if (
       !shouldAutoOpenToday({
-        dailyFetched,
+        dailyFetched: dailyReady,
         todayExists: markedDays.has(todayIso),
       })
     ) {
@@ -243,7 +245,7 @@ export function PagesListClient({
     void createAndOpen(todayIso);
     // createAndOpen is stable enough for a once-per-mount auto-open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dailyFetched, markedDays, todayIso]);
+  }, [dailyReady, markedDays, todayIso]);
 
   // The page (if any) for the currently selected calendar day.
   const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;

@@ -1,7 +1,7 @@
 import { PagesListClient } from "@/components/pages/PagesListClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getFolderProjects, getFoldersForUser } from "@/lib/db/queries/folders";
-import { getPagesForUser } from "@/lib/db/queries/pages";
+import { getDailyPagesForUser, getPagesForUser } from "@/lib/db/queries/pages";
 
 /**
  * /wiki — Wiki list (wiki-style markdown documents).
@@ -14,11 +14,12 @@ import { getPagesForUser } from "@/lib/db/queries/pages";
  */
 export default async function PagesPage() {
   const user = await requireOnboarded();
-  const [initialPages, initialFolders, initialFolderProjects] =
+  const [initialPages, initialFolders, initialFolderProjects, initialDailyPages] =
     await Promise.all([
       getPagesForUser(user.id),
       getFoldersForUser(user.id),
       getFolderProjects(user.id),
+      getDailyPagesForUser(user.id),
     ]);
 
   return (
@@ -27,6 +28,7 @@ export default async function PagesPage() {
       initialPages={initialPages}
       initialFolders={initialFolders}
       initialFolderProjects={initialFolderProjects}
+      initialDailyPages={initialDailyPages}
     />
   );
 }
