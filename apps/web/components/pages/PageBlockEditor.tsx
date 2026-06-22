@@ -20,18 +20,19 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import {
   JARVIS_ALIASES,
   JARVIS_LABEL,
   hasPromptBody,
-  normalizePrompt,
 } from "@/lib/jarvis/at-trigger";
 import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import {
   JARVIS_RECEIPT_TYPE,
+  type JarvisPillProps,
+  JarvisPillProvider,
   jarvisReceiptInlineSpec,
 } from "./JarvisReceiptInline";
 
@@ -114,11 +115,11 @@ function withSlashShorthand<T extends { title: string; aliases?: readonly string
 }
 
 /**
- * Insert a fresh @Jarvis prompt pill at the cursor (status "prompt"). The user
- * then types the instruction as normal text right after it, and Cmd+Enter
- * (handled in the wrapper keydown) submits the block's text through the seam.
- * Shared by the `@` autocomplete (JDOC-UX-01) and the `/Jarvis` slash item
- * (JDOC-UX-05).
+ * Insert a fresh @Jarvis prompt pill at the cursor (status "prompt"). The pill
+ * is itself an editable input (see JarvisReceiptInline): focus moves INTO it,
+ * the user types their message there, and Cmd/Ctrl+Enter submits it through the
+ * JarvisPillContext seam. Shared by the `@` autocomplete (JDOC-UX-01) and the
+ * `/Jarvis` slash item (JDOC-UX-05).
  */
 function insertJarvisPrompt(editor: Editor) {
   editor.insertInlineContent([
@@ -126,7 +127,8 @@ function insertJarvisPrompt(editor: Editor) {
       type: JARVIS_RECEIPT_TYPE,
       props: { prompt: "", status: "prompt", summary: "", turnId: "" },
     },
-    // A trailing space so the user's instruction text reads after the pill.
+    // A trailing space so the cursor can leave the pill afterward and the
+    // resolved receipt reads cleanly inline.
     " ",
   ]);
 }
@@ -213,31 +215,43 @@ export default function PageBlockEditor({
   }, [editor, focusRef]);
 
   /**
-   * Find the block the cursor sits in that carries a status="prompt" @Jarvis
-   * pill, plus the instruction text typed alongside it. Returns null when there
-   * is no prompt pill to submit. The instruction is the block's plain text
-   * (the pill itself contributes none, being content:"none").
+   * Locate a still-editable @Jarvis prompt pill in the document, matching the
+   * exact node props identity the pill's input handed us on submit. Returns the
+   * owning block id + the pill's index within that block's content array.
+   *
+   * We match by props identity first (the React render passes the live
+   * `props.inlineContent.props` object straight through), then fall back to the
+   * sole status="prompt" pill — there is normally at most one being edited.
    */
-  const findPromptInCursorBlock = useCallback(() => {
-    const cursor = editor.getTextCursorPosition();
-    const block = cursor?.block;
-    if (!block || !Array.isArray(block.content)) return null;
-    const pillIndex = block.content.findIndex(
-      (c) =>
-        typeof c === "object" &&
-        c !== null &&
-        "type" in c &&
-        (c as { type?: string }).type === JARVIS_RECEIPT_TYPE &&
-        (c as { props?: { status?: string } }).props?.status === "prompt",
-    );
-    if (pillIndex === -1) return null;
-    // Block text minus the pill (pill emits no text); normalize away any stray
-    // @token the user may have typed before the menu inserted the pill.
-    const blockText = (block.content as Array<{ text?: string }>)
-      .map((c) => (typeof c === "object" && c && "text" in c ? (c.text ?? "") : ""))
-      .join("");
-    return { block, pillIndex, prompt: normalizePrompt(blockText) };
-  }, [editor]);
+  const locatePromptPill = useCallback(
+    (nodeProps: JarvisPillProps) => {
+      let fallback: { blockId: string; pillIndex: number } | null = null;
+      let promptPillCount = 0;
+      for (const block of editor.document) {
+        if (!Array.isArray(block.content)) continue;
+        for (let i = 0; i < block.content.length; i++) {
+          const c = block.content[i] as {
+            type?: string;
+            props?: JarvisPillProps;
+          };
+          if (
+            c?.type !== JARVIS_RECEIPT_TYPE ||
+            c.props?.status !== "prompt"
+          ) {
+            continue;
+          }
+          promptPillCount++;
+          if (c.props === nodeProps) {
+            return { blockId: block.id, pillIndex: i };
+          }
+          if (!fallback) fallback = { blockId: block.id, pillIndex: i };
+        }
+      }
+      // Only trust the fallback when it is unambiguous (a single prompt pill).
+      return promptPillCount === 1 ? fallback : null;
+    },
+    [editor],
+  );
 
   /** Update a pill's props in place by walking the block's content array. */
   const updatePill = useCallback(
@@ -263,64 +277,56 @@ export default function PageBlockEditor({
   );
 
   /**
-   * Submit the @Jarvis prompt in the cursor's block (Cmd+Enter, JDOC-UX-03):
-   * flip the pill to loading, run invokeInDocumentJarvis (the Phase 31 seam),
-   * then transform the pill into a receipt summary (or error). The typed
-   * instruction text is cleared so only the pill remains.
+   * Submit the typed pill prompt (Cmd/Ctrl+Enter from inside the pill input,
+   * JDOC-UX-03): flip the pill to loading (so editing stops + spinner shows),
+   * run invokeInDocumentJarvis (the Phase 31 seam), then transform the pill
+   * into a receipt summary (or error). The original prompt is stashed on the
+   * pill so it survives as the hover tooltip.
    */
-  const submitPrompt = useCallback(async () => {
-    const found = findPromptInCursorBlock();
-    if (!found) return false;
-    const { block, pillIndex, prompt } = found;
-    if (!hasPromptBody(prompt)) return false;
+  const submitPill = useCallback(
+    (rawPrompt: string, nodeProps: JarvisPillProps) => {
+      const prompt = rawPrompt.trim();
+      if (!hasPromptBody(prompt)) return;
+      const located = locatePromptPill(nodeProps);
+      if (!located) return;
+      const { blockId, pillIndex } = located;
 
-    // Loading state + stash the prompt on the pill so it survives the text wipe.
-    updatePill(block.id, pillIndex, { status: "loading", prompt });
-    // Drop the typed instruction: keep only the pill in the block.
-    const pillNode = (block.content as unknown[])[pillIndex];
-    editor.updateBlock(block.id, {
-      content: [pillNode] as unknown as PartialBlock["content"],
-    });
+      // Loading state + stash the prompt so it survives as the tooltip.
+      updatePill(blockId, pillIndex, { status: "loading", prompt });
 
-    try {
-      const result = await invokeInDocumentJarvis({
-        editor: editor as unknown as Parameters<
-          typeof invokeInDocumentJarvis
-        >[0]["editor"],
-        cursorBlockId: block.id,
-        prompt,
-        pageId,
-      });
-      const summary = formatReceiptSummary(result.actions);
-      updatePill(block.id, pillIndex, {
-        status: "receipt",
-        summary,
-        turnId: result.turnId,
-        prompt,
-      });
-    } catch (err) {
-      updatePill(block.id, pillIndex, {
-        status: "error",
-        summary: err instanceof Error ? err.message : "JARVIS failed",
-        prompt,
-      });
-    }
-    return true;
-  }, [editor, findPromptInCursorBlock, pageId, updatePill]);
-
-  // Cmd/Ctrl+Enter is the ONLY way to submit an @Jarvis prompt (JDOC-UX-02).
-  // Bound on the wrapper in capture phase so it pre-empts BlockNote's own Enter
-  // handling when a prompt pill is present; otherwise it falls through.
-  const handleWrapperKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key !== "Enter") return;
-      const found = findPromptInCursorBlock();
-      if (!found || !hasPromptBody(found.prompt)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      void submitPrompt();
+      void (async () => {
+        try {
+          const result = await invokeInDocumentJarvis({
+            editor: editor as unknown as Parameters<
+              typeof invokeInDocumentJarvis
+            >[0]["editor"],
+            cursorBlockId: blockId,
+            prompt,
+            pageId,
+          });
+          const summary = formatReceiptSummary(result.actions);
+          updatePill(blockId, pillIndex, {
+            status: "receipt",
+            summary,
+            turnId: result.turnId,
+            prompt,
+          });
+        } catch (err) {
+          updatePill(blockId, pillIndex, {
+            status: "error",
+            summary: err instanceof Error ? err.message : "JARVIS failed",
+            prompt,
+          });
+        }
+      })();
     },
-    [findPromptInCursorBlock, submitPrompt],
+    [editor, locatePromptPill, pageId, updatePill],
+  );
+
+  // The seam the pill's editable input calls on Cmd/Ctrl+Enter.
+  const pillContextValue = useMemo(
+    () => ({ submit: submitPill }),
+    [submitPill],
   );
 
   // Notion-style "click anywhere to write": a click that lands on the empty
@@ -354,48 +360,53 @@ export default function PageBlockEditor({
   }
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: surface affordance mirrors the editor's own keyboard handling
-    <div
-      ref={containerRef}
-      className="flex flex-1 flex-col cursor-text"
-      data-hide-receipts={hideReceipts ? "true" : "false"}
-      onMouseDown={handleSurfaceMouseDown}
-      onKeyDownCapture={handleWrapperKeyDown}
-    >
-      <BlockNoteView
-        editor={editor}
-        theme={theme}
-        slashMenu={false}
-        onChange={() => {
-          void (async () => {
-            const markdown = await editor.blocksToMarkdownLossy(editor.document);
-            onChange(editor.document, markdown);
-          })();
-        }}
+    // The pill provider exposes the Cmd/Ctrl+Enter submit seam to every pill
+    // input rendered inside the editor (JDOC-UX-03). Cmd/Ctrl+Enter is handled
+    // inside the pill input itself, which stops the event so BlockNote never
+    // sees it — no wrapper-level key handler is needed anymore.
+    <JarvisPillProvider value={pillContextValue}>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: surface affordance mirrors the editor's own keyboard handling */}
+      <div
+        ref={containerRef}
+        className="flex flex-1 flex-col cursor-text"
+        data-hide-receipts={hideReceipts ? "true" : "false"}
+        onMouseDown={handleSurfaceMouseDown}
       >
-        {/* `/` slash menu — defaults + callout + the /Jarvis invocation. */}
-        <SuggestionMenuController
-          triggerCharacter="/"
-          getItems={async (query) =>
-            filterSuggestionItems(
-              [
-                ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
-                insertCalloutItem(editor),
-                jarvisSlashItem(editor),
-              ],
-              query
-            )
-          }
-        />
-        {/* `@` autocomplete — JARVIS only (JDOC-UX-01). */}
-        <SuggestionMenuController
-          triggerCharacter="@"
-          getItems={async (query) =>
-            filterSuggestionItems([jarvisAtItem(editor)], query)
-          }
-        />
-      </BlockNoteView>
-    </div>
+        <BlockNoteView
+          editor={editor}
+          theme={theme}
+          slashMenu={false}
+          onChange={() => {
+            void (async () => {
+              const markdown = await editor.blocksToMarkdownLossy(editor.document);
+              onChange(editor.document, markdown);
+            })();
+          }}
+        >
+          {/* `/` slash menu — defaults + callout + the /Jarvis invocation. */}
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) =>
+              filterSuggestionItems(
+                [
+                  ...withSlashShorthand(getDefaultReactSlashMenuItems(editor)),
+                  insertCalloutItem(editor),
+                  jarvisSlashItem(editor),
+                ],
+                query
+              )
+            }
+          />
+          {/* `@` autocomplete — JARVIS only (JDOC-UX-01). */}
+          <SuggestionMenuController
+            triggerCharacter="@"
+            getItems={async (query) =>
+              filterSuggestionItems([jarvisAtItem(editor)], query)
+            }
+          />
+        </BlockNoteView>
+      </div>
+    </JarvisPillProvider>
   );
 }
 

@@ -304,9 +304,35 @@
   min-width: 0;
 }
 
-/* Prompt: awaiting Cmd+Enter — quietly editable-looking. */
-.bn-jarvis-pill[data-status="prompt"] {
+/* The editable prompt input lives INSIDE the pill (status="prompt"). It is a
+   bare, transparent <input> so the neumorphic pill itself reads as the field;
+   it auto-sizes loosely via a min width and grows with the field-sizing hint
+   where supported. */
+.bn-jarvis-pill-input {
+  min-width: 7ch;
+  width: auto;
+  field-sizing: content;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--ink);
+  caret-color: var(--hud-cyan);
+}
+.bn-jarvis-pill-input::placeholder {
   color: var(--ink-muted);
+  opacity: 0.75;
+}
+
+/* Prompt: awaiting Cmd+Enter — quietly editable, cyan-accented edge so it
+   reads as the active input. */
+.bn-jarvis-pill[data-status="prompt"] {
+  cursor: text;
+  border-color: color-mix(in oklch, var(--hud-cyan) 28%, var(--glass-border));
 }
 
 /* Loading: subtle cyan wash + spinning icon. */
