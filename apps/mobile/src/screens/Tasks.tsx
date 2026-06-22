@@ -363,6 +363,7 @@ export function TasksScreen({ active }: { active: boolean }) {
     }).start();
   }, [selectionMode, bulkBarAnim]);
 
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return data ?? [];
@@ -801,6 +802,8 @@ export function TasksScreen({ active }: { active: boolean }) {
           onDismiss={() => setPendingUndo(null)}
         />
       ) : null}
+
+      <ProjectsSheet visible={showProjects} onClose={() => setShowProjects(false)} />
 
       <FormSheet
         visible={form !== null}
