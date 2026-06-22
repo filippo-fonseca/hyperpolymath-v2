@@ -74,6 +74,7 @@ Everything below is **shipped and working** unless explicitly marked otherwise.
 - **Projects:** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
 - **Tasks:** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
 - **Captures:** A frictionless inbox: text and hashtag-filterable, full-text search, promote to task in one click.
+- **Wiki:** Long-form, block-based pages (BlockNote) organized in nestable folders with drag-and-drop and full CRUD. Pages live inside projects and inherit their folder's project membership, so a note is always in context. Type `@JARVIS` anywhere inside a page to run the agent in-document: it reads the block, section, or whole page as scope, acts, and leaves an inline receipt pill you can undo. **Daily Pages** are dated journal entries opened from a calendar in the Wiki home (idempotent, exactly one per day); a Daily Page can be "processed" to extract tasks, events, and captures from the whole page in a single pass. Re-processing is deterministic: each block is content-hashed, unchanged blocks are skipped against the last snapshot so nothing is double-created, and every run is recorded in a per-page history. Pages flow into the personal-context snapshot, the knowledge graph, and the MCP server by default, with a per-page no-export toggle.
 - **Calendar:** Bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
 - **Habits:** Daily-habit primitive with streaks, weekly grid, completion history.
 - **Training:** Fitness and activity planner scoped to the Training area; workouts, sessions, intensity signal.
@@ -292,7 +293,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Vercel + Supabase prod setup, and [`C
   ◯  public beta hardening
 ```
 
-Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ideas (markdown writing surface, hibernation mode, interrupt control, JARVIS Gmail, mobile app, personal context graph) live under [`.planning/phases/999.*`](./.planning/phases/).
+Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ideas (hibernation mode, interrupt control, JARVIS Gmail, entity-reference backlinks) live under [`.planning/phases/999.*`](./.planning/phases/).
 
 ---
 
