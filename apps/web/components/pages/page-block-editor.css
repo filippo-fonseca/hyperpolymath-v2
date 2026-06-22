@@ -444,3 +444,36 @@
     inset 0 1px 0 var(--glass-hi);
   pointer-events: none;
 }
+
+/* @-mention person pill (Phase C). Shares the neumorphic outlined surface of
+   the JARVIS pill so inline pills read as one family, but carries an amber
+   accent and a leading "@" glyph to mark it as a person reference. */
+.bn-person-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi),
+    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+}
+
+.bn-person-pill-at {
+  flex-shrink: 0;
+  color: var(--ink-amber);
+  font-weight: 600;
+}
+
+.bn-person-pill-label {
+  min-width: 0;
+}
