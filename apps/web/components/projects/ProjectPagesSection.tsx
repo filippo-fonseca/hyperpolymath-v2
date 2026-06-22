@@ -37,6 +37,7 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  Loader2,
   Pencil,
   Plus,
   Trash2,
@@ -463,9 +464,14 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
               type="button"
               onClick={() => handleNewPage(null)}
               disabled={creating}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
+              aria-busy={creating}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             >
-              <Plus size={12} strokeWidth={1.5} />
+              {creating ? (
+                <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
+              ) : (
+                <Plus size={12} strokeWidth={1.5} />
+              )}
               <span>New page</span>
             </button>
           </div>

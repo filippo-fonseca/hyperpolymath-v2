@@ -72,7 +72,7 @@ const schema = BlockNoteSchema.create({
   },
 });
 
-type Editor = BlockNoteEditor<
+export type Editor = BlockNoteEditor<
   typeof schema.blockSchema,
   typeof schema.inlineContentSchema,
   typeof schema.styleSchema

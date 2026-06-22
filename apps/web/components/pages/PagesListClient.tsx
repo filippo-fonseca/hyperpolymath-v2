@@ -317,7 +317,8 @@ export function PagesListClient({
             type="button"
             onClick={handleNewPage}
             disabled={creating}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50"
+            aria-busy={creating}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           >
             {creating ? (
               <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
