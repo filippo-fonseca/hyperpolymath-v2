@@ -1,8 +1,13 @@
 "use client";
 
 import {
+  createFolder,
+  deleteFolder,
   getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
+  renameFolder,
+  setPageFolder,
+  setParentFolder,
 } from "@/app/actions/folders";
 import {
   createPage,
@@ -13,6 +18,8 @@ import {
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
+import { WikiFolderMenu } from "@/components/pages/WikiFolderMenu";
+import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
 import {
@@ -21,6 +28,17 @@ import {
   downloadZipFiles,
   safeFileName,
 } from "@/lib/pages/markdown-export";
+import {
+  buildChildrenMap,
+  collectSubtreeIds,
+  DND_ROOT_ID,
+  encodeDraggableId,
+  parseDraggableId,
+  parseDroppableId,
+  resolveMove,
+  type DropTarget,
+  type Move,
+} from "@/lib/pages/folder-dnd";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
 import {
   dailyDayClickAction,
@@ -29,21 +47,38 @@ import {
 } from "@/lib/pages/daily-page";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useQuery } from "@tanstack/react-query";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  CornerLeftUp,
   Download,
   FileText,
   Folder,
+  FolderPlus,
+  GripVertical,
   Inbox,
   Loader2,
   Plus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   userId: string;
@@ -53,10 +88,32 @@ interface Props {
   initialDailyPages: DailyPageRef[];
 }
 
+/** Callbacks + lookups threaded into the recursive folder/page nodes. */
+interface TreeCtx {
+  collapsed: Set<string>;
+  toggle: (key: string) => void;
+  q: string;
+  projectNames: Map<string, string>;
+  folderNames: Map<string, string>;
+  openPage: (id: string) => void;
+  onExportFolder: (id: string, name: string) => void;
+  onRenameFolder: (id: string, name: string) => void;
+  onAddSubfolder: (parentId: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+  canDrop: (target: DropTarget) => boolean;
+  dragging: boolean;
+}
+
 /**
  * /wiki home. Renders the wiki as a project-independent folder hierarchy
  * (Phase 21): root folders, subfolders, pages, plus a top-level Standalone
  * group for pages in no folder. A title filter narrows the tree live.
+ *
+ * Folders are fully editable here (issue #95): create root folders + subfolders,
+ * rename, delete, and drag-and-drop pages/folders between folders (or out to no
+ * folder / the top level). Drag moves optimistically patch the TanStack Query
+ * cache, then the Realtime echo reconciles; the pure move-resolution + cycle
+ * rules live in lib/pages/folder-dnd.ts.
  */
 export function PagesListClient({
   userId,
@@ -66,9 +123,12 @@ export function PagesListClient({
   initialDailyPages,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   // The Daily Pages calendar is shown by default; collapsible per WIKI-DAILY-01.
   const [dailyOpen, setDailyOpen] = useState(true);
   const [openingDay, setOpeningDay] = useState(false);
@@ -89,13 +149,16 @@ export function PagesListClient({
   useTableSubscription("folder_projects", userId);
   useTableSubscription("projects", userId);
 
+  const pagesKey = tableKey("pages", userId);
+  const foldersKey = tableKey("page_folders", userId);
+
   const { data: allPages = [] } = useQuery({
-    queryKey: tableKey("pages", userId),
+    queryKey: pagesKey,
     queryFn: () => getPagesForCurrentUser(),
     initialData: initialPages,
   });
   const { data: folders = [] } = useQuery({
-    queryKey: tableKey("page_folders", userId),
+    queryKey: foldersKey,
     queryFn: () => getFoldersForCurrentUser(),
     initialData: initialFolders,
   });
@@ -141,22 +204,17 @@ export function PagesListClient({
   );
 
   // Export always works on the FULL tree (every page, never the title-filtered
-  // view) so a partial filter can never produce an incomplete bundle. The tree
-  // gives the directory layout; allPages supplies each page's markdown content.
+  // view) so a partial filter can never produce an incomplete bundle.
   const fullTree = useMemo(
     () => buildPagesTree(folders, folderProjects, allPages),
     [folders, folderProjects, allPages]
   );
 
-  // WIKI-EXPORT-04: download the entire wiki as a structure-preserving .zip.
   function handleExportAll() {
     const files = buildTreeZip(fullTree, allPages);
     downloadZipFiles(files, "wiki.zip");
   }
 
-  // WIKI-EXPORT-02: download one folder (with all descendants) as a .zip whose
-  // directory layout mirrors the folder tree. Looks the folder up in the full
-  // (unfiltered) tree so the bundle is complete regardless of the live filter.
   function handleExportFolder(folderId: string, folderName: string) {
     const node = findFolder(fullTree.roots, folderId);
     if (!node) return;
@@ -173,6 +231,15 @@ export function PagesListClient({
     });
   }
 
+  function expandFolder(folderId: string) {
+    setCollapsed((prev) => {
+      if (!prev.has(`folder:${folderId}`)) return prev;
+      const next = new Set(prev);
+      next.delete(`folder:${folderId}`);
+      return next;
+    });
+  }
+
   async function handleNewPage() {
     if (creating) return;
     setCreating(true);
@@ -185,25 +252,138 @@ export function PagesListClient({
     }
   }
 
-  // Daily Pages keyed by their date, so a selected day can resolve to its
-  // existing page id (route, never create) vs. show the "No daily page" panel.
+  // ─── Folder CRUD (optimistic patch → server action → realtime reconcile) ────
+
+  function patchFolders(updater: (old: FolderRow[]) => FolderRow[]) {
+    queryClient.setQueryData<FolderRow[]>(foldersKey, (old) => updater(old ?? []));
+  }
+
+  async function handleCreateFolder(name: string, parentId: string | null) {
+    const id = crypto.randomUUID();
+    patchFolders((old) => [
+      ...old,
+      { id, parentId, name, orderIndex: old.length },
+    ]);
+    if (parentId) expandFolder(parentId);
+    const r = await createFolder({ id, parentId, name });
+    if (!r.success) {
+      toast.error(r.error);
+      queryClient.invalidateQueries({ queryKey: foldersKey });
+    }
+  }
+
+  async function handleRenameFolder(id: string, name: string) {
+    patchFolders((old) => old.map((f) => (f.id === id ? { ...f, name } : f)));
+    const r = await renameFolder({ id, name });
+    if (!r.success) {
+      toast.error(r.error);
+      queryClient.invalidateQueries({ queryKey: foldersKey });
+    }
+  }
+
+  async function handleDeleteFolder(id: string) {
+    const subtree = new Set(collectSubtreeIds(id, buildChildrenMap(folders)));
+    patchFolders((old) => old.filter((f) => !subtree.has(f.id)));
+    const r = await deleteFolder(id);
+    if (!r.success) {
+      toast.error(r.error);
+      queryClient.invalidateQueries({ queryKey: foldersKey });
+    }
+  }
+
+  // ─── Drag-and-drop ───────────────────────────────────────────────────────
+
+  const pageFolderOf = useMemo(
+    () => new Map(allPages.map((p) => [p.id, p.folderId] as const)),
+    [allPages],
+  );
+  const folderParentOf = useMemo(
+    () => new Map(folders.map((f) => [f.id, f.parentId] as const)),
+    [folders],
+  );
+  const childrenOf = useMemo(() => buildChildrenMap(folders), [folders]);
+  const moveCtx = useMemo(
+    () => ({ pageFolderOf, folderParentOf, childrenOf }),
+    [pageFolderOf, folderParentOf, childrenOf],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const activeDrag = activeId ? parseDraggableId(activeId) : null;
+  const activeLabel = activeDrag
+    ? activeDrag.kind === "folder"
+      ? folderNames.get(activeDrag.id) ?? "Folder"
+      : allPages.find((p) => p.id === activeDrag.id)?.title || "Untitled page"
+    : null;
+
+  function canDrop(target: DropTarget): boolean {
+    if (!activeDrag) return false;
+    return resolveMove(activeDrag, target, moveCtx) !== null;
+  }
+
+  async function applyMove(move: Move) {
+    if (move.kind === "page") {
+      queryClient.setQueryData<PageWithProjects[]>(pagesKey, (old) =>
+        (old ?? []).map((p) =>
+          p.id === move.pageId ? { ...p, folderId: move.folderId } : p,
+        ),
+      );
+      if (move.folderId) expandFolder(move.folderId);
+      const r = await setPageFolder({
+        pageId: move.pageId,
+        folderId: move.folderId,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        queryClient.invalidateQueries({ queryKey: pagesKey });
+      }
+    } else {
+      patchFolders((old) =>
+        old.map((f) =>
+          f.id === move.folderId ? { ...f, parentId: move.parentId } : f,
+        ),
+      );
+      if (move.parentId) expandFolder(move.parentId);
+      const r = await setParentFolder({
+        folderId: move.folderId,
+        parentId: move.parentId,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        queryClient.invalidateQueries({ queryKey: foldersKey });
+      }
+    }
+  }
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over) return;
+    const drag = parseDraggableId(String(active.id));
+    const drop = parseDroppableId(String(over.id));
+    if (!drag || !drop) return;
+    const move = resolveMove(drag, drop, moveCtx);
+    if (move) void applyMove(move);
+  }
+
+  // Daily Pages keyed by their date (route to existing vs. show create panel).
   const dailyByDate = useMemo(
     () => new Map(dailyPages.map((d) => [d.dailyDate, d] as const)),
     [dailyPages],
   );
-
-  // The set of days that already have a Daily Page — dotted on the calendar.
   const markedDays = useMemo(
     () => new Set(dailyPages.map((d) => d.dailyDate)),
     [dailyPages],
   );
-
-  // Today as a local yyyy-MM-dd, used for both the calendar's initial selection
-  // and the explicit "Today" affordance (WIKI-DAILY-01).
   const todayIso = format(new Date(), "yyyy-MM-dd");
 
-  // Create (idempotently) a Daily Page for `iso` and route into it. Used by the
-  // today-auto-open, the "Today" button, and the retroactive create button.
   async function createAndOpen(iso: string) {
     if (openingDay) return;
     setOpeningDay(true);
@@ -215,21 +395,14 @@ export function PagesListClient({
     }
   }
 
-  // Clicking a calendar day NEVER auto-creates a page (the old bug). A day that
-  // already has a page routes straight to it; any other day just becomes the
-  // selection, surfacing the "No daily page" panel with a create button.
   function handleSelectDay(iso: string) {
     setSelectedDate(iso);
     const action = dailyDayClickAction(iso, dailyByDate.get(iso)?.id);
     if (action.kind === "route") router.push(`/wiki/${action.pageId}`);
   }
 
-  // First open per day (WIKI-DAILY-02): once the Daily Pages list has actually
-  // loaded from the server, if TODAY has no Daily Page yet, auto-create it and
-  // open it. Gated on `dailyFetched` so we never act on the empty initialData
-  // placeholder (which would wrongly auto-create even when today exists). The
-  // ref makes it fire at most once; a day that already has a page is left alone
-  // (no forced redirect on every Wiki visit).
+  // First open per day (WIKI-DAILY-02): once the Daily Pages list has loaded,
+  // if TODAY has no Daily Page yet, auto-create + open it. Fires at most once.
   const autoOpenedToday = useRef(false);
   useEffect(() => {
     if (autoOpenedToday.current) return;
@@ -247,55 +420,25 @@ export function PagesListClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyReady, markedDays, todayIso]);
 
-  // The page (if any) for the currently selected calendar day.
   const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;
 
   const isEmpty =
     pagesTree.roots.length === 0 && pagesTree.standalonePages.length === 0;
 
-  function renderFolder(folder: TreeFolder, depth: number): React.ReactNode {
-    // When filtering, hide folders whose whole subtree has no matching pages.
-    if (q && !folderHasVisiblePages(folder)) return null;
-    const folderKey = `folder:${folder.id}`;
-    const folderOpen = !collapsed.has(folderKey);
-    // Resolve the folder's own/inherited links into render-ready pills, mapping
-    // the inherited source folder id to its name.
-    const folderPills = folder.projectLinks.map((l) => ({
-      projectId: l.projectId,
-      isInherited: l.isInherited,
-      sourceFolderName: l.sourceFolder ? folderNames.get(l.sourceFolder) : undefined,
-    }));
-    return (
-      <div key={folder.id} className="flex flex-col">
-        <Row
-          depth={depth}
-          open={folderOpen}
-          onToggle={() => toggle(folderKey)}
-          icon={<Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-          label={folder.name}
-          labelClass="font-serif text-[13px] text-[var(--ink)]"
-          count={folder.pages.length}
-          pills={<ProjectPillRow links={folderPills} projectNames={projectNames} />}
-          onExport={() => handleExportFolder(folder.id, folder.name)}
-          exportLabel={`Export "${folder.name}" as a .zip of markdown files`}
-        />
-        {folderOpen && (
-          <>
-            {folder.subfolders.map((sub) => renderFolder(sub, depth + 1))}
-            {folder.pages.map((page) => (
-              <PageRow
-                key={page.id}
-                depth={depth + 1}
-                page={page}
-                projectNames={projectNames}
-                onOpen={() => router.push(`/wiki/${page.id}`)}
-              />
-            ))}
-          </>
-        )}
-      </div>
-    );
-  }
+  const ctx: TreeCtx = {
+    collapsed,
+    toggle,
+    q,
+    projectNames,
+    folderNames,
+    openPage: (id) => router.push(`/wiki/${id}`),
+    onExportFolder: handleExportFolder,
+    onRenameFolder: handleRenameFolder,
+    onAddSubfolder: (parentId, name) => handleCreateFolder(name, parentId),
+    onDeleteFolder: handleDeleteFolder,
+    canDrop,
+    dragging: activeDrag !== null,
+  };
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
@@ -314,6 +457,15 @@ export function PagesListClient({
           >
             <Download size={13} strokeWidth={1.5} />
             <span>Export all</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setNewFolderOpen(true)}
+            title="Create a new top-level folder"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
+          >
+            <FolderPlus size={13} strokeWidth={1.5} />
+            <span>New folder</span>
           </button>
           <button
             type="button"
@@ -361,8 +513,6 @@ export function PagesListClient({
           {dailyOpen && (
             <button
               type="button"
-              // Today routes to today's page if it exists, else creates + opens
-              // it (the one create the home is allowed to trigger on demand).
               onClick={() =>
                 markedDays.has(todayIso)
                   ? handleSelectDay(todayIso)
@@ -388,9 +538,6 @@ export function PagesListClient({
               onSelectDate={handleSelectDay}
               ariaLabel="Daily Pages calendar"
             />
-            {/* "No daily page" panel — shown for a selected day that has no page
-                yet (WIKI-DAILY-02). Clicking a day never auto-creates; this is
-                the explicit, retroactive create affordance. */}
             {!selectedDailyPage && (
               <div className="glass-tile flex items-center justify-between gap-3 rounded-md px-3 py-2.5">
                 <div className="flex flex-col gap-0.5 min-w-0">
@@ -436,46 +583,68 @@ export function PagesListClient({
           <p className="text-[13px] font-serif text-[var(--ink-muted)]">
             {filter
               ? "No pages match that filter."
-              : "No pages yet. Create one to keep notes, docs, or references."}
+              : "No pages yet. Create a folder or a page to keep notes, docs, or references."}
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-1">
-          {pagesTree.roots.map((folder) => renderFolder(folder, 0))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          {/* Top-level / "no folder" drop zone — appears during a drag. */}
+          <RootDropZone show={ctx.dragging} canDrop={canDrop({ kind: "root" })} />
 
-          {pagesTree.standalonePages.length > 0 && (
-            <div className="flex flex-col">
-              <Row
-                depth={0}
-                open={!collapsed.has("standalone")}
-                onToggle={() => toggle("standalone")}
-                icon={<Inbox size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-                label="Standalone"
-                labelClass="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
-                count={pagesTree.standalonePages.length}
-              />
-              {!collapsed.has("standalone") &&
-                pagesTree.standalonePages.map((page) => (
-                  <PageRow
-                    key={page.id}
-                    depth={1}
-                    page={page}
-                    projectNames={projectNames}
-                    onOpen={() => router.push(`/wiki/${page.id}`)}
-                  />
-                ))}
-            </div>
-          )}
-        </div>
+          <div className="flex flex-col gap-1">
+            {pagesTree.roots.map((folder) => (
+              <FolderNode key={folder.id} folder={folder} depth={0} ctx={ctx} />
+            ))}
+
+            {pagesTree.standalonePages.length > 0 && (
+              <div className="flex flex-col">
+                <Row
+                  depth={0}
+                  open={!collapsed.has("standalone")}
+                  onToggle={() => toggle("standalone")}
+                  icon={<Inbox size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
+                  label="Standalone"
+                  labelClass="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
+                  count={pagesTree.standalonePages.length}
+                />
+                {!collapsed.has("standalone") &&
+                  pagesTree.standalonePages.map((page) => (
+                    <PageNode key={page.id} page={page} depth={1} ctx={ctx} />
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <DragOverlay dropAnimation={null}>
+            {activeDrag ? (
+              <div className="glass-button flex items-center gap-2 rounded-md px-2.5 py-1.5 select-none cursor-grabbing font-serif text-[13px] text-[var(--ink)] shadow-lg">
+                {activeDrag.kind === "folder" ? (
+                  <Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+                ) : (
+                  <FileText size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+                )}
+                <span className="truncate max-w-[220px]">{activeLabel}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
+
+      <WikiFolderNameDialog
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+        title="New folder"
+        submitLabel="Create"
+        onSubmit={(name) => handleCreateFolder(name, null)}
+      />
     </div>
   );
-}
-
-/** True if a folder or any of its descendants holds at least one page. */
-function folderHasVisiblePages(folder: TreeFolder): boolean {
-  if (folder.pages.length > 0) return true;
-  return folder.subfolders.some(folderHasVisiblePages);
 }
 
 /** Depth-first search for a folder node by id across a forest of roots. */
@@ -488,9 +657,164 @@ function findFolder(nodes: TreeFolder[], id: string): TreeFolder | null {
   return null;
 }
 
+/** True if a folder or any of its descendants holds at least one page. */
+function folderHasVisiblePages(folder: TreeFolder): boolean {
+  if (folder.pages.length > 0) return true;
+  return folder.subfolders.some(folderHasVisiblePages);
+}
+
 const INDENT = 18;
 
+// ─── Root / "no folder" drop zone ──────────────────────────────────────────
+
+function RootDropZone({ show, canDrop }: { show: boolean; canDrop: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: DND_ROOT_ID });
+  if (!show) return null;
+  const active = isOver && canDrop;
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-1 flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-[12px] font-serif transition-colors duration-100 ${
+        active
+          ? "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] text-[var(--hud-cyan)]"
+          : "border-[var(--edge)] text-[var(--ink-muted)]"
+      }`}
+    >
+      <CornerLeftUp size={13} strokeWidth={1.5} />
+      <span>Move to top level (no folder)</span>
+    </div>
+  );
+}
+
+// ─── Folder node (draggable + droppable, recursive) ────────────────────────
+
+function FolderNode({
+  folder,
+  depth,
+  ctx,
+}: {
+  folder: TreeFolder;
+  depth: number;
+  ctx: TreeCtx;
+}) {
+  const dndId = encodeDraggableId({ kind: "folder", id: folder.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({ id: dndId });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dndId });
+
+  if (ctx.q && !folderHasVisiblePages(folder)) return null;
+
+  const folderKey = `folder:${folder.id}`;
+  const folderOpen = !ctx.collapsed.has(folderKey);
+  const highlight = isOver && ctx.canDrop({ kind: "folder", id: folder.id });
+
+  const folderPills = folder.projectLinks.map((l) => ({
+    projectId: l.projectId,
+    isInherited: l.isInherited,
+    sourceFolderName: l.sourceFolder ? ctx.folderNames.get(l.sourceFolder) : undefined,
+  }));
+
+  return (
+    <div className="flex flex-col">
+      <div
+        ref={setDropRef}
+        className={`rounded-sm transition-colors duration-100 ${
+          highlight
+            ? "bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--hud-cyan)]"
+            : ""
+        } ${isDragging ? "opacity-40" : ""}`}
+      >
+        <Row
+          ref={setDragRef}
+          depth={depth}
+          open={folderOpen}
+          onToggle={() => ctx.toggle(folderKey)}
+          icon={<Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
+          label={folder.name}
+          labelClass="font-serif text-[13px] text-[var(--ink)]"
+          count={folder.pages.length}
+          pills={<ProjectPillRow links={folderPills} projectNames={ctx.projectNames} />}
+          dragHandle={
+            <span
+              {...attributes}
+              {...listeners}
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label={`Drag ${folder.name}`}
+            >
+              <GripVertical size={13} strokeWidth={1.5} />
+            </span>
+          }
+          trailing={
+            <WikiFolderMenu
+              folderId={folder.id}
+              folderName={folder.name}
+              onRename={ctx.onRenameFolder}
+              onAddSubfolder={ctx.onAddSubfolder}
+              onExport={() => ctx.onExportFolder(folder.id, folder.name)}
+              onDelete={ctx.onDeleteFolder}
+            />
+          }
+        />
+      </div>
+      {folderOpen && (
+        <>
+          {folder.subfolders.map((sub) => (
+            <FolderNode key={sub.id} folder={sub} depth={depth + 1} ctx={ctx} />
+          ))}
+          {folder.pages.map((page) => (
+            <PageNode key={page.id} page={page} depth={depth + 1} ctx={ctx} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Page node (draggable) ─────────────────────────────────────────────────
+
+function PageNode({
+  page,
+  depth,
+  ctx,
+}: {
+  page: TreePage;
+  depth: number;
+  ctx: TreeCtx;
+}) {
+  const dndId = encodeDraggableId({ kind: "page", id: page.id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: dndId,
+  });
+  return (
+    <PageRow
+      ref={setNodeRef}
+      depth={depth}
+      page={page}
+      projectNames={ctx.projectNames}
+      onOpen={() => ctx.openPage(page.id)}
+      className={isDragging ? "opacity-40" : ""}
+      dragHandle={
+        <span
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label={`Drag ${page.title || "page"}`}
+        >
+          <GripVertical size={13} strokeWidth={1.5} />
+        </span>
+      }
+    />
+  );
+}
+
+// ─── Presentational rows ───────────────────────────────────────────────────
+
 function Row({
+  ref,
   depth,
   open,
   onToggle,
@@ -499,9 +823,10 @@ function Row({
   labelClass,
   count,
   pills,
-  onExport,
-  exportLabel,
+  dragHandle,
+  trailing,
 }: {
+  ref?: React.Ref<HTMLDivElement>;
   depth: number;
   open: boolean;
   onToggle: () => void;
@@ -510,14 +835,16 @@ function Row({
   labelClass: string;
   count?: number;
   pills?: React.ReactNode;
-  onExport?: () => void;
-  exportLabel?: string;
+  dragHandle?: React.ReactNode;
+  trailing?: React.ReactNode;
 }) {
   return (
     <div
+      ref={ref}
       className="group flex items-center gap-1.5 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors"
       style={{ paddingLeft: depth * INDENT + 4 }}
     >
+      {dragHandle}
       <button
         type="button"
         onClick={onToggle}
@@ -533,36 +860,35 @@ function Row({
         )}
       </button>
       {pills && <span className="ml-1 min-w-0">{pills}</span>}
-      {onExport && (
-        <button
-          type="button"
-          onClick={onExport}
-          title={exportLabel ?? "Export folder as Markdown"}
-          className="ml-auto flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity transition-colors duration-150 cursor-pointer"
-        >
-          <Download size={12} strokeWidth={1.5} />
-        </button>
-      )}
+      {trailing && <span className="ml-auto flex-shrink-0">{trailing}</span>}
     </div>
   );
 }
 
 function PageRow({
+  ref,
   depth,
   page,
   projectNames,
   onOpen,
+  className,
+  dragHandle,
 }: {
+  ref?: React.Ref<HTMLDivElement>;
   depth: number;
   page: TreePage;
   projectNames: Map<string, string>;
   onOpen: () => void;
+  className?: string;
+  dragHandle?: React.ReactNode;
 }) {
   return (
     <div
-      className="group flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors"
-      style={{ paddingLeft: depth * INDENT + 22 }}
+      ref={ref}
+      className={`group flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors ${className ?? ""}`}
+      style={{ paddingLeft: depth * INDENT + 4 }}
     >
+      {dragHandle}
       <button
         type="button"
         onClick={onOpen}
