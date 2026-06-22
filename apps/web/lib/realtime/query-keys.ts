@@ -39,7 +39,10 @@ export type RealtimeTable =
   | "pages_projects"
   | "page_folders"
   // Phase 21 — wiki data-model restructure (folder->project M:N links)
-  | "folder_projects";
+  | "folder_projects"
+  // Phase People — first-class person entity + mention references
+  | "people"
+  | "people_references";
 
 export function tableKey(
   table: RealtimeTable,
