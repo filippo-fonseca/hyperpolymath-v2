@@ -11,21 +11,35 @@ import {
 } from "@/app/actions/folders";
 import {
   createPage,
+  deletePage,
   getDailyPagesForCurrentUser,
   getPagesForCurrentUser,
   openDailyPage,
+  updatePage,
 } from "@/app/actions/pages";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { WikiFolderMenu } from "@/components/pages/WikiFolderMenu";
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
+import { WikiPageMenu } from "@/components/pages/WikiPageMenu";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
 import {
   buildFolderZip,
   buildTreeZip,
+  downloadTextFile,
   downloadZipFiles,
+  pageToMarkdown,
   safeFileName,
 } from "@/lib/pages/markdown-export";
 import {
@@ -71,6 +85,7 @@ import {
   Inbox,
   Loader2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -96,6 +111,12 @@ interface TreeCtx {
   onRenameFolder: (id: string, name: string) => void;
   onAddSubfolder: (parentId: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
+  folders: FolderRow[];
+  pageFolderOf: Map<string, string | null>;
+  onRenamePage: (id: string, title: string) => void;
+  onMovePage: (pageId: string, folderId: string | null) => void;
+  onExportPage: (id: string) => void;
+  onDeletePage: (id: string) => void;
   canDrop: (target: DropTarget) => boolean;
   dragging: boolean;
 }
@@ -285,6 +306,39 @@ export function PagesListClient({
     }
   }
 
+  // ─── Page CRUD (optimistic patch → server action → realtime reconcile) ─────
+
+  function patchPages(updater: (old: PageWithProjects[]) => PageWithProjects[]) {
+    queryClient.setQueryData<PageWithProjects[]>(pagesKey, (old) =>
+      updater(old ?? []),
+    );
+  }
+
+  async function handleRenamePage(id: string, title: string) {
+    patchPages((old) => old.map((p) => (p.id === id ? { ...p, title } : p)));
+    const r = await updatePage({ id, title });
+    if (!r.success) {
+      toast.error(r.error);
+      queryClient.invalidateQueries({ queryKey: pagesKey });
+    }
+  }
+
+  async function handleDeletePage(id: string) {
+    patchPages((old) => old.filter((p) => p.id !== id));
+    const r = await deletePage(id);
+    if (!r.success) {
+      toast.error(r.error);
+      queryClient.invalidateQueries({ queryKey: pagesKey });
+    }
+  }
+
+  function handleExportPage(id: string) {
+    const page = allPages.find((p) => p.id === id);
+    if (!page) return;
+    const md = pageToMarkdown({ id: page.id, title: page.title, content: page.content });
+    downloadTextFile(md, `${safeFileName(page.title)}.md`);
+  }
+
   // ─── Drag-and-drop ───────────────────────────────────────────────────────
 
   const pageFolderOf = useMemo(
@@ -416,6 +470,13 @@ export function PagesListClient({
     onRenameFolder: handleRenameFolder,
     onAddSubfolder: (parentId, name) => handleCreateFolder(name, parentId),
     onDeleteFolder: handleDeleteFolder,
+    folders,
+    pageFolderOf,
+    onRenamePage: handleRenamePage,
+    onMovePage: (pageId, folderId) =>
+      void applyMove({ kind: "page", pageId, folderId }),
+    onExportPage: handleExportPage,
+    onDeletePage: handleDeletePage,
     canDrop,
     dragging: activeDrag !== null,
   };
@@ -769,25 +830,91 @@ function PageNode({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dndId,
   });
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const currentFolderId = ctx.pageFolderOf.get(page.id) ?? null;
+  const label = page.title || "Untitled page";
+
   return (
-    <PageRow
-      ref={setNodeRef}
-      depth={depth}
-      page={page}
-      projectNames={ctx.projectNames}
-      onOpen={() => ctx.openPage(page.id)}
-      className={isDragging ? "opacity-40" : ""}
-      dragHandle={
-        <span
-          {...attributes}
-          {...listeners}
-          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label={`Drag ${page.title || "page"}`}
-        >
-          <GripVertical size={13} strokeWidth={1.5} />
-        </span>
-      }
-    />
+    <>
+      <PageRow
+        ref={setNodeRef}
+        depth={depth}
+        page={page}
+        projectNames={ctx.projectNames}
+        onOpen={() => ctx.openPage(page.id)}
+        className={isDragging ? "opacity-40" : ""}
+        dragHandle={
+          <span
+            {...attributes}
+            {...listeners}
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label={`Drag ${label}`}
+          >
+            <GripVertical size={13} strokeWidth={1.5} />
+          </span>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              aria-label={`Delete ${label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteOpen(true);
+              }}
+              className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-destructive hover:bg-[var(--surface)] cursor-pointer outline-none"
+            >
+              <Trash2 size={13} strokeWidth={1.5} />
+            </button>
+            <WikiPageMenu
+              currentFolderId={currentFolderId}
+              folders={ctx.folders}
+              onRequestRename={() => setRenameOpen(true)}
+              onMove={(folderId) => ctx.onMovePage(page.id, folderId)}
+              onExport={() => ctx.onExportPage(page.id)}
+              onRequestDelete={() => setDeleteOpen(true)}
+            />
+          </>
+        }
+      />
+
+      <WikiFolderNameDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        title="Rename page"
+        initialValue={page.title}
+        placeholder="Page title"
+        submitLabel="Save"
+        onSubmit={(title) => ctx.onRenamePage(page.id, title)}
+      />
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete &ldquo;{label}&rdquo;?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the page and its contents. This cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDeleteOpen(false);
+                ctx.onDeletePage(page.id);
+              }}
+            >
+              Delete page
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -853,6 +980,7 @@ function PageRow({
   onOpen,
   className,
   dragHandle,
+  actions,
 }: {
   ref?: React.Ref<HTMLDivElement>;
   depth: number;
@@ -861,6 +989,7 @@ function PageRow({
   onOpen: () => void;
   className?: string;
   dragHandle?: React.ReactNode;
+  actions?: React.ReactNode;
 }) {
   return (
     <div
@@ -887,6 +1016,11 @@ function PageRow({
       <span className="flex-shrink-0 text-[10px] font-mono text-[var(--ink-muted)]">
         {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
       </span>
+      {actions && (
+        <span className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+          {actions}
+        </span>
+      )}
     </div>
   );
 }

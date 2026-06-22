@@ -22,6 +22,7 @@ export function WikiFolderNameDialog({
   title,
   initialValue = "",
   submitLabel,
+  placeholder = "Folder name",
   onSubmit,
 }: {
   open: boolean;
@@ -29,6 +30,7 @@ export function WikiFolderNameDialog({
   title: string;
   initialValue?: string;
   submitLabel: string;
+  placeholder?: string;
   onSubmit: (name: string) => void;
 }) {
   const [value, setValue] = useState(initialValue);
@@ -52,7 +54,7 @@ export function WikiFolderNameDialog({
         </DialogHeader>
         <Input
           value={value}
-          placeholder="Folder name"
+          placeholder={placeholder}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
