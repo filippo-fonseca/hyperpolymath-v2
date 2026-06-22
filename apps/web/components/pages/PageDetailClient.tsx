@@ -73,6 +73,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FolderPicker } from "./FolderPicker";
+import { PageProcessingRunsMenu } from "./PageProcessingRunsMenu";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 
@@ -186,6 +187,8 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   // a normal page; a non-NULL date marks the user's Daily Page for that day.
   const isDailyPage = serverPage.dailyDate !== null;
   const [processing, setProcessing] = useState(false);
+  // Bumped after each recorded processing run so the History menu re-fetches.
+  const [processRunsKey, setProcessRunsKey] = useState(0);
 
   /**
    * Run the whole Daily Page through the shared in-document JARVIS engine to
@@ -232,6 +235,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           responseText: null,
           status: "skipped",
         });
+        setProcessRunsKey((k) => k + 1);
         toast.success("No changes since the last process.", { id: pending });
         return;
       }
@@ -258,6 +262,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         responseText: result.text.trim() || null,
         status: "done",
       });
+      setProcessRunsKey((k) => k + 1);
 
       const summary =
         result.actions.length > 0
@@ -768,6 +773,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             )}
             <span>{processing ? "Processing…" : "Process this page"}</span>
           </button>
+          <PageProcessingRunsMenu pageId={initialPage.id} refreshKey={processRunsKey} />
         </div>
       )}
 
