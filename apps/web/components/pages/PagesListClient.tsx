@@ -40,11 +40,7 @@ import {
   type Move,
 } from "@/lib/pages/folder-dnd";
 import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
-import {
-  dailyDayClickAction,
-  dailyPageTitle,
-  shouldAutoOpenToday,
-} from "@/lib/pages/daily-page";
+import { dailyDayClickAction, dailyPageTitle } from "@/lib/pages/daily-page";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import {
@@ -77,7 +73,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -174,9 +170,7 @@ export function PagesListClient({
   });
   // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
   // "pages" realtime channel, so the subscription above already refreshes it.
-  const { data: dailyPages = [], isSuccess: dailyReady } = useQuery<
-    DailyPageRef[]
-  >({
+  const { data: dailyPages = [] } = useQuery<DailyPageRef[]>({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
@@ -401,24 +395,10 @@ export function PagesListClient({
     if (action.kind === "route") router.push(`/wiki/${action.pageId}`);
   }
 
-  // First open per day (WIKI-DAILY-02): once the Daily Pages list has loaded,
-  // if TODAY has no Daily Page yet, auto-create + open it. Fires at most once.
-  const autoOpenedToday = useRef(false);
-  useEffect(() => {
-    if (autoOpenedToday.current) return;
-    if (
-      !shouldAutoOpenToday({
-        dailyFetched: dailyReady,
-        todayExists: markedDays.has(todayIso),
-      })
-    ) {
-      return;
-    }
-    autoOpenedToday.current = true;
-    void createAndOpen(todayIso);
-    // createAndOpen is stable enough for a once-per-mount auto-open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dailyReady, markedDays, todayIso]);
+  // First-open-of-day auto-create + navigation now lives app-wide in
+  // <DailyAutoOpen> (issue #92, part 4), so the behavior fires from any entry
+  // route, not only the Wiki home. This view keeps its manual "Today" button
+  // and the per-day create panel below.
 
   const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;
 
