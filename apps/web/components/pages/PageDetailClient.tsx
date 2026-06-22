@@ -43,6 +43,12 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
+import type { ResolverBlock } from "@/lib/jarvis/scope-resolver";
+import { computeBlockHashes, diffBlockHashes } from "@/lib/pages/block-hash";
+import {
+  getLatestProcessingRun,
+  recordProcessingRun,
+} from "@/app/actions/page-processing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -193,19 +199,66 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   }, []);
 
   const handleProcessDailyPage = useCallback(async () => {
-    const editor = editorRef.current;
+    const editor = editorRef.current as
+      | (Parameters<typeof invokeInDocumentJarvis>[0]["editor"] & {
+          document: ResolverBlock[];
+        })
+      | null;
     if (!editor || processing) return;
     setProcessing(true);
     const pending = toast.loading("Processing this daily page…");
     try {
+      // Snapshot every top-level block now, and diff against the last run so we
+      // only re-process new/changed blocks (issue #92 part 5). The recorded
+      // snapshot is always the FULL current document, so the next diff is exact.
+      const blockHashes = computeBlockHashes(editor.document);
+      const lastRun = await getLatestProcessingRun(initialPage.id);
+      const isFirstRun = lastRun === null;
+      const { changedBlockIds } = diffBlockHashes(
+        lastRun?.blockHashes ?? null,
+        blockHashes,
+      );
+
+      // Re-process with nothing changed: skip the model call, but still record
+      // the snapshot so history shows the no-op and the baseline stays current.
+      if (!isFirstRun && changedBlockIds.length === 0) {
+        await recordProcessingRun({
+          pageId: initialPage.id,
+          turnId: null,
+          scope: "page",
+          blockHashes,
+          processedBlockIds: [],
+          actions: [],
+          responseText: null,
+          status: "skipped",
+        });
+        toast.success("No changes since the last process.", { id: pending });
+        return;
+      }
+
       const result = await invokeInDocumentJarvis({
-        editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
+        editor,
         cursorBlockId: null,
-        scopeOverride: "page",
-        prompt:
-          "Process this daily page: extract tasks, events, and captures and create them.",
+        scopeOverride: isFirstRun ? "page" : undefined,
+        targetBlockIds: isFirstRun ? undefined : changedBlockIds,
+        prompt: isFirstRun
+          ? "Process this daily page: extract tasks, events, and captures and create them."
+          : "Process only the new or changed parts of this daily page (the TARGET content): extract tasks, events, and captures from them and create them. The rest of the page is context only — do not re-create anything already captured from it.",
         pageId: initialPage.id,
       });
+
+      // Only advance the snapshot on success, so a failed run retries next time.
+      await recordProcessingRun({
+        pageId: initialPage.id,
+        turnId: result.turnId || null,
+        scope: isFirstRun ? "page" : "section",
+        blockHashes,
+        processedBlockIds: isFirstRun ? Object.keys(blockHashes) : changedBlockIds,
+        actions: result.actions,
+        responseText: result.text.trim() || null,
+        status: "done",
+      });
+
       const summary =
         result.actions.length > 0
           ? formatReceiptSummary(result.actions)
