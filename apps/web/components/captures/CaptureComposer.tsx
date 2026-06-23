@@ -18,12 +18,18 @@ import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
+import { createPersonSuggestion } from "./person-suggestions";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 
 interface Hashtag {
   id: string;
   name: string;
   displayName: string;
+}
+
+interface Person {
+  id: string;
+  name: string;
 }
 
 interface Props {
@@ -35,6 +41,12 @@ interface Props {
    */
   userId?: string;
   hashtags: Hashtag[];
+  /**
+   * The current user's people, used to populate the `@`-mention menu (Phase C).
+   * Optional so existing mount sites (Cmd+K) keep working; when omitted the menu
+   * only offers the inline-create sentinel for a typed name.
+   */
+  people?: Person[];
   projects: ProjectMultiSelectOption[];
   /**
    * Phase 3 — optional optimistic-insert callback. When the composer is
@@ -85,6 +97,7 @@ interface Props {
 export function CaptureComposer({
   userId,
   hashtags: initialHashtags,
+  people: initialPeople = [],
   projects,
   onOptimisticInsert,
   onOptimisticRevert,
@@ -93,6 +106,7 @@ export function CaptureComposer({
   defaultProjectIds,
 }: Props) {
   const [hashtags] = useState(initialHashtags);
+  const [people] = useState(initialPeople);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(defaultProjectIds ?? []);
   const [pending, startTransition] = useTransition();
   // Smart tag suggestions (#36 / #40). `suggestions` holds tags the user hasn't
@@ -125,6 +139,22 @@ export function CaptureComposer({
         },
         suggestion: createHashtagSuggestion(() => hashtags),
       }),
+      // A SECOND Mention instance for `@person` (Phase C). Distinct node name so
+      // it never collides with the `#` mention node; TipTap gives each Suggestion
+      // its own plugin key automatically. The node stores the typed NAME (not a
+      // person id) so createCapture resolves-or-creates by name on save, exactly
+      // like hashtags canonicalize server side.
+      Mention.extend({ name: "personMention" }).configure({
+        HTMLAttributes: { class: "person-chip-inline" },
+        renderHTML({ options, node }) {
+          return [
+            "span",
+            { ...options.HTMLAttributes, "data-person": node.attrs.label },
+            `@${node.attrs.label}`,
+          ];
+        },
+        suggestion: createPersonSuggestion(() => people),
+      }),
       // Live-decorate plain `#word` text so the token styling lands without
       // waiting for the suggestion popover to commit a Mention node (#41).
       HashtagDecorations,
@@ -139,10 +169,17 @@ export function CaptureComposer({
     autofocus: autoFocus ?? false,
   });
 
-  function parseEditor(): { content: string; hashtagNames: string[] } {
-    if (!editor) return { content: "", hashtagNames: [] };
+  function parseEditor(): {
+    content: string;
+    hashtagNames: string[];
+    personNames: string[];
+  } {
+    if (!editor) return { content: "", hashtagNames: [], personNames: [] };
     const json = editor.getJSON();
     const tagSet = new Set<string>();
+    // Person mentions are committed nodes only (no permissive plain-text @parse,
+    // since @ commonly appears in emails/handles). Preserve first-seen casing.
+    const personCasing = new Map<string, string>();
     // Preserve first-seen casing when we extract `#word` from plain text
     // (the server lowercases via upsertHashtag for canonical CAPT-08 storage).
     const tagCasing = new Map<string, string>();
@@ -177,6 +214,13 @@ export function CaptureComposer({
         content += n.text;
         extractFromText(n.text);
       }
+      if (n.type === "personMention" && typeof n.attrs?.label === "string") {
+        const label = n.attrs.label;
+        const lower = label.toLowerCase();
+        if (!personCasing.has(lower)) personCasing.set(lower, label);
+        // The mirror keeps the @name inline so the saved content reads naturally.
+        content += `@${label}`;
+      }
       if (n.type === "mention" && typeof n.attrs?.label === "string") {
         // Mention nodes always win casing — they were explicitly committed via popover
         const label = n.attrs.label;
@@ -195,7 +239,11 @@ export function CaptureComposer({
     // Final pass: rebuild tagSet from tagCasing so mention-node casing wins on collision
     const finalTags = Array.from(tagCasing.values());
     void tagSet; // keep eslint happy; tagSet was used as an accumulator
-    return { content: content.trim(), hashtagNames: finalTags };
+    return {
+      content: content.trim(),
+      hashtagNames: finalTags,
+      personNames: Array.from(personCasing.values()),
+    };
   }
 
   const handleSuggestTags = useCallback(async () => {
@@ -238,7 +286,7 @@ export function CaptureComposer({
   }, []);
 
   const handleSubmit = useCallback(() => {
-    const { content, hashtagNames } = parseEditor();
+    const { content, hashtagNames, personNames } = parseEditor();
     if (!content) return;
 
     // RT-05 echo-dedupe key. Generated BEFORE the Server Action so the
@@ -292,6 +340,9 @@ export function CaptureComposer({
         id: newId,
         content,
         hashtagNames,
+        // Person names (not ids): createCapture resolve-or-creates each and
+        // reconciles people_references for this capture (Phase C).
+        personNames,
         projectIds: selectedProjectIds,
       });
       if (!r.success) {

@@ -15,7 +15,8 @@ export type JarvisToolName =
   | "update_task" | "delete_task"
   | "update_capture" | "delete_capture"
   | "update_event" | "delete_event"
-  | "find_tasks" | "find_captures" | "find_events";
+  | "find_tasks" | "find_captures" | "find_events"
+  | "create_person" | "find_people" | "link_people";
 
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
@@ -156,6 +157,31 @@ export interface FindEventsAction {
   time_min?: string | null;
   /** ISO datetime */
   time_max?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Phase D — people knowledge graph action input types.
+// Inferred shapes from the Zod schemas in tools/create-person | find-people |
+// link-people. Declared as plain interfaces here to match the other action
+// types and keep types.ts dependency-free.
+// ---------------------------------------------------------------------------
+
+export interface CreatePersonAction {
+  name: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
+  tags?: string[];
+}
+
+export interface FindPeopleAction {
+  query?: string;
+}
+
+export interface LinkPeopleAction {
+  person_names: string[];
+  from_type: "task" | "capture" | "page" | "jarvis_fact" | "event";
+  from_id: string;
 }
 
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn

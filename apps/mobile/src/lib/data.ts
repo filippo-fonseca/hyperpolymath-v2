@@ -212,6 +212,28 @@ export function localDateString(offsetDays = 0): string {
   return `${y}-${m}-${day}`;
 }
 
+// ── Projects / Areas (read-only) ──────────────────────────────────────────────
+
+export interface DeviceProject {
+  id: string;
+  name: string;
+  icon: string | null;
+  isClass: boolean;
+  openTaskCount: number;
+}
+
+export interface DeviceArea {
+  id: string;
+  name: string;
+  emoji: string | null;
+  projects: DeviceProject[];
+}
+
+export async function getProjects(): Promise<DeviceArea[] | null> {
+  const data = await call<{ areas: DeviceArea[] }>("/api/device/projects");
+  return data?.areas ?? null;
+}
+
 // ── Training ────────────────────────────────────────────────────────────────
 
 export type TrainingStatus = "planned" | "done" | "cancelled" | "skipped";

@@ -85,10 +85,10 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   });
 });
 
-describe("buildToolDefinitions — 14 tools after Phase 16", () => {
-  it("returns 14 tools with the 5 originals first and ask_clarification 5th", () => {
+describe("buildToolDefinitions — 17 tools after Phase D", () => {
+  it("returns 17 tools with the 5 originals first and ask_clarification 5th", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(14);
+    expect(tools).toHaveLength(17);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");
@@ -96,13 +96,13 @@ describe("buildToolDefinitions — 14 tools after Phase 16", () => {
     expect(tools[4]?.name).toBe("ask_clarification");
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on find_events (last tool since Phase 16)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on link_people (last tool since Phase D)", () => {
     // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
-    // Phase 16 moved the breakpoint from ask_clarification to find_events.
+    // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("find_events");
+    expect(cached[0]?.name).toBe("link_people");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     const askClarification = tools.find((t) => t.name === "ask_clarification");
     expect(askClarification?.cache_control).toBeUndefined();

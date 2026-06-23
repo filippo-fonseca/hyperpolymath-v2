@@ -19,7 +19,7 @@
 import { z } from "zod";
 
 /** Bump this when the Node / Edge / ContextSnapshot shape evolves. */
-export const CURRENT_SCHEMA_VERSION = 3 as const;
+export const CURRENT_SCHEMA_VERSION = 4 as const;
 
 /* ─── Node discriminated union (v1) ───────────────────────────────────── */
 
@@ -103,6 +103,17 @@ export const NodeSchema = z.discriminatedUnion("type", [
     updatedAt: z.string(),
     summary: z.string().optional(),
   }),
+  z.object({
+    type: z.literal("person"),
+    id: z.string().uuid(),
+    name: z.string(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    bio: z.string().nullable(),
+    tags: z.array(z.string()),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
 ]);
 export type Node = z.infer<typeof NodeSchema>;
 export type NodeType = Node["type"];
@@ -145,6 +156,12 @@ export const EdgeSchema = z.discriminatedUnion("type", [
     from: z.string().uuid(),
     entityType: z.enum(["area", "project"]),
     entityId: z.string().uuid(),
+  }),
+  z.object({
+    type: z.literal("mentions_person"),
+    from: z.string().uuid(),
+    to: z.string().uuid(),
+    fromType: z.enum(["task", "capture", "page", "jarvis_fact", "event"]),
   }),
 ]);
 export type Edge = z.infer<typeof EdgeSchema>;

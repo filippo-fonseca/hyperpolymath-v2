@@ -23,13 +23,13 @@ describe("personality.ts — Phase 5.1 prose-first rewrite (JARVIS-20)", () => {
     expect(TOOL_USE_RULES).toMatch(/JARVIS MEMORY/);
   });
 
-  it("TOOL_USE_RULES says 'fourteen tools' after Phase 16 registers CRUD + find tools", () => {
-    expect(TOOL_USE_RULES).toMatch(/fourteen tools/);
+  it("TOOL_USE_RULES says 'seventeen tools' after Phase D registers people tools", () => {
+    expect(TOOL_USE_RULES).toMatch(/seventeen tools/);
     expect(TOOL_USE_RULES).not.toMatch(/five tools/);
   });
 
-  it("keeps ask_clarification rule + co-emit prohibition (JARVIS-19) alongside fourteen tools", () => {
-    expect(TOOL_USE_RULES).toMatch(/fourteen tools/);
+  it("keeps ask_clarification rule + co-emit prohibition (JARVIS-19) alongside seventeen tools", () => {
+    expect(TOOL_USE_RULES).toMatch(/seventeen tools/);
     expect(TOOL_USE_RULES).toMatch(/ask_clarification/);
     expect(TOOL_USE_RULES).toMatch(/alone in the turn|never.*same turn|never co-emit/i);
   });

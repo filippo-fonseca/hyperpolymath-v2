@@ -26,6 +26,10 @@
 // find_tasks, find_captures, find_events). Total: 14 tools.
 // cache_control moves from ask_clarification to find_events (new LAST tool).
 // +9 tools ≈ +360 extra prompt tokens per turn (RESEARCH.md Pitfall 7).
+//
+// Phase D (people knowledge graph): 3 new NON-strict tools added
+// (create_person, find_people, link_people). Total: 17 tools.
+// cache_control moves from find_events to link_people (new LAST tool).
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -43,6 +47,9 @@ import { deleteEventTool } from "./delete-event";
 import { findTasksTool } from "./find-tasks";
 import { findCapturesTool } from "./find-captures";
 import { findEventsTool } from "./find-events";
+import { createPersonTool } from "./create-person";
+import { findPeopleTool } from "./find-people";
+import { linkPeopleTool } from "./link-people";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -65,7 +72,10 @@ export interface JarvisToolDefinition {
     | "delete_event"
     | "find_tasks"
     | "find_captures"
-    | "find_events";
+    | "find_events"
+    | "create_person"
+    | "find_people"
+    | "link_people";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -147,12 +157,17 @@ export function buildToolDefinitions(
     { ...deleteEventTool, strict: true as const },
     { ...findTasksTool, strict: false as const },
     { ...findCapturesTool, strict: false as const },
+    { ...findEventsTool, strict: false as const },
+    // Phase D (people knowledge graph): create / find / link people.
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    { ...createPersonTool, strict: false as const },
+    { ...findPeopleTool, strict: false as const },
     {
-      ...findEventsTool,
+      ...linkPeopleTool,
       strict: false as const,
-      // Phase 16 / CACHE-01 (D-06 BREAKPOINT 1): cache_control moves here —
-      // find_events is now the LAST tool in the array. TTL "1h" amortizes
-      // the 2× write cost over a full hour of turns.
+      // Phase D / CACHE: cache_control moves here — link_people is now the
+      // LAST tool in the array. find_events loses the breakpoint. TTL "1h"
+      // amortizes the 2× write cost over a full hour of turns.
       // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     },
@@ -174,6 +189,10 @@ export { DeleteEventInputSchema } from "./delete-event";
 export { FindTasksInputSchema } from "./find-tasks";
 export { FindCapturesInputSchema } from "./find-captures";
 export { FindEventsInputSchema } from "./find-events";
+// Phase D: re-export people tool input schemas for run-turn.ts validation.
+export { CreatePersonInputSchema } from "./create-person";
+export { FindPeopleInputSchema } from "./find-people";
+export { LinkPeopleInputSchema } from "./link-people";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;
