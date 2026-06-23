@@ -796,12 +796,15 @@ export function createServerExecutor(): ActionExecutor {
             tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
           })
           .returning({ id: people.id, name: people.name });
+        if (!row) {
+          return { ok: false, kind: "internal", error: "Person insert returned no row" };
+        }
         return {
           ok: true,
-          id: row!.id,
+          id: row.id,
           receipt: {
-            id: row!.id,
-            name: row!.name,
+            id: row.id,
+            name: row.name,
             email: input.email?.trim() || undefined,
             phone: input.phone?.trim() || undefined,
             tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
