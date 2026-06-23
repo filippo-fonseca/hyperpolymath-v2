@@ -1,4 +1,4 @@
-// Phase D — link_people tool.
+// Phase D: link_people tool.
 //
 // Links one or more people (resolve-or-create by name) to an entity the agent
 // is working with this turn. The entity is identified by (from_type, from_id);
@@ -6,7 +6,7 @@
 // by create_task / create_capture / create_event) surfaced via SESSION ENTITIES,
 // or from a find_* result. The model must NOT invent from_id.
 //
-// SEMANTICS: link_people ADDS links — it never removes a person's other links to
+// SEMANTICS: link_people ADDS links. It never removes a person's other links to
 // the same entity. The executor merges the resolved ids with any references that
 // already exist for (from_type, from_id) before reconciling, so calling it twice
 // is additive and idempotent.

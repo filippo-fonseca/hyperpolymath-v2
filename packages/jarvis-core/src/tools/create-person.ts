@@ -1,4 +1,4 @@
-// Phase D — create_person tool.
+// Phase D: create_person tool.
 //
 // Creates a person/contact in the user's roster so JARVIS can @-mention them
 // and link them to entities. The user owns the row; ctx.userId (never a

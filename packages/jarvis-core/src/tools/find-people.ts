@@ -1,4 +1,4 @@
-// Phase D — find_people tool.
+// Phase D: find_people tool.
 //
 // Fuzzy-finds people in the user's roster by name (and/or tag) so JARVIS can
 // resolve an @-mention to an existing person before linking. Returns up to 10
