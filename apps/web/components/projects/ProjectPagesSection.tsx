@@ -111,11 +111,13 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
     initialData: [],
   });
   // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker used
-  // to edit each folder's OWN project links.
+  // to edit each folder's OWN project links. No initialData on purpose: the
+  // global QueryClient sets refetchOnMount:false and nothing invalidates the
+  // ["sidebar-tree"] key, so a seeded [] would stick forever and the dropdown
+  // would render empty. Leaving it unseeded lets the queryFn run on mount.
   const { data: areas = [] } = useQuery({
     queryKey: ["sidebar-tree", userId],
     queryFn: () => getSidebarTreeForCurrentUser(),
-    initialData: [],
   });
 
   const projectNames = useMemo(

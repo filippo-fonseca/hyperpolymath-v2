@@ -266,31 +266,35 @@ export function JarvisConsole({
       setTurns((prev) => mergeById(prev, mapped));
     }
 
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    void (async () => {
-      // The module-private _initRealtimeAuth in useTableSubscription is NOT
-      // exported, so this standalone channel must carry the user JWT itself.
-      const { data } = await supabase.auth.getSession();
+    // Create the channel and attach the listener synchronously so the cleanup
+    // below always has a real channel to remove. Deferring channel creation
+    // behind an await (as before) meant React strict-mode's synchronous cleanup
+    // ran while `channel` was still null — a no-op — leaving the first channel
+    // subscribed. The second mount then re-used that subscribed instance and
+    // threw "cannot add postgres_changes callbacks ... after subscribe()".
+    const channel = supabase.channel(`jarvis-console-merge:${userId}`).on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jarvis_turns",
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        void refreshAndMerge();
+      },
+    );
+
+    // The module-private _initRealtimeAuth in useTableSubscription is NOT
+    // exported, so this standalone channel must carry the user JWT itself.
+    // Only .subscribe() is deferred behind the token fetch; .on() already ran.
+    void supabase.auth.getSession().then(({ data }) => {
       void supabase.realtime.setAuth(data.session?.access_token ?? null);
-      channel = supabase
-        .channel(`jarvis-console-merge:${userId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "jarvis_turns",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => {
-            void refreshAndMerge();
-          },
-        )
-        .subscribe();
-    })();
+      channel.subscribe();
+    });
 
     return () => {
-      if (channel) void supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [userId]);
 
