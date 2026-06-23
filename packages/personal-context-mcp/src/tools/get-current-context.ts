@@ -21,7 +21,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LoadSnapshot } from "../data/load-snapshot.js";
 import type { ContextSnapshot, NodeType } from "../types.js";
 
-/** Enum mirroring the seven node types in NodeSchema. Must stay in sync. */
+/** Enum mirroring the node types in NodeSchema. Must stay in sync. */
 const TopicEnum = z.enum([
   "area",
   "project",
@@ -30,6 +30,9 @@ const TopicEnum = z.enum([
   "training_activity",
   "habit",
   "jarvis_fact",
+  "journal_entry",
+  "page",
+  "person",
 ]);
 
 /** The ZodRawShape for server.tool() — keys are individual Zod schemas. */

@@ -21,7 +21,7 @@ import {
   type ContextSnapshot,
   type Node,
 } from "./types";
-import { deriveEdges } from "./edges";
+import { deriveEdges, type PersonReference } from "./edges";
 import { loadAreas } from "./nodes/areas";
 import { loadProjects } from "./nodes/projects";
 import { loadTasks } from "./nodes/tasks";
@@ -31,17 +31,43 @@ import { loadHabits } from "./nodes/habits";
 import { loadJarvisFacts } from "./nodes/jarvis-facts";
 import { loadJournalEntries } from "./nodes/journal";
 import { loadPages } from "./nodes/pages";
+import { loadPeople, loadPeopleReferences } from "./nodes/people";
 
 export { CURRENT_SCHEMA_VERSION };
 
 export type DB = typeof defaultDb;
+
+const PERSON_REF_FROM_TYPES: readonly PersonReference["fromType"][] = [
+  "task",
+  "capture",
+  "page",
+  "jarvis_fact",
+  "event",
+];
+
+/** Narrow a raw text from_type to the mentions_person edge enum. */
+function isPersonRefFromType(t: string): t is PersonReference["fromType"] {
+  return (PERSON_REF_FROM_TYPES as readonly string[]).includes(t);
+}
 
 export async function buildSnapshot(
   userId: string,
   db: DB = defaultDb,
 ): Promise<Result<ContextSnapshot>> {
   try {
-    const [areas, projects, tasks, captures, training, habits, facts, journal, pagesResult] = await Promise.all([
+    const [
+      areas,
+      projects,
+      tasks,
+      captures,
+      training,
+      habits,
+      facts,
+      journal,
+      pagesResult,
+      peopleResult,
+      references,
+    ] = await Promise.all([
       loadAreas(userId, db),
       loadProjects(userId, db),
       loadTasks(userId, db),
@@ -51,6 +77,8 @@ export async function buildSnapshot(
       loadJarvisFacts(userId, db),
       loadJournalEntries(userId, db),
       loadPages(userId, db),
+      loadPeople(userId, db),
+      loadPeopleReferences(userId, db),
     ]);
 
     const allNodes: Node[] = [
@@ -63,6 +91,7 @@ export async function buildSnapshot(
       ...facts.nodes,
       ...journal.nodes,
       ...pagesResult.nodes,
+      ...peopleResult.nodes,
     ];
 
     const areaIds = new Set(
@@ -80,6 +109,9 @@ export async function buildSnapshot(
     const pageNodes = pagesResult.nodes.filter(
       (n): n is Extract<Node, { type: "page" }> => n.type === "page",
     );
+    const personNodes = peopleResult.nodes.filter(
+      (n): n is Extract<Node, { type: "person" }> => n.type === "person",
+    );
 
     const edges = deriveEdges({
       areaIds,
@@ -92,6 +124,12 @@ export async function buildSnapshot(
       facts: facts.nodes
         .filter((n): n is Extract<Node, { type: "jarvis_fact" }> => n.type === "jarvis_fact")
         .map((n) => ({ id: n.id })),
+      people: personNodes,
+      references: references.flatMap((r) =>
+        isPersonRefFromType(r.fromType)
+          ? [{ fromType: r.fromType, fromId: r.fromId, personId: r.personId }]
+          : [],
+      ),
     });
 
     const nodeCounts: Record<string, number> = {};

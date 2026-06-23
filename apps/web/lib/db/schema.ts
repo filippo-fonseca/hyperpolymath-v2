@@ -1123,3 +1123,73 @@ export const journalEntries = pgTable(
     index("journal_entries_user_date_desc_idx").on(t.userId, sql`date DESC`),
   ],
 );
+
+// ─── PEOPLE ─────────────────────────────────────────────────────────────────
+// Phase: People — first-class person entity for the knowledge graph. People are
+// curatable contacts (email / phone / bio / avatar / tags) that can be
+// @-mentioned from anywhere there is text (wiki pages, captures, JARVIS chat)
+// and linked to tasks/captures/events. The Notion-style "people" property: any
+// entity can reference one or more people via people_references.
+export const people = pgTable(
+  "people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email"), // nullable — curated later
+    phone: text("phone"), // nullable
+    bio: text("bio"), // nullable — "who they are to me"
+    // Public URL into the `avatars` Supabase Storage bucket. null → render the
+    // person's initials as the default avatar.
+    avatarUrl: text("avatar_url"),
+    // Free-form tags (friend / investor / teacher / professor / code / …). A
+    // text[] so the People page can filter by tag without a join table — the
+    // canonical tag list is curated client-side but the column accepts any
+    // string for forward flexibility.
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("people_user_idx").on(t.userId),
+    // Case-insensitive resolve-or-create: @-mention + JARVIS look people up by
+    // (userId, lower(name)). A non-unique index keeps lookups fast while still
+    // allowing intentional namesakes.
+    index("people_user_name_idx").on(t.userId, sql`lower(name)`),
+  ],
+);
+
+// people_references — one row per (from-entity → person) mention. The from
+// entity is identified by a (type, id) pair rather than a hard FK because the
+// referencing entity can be a task, capture, page, or jarvis_fact. userId is
+// denormalized for RLS, matching every other junction table. References are
+// reconciled on save (parse the entity's content for person mentions, then
+// diff against existing rows), so this table is the single source of truth for
+// "what mentions whom" and powers reference counts + the knowledge graph.
+export const peopleReferences = pgTable(
+  "people_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(), // denormalized for RLS
+    // "task" | "capture" | "page" | "jarvis_fact" | "event"
+    fromType: text("from_type").notNull(),
+    fromId: uuid("from_id").notNull(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // At most one reference per (from-entity, person) — re-saving an entity that
+    // mentions the same person twice collapses to one row.
+    unique("people_references_from_person_uniq").on(t.fromType, t.fromId, t.personId),
+    index("people_references_person_idx").on(t.personId),
+    index("people_references_user_idx").on(t.userId),
+    index("people_references_from_idx").on(t.fromType, t.fromId),
+  ],
+);

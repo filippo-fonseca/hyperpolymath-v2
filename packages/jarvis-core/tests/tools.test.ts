@@ -110,7 +110,7 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns fourteen tools in order: 5 originals then update/delete/find (Phase 16)", () => {
+  it("returns seventeen tools in order: 5 originals, update/delete/find (Phase 16), then people (Phase D)", () => {
     const tools = buildToolDefinitions();
     expect(tools.map((t) => t.name)).toEqual([
       "create_task",
@@ -127,6 +127,9 @@ describe("buildToolDefinitions", () => {
       "find_tasks",
       "find_captures",
       "find_events",
+      "create_person",
+      "find_people",
+      "link_people",
     ]);
   });
 
@@ -138,13 +141,13 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (find_events since Phase 16)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (link_people since Phase D)", () => {
     // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
-    // Phase 16 moved the breakpoint from ask_clarification to find_events (new last tool).
+    // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people (new last tool).
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("find_events");
+    expect(cached[0]?.name).toBe("link_people");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     const askClarification = tools.find((t) => t.name === "ask_clarification");
     expect(askClarification?.cache_control).toBeUndefined();

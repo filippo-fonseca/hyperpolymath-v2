@@ -78,6 +78,22 @@ const migrators: Record<number, (payload: unknown) => Result<ContextSnapshot>> =
     if (!parsed.success) return err(`v2->v3 migration failed: ${parsed.error.message}`);
     return ok(parsed.data);
   },
+  3: (payload) => {
+    // v3 -> v4 (Phase E): added the `person` node type and the `mentions_person`
+    // edge (entity -> person). Both are purely ADDITIVE: an old v3 payload simply
+    // has no person nodes and no mentions_person edges, which the v4 schema
+    // accepts. So we only lift schemaVersion and re-parse; no field fabrication.
+    if (typeof payload !== "object" || payload === null) {
+      return err("v3->v4 migration failed: payload is not an object");
+    }
+    const lifted = {
+      ...(payload as object),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+    const parsed = ContextSnapshotSchema.safeParse(lifted);
+    if (!parsed.success) return err(`v3->v4 migration failed: ${parsed.error.message}`);
+    return ok(parsed.data);
+  },
 };
 
 export function migrate(

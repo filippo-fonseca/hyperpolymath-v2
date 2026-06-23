@@ -8,13 +8,16 @@
 import type {
   CreateCaptureAction,
   CreateEventAction,
+  CreatePersonAction,
   CreateTaskAction,
   DeleteCaptureAction,
   DeleteEventAction,
   DeleteTaskAction,
   FindCapturesAction,
   FindEventsAction,
+  FindPeopleAction,
   FindTasksAction,
+  LinkPeopleAction,
   RememberFactAction,
   UpdateCaptureAction,
   UpdateEventAction,
@@ -94,4 +97,9 @@ export interface ActionExecutor {
   findTasks(input: FindTasksAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   findCaptures(input: FindCapturesAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   findEvents(input: FindEventsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Phase D — people knowledge graph: create / find / link people.
+  createPerson(input: CreatePersonAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  findPeople(input: FindPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 }
