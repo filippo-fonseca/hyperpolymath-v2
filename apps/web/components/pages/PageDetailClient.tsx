@@ -234,9 +234,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   // Freshly-created pages open empty; drop the cursor straight into the title
   // so the user can start typing without a click. Runs once on mount only.
+  // Daily Pages are the exception: they open with a date title, so the editor
+  // autofocuses the first body block instead (see autoFocusFirstBlock below).
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only autofocus
   useEffect(() => {
-    if (initialPage.title.trim() === "") titleRef.current?.focus();
+    if (initialPage.dailyDate === null && initialPage.title.trim() === "") {
+      titleRef.current?.focus();
+    }
   }, []);
 
   const save = useCallback(
@@ -777,6 +781,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           pageId={initialPage.id}
           userId={userId}
           hideReceipts={hideReceipts}
+          autoFocusFirstBlock={isDailyPage}
           focusRef={editorFocusRef}
           containerRef={editorContainerRef}
           onEditorReady={handleEditorReady}
