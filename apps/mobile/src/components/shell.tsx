@@ -20,15 +20,64 @@ export function ScreenHeader({
   title,
   count,
   paddingTop,
+  right,
 }: {
   title: string;
   count?: number;
   paddingTop: number;
+  right?: ReactNode;
 }) {
   return (
     <View style={[styles.header, { paddingTop }]}>
       <Text style={styles.headerTitle}>{title}</Text>
       {typeof count === "number" ? <Text style={styles.headerCount}>{count}</Text> : null}
+      {right ? <View style={styles.headerRight}>{right}</View> : null}
+    </View>
+  );
+}
+
+/** Compact mono pill used as a header accessory (e.g. "▦ projects"). */
+export function HeaderButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.7 }]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={styles.headerButtonLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Single-line filter input with a clear affordance. */
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder = "Search…",
+}: {
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <View style={styles.searchWrap}>
+      <TextInput
+        style={styles.searchInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textDim}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+      />
+      {value ? (
+        <Pressable onPress={() => onChangeText("")} hitSlop={10} style={styles.searchClear}>
+          <Text style={styles.searchClearLabel}>✕</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -194,6 +243,50 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   headerCount: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 13,
+  },
+  headerRight: {
+    marginLeft: "auto",
+  },
+  headerButton: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  headerButtonLabel: {
+    color: colors.accent,
+    fontFamily: mono,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  searchWrap: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  searchInput: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    paddingHorizontal: 14,
+    paddingRight: 34,
+    fontFamily: serif,
+    fontSize: 15,
+  },
+  searchClear: {
+    position: "absolute",
+    right: 12,
+    height: "100%",
+    justifyContent: "center",
+  },
+  searchClearLabel: {
     color: colors.textDim,
     fontFamily: mono,
     fontSize: 13,

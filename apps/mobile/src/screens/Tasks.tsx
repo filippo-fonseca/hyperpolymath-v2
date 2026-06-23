@@ -28,6 +28,7 @@ import {
 } from "../lib/data";
 import { celebrate } from "../components/celebrate";
 import { KiwiLoader } from "../components/KiwiLoader";
+import { ProjectsSheet } from "../components/ProjectsSheet";
 import { useCollection } from "../lib/use-collection";
 import { colors, mono, serif } from "../theme";
 import {
@@ -37,7 +38,9 @@ import {
   Field,
   FieldLabel,
   FormSheet,
+  HeaderButton,
   ScreenHeader,
+  SearchBar,
 } from "../components/shell";
 
 const PRIORITY_COLOR: Record<Priority, string> = {
@@ -100,10 +103,23 @@ export function TasksScreen({ active }: { active: boolean }) {
   const { data, loading, refresh, mutate } = useCollection(getTasks, active);
   const [form, setForm] = useState<FormState | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return data ?? [];
+    return (data ?? []).filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        (t.notes?.toLowerCase().includes(q) ?? false) ||
+        t.projects.some((p) => p.name.toLowerCase().includes(q)),
+    );
+  }, [data, query]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, Task[]> = {};
-    for (const t of data ?? []) {
+    for (const t of filtered) {
       const b = bucketOf(t);
       (groups[b] ??= []).push(t);
     }
@@ -114,7 +130,7 @@ export function TasksScreen({ active }: { active: boolean }) {
       );
     }
     return groups;
-  }, [data]);
+  }, [filtered]);
 
   const toggleDone = async (t: Task, touch?: { x: number; y: number }) => {
     const next: TaskStatus = t.status === "lesno" ? "not started" : "lesno";
@@ -182,7 +198,11 @@ export function TasksScreen({ active }: { active: boolean }) {
         title="Tasks"
         count={(data ?? []).filter((t) => t.status !== "lesno").length}
         paddingTop={insets.top + 8}
+        right={<HeaderButton label="▦ projects" onPress={() => setShowProjects(true)} />}
       />
+      {data && data.length > 0 ? (
+        <SearchBar value={query} onChangeText={setQuery} placeholder="Search tasks…" />
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.list}
         refreshControl={
@@ -196,6 +216,9 @@ export function TasksScreen({ active }: { active: boolean }) {
         ) : null}
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing on the list. Tap + or ask JARVIS." />
+        ) : null}
+        {data !== null && data.length > 0 && filtered.length === 0 ? (
+          <EmptyState message={`No tasks match "${query.trim()}".`} />
         ) : null}
         {BUCKET_ORDER.map((bucket) => {
           const rows = grouped[bucket];
@@ -267,6 +290,8 @@ export function TasksScreen({ active }: { active: boolean }) {
       </ScrollView>
 
       <Fab onPress={() => setForm({ ...EMPTY_FORM })} />
+
+      <ProjectsSheet visible={showProjects} onClose={() => setShowProjects(false)} />
 
       <FormSheet
         visible={form !== null}

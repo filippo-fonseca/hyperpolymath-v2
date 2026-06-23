@@ -8,6 +8,8 @@ import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { renderInlineMarkdown } from "@/lib/jarvis/inline-markdown";
+import { isDailyPageProcessText } from "@/lib/jarvis/daily-page-process";
+import { CalendarDays } from "lucide-react";
 
 /**
  * Terminal-style single-column scrollback (D-05).
@@ -306,9 +308,24 @@ export function JarvisScrollback({
               <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
                 {">"}
               </span>
-              <span className="font-mono text-foreground/80 flex-1">
-                {stripSystemTags(turn.text)}
-              </span>
+              {isDailyPageProcessText(turn.text) ? (
+                // Turns from the Daily Page "process this page" button carry a
+                // canned instruction as their text. Badge them instead of
+                // echoing the raw prompt so they read as a distinct action.
+                <span className="flex-1 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+                    <CalendarDays size={11} strokeWidth={1.75} />
+                    Daily Page
+                  </span>
+                  <span className="font-mono text-foreground/60 text-[13px]">
+                    Processed this page
+                  </span>
+                </span>
+              ) : (
+                <span className="font-mono text-foreground/80 flex-1">
+                  {stripSystemTags(turn.text)}
+                </span>
+              )}
               <TurnTimestamp createdAt={turn.createdAt} />
             </div>
           ) : (

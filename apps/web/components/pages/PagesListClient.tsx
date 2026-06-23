@@ -61,6 +61,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   pointerWithin,
   useDraggable,
@@ -83,12 +84,14 @@ import {
   FolderPlus,
   GripVertical,
   Inbox,
+  LayoutGrid,
+  List,
   Loader2,
   Plus,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -143,6 +146,18 @@ export function PagesListClient({
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
+  // "list" is the draggable hierarchy; "grid" is a flat card gallery of pages.
+  // Initialized to "list" for a stable first render, then synced from
+  // localStorage on mount (below) to avoid an SSR/hydration mismatch.
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  useEffect(() => {
+    const saved = localStorage.getItem("wiki:view-mode");
+    if (saved === "grid" || saved === "list") setViewMode(saved);
+  }, []);
+  function chooseView(mode: "list" | "grid") {
+    setViewMode(mode);
+    localStorage.setItem("wiki:view-mode", mode);
+  }
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -184,10 +199,14 @@ export function PagesListClient({
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
   });
+  // No initialData / SSR seed for projects: this feeds the projectNames map
+  // that resolves the folder + page project pills. Seeding [] with the global
+  // refetchOnMount:false meant the map stayed empty on a cold load, so
+  // ProjectPillRow filtered out every link (no resolvable name) and linked
+  // projects never showed in the Wiki tree. Unseeded, the queryFn runs on mount.
   const { data: projects = [] } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
-    initialData: [],
   });
   // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
   // "pages" realtime channel, so the subscription above already refreshes it.
@@ -260,8 +279,36 @@ export function PagesListClient({
     setCreating(true);
     try {
       const id = crypto.randomUUID();
+      // Optimistically insert into the list cache before navigating into the
+      // editor. Every other Wiki mutation here self-patches; this one used to
+      // rely solely on the Realtime INSERT echo, so returning to /wiki after
+      // creating showed a stale list until a manual refresh. createPage takes
+      // our client id, so the echo reconciles onto the same row with no dupe.
+      const now = new Date();
+      patchPages((old) => [
+        {
+          id,
+          title: "",
+          content: "",
+          contentJson: null,
+          emoji: null,
+          pinned: false,
+          noExport: false,
+          folderId: null,
+          folderName: null,
+          dailyDate: null,
+          createdAt: now,
+          updatedAt: now,
+          projects: [],
+        },
+        ...old,
+      ]);
       const result = await createPage({ id, title: "", content: "" });
-      if (result.success) router.push(`/wiki/${result.data.id}`);
+      if (!result.success) {
+        void queryClient.invalidateQueries({ queryKey: pagesKey });
+        return;
+      }
+      router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
     }
@@ -489,6 +536,34 @@ export function PagesListClient({
           Wiki
         </h1>
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-sm border border-[var(--edge)] p-0.5">
+            <button
+              type="button"
+              onClick={() => chooseView("list")}
+              aria-pressed={viewMode === "list"}
+              title="List view"
+              className={`flex items-center justify-center rounded-[3px] p-1.5 transition-colors duration-150 cursor-pointer ${
+                viewMode === "list"
+                  ? "bg-[var(--surface)] text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              <List size={14} strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              onClick={() => chooseView("grid")}
+              aria-pressed={viewMode === "grid"}
+              title="Grid view"
+              className={`flex items-center justify-center rounded-[3px] p-1.5 transition-colors duration-150 cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-[var(--surface)] text-[var(--ink)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              <LayoutGrid size={14} strokeWidth={1.5} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={handleExportAll}
@@ -627,10 +702,34 @@ export function PagesListClient({
               : "No pages yet. Create a folder or a page to keep notes, docs, or references."}
           </p>
         </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          {[...visiblePages]
+            .sort(
+              (a, b) =>
+                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            )
+            .map((page) => (
+              <PageCard
+                key={page.id}
+                page={page}
+                folderName={
+                  page.folderId ? folderNames.get(page.folderId) ?? null : null
+                }
+                projectNames={projectNames}
+                onOpen={() => router.push(`/wiki/${page.id}`)}
+              />
+            ))}
+        </div>
       ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
+          // Measure droppables continuously, not just at drag start. The root
+          // drop zone only mounts once a drag begins, so the default
+          // measure-at-start strategy never registered its rect and dropping
+          // onto it did nothing ("no way to drag to the root").
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveId(null)}
@@ -1022,5 +1121,58 @@ function PageRow({
         </span>
       )}
     </div>
+  );
+}
+
+// ─── Grid view card ────────────────────────────────────────────────────────
+
+function PageCard({
+  page,
+  folderName,
+  projectNames,
+  onOpen,
+}: {
+  page: PageWithProjects;
+  folderName: string | null;
+  projectNames: Map<string, string>;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex flex-col gap-2 h-full text-left rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 hover:border-[var(--ink-muted)] transition-colors duration-150 cursor-pointer"
+    >
+      <div className="flex items-start gap-2">
+        <span className="flex-shrink-0 text-[15px] leading-none mt-0.5">
+          {page.emoji ?? (
+            <FileText size={15} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1 text-[14px] font-serif text-[var(--ink)] line-clamp-2">
+          {page.title || (
+            <span className="text-[var(--ink-muted)] italic">Untitled page</span>
+          )}
+        </span>
+      </div>
+      {folderName && (
+        <span className="flex items-center gap-1 text-[10px] font-mono text-[var(--ink-muted)] truncate">
+          <Folder size={10} strokeWidth={1.5} />
+          {folderName}
+        </span>
+      )}
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+        <ProjectPillRow
+          links={page.projects.map((p) => ({
+            projectId: p.id,
+            isInherited: false,
+          }))}
+          projectNames={projectNames}
+        />
+        <span className="flex-shrink-0 ml-auto text-[10px] font-mono text-[var(--ink-muted)]">
+          {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
+        </span>
+      </div>
+    </button>
   );
 }

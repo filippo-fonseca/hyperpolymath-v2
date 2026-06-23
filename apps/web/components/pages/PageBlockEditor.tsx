@@ -152,6 +152,12 @@ interface Props {
   userId: string;
   /** When true, resolved receipt pills are hidden in-doc (JDOC-UX-06). */
   hideReceipts?: boolean;
+  /**
+   * When true, drop the cursor into the first content block on mount instead of
+   * leaving focus on the title. Daily Pages open with a date title already set,
+   * so the user wants to start writing the body straight away.
+   */
+  autoFocusFirstBlock?: boolean;
   /** Parent-owned ref populated with a "focus the body" fn (Enter-from-title). */
   focusRef?: React.MutableRefObject<(() => void) | null>;
   /**
@@ -187,6 +193,7 @@ export default function PageBlockEditor({
   pageId,
   userId,
   hideReceipts = false,
+  autoFocusFirstBlock = false,
   focusRef,
   containerRef,
   onEditorReady,
@@ -248,6 +255,19 @@ export default function PageBlockEditor({
       focusRef.current = null;
     };
   }, [editor, focusRef]);
+
+  // Daily Pages open with a date title already filled in, so the user wants the
+  // cursor in the body, not the title. Drop it into the first content block once
+  // on mount. Done here (not in the parent) because the editor is loaded async
+  // via next/dynamic — its focus handle isn't ready when the parent first mounts.
+  const autoFocused = useRef(false);
+  useEffect(() => {
+    if (!autoFocusFirstBlock || autoFocused.current) return;
+    autoFocused.current = true;
+    const first = editor.document[0];
+    if (first) editor.setTextCursorPosition(first.id, "start");
+    editor.focus();
+  }, [autoFocusFirstBlock, editor]);
 
   /**
    * Locate a still-editable @Jarvis prompt pill in the document, matching the
