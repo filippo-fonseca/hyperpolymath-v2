@@ -13,6 +13,7 @@ import {
   setPageNoExport,
   updatePage,
 } from "@/app/actions/pages";
+import { createProject } from "@/app/actions/projects";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,6 +378,24 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   function handleToggleProject(projectId: string, next: boolean) {
     if (next) handleLinkProject(projectId);
     else handleUnlinkProject(projectId);
+  }
+
+  // Inline-create a project from the linker, then refresh the area-grouped
+  // tree so it appears as a linkable (and, once toggled, checked) item. The
+  // linker calls onToggle(newId, true) on success to link it to this page.
+  async function handleCreateProject(input: {
+    name: string;
+    areaId: string;
+  }): Promise<string | null> {
+    const id = crypto.randomUUID();
+    const res = await createProject({ id, areaId: input.areaId, name: input.name });
+    if (!res.success) {
+      toast.error(res.error);
+      return null;
+    }
+    await queryClient.invalidateQueries({ queryKey: ["sidebar-tree", userId] });
+    toast("Project created.");
+    return id;
   }
 
   async function handlePickFolder(folderId: string | null) {
@@ -760,6 +779,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           selectedProjectIds={linkedProjectIds}
           inheritedLinks={inheritedLinks}
           onToggle={handleToggleProject}
+          onCreateProject={handleCreateProject}
         />
         <FolderPicker
           folders={allFolders}
