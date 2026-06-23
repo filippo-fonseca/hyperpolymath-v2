@@ -53,7 +53,7 @@ const PRIMITIVES: ReadonlyArray<Primitive> = [
   },
   {
     name: "Building Blocks",
-    role: "The atoms inside Projects: Tasks, Captures, (soon) Wiki Pages",
+    role: "The atoms inside Projects: Tasks, Captures, and Wiki Pages",
     anchor: null, // FRAMEWORK.md anchor for this category to be added in a follow-up
   },
   {
@@ -89,10 +89,14 @@ export function PrimitivesTable() {
         Hyperpolymath is structured as a small hierarchy. Areas at the top,
         your life domains. Projects inside Areas, the bounded efforts (your
         classes live here too). Inside Projects sit the Building Blocks:
-        Tasks today, Captures today, Wiki Pages soon. Time itself lives in
-        Google Calendar, which JARVIS reads directly rather than mirroring.
-        JARVIS sits over the whole structure as the orchestrator, with full
-        context from every building block on up to your top-level Areas.
+        Tasks, Captures, and Wiki Pages. Wiki Pages are long-form, block-based
+        notes you can organize in folders and write JARVIS straight into:
+        type <span className="font-mono">@JARVIS</span> anywhere in a page and
+        it acts on that block, section, or the whole document in place. Time
+        itself lives in Google Calendar, which JARVIS reads directly rather
+        than mirroring. JARVIS sits over the whole structure as the
+        orchestrator, with full context from every building block on up to
+        your top-level Areas.
       </p>
 
       {/* Structure tree — styled JSX tree with CSS-drawn connector lines.
@@ -194,7 +198,7 @@ function PrimitiveTree() {
 
       {/* Areas is the top of the hierarchy. Projects nest one level below.
           Building Blocks nest one level below that, with Tasks / Captures /
-          (soon) Wiki Pages as the concrete leaf types. */}
+          Wiki Pages as the concrete leaf types. */}
       <RootPill label="Areas" />
       <ul className="tree-branch mt-2">
         <Branch
@@ -219,8 +223,7 @@ function PrimitiveTree() {
                 />
                 <Branch
                   name="Wiki Pages"
-                  role="long-form notes (coming soon)"
-                  muted
+                  role="long-form notes in folders, with in-document @JARVIS + Daily Pages"
                 />
                 <Branch
                   name="+  more"
