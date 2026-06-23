@@ -3,16 +3,18 @@
 import { deleteCapture, getCapturesForCurrentUser } from "@/app/actions/captures";
 import { type HashtagWithCount, getHashtagsForUserAction } from "@/app/actions/hashtags";
 import { getPeopleForCurrentUser } from "@/app/actions/people";
+import { createProject } from "@/app/actions/projects";
 import { EmptyState } from "@/components/shared/EmptyState";
+import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseAsString, useQueryState } from "nuqs";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CaptureComposer } from "./CaptureComposer";
 import { CaptureDetailPanel } from "./CaptureDetailPanel";
@@ -26,6 +28,8 @@ interface Props {
   initialCaptures: CaptureWithLinks[];
   hashtags: HashtagWithCount[];
   projects: ProjectMultiSelectOption[];
+  /** Active areas a new project can be filed under (inline project creation). */
+  areas: InlineProjectArea[];
   /**
    * Total captures owned by the user (no filter applied). Drives the "All"
    * row count in the hashtag sidebar — the primary affordance for clearing
@@ -91,11 +95,50 @@ export function CapturesClient({
   userId,
   initialCaptures,
   hashtags,
-  projects,
+  projects: initialProjects,
+  areas,
   totalCount,
   userAvatarUrl,
   userInitials,
 }: Props) {
+  const queryClient = useQueryClient();
+  // Local copy so an inline-created project shows in the picker immediately.
+  // Captures don't subscribe to the projects table, so optimistic insert here
+  // is what surfaces the new project (and its chip) without a reload.
+  const [projects, setProjects] = useState<ProjectMultiSelectOption[]>(initialProjects);
+  useEffect(() => {
+    setProjects(initialProjects);
+  }, [initialProjects]);
+
+  const handleCreateProject = useCallback(
+    async (input: { name: string; areaId: string }): Promise<string | null> => {
+      const newId = crypto.randomUUID();
+      const optimistic: ProjectMultiSelectOption = {
+        id: newId,
+        name: input.name,
+        isClass: false,
+        courseCode: null,
+      };
+      setProjects((prev) => [...prev, optimistic]);
+      const r = await createProject({
+        id: newId,
+        areaId: input.areaId,
+        name: input.name,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        setProjects((prev) => prev.filter((p) => p.id !== newId));
+        return null;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("projects", userId),
+      });
+      toast("Project created.");
+      return newId;
+    },
+    [queryClient, userId],
+  );
+
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
   const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null);
@@ -319,6 +362,8 @@ export function CapturesClient({
         capture={selectedCapture}
         hashtags={hashtagSuggestions}
         projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={selectedCapture !== null}
         onClose={() => setSelectedCaptureId(null)}
         onOptimisticUpdate={handleOptimisticUpdate}
