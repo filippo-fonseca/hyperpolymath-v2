@@ -42,6 +42,7 @@ import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -115,10 +116,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     initialData: [initialPage],
   });
   // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
+  // No initialData on purpose: the global QueryClient sets refetchOnMount:false
+  // and nothing invalidates the ["sidebar-tree"] key (Realtime subs use
+  // tableKey(...) keys), so a seeded [] would stick forever and the dropdown
+  // would render empty. Leaving it unseeded lets the queryFn run on mount.
   const { data: areas = [] } = useQuery({
     queryKey: ["sidebar-tree", userId],
     queryFn: () => getSidebarTreeForCurrentUser(),
-    initialData: [],
   });
   // Folders + their direct project links resolve the page's inherited pills and
   // feed the FolderPicker's hierarchy.
@@ -202,8 +206,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
         cursorBlockId: null,
         scopeOverride: "page",
-        prompt:
-          "Process this daily page: extract tasks, events, and captures and create them.",
+        prompt: DAILY_PAGE_PROCESS_PROMPT,
         pageId: initialPage.id,
       });
       const summary =
@@ -234,9 +237,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
 
   // Freshly-created pages open empty; drop the cursor straight into the title
   // so the user can start typing without a click. Runs once on mount only.
+  // Daily Pages are the exception: they open with a date title, so the editor
+  // autofocuses the first body block instead (see autoFocusFirstBlock below).
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only autofocus
   useEffect(() => {
-    if (initialPage.title.trim() === "") titleRef.current?.focus();
+    if (initialPage.dailyDate === null && initialPage.title.trim() === "") {
+      titleRef.current?.focus();
+    }
   }, []);
 
   const save = useCallback(
@@ -777,6 +784,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           pageId={initialPage.id}
           userId={userId}
           hideReceipts={hideReceipts}
+          autoFocusFirstBlock={isDailyPage}
           focusRef={editorFocusRef}
           containerRef={editorContainerRef}
           onEditorReady={handleEditorReady}
