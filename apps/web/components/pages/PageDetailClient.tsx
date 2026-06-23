@@ -42,6 +42,7 @@ import { useInPageSearch } from "@/lib/pages/useInPageSearch";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { invokeInDocumentJarvis } from "@/lib/jarvis/invoke-in-document";
+import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
 import { formatReceiptSummary } from "@/lib/jarvis/receipt-summary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -202,8 +203,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         editor: editor as Parameters<typeof invokeInDocumentJarvis>[0]["editor"],
         cursorBlockId: null,
         scopeOverride: "page",
-        prompt:
-          "Process this daily page: extract tasks, events, and captures and create them.",
+        prompt: DAILY_PAGE_PROCESS_PROMPT,
         pageId: initialPage.id,
       });
       const summary =
