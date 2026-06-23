@@ -184,10 +184,14 @@ export function PagesListClient({
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
   });
+  // No initialData / SSR seed for projects: this feeds the projectNames map
+  // that resolves the folder + page project pills. Seeding [] with the global
+  // refetchOnMount:false meant the map stayed empty on a cold load, so
+  // ProjectPillRow filtered out every link (no resolvable name) and linked
+  // projects never showed in the Wiki tree. Unseeded, the queryFn runs on mount.
   const { data: projects = [] } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
-    initialData: [],
   });
   // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
   // "pages" realtime channel, so the subscription above already refreshes it.
