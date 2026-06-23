@@ -39,10 +39,18 @@ import {
   capturesHashtags,
   capturesProjects,
   jarvisFacts,
+  people,
+  peopleReferences,
   tasks,
   tasksProjects,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
+import {
+  reconcilePersonReferencesForUser,
+  resolveOrCreatePersonForUser,
+  type PersonRefFromType,
+} from "@/app/actions/people";
+import { getPeopleForUser } from "@/lib/db/queries/people";
 import {
   createEventForJarvis,
   deleteEvent as gcalDeleteEvent,
@@ -60,6 +68,7 @@ import type {
   AskClarificationAction,
   CreateCaptureAction,
   CreateEventAction,
+  CreatePersonAction,
   CreateTaskAction,
   DeleteCaptureAction,
   DeleteEventAction,
@@ -68,7 +77,9 @@ import type {
   ExecutorResult,
   FindCapturesAction,
   FindEventsAction,
+  FindPeopleAction,
   FindTasksAction,
+  LinkPeopleAction,
   RememberFactAction,
   UpdateCaptureAction,
   UpdateEventAction,
@@ -754,6 +765,142 @@ export function createServerExecutor(): ActionExecutor {
           return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
         }
         throw err;
+      }
+    },
+
+    // -------------------------------------------------------------------------
+    // Phase D — people knowledge graph: create / find / link people.
+    //
+    // INVARIANT (SECURITY): ctx.userId is the ONLY source of userId. The model
+    // never emits a userId; every people/people_references write is scoped to
+    // ctx.userId via the helpers in app/actions/people.ts.
+    // -------------------------------------------------------------------------
+
+    async createPerson(
+      input: CreatePersonAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const name = input.name.trim();
+      if (!name) {
+        return { ok: false, kind: "validation", error: "Person name is required" };
+      }
+      try {
+        const [row] = await db
+          .insert(people)
+          .values({
+            userId: ctx.userId, // JARVIS-12: from getClaims(), NEVER model
+            name,
+            email: input.email?.trim() ? input.email.trim() : null,
+            phone: input.phone?.trim() ? input.phone.trim() : null,
+            bio: input.bio?.trim() ? input.bio.trim() : null,
+            tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
+          })
+          .returning({ id: people.id, name: people.name });
+        return {
+          ok: true,
+          id: row!.id,
+          receipt: {
+            id: row!.id,
+            name: row!.name,
+            email: input.email?.trim() || undefined,
+            phone: input.phone?.trim() || undefined,
+            tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
+          },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "validation",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async findPeople(
+      input: FindPeopleAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      // getPeopleForUser returns the full name-sorted roster with reference
+      // counts. For MVP scale (single user, hundreds of people) we filter in JS
+      // by a case-insensitive substring rather than adding a dedicated query.
+      const roster = await getPeopleForUser(ctx.userId);
+      const q = input.query?.trim().toLowerCase();
+      const filtered = q
+        ? roster.filter(
+            (person) =>
+              person.name.toLowerCase().includes(q) ||
+              person.tags.some((tag) => tag.toLowerCase().includes(q)),
+          )
+        : roster;
+      const matches = filtered.slice(0, 10).map((person) => ({
+        id: person.id,
+        name: person.name,
+        tags: person.tags,
+        reference_count: person.referenceCount,
+      }));
+      return { ok: true, id: "find_people", receipt: { matches } };
+    },
+
+    async linkPeople(
+      input: LinkPeopleAction,
+      ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      const fromType = input.from_type as PersonRefFromType;
+      const fromId = input.from_id.trim();
+      if (!fromId) {
+        return { ok: false, kind: "validation", error: "from_id is required" };
+      }
+      try {
+        // Resolve-or-create each name into a person id (existing people are
+        // reused case-insensitively; new names create a person on the fly).
+        const resolved: { id: string; name: string; created: boolean }[] = [];
+        for (const rawName of input.person_names) {
+          const person = await resolveOrCreatePersonForUser(ctx.userId, rawName);
+          if (person) resolved.push(person);
+        }
+        const newIds = resolved.map((r) => r.id);
+
+        // ADD semantics: reconcilePersonReferencesForUser REPLACES the reference
+        // set for (fromType, fromId), so we union the newly-resolved ids with the
+        // references that already exist before reconciling. This adds links
+        // without silently deleting any the entity already had.
+        const existing = (
+          await db
+            .select({ personId: peopleReferences.personId })
+            .from(peopleReferences)
+            .where(
+              and(
+                eq(peopleReferences.userId, ctx.userId),
+                eq(peopleReferences.fromType, fromType),
+                eq(peopleReferences.fromId, fromId),
+              ),
+            )
+        ).map((r) => r.personId);
+
+        const desired = Array.from(new Set([...existing, ...newIds]));
+        await reconcilePersonReferencesForUser(ctx.userId, fromType, fromId, desired);
+
+        return {
+          ok: true,
+          id: `link:${fromType}:${fromId}`,
+          receipt: {
+            from_type: fromType,
+            from_id: fromId,
+            linked: resolved.map((r) => ({
+              id: r.id,
+              name: r.name,
+              created: r.created,
+            })),
+          },
+        };
+      } catch (err) {
+        // fromId is a uuid column; linking to a GCal event (non-uuid id) will
+        // fail here. Surface as a validation error rather than throwing.
+        return {
+          ok: false,
+          kind: "validation",
+          error: err instanceof Error ? err.message : String(err),
+        };
       }
     },
   };
