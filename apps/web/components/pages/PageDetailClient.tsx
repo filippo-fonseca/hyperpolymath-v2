@@ -116,10 +116,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     initialData: [initialPage],
   });
   // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
+  // No initialData on purpose: the global QueryClient sets refetchOnMount:false
+  // and nothing invalidates the ["sidebar-tree"] key (Realtime subs use
+  // tableKey(...) keys), so a seeded [] would stick forever and the dropdown
+  // would render empty. Leaving it unseeded lets the queryFn run on mount.
   const { data: areas = [] } = useQuery({
     queryKey: ["sidebar-tree", userId],
     queryFn: () => getSidebarTreeForCurrentUser(),
-    initialData: [],
   });
   // Folders + their direct project links resolve the page's inherited pills and
   // feed the FolderPicker's hierarchy.
