@@ -41,8 +41,9 @@ function buildFixtureSnapshot(): ContextSnapshot {
   const projectId = randomUUID();
   const taskId = randomUUID();
   const captureId = randomUUID();
+  const personId = randomUUID();
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: "2026-06-09T00:00:00.000Z",
     nodes: [
       { type: "area", id: areaId, name: "Academics", emoji: "🎓", orderIndex: 0 },
@@ -73,17 +74,29 @@ function buildFixtureSnapshot(): ContextSnapshot {
         tags: ["research"],
         projectIds: [projectId],
       },
+      {
+        type: "person",
+        id: personId,
+        name: "Andrej Karpathy",
+        email: null,
+        phone: null,
+        bio: null,
+        tags: ["researcher"],
+        createdAt: "2026-06-09T00:00:00.000Z",
+        updatedAt: "2026-06-09T00:00:00.000Z",
+      },
     ],
     edges: [
       { type: "project_in_area", from: projectId, to: areaId },
       { type: "task_in_project", from: taskId, to: projectId },
       { type: "capture_in_project", from: captureId, to: projectId },
       { type: "capture_tagged", from: captureId, tag: "research" },
+      { type: "mentions_person", from: captureId, to: personId, fromType: "capture" },
     ],
     meta: {
-      totalNodes: 4,
-      totalEdges: 4,
-      nodeCounts: { area: 1, project: 1, task: 1, capture: 1 },
+      totalNodes: 5,
+      totalEdges: 5,
+      nodeCounts: { area: 1, project: 1, task: 1, capture: 1, person: 1 },
       excludedNoExportCount: 0,
     },
   };
@@ -112,9 +125,9 @@ describe("get_current_context handler", () => {
     if (!first) throw new Error("expected at least one content block");
     expect(first.type).toBe("text");
     const parsed = JSON.parse(first.text) as ContextSnapshot;
-    expect(parsed.schemaVersion).toBe(3);
-    expect(parsed.nodes).toHaveLength(4);
-    expect(parsed.edges).toHaveLength(4);
+    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.nodes).toHaveLength(5);
+    expect(parsed.edges).toHaveLength(5);
   });
 
   it("filters nodes to ONLY the requested topics when topics=['task','project']", async () => {
@@ -130,7 +143,7 @@ describe("get_current_context handler", () => {
     const types = parsed.nodes.map((n) => n.type).sort();
     expect(types).toEqual(["project", "task"]);
     // edges are NOT filtered — only nodes
-    expect(parsed.edges).toHaveLength(4);
+    expect(parsed.edges).toHaveLength(5);
   });
 
   it("treats topics=[] (empty array) as 'no filter'", async () => {
@@ -141,7 +154,19 @@ describe("get_current_context handler", () => {
     const first = out.content[0];
     if (!first) throw new Error("expected at least one content block");
     const parsed = JSON.parse(first.text) as ContextSnapshot;
-    expect(parsed.nodes).toHaveLength(4);
+    expect(parsed.nodes).toHaveLength(5);
+  });
+
+  it("filters to ONLY person nodes when topics=['person']", async () => {
+    const snap = buildFixtureSnapshot();
+    const loadSnapshot: LoadSnapshot = vi.fn().mockResolvedValue(snap);
+    const handler = makeGetCurrentContextHandler({ userId: randomUUID(), loadSnapshot });
+    const out = await handler({ topics: ["person"] });
+    const first = out.content[0];
+    if (!first) throw new Error("expected at least one content block");
+    const parsed = JSON.parse(first.text) as ContextSnapshot;
+    expect(parsed.nodes).toHaveLength(1);
+    expect(parsed.nodes[0].type).toBe("person");
   });
 
   it("returns an empty nodes array when topics filter matches nothing", async () => {
