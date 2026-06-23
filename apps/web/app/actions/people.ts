@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { people, peopleReferences } from "@/lib/db/schema";
 import {
   type PersonReferenceBreakdown,
-  type PersonRow,
   type PersonWithStats,
   getPeopleForUser,
   getPersonReferences,
@@ -263,5 +262,3 @@ export async function getPersonReferencesForCurrentUser(
     return { total: 0, byType: {}, items: [] };
   return getPersonReferences(userId, personId);
 }
-
-export type { PersonRow, PersonWithStats, PersonReferenceBreakdown };
