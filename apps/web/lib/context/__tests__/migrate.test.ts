@@ -13,8 +13,22 @@ import { describe, it, expect } from "vitest";
 import { migrate, CURRENT_SCHEMA_VERSION } from "../migrate";
 import { ContextSnapshotSchema } from "../types";
 
+const validV4Payload = {
+  schemaVersion: 4 as const,
+  generatedAt: "2026-06-09T00:00:00.000Z",
+  nodes: [],
+  edges: [],
+  meta: {
+    totalNodes: 0,
+    totalEdges: 0,
+    nodeCounts: {},
+    excludedNoExportCount: 0,
+  },
+};
+
+// A v3 payload on disk — schemaVersion 3, predates person nodes / mentions_person edges.
 const validV3Payload = {
-  schemaVersion: 3 as const,
+  schemaVersion: 3,
   generatedAt: "2026-06-09T00:00:00.000Z",
   nodes: [],
   edges: [],
@@ -66,28 +80,28 @@ const validV1Payload = {
 };
 
 describe("CURRENT_SCHEMA_VERSION", () => {
-  it("is 3 in the v3 release", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(3);
+  it("is 4 in the v4 release", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(4);
   });
 });
 
 describe("migrate()", () => {
-  it("returns ok with parsed snapshot for a valid v3 payload at the current version", () => {
-    const result = migrate(validV3Payload, 3);
+  it("returns ok with parsed snapshot for a valid v4 payload at the current version", () => {
+    const result = migrate(validV4Payload, 4);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Zod parse round-trip succeeds — typed snapshot, not a legacy wrapper.
     const parsed = ContextSnapshotSchema.safeParse(result.data);
     expect(parsed.success).toBe(true);
-    expect((result.data as typeof validV3Payload).schemaVersion).toBe(3);
+    expect((result.data as typeof validV4Payload).schemaVersion).toBe(4);
   });
 
-  it("returns err for an invalid v3 payload (missing required field)", () => {
-    const invalid = { ...validV3Payload, meta: { totalNodes: 0 } }; // missing required meta fields
-    const result = migrate(invalid, 3);
+  it("returns err for an invalid v4 payload (missing required field)", () => {
+    const invalid = { ...validV4Payload, meta: { totalNodes: 0 } }; // missing required meta fields
+    const result = migrate(invalid, 4);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toMatch(/v3 payload failed validation/);
+    expect(result.error).toMatch(/v4 payload failed validation/);
   });
 
   it("migrates a v2 payload to v3, backfilling folderId/folderPath on page nodes", () => {
@@ -97,7 +111,7 @@ describe("migrate()", () => {
     const parsed = ContextSnapshotSchema.safeParse(result.data);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data.schemaVersion).toBe(3);
+    expect(parsed.data.schemaVersion).toBe(4);
     const page = parsed.data.nodes.find((n) => n.type === "page");
     expect(page).toBeDefined();
     if (page?.type !== "page") return;
@@ -116,7 +130,21 @@ describe("migrate()", () => {
     const parsed = ContextSnapshotSchema.safeParse(result.data);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data.schemaVersion).toBe(3);
+    expect(parsed.data.schemaVersion).toBe(4);
+  });
+
+  it("migrates a v3 payload to v4 (additive person nodes / mentions_person edges)", () => {
+    const result = migrate(validV3Payload, 3);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = ContextSnapshotSchema.safeParse(result.data);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    // Old v3 payload simply lacks person nodes / mentions_person edges; the v4
+    // schema accepts that, so the migrator only lifts the version and re-parses.
+    expect(parsed.data.schemaVersion).toBe(4);
+    expect(parsed.data.nodes).toEqual([]);
+    expect(parsed.data.edges).toEqual([]);
   });
 
   it("returns err when payload version is newer than the reader (forward-incompatible)", () => {
