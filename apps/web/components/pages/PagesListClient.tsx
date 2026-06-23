@@ -260,8 +260,36 @@ export function PagesListClient({
     setCreating(true);
     try {
       const id = crypto.randomUUID();
+      // Optimistically insert into the list cache before navigating into the
+      // editor. Every other Wiki mutation here self-patches; this one used to
+      // rely solely on the Realtime INSERT echo, so returning to /wiki after
+      // creating showed a stale list until a manual refresh. createPage takes
+      // our client id, so the echo reconciles onto the same row with no dupe.
+      const now = new Date();
+      patchPages((old) => [
+        {
+          id,
+          title: "",
+          content: "",
+          contentJson: null,
+          emoji: null,
+          pinned: false,
+          noExport: false,
+          folderId: null,
+          folderName: null,
+          dailyDate: null,
+          createdAt: now,
+          updatedAt: now,
+          projects: [],
+        },
+        ...old,
+      ]);
       const result = await createPage({ id, title: "", content: "" });
-      if (result.success) router.push(`/wiki/${result.data.id}`);
+      if (!result.success) {
+        void queryClient.invalidateQueries({ queryKey: pagesKey });
+        return;
+      }
+      router.push(`/wiki/${result.data.id}`);
     } finally {
       setCreating(false);
     }
