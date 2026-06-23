@@ -13,7 +13,7 @@
  */
 
 import { db as defaultDb } from "@/lib/db";
-import { people as peopleTable, peopleReferences } from "@/lib/db/schema";
+import { peopleReferences, people as peopleTable } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 import type { Node } from "../types";
 
@@ -29,7 +29,7 @@ function dateToISO(d: Date | string | null): string {
 
 export async function loadPeople(
   userId: string,
-  db: DB = defaultDb,
+  db: DB = defaultDb
 ): Promise<{ nodes: Node[]; excluded: number }> {
   const rows = await db
     .select({
@@ -72,7 +72,7 @@ export type PersonReferenceRow = {
 
 export async function loadPeopleReferences(
   userId: string,
-  db: DB = defaultDb,
+  db: DB = defaultDb
 ): Promise<PersonReferenceRow[]> {
   const rows = await db
     .select({
