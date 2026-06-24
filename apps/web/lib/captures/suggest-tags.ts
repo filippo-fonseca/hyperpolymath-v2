@@ -14,6 +14,7 @@
  */
 
 import { JARVIS_MODEL, getAnthropicClient } from "@/lib/jarvis/anthropic-client";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { z } from "zod";
 
 export interface SuggestedTag {
@@ -84,18 +85,26 @@ const SYSTEM_PROMPT = [
  * Suggest tags for one capture draft. Returns a deduped, validated list, or an
  * empty array on any error (fail-closed — the composer just shows nothing).
  *
+ * @param userId - the requesting user (for BYOK key resolution).
  * @param content - the draft capture text.
  * @param existingTags - the user's existing tag display names (without `#`).
  */
 export async function suggestCaptureTags(
+  userId: string,
   content: string,
   existingTags: string[]
 ): Promise<SuggestedTag[]> {
   const trimmed = content.trim();
   if (!trimmed) return [];
 
+  // BYOK: tag suggestions are an optional enhancement. If the user has no
+  // Anthropic key, degrade silently to no suggestions rather than erroring —
+  // the composer just shows nothing.
+  const apiKey = await getUserKeyOrNull(userId, "anthropic");
+  if (!apiKey) return [];
+
   try {
-    const client = getAnthropicClient();
+    const client = getAnthropicClient(apiKey);
     const vocab =
       existingTags.length > 0 ? existingTags.map((t) => `#${t}`).join(", ") : "(none yet)";
 

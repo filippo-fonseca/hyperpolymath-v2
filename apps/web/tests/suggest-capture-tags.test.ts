@@ -25,7 +25,14 @@ vi.mock("@anthropic-ai/sdk", () => {
   return { default: FakeAnthropic };
 });
 
+// BYOK: suggestCaptureTags now resolves the user's Anthropic key first.
+vi.mock("@/lib/byok/keys", () => ({
+  getUserKeyOrNull: vi.fn(async () => "sk-ant-test"),
+}));
+
 import { suggestCaptureTags } from "@/lib/captures/suggest-tags";
+
+const TEST_USER_ID = "user-1";
 
 function toolResponse(input: unknown) {
   return { content: [{ type: "tool_use", name: "emit_tag_suggestions", input }] };
@@ -50,7 +57,7 @@ describe("suggestCaptureTags", () => {
         ],
       })
     );
-    const out = await suggestCaptureTags("ran 8 miles this morning", ["fitness", "reading"]);
+    const out = await suggestCaptureTags(TEST_USER_ID, "ran 8 miles this morning", ["fitness", "reading"]);
     expect(out).toEqual([
       { name: "fitness", existing: true },
       { name: "marathon", existing: false },
@@ -72,19 +79,19 @@ describe("suggestCaptureTags", () => {
         ],
       })
     );
-    const out = await suggestCaptureTags("standup notes", []);
+    const out = await suggestCaptureTags(TEST_USER_ID, "standup notes", []);
     expect(out.map((t) => t.name)).toEqual(["work", "a", "b", "c", "d"]);
     expect(out).toHaveLength(5);
   });
 
   it("fails closed to [] when the Anthropic call throws", async () => {
     messagesCreateMock.mockRejectedValue(new Error("boom"));
-    const out = await suggestCaptureTags("anything", ["x"]);
+    const out = await suggestCaptureTags(TEST_USER_ID, "anything", ["x"]);
     expect(out).toEqual([]);
   });
 
   it("returns [] without calling the model for empty content", async () => {
-    const out = await suggestCaptureTags("   ", ["x"]);
+    const out = await suggestCaptureTags(TEST_USER_ID, "   ", ["x"]);
     expect(out).toEqual([]);
     expect(messagesCreateMock).not.toHaveBeenCalled();
   });

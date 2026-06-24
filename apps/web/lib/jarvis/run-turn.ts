@@ -54,6 +54,12 @@ export interface RunTurnUsage {
 export interface RunTurnOptions {
   userId: string;
   /**
+   * BYOK Anthropic key for THIS turn. The caller resolves it (per-user via
+   * lib/byok/keys.ts, or owner env for owner-system paths) and passes it in —
+   * run-turn never reads the environment or resolves a key itself.
+   */
+  apiKey: string;
+  /**
    * Pre-generated turnId. When provided, used for both telemetry (logJarvisEvent id)
    * and the voice path's response-start event. When absent, the helper generates one.
    * The browser route passes the same turnId it emits in the `turn-start` SSE event
@@ -345,7 +351,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const toolChoice = opts.toolChoice ?? { type: "auto" as const };
 
-  const anth = getAnthropicClient();
+  const anth = getAnthropicClient(opts.apiKey);
 
   // ---------------------------------------------------------------------------
   // Phase 16 — Multi-pass agentic loop

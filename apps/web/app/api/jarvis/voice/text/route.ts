@@ -8,6 +8,7 @@ import {
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
@@ -164,8 +165,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     { role: "user", content: userContent },
   ];
 
+  // BYOK — owner-only physical/voice bus. Use the bound user's own Anthropic
+  // key when configured; fall back to the owner's env key for the hardware
+  // bridge path.
+  const anthropicKey =
+    (await getUserKeyOrNull(userId, "anthropic")) ??
+    process.env.ANTHROPIC_API_KEY ??
+    "";
+
   void runJarvisTurnStream({
     userId,
+    apiKey: anthropicKey,
     input: text,
     messages,
     toolChoice,

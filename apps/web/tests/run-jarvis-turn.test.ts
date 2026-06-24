@@ -163,6 +163,7 @@ describe("runJarvisTurnStream", () => {
     const deltas: string[] = [];
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "hello",
       isVoice: true,
       sttDoneAt: null,
@@ -185,6 +186,7 @@ describe("runJarvisTurnStream", () => {
     const actions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "capture note about X",
       isVoice: true,
       sttDoneAt: null,
@@ -208,6 +210,7 @@ describe("runJarvisTurnStream", () => {
     let receivedUsage: unknown;
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "test",
       isVoice: true,
       sttDoneAt: null,
@@ -230,6 +233,7 @@ describe("runJarvisTurnStream", () => {
     const order: string[] = [];
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "capture queued test",
       isVoice: true,
       sttDoneAt: null,
@@ -261,6 +265,7 @@ describe("runJarvisTurnStream", () => {
     const actions: string[] = [];
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "do something",
       isVoice: true,
       sttDoneAt: null,
@@ -287,6 +292,7 @@ describe("runJarvisTurnStream", () => {
 
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "buy milk P1",
       isVoice: false,
       sttDoneAt: null,
@@ -317,6 +323,7 @@ describe("runJarvisTurnStream", () => {
     const errors: string[] = [];
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "test",
       isVoice: true,
       sttDoneAt: null,

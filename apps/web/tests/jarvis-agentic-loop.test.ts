@@ -265,6 +265,7 @@ describe("JARVIS agentic loop", () => {
 
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "delete the orgo problem set",
       isVoice: false,
       sttDoneAt: null,
@@ -322,6 +323,7 @@ describe("JARVIS agentic loop", () => {
 
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "buy milk",
       isVoice: false,
       sttDoneAt: null,
@@ -366,6 +368,7 @@ describe("JARVIS agentic loop", () => {
 
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "keep searching forever",
       isVoice: false,
       sttDoneAt: null,
@@ -411,6 +414,7 @@ describe("JARVIS agentic loop", () => {
 
     await runJarvisTurnStream({
       userId: USER_ID,
+      apiKey: "sk-ant-test",
       input: "add orgo problem set",
       isVoice: false,
       sttDoneAt: null,

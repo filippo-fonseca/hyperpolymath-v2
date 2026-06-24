@@ -28,6 +28,7 @@
 import { ElevenLabsClient } from "elevenlabs";
 import { createClient } from "@/lib/supabase/server";
 import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
 import type { TtsRequest } from "@/lib/voice/types";
 import type { NextRequest } from "next/server";
@@ -37,20 +38,17 @@ export const maxDuration = 30;
 
 const MAX_TEXT_LEN = 5000;
 
-let client: ElevenLabsClient | null = null;
-function getClient(): ElevenLabsClient {
-  if (!client) {
-    client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
-  }
-  return client;
-}
-
 export async function POST(req: NextRequest): Promise<Response> {
   // 1. Auth — three accepted callers in priority order:
   //   a) Desktop app: Authorization: Bearer hpd_... (per-device token).
   //   b) ESP32 bridge: X-Trigger-Secret matching PHYSICAL_TRIGGER_SECRET.
   //   c) Browser: Supabase cookie via getClaims().
+  //
+  // We also capture the resolved userId (desktop token or browser claims) so
+  // BYOK can resolve that user's own ElevenLabs key. The ESP32 trigger-secret
+  // path has NO user (owner-only physical hardware) → owner env fallback.
   const desktopUserId = await validateDesktopBearer(req);
+  let userId: string | null = desktopUserId;
   if (!desktopUserId) {
     const triggerSecret = req.headers.get("x-trigger-secret");
     if (triggerSecret) {
@@ -64,8 +62,27 @@ export async function POST(req: NextRequest): Promise<Response> {
       if (claimsResult.error || !claimsResult.data?.claims?.sub) {
         return new Response("Unauthorized", { status: 401 });
       }
+      userId = claimsResult.data.claims.sub;
     }
   }
+
+  // 1b. BYOK — resolve the TTS key. A real user (desktop/browser) must supply
+  //     their own ElevenLabs key; the keyless ESP32 trigger-secret path is
+  //     owner-only hardware and falls back to the owner's env key.
+  let elevenLabsKey: string | undefined;
+  if (userId) {
+    const userKey = await getUserKeyOrNull(userId, "elevenlabs");
+    if (!userKey) {
+      return Response.json(
+        { error: "key_missing", provider: "elevenlabs" },
+        { status: 402 },
+      );
+    }
+    elevenLabsKey = userKey;
+  } else {
+    elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+  }
+  const client = new ElevenLabsClient({ apiKey: elevenLabsKey });
 
   // 2. Parse body
   let body: TtsRequest;
@@ -85,7 +102,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // 3. Open ElevenLabs stream
   try {
-    const audioStream = await getClient().textToSpeech.convertAsStream(voiceId, {
+    const audioStream = await client.textToSpeech.convertAsStream(voiceId, {
       text,
       model_id: "eleven_flash_v2_5",
       output_format: "pcm_24000", // LAT-01: raw 16-bit signed LE @ 24kHz mono, no decodeAudioData tax

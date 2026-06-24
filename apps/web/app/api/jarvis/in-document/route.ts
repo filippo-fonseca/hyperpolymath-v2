@@ -28,6 +28,7 @@ import { z } from "zod";
 
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { createClient } from "@/lib/supabase/server";
+import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -84,6 +85,21 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   const userId = claimsResult.data.claims.sub;
+
+  // 1b. BYOK — resolve the requesting user's own Anthropic key before any
+  //     stream opens. No owner env fallback (per-user request path).
+  let anthropicKey: string;
+  try {
+    anthropicKey = await getUserKey(userId, "anthropic");
+  } catch (e) {
+    if (e instanceof MissingKeyError) {
+      return Response.json(
+        { error: "key_missing", provider: e.provider },
+        { status: 402 },
+      );
+    }
+    throw e;
+  }
 
   // 2. Body
   let raw: unknown;
@@ -204,6 +220,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       await runJarvisTurnStream({
         userId,
+        apiKey: anthropicKey,
         turnId,
         input: prompt,
         messages,

@@ -10,6 +10,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
@@ -19,8 +20,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +60,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const vadEndAt = vadEndAtHeader ? Number(vadEndAtHeader) : undefined;
 
   const file = new File([audioBuffer], "audio.wav", { type: "audio/wav" });
+
+  // BYOK — owner-only physical/voice bus. Use the bound user's own Groq key
+  // when this turn has a user identity; otherwise (keyless ESP32 trigger-secret
+  // path) fall back to the owner's env key for the dedicated hardware bridge.
+  const groqUserId = desktopUserId ?? (await findSingleUserId());
+  const groqKey =
+    (groqUserId ? await getUserKeyOrNull(groqUserId, "groq") : null) ??
+    process.env.GROQ_API_KEY;
+  const groq = new Groq({ apiKey: groqKey });
 
   let transcript: string;
   let sttDoneAt: number;
@@ -149,6 +157,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       console.error("[voice/transcript] failed to persist user turn", err);
     });
 
+  // BYOK — resolve the owner's own Anthropic key for the voice turn; fall back
+  // to the env key for the keyless hardware bridge path.
+  const anthropicKey =
+    (await getUserKeyOrNull(userId, "anthropic")) ??
+    process.env.ANTHROPIC_API_KEY ??
+    "";
+
   emitJarvisResponseStart({ turnId, at: Date.now() });
 
   // Accumulate assistant response for DB persistence on completion.
@@ -157,6 +172,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   void runJarvisTurnStream({
     userId,
+    apiKey: anthropicKey,
     input: transcript,
     // Provenance: paired-device token name; the headless ESP32 path has no
     // token identity, so it reads as the physical extender.

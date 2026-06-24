@@ -24,9 +24,10 @@
  *   event: error       data: { message: string }
  */
 
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { createClient } from "@/lib/supabase/server";
+import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
 import {
   zCreateTask,
   zCreateCapture,
@@ -82,6 +83,23 @@ export async function POST(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
   const userId = claimsResult.data.claims.sub;
+
+  // 1b. BYOK — resolve the requesting user's own Anthropic key BEFORE any SSE
+  //     stream is opened. No owner env fallback: a public user spends only
+  //     their own tokens. Missing key → 402 with a machine-readable provider so
+  //     the UI can prompt inline.
+  let anthropicKey: string;
+  try {
+    anthropicKey = await getUserKey(userId, "anthropic");
+  } catch (e) {
+    if (e instanceof MissingKeyError) {
+      return NextResponse.json(
+        { error: "key_missing", provider: e.provider },
+        { status: 402 },
+      );
+    }
+    throw e;
+  }
 
   // 2. Voice + timing headers
   const voiceActive = req.headers.get("X-Voice-Active") === "true";
@@ -182,6 +200,7 @@ export async function POST(req: NextRequest) {
 
       await runJarvisTurnStream({
         userId,
+        apiKey: anthropicKey,
         turnId,
         input: body.input,
         messages,

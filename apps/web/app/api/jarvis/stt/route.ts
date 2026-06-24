@@ -19,12 +19,11 @@
 
 import Groq from "groq-sdk";
 import { createClient } from "@/lib/supabase/server";
+import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
 
 export const runtime = "nodejs"; // NOT Edge — groq-sdk uses Node streams
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25MB Groq cap (Pitfall 8 server belt)
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request): Promise<Response> {
   // 1. Auth (same pattern as /api/jarvis route — getClaims() per CLAUDE.md §1)
@@ -33,6 +32,22 @@ export async function POST(req: Request): Promise<Response> {
   if (claimsResult.error || !claimsResult.data?.claims?.sub) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const userId = claimsResult.data.claims.sub;
+
+  // 1b. BYOK — resolve the user's own Groq key. No owner env fallback.
+  let groqKey: string;
+  try {
+    groqKey = await getUserKey(userId, "groq");
+  } catch (e) {
+    if (e instanceof MissingKeyError) {
+      return Response.json(
+        { error: "key_missing", provider: "groq" },
+        { status: 402 },
+      );
+    }
+    throw e;
+  }
+  const groq = new Groq({ apiKey: groqKey });
 
   // 2. Read audio body (Content-Type: audio/wav from encode-wav helper)
   const audioBuffer = await req.arrayBuffer();
