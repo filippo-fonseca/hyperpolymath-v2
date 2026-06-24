@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { entityHref } from "@/lib/entity-href";
 
 /**
  * Global search engine — pure, synchronous, zero UI/React dependencies.
@@ -90,7 +91,16 @@ export interface SearchSnapshot {
 const PREVIEW_LEN = 80;
 
 function emptyResults(): SearchResults {
-  return { tasks: [], captures: [], pages: [], journal: [], projects: [], areas: [], habits: [], total: 0 };
+  return {
+    tasks: [],
+    captures: [],
+    pages: [],
+    journal: [],
+    projects: [],
+    areas: [],
+    habits: [],
+    total: 0,
+  };
 }
 
 function areaLabel(name: string, emoji: string | null): string {
@@ -127,7 +137,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       title,
       searchText: title.toLowerCase(),
       breadcrumb: [],
-      href: `/areas/${a.id}`,
+      href: entityHref({ kind: "area", id: a.id }),
     });
   }
 
@@ -140,7 +150,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       title: p.name,
       searchText: p.name.toLowerCase(),
       breadcrumb,
-      href: `/projects/${p.id}`,
+      href: entityHref({ kind: "project", id: p.id }),
     });
   }
 
@@ -157,7 +167,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       searchText: t.title.toLowerCase(),
       breadcrumb,
       meta: taskMeta(t.priority, t.dueDate),
-      href: `/tasks?task=${t.id}`,
+      href: entityHref({ kind: "task", id: t.id }),
       updatedAt: t.createdAt,
       dueDate: t.dueDate ?? undefined,
     });
@@ -176,7 +186,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       breadcrumb: [],
       meta: safeFormat(c.createdAt, "MMM d") ?? undefined,
       tags: c.tags,
-      href: `/captures`,
+      href: entityHref({ kind: "capture", id: c.id }),
       updatedAt: c.updatedAt || c.createdAt,
     });
   }
@@ -195,7 +205,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       preview,
       breadcrumb: [],
       meta: safeFormat(p.updatedAt, "MMM d") ?? undefined,
-      href: `/wiki/${p.id}`,
+      href: entityHref({ kind: "page", id: p.id }),
       updatedAt: p.updatedAt || p.createdAt,
     });
   }
@@ -213,7 +223,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       preview,
       breadcrumb: [],
       meta: safeFormat(j.date, "MMM d") ?? undefined,
-      href: `/journaling?date=${j.date}`,
+      href: entityHref({ kind: "journal", date: j.date }),
       updatedAt: j.updatedAt || j.createdAt,
     });
   }
@@ -226,7 +236,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       searchText: h.name.toLowerCase(),
       breadcrumb: [],
       meta: h.currentStreak > 0 ? `${h.currentStreak}-day streak` : undefined,
-      href: `/habits`,
+      href: entityHref({ kind: "habit", id: h.id }),
     });
   }
 

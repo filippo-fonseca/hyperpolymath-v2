@@ -10,6 +10,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, UserPlus } from "lucide-react";
+import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { PersonCard } from "./PersonCard";
 import { PersonDetailPanel } from "./PersonDetailPanel";
@@ -33,7 +34,9 @@ export function PeopleClient({ userId, initialPeople }: Props) {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PersonWithStats | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // URL-backed so search results and JARVIS receipts can deep-link a person
+  // via /people?person=<id> (mirrors captures' ?capture= and tasks' ?task=).
+  const [selectedId, setSelectedId] = useQueryState("person", parseAsString);
 
   const peopleQuery = useQuery({
     queryKey: tableKey("people", userId),
