@@ -1,8 +1,10 @@
 "use client";
 
-import { Fragment, useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
+import { forgetFactAction } from "@/app/actions/jarvis-facts";
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
+import { Button } from "@/components/ui/button";
+import { entityHref, findResultRef, receiptEntityRef } from "@/lib/entity-href";
+import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -19,13 +21,11 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { Fragment, useCallback, useState } from "react";
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
-import { cn } from "@/lib/utils";
-import { entityHref, findResultRef, receiptEntityRef } from "@/lib/entity-href";
-import { forgetFactAction } from "@/app/actions/jarvis-facts";
-import { Button } from "@/components/ui/button";
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
 /**
  * Intent-badged action receipt (D-09 / JARVIS-09).
@@ -196,7 +196,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const router = useRouter();
   // Phase 16: INTENT_META now covers all 14 tools. Unknown names still return
   // undefined → early null return as a safety net.
-  const meta = (INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>)[action.name];
+  const meta = (
+    INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>
+  )[action.name];
   if (!meta) return null;
   const Icon = meta.icon;
 
@@ -225,9 +227,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
           boxShadow:
             "var(--glass-raise), var(--glass-drop)," +
-          "inset 0 1px 0 var(--glass-hi)," +
-          "inset 0 -1px 0 var(--glass-lo)," +
-          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)",
+            "inset 0 1px 0 var(--glass-hi)," +
+            "inset 0 -1px 0 var(--glass-lo)," +
+            "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)",
         }}
       >
         {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
@@ -300,16 +302,13 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})
     : null;
-  const errorMsg = !ok
-    ? (action.result as { error: string }).error
-    : null;
+  const errorMsg = !ok ? (action.result as { error: string }).error : null;
 
   // Click-through target: open the entity this receipt created/affected. Null
   // for deletes (entity is gone), undone actions, find_* (per-row links render
   // instead), and non-entity tools (memory, clarification, link_people).
   const entityId = ok ? (action.result as { id?: string }).id : undefined;
-  const navRef =
-    ok && !undone && entityId ? receiptEntityRef(action.name, entityId) : null;
+  const navRef = ok && !undone && entityId ? receiptEntityRef(action.name, entityId) : null;
   const navHref = navRef ? entityHref(navRef) : null;
 
   /**
@@ -396,7 +395,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     variant === "compact" ? "px-2 py-1 opacity-95" : "px-4 py-2",
     isError && !shouldReduce && "hud-error-glitch",
     undone && "opacity-50 grayscale",
-    navHref && "cursor-pointer",
+    navHref && "cursor-pointer"
   );
 
   // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
@@ -406,9 +405,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // --hud-cyan-glow-soft halo on top so the inner + outer cyan signals blend.
   const glassyShadow =
     "var(--glass-raise), var(--glass-drop)," +
-          "inset 0 1px 0 var(--glass-hi)," +
-          "inset 0 -1px 0 var(--glass-lo)," +
-          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
+    "inset 0 1px 0 var(--glass-hi)," +
+    "inset 0 -1px 0 var(--glass-lo)," +
+    "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
 
   const containerStyle: React.CSSProperties = {
     backgroundColor: "var(--glass-bg)",
@@ -500,15 +499,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           <Icon className="h-3.5 w-3.5" />
           <span>{meta.label}</span>
           {ok ? (
-            <CheckCircle2
-              className="h-3.5 w-3.5"
-              style={{ color: "var(--ink-sage)" }}
-            />
+            <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--ink-sage)" }} />
           ) : (
-            <AlertCircle
-              className="h-3.5 w-3.5"
-              style={{ color: "var(--ink-coral)" }}
-            />
+            <AlertCircle className="h-3.5 w-3.5" style={{ color: "var(--ink-coral)" }} />
           )}
           {navHref ? (
             <ArrowUpRight
@@ -540,8 +533,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                 {/* I-7 / D-02: undated tasks (no due) land in the Inbox.
                     The executor sets `inbox: true` on the receipt. */}
                 {!receipt.due && receipt.inbox ? " · Added to your Inbox." : ""}
-                {Array.isArray(receipt.project_ids) &&
-                receipt.project_ids.length
+                {Array.isArray(receipt.project_ids) && receipt.project_ids.length
                   ? ` · ${receipt.project_ids.length} project${receipt.project_ids.length > 1 ? "s" : ""}`
                   : ""}
               </div>
@@ -561,9 +553,15 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             <>
               <div className={titleCls}>{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-[var(--ink-muted)]">
-                {fmtDate(receipt.start, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
+                {fmtDate(
+                  receipt.start,
+                  typeof receipt.allDay === "boolean" ? receipt.allDay : undefined
+                )}
                 {" → "}
-                {fmtDate(receipt.end, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
+                {fmtDate(
+                  receipt.end,
+                  typeof receipt.allDay === "boolean" ? receipt.allDay : undefined
+                )}
               </div>
             </>
           ) : null}
@@ -600,9 +598,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               </div>
               <div className="font-mono text-xs text-[var(--ink-muted)]">
                 linked to {String(receipt.from_type ?? "entity")}
-                {((receipt.linked ?? []) as Array<Record<string, unknown>>).some(
-                  (p) => p.created,
-                )
+                {((receipt.linked ?? []) as Array<Record<string, unknown>>).some((p) => p.created)
                   ? " · new contact added"
                   : ""}
               </div>
@@ -611,54 +607,68 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {/* Phase 16: Find variant — compact list of matched entities */}
           {action.name.startsWith("find_") ? (
             <div className="text-sm space-y-0.5">
-              {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => {
-                const rowId = String(m.id ?? "");
-                const rowRef = rowId ? findResultRef(action.name, rowId) : null;
-                const rowHref = rowRef ? entityHref(rowRef) : null;
-                const label = String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—");
-                const inner = (
-                  <>
-                    <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
-                    <span>{label}</span>
-                  </>
-                );
-                return rowHref ? (
-                  <button
-                    type="button"
-                    key={rowId || idx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(rowHref);
-                    }}
-                    className="flex w-full gap-2 text-left hover:underline"
-                    style={{ color: "var(--ink-muted)" }}
-                  >
-                    {inner}
-                  </button>
-                ) : (
-                  <div key={rowId || idx} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
-                    {inner}
-                  </div>
-                );
-              })}
+              {((receipt.matches ?? []) as Array<Record<string, unknown>>)
+                .slice(0, 5)
+                .map((m, idx) => {
+                  const rowId = String(m.id ?? "");
+                  const rowRef = rowId ? findResultRef(action.name, rowId) : null;
+                  const rowHref = rowRef ? entityHref(rowRef) : null;
+                  const label = String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—");
+                  return rowHref ? (
+                    <button
+                      type="button"
+                      key={rowId || idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(rowHref);
+                      }}
+                      className="flex w-full gap-2 text-left hover:underline"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
+                      <span>{label}</span>
+                    </button>
+                  ) : (
+                    <div
+                      key={rowId || idx}
+                      className="flex gap-2"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
+                      <span>{label}</span>
+                    </div>
+                  );
+                })}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (
-                <em className="text-xs" style={{ color: "var(--ink-muted)" }}>no matches</em>
+                <em className="text-xs" style={{ color: "var(--ink-muted)" }}>
+                  no matches
+                </em>
               )}
             </div>
           ) : null}
           {/* Phase 16: Update variant — before→after field diff */}
           {action.name.startsWith("update_") ? (
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-sm">
-              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(([field, value]) => (
-                <Fragment key={field}>
-                  <dt className="font-medium" style={{ color: "var(--ink-muted)" }}>{field}</dt>
-                  {/* TODO: enrich receipts with "before" value in a future iteration */}
-                  <dd>{"→ "}<span style={{ color: "var(--ink-amber)" }}>{String(value)}</span></dd>
-                </Fragment>
-              ))}
+              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(
+                ([field, value]) => (
+                  <Fragment key={field}>
+                    <dt className="font-medium" style={{ color: "var(--ink-muted)" }}>
+                      {field}
+                    </dt>
+                    {/* TODO: enrich receipts with "before" value in a future iteration */}
+                    <dd>
+                      {"→ "}
+                      <span style={{ color: "var(--ink-amber)" }}>{String(value)}</span>
+                    </dd>
+                  </Fragment>
+                )
+              )}
               {Object.keys((receipt.changes ?? {}) as Record<string, unknown>).length === 0 ? (
                 <Fragment>
-                  <dt className="font-mono text-xs col-span-2" style={{ color: "var(--ink-muted)" }}>
+                  <dt
+                    className="font-mono text-xs col-span-2"
+                    style={{ color: "var(--ink-muted)" }}
+                  >
                     {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
                   </dt>
                 </Fragment>
@@ -678,10 +688,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
         </div>
       ) : (
-        <div
-          className="relative mt-1.5 font-mono text-xs"
-          style={{ color: "var(--ink-coral)" }}
-        >
+        <div className="relative mt-1.5 font-mono text-xs" style={{ color: "var(--ink-coral)" }}>
           {errorMsg}
         </div>
       )}

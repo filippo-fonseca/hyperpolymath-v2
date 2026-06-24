@@ -91,7 +91,16 @@ export interface SearchSnapshot {
 const PREVIEW_LEN = 80;
 
 function emptyResults(): SearchResults {
-  return { tasks: [], captures: [], pages: [], journal: [], projects: [], areas: [], habits: [], total: 0 };
+  return {
+    tasks: [],
+    captures: [],
+    pages: [],
+    journal: [],
+    projects: [],
+    areas: [],
+    habits: [],
+    total: 0,
+  };
 }
 
 function areaLabel(name: string, emoji: string | null): string {

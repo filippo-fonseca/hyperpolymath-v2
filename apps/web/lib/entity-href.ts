@@ -47,9 +47,9 @@ export function entityHref(ref: EntityRef): string {
     case "journal":
       return `/journaling?date=${encodeURIComponent(ref.date)}`;
     case "event":
-      return `/calendar`;
+      return "/calendar";
     case "habit":
-      return `/habits`;
+      return "/habits";
   }
 }
 
