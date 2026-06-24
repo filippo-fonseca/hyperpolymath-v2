@@ -1,5 +1,20 @@
 import { ElevenLabsClient } from "elevenlabs";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
+import { checkRateLimit } from "@/lib/ratelimit/in-memory";
+
+/**
+ * Derive the client IP from proxy headers. `x-forwarded-for` may be a
+ * comma-separated list (client, proxy1, proxy2…); the first entry is the
+ * original client. Falls back to `x-real-ip`, then a shared "unknown" bucket.
+ */
+function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const first = fwd.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 20;
@@ -40,6 +55,30 @@ function getClient(): ElevenLabsClient | null {
 }
 
 export async function POST(req: Request): Promise<Response> {
+  // Rate-limit BEFORE any upstream call so blocked requests never spend the
+  // owner's paid ElevenLabs tokens. Best-effort, per-instance (see limiter).
+  const ip = clientIp(req);
+  const burst = checkRateLimit(`landing-demo:burst:${ip}`, {
+    limit: 8,
+    windowMs: 60_000,
+  });
+  const daily = burst.ok
+    ? checkRateLimit(`landing-demo:daily:${ip}`, {
+        limit: 40,
+        windowMs: 24 * 60 * 60_000,
+      })
+    : burst;
+  const gate = burst.ok ? daily : burst;
+  if (!gate.ok) {
+    return Response.json(
+      { error: "rate_limited" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(gate.retryAfterSec) },
+      },
+    );
+  }
+
   let body: { lineId?: number };
   try {
     body = (await req.json()) as { lineId?: number };
