@@ -570,3 +570,141 @@ MyFitnessPal-style nutrition logging with Open Food Facts integration, meal slot
 | NUTR-HEATMAP-01 | Phase 17 | Complete |
 
 *Updated 2026-06-12 — Phase 17 (Nutrition tracking tab) added: 22 NUTR-* requirements covering schema/RLS/Realtime + math/OFF + service layer (D-14) + day view UI + search/log/manual/meals/quickadd + targets + stats/heatmap.*
+
+### Journaling (Phase 20)
+
+- [x] **JOURNAL-SCHEMA-01**: Drizzle schema adds a `journal_entries` table — `id`, `user_id` (FK → users, cascade), `date` (DATE), `main_response` (text, nullable), `notes_section` (text, nullable), `no_export` (boolean, default false), `created_at`/`updated_at` — with a `UNIQUE(user_id, date)` constraint (one entry per user per calendar day) and an index on `(user_id, date DESC)`. Migration is a hand-written `00NN_journal_entries.sql` mirroring the captures migration style.
+- [x] **JOURNAL-RLS-01**: `journal_entries` enforces owner-only RLS (`user_id = auth.uid()`) for select/insert/update/delete; cross-user reads return empty (integration test mirroring the captures/nutrition RLS test).
+- [x] **JOURNAL-RT-01**: Realtime publication includes `journal_entries`; the `RealtimeTable` union is extended; the `bump_user_state_version` trigger fires on `journal_entries` writes (JARVIS state-cache hook parity with other primary tables).
+- [ ] **JOURNAL-SERVICE-01**: Server Actions in `app/actions/journal.ts` expose `getJournalEntries({ startDate?, endDate?, limit? })`, `getJournalEntry(date)`, and `upsertJournalEntry({ date, mainResponse?, notesSection? })` — auth via `getClaims()`, Zod-validated input, upsert keyed on `(userId, date)` (never create duplicate rows for a day), double-WHERE ownership on update.
+- [ ] **JOURNAL-NAV-01**: `/journaling` route registered in `TopTabBar.tsx` (ROUTE_META) and `PersistentNav.tsx` with a `BookOpen`/`NotebookPen` lucide icon and label "Journaling".
+- [ ] **JOURNAL-DAY-01**: The day view lands on today, shows the fixed main prompt "What was the most storyworthy moment from today?" with a free-text response field and a separate "Notes / Misc" field; a day navigator (← {date} →, Today/Yesterday/EEE, MMM d) switches days; edits autosave (debounced) via `upsertJournalEntry` with a visible saved/saving indicator. Layout is comfortable on both web and mobile widths.
+- [ ] **JOURNAL-LIST-01**: A scrollable history/feed of past entries (most recent first) lets the user revisit and edit prior days; entries with no content render an inviting empty state rather than a blank row.
+- [ ] **JOURNAL-UI-01**: All journaling surfaces use the established glass register (`glass-tile` / `--glass-*` tokens, per-callsite accents via `--glass-border`/`--glass-glow-color`), EB Garamond serif for the prompt + entry body, warm-parchment tokens — visually consistent with the other tabs; no bespoke shadows or raw neumorphism outside the glass system.
+- [ ] **JOURNAL-NOEXPORT-01**: Each entry has a `no_export` privacy toggle in the UI; when set, the entry is excluded from the graph and the MCP export (gate honored in the loader, mirroring captures).
+- [ ] **JOURNAL-GRAPH-01**: A `journal_entry` node type is added to BOTH `packages/personal-context-mcp/src/types.ts` AND `apps/web/lib/context/types.ts`, with `CURRENT_SCHEMA_VERSION` bumped in both (kept in sync); the graph explorer renders the new node type.
+- [ ] **JOURNAL-MCP-01**: A `lib/context/nodes/journal.ts` loader (mirroring `nodes/captures.ts`, honoring `no_export`) is wired into `buildSnapshot()` so journal entries appear in the persisted snapshot consumed by the personal-context MCP server and daily export.
+- [ ] **CAP-COPY-01**: Each Quick Capture card has a copy-to-clipboard button that copies the capture's content, easy to tap/click while scrolling — always-visible or tap-target on mobile, hover-revealed on web — with brief copied feedback; uses the existing clipboard pattern if one exists, else the Clipboard API with a graceful fallback.
+
+### Phase 20 traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| JOURNAL-SCHEMA-01 | Phase 20 | Complete (20-01) |
+| JOURNAL-RLS-01 | Phase 20 | Complete (20-01) |
+| JOURNAL-RT-01 | Phase 20 | Complete (20-01) |
+| JOURNAL-SERVICE-01 | Phase 20 | Pending |
+| JOURNAL-NAV-01 | Phase 20 | Pending |
+| JOURNAL-DAY-01 | Phase 20 | Pending |
+| JOURNAL-LIST-01 | Phase 20 | Pending |
+| JOURNAL-UI-01 | Phase 20 | Pending |
+| JOURNAL-NOEXPORT-01 | Phase 20 | Pending |
+| JOURNAL-GRAPH-01 | Phase 20 | Pending |
+| JOURNAL-MCP-01 | Phase 20 | Pending |
+| CAP-COPY-01 | Phase 20 | Pending |
+
+*Updated 2026-06-19 — Phase 20 (Journaling) added: 11 JOURNAL-* requirements (schema/RLS/Realtime + upsert-per-day service + nav + day view + history + glass UI + no-export gate + graph node + MCP loader) plus CAP-COPY-01 (Quick Capture copy button, mobile + web).*
+
+## v1.2 Requirements (Milestone: Wiki + In-Document JARVIS)
+
+Two epics: (1) overhaul the Pages feature — rename to **Wiki**, decouple folders/pages from projects, and round out the editor (linking, nav bar, slash shorthand, breadcrumbs, search, export, backup, daily pages); (2) bring JARVIS **into the document** so any page can invoke the same agent inline. Builds on Phase 5/5.1/16 (JARVIS engine), Phase 999.12 (context graph + MCP), and the existing BlockNote editor.
+
+### Wiki Data Model (Phase 21)
+
+- [ ] **WIKI-MODEL-01**: `page_folders` gains a nullable `parent_id` self-FK (ON DELETE CASCADE) enabling arbitrary-depth folder hierarchy; existing flat folders migrate as roots (`parent_id` null).
+- [ ] **WIKI-MODEL-02**: Folders no longer require a project — the required `page_folders.project_id` is removed and folders become first-class user-owned entities; the migration preserves every existing folder→project association by creating `folder_projects` rows.
+- [ ] **WIKI-MODEL-03**: A `folder_projects` junction (`folder_id`, `project_id`, `user_id`, owner-only RLS) links a folder to 0..n projects (M:N), mirroring `pages_projects`.
+- [ ] **WIKI-MODEL-04**: A page can be linked to 0..n projects directly AND can live inside a folder independent of any project (a standalone page with no folder and no project is valid).
+- [ ] **WIKI-MODEL-05**: Project assignment is inherited down the folder tree — a node's *effective* project set = its own links UNION the links of all ancestor folders; a folder assigned to project(s) thereby assigns every descendant page/subfolder to those same projects.
+- [ ] **WIKI-MODEL-06**: Inherited project assignments are locked in descendants — the UI cannot add or remove an inherited project on a child (it can only be changed on the owning ancestor folder); direct, non-inherited links on the child remain editable.
+- [ ] **WIKI-MODEL-07**: Query layer + `buildPagesTree` are rewritten to assemble the hierarchy from independent folders/pages and to compute each node's effective project set; a cross-user RLS integration test covers `folder_projects`.
+
+### Wiki Rename (Phase 22)
+
+- [ ] **WIKI-RENAME-01**: The `/pages` route is renamed to `/wiki` (with a redirect from `/pages` and `/pages/[pageId]`); the sidebar/nav entries read "Wiki".
+- [ ] **WIKI-RENAME-02**: User-facing copy, component/file names, and labels use "Wiki" consistently; no "Pages" label remains in the UI.
+
+### Wiki Tree & Project Docs (Phase 23)
+
+- [ ] **WIKI-TREE-01**: The Wiki home renders a collapsible file/folder tree of the new independent hierarchy (folders with subfolders + pages, plus standalone pages), with project pills next to each element reflecting its effective project set.
+- [ ] **WIKI-TREE-02**: A project detail page's Docs/Wiki section lists every folder (and its descendants) and standalone page whose effective project set includes that project, grouped by folder hierarchy.
+- [ ] **WIKI-TREE-03**: Elements assigned by inheritance are visually distinguished (inherited pill style) from directly-linked ones.
+
+### Wiki Linking UX (Phase 24)
+
+- [ ] **WIKI-LINK-01**: The project linker on a page/folder is a searchable picker with results segmented by Area, linking the node to 0..n projects.
+- [ ] **WIKI-LINK-02**: A separate folder control (pill/dropdown) places a page into an existing folder or leaves it unfiled.
+- [ ] **WIKI-LINK-03**: From that same control the user can create a new folder inline, name it, and place it in the hierarchy — a plus affordance next to a given folder nests the new folder under it.
+- [ ] **WIKI-LINK-04**: Inherited project links surface as read-only in the child's linker (cannot be removed there) and point to the owning ancestor folder.
+
+### Wiki Editor Chrome (Phase 25)
+
+- [ ] **WIKI-EDIT-01**: Each open page shows a sticky top-right per-doc nav bar that persists while scrolling.
+- [ ] **WIKI-EDIT-02**: The page delete action moves into that nav bar (removed from its current inline location), behind a confirm.
+- [ ] **WIKI-EDIT-03**: The nav bar hosts export and a hide-Jarvis-receipts toggle (the toggle is wired to receipts in Phase 32).
+- [ ] **WIKI-EDIT-04**: Slash shorthand maps `/h1`–`/h3`, `/bullet`, `/todo`, `/quote`, `/code`, etc. directly to the block type (typing `/h1` inserts Heading 1 without typing the full block name).
+- [ ] **WIKI-EDIT-05**: A breadcrumb trail (`Folder > Subfolder > … > Page`) renders at the top of each page with the linked-project pill highlighted.
+
+### Wiki Search (Phase 26)
+
+- [ ] **WIKI-SEARCH-01**: An in-page find (custom UI, not browser Cmd+F) searches all content in the current page, highlights and jumps between matches, and works across the full document even where content is off-screen/virtualized.
+
+### Wiki Export (Phase 27)
+
+- [ ] **WIKI-EXPORT-01**: A page can be downloaded as a `.md` file from its nav bar.
+- [ ] **WIKI-EXPORT-02**: A whole folder (with all descendant subfolders/pages) can be exported as a structure-preserving bundle (zip of `.md`) from the tree/project view.
+- [ ] **WIKI-EXPORT-03**: A whole project's docs (all effective folders + pages) can be exported from the project page.
+- [ ] **WIKI-EXPORT-04**: The Wiki home can export the entire tree.
+- [ ] **WIKI-EXPORT-05**: JARVIS receipt artifacts are stripped from every markdown export.
+
+### Wiki Backup Cron (Phase 28)
+
+- [ ] **WIKI-BACKUP-01**: A daily cron exports all Wiki pages as markdown and backs them up to Google Drive (reusing the existing Google integration); failures are logged and do not crash the job.
+
+### Wiki MCP & Graph (Phase 29)
+
+- [ ] **WIKI-MCP-01**: All Wiki pages are included by default in the MCP export and the tree-based knowledge graph; a per-page nav-bar control (the existing `noExport` gate) excludes a page.
+- [ ] **WIKI-MCP-02**: Page nodes carry their effective project set and folder path so graph edges reflect the new hierarchy.
+
+### Wiki Daily Pages (Phase 30)
+
+- [ ] **WIKI-DAILY-01**: A special, toggleable "Daily Pages" section in the Wiki with a Journal-style calendar for navigating days.
+- [ ] **WIKI-DAILY-02**: Opening today (or a new day) auto-creates exactly one Daily Page titled with the date — idempotent per user per day, never duplicate.
+- [ ] **WIKI-DAILY-03**: A Daily Page shows a "Daily Page" pill badge under its title.
+- [ ] **WIKI-DAILY-04**: Daily Pages (and only Daily Pages) show an automatic "process this page" JARVIS button that feeds the entire page content through the shared engine to generate a daily plan (tasks/events/captures), reusing the in-document @JARVIS pipeline (Phase 31) — superseding the standalone Morning Dump surface (PR #69 / #32 / #33).
+
+### In-Document JARVIS Engine (Phase 31)
+
+- [ ] **JDOC-ENGINE-01**: An in-document JARVIS invocation runs through the SAME engine path (`jarvis-core` tools + `createServerExecutor` + `runJarvisTurnStream` / `/api/jarvis`) with no forked agent logic; improvements to the agent propagate to the in-document surface automatically.
+- [ ] **JDOC-ENGINE-02**: A scope resolver decides the relevant context for an invocation — whole page, a section, the current block, or a sub-block selection — defaulting to the current block first.
+- [ ] **JDOC-ENGINE-03**: The page's content is provided to the engine so JARVIS can resolve references like "this", "the above", or "the feature ideas I mentioned" correctly.
+- [ ] **JDOC-ENGINE-04**: Each in-document invocation persists as a real `jarvis_turns` turn (user + assistant) with full action receipts, appearing in the JARVIS conversation tab indistinguishable from console turns.
+- [ ] **JDOC-ENGINE-05**: Actions execute via the same executor with the same 5s universal-undo semantics.
+
+### In-Document JARVIS UX (Phase 32)
+
+- [ ] **JDOC-UX-01**: Typing `@` in a page opens a JARVIS autocomplete dropdown; `@J` + Enter completes to `@Jarvis`.
+- [ ] **JDOC-UX-02**: After committing `@Jarvis`, subsequent typing is wrapped in a neumorphic outlined pill in a mono / Space-Grotesk-style font; Cmd+Enter is the only way to exit/submit it.
+- [ ] **JDOC-UX-03**: On submit the pill shows a loading indicator while processing, then transforms into a receipt summary (e.g. "Created 1 task, Created 2 events, Edited 3 captures").
+- [ ] **JDOC-UX-04**: Hovering a receipt pill shows a tooltip with the original prompt text.
+- [ ] **JDOC-UX-05**: `/Jarvis` appears in the slash menu (with the JARVIS logo) as an alternative invocation.
+- [ ] **JDOC-UX-06**: A nav-bar toggle hides receipt pills in-doc; receipts are always excluded from markdown exports regardless of the toggle.
+
+### Phase 21–32 traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| WIKI-MODEL-01..07 | Phase 21 | Pending |
+| WIKI-RENAME-01..02 | Phase 22 | Pending |
+| WIKI-TREE-01..03 | Phase 23 | Pending |
+| WIKI-LINK-01..04 | Phase 24 | Pending |
+| WIKI-EDIT-01..05 | Phase 25 | Pending |
+| WIKI-SEARCH-01 | Phase 26 | Pending |
+| WIKI-EXPORT-01..05 | Phase 27 | Pending |
+| WIKI-BACKUP-01 | Phase 28 | Pending |
+| WIKI-MCP-01..02 | Phase 29 | Pending |
+| WIKI-DAILY-01..04 | Phase 30 | Pending |
+| JDOC-ENGINE-01..05 | Phase 31 | Pending |
+| JDOC-UX-01..06 | Phase 32 | Pending |
+
+*Updated 2026-06-21 — Milestone v1.2 (Wiki + In-Document JARVIS) added: 12 phases (21–32), ~40 requirements across two epics — Wiki restructure/editor (WIKI-*) and in-document JARVIS (JDOC-*). Supersedes backlog 999.17 (wiki-markdown-pages) and the Morning Dump PR #69 / issues #32, #33.*

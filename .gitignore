@@ -49,3 +49,7 @@ DEPLOYMENT.md
 # v1 reference checkout — kept locally for cross-reference, not for the repo
 /old-v1/
 .vercel
+
+# Local Kiwi auto-dev worker scratch (locks, worktrees, recaps, logs)
+.kiwi-auto/
+tools/kiwi-autodev/logs/

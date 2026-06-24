@@ -31,7 +31,18 @@ export type RealtimeTable =
   | "food_serving_options"
   | "food_logs"
   | "meals"
-  | "meal_items";
+  | "meal_items"
+  // Phase 20 — journaling (JOURNAL-RT-01)
+  | "journal_entries"
+  // Phase 20 — pages (wiki-style markdown documents)
+  | "pages"
+  | "pages_projects"
+  | "page_folders"
+  // Phase 21 — wiki data-model restructure (folder->project M:N links)
+  | "folder_projects"
+  // Phase People — first-class person entity + mention references
+  | "people"
+  | "people_references";
 
 export function tableKey(
   table: RealtimeTable,

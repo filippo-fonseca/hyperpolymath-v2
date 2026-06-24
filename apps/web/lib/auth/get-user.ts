@@ -62,26 +62,36 @@ export async function getUserOrRedirect(): Promise<AuthenticatedUser> {
   }
   const userId = claimsData.claims.sub;
 
-  const rows = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      graduationYear: users.graduationYear,
-      onboardedAt: users.onboardedAt,
-      displayName: users.displayName,
-      bio: users.bio,
-      avatarUrl: users.avatarUrl,
-      githubUsername: users.githubUsername,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const cols = {
+    id: users.id,
+    email: users.email,
+    graduationYear: users.graduationYear,
+    onboardedAt: users.onboardedAt,
+    displayName: users.displayName,
+    bio: users.bio,
+    avatarUrl: users.avatarUrl,
+    githubUsername: users.githubUsername,
+  } as const;
 
-  if (rows.length === 0) {
-    // Trigger (Plan 02 migration 0002) should have created this; defensive bail if missing
-    redirect("/sign-in");
+  const rows = await db.select(cols).from(users).where(eq(users.id, userId)).limit(1);
+  if (rows.length > 0) return rows[0];
+
+  // Self-heal: the auth.users → public.users trigger (migration 0002) normally
+  // provisions this row at sign-up. If it didn't fire (trigger missing on this
+  // environment, or a race), create it on demand from the validated JWT claims
+  // so a legitimately signed-in user is never bounced into a redirect loop.
+  // Idempotent via onConflictDoNothing — concurrent requests can't double-insert.
+  const claimEmail = (claimsData.claims as { email?: unknown }).email;
+  let email = typeof claimEmail === "string" ? claimEmail : "";
+  if (!email) {
+    const { data: u } = await supabase.auth.getUser();
+    email = u.user?.email ?? "";
   }
-  return rows[0];
+  await db.insert(users).values({ id: userId, email }).onConflictDoNothing();
+
+  const healed = await db.select(cols).from(users).where(eq(users.id, userId)).limit(1);
+  if (healed.length === 0) redirect("/sign-in");
+  return healed[0];
 }
 
 /**

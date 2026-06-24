@@ -57,6 +57,8 @@ const TYPE_META: Record<string, { color: string; val: number; label: string }> =
   training_activity: { color: "#fb7185", val: 4, label: "Training" },
   habit: { color: "#a78bfa", val: 4, label: "Habits" },
   jarvis_fact: { color: "#f87171", val: 4, label: "Facts" },
+  journal_entry: { color: "#8b5cf6", val: 3, label: "Journal" },
+  person: { color: "#f0abfc", val: 5, label: "People" },
   tag: { color: "#94a3b8", val: 2, label: "Tags" },
 };
 
@@ -69,6 +71,7 @@ function nodeName(n: RawNode): string {
   }
   if (t === "training_activity") return String(n.kind ?? "Activity");
   if (t === "tag") return `#${String(n.name ?? "")}`;
+  if (t === "journal_entry") return String(n.date ?? n.id);
   return String(n.name ?? "Untitled");
 }
 

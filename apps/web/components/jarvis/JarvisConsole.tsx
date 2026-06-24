@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   streamJarvis,
@@ -11,15 +12,8 @@ import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputHandle, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
-import {
-  undoJarvisAction,
-  type UndoTarget,
-  type TaskBefore,
-  type CaptureBefore,
-  type EventBefore,
-  type TaskSnapshot,
-  type CaptureSnapshot,
-} from "@/app/actions/jarvis";
+import { undoJarvisAction } from "@/app/actions/jarvis";
+import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
 // Phase 6.1 Plan 02 — JARVIS Console chrome (UI-SPEC §5a, §6d, §6e, §9f).
 // HudCornerCrops + HudEdgeInstrumentation come from Plan 01 (shared primitives
 // to break the Wave 2 race). HudStatusPill + HudThinkingRing are this plan's
@@ -28,6 +22,7 @@ import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { HudStatusPill, type HudStatusState } from "@/components/shared/HudStatusPill";
 import { HudCoreBubble, type HudCoreBubbleState } from "@/components/shared/HudCoreBubble";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
 // Phase 10 Plan 10-04 (LAT-02) — client-side sentence boundary splitter.
 // splitDeltas accumulates streaming text deltas into a rolling buffer; each
 // completed sentence is dispatched immediately via 'jarvis-voice-speak-sentence'
@@ -36,7 +31,9 @@ import { splitDeltas } from "@/lib/voice/sentence-splitter";
 import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
+  loadJarvisHistorySince,
 } from "@/app/actions/jarvis-turns";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 // Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
 // turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
@@ -46,6 +43,7 @@ import {
   setActiveTurnId,
 } from "@/lib/voice/voice-stage-collector";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
+import { registerJarvisConsoleMounted } from "@/lib/jarvis/focus";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -210,6 +208,28 @@ export function JarvisConsole({
   // knows the browser mic is intentionally disabled, not broken.
   const { desktopClaimed } = useVoiceSourceStatus();
 
+  // Register this console as mounted so GlobalJarvisHandler knows to yield
+  // when a JarvisConsole is active (e.g. split-screen side panel). Without
+  // this, both GlobalJarvisHandler AND JarvisConsole would submit the same
+  // jarvis-voice-transcript event — double-executing the turn and racing on
+  // DB persistence.
+  useEffect(() => {
+    registerJarvisConsoleMounted(true);
+    return () => registerJarvisConsoleMounted(false);
+  }, []);
+
+  // Issue #17: JARVIS mutations refreshed the underlying lists only via the
+  // flaky Supabase Realtime echo (and never at all for gcal events). We now
+  // invalidate the affected TanStack Query keys DIRECTLY on every successful
+  // action + undo so created/updated/deleted entities show immediately.
+  const queryClient = useQueryClient();
+
+  // Deep-link target (e.g. /today?messageId=<turnId> from a wiki page's
+  // processing-run history). When set, we ensure the turn is loaded and scroll
+  // it into view via JarvisScrollback.
+  const searchParams = useSearchParams();
+  const messageId = searchParams.get("messageId");
+
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
   // turn because React 18+ doesn't guarantee the functional updater fires
@@ -265,33 +285,58 @@ export function JarvisConsole({
       setTurns((prev) => mergeById(prev, mapped));
     }
 
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    void (async () => {
-      // The module-private _initRealtimeAuth in useTableSubscription is NOT
-      // exported, so this standalone channel must carry the user JWT itself.
-      const { data } = await supabase.auth.getSession();
+    // Create the channel and attach the listener synchronously so the cleanup
+    // below always has a real channel to remove. Deferring channel creation
+    // behind an await (as before) meant React strict-mode's synchronous cleanup
+    // ran while `channel` was still null — a no-op — leaving the first channel
+    // subscribed. The second mount then re-used that subscribed instance and
+    // threw "cannot add postgres_changes callbacks ... after subscribe()".
+    const channel = supabase.channel(`jarvis-console-merge:${userId}`).on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jarvis_turns",
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        void refreshAndMerge();
+      },
+    );
+
+    // The module-private _initRealtimeAuth in useTableSubscription is NOT
+    // exported, so this standalone channel must carry the user JWT itself.
+    // Only .subscribe() is deferred behind the token fetch; .on() already ran.
+    void supabase.auth.getSession().then(({ data }) => {
       void supabase.realtime.setAuth(data.session?.access_token ?? null);
-      channel = supabase
-        .channel(`jarvis-console-merge:${userId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "jarvis_turns",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => {
-            void refreshAndMerge();
-          },
-        )
-        .subscribe();
-    })();
+      channel.subscribe();
+    });
 
     return () => {
-      if (channel) void supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [userId]);
+
+  // Deep-link hydration. If the requested turn isn't already in the SSR-loaded
+  // page, fetch it plus everything after it and replace the visible scrollback
+  // so JarvisScrollback can scroll to it. If it's already present, the
+  // scroll-to-target effect in JarvisScrollback handles it with no fetch.
+  useEffect(() => {
+    if (!messageId) return;
+    if (turnsRef.current.some((t) => t.id === messageId)) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await loadJarvisHistorySince({ turnId: messageId });
+      if (cancelled || !res.success) return;
+      const mapped = res.data.turns.map(mapTurnRow);
+      setTurns(mapped);
+      setHasMore(res.data.hasMore);
+      setOldestAt(res.data.oldestAt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messageId]);
 
   // Session memory (D-06) — derive from visible scrollback at submit time.
   //
@@ -458,6 +503,13 @@ export function JarvisConsole({
       persistTurn(userTurn);
 
       setStreaming(true);
+      // Abort any request still in flight before starting a new one. The UI
+      // gates submits behind `disabled={streaming}`, but programmatic paths
+      // (voice transcript, clarification chips) can re-enter while a stream is
+      // open. Without this, the previous fetch leaks and both SSE readers race
+      // to mutate overlapping turn state. Mirrors GlobalJarvisHandler's
+      // abort-before-start contract.
+      abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
 
@@ -597,6 +649,14 @@ export function JarvisConsole({
               ),
             );
 
+            // Issue #17: refresh the lists this action touched. Fires once per
+            // action, so every action in a multi-action batch invalidates its
+            // own keys. Only invalidate on success — a failed write changed
+            // nothing. find_*/clarification map to no keys (no-op).
+            if (data.result?.ok) {
+              invalidateAfterJarvisAction(queryClient, data.name, userId);
+            }
+
             // Phase 7 Plan 07-04 (revised): TTS no longer reads from
             // receipt.voice_summary. Spoken text is the assistant's leading
             // prose, fired once in onDone after the full text has streamed
@@ -709,19 +769,23 @@ export function JarvisConsole({
         opts?.sttDoneAt ?? null,
       );
     },
-    [buildHistory, voiceCapable, voiceSettings.voiceId],
+    [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId],
   );
 
-  // Voice surface migration (Phase 14 follow-up): voice never originates
-  // from the browser anymore. The desktop app captures audio, the server
-  // transcribes + runs the JARVIS turn, and the response is streamed back
-  // through jarvis-response-* SSE events (handled by the next effect).
+  // jarvis-voice-transcript handler — two distinct sources use this event:
   //
-  // We still surface the transcript text as a synthetic user turn so the
-  // browser shows what JARVIS heard. The transcript arrives via the same
-  // jarvis-voice-transcript window event the use-physical-extension hook
-  // dispatches off the `transcript` SSE event — we just stop calling
-  // handleSubmit on it.
+  // 1. Desktop voice (source: "desktop"): the desktop app already ran the
+  //    JARVIS turn server-side. We only show a synthetic user bubble here;
+  //    the assistant response arrives via jarvis-response-* SSE events
+  //    (handled by the next effect). DO NOT call handleSubmit.
+  //
+  // 2. GlobalJarvisDialog text submission (no source / source !== "desktop"):
+  //    the Cmd+K dialog on a non-/today route fires this event with the
+  //    typed text. When JarvisConsole is mounted (split-screen side panel),
+  //    GlobalJarvisHandler yields (checks isJarvisConsoleMounted()) so WE
+  //    must run the full pipeline here via handleSubmit. This is what makes
+  //    the thinking indicator and streaming show immediately in the panel
+  //    instead of waiting for a page reload.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
       const detail = (
@@ -730,24 +794,37 @@ export function JarvisConsole({
           sttDoneAt?: number | null;
           vadEndAt?: number;
           turnId?: string;
+          source?: string;
         }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
 
-      const userTurn: ScrollbackTurn = {
-        kind: "user",
-        id: crypto.randomUUID(),
-        text: detail.transcript,
-        createdAt: new Date(),
-      };
-      // 2026-06 fix: previously `setTurns([userTurn])` wiped the entire
-      // scrollback on every voice transcript so the conversation history
-      // vanished the moment the desktop spoke. Append instead so the
-      // browser shows a real running conversation.
-      setTurns((prev) => {
-        const next = [...prev, userTurn];
-        turnsRef.current = next;
-        return next;
+      // Desktop-originated transcripts: the server already executed the turn.
+      // Just show the user bubble; jarvis-response-* events stream the reply.
+      if (detail.source === "desktop") {
+        const userTurn: ScrollbackTurn = {
+          kind: "user",
+          id: crypto.randomUUID(),
+          text: detail.transcript,
+          createdAt: new Date(),
+        };
+        setTurns((prev) => {
+          const next = [...prev, userTurn];
+          turnsRef.current = next;
+          return next;
+        });
+        return;
+      }
+
+      // Dialog / non-desktop transcript: run the full JARVIS pipeline so the
+      // thinking indicator and receipt cards appear immediately.
+      void handleSubmit({
+        input: detail.transcript,
+        parsedDates: [],
+        parsedPriority: null,
+        slashCommand: null,
+        projectIds: [],
+        hashtags: [],
       });
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
@@ -757,7 +834,7 @@ export function JarvisConsole({
         handleVoiceTranscript,
       );
     };
-  }, []);
+  }, [handleSubmit]);
 
   // Phase 14-04: when desktopClaimed === true, subscribe to the server-side
   // JARVIS response events forwarded through the physicalBus SSE channel.
@@ -827,6 +904,11 @@ export function JarvisConsole({
             : t,
         ),
       );
+      // Issue #17: desktop-run actions mutate the same tables; refresh the
+      // affected lists so the browser view reflects them without a reload.
+      if ((detail.result as { ok?: boolean } | undefined)?.ok) {
+        invalidateAfterJarvisAction(queryClient, detail.name, userId);
+      }
     }
 
     function handleResponseEnd(e: Event) {
@@ -855,7 +937,7 @@ export function JarvisConsole({
       window.removeEventListener("jarvis-tool-call", handleToolCall);
       window.removeEventListener("jarvis-response-end", handleResponseEnd);
     };
-  }, []);
+  }, [queryClient, userId]);
 
   // Quick 260607-g56: consume sessionStorage('jarvis-prefill') on mount. Set by
   // LifeOsQuickSend and GlobalJarvisDialog when they hand off a seed turn to
@@ -909,67 +991,12 @@ export function JarvisConsole({
   // calls onUndo synchronously after cancel()), so no race on the 5s window.
   const handleUndoAction = useCallback(
     async (turnId: string, action: ScrollbackAction) => {
-      // Guard against queued placeholders (result not yet populated)
-      if (!action.result || !action.result.ok) return;
-      const id = (action.result as { id: string }).id;
-      const receipt = (action.result as { receipt?: Record<string, unknown> }).receipt ?? {};
-
-      // Build the UndoTarget per action.name.
-      // find_*, remember_fact, ask_clarification return early — they have no inversion.
-      // Capability guard for update_*/delete_* is enforced in JarvisScrollback (isUndoable)
-      // so if we reach here for those tools, they must have carried a before/snapshot.
-      let target: UndoTarget;
-      switch (action.name) {
-        case "create_task":
-          target = { kind: "task", id };
-          break;
-        case "create_capture":
-          target = { kind: "capture", id };
-          break;
-        case "create_event": {
-          const calendarId =
-            typeof receipt.calendar_id === "string"
-              ? receipt.calendar_id
-              : typeof receipt.calendarId === "string"
-                ? receipt.calendarId
-                : "primary";
-          target = { kind: "event", id, calendarId };
-          break;
-        }
-        case "update_task":
-          if (!receipt.before) return;
-          target = { kind: "update_task", id, before: receipt.before as TaskBefore };
-          break;
-        case "update_capture":
-          if (!receipt.before) return;
-          target = { kind: "update_capture", id, before: receipt.before as CaptureBefore };
-          break;
-        case "update_event": {
-          if (!receipt.before) return;
-          const calendarId =
-            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
-          target = { kind: "update_event", id, calendarId, before: receipt.before as EventBefore };
-          break;
-        }
-        case "delete_task":
-          if (!receipt.snapshot) return;
-          target = { kind: "delete_task", snapshot: receipt.snapshot as TaskSnapshot };
-          break;
-        case "delete_capture":
-          if (!receipt.snapshot) return;
-          target = { kind: "delete_capture", snapshot: receipt.snapshot as CaptureSnapshot };
-          break;
-        case "delete_event": {
-          if (!receipt.snapshot) return;
-          const calendarId =
-            typeof receipt.calendar_id === "string" ? receipt.calendar_id : "primary";
-          target = { kind: "delete_event", calendarId, snapshot: receipt.snapshot as Record<string, unknown> };
-          break;
-        }
-        default:
-          // find_*, remember_fact, ask_clarification — not undoable
-          return;
-      }
+      // Build the UndoTarget per action.name via the shared pure mapper
+      // (lib/jarvis/action-to-undo-target.ts), reused by the in-document pill.
+      // null means a queued placeholder, a failed action, or a non-undoable
+      // tool (find_*, remember_fact, ask_clarification) — nothing to invert.
+      const target = actionToUndoTarget(action);
+      if (!target) return;
 
       // Optimistic — flip undone immediately so the receipt UI snaps.
       // flushSync guarantees the updater runs before the persist check (same
@@ -1025,10 +1052,14 @@ export function JarvisConsole({
         // "undone" badge.
         if (reverted) persistTurn(reverted);
       } else {
+        // Issue #17: the undo mutated the same tables the action did, so
+        // refresh the affected lists immediately rather than waiting on the
+        // Realtime echo (and so reverted gcal events reappear).
+        invalidateAfterJarvisAction(queryClient, action.name, userId);
         toast.success("Undone");
       }
     },
-    [],
+    [queryClient, userId],
   );
 
   // Phase 5.1 (D-A2 / JARVIS-19) — handle clarification reply from JarvisClarification.
@@ -1142,6 +1173,7 @@ export function JarvisConsole({
           turns={turns}
           onUndoAction={handleUndoAction}
           onClarificationReply={handleClarificationReply}
+          scrollToTurnId={messageId}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
           onLoadOlder={async () => {

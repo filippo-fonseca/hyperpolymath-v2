@@ -330,7 +330,7 @@ export function Sidebar({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="MIT License"
-                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
                     >
                       <Scale size={13} strokeWidth={1.5} />
                     </a>
@@ -344,7 +344,7 @@ export function Sidebar({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="GitHub repo"
-                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
                     >
                       <Github size={13} strokeWidth={1.5} />
                     </a>
@@ -358,7 +358,7 @@ export function Sidebar({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="filippofonseca.com"
-                      className="inline-flex w-7 h-7 items-center justify-center rounded-md hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors"
+                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
                     >
                       <Globe size={13} strokeWidth={1.5} />
                     </a>
@@ -538,7 +538,7 @@ function UserChip({
   return (
     <a
       href="/settings"
-      className="group flex items-center gap-3 -mx-1 px-2 py-1.5 rounded-md hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer-always"
+      className="sidebar-row group flex items-center gap-3 -mx-1 px-2 py-1.5 cursor-pointer-always"
     >
       <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors duration-150 shrink-0">
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
@@ -626,10 +626,10 @@ function SidebarIconButton({
   children: React.ReactNode;
 }) {
   const cls = cn(
-    "inline-flex items-center justify-center w-7 h-7 rounded-md border transition-colors duration-150 cursor-pointer-always",
+    "inline-flex items-center justify-center w-7 h-7 transition-colors duration-150 cursor-pointer-always",
     active
-      ? "border-[var(--edge-hud)] bg-[var(--surface-raised)] text-[var(--ink)]"
-      : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)] hover:bg-[var(--surface)]",
+      ? "sidebar-row-active text-[var(--ink)]"
+      : "sidebar-ghost-btn text-[var(--ink-muted)] hover:text-[var(--ink)]",
   );
   return (
     <TooltipProvider delayDuration={300}>
@@ -681,23 +681,13 @@ function SidebarSectionLink({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "mx-2 flex items-center gap-3 rounded-lg px-3 h-9",
+        "sidebar-row mx-2 flex items-center gap-3 px-3 h-9",
         "font-serif text-[14px] tracking-tight",
-        "transition-all duration-150 ease-out cursor-pointer-always",
+        "transition-colors duration-150 ease-out cursor-pointer-always",
         isActive
-          ? "text-[var(--ink)] font-medium"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]",
+          ? "sidebar-row-active sidebar-row-active-area text-[var(--hud-cyan)] font-medium"
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
       )}
-      style={
-        isActive
-          ? {
-              background:
-                "linear-gradient(95deg, color-mix(in oklch, var(--hud-cyan) 22%, transparent) 0%, color-mix(in oklch, var(--hud-cyan) 8%, transparent) 60%, transparent 100%)",
-              boxShadow:
-                "0 0 24px color-mix(in oklch, var(--hud-cyan) 14%, transparent), inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent)",
-            }
-          : undefined
-      }
     >
       {label}
     </a>

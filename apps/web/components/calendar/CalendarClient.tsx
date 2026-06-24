@@ -42,7 +42,7 @@
  * completes WITHOUT a confirming refetch.
  */
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -327,6 +327,58 @@ export function CalendarClient({
     });
   }, []);
 
+  // In-flight UPDATE ids (issue #25). Tracked so (a) the grid chip can render a
+  // busy spinner + dimmed opacity while a reschedule/edit round-trips, and
+  // (b) a second drag/resize on the SAME event is dropped while its first
+  // write is still pending (re-entrancy guard for the auto-save drag paths,
+  // which don't pass through the EventDetailPanel's usePendingAction guard).
+  const [busyUpdateIds, setBusyUpdateIds] = useState<Set<string>>(new Set());
+  const markBusy = useCallback((id: string) => {
+    setBusyUpdateIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+  const clearBusy = useCallback((id: string) => {
+    setBusyUpdateIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+  // Synchronous guard for the auto-save drag/resize paths — state flips are
+  // async, so a fast second drag could slip through before `busyUpdateIds`
+  // updates. The ref blocks it the instant the first write starts.
+  const inFlightUpdateRef = useRef<Set<string>>(new Set());
+
+  // Issue #16 deferred-delete durability. The 5s Undo toast defers the gcal
+  // DELETE to the toast's onAutoClose/onDismiss lifecycle. If the user
+  // refreshes or navigates away within that window the toast is torn down
+  // WITHOUT firing those callbacks, so the delete never hits gcal and the
+  // event reappears on reload. We keep each not-yet-committed delete's gcal
+  // call in a ref keyed by eventId, and flush any survivors synchronously on
+  // unmount + pagehide so the delete actually persists.
+  const pendingCommitsRef = useRef<Map<string, () => Promise<void>>>(new Map());
+  const flushPendingDeletes = useCallback(() => {
+    const commits = pendingCommitsRef.current;
+    if (commits.size === 0) return;
+    for (const commit of commits.values()) void commit();
+    commits.clear();
+  }, []);
+
+  useEffect(() => {
+    const onPageHide = () => flushPendingDeletes();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      // Component unmount (client-side navigation away from /calendar) also
+      // tears down the toast, so flush so the in-flight delete still commits.
+      flushPendingDeletes();
+    };
+  }, [flushPendingDeletes]);
+
   // Derived event list passed to the grid.
   //   - In edit mode with a live draft: append a dashed placeholder at the
   //     proposed position AND flag the original event as `isDraftEditing`
@@ -344,10 +396,13 @@ export function CalendarClient({
   // the reducer would risk it surviving the panel close path.
   const displayEvents = useMemo<GcalEvent[]>(() => {
     // Drop optimistically-deleted events for the full undo window before any
-    // draft/preview overlay is composed on top.
-    const visible = (optimisticEvents as GcalEvent[]).filter(
-      (e) => !pendingDeleteIds.has(e.id),
-    );
+    // draft/preview overlay is composed on top, and flag any event whose
+    // backend write is still in flight so the grid renders a busy spinner.
+    const visible = (optimisticEvents as GcalEvent[])
+      .filter((e) => !pendingDeleteIds.has(e.id))
+      .map((e) =>
+        busyUpdateIds.has(e.id) ? { ...e, isBusy: true } : e,
+      );
     if (panelState.mode === "edit" && formDraft) {
       const editingId = panelState.event.id;
       const out: GcalEvent[] = [];
@@ -399,7 +454,7 @@ export function CalendarClient({
       ];
     }
     return visible;
-  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar, pendingDeleteIds]);
+  }, [optimisticEvents, panelState, formDraft, effectiveTz, colorByCalendar, pendingDeleteIds, busyUpdateIds]);
 
   /**
    * M-02 fix — named helper for placeholder → canonical swap (Pitfall 7).
@@ -495,6 +550,16 @@ export function CalendarClient({
         allDay?: boolean;
       },
     ) => {
+      // Re-entrancy guard for the auto-save drag/resize paths: if a write for
+      // this event is already in flight, drop the duplicate rather than racing
+      // two patches against gcal. (The panel-edit path has its own guard via
+      // usePendingAction, but it harmlessly short-circuits here too.)
+      if (inFlightUpdateRef.current.has(eventId)) {
+        return { success: false };
+      }
+      inFlightUpdateRef.current.add(eventId);
+      markBusy(eventId);
+
       // Build the grid-shaped patch from the input. Always TZDate-wrap
       // dates so the grid renders the new range correctly.
       const patchForGrid: Partial<GcalEvent> = {};
@@ -534,14 +599,30 @@ export function CalendarClient({
         startTransition(() => {
           addOptimistic({ type: "revert", id: eventId });
         });
-        toast.error(res.error ?? "Failed to update event");
+        toast.error(res.error ?? "Failed to update event", {
+          action: {
+            label: "Retry",
+            onClick: () => {
+              void handleUpdateRef.current?.(eventId, currentCalendarId, patch);
+            },
+          },
+        });
+        inFlightUpdateRef.current.delete(eventId);
+        clearBusy(eventId);
         return { success: false };
       }
       void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+      inFlightUpdateRef.current.delete(eventId);
+      clearBusy(eventId);
       return { success: true };
     },
-    [effectiveTz, colorByCalendar, addOptimistic, qc, userId],
+    [effectiveTz, colorByCalendar, addOptimistic, qc, userId, markBusy, clearBusy],
   );
+
+  // Stable ref to handleUpdate so the failure toast's Retry can re-invoke the
+  // latest closure without making the toast capture a stale one.
+  const handleUpdateRef = useRef<typeof handleUpdate | null>(null);
+  handleUpdateRef.current = handleUpdate;
 
   // Phase 6 Plan 06-02 (RES-02): sonner Undo toast for gcal event delete.
   // The gcal API is the source of truth — committing the delete must hit
@@ -571,25 +652,39 @@ export function CalendarClient({
         dropPending(eventId);
         return { success: true };
       }
+      // The actual gcal DELETE. Registered in pendingCommitsRef so that if the
+      // page unloads or /calendar unmounts before the toast resolves, the
+      // unmount/pagehide flush still fires it (issue #16). Guarded against a
+      // double-fire (toast onAutoClose + flush racing) so we never DELETE twice.
+      let committed = false;
+      const commit = async () => {
+        if (committed) return;
+        committed = true;
+        pendingCommitsRef.current.delete(eventId);
+        const res = await deleteEvent({ calendarId, eventId });
+        if (!res.success) {
+          toast.error(res.error ?? "Failed to delete event");
+          // Restore the event since gcal rejected the delete.
+          dropPending(eventId);
+          return;
+        }
+        void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
+        dropPending(eventId);
+      };
+      pendingCommitsRef.current.set(eventId, commit);
+
       // 2. 5s Undo toast (RES-02 / UI-SPEC §8h). gcal DELETE deferred.
       showUndoToast({
         message: `"${previous.title || "Event"}"deleted`,
         optimisticRemove: () => {
           /* already done above via the set */
         },
-        commit: async () => {
-          const res = await deleteEvent({ calendarId, eventId });
-          if (!res.success) {
-            toast.error(res.error ?? "Failed to delete event");
-            // Restore the event since gcal rejected the delete.
-            dropPending(eventId);
-            return;
-          }
-          void qc.invalidateQueries({ queryKey: ["calendar-events", userId] });
-          dropPending(eventId);
-        },
+        commit,
         undo: () => {
-          /* gcal delete only fires on commit; no server-side rollback needed */
+          // Cancel the deferred gcal delete — drop it from the registry so the
+          // unmount/pagehide flush won't fire it after the user undid.
+          committed = true;
+          pendingCommitsRef.current.delete(eventId);
         },
         addBack: () => dropPending(eventId),
       });

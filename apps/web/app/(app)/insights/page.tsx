@@ -3,15 +3,18 @@ import { InsightsTabs } from "@/components/insights/InsightsTabs";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getAnalyticsData, getStageLatencyStats } from "@/lib/db/queries/analytics";
 import { getInsightsData } from "@/lib/db/queries/insights";
+import { getRecentDevRuns } from "@/lib/db/queries/dev-runs";
 // 260607-h2k — Life tab integrations. GitHub self-fetches client-side, so only
 // three Result-returning calls are added to the page-level Promise.all.
 import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
+import { getClaudeSubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
+import { getAnthropicApiUsage } from "@/lib/integrations/anthropic-api/usage";
 import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
 export const dynamic = "force-dynamic";
 
-type Tab = "life" | "habits" | "jarvis";
+type Tab = "life" | "habits" | "jarvis" | "development";
 
 export default async function InsightsPage({
   searchParams,
@@ -20,7 +23,20 @@ export default async function InsightsPage({
 }) {
   const user = await requireOnboarded();
   const { tab } = await searchParams;
-  const initialTab: Tab = tab === "habits" || tab === "jarvis" || tab === "life" ? tab : "life";
+
+  // Owner gate for the DEVELOPMENT tab. When GITHUB_ISSUE_USER_EMAIL is unset
+  // the comparison is false (undefined === user.email), which is the correct
+  // closed default; do not loosen it.
+  const isDevOwner = user.email === process.env.GITHUB_ISSUE_USER_EMAIL;
+
+  // "development" is only a valid initial tab for the owner; a non-owner asking
+  // for ?tab=development falls back to life.
+  const initialTab: Tab =
+    tab === "development" && isDevOwner
+      ? "development"
+      : tab === "habits" || tab === "jarvis" || tab === "life"
+        ? tab
+        : "life";
 
   // 365-day window for the Habits tab. Same as analytics, matches the heatmap.
   const today = new Date();
@@ -64,6 +80,26 @@ export default async function InsightsPage({
     })),
   ]);
 
+  // Owner-only: fetch dev runs + the Claude/Anthropic spend reads after the
+  // main load so non-owners never trigger them. When not the owner, development
+  // stays null and the tab is hidden. claudeCode (fetched above in the main
+  // Promise.all, owner-agnostic + cheap) is now consumed by DEVELOPMENT, not
+  // LIFE. Each integration is belt-and-suspenders .catch-wrapped (D-06).
+  const development = isDevOwner
+    ? {
+        runs: await getRecentDevRuns(user.id),
+        anthropicApi: await getAnthropicApiUsage().catch((e) => ({
+          ok: false as const,
+          error: String(e?.message ?? e),
+        })),
+        subscription: await getClaudeSubscriptionUsage().catch((e) => ({
+          ok: false as const,
+          error: String(e?.message ?? e),
+        })),
+        claudeCode,
+      }
+    : null;
+
   const totalEvents = analytics.events.length + analytics.meta.taskTotalCompleted;
 
   return (
@@ -100,7 +136,8 @@ export default async function InsightsPage({
             today: todayISO,
             earliestAvailable: startISO,
           }}
-          life={{ claudeCode, strava, flow, githubUsername: user.githubUsername }}
+          life={{ strava, flow, githubUsername: user.githubUsername }}
+          development={development}
         />
       </main>
     </div>

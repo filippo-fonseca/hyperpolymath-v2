@@ -155,6 +155,51 @@ describe("streamJarvis SSE client", () => {
     expect(onError).toHaveBeenCalledWith("aborted");
   });
 
+  it("aborts a stalled request after the idle timeout and reports it", async () => {
+    vi.useFakeTimers();
+    try {
+      // fetch resolves with a body stream that never enqueues or closes, so
+      // the reader hangs — simulating a route that stalls mid-stream. The
+      // internal idle timer must abort it and surface a timeout error.
+      const stream = new ReadableStream<Uint8Array>({
+        start() {
+          // intentionally never enqueue or close
+        },
+        cancel() {
+          // honour reader.cancel() in the finally block
+        },
+      });
+      vi.spyOn(globalThis, "fetch").mockImplementation(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              const err: any = new Error("aborted");
+              err.name = "AbortError";
+              reject(err);
+            });
+            resolve(
+              new Response(stream, {
+                status: 200,
+                headers: { "Content-Type": "text/event-stream" },
+              }),
+            );
+          }),
+      );
+
+      const onError = vi.fn();
+      const promise = streamJarvis(
+        { input: "x", history: [] },
+        { onText: vi.fn(), onAction: vi.fn(), onDone: vi.fn(), onError },
+      );
+      await vi.advanceTimersByTimeAsync(60_001);
+      await promise;
+
+      expect(onError).toHaveBeenCalledWith("Request timed out");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("posts the correct method, headers, and body", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

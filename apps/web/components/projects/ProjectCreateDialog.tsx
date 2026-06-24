@@ -1,20 +1,18 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
-import { toast } from "sonner";
+import { createProject } from "@/app/actions/projects";
+import { usePendingAction } from "@/components/shared/use-pending-action";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,10 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { createProject } from "@/app/actions/projects";
-import { IconPicker } from "./IconPicker";
+import { Textarea } from "@/components/ui/textarea";
+import { useRouter } from "next/navigation";
+import { Controller, useForm } from "react-hook-form";
 import { BannerPicker } from "./BannerPicker";
+import { IconPicker } from "./IconPicker";
 
 interface Props {
   open: boolean;
@@ -84,7 +83,7 @@ export function ProjectCreateDialog({
   graduationYear,
 }: Props) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const { run, pending } = usePendingAction();
   const semesterYears = getSemesterYears(graduationYear);
   // RT-05: client generates UUID so the Realtime echo arrives with the same id
   // when the new project lands in the sidebar tree (the SidebarTree's projects
@@ -96,10 +95,10 @@ export function ProjectCreateDialog({
     control,
     watch,
     reset,
-    formState: { isDirty, isSubmitting },
+    formState: { isDirty },
   } = useForm<FormValues>({
     defaultValues: {
-      areaId: defaultAreaId ?? (areas[0]?.id ?? ""),
+      areaId: defaultAreaId ?? areas[0]?.id ?? "",
       name: "",
       description: "",
       icon: null,
@@ -140,16 +139,15 @@ export function ProjectCreateDialog({
       courseCode: values.isClass ? values.courseCode.trim() || null : null,
       courseTitle: values.isClass ? values.courseTitle.trim() || null : null,
       instructor: values.isClass ? values.instructor.trim() || null : null,
-      semesterTerm: (values.isClass && values.semesterTerm
-        ? values.semesterTerm
-        : null) as "fall" | "spring" | "summer" | null,
-      semesterYear: values.isClass && values.semesterYear
-        ? parseInt(values.semesterYear, 10)
-        : null,
+      semesterTerm: (values.isClass && values.semesterTerm ? values.semesterTerm : null) as
+        | "fall"
+        | "spring"
+        | "summer"
+        | null,
+      semesterYear:
+        values.isClass && values.semesterYear ? Number.parseInt(values.semesterYear, 10) : null,
       grade: values.isClass ? values.grade.trim() || null : null,
-      credits: values.isClass && values.credits
-        ? parseInt(values.credits, 10)
-        : null,
+      credits: values.isClass && values.credits ? Number.parseInt(values.credits, 10) : null,
       distributionals:
         values.isClass && values.distributionals.trim()
           ? values.distributionals
@@ -160,15 +158,12 @@ export function ProjectCreateDialog({
           : null,
     };
 
-    startTransition(async () => {
-      const result = await createProject(payload);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast("Project created.");
-      handleClose();
-      router.push(`/projects/${result.data.id}`);
+    await run(() => createProject(payload), {
+      success: "Project created.",
+      onSuccess: () => {
+        handleClose();
+        router.push(`/projects/${payload.id}`);
+      },
     });
   }
 
@@ -237,9 +232,7 @@ export function ProjectCreateDialog({
               <Controller
                 name="icon"
                 control={control}
-                render={({ field }) => (
-                  <IconPicker value={field.value} onChange={field.onChange} />
-                )}
+                render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -260,23 +253,13 @@ export function ProjectCreateDialog({
               <Label htmlFor="proj-start" className="font-sans text-[13px]">
                 Start date
               </Label>
-              <Input
-                id="proj-start"
-                type="date"
-                {...register("startDate")}
-                className="h-9"
-              />
+              <Input id="proj-start" type="date" {...register("startDate")} className="h-9" />
             </div>
             <div className="flex flex-col gap-1.5 flex-1">
               <Label htmlFor="proj-end" className="font-sans text-[13px]">
                 End date
               </Label>
-              <Input
-                id="proj-end"
-                type="date"
-                {...register("endDate")}
-                className="h-9"
-              />
+              <Input id="proj-end" type="date" {...register("endDate")} className="h-9" />
             </div>
           </div>
 
@@ -293,10 +276,7 @@ export function ProjectCreateDialog({
                 />
               )}
             />
-            <Label
-              htmlFor="proj-is-class"
-              className="font-sans text-[13px] cursor-pointer"
-            >
+            <Label htmlFor="proj-is-class" className="font-sans text-[13px] cursor-pointer">
               This is a class
             </Label>
           </div>
@@ -432,16 +412,11 @@ export function ProjectCreateDialog({
           )}
 
           <DialogFooter className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={pending}>
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "New Project"}
+            <Button type="submit" disabled={pending}>
+              {pending ? "Creating..." : "New Project"}
             </Button>
           </DialogFooter>
         </form>

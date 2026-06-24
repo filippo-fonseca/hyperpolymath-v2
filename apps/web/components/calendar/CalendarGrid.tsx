@@ -37,6 +37,7 @@ import {
   startOfDay,
   startOfWeek,
 } from "date-fns";
+import { Loader2 } from "lucide-react";
 
 const HOUR_PX = 56;
 const TOTAL_HEIGHT = 24 * HOUR_PX;
@@ -66,6 +67,8 @@ export interface GcalEvent {
   htmlLink: string;
   isPlaceholder?: boolean;
   isDraftEditing?: boolean;
+  /** A backend write (update reschedule/edit) is in flight for this event. */
+  isBusy?: boolean;
 }
 
 type EventChangeArgs = {
@@ -628,11 +631,27 @@ function EventChip({
         outlineColor: color,
         outlineWidth: event.isPlaceholder ? 1.5 : 0,
         outlineOffset: -2,
-        opacity: event.isDraftEditing ? 0.45 : event.isPlaceholder ? 0.92 : 1,
+        opacity: event.isDraftEditing
+          ? 0.45
+          : event.isBusy
+            ? 0.7
+            : event.isPlaceholder
+              ? 0.92
+              : 1,
         fontStyle: event.isPlaceholder ? "italic" : "normal",
         padding: isCompact ? "1px 6px" : "4px 8px",
       }}
     >
+      {/* In-flight write indicator (issue #25): a small corner spinner while a
+          reschedule/edit round-trips so the optimistic chip reads as "saving"
+          rather than already-settled. */}
+      {event.isBusy && (
+        <Loader2
+          size={12}
+          className="absolute top-1 right-1 animate-spin text-[var(--ink)] opacity-80"
+          aria-hidden
+        />
+      )}
       <div
         className="font-serif text-[13px] leading-tight truncate text-[var(--ink)]"
         style={{

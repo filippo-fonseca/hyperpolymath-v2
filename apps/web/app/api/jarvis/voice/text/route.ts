@@ -9,6 +9,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
+import { isOwnerUser } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -61,6 +62,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("Unauthorized", { status: 401, headers: CORS });
   }
   const userId = identity.userId;
+
+  // Owner-only while the physical bus is a single global emitter (see
+  // lib/auth/owner.ts) — its events fan out to the shared SSE stream.
+  if (!(await isOwnerUser(userId))) {
+    return new Response("Forbidden", { status: 403, headers: CORS });
+  }
 
   let text: string;
   let body: VoiceTextBody;

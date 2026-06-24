@@ -1,24 +1,17 @@
 "use server";
 
-import { z } from "zod";
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { createClient } from "@/lib/supabase/server";
+import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
 import { db } from "@/lib/db";
-import {
-  captures,
-  capturesHashtags,
-  capturesProjects,
-  projects,
-} from "@/lib/db/schema";
+import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
+import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
+import { hashtags } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 import { upsertHashtag } from "./hashtags";
-import {
-  getCapturesForUser,
-  type CaptureWithLinks,
-} from "@/lib/db/queries/captures";
+import { reconcilePersonReferencesForUser, resolveOrCreatePersonForUser } from "./people";
 
-type ActionResult<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+type ActionResult<T = unknown> = { success: true; data: T } | { success: false; error: string };
 
 /**
  * CLAUDE.md Critical Pattern 1: validate the user via getClaims() — never
@@ -39,12 +32,13 @@ const CreateCaptureSchema = z.object({
   id: z.string().uuid().optional(),
   content: z.string().trim().min(1).max(20000),
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  // Phase C: @-mentioned people, carried as NAMES. resolve-or-created server
+  // side so the editor never needs an id round-trip mid-typing.
+  personNames: z.array(z.string().trim().min(1).max(200)).max(40).default([]),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
 });
 
-export async function createCapture(
-  input: unknown,
-): Promise<ActionResult<{ id: string }>> {
+export async function createCapture(input: unknown): Promise<ActionResult<{ id: string }>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
   const parsed = CreateCaptureSchema.safeParse(input);
@@ -91,7 +85,7 @@ export async function createCapture(
             captureId: cap.id,
             hashtagId: t.id,
             userId,
-          })),
+          }))
         );
       }
     }
@@ -101,29 +95,34 @@ export async function createCapture(
       const owned = await tx
         .select({ id: projects.id })
         .from(projects)
-        .where(
-          and(
-            eq(projects.userId, userId),
-            inArray(projects.id, parsed.data.projectIds),
-          ),
-        );
+        .where(and(eq(projects.userId, userId), inArray(projects.id, parsed.data.projectIds)));
       const ownedIds = new Set(owned.map((p) => p.id));
-      const validIds = parsed.data.projectIds.filter((pid) =>
-        ownedIds.has(pid),
-      );
+      const validIds = parsed.data.projectIds.filter((pid) => ownedIds.has(pid));
       if (validIds.length > 0) {
         await tx.insert(capturesProjects).values(
           validIds.map((projectId) => ({
             captureId: cap.id,
             projectId,
             userId,
-          })),
+          }))
         );
       }
     }
 
     return cap.id;
   });
+
+  // Phase C: resolve each @-mentioned name to a person (creating any new ones),
+  // then reconcile people_references for this capture. Runs after the capture
+  // exists; reconcile diffs against the (empty, on create) stored set.
+  if (parsed.data.personNames.length > 0) {
+    const personIds: string[] = [];
+    for (const name of parsed.data.personNames) {
+      const person = await resolveOrCreatePersonForUser(userId, name);
+      if (person) personIds.push(person.id);
+    }
+    await reconcilePersonReferencesForUser(userId, "capture", result, personIds);
+  }
 
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
@@ -137,9 +136,7 @@ const UpdateCaptureSchema = z.object({
   projectIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
-export async function updateCapture(
-  input: unknown,
-): Promise<ActionResult<null>> {
+export async function updateCapture(input: unknown): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
   const parsed = UpdateCaptureSchema.safeParse(input);
@@ -154,22 +151,14 @@ export async function updateCapture(
       await tx
         .update(captures)
         .set({ content: parsed.data.content, updatedAt: sql`now()` })
-        .where(
-          and(
-            eq(captures.id, parsed.data.id),
-            eq(captures.userId, userId),
-          ),
-        );
+        .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)));
     }
 
     if (parsed.data.hashtagNames !== undefined) {
       await tx
         .delete(capturesHashtags)
         .where(
-          and(
-            eq(capturesHashtags.captureId, parsed.data.id),
-            eq(capturesHashtags.userId, userId),
-          ),
+          and(eq(capturesHashtags.captureId, parsed.data.id), eq(capturesHashtags.userId, userId))
         );
       const seen = new Set<string>();
       const uniqueRaw = parsed.data.hashtagNames.filter((t) => {
@@ -193,32 +182,22 @@ export async function updateCapture(
       await tx
         .delete(capturesProjects)
         .where(
-          and(
-            eq(capturesProjects.captureId, parsed.data.id),
-            eq(capturesProjects.userId, userId),
-          ),
+          and(eq(capturesProjects.captureId, parsed.data.id), eq(capturesProjects.userId, userId))
         );
       if (parsed.data.projectIds.length > 0) {
         const owned = await tx
           .select({ id: projects.id })
           .from(projects)
-          .where(
-            and(
-              eq(projects.userId, userId),
-              inArray(projects.id, parsed.data.projectIds),
-            ),
-          );
+          .where(and(eq(projects.userId, userId), inArray(projects.id, parsed.data.projectIds)));
         const ownedIds = new Set(owned.map((p) => p.id));
-        const validIds = parsed.data.projectIds.filter((pid) =>
-          ownedIds.has(pid),
-        );
+        const validIds = parsed.data.projectIds.filter((pid) => ownedIds.has(pid));
         if (validIds.length > 0) {
           await tx.insert(capturesProjects).values(
             validIds.map((projectId) => ({
               captureId: parsed.data.id,
               projectId,
               userId,
-            })),
+            }))
           );
         }
       }
@@ -229,16 +208,11 @@ export async function updateCapture(
   return { success: true, data: null };
 }
 
-export async function deleteCapture(
-  id: string,
-): Promise<ActionResult<null>> {
+export async function deleteCapture(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
-  if (!z.string().uuid().safeParse(id).success)
-    return { success: false, error: "Invalid id" };
-  await db
-    .delete(captures)
-    .where(and(eq(captures.id, id), eq(captures.userId, userId)));
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  await db.delete(captures).where(and(eq(captures.id, id), eq(captures.userId, userId)));
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }
@@ -253,9 +227,7 @@ const SearchSchema = z.object({
   hashtagId: z.string().uuid().optional(),
 });
 
-export async function searchCaptures(
-  input: unknown,
-): Promise<ActionResult<string[]>> {
+export async function searchCaptures(input: unknown): Promise<ActionResult<string[]>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
   const parsed = SearchSchema.safeParse(input);
@@ -284,18 +256,16 @@ export async function searchCaptures(
         and(
           eq(capturesHashtags.captureId, captures.id),
           eq(capturesHashtags.hashtagId, parsed.data.hashtagId),
-          eq(capturesHashtags.userId, userId),
-        ),
+          eq(capturesHashtags.userId, userId)
+        )
       )
       .where(
         and(
           eq(captures.userId, userId),
-          sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`,
-        ),
+          sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`
+        )
       )
-      .orderBy(
-        sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery})) DESC`,
-      )
+      .orderBy(sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery})) DESC`)
       .limit(50);
     return { success: true, data: rows.map((r) => r.id) };
   }
@@ -306,12 +276,10 @@ export async function searchCaptures(
     .where(
       and(
         eq(captures.userId, userId),
-        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`,
-      ),
+        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`
+      )
     )
-    .orderBy(
-      sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery})) DESC`,
-    )
+    .orderBy(sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery})) DESC`)
     .limit(50);
   return { success: true, data: rows.map((r) => r.id) };
 }
@@ -327,10 +295,47 @@ export async function searchCaptures(
  *   URL state on /captures).
  */
 export async function getCapturesForCurrentUser(
-  options: { tag?: string } = {},
+  options: { tag?: string } = {}
 ): Promise<CaptureWithLinks[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
+}
+
+/**
+ * Smart (AI-assisted) tag suggestions for the capture composer (#36 / #40).
+ *
+ * Takes the draft text, loads the user's existing tag vocabulary, and runs one
+ * claude-sonnet-4-6 call (lib/captures/suggest-tags.ts) that prefers reusing
+ * existing tags over coining near-duplicates. The user accepts or dismisses the
+ * results in the composer — nothing is applied automatically.
+ *
+ * Fail-soft: an unauthenticated or invalid call returns an empty list rather
+ * than throwing, so the composer's suggest affordance never breaks the editor.
+ */
+const SuggestTagsSchema = z.object({
+  content: z.string().trim().min(1).max(20000),
+});
+
+export async function suggestTagsForCapture(input: unknown): Promise<ActionResult<SuggestedTag[]>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SuggestTagsSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  const vocab = await db
+    .select({ displayName: hashtags.displayName })
+    .from(hashtags)
+    .where(eq(hashtags.userId, userId));
+
+  const suggestions = await suggestCaptureTags(
+    parsed.data.content,
+    vocab.map((h) => h.displayName)
+  );
+  return { success: true, data: suggestions };
 }

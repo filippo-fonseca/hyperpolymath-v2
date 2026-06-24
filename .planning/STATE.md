@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: — Speed & Agility
+milestone: v1.2
+milestone_name: — Wiki + In-Document JARVIS
 status: executing
-stopped_at: Phase 19 executed — verification human_needed (3 browser items) (2026-06-13)
-last_updated: "2026-06-13T20:09:53.122Z"
-last_activity: 2026-06-13 -- Phase 19 execution complete (5/5 plans, 9/9 decisions PASS, awaiting browser verification)
+stopped_at: Phase 30 (Daily Pages) executed + merged ff-only — milestone v1.2 content-complete; pending human browser-verify + prod migrations + push
+last_updated: "2026-06-21T21:50:00.000Z"
+last_activity: 2026-06-21 — Phase 30 (Page of the Day / Daily Pages) executed
 progress:
-  total_phases: 22
-  completed_phases: 15
-  total_plans: 93
-  completed_plans: 86
-  percent: 73
+  total_phases: 36
+  completed_phases: 22
+  total_plans: 106
+  completed_plans: 99
+  percent: 61
 ---
 
 # Project State
@@ -21,19 +21,37 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-28)
 
 **Core value:** Type one sentence into JARVIS → the right action lands in the right place across tasks, captures, and calendar — every time.
-**Current focus:** Phase 17 — nutrition-tracking-tab
+**Current focus:** Milestone v1.2 content-complete — all phases (21–32) executed on fix/pages-create-ux. Remaining = human browser-verify + prod Supabase migrations + a single milestone PR.
 
 ## Current Position
 
-Milestone: v1.1 "Speed & Agility"
-Phase: 19 — tasks-redesign-inbox-universal-day-view-glass-cards
-Plan: 5/5 complete (19-01..19-05)
-Status: Executed — verification human_needed (automated 9/9 PASS; 3 browser items pending)
-Last activity: 2026-06-15 -- Completed quick task 260615-h74: daily captures-to-issues cron
+Phase: 30 DONE (31 → 32 → 30 all executed). Milestone v1.2 is content-complete; nothing pushed.
+Plan: 30-01 executed.
+Status (Phase 30 — DONE): Delegated plan+execute to an Opus subagent (STEP-0-merge worktree method); merged ff-only onto fix/pages-create-ux (commits 058ad98..d6e36c1). Adds a `pages.daily_date` date column + partial unique index `(user_id, daily_date) WHERE daily_date IS NOT NULL` (migration apps/web/supabase/migrations/0035_pages_daily_date.sql — NOT applied to prod) threaded through lib/db/queries/pages.ts. New idempotent `openDailyPage(date)` server action (ON CONFLICT DO NOTHING then select) + `getDailyPagesForUser` + lib/pages/daily-page.ts helpers (date→title). Wiki home (PagesListClient.tsx) gains a collapsible "Daily Pages" calendar section reusing a generalized JournalCalendar (now takes markedDates Set + ariaLabel; /journaling usage preserved); day-click opens/creates the daily page and routes to it. PageDetailClient.tsx renders a "Daily Page" pill (when page.dailyDate) + a Daily-Pages-only "process this page" button that runs the WHOLE page through invokeInDocumentJarvis with a new optional scopeOverride:"page" arg (added to invoke-in-document.ts); editor instance exposed to the parent via a new onEditorReady prop on PageBlockEditor.tsx. Tests: tests/{daily-page-helpers,get-daily-pages,open-daily-page,invoke-in-document-scope-override}.test.ts → 13/13 green in the MAIN checkout. PRE-EXISTING (not Phase 30) failures remain in tests/{jarvis-core-cache-ttl,jarvis-prompt-stability,voice-adversarial}.test.ts (5 total — buildToolDefinitions tool-count + cache-TTL assertions; no Phase 30 file touches jarvis-core/voice/cache). NOTE: ALL Phase 30 browser UX DEFERRED to human (calendar render, day-open routing, pill, process-toast vs a live JARVIS turn). Nothing pushed.
 
-Next: confirm 3 browser-verification items in the live app (glass visual quality, drag-to-Inbox E2E, JARVIS undated→Inbox receipt), then `/gsd:discuss-phase 9 ${GSD_WS}`
+### Pre-existing test failures (tech debt, not milestone-blocking)
+tests/jarvis-core-cache-ttl.test.ts (2), tests/jarvis-prompt-stability.test.ts (1), tests/voice-adversarial.test.ts (2) fail: they assert the voice tool set is EXACTLY 5 tools and ask_clarification carries cache_control ttl 1h. The live jarvis-core tool set has drifted (14 tools per session memory) and/or cache placement changed. Predates Phase 30; fix separately.
 
-Progress: [          ] 0% (0 of 6 v1.1 phases complete)
+Status (Phase 32 — DONE): Plan 32-01 executed, merged ff-only onto fix/pages-create-ux. All 6 JDOC-UX wired, builds on the Phase 31 seam invokeInDocumentJarvis (no engine fork). New pure utils lib/jarvis/{receipt-summary,at-trigger,receipt-markdown}.ts + components/pages/JarvisReceiptInline.tsx + edits to PageBlockEditor.tsx/PageDetailClient.tsx/page-block-editor.css. @ autocomplete (second SuggestionMenuController, KiwiIcon), neumorphic mono prompt pill (jarvisReceipt inline content, content:"none"), Cmd/Ctrl+Enter submit, loading→receipt summary via formatReceiptSummary, hover tooltip=original prompt, /Jarvis slash item, nav hide-receipts toggle (data-hide-receipts CSS), export exclusion double-guarded (content:"none" + receiptToMarkdownComment stripped by existing stripReceipts). Tests: tests/{receipt-summary,at-trigger,strip-receipts-pill}.test.ts → 21/21 green in MAIN checkout. typecheck/build pass (only the 6 known-ignorable api-jarvis-tts errors). NOTE: ALL Phase 32 interactive browser behavior is DEFERRED to the human — menu open, pill render, Cmd+Enter round-trip, spinner, tooltip, hide toggle NOT browser-verified. Risk flagged by subagent: prompt body read as cursor block's plain text (single-block authoring assumed); updatePill rebuilds content with a PartialBlock["content"] cast — confirm in-place pill update in the browser pass. Nothing pushed.
+
+### Phase 30 — TODO (last milestone phase)
+Requirements WIKI-DAILY-01..04 (.planning/REQUIREMENTS.md): (01) toggleable "Daily Pages" section in Wiki with Journal-style calendar; (02) opening today/a day auto-creates exactly one dated Daily Page, idempotent per user per day; (03) "Daily Page" pill badge under the title; (04) Daily-Pages-only "process this page" JARVIS button that feeds the WHOLE page through the shared engine via the Phase 31 seam (invokeInDocumentJarvis with whole-page scope) — supersedes the Morning Dump PR #69 / issues #32, #33. Depends on Phase 21 (data model) + Phase 31 (pipeline) — both DONE. Suggested resume: /gsd-discuss-phase 30 (or delegate plan+execute to an Opus subagent using the same STEP-0-merge worktree method below).
+
+### Outstanding (whole milestone, before any prod merge)
+- Browser verification of Phase 29 noExport toggle, all of Phase 32 UX, and Phase 30 once built — DEFERRED to human.
+- Remote/prod Supabase migration apply (0034 + any later wiki migrations) OUTSTANDING — local Docker only.
+- Nothing pushed; one milestone PR closes all phase issues per ROADMAP.
+
+Status (Phase 31 — DONE): Plan 31-01 executed on fix/pages-create-ux. 7 new files, zero engine fork (no diffs to run-turn.ts/executor.ts/undo.ts/jarvis-core). New: lib/jarvis/scope-resolver.ts (resolveScope → block|sub-block|section|page, block-default + D-03 smart-inference default-picker), lib/jarvis/serialize-page-context.ts (live whole-page + scoped serializer, MAX_CONTEXT_CHARS=48000), app/api/jarvis/in-document/route.ts (getClaims auth, context injected on model message only per D-02, shared runJarvisTurnStream, SSE + both jarvis_turns rows persisted with FULL ScrollbackAction actions per D-09), lib/jarvis/invoke-in-document.ts (thin resolve→serialize→POST→parse-SSE client seam for Phase 32 to render on). Tests: tests/{scope-resolver,serialize-page-context,in-document-route}.test.ts → 25/25 green in the MAIN checkout (not just the worktree). typecheck/build pass (only the 6 known-ignorable api-jarvis-tts.test.ts tsc errors). Subagent ran in a worktree (harness forces stale-base isolation); commits cherry-picked clean onto fix/pages-create-ux (new files only, no conflicts). NOTE: NO browser verification of an end-to-end in-doc invocation (no UI yet — that is Phase 32; the route+seam are unit/integration-tested only). Nothing pushed.
+
+### Prior status (Phases 21-29 — DONE)
+
+Phases 21-29 executed on fix/pages-create-ux. Build + typecheck green; lib/context suite 15/15 + personal-context-mcp suite 40/40 green. Phase 29 made Wiki pages flow into the personal-context snapshot + knowledge graph + MCP by default: lib/context/nodes/pages.ts loadPages now emits each page node with its EFFECTIVE project set (own direct pages_projects UNION ancestor-folder folder_projects via getFoldersWithProjects + getEffectiveProjectIds) plus folderId + root-first folderPath; added a `page_in_folder` graph edge (page_in_project edges auto-reflect the effective set); bumped the CONTEXT snapshot schema (lib/context/types.ts + mirrored packages/personal-context-mcp/src/types.ts) to v3 with a v2->v3 migrator that backfills folderId:null + folderPath:[] on historical page nodes. Per-page noExport gate: `setPageNoExport` server action (app/actions/pages.ts) + a Globe/GlobeLock nav-bar toggle in PageDetailClient.tsx (loadPages already excludes noExport pages). NOTE: browser verification of the noExport toggle is DEFERRED to the human (autonomous flow could not run an interactive browser test). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
+Last activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
+
+### Milestone v1.2 execution method (for resumption after compaction)
+
+Delegating each phase to an Opus "claude" subagent. The Agent harness ALWAYS puts subagents in a worktree branched from a STALE base (5946958), so the subagent prompt MUST include "STEP 0: run `git merge fix/pages-create-ux` first" to pull current work into its worktree (clean fast-forward). The subagent commits to its worktree branch; orchestrator then `git merge --ff-only worktree-agent-<id>` back into fix/pages-create-ux (clean FF since base was an ancestor). Build/typecheck via `pnpm --filter web build|typecheck` from REPO ROOT (never `next build` inside apps/web). Known-ignorable: 6 tsc errors in tests/api-jarvis-tts.test.ts. Do NOT push. Remaining phase order: 31 (before 30), 30, 32. IMPORTANT VERIFY-STEP LESSON (Phase 29): subagents run typecheck + build but may NOT run the vitest suite, so test fixtures can rot silently. After each phase, the orchestrator MUST run `pnpm --filter web test -- --run lib/context` (and any touched package suite) from the main checkout, not just typecheck/build. Also: NEVER use bare `git stash`/`git stash pop` in this repo — there are pre-existing unrelated stashes (a feat/journaling WIP) that a blind pop will clobber; the working tree is shared across parallel sessions. NOTE: subagents may lack `.env`/`node_modules` in a fresh worktree — they must `pnpm install --frozen-lockfile` and copy `.env` from the main checkout before `pnpm --filter web build`, then remove the temp env after.
 
 ### v1.0 carryover (informational, not blocking v1.1)
 
@@ -134,6 +152,7 @@ Phases 9 → 10 → 11 are the user-perceived-speed critical path and land in ~2
 | Phase 17 P04 | 15 | 3 tasks | 11 files |
 | Phase 19 P03 | 3m | 2 tasks | 2 files |
 | Phase 19 P04 | 6m | 3 tasks | 7 files |
+| Phase 20 P01 | ~31m | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -378,6 +397,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 19-04: view toggle is kanban | list | overview; standalone day mode retired (D-07)
 - [Phase ?]: 19-04: universal DaySwitcher re-scopes all views from shared dateYmd (D-05)
 - [Phase ?]: 19-04: expand/fullscreen via useTasksExpanded; AppShell collapses sidebar (D-08)
+- [Phase 20]: 20-01: journal_entries.date is DATE (client-local day, not server UTC); UNIQUE(user_id, date) is the upsert conflict target (one row per user per day)
+- [Phase 20]: 20-01: journaling prompt is a fixed UI constant, not a row column; no_export mirrors captures/tasks for the MCP export gate
 
 ### Pending Todos
 
@@ -404,9 +425,14 @@ None yet.
 | 260614-g2d | Persist Cmd+K/voice JARVIS turns to jarvis_turns + live-merge externally-created turns into /today console scrollback via realtime (dedup-by-id, streaming-safe) | 2026-06-14 | 6415998 | [260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-](./quick/260614-g2d-cmd-k-jarvis-turns-persist-show-as-live-/) |
 | 260614-gk0 | /graph: add d3-force collision force (radius 4·√val+5) + charge/link tuning so high-degree nodes stop crumpling children; brighter base edges (0.18→0.40, width 0.5→1.0); rAF-wait for async ForceGraph ref | 2026-06-14 | 82ed8c4 | [260614-gk0-fix-graph-layout-collision-force-for-hig](./quick/260614-gk0-fix-graph-layout-collision-force-for-hig/) |
 | 260615-h74 | Daily Vercel cron turning hyperpolymath-tagged captures into spec'd GitHub issues, with four ordered security layers (constant-time auth, once-per-day DB lock, per-run cap 25, env-email eligibility + noExport hard skip) and an LLM actionability+privacy gate | 2026-06-15 | efecf07 | [260615-h74-daily-cron-turning-hyperpolymath-tagged-](./quick/260615-h74-daily-cron-turning-hyperpolymath-tagged-/) |
+| 260615-lkl | Owner-only DEVELOPMENT tab on /insights plus token-gated POST /api/dev-runs ingest and kiwi_dev_runs table; reports the local Kiwi auto-dev worker's daily runs (issues + status + branch links) | 2026-06-15 | a4e82c2 | [260615-lkl-development-tab-on-insights-with-dev-run](./quick/260615-lkl-development-tab-on-insights-with-dev-run/) |
+| 260615-n2d | Show parent area inline (right-aligned, dim) in the project-assignment dropdown on tasks; closes issue #39 | 2026-06-15 | 181ed64 | [260615-n2d-show-associated-area-in-project-assignme](./quick/260615-n2d-show-associated-area-in-project-assignme/) |
+| 260615-n1x | Live-render `#hashtags` as styled tokens in capture inputs without requiring Enter (closes #41) — ProseMirror decoration plugin reusing the existing parser regex; visual parity with the popover-confirmed Mention chip | 2026-06-15 | 72909bc | [260615-n1x-hashtag-realtime-tokens](./quick/260615-n1x-hashtag-realtime-tokens/) |
+| 260616-3h3 | Harmonize hashtag chip background with brand --ink-sage token (replacing raw Tailwind lime) + align Input/Textarea focus border with the calm global --edge-hud ring (closes #43) | 2026-06-16 | 29f724b | [260616-3h3-improve-syntax-highlighting-colors-and-t](./quick/260616-3h3-improve-syntax-highlighting-colors-and-t/) |
+| 260618-eu2 | Widen kiwi-autodev worker beyond kiwi-drafted: optional LABEL (empty = every open issue), EXCLUDE_LABELS opt-out (default `blocked`), and open-PR dedup so the wider net does not spawn duplicate kiwi/auto PRs; triage size bar unchanged | 2026-06-18 | bd044ca | [260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr](./quick/260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr/) |
 
 ## Session Continuity
 
-Last session: 2026-06-13T20:09:37.709Z
-Stopped at: context exhaustion at 76% (2026-06-13)
-Resume file: .planning/phases/19-tasks-redesign-inbox-universal-day-view-glass-cards/19-UI-SPEC.md
+Last session: 2026-06-21T20:45:30.833Z
+Stopped at: context exhaustion at 76% (2026-06-21)
+Resume file: .planning/phases/31-in-document-jarvis-engine-integration/31-CONTEXT.md

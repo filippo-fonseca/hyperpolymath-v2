@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS LaunchAgent template for the local Kiwi auto-dev worker.
+
+  This is a TEMPLATE. install.sh substitutes the __REPO__ placeholder with the
+  absolute path to this repo and writes the result to
+  ~/Library/LaunchAgents/com.hyperpolymath.kiwi-autodev.plist. The committed
+  file keeps the __REPO__ placeholder; do not hardcode a path here.
+
+  The agent polls every 30 minutes (StartInterval 1800) while you are logged in
+  and also runs once at load. launchd-entry.sh runs the gate first, so most
+  polls exit immediately and stay silent until the time window opens and at
+  least one open candidate issue exists.
+
+  SECRET: the dev-runs ingest secret is NEVER placed in this plist. run.mjs
+  reads DEV_RUN_INGEST_SECRET at runtime from the environment or by parsing
+  apps/web/.env.local. Keep it out of here.
+
+  The PATH below includes node@20 and the homebrew bin so node, claude, and gh
+  all resolve under launchd's minimal environment.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hyperpolymath.kiwi-autodev</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/tools/kiwi-autodev/launchd-entry.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+
+  <!-- Poll every 30 minutes while logged in. -->
+  <key>StartInterval</key>
+  <integer>1800</integer>
+
+  <!-- Also run once when the agent first loads. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- node@20, claude, and gh must all resolve under launchd. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO__/tools/kiwi-autodev/logs/launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO__/tools/kiwi-autodev/logs/launchd.err</string>
+</dict>
+</plist>

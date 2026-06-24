@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+#
+# Kiwi auto-dev push guard.
+#
+# The worker opens PRs from review branches, so it DOES push kiwi/auto/* branches.
+# It must NEVER push to a protected branch (main and friends). This hook enforces
+# exactly that for automation pushes, while leaving the user's own pushes
+# (including to main) completely untouched.
+#
+# Discriminator: the worker sets KIWI_AUTOMATION=1 in its environment. When that
+# is set, a push whose REMOTE ref is a protected branch is hard-blocked. When it
+# is unset (a normal human push), everything passes.
+#
+# git passes pushed refs on stdin: <local ref> <local sha> <remote ref> <remote sha>
+# POSIX sh only (Husky runs hooks under sh): no bashisms.
+
+# Human pushes pass through untouched.
+[ -z "${KIWI_AUTOMATION:-}" ] && exit 0
+
+# Automation: block any push whose REMOTE ref is a protected branch.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${remote_ref}" ] && continue
+  case "${remote_ref}" in
+    refs/heads/main|refs/heads/master|refs/heads/develop|refs/heads/release/*)
+      echo "pre-push BLOCKED: kiwi auto-dev must never push to ${remote_ref}." >&2
+      echo "It opens PRs from kiwi/auto/* review branches; merging to a protected branch is always manual." >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Automation pushing a review branch (kiwi/auto/* or any non-protected ref): allow.
+exit 0

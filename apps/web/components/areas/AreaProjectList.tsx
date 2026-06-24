@@ -2,6 +2,11 @@
 
 import { AreaProjectCardMenu } from "@/components/areas/AreaProjectCardMenu";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import {
+  type SemesterTerm,
+  isProjectExpired,
+  todayISODate,
+} from "@/lib/projects/archive-status";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -15,6 +20,8 @@ export interface AreaProject {
   description: string | null;
   endDate: string | null;
   archivedAt: string | Date | null;
+  semesterTerm: SemesterTerm | null;
+  semesterYear: number | null;
 }
 
 interface Props {
@@ -23,12 +30,15 @@ interface Props {
   allAreas: { id: string; name: string }[];
 }
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = todayISODate();
 
-/** Archived, or its run has ended — either way it's no longer "live". */
+/**
+ * Archived, or its run has ended — either way it's no longer "live". A class
+ * ends with its semester; everything else ends with its end date (issue #55).
+ */
 function isPast(p: AreaProject): boolean {
   if (p.archivedAt) return true;
-  return p.endDate != null && p.endDate < TODAY;
+  return isProjectExpired(p, TODAY);
 }
 
 /**

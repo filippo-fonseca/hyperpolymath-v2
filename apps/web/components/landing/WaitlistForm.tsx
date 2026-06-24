@@ -1,13 +1,13 @@
 "use client";
 
+import { joinWaitlist } from "@/app/actions/waitlist";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
-import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
-import { motion, AnimatePresence } from "motion/react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { joinWaitlist } from "@/app/actions/waitlist";
 
 /**
  * Waitlist form — Phase 8 (LAND-WAITLIST-UI / D-12 / D-13 / UI-SPEC §5e Door 1).
@@ -31,7 +31,11 @@ import { joinWaitlist } from "@/app/actions/waitlist";
 
 const FormSchema = z.object({
   email: z.string().trim().toLowerCase().email("Please enter a valid email.").max(320),
-  website: z.string().max(0).optional(), // Honeypot — must be empty
+  // Honeypot — real users never see this. Kept permissive so a bot that fills
+  // it still passes client validation and submits; the Server Action detects
+  // the filled field and returns a silent success. A `.max(0)` here would block
+  // submit with a confusing field error instead.
+  website: z.string().max(320).optional(),
 });
 
 type FormValues = z.input<typeof FormSchema>;
@@ -129,9 +133,7 @@ export function WaitlistForm() {
               </p>
             )}
             {submitError && (
-              <p className="font-serif italic text-[14px] text-[var(--ink-coral)]">
-                {submitError}
-              </p>
+              <p className="font-serif italic text-[14px] text-[var(--ink-coral)]">{submitError}</p>
             )}
           </motion.form>
         ) : (

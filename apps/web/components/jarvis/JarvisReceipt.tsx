@@ -1,9 +1,13 @@
 "use client";
 
-import { Fragment, useCallback, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { forgetFactAction } from "@/app/actions/jarvis-facts";
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
+import { Button } from "@/components/ui/button";
+import { entityHref, findResultRef, receiptEntityRef } from "@/lib/entity-href";
+import { cn } from "@/lib/utils";
 import {
   AlertCircle,
+  ArrowUpRight,
   Brain,
   CalendarDays,
   CheckCircle2,
@@ -14,13 +18,14 @@ import {
   Search,
   Sparkles,
   Trash2,
+  UserPlus,
+  Users,
 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { Fragment, useCallback, useState } from "react";
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
-import { cn } from "@/lib/utils";
-import { forgetFactAction } from "@/app/actions/jarvis-facts";
-import { Button } from "@/components/ui/button";
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 
 /**
  * Intent-badged action receipt (D-09 / JARVIS-09).
@@ -147,6 +152,24 @@ const INTENT_META = {
     icon: Search,
     intentDot: "var(--ink-muted)",
   },
+  find_people: {
+    label: "FIND PEOPLE",
+    icon: Search,
+    intentDot: "var(--ink-muted)",
+  },
+  // Issue #104: people get deterministic receipts too. create_person logs a new
+  // roster entry (sage = preservation, like captures); link_people records a
+  // person<->entity reference (agent-side cyan, like remember_fact).
+  create_person: {
+    label: "PERSON",
+    icon: UserPlus,
+    intentDot: "var(--ink-sage)",
+  },
+  link_people: {
+    label: "LINKED",
+    icon: Users,
+    intentDot: "var(--hud-cyan-light)",
+  },
 } as const;
 
 interface Props {
@@ -170,9 +193,12 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // holographic fade-in. Hooks must be called unconditionally before any
   // early returns, so this lives at the very top of the component.
   const shouldReduce = useReducedMotion();
+  const router = useRouter();
   // Phase 16: INTENT_META now covers all 14 tools. Unknown names still return
   // undefined → early null return as a safety net.
-  const meta = (INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>)[action.name];
+  const meta = (
+    INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>
+  )[action.name];
   if (!meta) return null;
   const Icon = meta.icon;
 
@@ -201,9 +227,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           border: "1px solid color-mix(in oklch, var(--edge-hud) 55%, transparent)",
           boxShadow:
             "var(--glass-raise), var(--glass-drop)," +
-          "inset 0 1px 0 var(--glass-hi)," +
-          "inset 0 -1px 0 var(--glass-lo)," +
-          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)",
+            "inset 0 1px 0 var(--glass-hi)," +
+            "inset 0 -1px 0 var(--glass-lo)," +
+            "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)",
         }}
       >
         {/* Outline-trace SVG — draws the receipt border clockwise over 360ms */}
@@ -276,9 +302,14 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const receipt = ok
     ? ((action.result as { receipt?: Record<string, unknown> }).receipt ?? {})
     : null;
-  const errorMsg = !ok
-    ? (action.result as { error: string }).error
-    : null;
+  const errorMsg = !ok ? (action.result as { error: string }).error : null;
+
+  // Click-through target: open the entity this receipt created/affected. Null
+  // for deletes (entity is gone), undone actions, find_* (per-row links render
+  // instead), and non-entity tools (memory, clarification, link_people).
+  const entityId = ok ? (action.result as { id?: string }).id : undefined;
+  const navRef = ok && !undone && entityId ? receiptEntityRef(action.name, entityId) : null;
+  const navHref = navRef ? entityHref(navRef) : null;
 
   /**
    * Format a date for receipt display (B6 fix — Plan 05-03 hotfix).
@@ -364,6 +395,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     variant === "compact" ? "px-2 py-1 opacity-95" : "px-4 py-2",
     isError && !shouldReduce && "hud-error-glitch",
     undone && "opacity-50 grayscale",
+    navHref && "cursor-pointer"
   );
 
   // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
@@ -373,9 +405,9 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // --hud-cyan-glow-soft halo on top so the inner + outer cyan signals blend.
   const glassyShadow =
     "var(--glass-raise), var(--glass-drop)," +
-          "inset 0 1px 0 var(--glass-hi)," +
-          "inset 0 -1px 0 var(--glass-lo)," +
-          "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
+    "inset 0 1px 0 var(--glass-hi)," +
+    "inset 0 -1px 0 var(--glass-lo)," +
+    "inset 0 0 24px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent)";
 
   const containerStyle: React.CSSProperties = {
     backgroundColor: "var(--glass-bg)",
@@ -420,6 +452,20 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
       data-undone={undone ? "true" : undefined}
       className={containerCls}
       style={containerStyle}
+      {...(navHref
+        ? {
+            role: "link",
+            tabIndex: 0,
+            "aria-label": "Open this item",
+            onClick: () => router.push(navHref),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push(navHref);
+              }
+            },
+          }
+        : {})}
     >
       {/* Phase 6.1 Plan 02 (UI-SPEC §6c landing): corner crops on the receipt
           card (10px legs, static — not viewport-level breathing) frame the
@@ -453,16 +499,17 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           <Icon className="h-3.5 w-3.5" />
           <span>{meta.label}</span>
           {ok ? (
-            <CheckCircle2
-              className="h-3.5 w-3.5"
-              style={{ color: "var(--ink-sage)" }}
-            />
+            <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--ink-sage)" }} />
           ) : (
-            <AlertCircle
-              className="h-3.5 w-3.5"
-              style={{ color: "var(--ink-coral)" }}
-            />
+            <AlertCircle className="h-3.5 w-3.5" style={{ color: "var(--ink-coral)" }} />
           )}
+          {navHref ? (
+            <ArrowUpRight
+              className="h-3.5 w-3.5 opacity-0 transition-opacity duration-150 group-hover/receipt:opacity-100"
+              style={{ color: "var(--hud-cyan-light)" }}
+              aria-hidden="true"
+            />
+          ) : null}
         </span>
         {undone ? (
           <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
@@ -486,8 +533,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                 {/* I-7 / D-02: undated tasks (no due) land in the Inbox.
                     The executor sets `inbox: true` on the receipt. */}
                 {!receipt.due && receipt.inbox ? " · Added to your Inbox." : ""}
-                {Array.isArray(receipt.project_ids) &&
-                receipt.project_ids.length
+                {Array.isArray(receipt.project_ids) && receipt.project_ids.length
                   ? ` · ${receipt.project_ids.length} project${receipt.project_ids.length > 1 ? "s" : ""}`
                   : ""}
               </div>
@@ -507,9 +553,15 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             <>
               <div className={titleCls}>{String(receipt.title ?? "")}</div>
               <div className="font-mono text-xs text-[var(--ink-muted)]">
-                {fmtDate(receipt.start, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
+                {fmtDate(
+                  receipt.start,
+                  typeof receipt.allDay === "boolean" ? receipt.allDay : undefined
+                )}
                 {" → "}
-                {fmtDate(receipt.end, typeof receipt.allDay === "boolean" ? receipt.allDay : undefined)}
+                {fmtDate(
+                  receipt.end,
+                  typeof receipt.allDay === "boolean" ? receipt.allDay : undefined
+                )}
               </div>
             </>
           ) : null}
@@ -523,33 +575,100 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               </div>
             </>
           ) : null}
+          {/* Issue #104: create_person — new roster entry. */}
+          {action.name === "create_person" ? (
+            <>
+              <div className={titleCls}>{String(receipt.name ?? "")}</div>
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
+                added to People
+                {Array.isArray(receipt.tags) && receipt.tags.length
+                  ? ` · ${(receipt.tags as string[]).join(", ")}`
+                  : ""}
+              </div>
+            </>
+          ) : null}
+          {/* Issue #104: link_people — person<->entity reference receipt. */}
+          {action.name === "link_people" ? (
+            <>
+              <div className={titleCls}>
+                {((receipt.linked ?? []) as Array<Record<string, unknown>>)
+                  .map((p) => String(p.name ?? ""))
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </div>
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
+                linked to {String(receipt.from_type ?? "entity")}
+                {((receipt.linked ?? []) as Array<Record<string, unknown>>).some((p) => p.created)
+                  ? " · new contact added"
+                  : ""}
+              </div>
+            </>
+          ) : null}
           {/* Phase 16: Find variant — compact list of matched entities */}
           {action.name.startsWith("find_") ? (
             <div className="text-sm space-y-0.5">
-              {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => (
-                <div key={String(m.id ?? idx)} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
-                  <code className="text-xs opacity-60">{String(m.id ?? "").slice(0, 8)}</code>
-                  <span>{String(m.title ?? m.preview ?? m.summary ?? "—")}</span>
-                </div>
-              ))}
+              {((receipt.matches ?? []) as Array<Record<string, unknown>>)
+                .slice(0, 5)
+                .map((m, idx) => {
+                  const rowId = String(m.id ?? "");
+                  const rowRef = rowId ? findResultRef(action.name, rowId) : null;
+                  const rowHref = rowRef ? entityHref(rowRef) : null;
+                  const label = String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—");
+                  return rowHref ? (
+                    <button
+                      type="button"
+                      key={rowId || idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(rowHref);
+                      }}
+                      className="flex w-full gap-2 text-left hover:underline"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
+                      <span>{label}</span>
+                    </button>
+                  ) : (
+                    <div
+                      key={rowId || idx}
+                      className="flex gap-2"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
+                      <span>{label}</span>
+                    </div>
+                  );
+                })}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (
-                <em className="text-xs" style={{ color: "var(--ink-muted)" }}>no matches</em>
+                <em className="text-xs" style={{ color: "var(--ink-muted)" }}>
+                  no matches
+                </em>
               )}
             </div>
           ) : null}
           {/* Phase 16: Update variant — before→after field diff */}
           {action.name.startsWith("update_") ? (
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-sm">
-              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(([field, value]) => (
-                <Fragment key={field}>
-                  <dt className="font-medium" style={{ color: "var(--ink-muted)" }}>{field}</dt>
-                  {/* TODO: enrich receipts with "before" value in a future iteration */}
-                  <dd>{"→ "}<span style={{ color: "var(--ink-amber)" }}>{String(value)}</span></dd>
-                </Fragment>
-              ))}
+              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(
+                ([field, value]) => (
+                  <Fragment key={field}>
+                    <dt className="font-medium" style={{ color: "var(--ink-muted)" }}>
+                      {field}
+                    </dt>
+                    {/* TODO: enrich receipts with "before" value in a future iteration */}
+                    <dd>
+                      {"→ "}
+                      <span style={{ color: "var(--ink-amber)" }}>{String(value)}</span>
+                    </dd>
+                  </Fragment>
+                )
+              )}
               {Object.keys((receipt.changes ?? {}) as Record<string, unknown>).length === 0 ? (
                 <Fragment>
-                  <dt className="font-mono text-xs col-span-2" style={{ color: "var(--ink-muted)" }}>
+                  <dt
+                    className="font-mono text-xs col-span-2"
+                    style={{ color: "var(--ink-muted)" }}
+                  >
                     {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
                   </dt>
                 </Fragment>
@@ -569,10 +688,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           ) : null}
         </div>
       ) : (
-        <div
-          className="relative mt-1.5 font-mono text-xs"
-          style={{ color: "var(--ink-coral)" }}
-        >
+        <div className="relative mt-1.5 font-mono text-xs" style={{ color: "var(--ink-coral)" }}>
           {errorMsg}
         </div>
       )}
@@ -607,7 +723,8 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
   return (
     <button
       type="button"
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         cancel();
         setClicked(true);
         onUndo();

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { moveProjectToArea } from "@/app/actions/projects";
+import { usePendingAction } from "@/components/shared/use-pending-action";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { moveProjectToArea } from "@/app/actions/projects";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface Props {
   projectId: string;
@@ -44,24 +44,21 @@ export function MoveProjectDialog({
   onOpenChange,
 }: Props) {
   const router = useRouter();
+  const { run, pending: isMoving } = usePendingAction();
   const [targetAreaId, setTargetAreaId] = useState("");
-  const [isMoving, setIsMoving] = useState(false);
 
   const eligibleAreas = allAreas.filter((a) => a.id !== currentAreaId);
 
   async function handleMove() {
     if (!targetAreaId) return;
-    setIsMoving(true);
-    const result = await moveProjectToArea({ projectId, newAreaId: targetAreaId });
-    setIsMoving(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast("Project moved.");
-    onOpenChange(false);
-    setTargetAreaId("");
-    router.refresh();
+    await run(() => moveProjectToArea({ projectId, newAreaId: targetAreaId }), {
+      success: "Project moved.",
+      onSuccess: () => {
+        onOpenChange(false);
+        setTargetAreaId("");
+        router.refresh();
+      },
+    });
   }
 
   function handleClose(next: boolean) {
@@ -96,11 +93,7 @@ export function MoveProjectDialog({
           </Select>
         </div>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => handleClose(false)}
-            disabled={isMoving}
-          >
+          <Button variant="outline" onClick={() => handleClose(false)} disabled={isMoving}>
             Never mind
           </Button>
           <Button onClick={handleMove} disabled={isMoving || !targetAreaId}>

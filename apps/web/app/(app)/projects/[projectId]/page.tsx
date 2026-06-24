@@ -3,6 +3,7 @@ import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getCapturesForProject } from "@/lib/db/queries/captures";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
+import { getPagesForProject } from "@/lib/db/queries/pages";
 import { getTasksForProject } from "@/lib/db/queries/tasks";
 import { areas, projects } from "@/lib/db/schema";
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -53,6 +54,7 @@ export default async function ProjectDetailPage({ params }: Props) {
     allProjects,
     tasksForProject,
     capturesForProject,
+    pagesForProject,
     hashtagsForComposer,
     activeProjectsForComposer,
     allAreas,
@@ -60,6 +62,7 @@ export default async function ProjectDetailPage({ params }: Props) {
     getProjectsForCurrentUser(),
     getTasksForProject(user.id, projectId),
     getCapturesForProject(user.id, projectId),
+    getPagesForProject(user.id, projectId),
     // Composer needs the user's existing hashtag set for autocomplete.
     getHashtagSuggestions(user.id),
     // Composer's project multi-select uses ACTIVE projects only (archived
@@ -71,11 +74,14 @@ export default async function ProjectDetailPage({ params }: Props) {
         icon: projects.icon,
         isClass: projects.isClass,
         courseCode: projects.courseCode,
+        areaName: areas.name,
+        areaEmoji: areas.emoji,
       })
       .from(projects)
+      .leftJoin(areas, eq(projects.areaId, areas.id))
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
     db
-      .select({ id: areas.id, name: areas.name })
+      .select({ id: areas.id, name: areas.name, emoji: areas.emoji })
       .from(areas)
       .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
       .orderBy(asc(areas.orderIndex), asc(areas.createdAt)),
@@ -88,6 +94,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       initialProjects={allProjects}
       initialTasks={tasksForProject}
       initialCaptures={capturesForProject}
+      initialPages={pagesForProject}
       hashtagsForComposer={hashtagsForComposer}
       activeProjectsForComposer={activeProjectsForComposer}
       graduationYear={user.graduationYear}

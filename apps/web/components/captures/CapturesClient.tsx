@@ -1,26 +1,26 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { useQueryState, parseAsString } from "nuqs";
-import { useQuery } from "@tanstack/react-query";
+import { deleteCapture, getCapturesForCurrentUser } from "@/app/actions/captures";
+import { type HashtagWithCount, getHashtagsForUserAction } from "@/app/actions/hashtags";
+import { getPeopleForCurrentUser } from "@/app/actions/people";
+import { createProject } from "@/app/actions/projects";
+import { EmptyState } from "@/components/shared/EmptyState";
+import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
+import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { useUndoToast } from "@/components/shared/use-undo-toast";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseAsString, useQueryState } from "nuqs";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CaptureComposer } from "./CaptureComposer";
-import { CapturesFeed } from "./CapturesFeed";
 import { CaptureDetailPanel } from "./CaptureDetailPanel";
-import { HashtagSidebar } from "./HashtagSidebar";
 import { CaptureSearch } from "./CaptureSearch";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
-import { getCapturesForCurrentUser, deleteCapture } from "@/app/actions/captures";
-import {
-  getHashtagsForUserAction,
-  type HashtagWithCount,
-} from "@/app/actions/hashtags";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { useUndoToast } from "@/components/shared/use-undo-toast";
+import { CapturesFeed } from "./CapturesFeed";
+import { HashtagSidebar } from "./HashtagSidebar";
 
 interface Props {
   /** Signed-in user id — required for tableKey-scoped queries + Realtime filters. */
@@ -28,6 +28,8 @@ interface Props {
   initialCaptures: CaptureWithLinks[];
   hashtags: HashtagWithCount[];
   projects: ProjectMultiSelectOption[];
+  /** Active areas a new project can be filed under (inline project creation). */
+  areas: InlineProjectArea[];
   /**
    * Total captures owned by the user (no filter applied). Drives the "All"
    * row count in the hashtag sidebar — the primary affordance for clearing
@@ -93,18 +95,55 @@ export function CapturesClient({
   userId,
   initialCaptures,
   hashtags,
-  projects,
+  projects: initialProjects,
+  areas,
   totalCount,
   userAvatarUrl,
   userInitials,
 }: Props) {
+  const queryClient = useQueryClient();
+  // Local copy so an inline-created project shows in the picker immediately.
+  // Captures don't subscribe to the projects table, so optimistic insert here
+  // is what surfaces the new project (and its chip) without a reload.
+  const [projects, setProjects] = useState<ProjectMultiSelectOption[]>(initialProjects);
+  useEffect(() => {
+    setProjects(initialProjects);
+  }, [initialProjects]);
+
+  const handleCreateProject = useCallback(
+    async (input: { name: string; areaId: string }): Promise<string | null> => {
+      const newId = crypto.randomUUID();
+      const optimistic: ProjectMultiSelectOption = {
+        id: newId,
+        name: input.name,
+        isClass: false,
+        courseCode: null,
+      };
+      setProjects((prev) => [...prev, optimistic]);
+      const r = await createProject({
+        id: newId,
+        areaId: input.areaId,
+        name: input.name,
+      });
+      if (!r.success) {
+        toast.error(r.error);
+        setProjects((prev) => prev.filter((p) => p.id !== newId));
+        return null;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: tableKey("projects", userId),
+      });
+      toast("Project created.");
+      return newId;
+    },
+    [queryClient, userId],
+  );
+
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
-  const [searchResultIds, setSearchResultIds] = useState<string[] | null>(
-    null,
-  );
-  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(
-    null,
-  );
+  const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
+  // URL-driven (?capture=<id>) so the person profile card can deep-link into a
+  // specific capture and open its detail panel.
+  const [selectedCaptureId, setSelectedCaptureId] = useQueryState("capture", parseAsString);
 
   // -- Data plane ---------------------------------------------------------
   // queryFn closes over `activeTagId` so the query refetches when the nuqs
@@ -113,12 +152,8 @@ export function CapturesClient({
   // userId]` prefix — invalidateQueries on the prefix fans out to every slice.
   const capturesQuery = useQuery({
     queryKey: [...tableKey("captures", userId), activeTagId ?? null] as const,
-    queryFn: () =>
-      getCapturesForCurrentUser({ tag: activeTagId ?? undefined }),
-    initialData:
-      activeTagId === null || activeTagId === undefined
-        ? initialCaptures
-        : undefined,
+    queryFn: () => getCapturesForCurrentUser({ tag: activeTagId ?? undefined }),
+    initialData: activeTagId === null || activeTagId === undefined ? initialCaptures : undefined,
   });
 
   const liveCaptures = capturesQuery.data ?? initialCaptures;
@@ -130,6 +165,19 @@ export function CapturesClient({
   });
   const liveHashtags = hashtagsQuery.data ?? hashtags;
 
+  // People feed the `@`-mention menu in the composer (Phase C). No SSR seed —
+  // it loads on mount and stays live via the people / people_references subs
+  // below. Mapped to the composer's {id,name} shape at the call site.
+  const peopleQuery = useQuery({
+    queryKey: tableKey("people", userId),
+    queryFn: getPeopleForCurrentUser,
+    initialData: [],
+  });
+  const composerPeople = useMemo(
+    () => (peopleQuery.data ?? []).map((p) => ({ id: p.id, name: p.name })),
+    [peopleQuery.data]
+  );
+
   // -- Realtime plane -----------------------------------------------------
   useTableSubscription("captures", userId);
 
@@ -137,15 +185,19 @@ export function CapturesClient({
   // feed-card chip refresh. Without this fanout, tagging a capture in window A
   // would not update the hashtag sidebar count in window B.
   useTableSubscription("captures_hashtags", userId, {
-    alsoInvalidate: [
-      tableKey("hashtags", userId),
-      tableKey("captures", userId),
-    ],
+    alsoInvalidate: [tableKey("hashtags", userId), tableKey("captures", userId)],
   });
 
   // captures_projects join changes drive feed-card project chip refresh.
   useTableSubscription("captures_projects", userId, {
     alsoInvalidate: [tableKey("captures", userId)],
+  });
+
+  // people subscriptions — keep the `@`-mention menu live as people are added
+  // (inline-created on capture save) or referenced elsewhere.
+  useTableSubscription("people", userId);
+  useTableSubscription("people_references", userId, {
+    alsoInvalidate: [tableKey("people", userId)],
   });
 
   // hashtags subscription — picks up newly-auto-created tags so they appear
@@ -166,9 +218,7 @@ export function CapturesClient({
     // window between an optimistic insert (which doesn't go through
     // server-side filtering) and the Realtime echo.
     if (activeTagId) {
-      result = result.filter((c) =>
-        c.hashtags.some((h) => h.id === activeTagId),
-      );
+      result = result.filter((c) => c.hashtags.some((h) => h.id === activeTagId));
     }
     if (searchResultIds !== null) {
       const allowed = new Set(searchResultIds);
@@ -184,7 +234,7 @@ export function CapturesClient({
       selectedCaptureId
         ? (optimisticCaptures.find((c) => c.id === selectedCaptureId) ?? null)
         : null,
-    [optimisticCaptures, selectedCaptureId],
+    [optimisticCaptures, selectedCaptureId]
   );
 
   // Hashtag source for the detail panel's TipTap mention popover —
@@ -196,7 +246,7 @@ export function CapturesClient({
         name: h.name,
         displayName: h.displayName,
       })),
-    [liveHashtags],
+    [liveHashtags]
   );
 
   const handleSearchResults = useCallback((ids: string[] | null) => {
@@ -207,20 +257,19 @@ export function CapturesClient({
   // These wrap `addOptimistic` so consumers don't see the reducer shape.
   const handleOptimisticInsert = useCallback(
     (row: CaptureWithLinks) => addOptimistic({ type: "insert", row }),
-    [addOptimistic],
+    [addOptimistic]
   );
   const handleOptimisticRevert = useCallback(
     (id: string) => addOptimistic({ type: "revert", id }),
-    [addOptimistic],
+    [addOptimistic]
   );
   const handleOptimisticUpdate = useCallback(
-    (id: string, patch: Partial<CaptureWithLinks>) =>
-      addOptimistic({ type: "update", id, patch }),
-    [addOptimistic],
+    (id: string, patch: Partial<CaptureWithLinks>) => addOptimistic({ type: "update", id, patch }),
+    [addOptimistic]
   );
   const handleOptimisticDelete = useCallback(
     (id: string) => addOptimistic({ type: "delete", id }),
-    [addOptimistic],
+    [addOptimistic]
   );
 
   // Phase 6 Plan 06-02 (RES-02): delete-capture wrapped in 5s sonner Undo.
@@ -259,7 +308,7 @@ export function CapturesClient({
           }),
       });
     },
-    [addOptimistic, showUndoToast],
+    [addOptimistic, showUndoToast]
   );
 
   return (
@@ -273,14 +322,12 @@ export function CapturesClient({
         />
       </aside>
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden min-w-0">
-        <CaptureSearch
-          activeHashtagId={activeTagId}
-          onResults={handleSearchResults}
-        />
+        <CaptureSearch activeHashtagId={activeTagId} onResults={handleSearchResults} />
         <div className="sticky top-0 z-10">
           <CaptureComposer
             userId={userId}
             hashtags={hashtagSuggestions}
+            people={composerPeople}
             projects={projects}
             onOptimisticInsert={handleOptimisticInsert}
             onOptimisticRevert={handleOptimisticRevert}
@@ -290,9 +337,7 @@ export function CapturesClient({
           {/* Phase 6 Plan 06-02 (RES-03, AES-04, UI-SPEC §9): brand-voice empty
               state when the inbox is truly empty (no captures, no filter, no
               search). CapturesFeed retains its own filter/search empty states. */}
-          {optimisticCaptures.length === 0 &&
-          !activeTagId &&
-          searchResultIds === null ? (
+          {optimisticCaptures.length === 0 && !activeTagId && searchResultIds === null ? (
             <EmptyState
               heading="The inbox is quiet."
               body="Type anything — a thought, a link, a fragment. JARVIS will sort it out."
@@ -319,6 +364,8 @@ export function CapturesClient({
         capture={selectedCapture}
         hashtags={hashtagSuggestions}
         projects={projects}
+        areas={areas}
+        onCreateProject={handleCreateProject}
         open={selectedCapture !== null}
         onClose={() => setSelectedCaptureId(null)}
         onOptimisticUpdate={handleOptimisticUpdate}

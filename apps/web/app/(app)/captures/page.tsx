@@ -1,7 +1,7 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
+import { areas, projects } from "@/lib/db/schema";
 import {
   getCaptureCountForUser,
   getCapturesForUser,
@@ -29,6 +29,7 @@ export default async function CapturesPage({ searchParams }: Props) {
     capturesList,
     hashtagsResult,
     projectsForComposer,
+    areasForCreate,
     totalCount,
     authAvatar,
   ] = await Promise.all([
@@ -43,6 +44,15 @@ export default async function CapturesPage({ searchParams }: Props) {
       })
       .from(projects)
       .where(and(eq(projects.userId, user.id), isNull(projects.archivedAt))),
+    db
+      .select({
+        id: areas.id,
+        name: areas.name,
+        emoji: areas.emoji,
+      })
+      .from(areas)
+      .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt)))
+      .orderBy(asc(areas.orderIndex)),
     getCaptureCountForUser(user.id),
     getAuthAvatar(),
   ]);
@@ -55,6 +65,7 @@ export default async function CapturesPage({ searchParams }: Props) {
       initialCaptures={capturesList}
       hashtags={hashtags}
       projects={projectsForComposer}
+      areas={areasForCreate}
       totalCount={totalCount}
       userAvatarUrl={authAvatar.avatarUrl}
       userInitials={authAvatar.initials}

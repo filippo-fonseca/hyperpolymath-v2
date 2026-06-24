@@ -38,6 +38,10 @@ import {
   FindTasksInputSchema,
   FindCapturesInputSchema,
   FindEventsInputSchema,
+  // Phase D — people tools
+  CreatePersonInputSchema,
+  FindPeopleInputSchema,
+  LinkPeopleInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -127,6 +131,10 @@ function buildToolValidators(voiceActive: boolean) {
     find_tasks: FindTasksInputSchema,
     find_captures: FindCapturesInputSchema,
     find_events: FindEventsInputSchema,
+    // Phase D — people tools
+    create_person: CreatePersonInputSchema,
+    find_people: FindPeopleInputSchema,
+    link_people: LinkPeopleInputSchema,
   } as const;
 }
 
@@ -532,6 +540,21 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "find_events") {
               result = await executor.findEvents(
                 parsed.data as Parameters<typeof executor.findEvents>[0],
+                ctx,
+              );
+            } else if (toolName === "create_person") {
+              result = await executor.createPerson(
+                parsed.data as Parameters<typeof executor.createPerson>[0],
+                ctx,
+              );
+            } else if (toolName === "find_people") {
+              result = await executor.findPeople(
+                parsed.data as Parameters<typeof executor.findPeople>[0],
+                ctx,
+              );
+            } else if (toolName === "link_people") {
+              result = await executor.linkPeople(
+                parsed.data as Parameters<typeof executor.linkPeople>[0],
                 ctx,
               );
             } else {

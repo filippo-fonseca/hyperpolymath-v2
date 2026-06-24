@@ -7,6 +7,9 @@
 > *"You don't have to choose between being a runner or a musician,*
 > *a creator or a scholar. The Renaissance had it right."*
 
+
+## If Notion and JARVIS had a baby, this would be it. Stay hybrid.
+
 <br/>
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square&labelColor=f5f1e8)](./LICENSE)
@@ -26,7 +29,7 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. In other words, it is the ultimate Jarvis & Notion hybrid. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
 
 It runs on three surfaces: the **web app**, a **desktop app** (Tauri-based, keyboard-shortcut driven, mic-gated so it never listens by accident), and an optional **physical extender** (a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake).
 
@@ -69,10 +72,12 @@ Everything below is **shipped and working** unless explicitly marked otherwise.
 - **LifeOS:** The homepage. Areas tree, Notion-style banner, and today's widgets (incoming tasks, gcal, recent captures, habit streaks, training, live signals).
 - **JARVIS:** Full console with streaming, history, split-screen mode (run any other route alongside the agent), and per-turn interrupt.
 - **Today:** The morning dashboard. Tasks due today, today's calendar, captures from the last 24h, habits for the day.
+- **Search:** One global search across every primitive. A full-page Search surface plus a live `⌘K` dropdown over the JARVIS composer. Case-insensitive substring matching over tasks, captures (text and tags), projects, areas, and habits, grouped and ranked, with matched substrings highlighted. Purely client-side, zero new endpoints.
 - **Areas:** Your life domains. Top of the hierarchy. Each area gets its own page, its own banner, its own children.
 - **Projects:** Bounded efforts inside areas. Classes are first-class. Notion-style breadcrumb. Tasks and captures nested inside.
 - **Tasks:** Kanban and list views, filters, P1–P4 priorities, due-date inference, project + area scoping.
 - **Captures:** A frictionless inbox: text and hashtag-filterable, full-text search, promote to task in one click.
+- **Wiki:** Long-form, block-based pages (BlockNote) organized in nestable folders with drag-and-drop and full CRUD. Pages live inside projects and inherit their folder's project membership, so a note is always in context. Type `@JARVIS` anywhere inside a page to run the agent in-document: it reads the block, section, or whole page as scope, acts, and leaves an inline receipt pill you can undo. **Daily Pages** are dated journal entries opened from a calendar in the Wiki home (idempotent, exactly one per day); a Daily Page can be "processed" to extract tasks, events, and captures from the whole page in a single pass. Re-processing is deterministic: each block is content-hashed, unchanged blocks are skipped against the last snapshot so nothing is double-created, and every run is recorded in a per-page history. Pages flow into the personal-context snapshot, the knowledge graph, and the MCP server by default, with a per-page no-export toggle.
 - **Calendar:** Bi-directional Google Calendar operator. gcal is the source of truth; nothing is persisted locally.
 - **Habits:** Daily-habit primitive with streaks, weekly grid, completion history.
 - **Training:** Fitness and activity planner scoped to the Training area; workouts, sessions, intensity signal.
@@ -291,7 +296,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Vercel + Supabase prod setup, and [`C
   ◯  public beta hardening
 ```
 
-Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ideas (markdown writing surface, hibernation mode, interrupt control, JARVIS Gmail, mobile app, personal context graph) live under [`.planning/phases/999.*`](./.planning/phases/).
+Detailed phase plans live in [`.planning/`](./.planning). Backlog and parked ideas (hibernation mode, interrupt control, JARVIS Gmail, entity-reference backlinks) live under [`.planning/phases/999.*`](./.planning/phases/).
 
 ---
 

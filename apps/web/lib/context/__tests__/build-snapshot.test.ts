@@ -27,11 +27,19 @@ vi.mock("../nodes/captures", () => ({ loadCaptures: vi.fn() }));
 vi.mock("../nodes/training", () => ({ loadTraining: vi.fn() }));
 vi.mock("../nodes/habits", () => ({ loadHabits: vi.fn() }));
 vi.mock("../nodes/jarvis-facts", () => ({ loadJarvisFacts: vi.fn() }));
+vi.mock("../nodes/journal", () => ({ loadJournalEntries: vi.fn() }));
+// Phase 29 made loadPages call getFoldersWithProjects(userId), which issues
+// folder + folder_projects selects the empty `db` mock cannot serve. Mock the
+// pages loader like the others so the orchestration contract stays the focus.
+vi.mock("../nodes/pages", () => ({ loadPages: vi.fn() }));
+// loadPeople + loadPeopleReferences read people / people_references; mock both so
+// the orchestration contract (not Drizzle) stays the focus.
+vi.mock("../nodes/people", () => ({ loadPeople: vi.fn(), loadPeopleReferences: vi.fn() }));
 
 // Also stub the @/lib/db module so importing build-snapshot doesn't touch postgres.
 vi.mock("@/lib/db", () => ({ db: {} }));
 
-import { buildSnapshot } from "../build-snapshot";
+import { buildSnapshot, CURRENT_SCHEMA_VERSION } from "../build-snapshot";
 import { loadAreas } from "../nodes/areas";
 import { loadProjects } from "../nodes/projects";
 import { loadTasks } from "../nodes/tasks";
@@ -39,6 +47,9 @@ import { loadCaptures } from "../nodes/captures";
 import { loadTraining } from "../nodes/training";
 import { loadHabits } from "../nodes/habits";
 import { loadJarvisFacts } from "../nodes/jarvis-facts";
+import { loadPages } from "../nodes/pages";
+import { loadJournalEntries } from "../nodes/journal";
+import { loadPeople, loadPeopleReferences } from "../nodes/people";
 
 // Zod 4's `z.string().uuid()` enforces v1–v8 format (or the all-zero / all-ff
 // sentinels). Pad-counted IDs like 00000000-…-0010 fail format because the
@@ -59,6 +70,10 @@ function setAllLoadersEmpty() {
   vi.mocked(loadTraining).mockResolvedValue(empty);
   vi.mocked(loadHabits).mockResolvedValue(empty);
   vi.mocked(loadJarvisFacts).mockResolvedValue(empty);
+  vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+  vi.mocked(loadPages).mockResolvedValue(empty);
+  vi.mocked(loadPeople).mockResolvedValue(empty);
+  vi.mocked(loadPeopleReferences).mockResolvedValue([]);
 }
 
 beforeEach(() => {
@@ -71,7 +86,7 @@ describe("buildSnapshot — empty user", () => {
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.schemaVersion).toBe(1);
+    expect(result.data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(result.data.nodes).toEqual([]);
     expect(result.data.edges).toEqual([]);
     expect(result.data.meta.totalNodes).toBe(0);
@@ -105,10 +120,16 @@ describe("buildSnapshot — no_export rows", () => {
     vi.mocked(loadTasks).mockResolvedValue({ nodes: [], excluded: 2 });
     vi.mocked(loadCaptures).mockResolvedValue({ nodes: [], excluded: 1 });
     vi.mocked(loadJarvisFacts).mockResolvedValue({ nodes: [], excluded: 3 });
+    vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+    vi.mocked(loadPages).mockResolvedValue(empty);
+    vi.mocked(loadPeople).mockResolvedValue(empty);
+    vi.mocked(loadPeopleReferences).mockResolvedValue([]);
 
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    // People are never export-excluded (no no_export column), so the count is
+    // unchanged by the people loader.
     expect(result.data.meta.excludedNoExportCount).toBe(6); // 2 + 1 + 3
   });
 
@@ -122,6 +143,10 @@ describe("buildSnapshot — no_export rows", () => {
     vi.mocked(loadTraining).mockResolvedValue(empty);
     vi.mocked(loadHabits).mockResolvedValue(empty);
     vi.mocked(loadJarvisFacts).mockResolvedValue(empty);
+    vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+    vi.mocked(loadPages).mockResolvedValue(empty);
+    vi.mocked(loadPeople).mockResolvedValue(empty);
+    vi.mocked(loadPeopleReferences).mockResolvedValue([]);
     vi.mocked(loadCaptures).mockResolvedValue({
       nodes: [
         {
@@ -204,6 +229,10 @@ describe("buildSnapshot — node assembly + edges", () => {
     vi.mocked(loadTraining).mockResolvedValue({ nodes: [], excluded: 0 });
     vi.mocked(loadHabits).mockResolvedValue({ nodes: [], excluded: 0 });
     vi.mocked(loadJarvisFacts).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadJournalEntries).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadPages).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadPeople).mockResolvedValue({ nodes: [], excluded: 0 });
+    vi.mocked(loadPeopleReferences).mockResolvedValue([]);
 
     const result = await buildSnapshot(USER_ID);
     expect(result.ok).toBe(true);
@@ -227,6 +256,76 @@ describe("buildSnapshot — node assembly + edges", () => {
     });
     expect(edges).toContainEqual({ type: "capture_tagged", from: captureId, tag: "running" });
     expect(result.data.meta.totalEdges).toBe(4);
+  });
+});
+
+describe("buildSnapshot — people + mentions_person", () => {
+  it("includes person nodes and emits mentions_person edges from loaded references", async () => {
+    const taskId = uuid();
+    const personId = uuid();
+    const empty = { nodes: [] as Node[], excluded: 0 };
+    vi.mocked(loadAreas).mockResolvedValue(empty);
+    vi.mocked(loadProjects).mockResolvedValue(empty);
+    vi.mocked(loadCaptures).mockResolvedValue(empty);
+    vi.mocked(loadTraining).mockResolvedValue(empty);
+    vi.mocked(loadHabits).mockResolvedValue(empty);
+    vi.mocked(loadJarvisFacts).mockResolvedValue(empty);
+    vi.mocked(loadJournalEntries).mockResolvedValue(empty);
+    vi.mocked(loadPages).mockResolvedValue(empty);
+    vi.mocked(loadTasks).mockResolvedValue({
+      nodes: [
+        {
+          type: "task",
+          id: taskId,
+          title: "coffee with Ada",
+          priority: "P3",
+          status: "not started",
+          dueDate: null,
+          projectIds: [],
+        },
+      ],
+      excluded: 0,
+    });
+    vi.mocked(loadPeople).mockResolvedValue({
+      nodes: [
+        {
+          type: "person",
+          id: personId,
+          name: "Ada Lovelace",
+          email: null,
+          phone: null,
+          bio: null,
+          tags: ["friend"],
+          createdAt: "2026-06-09T00:00:00.000Z",
+          updatedAt: "2026-06-09T00:00:00.000Z",
+        },
+      ],
+      excluded: 0,
+    });
+    // One resolvable reference (task -> person) plus one dangling reference whose
+    // person is not in the loaded set; only the resolvable one becomes an edge.
+    vi.mocked(loadPeopleReferences).mockResolvedValue([
+      { fromType: "task", fromId: taskId, personId },
+      { fromType: "task", fromId: taskId, personId: uuid() },
+    ]);
+
+    const result = await buildSnapshot(USER_ID);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const personNodes = result.data.nodes.filter((n) => n.type === "person");
+    expect(personNodes).toHaveLength(1);
+    expect(personNodes[0].id).toBe(personId);
+    expect(result.data.meta.nodeCounts.person).toBe(1);
+
+    const mentionEdges = result.data.edges.filter((e) => e.type === "mentions_person");
+    expect(mentionEdges).toHaveLength(1);
+    expect(mentionEdges[0]).toEqual({
+      type: "mentions_person",
+      from: taskId,
+      to: personId,
+      fromType: "task",
+    });
   });
 });
 
@@ -262,9 +361,62 @@ describe("deriveEdges — pure derivation", () => {
       ],
       tasks: [],
       captures: [],
+      pages: [],
       facts: [],
     });
     expect(edges).toEqual([]);
+  });
+
+  it("drops mentions_person edges to unloaded people or unloaded from-entities (defensive)", () => {
+    const taskId = uuid();
+    const personId = uuid();
+    const danglingPersonId = uuid();
+    const danglingTaskId = uuid();
+    const edges = deriveEdges({
+      areaIds: new Set(),
+      projects: [],
+      tasks: [
+        {
+          type: "task",
+          id: taskId,
+          title: "t",
+          priority: "P3",
+          status: "not started",
+          dueDate: null,
+          projectIds: [],
+        },
+      ],
+      captures: [],
+      pages: [],
+      facts: [],
+      people: [
+        {
+          type: "person",
+          id: personId,
+          name: "Loaded Person",
+          email: null,
+          phone: null,
+          bio: null,
+          tags: [],
+          createdAt: "2026-06-09T00:00:00.000Z",
+          updatedAt: "2026-06-09T00:00:00.000Z",
+        },
+      ],
+      references: [
+        { fromType: "task", fromId: taskId, personId }, // both loaded -> emit
+        { fromType: "task", fromId: taskId, personId: danglingPersonId }, // person gone
+        { fromType: "task", fromId: danglingTaskId, personId }, // from-entity gone
+        { fromType: "event", fromId: taskId, personId }, // event ids never loaded
+      ],
+    });
+    const mentions = edges.filter((e) => e.type === "mentions_person");
+    expect(mentions).toHaveLength(1);
+    expect(mentions[0]).toEqual({
+      type: "mentions_person",
+      from: taskId,
+      to: personId,
+      fromType: "task",
+    });
   });
 
   it("emits fact_about edges only when both entityType and entityId are present", () => {
@@ -276,6 +428,7 @@ describe("deriveEdges — pure derivation", () => {
       projects: [],
       tasks: [],
       captures: [],
+      pages: [],
       facts: [
         { id: bareFactId }, // bare — no entity ref, should NOT emit
         { id: wiredFactId, aboutEntityType: "project", aboutEntityId: projectId },

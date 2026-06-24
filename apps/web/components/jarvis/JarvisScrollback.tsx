@@ -8,6 +8,8 @@ import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
 import { renderInlineMarkdown } from "@/lib/jarvis/inline-markdown";
+import { isDailyPageProcessText } from "@/lib/jarvis/daily-page-process";
+import { CalendarDays } from "lucide-react";
 
 /**
  * Terminal-style single-column scrollback (D-05).
@@ -71,6 +73,13 @@ interface Props {
    * page from the server, prepend it to `turns`, and update hasMore.
    */
   onLoadOlder?: () => void | Promise<void>;
+  /**
+   * Deep-link target. When set (e.g. arriving from a wiki page's processing-
+   * run history at /today?messageId=…), scroll that turn into view once it's
+   * present in `turns` and flash a brief highlight so the receipts are easy to
+   * spot. Takes priority over the bottom auto-scroll.
+   */
+  scrollToTurnId?: string | null;
 }
 
 /**
@@ -158,6 +167,7 @@ export function JarvisScrollback({
   hasMore = false,
   loadingOlder = false,
   onLoadOlder,
+  scrollToTurnId = null,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,6 +183,9 @@ export function JarvisScrollback({
   // Locks auto-scroll OFF when the user has intentionally scrolled up to read
   // history mid-stream. Re-arms when they scroll back near the bottom.
   const userScrolledUpRef = useRef(false);
+  // Tracks the last deep-link target we scrolled to, so the scroll-to-target
+  // effect fires once per target (and not on every subsequent turns change).
+  const scrolledToRef = useRef<string | null>(null);
 
   // A signal that changes every time the LAST assistant turn grows — by token
   // (textDelta length), by receipt landing (actions.length), or by status
@@ -232,6 +245,35 @@ export function JarvisScrollback({
 
     prevTurnsCountRef.current = turns.length;
   }, [turns.length, tailContentSignal]);
+
+  // Deep-link scroll-to-target. Declared AFTER the bottom auto-scroll effect so
+  // it runs last in the commit and wins the final scroll position. Fires once
+  // per target id (guarded by scrolledToRef); re-checks on each `turns` change
+  // so it still lands after an async deep-link fetch populates the target.
+  useEffect(() => {
+    if (!scrollToTurnId) return;
+    if (scrolledToRef.current === scrollToTurnId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(
+      `[data-turn-id="${CSS.escape(scrollToTurnId)}"]`,
+    );
+    if (!el) return; // not loaded yet — a later turns update will retry.
+    scrolledToRef.current = scrollToTurnId;
+    // Suppress the bottom auto-scroll so it doesn't immediately yank us away.
+    userScrolledUpRef.current = true;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Transient highlight so the target receipts are easy to spot. Inline
+    // styles avoid depending on a Tailwind class that may be tree-shaken.
+    el.style.transition = "box-shadow 300ms ease";
+    el.style.borderRadius = "8px";
+    el.style.boxShadow =
+      "0 0 0 2px var(--hud-cyan), 0 0 20px var(--hud-cyan-glow)";
+    const t = window.setTimeout(() => {
+      el.style.boxShadow = "none";
+    }, 2400);
+    return () => window.clearTimeout(t);
+  }, [scrollToTurnId, turns]);
 
   function handleLoadOlderClick() {
     if (!containerRef.current || loadingOlder) return;
@@ -300,15 +342,30 @@ export function JarvisScrollback({
             <div className="flex-1 h-px bg-[var(--edge)]" />
           </div>
           {group.turns.map((turn) => (
-            <div key={turn.id} className="mb-3 group">
+            <div key={turn.id} data-turn-id={turn.id} className="mb-3 group">
           {turn.kind === "user" ? (
             <div className="text-sm flex items-baseline gap-2">
               <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
                 {">"}
               </span>
-              <span className="font-mono text-foreground/80 flex-1">
-                {stripSystemTags(turn.text)}
-              </span>
+              {isDailyPageProcessText(turn.text) ? (
+                // Turns from the Daily Page "process this page" button carry a
+                // canned instruction as their text. Badge them instead of
+                // echoing the raw prompt so they read as a distinct action.
+                <span className="flex-1 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+                    <CalendarDays size={11} strokeWidth={1.75} />
+                    Daily Page
+                  </span>
+                  <span className="font-mono text-foreground/60 text-[13px]">
+                    Processed this page
+                  </span>
+                </span>
+              ) : (
+                <span className="font-mono text-foreground/80 flex-1">
+                  {stripSystemTags(turn.text)}
+                </span>
+              )}
               <TurnTimestamp createdAt={turn.createdAt} />
             </div>
           ) : (

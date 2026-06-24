@@ -47,6 +47,8 @@ export default async function AreaDetailPage({ params }: Props) {
       description: projects.description,
       endDate: projects.endDate,
       archivedAt: projects.archivedAt,
+      semesterTerm: projects.semesterTerm,
+      semesterYear: projects.semesterYear,
     })
     .from(projects)
     .where(and(eq(projects.areaId, areaId), eq(projects.userId, user.id)))

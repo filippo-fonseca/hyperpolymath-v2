@@ -1,7 +1,8 @@
 // Captures — mobile feed with full CRUD. Reverse-chrono cards (serif
 // content, #hashtags, provenance), tap to edit, FAB to capture.
 
-import { useState } from "react";
+import * as Haptics from "expo-haptics";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -14,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   createCapture,
+  createTask,
   deleteCapture,
   getCaptures,
   updateCapture,
@@ -29,6 +31,7 @@ import {
   FieldLabel,
   FormSheet,
   ScreenHeader,
+  SearchBar,
 } from "../components/shell";
 
 function relativeTime(iso: string): string {
@@ -53,6 +56,35 @@ export function CapturesScreen({ active }: { active: boolean }) {
   const insets = useSafeAreaInsets();
   const { data, loading, refresh, mutate } = useCollection(getCaptures, active);
   const [form, setForm] = useState<FormState | null>(null);
+  const [query, setQuery] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  // Distinct hashtags across loaded captures, by frequency then alpha.
+  const tags = useMemo(() => {
+    const counts = new Map<string, { display: string; n: number }>();
+    for (const c of data ?? []) {
+      for (const h of c.hashtags) {
+        const cur = counts.get(h.name) ?? { display: h.displayName, n: 0 };
+        cur.n += 1;
+        counts.set(h.name, cur);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, z) => z[1].n - a[1].n || a[1].display.localeCompare(z[1].display))
+      .map(([name, v]) => ({ name, display: v.display }));
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? []).filter((c) => {
+      if (activeTag && !c.hashtags.some((h) => h.name === activeTag)) return false;
+      if (!q) return true;
+      return (
+        c.content.toLowerCase().includes(q) ||
+        c.hashtags.some((h) => h.displayName.toLowerCase().includes(q))
+      );
+    });
+  }, [data, query, activeTag]);
 
   const parseTags = (raw: string): string[] =>
     raw
@@ -102,9 +134,53 @@ export function CapturesScreen({ active }: { active: boolean }) {
     void refresh();
   };
 
+  // Promote a capture into a task: create the task from its content, then
+  // remove the capture (it has graduated). Optimistic on the capture side.
+  const promote = async () => {
+    if (!form?.id || !form.content.trim()) return;
+    const id = form.id;
+    const title = form.content.trim();
+    setForm(null);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    mutate((cur) => cur?.filter((c) => c.id !== id) ?? null);
+    await createTask({ title });
+    await deleteCapture(id);
+    void refresh();
+  };
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Captures" count={(data ?? []).length} paddingTop={insets.top + 8} />
+      {data && data.length > 0 ? (
+        <SearchBar value={query} onChangeText={setQuery} placeholder="Search captures…" />
+      ) : null}
+      {tags.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tagBar}
+          keyboardShouldPersistTaps="handled"
+        >
+          {tags.map((t) => {
+            const selected = activeTag === t.name;
+            return (
+              <Pressable
+                key={t.name}
+                onPress={() => setActiveTag(selected ? null : t.name)}
+                style={({ pressed }) => [
+                  styles.tagChip,
+                  selected && styles.tagChipSelected,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={[styles.tagChipLabel, selected && styles.tagChipLabelSelected]}>
+                  #{t.display}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.list}
         refreshControl={
@@ -119,7 +195,10 @@ export function CapturesScreen({ active }: { active: boolean }) {
         {data !== null && (data ?? []).length === 0 ? (
           <EmptyState message="Nothing captured yet. Thoughts go here." />
         ) : null}
-        {(data ?? []).map((c: Capture) => (
+        {data !== null && data.length > 0 && filtered.length === 0 ? (
+          <EmptyState message="No captures match this filter." />
+        ) : null}
+        {filtered.map((c: Capture) => (
           <Pressable
             key={c.id}
             onPress={() =>
@@ -172,6 +251,14 @@ export function CapturesScreen({ active }: { active: boolean }) {
               onChangeText={(hashtags) => setForm({ ...form, hashtags })}
               placeholder="#idea #books"
             />
+            {form.id ? (
+              <Pressable
+                onPress={() => void promote()}
+                style={({ pressed }) => [styles.promoteButton, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.promoteLabel}>→ PROMOTE TO TASK</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
       </FormSheet>
@@ -221,5 +308,44 @@ const styles = StyleSheet.create({
     fontFamily: mono,
     fontSize: 10,
     marginLeft: "auto",
+  },
+  tagBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  tagChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  tagChipSelected: {
+    borderColor: colors.accent,
+    backgroundColor: "rgba(0, 212, 255, 0.12)",
+  },
+  tagChipLabel: {
+    color: colors.textDim,
+    fontFamily: mono,
+    fontSize: 11,
+  },
+  tagChipLabelSelected: {
+    color: colors.accent,
+  },
+  promoteButton: {
+    marginTop: 18,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  promoteLabel: {
+    color: colors.accent,
+    fontFamily: mono,
+    fontSize: 12,
+    letterSpacing: 2,
   },
 });

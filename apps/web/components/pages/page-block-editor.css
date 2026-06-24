@@ -1,0 +1,479 @@
+/* =====================================================================
+   BlockNote → journal-paper / neumorphic bridge.
+
+   Strategy: remap BlockNote's own --bn-colors-* palette onto the app's
+   design tokens once, so editor text, menus, hovers, borders and the side
+   menu all track our light/dark tokens automatically. Then tighten the
+   chrome (side-menu buttons, slash menu, block-selection ring) so the
+   editor reads as part of the page rather than a third-party widget.
+   ===================================================================== */
+
+/* ---- Palette remap (light). Our tokens already flip under .dark, so the
+   dark override block below only needs to re-point the same vars to win
+   specificity against BlockNote's own [data-color-scheme=dark] rules. ---- */
+.bn-root {
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--surface-raised);
+  --bn-colors-tooltip-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: color-mix(in oklch, var(--ink) 7%, transparent);
+  --bn-colors-selected-text: var(--ink);
+  --bn-colors-selected-background: color-mix(in oklch, var(--hud-cyan) 16%, transparent);
+  --bn-colors-disabled-text: var(--ink-muted);
+  --bn-colors-disabled-background: var(--surface);
+  --bn-colors-shadow: color-mix(in oklch, var(--ink) 12%, transparent);
+  --bn-colors-border: var(--edge);
+  --bn-colors-side-menu: var(--ink-muted);
+  --bn-border-radius: 8px;
+  --bn-font-family: inherit;
+}
+
+.bn-root[data-color-scheme="dark"] {
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--surface-raised);
+  --bn-colors-tooltip-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: color-mix(in oklch, var(--ink) 10%, transparent);
+  --bn-colors-selected-text: var(--ink);
+  --bn-colors-selected-background: color-mix(in oklch, var(--hud-cyan) 20%, transparent);
+  --bn-colors-disabled-text: var(--ink-muted);
+  --bn-colors-disabled-background: var(--surface);
+  --bn-colors-shadow: oklch(0% 0 0 / 0.5);
+  --bn-colors-border: var(--edge);
+  --bn-colors-side-menu: var(--ink-muted);
+}
+
+/* ---- Editor surface: borderless, transparent, inherits page type and
+   stretches to fill the column so it reads as the page, not a card. The flex
+   chain (wrapper → container → editor) lets the contenteditable grow to the
+   bottom of the scroll viewport so clicking low always lands a cursor. ---- */
+.bn-container,
+.bn-editor {
+  background-color: transparent;
+  font-family: inherit;
+}
+
+.bn-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bn-editor {
+  /* Kill BlockNote's 54px gutter — the side menu lives in negative margin and
+     we want the text flush to the page column. */
+  padding-inline: 0;
+  flex: 1 1 auto;
+  /* Fallback so the clickable surface is tall even before flex resolves. */
+  min-height: 55vh;
+}
+
+/* ---- Block-selection ring: replace the loud 4px blue outline with a soft
+   rounded tint that matches the neumorphic register. ---- */
+.bn-block-content.ProseMirror-selectednode > *,
+.ProseMirror-selectednode > .bn-block-content > * {
+  outline: none !important;
+  border-radius: 6px;
+  background-color: color-mix(in oklch, var(--hud-cyan) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 28%, transparent);
+}
+
+/* No focus ring on the editing surface. The contenteditable carries
+   tabindex="0", so the global focus-visible rule paints --ring-doc (amber)
+   as a box-shadow around the whole content box — kill both. */
+.bn-container:focus-visible,
+.bn-container :focus-visible,
+.bn-editor:focus,
+.bn-editor:focus-visible,
+.bn-editor *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ---- Side menu: the drag grip + add ("+") buttons. Smaller, tighter,
+   muted by default, gently lifting on hover. ---- */
+.bn-side-menu {
+  gap: 1px;
+}
+.bn-side-menu .bn-button {
+  height: 20px !important;
+  min-width: 16px;
+  width: auto;
+  padding: 0 1px !important;
+  color: var(--ink-muted);
+  opacity: 0.55;
+  border-radius: 5px;
+  transition: opacity 120ms var(--ease-out-quart), background-color 120ms var(--ease-out-quart),
+    color 120ms var(--ease-out-quart);
+}
+.bn-side-menu .bn-button:hover {
+  opacity: 1;
+  color: var(--ink);
+  background-color: color-mix(in oklch, var(--ink) 7%, transparent);
+}
+.bn-side-menu .bn-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---- Slash ("/") suggestion menu: neumorphic glass dropdown, tight rows. ---- */
+.bn-suggestion-menu {
+  min-width: 248px;
+  padding: 5px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--surface-raised) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.bn-suggestion-menu-label {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* The shadcn item renders its own inner DOM (Tailwind utilities): a `p-3`
+   icon wrapper [data-position=left], a `.flex-1` body whose first child is
+   `text-base` (title) and second is `text-xs` (subtext), and a right badge.
+   Override those internals directly — styling the row alone leaves the
+   oversized icon padding and 16px title untouched. */
+.bn-suggestion-menu-item {
+  align-items: center;
+  gap: 8px !important;
+  padding: 5px 7px !important;
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 100ms var(--ease-out-quart);
+}
+.bn-suggestion-menu-item:hover,
+.bn-suggestion-menu-item[aria-selected="true"],
+.bn-suggestion-menu-item[data-selected="true"] {
+  background-color: color-mix(in oklch, var(--ink) 7%, transparent) !important;
+  color: var(--ink) !important;
+  outline: none;
+}
+
+/* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
+.bn-suggestion-menu-item [data-position="left"] {
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--ink-muted);
+}
+.bn-suggestion-menu-item [data-position="left"] svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Title (was text-base / 16px) + subtext (text-xs). */
+.bn-suggestion-menu-item .flex-1 > div:first-child {
+  font-size: 13px !important;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.bn-suggestion-menu-item .flex-1 > div:last-child:not(:first-child) {
+  font-size: 11px !important;
+  color: var(--ink-muted);
+  line-height: 1.2;
+}
+
+/* ---- Placeholder ("Type '/' for commands") — quieter. ---- */
+.bn-block-content:has(.ProseMirror-trailingBreak:only-child):after {
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+/* ---- Quote + divider: align to ink tokens instead of hardcoded grays. ---- */
+[data-content-type="quote"] blockquote {
+  color: var(--ink-muted);
+  border-left: 2px solid color-mix(in oklch, var(--ink-muted) 60%, transparent);
+}
+[data-content-type="divider"] hr {
+  border-top: 1px solid var(--edge);
+}
+
+/* =====================================================================
+   Callout custom block — Notion-style tinted note.
+   ===================================================================== */
+.bn-callout {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background-color: color-mix(in oklch, var(--surface) 80%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  width: 100%;
+}
+
+.bn-callout-emoji {
+  user-select: none;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.bn-callout-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* =====================================================================
+   In-page find (Phase 26) — CSS Custom Highlight API.
+
+   Matches are painted via CSS.highlights, never by mutating the document, so
+   undo history and content_json stay clean. Every match gets a soft amber
+   wash; the active match gets a stronger, opaque amber so it stands out from
+   the rest as the user steps through. Only background/color are paintable
+   through ::highlight(), which is all we need here.
+   ===================================================================== */
+::highlight(wiki-search) {
+  background-color: color-mix(in oklch, var(--ink-amber) 28%, transparent);
+  color: var(--ink);
+}
+
+::highlight(wiki-search-active) {
+  background-color: color-mix(in oklch, var(--ink-amber) 70%, transparent);
+  color: var(--ink);
+}
+
+/* =====================================================================
+   In-document @JARVIS pill (Phase 32, JDOC-UX-02/03/04/06).
+
+   A neumorphic outlined inline pill in the mono font. It moves through
+   prompt -> loading -> receipt states via [data-status]; the receipt state
+   reads cyan (the JARVIS signature) and errors read red. The hide-receipts
+   nav toggle sets [data-hide-receipts] on the editor wrapper to collapse
+   receipt/error pills in-doc (export exclusion is handled separately).
+   ===================================================================== */
+.bn-jarvis-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+  color: var(--ink);
+  /* Neumorphic outlined surface: translucent fill, soft inner highlight,
+     1px edge that tracks the glass border tokens. */
+  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi),
+    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+  transition: background-color 140ms var(--ease-out-quart),
+    box-shadow 140ms var(--ease-out-quart), color 140ms var(--ease-out-quart);
+}
+
+.bn-jarvis-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--hud-cyan);
+}
+
+.bn-jarvis-pill-label {
+  min-width: 0;
+}
+
+/* The editable prompt input lives INSIDE the pill (status="prompt"). It is a
+   bare, transparent <input> so the neumorphic pill itself reads as the field;
+   it auto-sizes loosely via a min width and grows with the field-sizing hint
+   where supported. */
+.bn-jarvis-pill-input {
+  min-width: 7ch;
+  width: auto;
+  field-sizing: content;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--ink);
+  caret-color: var(--hud-cyan);
+}
+.bn-jarvis-pill-input::placeholder {
+  color: var(--ink-muted);
+  opacity: 0.75;
+}
+
+/* Prompt: awaiting Cmd+Enter — quietly editable, cyan-accented edge so it
+   reads as the active input. */
+.bn-jarvis-pill[data-status="prompt"] {
+  cursor: text;
+  border-color: color-mix(in oklch, var(--hud-cyan) 28%, var(--glass-border));
+}
+
+/* Loading: subtle cyan wash + spinning icon. */
+.bn-jarvis-pill[data-status="loading"] {
+  background: color-mix(in oklch, var(--hud-cyan) 12%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 36%, transparent);
+}
+
+/* Receipt: resolved, cyan-tinted, hoverable for the original prompt. */
+.bn-jarvis-pill[data-status="receipt"] {
+  cursor: help;
+  background: color-mix(in oklch, var(--hud-cyan) 10%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, transparent);
+}
+
+/* Error: red-tinted, still hoverable for the prompt. */
+.bn-jarvis-pill[data-status="error"] {
+  cursor: help;
+  color: oklch(0.58 0.2 25);
+  background: color-mix(in oklch, oklch(0.58 0.2 25) 8%, var(--surface-raised));
+  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 32%, transparent);
+}
+.bn-jarvis-pill[data-status="error"] .bn-jarvis-pill-icon {
+  color: oklch(0.58 0.2 25);
+}
+
+/* The 5s undo affordance on a resolved receipt (mirrors the JARVIS console's
+   universal undo). A small inline neumorphic button tucked at the pill's end;
+   it disappears once the window elapses or after a successful undo. */
+.bn-jarvis-pill-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  flex-shrink: 0;
+  margin-left: 0.1em;
+  padding: 0.02em 0.42em;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.92em;
+  line-height: 1.3;
+  cursor: pointer;
+  user-select: none;
+  color: var(--hud-cyan);
+  background: color-mix(in oklch, var(--hud-cyan) 14%, var(--surface-raised));
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 34%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+  transition: background-color 120ms var(--ease-out-quart),
+    border-color 120ms var(--ease-out-quart);
+}
+.bn-jarvis-pill-undo:hover {
+  background: color-mix(in oklch, var(--hud-cyan) 22%, var(--surface-raised));
+  border-color: color-mix(in oklch, var(--hud-cyan) 48%, transparent);
+}
+.bn-jarvis-pill-undo:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--hud-cyan) 60%, transparent);
+  outline-offset: 1px;
+}
+.bn-jarvis-pill-undo-label {
+  min-width: 0;
+}
+
+/* The terminal "Undone" state once the user reverses the turn. */
+.bn-jarvis-pill-undone {
+  flex-shrink: 0;
+  margin-left: 0.1em;
+  font-size: 0.92em;
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+@keyframes bn-jarvis-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.bn-jarvis-spin {
+  animation: bn-jarvis-spin 0.8s linear infinite;
+}
+
+/* Hide-receipts toggle (JDOC-UX-06): collapse resolved receipt/error pills in
+   the document only. Prompt/loading pills stay visible so an in-progress
+   invocation is never lost. Export exclusion is independent of this toggle. */
+[data-hide-receipts="true"] .bn-jarvis-pill[data-status="receipt"],
+[data-hide-receipts="true"] .bn-jarvis-pill[data-status="error"] {
+  display: none;
+}
+
+/* Styled hover tooltip showing the original prompt (JDOC-UX-04). Instant,
+   themed bubble that replaces the slow native title delay. */
+.bn-jarvis-pill[data-prompt]:hover::after {
+  content: attr(data-prompt);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  max-width: 22rem;
+  width: max-content;
+  padding: 0.4em 0.6em;
+  border-radius: 8px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78em;
+  line-height: 1.4;
+  white-space: normal;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 18%, transparent),
+    inset 0 1px 0 var(--glass-hi);
+  pointer-events: none;
+}
+
+/* @-mention person pill (Phase C). Shares the neumorphic outlined surface of
+   the JARVIS pill so inline pills read as one family, but carries an amber
+   accent and a leading "@" glyph to mark it as a person reference. */
+.bn-person-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18em;
+  margin: 0 1px;
+  padding: 0.08em 0.5em;
+  border-radius: 7px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi),
+    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+}
+
+.bn-person-pill-at {
+  flex-shrink: 0;
+  color: var(--ink-amber);
+  font-weight: 600;
+}
+
+.bn-person-pill-label {
+  min-width: 0;
+}

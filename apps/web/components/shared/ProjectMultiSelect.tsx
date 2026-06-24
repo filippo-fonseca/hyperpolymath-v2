@@ -10,6 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  InlineProjectCreateForm,
+  type InlineProjectArea,
+} from "@/components/shared/InlineProjectCreateForm";
 import { cn } from "@/lib/utils";
 
 export interface ProjectMultiSelectOption {
@@ -24,6 +28,13 @@ interface Props {
   onChange: (ids: string[]) => void;
   projects: ProjectMultiSelectOption[];
   placeholder?: string;
+  /**
+   * Areas a new project can be filed under. When provided alongside
+   * `onCreateProject`, the dropdown gains a "+ Create new project" row.
+   */
+  areas?: InlineProjectArea[];
+  /** Creates a project inline; resolves to the new id, or null on failure. */
+  onCreateProject?: (input: { name: string; areaId: string }) => Promise<string | null>;
 }
 
 /**
@@ -38,9 +49,13 @@ export function ProjectMultiSelect({
   onChange,
   projects,
   placeholder = "Link to projects",
+  areas,
+  onCreateProject,
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const canCreate = !!onCreateProject && !!areas && areas.length > 0;
 
   const selectedProjects = projects.filter((p) => value.includes(p.id));
   const q = query.toLowerCase();
@@ -84,7 +99,13 @@ export function ProjectMultiSelect({
           ))}
         </div>
       )}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setCreating(false);
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -99,41 +120,69 @@ export function ProjectMultiSelect({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="p-0 w-[280px]">
-          <div className="p-2 border-b border-border">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search projects…"
-              className="h-8 font-sans text-[13px]"
-              autoFocus
+          {creating && canCreate ? (
+            <InlineProjectCreateForm
+              areas={areas!}
+              onCreate={onCreateProject!}
+              onDone={(newId) => {
+                if (!value.includes(newId)) onChange([...value, newId]);
+                setCreating(false);
+              }}
+              onCancel={() => setCreating(false)}
             />
-          </div>
-          <div className="max-h-[240px] overflow-auto py-1">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-2 font-sans text-[13px] text-muted-foreground italic">
-                No projects found.
+          ) : (
+            <>
+              <div className="p-2 border-b border-border">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search projects…"
+                  className="h-8 font-sans text-[13px]"
+                  autoFocus
+                />
               </div>
-            ) : (
-              filtered.map((p) => {
-                const checked = value.includes(p.id);
-                return (
-                  <label
-                    key={p.id}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-secondary font-sans text-[13px]",
-                      checked && "bg-secondary/50",
-                    )}
+              <div className="max-h-[240px] overflow-auto py-1">
+                {filtered.length === 0 ? (
+                  <div className="px-3 py-2 font-sans text-[13px] text-muted-foreground italic">
+                    No projects found.
+                  </div>
+                ) : (
+                  filtered.map((p) => {
+                    const checked = value.includes(p.id);
+                    return (
+                      <label
+                        key={p.id}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-secondary font-sans text-[13px]",
+                          checked && "bg-secondary/50",
+                        )}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggle(p.id)}
+                        />
+                        <span className="truncate">{displayName(p)}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {canCreate && (
+                <div className="border-t border-border p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 font-sans text-[13px] h-8"
+                    onClick={() => setCreating(true)}
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => toggle(p.id)}
-                    />
-                    <span className="truncate">{displayName(p)}</span>
-                  </label>
-                );
-              })
-            )}
-          </div>
+                    <Plus size={13} className="text-muted-foreground" />
+                    Create new project
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </PopoverContent>
       </Popover>
     </div>

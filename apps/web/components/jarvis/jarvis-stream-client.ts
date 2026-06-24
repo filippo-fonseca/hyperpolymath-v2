@@ -104,8 +104,45 @@ export async function streamJarvis(
    *  turns — header is omitted entirely in that case. */
   sttDoneAt: number | null = null,
 ): Promise<void> {
+  // Idle-timeout guard: a hung route (cold-start stall, dropped connection,
+  // proxy that never closes the socket) would otherwise leave the fetch and
+  // the reader loop pending forever with no user feedback. We arm an internal
+  // AbortController that fires after IDLE_TIMEOUT_MS of silence and reset it on
+  // every received chunk, so a healthy slow stream is never killed but a truly
+  // stalled one fails cleanly. The caller's `signal` (cancel UX) is linked in.
+  const IDLE_TIMEOUT_MS = 60_000;
+  const timeoutController = new AbortController();
+  let timedOut = false;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  // Active reader, set once streaming begins. Cancelling it interrupts an
+  // in-progress `reader.read()` that the fetch-level abort alone may not
+  // unblock once the response body is already being consumed.
+  let activeReader: ReadableStreamDefaultReader<string> | null = null;
+  const armIdleTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      timedOut = true;
+      timeoutController.abort();
+      void activeReader?.cancel().catch(() => {});
+    }, IDLE_TIMEOUT_MS);
+  };
+  const clearIdleTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = null;
+  };
+  const onCallerAbort = () => timeoutController.abort();
+  if (signal) {
+    if (signal.aborted) timeoutController.abort();
+    else signal.addEventListener("abort", onCallerAbort, { once: true });
+  }
+  const cleanup = () => {
+    clearIdleTimer();
+    signal?.removeEventListener("abort", onCallerAbort);
+  };
+
   let response: Response;
   try {
+    armIdleTimer();
     response = await fetch("/api/jarvis", {
       method: "POST",
       headers: {
@@ -116,26 +153,44 @@ export async function streamJarvis(
           : {}),
       },
       body: JSON.stringify(payload),
-      signal,
+      signal: timeoutController.signal,
     });
   } catch (err) {
+    clearIdleTimer();
+    cleanup();
     const e = err as { name?: string; message?: string };
-    callbacks.onError(e?.name === "AbortError" ? "aborted" : String(e?.message ?? err));
+    if (e?.name === "AbortError") {
+      // Distinguish a user/caller cancel ("aborted") from a stall timeout so
+      // the UI surfaces a real network error instead of a silent no-op.
+      callbacks.onError(timedOut ? "Request timed out" : "aborted");
+    } else {
+      callbacks.onError(String(e?.message ?? err));
+    }
     return;
   }
 
   if (!response.ok || !response.body) {
+    cleanup();
     callbacks.onError(`HTTP ${response.status}`);
     return;
   }
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  activeReader = reader;
   let buffer = "";
 
   try {
     while (true) {
       const { done, value } = await reader.read();
+      // A timeout-triggered reader.cancel() resolves read() with done=true
+      // rather than throwing. Surface it as a real error, not a silent close.
+      if (timedOut) {
+        callbacks.onError("Request timed out");
+        return;
+      }
       if (done) break;
+      // Healthy traffic — push the idle deadline forward.
+      armIdleTimer();
       buffer += value;
       let idx = buffer.indexOf("\n\n");
       while (idx !== -1) {
@@ -195,12 +250,14 @@ export async function streamJarvis(
     }
   } catch (err) {
     const e = err as { name?: string; message?: string };
-    if (e?.name !== "AbortError") {
-      callbacks.onError(String(e?.message ?? err));
+    if (e?.name === "AbortError") {
+      // A mid-stream abort is either a user cancel or our idle-timeout firing.
+      callbacks.onError(timedOut ? "Request timed out" : "aborted");
     } else {
-      callbacks.onError("aborted");
+      callbacks.onError(String(e?.message ?? err));
     }
   } finally {
+    cleanup();
     try {
       await reader.cancel();
     } catch {

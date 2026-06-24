@@ -44,8 +44,10 @@ import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
+import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
 import { RelativeTime } from "@/components/shared/RelativeTime";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
+import { HashtagDecorations } from "./hashtag-decorations";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
@@ -61,6 +63,10 @@ interface Props {
   capture: CaptureWithLinks | null;
   hashtags: HashtagSource[];
   projects: ProjectMultiSelectOption[];
+  /** Areas a new project can be filed under (inline project creation). */
+  areas?: InlineProjectArea[];
+  /** Creates a project inline; resolves to the new id, or null on failure. */
+  onCreateProject?: (input: { name: string; areaId: string }) => Promise<string | null>;
   open: boolean;
   onClose: () => void;
   /**
@@ -176,6 +182,8 @@ export function CaptureDetailPanel({
   capture,
   hashtags,
   projects,
+  areas,
+  onCreateProject,
   open,
   onClose,
   onOptimisticUpdate,
@@ -295,6 +303,9 @@ export function CaptureDetailPanel({
           },
           suggestion: createHashtagSuggestion(() => hashtags),
         }),
+        // Live-decorate plain `#word` text so the token styling lands without
+        // waiting for the suggestion popover to commit a Mention node (#41).
+        HashtagDecorations,
       ],
       editorProps: {
         attributes: {
@@ -565,6 +576,8 @@ export function CaptureDetailPanel({
                     }
                     projects={projects}
                     placeholder="Link to projects"
+                    areas={areas}
+                    onCreateProject={onCreateProject}
                   />
                 </section>
 

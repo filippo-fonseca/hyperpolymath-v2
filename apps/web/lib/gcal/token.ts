@@ -43,7 +43,7 @@ import { eq } from "drizzle-orm";
 import { google } from "googleapis";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { createOAuth2Client } from "./client";
+import { createOAuth2Client, type GcalOAuth2Client } from "./client";
 import { decryptToken, encryptToken } from "./encryption";
 import {
   GcalNotConnectedError,
@@ -92,7 +92,23 @@ function isInvalidGrantError(err: unknown): boolean {
   );
 }
 
-export async function getValidGcalToken(userId: string): Promise<calendar_v3.Calendar> {
+/**
+ * Build an authenticated Google OAuth2 client for `userId` with a
+ * guaranteed-fresh access token. This is the shared core that both the Calendar
+ * path (`getValidGcalToken`) and the Drive path (`lib/gdrive`) funnel through,
+ * so the load-token / refresh-on-expiry / persist-new-tokens /
+ * clear-on-invalid_grant semantics live in exactly one place and never diverge.
+ *
+ * Returns the OAuth2 client itself (NOT a service client), so each caller wraps
+ * it in the Google service it needs (`google.calendar(...)`,
+ * `google.drive(...)`). Throws the same typed errors as before:
+ *   - GcalNotConnectedError when there is no stored refresh token,
+ *   - GcalTokenRevokedError after clearing the DB on an invalid_grant,
+ *   - GcalTokenRefreshError on any other refresh failure.
+ */
+export async function getAuthenticatedGoogleOAuthClient(
+  userId: string,
+): Promise<GcalOAuth2Client> {
   // 1. Load the user's encrypted tokens + expiry from the DB.
   const rows = await db
     .select({
@@ -166,8 +182,14 @@ export async function getValidGcalToken(userId: string): Promise<calendar_v3.Cal
     }
   }
 
-  // 5. Return the Calendar client.
-  return google.calendar({ version: "v3", auth: oauth2Client });
+  return oauth2Client;
+}
+
+export async function getValidGcalToken(userId: string): Promise<calendar_v3.Calendar> {
+  const auth = await getAuthenticatedGoogleOAuthClient(userId);
+  // Return the Calendar client. The auth client carries a fresh access token
+  // (refreshed + persisted inside the shared helper above).
+  return google.calendar({ version: "v3", auth });
 }
 
 /**

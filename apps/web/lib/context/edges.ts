@@ -22,12 +22,27 @@ export type FactReference = {
   aboutEntityId?: string;
 };
 
+/**
+ * A (from-entity -> person) reference row. `fromType` discriminates the kind of
+ * entity the `fromId` points at so the mentions_person edge can carry it.
+ */
+export type PersonReference = {
+  fromType: "task" | "capture" | "page" | "jarvis_fact" | "event";
+  fromId: string;
+  personId: string;
+};
+
 export function deriveEdges(input: {
   areaIds: Set<string>;
   projects: Extract<Node, { type: "project" }>[];
   tasks: Extract<Node, { type: "task" }>[];
   captures: Extract<Node, { type: "capture" }>[];
+  pages: Extract<Node, { type: "page" }>[];
   facts: FactReference[];
+  /** Person nodes loaded into the snapshot (cardinality-capped upstream). */
+  people?: Extract<Node, { type: "person" }>[];
+  /** Raw (from-entity -> person) reference rows. */
+  references?: PersonReference[];
 }): Edge[] {
   const edges: Edge[] = [];
 
@@ -52,6 +67,15 @@ export function deriveEdges(input: {
     }
   }
 
+  for (const page of input.pages) {
+    for (const pid of page.projectIds) {
+      edges.push({ type: "page_in_project", from: page.id, to: pid });
+    }
+    if (page.folderId) {
+      edges.push({ type: "page_in_folder", from: page.id, to: page.folderId });
+    }
+  }
+
   for (const f of input.facts) {
     if (f.aboutEntityType && f.aboutEntityId) {
       edges.push({
@@ -61,6 +85,32 @@ export function deriveEdges(input: {
         entityId: f.aboutEntityId,
       });
     }
+  }
+
+  // mentions_person: link a referencing entity to a person, but only when BOTH
+  // endpoints are in the loaded node set. We drop dangling edges (a reference to
+  // a person beyond the people cap, or to an entity not loaded for its type)
+  // exactly like project_in_area drops edges to unloaded areas.
+  const personIds = new Set((input.people ?? []).map((p) => p.id));
+  const idsByFromType: Record<PersonReference["fromType"], Set<string>> = {
+    task: new Set(input.tasks.map((t) => t.id)),
+    capture: new Set(input.captures.map((c) => c.id)),
+    page: new Set(input.pages.map((p) => p.id)),
+    // jarvis_fact and event nodes are not loaded into the edge derivation set
+    // today, so references from them have no resolvable `from` endpoint and are
+    // dropped. Future loaders can populate these without changing the contract.
+    jarvis_fact: new Set<string>(),
+    event: new Set<string>(),
+  };
+  for (const ref of input.references ?? []) {
+    if (!personIds.has(ref.personId)) continue;
+    if (!idsByFromType[ref.fromType]?.has(ref.fromId)) continue;
+    edges.push({
+      type: "mentions_person",
+      from: ref.fromId,
+      to: ref.personId,
+      fromType: ref.fromType,
+    });
   }
 
   return edges;

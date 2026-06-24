@@ -177,6 +177,36 @@ describe("NodeSchema (v1 — 7 node types)", () => {
     expect(NodeSchema.safeParse(node).success).toBe(true);
   });
 
+  it("accepts a person node with all contact fields populated", () => {
+    const node = {
+      type: "person" as const,
+      id: randomUUID(),
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      phone: "+1-555-0100",
+      bio: "first programmer",
+      tags: ["friend", "math"],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    expect(NodeSchema.safeParse(node).success).toBe(true);
+  });
+
+  it("accepts a person node with null contact fields and empty tags", () => {
+    const node = {
+      type: "person" as const,
+      id: randomUUID(),
+      name: "Anon",
+      email: null,
+      phone: null,
+      bio: null,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    expect(NodeSchema.safeParse(node).success).toBe(true);
+  });
+
   it("rejects an unknown node type", () => {
     const node = {
       type: "unknown",
@@ -257,16 +287,36 @@ describe("EdgeSchema (v1 — 5 edge types)", () => {
     } as unknown;
     expect(EdgeSchema.safeParse(edge).success).toBe(false);
   });
+
+  it("accepts mentions_person with a valid fromType", () => {
+    const edge = {
+      type: "mentions_person" as const,
+      from: randomUUID(),
+      to: randomUUID(),
+      fromType: "capture" as const,
+    };
+    expect(EdgeSchema.safeParse(edge).success).toBe(true);
+  });
+
+  it("rejects mentions_person with a fromType outside the enum", () => {
+    const edge = {
+      type: "mentions_person" as const,
+      from: randomUUID(),
+      to: randomUUID(),
+      fromType: "habit",
+    } as unknown;
+    expect(EdgeSchema.safeParse(edge).success).toBe(false);
+  });
 });
 
 describe("ContextSnapshotSchema (top-level envelope)", () => {
-  it("exposes CURRENT_SCHEMA_VERSION = 1", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+  it("exposes CURRENT_SCHEMA_VERSION = 4", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(4);
   });
 
-  it("accepts a minimal v1 snapshot", () => {
+  it("accepts a minimal v4 snapshot", () => {
     const snap = {
-      schemaVersion: 1 as const,
+      schemaVersion: 4 as const,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
@@ -291,9 +341,9 @@ describe("ContextSnapshotSchema (top-level envelope)", () => {
     expect(ContextSnapshotSchema.safeParse(snap).success).toBe(false);
   });
 
-  it("rejects schemaVersion = 2 (future version)", () => {
+  it("rejects schemaVersion = 3 (past version — the schema only literals the current)", () => {
     const snap = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],

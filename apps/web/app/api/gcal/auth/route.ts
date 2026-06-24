@@ -38,6 +38,10 @@ import { createOAuth2Client } from "@/lib/gcal/client";
 const STATE_COOKIE_NAME = "gcal_oauth_state";
 const STATE_COOKIE_MAX_AGE_SECONDS = 600; // 10 minutes
 const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar"; // D-06
+// Phase 28: per-file Drive access so the daily Wiki backup cron can write the
+// markdown ZIP into the user's Drive. drive.file scopes access to files the app
+// itself creates, so this does NOT grant read of the user's wider Drive.
+const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 export async function GET(): Promise<Response> {
   // Step 1: ensure the user is signed in. Uses `getClaims()` internally
@@ -74,7 +78,7 @@ export async function GET(): Promise<Response> {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: [GCAL_SCOPE],
+    scope: [GCAL_SCOPE, DRIVE_FILE_SCOPE],
     state,
     include_granted_scopes: true,
   });

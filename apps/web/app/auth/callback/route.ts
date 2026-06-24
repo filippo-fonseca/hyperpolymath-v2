@@ -21,6 +21,16 @@ export async function GET(request: NextRequest) {
   }
 
   const userId = exchangeData.user.id;
+
+  // Provision the public.users row right after OAuth, independent of the
+  // auth.users trigger (migration 0002). Idempotent — onConflictDoNothing makes
+  // repeat sign-ins and a present trigger both safe — so a new user always has a
+  // row before the first authed page load.
+  await db
+    .insert(users)
+    .values({ id: userId, email: exchangeData.user.email ?? "" })
+    .onConflictDoNothing();
+
   const rows = await db
     .select({ onboardedAt: users.onboardedAt })
     .from(users)

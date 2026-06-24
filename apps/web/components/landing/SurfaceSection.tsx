@@ -32,18 +32,21 @@ export function SurfaceSection() {
       </h2>
 
       <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
-        Areas, projects, tasks, captures, habits, training, health, your
-        Google Calendar, the relationship graph between all of it, and the
-        insights that fall out: every signal worth tracking lives on a
+        Areas, projects, tasks, captures, wiki pages, habits, training,
+        health, your Google Calendar, the relationship graph between all of
+        it, and the insights that fall out: every signal worth tracking lives on a
         single page called <em>LifeOS</em>. The whole system converges into
         one document so the agent and I are always looking at the same
-        thing.
+        thing. One global search reaches across all of it: hit
+        <span className="font-mono"> ⌘K</span> from anywhere, or open the
+        Search surface, and every task, capture, project, area, and habit
+        is one substring away.
       </p>
 
       <p className="mt-4 font-mono text-[13px] leading-[1.6] tracking-[0.02em] text-[var(--ink-muted)]">
-        SURFACES&nbsp;·&nbsp; LifeOS · Today · Areas · Projects · Tasks ·
-        Captures · Calendar · Habits · Training · Health · Graph · Insights
-        · JARVIS
+        SURFACES&nbsp;·&nbsp; LifeOS · Today · Search · Areas · Projects ·
+        Tasks · Captures · Wiki · Calendar · Habits · Training · Health ·
+        Graph · Insights · JARVIS
       </p>
 
       {/* Twin visual artifact: the Areas tree (spine) + the Knowledge
@@ -106,7 +109,7 @@ export function SurfaceSection() {
               className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
               style={{ color: "var(--hud-cyan-light)" }}
             >
-              MACROPAD + PHYSICAL VOICE DETECTOR HARDWARE
+              MACROPAD + VOICE DETECTOR HARDWARE
             </p>
           </div>
 

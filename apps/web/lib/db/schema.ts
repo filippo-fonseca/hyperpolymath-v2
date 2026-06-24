@@ -12,12 +12,17 @@ import {
   primaryKey,
   check,
   index,
+  unique,
   uniqueIndex,
   jsonb,
   customType,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
 import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
+// DevRunItem is single-sourced in the query helper; imported type-only here so
+// the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
+import type { DevRunItem } from "./queries/dev-runs";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -263,6 +268,116 @@ export const capturesProjects = pgTable("captures_projects", {
   index("captures_projects_user_idx").on(t.userId),
 ]);
 
+// ─── PAGES ──────────────────────────────────────────────────────────────────
+// Phase 20 — Notion-style markdown documents. Each page is owned by a user
+// and may be linked to zero or more projects (M:N via pages_projects junction).
+// Deleting a project cascades the junction row only; the page itself survives
+// (unlink not delete — requirement satisfied automatically by ON DELETE CASCADE
+// on the junction FK to projects, with no cascade on the pages table itself).
+
+export const pages = pgTable(
+  "pages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    // Lossy markdown mirror of content_json. Source of truth for the MCP
+    // context export, search, and portability — the editor never reads it back
+    // except to seed blocks for legacy pages with no content_json yet.
+    content: text("content").notNull().default(""),
+    // BlockNote block document — the editor's source of truth (full fidelity:
+    // callouts, etc.). Null for legacy pages, which seed from `content` markdown.
+    contentJson: jsonb("content_json"),
+    emoji: text("emoji"),
+    pinned: boolean("pinned").notNull().default(false),
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
+    // this page is filtered out of the personal-context snapshot.
+    noExport: boolean("no_export").notNull().default(false),
+    // Phase 21 (migration 0034) — direct folder placement. A page lives in at
+    // most one folder, globally (not per project-link). NULL = standalone.
+    // ON DELETE SET NULL reparents the page to standalone when its folder is gone.
+    folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "set null" }),
+    // Phase 30 (migration 0035) — Daily Pages. NULL = a normal page; a non-NULL
+    // calendar date (yyyy-MM-dd) marks this as the user's Daily Page for that day.
+    // The partial unique index below enforces exactly one Daily Page per user per
+    // day, leaving normal pages (daily_date IS NULL) unconstrained.
+    dailyDate: date("daily_date"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("pages_user_updated_desc_idx").on(t.userId, sql`updated_at DESC`),
+    index("pages_folder_idx").on(t.folderId),
+    // One Daily Page per user per day (Phase 30). Partial: only rows with a
+    // non-NULL daily_date participate, so normal pages are never constrained.
+    uniqueIndex("pages_user_daily_date_uniq")
+      .on(t.userId, t.dailyDate)
+      .where(sql`daily_date IS NOT NULL`),
+  ],
+);
+
+// Wiki folders (migration 0033 + 0034) — project-independent, arbitrarily
+// nestable. parent_id is a nullable self-FK (NULL = root folder); deleting a
+// parent cascades its subtree (Phase 21 locked decision 4). project_id was
+// dropped in 0034 — folder->project links now live in the folderProjects
+// junction (M:N), and a page's folder placement lives on pages.folderId.
+export const pageFolders = pgTable("page_folders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  // Nullable self-FK for arbitrary-depth nesting. Lazy thunk avoids the circular
+  // reference at module init; the AnyPgColumn annotation on the thunk breaks the
+  // implicit-any type cycle Drizzle hits on self-references. ON DELETE CASCADE
+  // deletes the whole subtree.
+  parentId: uuid("parent_id").references((): AnyPgColumn => pageFolders.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("page_folders_parent_idx").on(t.parentId),
+  index("page_folders_user_idx").on(t.userId),
+]);
+
+// folder_projects (migration 0034) — M:N folder->project links. user_id is
+// denormalized for RLS (same pattern as pages_projects). ON DELETE CASCADE on
+// both FKs. UNIQUE (folder_id, project_id) — a folder links a project at most
+// once (Phase 21 locked decision 6).
+export const folderProjects = pgTable("folder_projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  folderId: uuid("folder_id")
+    .notNull()
+    .references(() => pageFolders.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized for RLS
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  unique("folder_projects_folder_project_key").on(t.folderId, t.projectId),
+  index("folder_projects_project_idx").on(t.projectId),
+  index("folder_projects_user_idx").on(t.userId),
+]);
+
+export const pagesProjects = pgTable("pages_projects", {
+  pageId: uuid("page_id")
+    .notNull()
+    .references(() => pages.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(), // denormalized; Server Actions enforce match with parent
+}, (t) => [
+  primaryKey({ columns: [t.pageId, t.projectId] }),
+  index("pages_projects_project_idx").on(t.projectId),
+  index("pages_projects_user_idx").on(t.userId),
+]);
+
 export const capturesHashtags = pgTable("captures_hashtags", {
   captureId: uuid("capture_id")
     .notNull()
@@ -409,6 +524,39 @@ export const jarvisEvents = pgTable(
   (t) => [index("jarvis_events_user_created_idx").on(t.userId, sql`created_at DESC`)],
 );
 
+// jarvis_page_processing_runs — issue #92 part 5. One row per "Process this
+// page" invocation on a Daily Page. blockHashes snapshots a content hash per
+// top-level block so the next run only re-processes new/changed blocks (no
+// double-creation); processedBlockIds + actions + responseText + status feed the
+// per-page "Processing runs" history dropdown. See migration 0036.
+export const jarvisPageProcessingRuns = pgTable(
+  "jarvis_page_processing_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    pageId: uuid("page_id")
+      .notNull()
+      .references(() => pages.id, { onDelete: "cascade" }),
+    // assistant jarvis_turns row this run produced; null for 'skipped' runs.
+    turnId: uuid("turn_id"),
+    scope: text("scope").notNull().default("page"),
+    blockHashes: jsonb("block_hashes").notNull().default(sql`'{}'::jsonb`),
+    processedBlockIds: jsonb("processed_block_ids").notNull().default(sql`'[]'::jsonb`),
+    actions: jsonb("actions").notNull().default(sql`'[]'::jsonb`),
+    responseText: text("response_text"),
+    status: text("status").notNull().default("done"), // 'done' | 'error' | 'skipped'
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("jarvis_page_processing_runs_page_created_idx").on(t.pageId, sql`created_at DESC`),
+    index("jarvis_page_processing_runs_user_idx").on(t.userId),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // waitlist — Phase 8 (D-12 / LAND-WAITLIST). Anonymous email capture from the
 // public landing manifesto. FIRST table to break the userId-scoped RLS pattern.
@@ -455,6 +603,40 @@ export const cronRuns = pgTable(
   (t) => [
     // This UNIQUE constraint is the once-per-day lock.
     uniqueIndex("cron_runs_job_date_uniq").on(t.jobName, t.runDate),
+  ],
+);
+
+// kiwi_dev_runs (260615-lkl). Daily summary of the local Kiwi auto-dev worker.
+// One row per (user_id, run_date); the UNIQUE (user_id, run_date) index makes
+// the daily POST an upsert (insert ... onConflictDoUpdate), so a re-run of the
+// same day overwrites that day's row rather than appending. The owner-only
+// DEVELOPMENT tab on /insights reads these newest-first. DevRunItem is
+// single-sourced in lib/db/queries/dev-runs.ts and imported here for the
+// items jsonb column type.
+export const kiwiDevRuns = pgTable(
+  "kiwi_dev_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    runDate: date("run_date").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status"),
+    issuesAttempted: integer("issues_attempted").notNull().default(0),
+    issuesDone: integer("issues_done").notNull().default(0),
+    issuesSkipped: integer("issues_skipped").notNull().default(0),
+    issuesFailed: integer("issues_failed").notNull().default(0),
+    items: jsonb("items")
+      .notNull()
+      .default(sql`'[]'::jsonb`)
+      .$type<DevRunItem[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One row per owner per day; this UNIQUE constraint makes the ingest an upsert.
+    uniqueIndex("kiwi_dev_runs_user_date_uniq").on(t.userId, t.runDate),
   ],
 );
 
@@ -591,6 +773,66 @@ export const claudeCodeUsage = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.date] }),
+  ],
+);
+
+// anthropic_api_usage — daily Anthropic API (pay-as-you-go) spend + token
+// totals, mirroring claude_code_usage. Populated live from the Anthropic Cost
+// API on /insights page load with best-effort write-through (DEC-1): the live
+// fetch upserts the days it sees so the table stays warm and a future cron can
+// take over without a UI rewrite. cost stored as integer micros (USD * 1e6).
+export const anthropicApiUsage = pgTable(
+  "anthropic_api_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    costUsd: integer("cost_usd_micros"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.date] }),
+  ],
+);
+
+// claude_subscription_usage — Claude Code Max-5x subscription snapshots
+// (DEC-2 / DEC-3). Deliberately small: at most one "session" row (the active
+// rolling 5-hour block, keyed by its start time) plus a handful of "week" rows
+// (keyed by ISO week-start). Upserted by the same ccusage sync pipeline; the
+// laptop sync overwrites in place on each run. Percentages shown in the UI are
+// computed against configurable approximate Max-5x limits (limits.ts) and are
+// NOT scraped real plan limits. cost stored as integer micros (USD * 1e6).
+export const claudeSubscriptionUsage = pgTable(
+  "claude_subscription_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "session" (active 5-hour block) or "week" (weekly rollup).
+    kind: text("kind").notNull(),
+    // session: the active block startTime ISO string. week: ISO week-start (YYYY-MM-DD).
+    bucketKey: text("bucket_key").notNull(),
+    costUsd: integer("cost_usd_micros"),
+    totalTokens: bigint("total_tokens", { mode: "number" }).notNull().default(0),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull().default(0),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull().default(0),
+    cacheReadTokens: bigint("cache_read_tokens", { mode: "number" }).notNull().default(0),
+    cacheCreationTokens: bigint("cache_creation_tokens", { mode: "number" }).notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }),
+    windowEnd: timestamp("window_end", { withTimezone: true }),
+    // ccusage `blocks --active` projection for the current block.
+    projectedCostUsd: integer("projected_cost_usd_micros"),
+    projectedTotalTokens: bigint("projected_total_tokens", { mode: "number" }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind, t.bucketKey] }),
   ],
 );
 
@@ -878,3 +1120,109 @@ export const nutritionTargets = pgTable("nutrition_targets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   // CHECK: protein_pct + carbs_pct + fat_pct = 100 — enforced in migration SQL
 });
+
+// ─── JOURNALING ─────────────────────────────────────────────────────────────
+// Phase 20 — daily journal entries. One row per user per calendar day, keyed by
+// the UNIQUE(user_id, date) constraint so writes upsert via ON CONFLICT (CONTEXT
+// decision 1). The journaling prompt itself is a fixed UI constant, not a column.
+// state_version BEFORE-trigger fires on journal_entries (migration 0030) so the
+// JARVIS state-snapshot cache invalidates on journal writes, matching the other
+// primary tables.
+//
+//   journal_entries — main_response (fixed-prompt answer) + notes_section (misc)
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // DATE only, no time component — the client-local calendar day "YYYY-MM-DD",
+    // not raw server UTC (CONTEXT specific; mirrors food_logs.log_date intent).
+    date: date("date").notNull(),
+    mainResponse: text("main_response"), // nullable — response to the fixed prompt
+    notesSection: text("notes_section"), // nullable — the separate Notes / Misc field
+    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
+    // entry is filtered out of the personal-context snapshot. Migration 0027 lineage.
+    noExport: boolean("no_export").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // One entry per user per calendar day; enforces upsert at the DB level
+    // (CONTEXT decision 1 — ON CONFLICT (user_id, date) target).
+    uniqueIndex("journal_entries_user_date_uniq").on(t.userId, t.date),
+    // History-feed ordering (most-recent-first), mirroring captures_user_created_desc_idx.
+    index("journal_entries_user_date_desc_idx").on(t.userId, sql`date DESC`),
+  ],
+);
+
+// ─── PEOPLE ─────────────────────────────────────────────────────────────────
+// Phase: People — first-class person entity for the knowledge graph. People are
+// curatable contacts (email / phone / bio / avatar / tags) that can be
+// @-mentioned from anywhere there is text (wiki pages, captures, JARVIS chat)
+// and linked to tasks/captures/events. The Notion-style "people" property: any
+// entity can reference one or more people via people_references.
+export const people = pgTable(
+  "people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email"), // nullable — curated later
+    phone: text("phone"), // nullable
+    bio: text("bio"), // nullable — "who they are to me"
+    // Public URL into the `avatars` Supabase Storage bucket. null → render the
+    // person's initials as the default avatar.
+    avatarUrl: text("avatar_url"),
+    // Free-form tags (friend / investor / teacher / professor / code / …). A
+    // text[] so the People page can filter by tag without a join table — the
+    // canonical tag list is curated client-side but the column accepts any
+    // string for forward flexibility.
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("people_user_idx").on(t.userId),
+    // Case-insensitive resolve-or-create: @-mention + JARVIS look people up by
+    // (userId, lower(name)). A non-unique index keeps lookups fast while still
+    // allowing intentional namesakes.
+    index("people_user_name_idx").on(t.userId, sql`lower(name)`),
+  ],
+);
+
+// people_references — one row per (from-entity → person) mention. The from
+// entity is identified by a (type, id) pair rather than a hard FK because the
+// referencing entity can be a task, capture, page, or jarvis_fact. userId is
+// denormalized for RLS, matching every other junction table. References are
+// reconciled on save (parse the entity's content for person mentions, then
+// diff against existing rows), so this table is the single source of truth for
+// "what mentions whom" and powers reference counts + the knowledge graph.
+export const peopleReferences = pgTable(
+  "people_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(), // denormalized for RLS
+    // "task" | "capture" | "page" | "jarvis_fact" | "event"
+    fromType: text("from_type").notNull(),
+    fromId: uuid("from_id").notNull(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // At most one reference per (from-entity, person) — re-saving an entity that
+    // mentions the same person twice collapses to one row.
+    unique("people_references_from_person_uniq").on(t.fromType, t.fromId, t.personId),
+    index("people_references_person_idx").on(t.personId),
+    index("people_references_user_idx").on(t.userId),
+    index("people_references_from_idx").on(t.fromType, t.fromId),
+  ],
+);

@@ -28,6 +28,74 @@ export type LegacySnapshot = {
   [k: string]: unknown;
 };
 
+/**
+ * Pure migrators keyed by the SOURCE version they migrate FROM.
+ * Each migrator lifts the payload to the next version's shape and re-parses
+ * via ContextSnapshotSchema. Additive changes (new node types) are safe to
+ * re-parse because the old payload simply lacks the new nodes — that is valid.
+ */
+const migrators: Record<number, (payload: unknown) => Result<ContextSnapshot>> = {
+  1: (payload) => {
+    // v1 -> v2: added journal_entry node type (additive). v1 page nodes also lack
+    // the folderId/folderPath fields added in v3, so we cannot parse a v1 payload
+    // straight against the current schema. Chain through the v2 migrator, which
+    // backfills those page fields before the final parse. (journal_entry is still
+    // additive: v1 payloads simply have none, which the schema accepts.)
+    return migrators[2](payload);
+  },
+  2: (payload) => {
+    // v2 -> v3 (Phase 29): page nodes gained `folderId` (nullable) and `folderPath`
+    // (root-first folder names). Old rows predate folder placement on the snapshot,
+    // so backfill folderId:null and folderPath:[] on every page node. We do NOT
+    // fabricate folder data for historical rows; each page keeps the direct-only
+    // `projectIds` set it was persisted with.
+    if (typeof payload !== "object" || payload === null) {
+      return err("v2->v3 migration failed: payload is not an object");
+    }
+    const obj = payload as { nodes?: unknown };
+    const nodes = Array.isArray(obj.nodes) ? obj.nodes : [];
+    const migratedNodes = nodes.map((node) => {
+      if (
+        typeof node === "object" &&
+        node !== null &&
+        (node as { type?: unknown }).type === "page"
+      ) {
+        const page = node as Record<string, unknown>;
+        return {
+          ...page,
+          folderId: page.folderId ?? null,
+          folderPath: Array.isArray(page.folderPath) ? page.folderPath : [],
+        };
+      }
+      return node;
+    });
+    const lifted = {
+      ...(payload as object),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      nodes: migratedNodes,
+    };
+    const parsed = ContextSnapshotSchema.safeParse(lifted);
+    if (!parsed.success) return err(`v2->v3 migration failed: ${parsed.error.message}`);
+    return ok(parsed.data);
+  },
+  3: (payload) => {
+    // v3 -> v4 (Phase E): added the `person` node type and the `mentions_person`
+    // edge (entity -> person). Both are purely ADDITIVE: an old v3 payload simply
+    // has no person nodes and no mentions_person edges, which the v4 schema
+    // accepts. So we only lift schemaVersion and re-parse; no field fabrication.
+    if (typeof payload !== "object" || payload === null) {
+      return err("v3->v4 migration failed: payload is not an object");
+    }
+    const lifted = {
+      ...(payload as object),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+    const parsed = ContextSnapshotSchema.safeParse(lifted);
+    if (!parsed.success) return err(`v3->v4 migration failed: ${parsed.error.message}`);
+    return ok(parsed.data);
+  },
+};
+
 export function migrate(
   payload: unknown,
   fromVersion: number,
@@ -46,7 +114,13 @@ export function migrate(
       `snapshot v${fromVersion} is newer than reader v${CURRENT_SCHEMA_VERSION}`,
     );
   }
-  // fromVersion < CURRENT and no migrator registered yet. Return opaque legacy.
+  // fromVersion < CURRENT — check migrators map before falling through to legacy.
+  const migrator = migrators[fromVersion];
+  if (migrator) {
+    return migrator(payload);
+  }
+  // No migrator registered for this version. Return opaque legacy wrapper so
+  // the caller can choose to ignore the row rather than crash.
   return ok({
     _legacy: true,
     schemaVersion: fromVersion,
