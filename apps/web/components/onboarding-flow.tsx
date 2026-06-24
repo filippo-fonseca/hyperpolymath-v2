@@ -10,19 +10,35 @@ import {
   Sparkles,
   User,
   Eye,
+  KeyRound,
+  Check,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { completeOnboarding } from "@/app/(app)/onboarding/actions";
 import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
+import {
+  BYOK_PROVIDER_IDS,
+  BYOK_PROVIDERS,
+  type ByokProvider,
+} from "@/lib/byok/providers";
+import { saveApiKey } from "@/app/actions/api-keys";
 
 interface Props {
   initialDisplayName: string;
   email: string;
 }
 
-type Step = "welcome" | "you" | "glimpse";
+type Step = "welcome" | "you" | "keys" | "glimpse";
 
-const TOTAL_STEPS = 3;
-const STEP_INDEX: Record<Step, number> = { welcome: 0, you: 1, glimpse: 2 };
+const STEP_ORDER: Step[] = ["welcome", "you", "keys", "glimpse"];
+const TOTAL_STEPS = STEP_ORDER.length;
+const STEP_INDEX: Record<Step, number> = {
+  welcome: 0,
+  you: 1,
+  keys: 2,
+  glimpse: 3,
+};
 
 const STEP_META: Record<
   Step,
@@ -30,6 +46,7 @@ const STEP_META: Record<
 > = {
   welcome: { icon: Sparkles, label: "Welcome" },
   you: { icon: User, label: "About you" },
+  keys: { icon: KeyRound, label: "API keys" },
   glimpse: { icon: Eye, label: "Glimpse" },
 };
 
@@ -82,7 +99,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
       <div className="flex items-center justify-between mb-8">
         {/* Step breadcrumb dots */}
         <div className="flex items-center gap-2">
-          {(["welcome", "you", "glimpse"] as Step[]).map((s, i) => {
+          {STEP_ORDER.map((s, i) => {
             const Meta = STEP_META[s];
             const Icon = Meta.icon;
             const isCurrent = s === step;
@@ -129,7 +146,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                     </span>
                   )}
                 </div>
-                {i < 2 && (
+                {i < TOTAL_STEPS - 1 && (
                   <span
                     className="w-6 h-px transition-colors duration-300"
                     style={{
@@ -280,7 +297,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   }}
                 >
                   <User size={9} strokeWidth={2} />
-                  Step 2 of 3
+                  Step 2 of 4
                 </div>
                 <h2
                   className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
@@ -427,8 +444,52 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <GhostBackButton onClick={() => setStep("welcome")} />
                 <GlassAccentButton
                   disabled={!canAdvanceFromYou}
-                  onClick={() => setStep("glimpse")}
+                  onClick={() => setStep("keys")}
                 >
+                  Continue
+                  <ArrowRight />
+                </GlassAccentButton>
+              </div>
+            </section>
+          )}
+
+          {/* ── Step: API keys ── */}
+          {step === "keys" && (
+            <section className="space-y-8">
+              <div className="space-y-2">
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  style={{
+                    background: "color-mix(in oklch, var(--ink-violet) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--ink-violet) 20%, transparent)",
+                    color: "var(--ink-violet)",
+                  }}
+                >
+                  <KeyRound size={9} strokeWidth={2} />
+                  Step 3 of 4
+                </div>
+                <h2
+                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
+                >
+                  Bring your keys.
+                </h2>
+                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                  JARVIS and the voice features run on your own paid API keys, so
+                  your usage is billed to you. Keys are encrypted at rest. You can
+                  skip and add them later in Settings.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {BYOK_PROVIDER_IDS.map((provider) => (
+                  <OnboardingKeyRow key={provider} provider={provider} />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <GhostBackButton onClick={() => setStep("you")} />
+                <GlassAccentButton onClick={() => setStep("glimpse")}>
                   Continue
                   <ArrowRight />
                 </GlassAccentButton>
@@ -449,7 +510,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   }}
                 >
                   <Eye size={9} strokeWidth={2} />
-                  Step 3 of 3
+                  Step 4 of 4
                 </div>
                 <h2
                   className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
@@ -512,7 +573,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                 <input type="hidden" name="timezone" value={timezone} />
                 <input type="hidden" name="graduation_year" value={graduationYear} />
                 <input type="hidden" name="github_username" value={githubUsername} />
-                <GhostBackButton onClick={() => setStep("you")} disabled={isPending} />
+                <GhostBackButton onClick={() => setStep("keys")} disabled={isPending} />
                 <GlassAccentButton type="submit" disabled={isPending}>
                   {isPending ? "Saving…" : "Enter Hyperpolymath"}
                   {!isPending && <ArrowRight />}
@@ -631,6 +692,124 @@ function GlassField({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function OnboardingKeyRow({ provider }: { provider: ByokProvider }) {
+  const meta = BYOK_PROVIDERS[provider];
+  const accentColor = meta.required ? "var(--ink-violet)" : "var(--ink-blue)";
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSave() {
+    setError(null);
+    const key = value.trim();
+    if (!key) {
+      setError("Enter a key first.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await saveApiKey(provider, key);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setSaved(res.last4);
+      setValue("");
+    });
+  }
+
+  return (
+    <div
+      className="space-y-2.5 rounded-2xl p-4"
+      style={{
+        background: `color-mix(in oklch, ${accentColor} 5%, var(--surface))`,
+        border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="font-serif text-base font-semibold text-[var(--ink)]">
+            {meta.label}
+          </span>
+          <span
+            className="font-mono text-[9px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+            style={{
+              color: accentColor,
+              background: `color-mix(in oklch, ${accentColor} 10%, transparent)`,
+              border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
+            }}
+          >
+            {meta.required ? "Required" : "Optional"}
+          </span>
+        </div>
+        <a
+          href={meta.consoleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+        >
+          Get your key
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+
+      <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
+        {meta.powers}
+      </p>
+
+      {saved ? (
+        <div className="flex items-center gap-2 pt-0.5">
+          <Check className="h-3.5 w-3.5" style={{ color: accentColor }} />
+          <span className="font-mono text-sm tabular-nums text-[var(--ink)]">
+            Saved •••• {saved}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-stretch gap-2 pt-0.5">
+          <input
+            type="password"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder={meta.keyPrefix ? `${meta.keyPrefix}…` : "Paste your API key"}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
+            className="flex-1 h-10 px-3 rounded-xl bg-transparent font-mono text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            style={{
+              background: "color-mix(in oklch, var(--surface) 80%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={pending}
+            className="inline-flex items-center justify-center gap-1.5 px-4 rounded-xl font-serif text-sm font-medium transition-all disabled:opacity-40"
+            style={{
+              background: `color-mix(in oklch, ${accentColor} 14%, transparent)`,
+              border: `1px solid color-mix(in oklch, ${accentColor} 28%, transparent)`,
+              color: accentColor,
+            }}
+          >
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+          </button>
+        </div>
+      )}
+
+      {error ? (
+        <p className="font-serif text-xs text-[var(--ink-coral)]">{error}</p>
+      ) : null}
     </div>
   );
 }

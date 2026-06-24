@@ -18,6 +18,8 @@ import { TimezoneOverrideRow } from "@/components/settings/TimezoneOverrideRow";
 import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsSection";
 import { DistanceUnitToggle } from "@/components/training/settings/DistanceUnitToggle";
 import { SettingsSectionNav } from "@/components/settings/SettingsSectionNav";
+import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
+import { listUserKeyStatus } from "@/lib/byok/keys";
 import {
   getValidGcalToken,
   GcalNotConnectedError,
@@ -29,15 +31,17 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const [gcalStatus, oauthAvatar, distanceUnitRow] = await Promise.all([
-    getGcalConnectionStatus(user.id),
-    getAuthAvatar(),
-    db
-      .select({ unit: users.distanceUnit })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1),
-  ]);
+  const [gcalStatus, oauthAvatar, distanceUnitRow, apiKeyStatus] =
+    await Promise.all([
+      getGcalConnectionStatus(user.id),
+      getAuthAvatar(),
+      db
+        .select({ unit: users.distanceUnit })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1),
+      listUserKeyStatus(user.id),
+    ]);
   const currentDistanceUnit: "km" | "mi" =
     distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
 
@@ -174,6 +178,27 @@ export default async function SettingsPage() {
                   <TimezoneOverrideRow currentTimezone={currentTimezone} />
                 </>
               )}
+            </Card>
+          </section>
+
+          {/* API KEYS (BYOK) */}
+          <section id="api-keys" className="space-y-4 scroll-mt-24">
+            <h2 className={sectionHeader}>API keys</h2>
+
+            <Card className={tile}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
+                  <KeyRound className="h-4 w-4" />
+                </span>
+                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+                  Provider keys
+                </h3>
+              </div>
+              <p className="font-serif text-base text-[var(--ink-muted)]">
+                JARVIS and the voice features run on your own paid API keys. They
+                are encrypted at rest and used only for your requests.
+              </p>
+              <ApiKeysSection status={apiKeyStatus} />
             </Card>
           </section>
 

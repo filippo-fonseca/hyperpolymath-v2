@@ -33,7 +33,11 @@ async function pingSupabase(): Promise<"ok" | "down"> {
 
 async function pingAnthropic(): Promise<"ok" | "down"> {
   try {
-    const client = new Anthropic();
+    // Owner-system path (public health probe): uses the owner's
+    // ANTHROPIC_API_KEY explicitly. No BYOK (there is no end-user here).
+    const ownerKey = process.env.ANTHROPIC_API_KEY;
+    if (!ownerKey) return "down";
+    const client = new Anthropic({ apiKey: ownerKey });
     // models.list does NOT consume tokens — cheapest possible reachability check.
     await client.models.list();
     return "ok";

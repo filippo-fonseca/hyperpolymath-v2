@@ -40,6 +40,22 @@ const {
   executorCreateEventMock: vi.fn(),
 }));
 
+// --- BYOK key resolver mock ------------------------------------------------
+// Routes resolve the caller's own API key before doing work; without this mock
+// getUserKey hits the (mocked) db, finds no row, and 402s before any output.
+vi.mock("@/lib/byok/keys", () => ({
+  getUserKey: vi.fn(async () => "sk-ant-test"),
+  getUserKeyOrNull: vi.fn(async () => "sk-ant-test"),
+  MissingKeyError: class MissingKeyError extends Error {
+    provider: string;
+    constructor(provider: string) {
+      super(`Missing ${provider} API key for user`);
+      this.name = "MissingKeyError";
+      this.provider = provider;
+    }
+  },
+}));
+
 // --- Supabase server mock --------------------------------------------------
 
 vi.mock("@/lib/supabase/server", () => ({

@@ -146,7 +146,11 @@ async function judgeResolved(
 ): Promise<z.infer<typeof decisionSchema>> {
   const safe = { resolved: [] };
   try {
-    const client = getAnthropicClient();
+    // Owner-system path (daily cron): owner's own infra, no end-user, so it
+    // uses the owner's ANTHROPIC_API_KEY explicitly. No BYOK.
+    const ownerKey = process.env.ANTHROPIC_API_KEY;
+    if (!ownerKey) throw new Error("ANTHROPIC_API_KEY required for issue-reconciler");
+    const client = getAnthropicClient(ownerKey);
     const user = [
       "OPEN ISSUES:",
       ...issues.map((i) => `#${i.number} ${i.title}\n${i.body}`),

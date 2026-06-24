@@ -98,7 +98,11 @@ const SYSTEM_PROMPT = [
  */
 export async function specCaptureAsIssue(captureContent: string): Promise<IssueDecision> {
   try {
-    const client = getAnthropicClient();
+    // Owner-system path (daily cron): runs as the owner's own infra with no
+    // end-user, so it uses the owner's ANTHROPIC_API_KEY explicitly. No BYOK.
+    const ownerKey = process.env.ANTHROPIC_API_KEY;
+    if (!ownerKey) throw new Error("ANTHROPIC_API_KEY required for issue-specer");
+    const client = getAnthropicClient(ownerKey);
     const response = await client.messages.create({
       model: JARVIS_MODEL,
       max_tokens: 1024,

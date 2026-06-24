@@ -15,6 +15,27 @@
  */
 
 import type { ParsedDate, Priority } from "@hyperpolymath/jarvis-core";
+import {
+  BYOK_PROVIDERS,
+  isByokProvider,
+} from "@/lib/byok/providers";
+
+/**
+ * Build an actionable message from a 402 `{ error: "key_missing", provider }`
+ * body. Falls back to a generic prompt when the body can't be read.
+ */
+export async function missingKeyMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { provider?: string };
+    if (body.provider && isByokProvider(body.provider)) {
+      const label = BYOK_PROVIDERS[body.provider].label;
+      return `Add your ${label} API key in Settings → API keys to use this feature.`;
+    }
+  } catch {
+    // Non-JSON body; fall through to the generic message.
+  }
+  return "An API key is required. Add it in Settings → API keys.";
+}
 
 export interface JarvisRequest {
   input: string;
@@ -171,6 +192,13 @@ export async function streamJarvis(
 
   if (!response.ok || !response.body) {
     cleanup();
+    // BYOK: a 402 means the caller hasn't configured their own paid API key for
+    // this feature. Surface an actionable message pointing at Settings rather
+    // than a bare "HTTP 402" so a user who skipped onboarding knows the fix.
+    if (response.status === 402) {
+      callbacks.onError(await missingKeyMessage(response));
+      return;
+    }
     callbacks.onError(`HTTP ${response.status}`);
     return;
   }

@@ -29,6 +29,7 @@ import {
   JARVIS_MODEL,
 } from "@/lib/jarvis/anthropic-client";
 import { createClient } from "@/lib/supabase/server";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import {
   buildSystemPrompt,
   buildToolDefinitions,
@@ -64,6 +65,14 @@ export async function POST(_req: NextRequest) {
   const now = Date.now();
   if (lastWarmAt !== null && now - lastWarmAt < AGE_GATE_MS) {
     return new Response(null, { status: 204 });
+  }
+
+  // 2b. BYOK — warming is best-effort. If the user has no Anthropic key there
+  //     is nothing to warm; return a harmless 200 rather than a 402 (this
+  //     endpoint is a background optimization, not a user-facing action).
+  const anthropicKey = await getUserKeyOrNull(userId, "anthropic");
+  if (!anthropicKey) {
+    return Response.json({ warmed: false, reason: "no_anthropic_key" });
   }
 
   // 3. Build tools + system identical to /api/jarvis. NO snapshot block
@@ -104,7 +113,7 @@ export async function POST(_req: NextRequest) {
   //    doesn't try to emit a tool_use block (which would cost output
   //    tokens beyond max_tokens=1 and could fail the call).
   try {
-    const anth = getAnthropicClient();
+    const anth = getAnthropicClient(anthropicKey);
     const result = await anth.messages.create({
       model: JARVIS_MODEL,
       max_tokens: 1,

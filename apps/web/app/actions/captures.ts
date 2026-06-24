@@ -334,6 +334,7 @@ export async function suggestTagsForCapture(input: unknown): Promise<ActionResul
     .where(eq(hashtags.userId, userId));
 
   const suggestions = await suggestCaptureTags(
+    userId,
     parsed.data.content,
     vocab.map((h) => h.displayName)
   );
