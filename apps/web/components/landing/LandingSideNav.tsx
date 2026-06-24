@@ -107,16 +107,15 @@ export function LandingSideNav() {
       <motion.div
         aria-hidden="true"
         className="absolute -inset-y-3 -left-3 rounded-2xl pointer-events-none -z-10"
+        style={{
+          backgroundColor: "var(--glass-bg)",
+          boxShadow:
+            "var(--glass-raise), var(--glass-drop), inset 0 0 0 1px var(--glass-hi)",
+        }}
         initial={false}
         animate={{
           width: hovered ? 215 : 38,
           opacity: hovered ? 1 : 0.78,
-          backgroundColor: hovered
-            ? "oklch(96% 0.006 75)"
-            : "oklch(94% 0.008 75)",
-          boxShadow: hovered
-            ? "8px 8px 20px oklch(82% 0.012 75 / 0.55), -6px -6px 16px oklch(100% 0 0 / 0.85), inset 0 0 0 1px oklch(100% 0 0 / 0.4)"
-            : "4px 4px 12px oklch(82% 0.012 75 / 0.35), -3px -3px 10px oklch(100% 0 0 / 0.6), inset 0 0 0 1px oklch(100% 0 0 / 0.25)",
         }}
         transition={{
           duration: reducedMotion ? 0 : 0.42,
