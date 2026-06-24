@@ -26,6 +26,7 @@
 
 import { NextResponse } from "next/server";
 import { zipSync } from "fflate";
+import { constantTimeEqual } from "@/lib/auth/constant-time";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { getPagesForUser } from "@/lib/db/queries/pages";
@@ -69,8 +70,8 @@ export async function GET(req: Request) {
       { status: 500 },
     );
   }
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!constantTimeEqual(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

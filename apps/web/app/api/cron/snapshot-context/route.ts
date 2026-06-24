@@ -24,6 +24,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { buildSnapshot } from "@/lib/context/build-snapshot";
 import { persistSnapshot } from "@/lib/context/persist";
+import { constantTimeEqual } from "@/lib/auth/constant-time";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -42,8 +43,8 @@ export async function GET(req: Request) {
       { status: 500 },
     );
   }
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!constantTimeEqual(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
