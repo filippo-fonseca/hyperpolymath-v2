@@ -7,6 +7,9 @@
 > *"You don't have to choose between being a runner or a musician,*
 > *a creator or a scholar. The Renaissance had it right."*
 
+
+## If Notion and JARVIS had a baby, this would be it. Stay hybrid.
+
 <br/>
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square&labelColor=f5f1e8)](./LICENSE)
@@ -26,7 +29,7 @@
 
 ## Abstract
 
-**Hyperpolymath** is a personal life-OS for people who refuse to specialize. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
+**Hyperpolymath** is a personal life-OS for people who refuse to specialize. In other words, it is the ultimate Jarvis & Notion hybrid. Areas, projects, classes, tasks, habits, captures, training, and Google Calendar, all unified under a single natural-language agent called **JARVIS**, built on Claude Sonnet 4.6. The whole thing is tied together by a **LifeOS** homepage organized around the areas tree.
 
 It runs on three surfaces: the **web app**, a **desktop app** (Tauri-based, keyboard-shortcut driven, mic-gated so it never listens by accident), and an optional **physical extender** (a small macropad with an onboard wake-word module that flips JARVIS into voice mode only when the device is awake).
 
