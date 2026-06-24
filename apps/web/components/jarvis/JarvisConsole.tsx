@@ -31,7 +31,9 @@ import { splitDeltas } from "@/lib/voice/sentence-splitter";
 import {
   saveJarvisTurn,
   loadJarvisHistoryPage,
+  loadJarvisHistorySince,
 } from "@/app/actions/jarvis-turns";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 // Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
 // turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
@@ -211,6 +213,12 @@ export function JarvisConsole({
   // action + undo so created/updated/deleted entities show immediately.
   const queryClient = useQueryClient();
 
+  // Deep-link target (e.g. /today?messageId=<turnId> from a wiki page's
+  // processing-run history). When set, we ensure the turn is loaded and scroll
+  // it into view via JarvisScrollback.
+  const searchParams = useSearchParams();
+  const messageId = searchParams.get("messageId");
+
   // Always points at the latest turns state. The previous snapshot-via-
   // updater-callback pattern leaked an empty array on the first follow-up
   // turn because React 18+ doesn't guarantee the functional updater fires
@@ -297,6 +305,27 @@ export function JarvisConsole({
       void supabase.removeChannel(channel);
     };
   }, [userId]);
+
+  // Deep-link hydration. If the requested turn isn't already in the SSR-loaded
+  // page, fetch it plus everything after it and replace the visible scrollback
+  // so JarvisScrollback can scroll to it. If it's already present, the
+  // scroll-to-target effect in JarvisScrollback handles it with no fetch.
+  useEffect(() => {
+    if (!messageId) return;
+    if (turnsRef.current.some((t) => t.id === messageId)) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await loadJarvisHistorySince({ turnId: messageId });
+      if (cancelled || !res.success) return;
+      const mapped = res.data.turns.map(mapTurnRow);
+      setTurns(mapped);
+      setHasMore(res.data.hasMore);
+      setOldestAt(res.data.oldestAt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messageId]);
 
   // Session memory (D-06) — derive from visible scrollback at submit time.
   //
@@ -1116,6 +1145,7 @@ export function JarvisConsole({
           turns={turns}
           onUndoAction={handleUndoAction}
           onClarificationReply={handleClarificationReply}
+          scrollToTurnId={messageId}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
           onLoadOlder={async () => {

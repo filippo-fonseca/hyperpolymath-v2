@@ -7,7 +7,8 @@ import {
 } from "@/app/actions/page-processing";
 import { formatReceiptSummary, type ReceiptAction } from "@/lib/jarvis/receipt-summary";
 import { formatDistanceToNow } from "date-fns";
-import { History, Loader2 } from "lucide-react";
+import { ArrowUpRight, History, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
@@ -90,6 +91,7 @@ export function PageProcessingRunsMenu({
 }
 
 function RunRow({ run }: { run: ProcessingRun }) {
+  const router = useRouter();
   const when = formatDistanceToNow(new Date(run.createdAt), { addSuffix: true });
   const summary =
     run.status === "skipped"
@@ -98,15 +100,45 @@ function RunRow({ run }: { run: ProcessingRun }) {
         ? formatReceiptSummary(run.actions as ReceiptAction[])
         : run.responseText?.trim() || "Nothing to add";
 
-  return (
-    <li className="px-3 py-2 flex flex-col gap-0.5">
+  // Runs that landed an assistant turn deep-link to that turn in the JARVIS
+  // conversation, where the receipts live. Skipped runs have no turn.
+  const linkable = Boolean(run.turnId);
+
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[12px] font-serif text-[var(--ink)] truncate">
           {summary}
         </span>
         <StatusBadge status={run.status} />
       </div>
-      <span className="text-[11px] font-mono text-[var(--ink-muted)]">{when}</span>
+      <span className="text-[11px] font-mono text-[var(--ink-muted)] flex items-center gap-1">
+        {when}
+        {linkable ? (
+          <ArrowUpRight
+            size={11}
+            strokeWidth={1.75}
+            className="opacity-0 group-hover/run:opacity-70 transition-opacity"
+          />
+        ) : null}
+      </span>
+    </>
+  );
+
+  if (!linkable) {
+    return <li className="px-3 py-2 flex flex-col gap-0.5">{body}</li>;
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => router.push(`/today?messageId=${run.turnId}`)}
+        title="View this run in the JARVIS conversation"
+        className="group/run w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--hud-cyan)]/5 transition-colors cursor-pointer"
+      >
+        {body}
+      </button>
     </li>
   );
 }
