@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { PersonAvatar } from "./PersonAvatar";
@@ -142,19 +143,46 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
                   Linked
                 </span>
                 <ul className="space-y-1">
-                  {breakdown.items.map((item) => (
-                    <li
-                      key={`${item.fromType}:${item.fromId}`}
-                      className="flex items-baseline gap-2 rounded-md px-2 py-1.5 border border-[var(--edge)]"
-                    >
-                      <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)] shrink-0">
-                        {item.fromType}
-                      </span>
-                      <span className="font-serif text-sm text-[var(--ink)] truncate">
-                        {item.label}
-                      </span>
-                    </li>
-                  ))}
+                  {breakdown.items.map((item) => {
+                    const href = referenceHref(item.fromType, item.fromId);
+                    const inner = (
+                      <>
+                        <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)] shrink-0 mt-0.5">
+                          {item.fromType}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-serif text-sm text-[var(--ink)] truncate">
+                            {item.label}
+                          </span>
+                          {item.fromType === "task" && (item.status || item.due) ? (
+                            <span className="font-mono text-[10px] text-[var(--ink-muted)]">
+                              {item.status ?? ""}
+                              {item.due
+                                ? `${item.status ? " · " : ""}due ${new Date(item.due).toLocaleDateString()}`
+                                : ""}
+                            </span>
+                          ) : null}
+                        </span>
+                      </>
+                    );
+                    const baseCls =
+                      "flex items-start gap-2 rounded-md px-2 py-1.5 border border-[var(--edge)]";
+                    return (
+                      <li key={`${item.fromType}:${item.fromId}`}>
+                        {href ? (
+                          <Link
+                            href={href}
+                            onClick={onClose}
+                            className={`${baseCls} transition-colors hover:border-[var(--hud-cyan)] cursor-pointer`}
+                          >
+                            {inner}
+                          </Link>
+                        ) : (
+                          <div className={baseCls}>{inner}</div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : refsQuery.isLoading ? (
@@ -171,6 +199,24 @@ export function PersonDetailPanel({ person, open, onClose, onEdit, onDeleted }: 
       </SheetContent>
     </Sheet>
   );
+}
+
+/**
+ * Deep-link a referenced entity back to where it lives. Wiki pages have a real
+ * detail route; tasks and captures open their detail panel via a URL param
+ * (?task / ?capture). jarvis_fact and event have no navigable surface yet.
+ */
+function referenceHref(fromType: string, fromId: string): string | null {
+  switch (fromType) {
+    case "page":
+      return `/wiki/${fromId}`;
+    case "task":
+      return `/tasks?task=${fromId}`;
+    case "capture":
+      return `/captures?capture=${fromId}`;
+    default:
+      return null;
+  }
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {

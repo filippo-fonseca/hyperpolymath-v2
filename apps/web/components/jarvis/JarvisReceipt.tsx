@@ -14,6 +14,8 @@ import {
   Search,
   Sparkles,
   Trash2,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
@@ -146,6 +148,24 @@ const INTENT_META = {
     label: "FIND EVENTS",
     icon: Search,
     intentDot: "var(--ink-muted)",
+  },
+  find_people: {
+    label: "FIND PEOPLE",
+    icon: Search,
+    intentDot: "var(--ink-muted)",
+  },
+  // Issue #104: people get deterministic receipts too. create_person logs a new
+  // roster entry (sage = preservation, like captures); link_people records a
+  // person<->entity reference (agent-side cyan, like remember_fact).
+  create_person: {
+    label: "PERSON",
+    icon: UserPlus,
+    intentDot: "var(--ink-sage)",
+  },
+  link_people: {
+    label: "LINKED",
+    icon: Users,
+    intentDot: "var(--hud-cyan-light)",
   },
 } as const;
 
@@ -523,13 +543,44 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               </div>
             </>
           ) : null}
+          {/* Issue #104: create_person — new roster entry. */}
+          {action.name === "create_person" ? (
+            <>
+              <div className={titleCls}>{String(receipt.name ?? "")}</div>
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
+                added to People
+                {Array.isArray(receipt.tags) && receipt.tags.length
+                  ? ` · ${(receipt.tags as string[]).join(", ")}`
+                  : ""}
+              </div>
+            </>
+          ) : null}
+          {/* Issue #104: link_people — person<->entity reference receipt. */}
+          {action.name === "link_people" ? (
+            <>
+              <div className={titleCls}>
+                {((receipt.linked ?? []) as Array<Record<string, unknown>>)
+                  .map((p) => String(p.name ?? ""))
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </div>
+              <div className="font-mono text-xs text-[var(--ink-muted)]">
+                linked to {String(receipt.from_type ?? "entity")}
+                {((receipt.linked ?? []) as Array<Record<string, unknown>>).some(
+                  (p) => p.created,
+                )
+                  ? " · new contact added"
+                  : ""}
+              </div>
+            </>
+          ) : null}
           {/* Phase 16: Find variant — compact list of matched entities */}
           {action.name.startsWith("find_") ? (
             <div className="text-sm space-y-0.5">
               {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => (
                 <div key={String(m.id ?? idx)} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
                   <code className="text-xs opacity-60">{String(m.id ?? "").slice(0, 8)}</code>
-                  <span>{String(m.title ?? m.preview ?? m.summary ?? "—")}</span>
+                  <span>{String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—")}</span>
                 </div>
               ))}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (

@@ -58,6 +58,15 @@ export interface InvokeInDocumentArgs {
    * scope is inferred from cursorBlockId + prompt as before.
    */
   scopeOverride?: ScopeKind;
+  /**
+   * Restrict the extraction target to a specific set of top-level block ids
+   * (issue #92 part 5). Used by Daily Page RE-processing: only the blocks that
+   * changed since the last processing run are sent as the target, so re-running
+   * Process never re-creates tasks/events from untouched blocks. The whole page
+   * is still serialized as context. When set + non-empty this wins over
+   * scopeOverride; when empty/omitted, behaviour is unchanged.
+   */
+  targetBlockIds?: string[];
   /** Override the fetch endpoint (testing). */
   endpoint?: string;
   /** AbortSignal to cancel the in-flight request. */
@@ -109,9 +118,12 @@ function parseSseRecord(record: string): { event: string; data: unknown } | null
 export async function invokeInDocumentJarvis(
   args: InvokeInDocumentArgs,
 ): Promise<InDocumentResult> {
-  const scope = args.scopeOverride
-    ? buildOverrideTarget(args.editor.document, args.cursorBlockId, args.scopeOverride)
-    : resolveScope(args.editor.document, args.cursorBlockId, args.prompt);
+  const scope: ScopeTarget =
+    args.targetBlockIds && args.targetBlockIds.length > 0
+      ? { kind: "section", blockIds: args.targetBlockIds }
+      : args.scopeOverride
+        ? buildOverrideTarget(args.editor.document, args.cursorBlockId, args.scopeOverride)
+        : resolveScope(args.editor.document, args.cursorBlockId, args.prompt);
   const { targetMarkdown, pageMarkdown } = await serializePageContext(
     args.editor,
     scope,

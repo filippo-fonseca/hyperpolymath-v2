@@ -80,5 +80,18 @@ export function invalidateAfterJarvisAction(
     return;
   }
 
+  // Issue #104: create_person adds a roster entry; link_people adds person
+  // references (which bump per-person reference counts). Both refresh the
+  // People roster; link_people also touches the references join.
+  if (toolName === "create_person") {
+    invalidateTable(qc, "people", userId);
+    return;
+  }
+  if (toolName === "link_people") {
+    invalidateTable(qc, "people", userId);
+    invalidateTable(qc, "people_references", userId);
+    return;
+  }
+
   // find_*, ask_clarification, unknown — nothing to invalidate.
 }
