@@ -92,6 +92,24 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+// --- BYOK key resolver mock ------------------------------------------------
+// The route resolves the caller's own Anthropic key before streaming; without
+// this mock getUserKey hits the (mocked) db, finds no row, and 402s before any
+// SSE is produced.
+
+vi.mock("@/lib/byok/keys", () => ({
+  getUserKey: vi.fn(async () => "sk-ant-test"),
+  getUserKeyOrNull: vi.fn(async () => "sk-ant-test"),
+  MissingKeyError: class MissingKeyError extends Error {
+    provider: string;
+    constructor(provider: string) {
+      super(`Missing ${provider} API key for user`);
+      this.name = "MissingKeyError";
+      this.provider = provider;
+    }
+  },
+}));
+
 // --- Telemetry mock --------------------------------------------------------
 
 vi.mock("@/lib/jarvis/log-event", () => ({
