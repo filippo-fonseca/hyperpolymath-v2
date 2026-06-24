@@ -261,6 +261,8 @@ export async function POST(req: Request) {
   // upsert is wrapped and counts default to 0.
   let sessionUpserted = 0;
   let weeksUpserted = 0;
+  let sessionError: string | null = null;
+  let weeksError: string | null = null;
 
   const subSet = {
     costUsd: sql`excluded.cost_usd_micros`,
@@ -318,8 +320,12 @@ export async function POST(req: Request) {
         });
       sessionUpserted = 1;
     }
-  } catch {
-    // best-effort — never fail the daily path on a malformed session.
+  } catch (e) {
+    // Best-effort — never fail the daily path on a session upsert. But surface
+    // the cause (server log + response) so a missing table / constraint in the
+    // subscription path can't fail silently the way it did before.
+    sessionError = e instanceof Error ? e.message : String(e);
+    console.error("[claude-code/sync] session upsert failed:", sessionError);
   }
 
   try {
@@ -371,13 +377,18 @@ export async function POST(req: Request) {
         weeksUpserted = weekRows.length;
       }
     }
-  } catch {
-    // best-effort — never fail the daily path on malformed weeks.
+  } catch (e) {
+    // Best-effort — never fail the daily path on a weeks upsert. Surface the
+    // cause so a missing table / constraint can't fail silently.
+    weeksError = e instanceof Error ? e.message : String(e);
+    console.error("[claude-code/sync] weeks upsert failed:", weeksError);
   }
 
   return NextResponse.json({
     upserted: rows.length,
     sessionUpserted,
     weeksUpserted,
+    sessionError,
+    weeksError,
   });
 }

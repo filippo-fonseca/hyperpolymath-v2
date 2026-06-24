@@ -383,6 +383,12 @@ async function main() {
     `[claude-code-sync] ok — upserted ${json.upserted ?? '?'} day rows, ` +
       `${json.sessionUpserted ?? 0} session, ${json.weeksUpserted ?? 0} week rows`,
   );
+  if (json.sessionError) {
+    console.error(`[claude-code-sync] session upsert error: ${json.sessionError}`);
+  }
+  if (json.weeksError) {
+    console.error(`[claude-code-sync] weeks upsert error: ${json.weeksError}`);
+  }
 }
 
 main().catch((e) => {
