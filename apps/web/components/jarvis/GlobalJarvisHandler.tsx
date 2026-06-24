@@ -392,6 +392,10 @@ function prettyToolName(name: string): string {
       return "Fact";
     case "ask_clarification":
       return "Clarification";
+    case "create_person":
+      return "Person";
+    case "link_people":
+      return "People linked";
     default:
       return name;
   }
