@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
+  ArrowUpRight,
   Brain,
   CalendarDays,
   CheckCircle2,
@@ -20,6 +22,7 @@ import {
 import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
 import { cn } from "@/lib/utils";
+import { entityHref, findResultRef, receiptEntityRef } from "@/lib/entity-href";
 import { forgetFactAction } from "@/app/actions/jarvis-facts";
 import { Button } from "@/components/ui/button";
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
@@ -190,6 +193,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   // holographic fade-in. Hooks must be called unconditionally before any
   // early returns, so this lives at the very top of the component.
   const shouldReduce = useReducedMotion();
+  const router = useRouter();
   // Phase 16: INTENT_META now covers all 14 tools. Unknown names still return
   // undefined → early null return as a safety net.
   const meta = (INTENT_META as Record<string, (typeof INTENT_META)[keyof typeof INTENT_META] | undefined>)[action.name];
@@ -300,6 +304,14 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     ? (action.result as { error: string }).error
     : null;
 
+  // Click-through target: open the entity this receipt created/affected. Null
+  // for deletes (entity is gone), undone actions, find_* (per-row links render
+  // instead), and non-entity tools (memory, clarification, link_people).
+  const entityId = ok ? (action.result as { id?: string }).id : undefined;
+  const navRef =
+    ok && !undone && entityId ? receiptEntityRef(action.name, entityId) : null;
+  const navHref = navRef ? entityHref(navRef) : null;
+
   /**
    * Format a date for receipt display (B6 fix — Plan 05-03 hotfix).
    *
@@ -384,6 +396,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     variant === "compact" ? "px-2 py-1 opacity-95" : "px-4 py-2",
     isError && !shouldReduce && "hud-error-glitch",
     undone && "opacity-50 grayscale",
+    navHref && "cursor-pointer",
   );
 
   // Phase 6.1 polish — glassy pill recipe (mirrors /settings profile pill).
@@ -440,6 +453,20 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
       data-undone={undone ? "true" : undefined}
       className={containerCls}
       style={containerStyle}
+      {...(navHref
+        ? {
+            role: "link",
+            tabIndex: 0,
+            "aria-label": "Open this item",
+            onClick: () => router.push(navHref),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push(navHref);
+              }
+            },
+          }
+        : {})}
     >
       {/* Phase 6.1 Plan 02 (UI-SPEC §6c landing): corner crops on the receipt
           card (10px legs, static — not viewport-level breathing) frame the
@@ -483,6 +510,13 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               style={{ color: "var(--ink-coral)" }}
             />
           )}
+          {navHref ? (
+            <ArrowUpRight
+              className="h-3.5 w-3.5 opacity-0 transition-opacity duration-150 group-hover/receipt:opacity-100"
+              style={{ color: "var(--hud-cyan-light)" }}
+              aria-hidden="true"
+            />
+          ) : null}
         </span>
         {undone ? (
           <span className="text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
@@ -577,12 +611,36 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {/* Phase 16: Find variant — compact list of matched entities */}
           {action.name.startsWith("find_") ? (
             <div className="text-sm space-y-0.5">
-              {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => (
-                <div key={String(m.id ?? idx)} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
-                  <code className="text-xs opacity-60">{String(m.id ?? "").slice(0, 8)}</code>
-                  <span>{String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—")}</span>
-                </div>
-              ))}
+              {((receipt.matches ?? []) as Array<Record<string, unknown>>).slice(0, 5).map((m, idx) => {
+                const rowId = String(m.id ?? "");
+                const rowRef = rowId ? findResultRef(action.name, rowId) : null;
+                const rowHref = rowRef ? entityHref(rowRef) : null;
+                const label = String(m.title ?? m.name ?? m.preview ?? m.summary ?? "—");
+                const inner = (
+                  <>
+                    <code className="text-xs opacity-60">{rowId.slice(0, 8)}</code>
+                    <span>{label}</span>
+                  </>
+                );
+                return rowHref ? (
+                  <button
+                    type="button"
+                    key={rowId || idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(rowHref);
+                    }}
+                    className="flex w-full gap-2 text-left hover:underline"
+                    style={{ color: "var(--ink-muted)" }}
+                  >
+                    {inner}
+                  </button>
+                ) : (
+                  <div key={rowId || idx} className="flex gap-2" style={{ color: "var(--ink-muted)" }}>
+                    {inner}
+                  </div>
+                );
+              })}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (
                 <em className="text-xs" style={{ color: "var(--ink-muted)" }}>no matches</em>
               )}
@@ -658,7 +716,8 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
   return (
     <button
       type="button"
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
         cancel();
         setClicked(true);
         onUndo();
