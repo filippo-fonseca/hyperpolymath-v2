@@ -88,23 +88,29 @@ export async function completeOnboarding(formData: FormData): Promise<void> {
   const { data: claimsData, error } = await supabase.auth.getClaims();
   if (error || !claimsData?.claims) redirect("/sign-in");
   const userId = claimsData.claims.sub;
+  const claimEmail = (claimsData.claims as { email?: unknown }).email;
+  const email = typeof claimEmail === "string" ? claimEmail : "";
 
   const gradYearStr = parsed.data.graduationYear;
   const gradYear =
     gradYearStr && gradYearStr.length === 4 ? parseInt(gradYearStr, 10) : null;
 
-  // BOTH the profile fields AND onboarded_at are set in the same UPDATE so the
-  // first-run gate (decideLandingRoute checks onboarded_at) flips atomically.
+  const profile = {
+    displayName: parsed.data.displayName,
+    timezone: parsed.data.timezone,
+    graduationYear: gradYear,
+    githubUsername,
+    onboardedAt: sql`now()`,
+  };
+
+  // Upsert so onboarding can't silently no-op against a missing row (e.g. the
+  // provisioning trigger never fired). BOTH the profile fields AND onboarded_at
+  // land together so the first-run gate (decideLandingRoute checks onboarded_at)
+  // flips atomically.
   await db
-    .update(users)
-    .set({
-      displayName: parsed.data.displayName,
-      timezone: parsed.data.timezone,
-      graduationYear: gradYear,
-      githubUsername,
-      onboardedAt: sql`now()`,
-    })
-    .where(eq(users.id, userId));
+    .insert(users)
+    .values({ id: userId, email, ...profile })
+    .onConflictDoUpdate({ target: users.id, set: profile });
 
   // Seed default areas — but only if the user doesn't already have any. This
   // makes the action idempotent if the form is somehow submitted twice (e.g.
