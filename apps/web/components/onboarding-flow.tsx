@@ -26,7 +26,7 @@ const STEP_INDEX: Record<Step, number> = { welcome: 0, you: 1, glimpse: 2 };
 
 const STEP_META: Record<
   Step,
-  { icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>; label: string }
+  { icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; style?: React.CSSProperties }>; label: string }
 > = {
   welcome: { icon: Sparkles, label: "Welcome" },
   you: { icon: User, label: "About you" },
