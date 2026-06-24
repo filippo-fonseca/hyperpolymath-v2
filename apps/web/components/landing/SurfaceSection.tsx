@@ -109,7 +109,7 @@ export function SurfaceSection() {
               className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
               style={{ color: "var(--hud-cyan-light)" }}
             >
-              MACROPAD + PHYSICAL VOICE DETECTOR HARDWARE
+              MACROPAD + VOICE DETECTOR HARDWARE
             </p>
           </div>
 
