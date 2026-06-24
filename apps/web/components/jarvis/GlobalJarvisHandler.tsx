@@ -26,6 +26,7 @@ import {
   collectStage,
   setActiveTurnId,
 } from "@/lib/voice/voice-stage-collector";
+import { isJarvisConsoleMounted } from "@/lib/jarvis/focus";
 
 /**
  * GlobalJarvisHandler — voice transcript pipeline for pages WITHOUT the
@@ -108,6 +109,11 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
       // could double-fire. Receipts for these turns surface via the
       // jarvis-tool-call listener below instead.
       if (detail.source === "desktop") return;
+      // When JarvisConsole is mounted (e.g. split-screen side panel on a
+      // non-/today route), it owns the pipeline for this transcript and will
+      // call handleSubmit directly. Yielding here prevents a double-execution
+      // where both GlobalJarvisHandler AND JarvisConsole submit the same turn.
+      if (isJarvisConsoleMounted()) return;
       const sttDoneAt = detail.sttDoneAt ?? null;
       const vadEndAt = detail.vadEndAt;
 

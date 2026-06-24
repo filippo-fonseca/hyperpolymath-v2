@@ -43,6 +43,7 @@ import {
   setActiveTurnId,
 } from "@/lib/voice/voice-stage-collector";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
+import { registerJarvisConsoleMounted } from "@/lib/jarvis/focus";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -206,6 +207,16 @@ export function JarvisConsole({
   // status to render the "Voice via desktop" indicator pill so the user
   // knows the browser mic is intentionally disabled, not broken.
   const { desktopClaimed } = useVoiceSourceStatus();
+
+  // Register this console as mounted so GlobalJarvisHandler knows to yield
+  // when a JarvisConsole is active (e.g. split-screen side panel). Without
+  // this, both GlobalJarvisHandler AND JarvisConsole would submit the same
+  // jarvis-voice-transcript event — double-executing the turn and racing on
+  // DB persistence.
+  useEffect(() => {
+    registerJarvisConsoleMounted(true);
+    return () => registerJarvisConsoleMounted(false);
+  }, []);
 
   // Issue #17: JARVIS mutations refreshed the underlying lists only via the
   // flaky Supabase Realtime echo (and never at all for gcal events). We now
@@ -761,16 +772,20 @@ export function JarvisConsole({
     [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId],
   );
 
-  // Voice surface migration (Phase 14 follow-up): voice never originates
-  // from the browser anymore. The desktop app captures audio, the server
-  // transcribes + runs the JARVIS turn, and the response is streamed back
-  // through jarvis-response-* SSE events (handled by the next effect).
+  // jarvis-voice-transcript handler — two distinct sources use this event:
   //
-  // We still surface the transcript text as a synthetic user turn so the
-  // browser shows what JARVIS heard. The transcript arrives via the same
-  // jarvis-voice-transcript window event the use-physical-extension hook
-  // dispatches off the `transcript` SSE event — we just stop calling
-  // handleSubmit on it.
+  // 1. Desktop voice (source: "desktop"): the desktop app already ran the
+  //    JARVIS turn server-side. We only show a synthetic user bubble here;
+  //    the assistant response arrives via jarvis-response-* SSE events
+  //    (handled by the next effect). DO NOT call handleSubmit.
+  //
+  // 2. GlobalJarvisDialog text submission (no source / source !== "desktop"):
+  //    the Cmd+K dialog on a non-/today route fires this event with the
+  //    typed text. When JarvisConsole is mounted (split-screen side panel),
+  //    GlobalJarvisHandler yields (checks isJarvisConsoleMounted()) so WE
+  //    must run the full pipeline here via handleSubmit. This is what makes
+  //    the thinking indicator and streaming show immediately in the panel
+  //    instead of waiting for a page reload.
   useEffect(() => {
     function handleVoiceTranscript(e: Event) {
       const detail = (
@@ -779,24 +794,37 @@ export function JarvisConsole({
           sttDoneAt?: number | null;
           vadEndAt?: number;
           turnId?: string;
+          source?: string;
         }>
       ).detail;
       if (!detail?.transcript?.trim()) return;
 
-      const userTurn: ScrollbackTurn = {
-        kind: "user",
-        id: crypto.randomUUID(),
-        text: detail.transcript,
-        createdAt: new Date(),
-      };
-      // 2026-06 fix: previously `setTurns([userTurn])` wiped the entire
-      // scrollback on every voice transcript so the conversation history
-      // vanished the moment the desktop spoke. Append instead so the
-      // browser shows a real running conversation.
-      setTurns((prev) => {
-        const next = [...prev, userTurn];
-        turnsRef.current = next;
-        return next;
+      // Desktop-originated transcripts: the server already executed the turn.
+      // Just show the user bubble; jarvis-response-* events stream the reply.
+      if (detail.source === "desktop") {
+        const userTurn: ScrollbackTurn = {
+          kind: "user",
+          id: crypto.randomUUID(),
+          text: detail.transcript,
+          createdAt: new Date(),
+        };
+        setTurns((prev) => {
+          const next = [...prev, userTurn];
+          turnsRef.current = next;
+          return next;
+        });
+        return;
+      }
+
+      // Dialog / non-desktop transcript: run the full JARVIS pipeline so the
+      // thinking indicator and receipt cards appear immediately.
+      void handleSubmit({
+        input: detail.transcript,
+        parsedDates: [],
+        parsedPriority: null,
+        slashCommand: null,
+        projectIds: [],
+        hashtags: [],
       });
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
@@ -806,7 +834,7 @@ export function JarvisConsole({
         handleVoiceTranscript,
       );
     };
-  }, []);
+  }, [handleSubmit]);
 
   // Phase 14-04: when desktopClaimed === true, subscribe to the server-side
   // JARVIS response events forwarded through the physicalBus SSE channel.
