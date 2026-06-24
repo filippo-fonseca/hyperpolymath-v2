@@ -67,6 +67,9 @@ export interface PersonReferenceItem {
   /** Display label resolved from the referencing entity (task title, capture snippet, page title). */
   label: string;
   createdAt: string;
+  /** task-only: surfaced on the profile card so a referenced task shows status + due inline. */
+  status?: string | null;
+  due?: string | null;
 }
 
 export interface PersonReferenceBreakdown {
@@ -100,6 +103,7 @@ export async function getPersonReferences(
   }
 
   const labelById = new Map<string, string>();
+  const taskMetaById = new Map<string, { status: string | null; due: string | null }>();
   const taskIds = idsByType.get("task");
   const captureIds = idsByType.get("capture");
   const pageIds = idsByType.get("page");
@@ -107,10 +111,18 @@ export async function getPersonReferences(
   await Promise.all([
     taskIds?.length
       ? db
-          .select({ id: tasks.id, title: tasks.title })
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status, dueDate: tasks.dueDate })
           .from(tasks)
           .where(and(eq(tasks.userId, userId), inArray(tasks.id, taskIds)))
-          .then((rows) => rows.forEach((t) => labelById.set(t.id, t.title)))
+          .then((rows) =>
+            rows.forEach((t) => {
+              labelById.set(t.id, t.title);
+              taskMetaById.set(t.id, {
+                status: t.status ?? null,
+                due: t.dueDate ? String(t.dueDate) : null,
+              });
+            }),
+          )
       : Promise.resolve(),
     captureIds?.length
       ? db
@@ -142,12 +154,15 @@ export async function getPersonReferences(
     // jarvis_fact type we don't label yet), but still count them in byType.
     const label = labelById.get(r.fromId);
     if (label === undefined) continue;
+    const taskMeta = r.fromType === "task" ? taskMetaById.get(r.fromId) : undefined;
     items.push({
       fromType: r.fromType,
       fromId: r.fromId,
       label,
       createdAt:
         r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      status: taskMeta?.status,
+      due: taskMeta?.due,
     });
   }
 

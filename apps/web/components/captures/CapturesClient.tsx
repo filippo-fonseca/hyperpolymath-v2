@@ -141,7 +141,9 @@ export function CapturesClient({
 
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
-  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null);
+  // URL-driven (?capture=<id>) so the person profile card can deep-link into a
+  // specific capture and open its detail panel.
+  const [selectedCaptureId, setSelectedCaptureId] = useQueryState("capture", parseAsString);
 
   // -- Data plane ---------------------------------------------------------
   // queryFn closes over `activeTagId` so the query refetches when the nuqs
