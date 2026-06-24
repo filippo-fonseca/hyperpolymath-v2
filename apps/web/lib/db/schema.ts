@@ -90,6 +90,26 @@ export const users = pgTable("users", {
   distanceUnit: text("distance_unit").notNull().default("km"),
 });
 
+// BYOK — per-user third-party API keys (Anthropic / Groq / ElevenLabs), stored
+// as AES-256-GCM ciphertext (lib/crypto/byok.ts) so the owner never bills their
+// own accounts for public users' usage. `last4` is a non-sensitive fingerprint
+// for the Settings UI; the plaintext key never touches the DB. One row per
+// (user, provider). RLS is owner-scoped in migration 0039.
+export const userApiKeys = pgTable(
+  "user_api_keys",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(), // "anthropic" | "groq" | "elevenlabs"
+    keyEncrypted: bytea("key_encrypted").notNull(),
+    last4: text("last4").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.provider] })],
+);
+
 export const areas = pgTable(
   "areas",
   {
