@@ -39,6 +39,8 @@ import {
   onJarvisResponseStart,
   onJarvisToolCall,
   startPhysicalExtenderListener,
+  reconnectPhysicalExtenderListener,
+  stopPhysicalExtenderListener,
   setPeEnabled,
   type SseStatus,
 } from "@/physical-extender/sse-client";
@@ -421,6 +423,8 @@ async function boot(): Promise<void> {
       await setDeviceToken(value);
       tokenInputEl.value = "";
       paintTokenStatus(value);
+      // Re-open the SSE stream so the new token authenticates it immediately.
+      void reconnectPhysicalExtenderListener();
       return true;
     };
 
@@ -448,6 +452,8 @@ async function boot(): Promise<void> {
     tokenClearEl.addEventListener("click", async () => {
       await setDeviceToken(null);
       paintTokenStatus(null);
+      // Drop the authenticated stream; without a token it would 401 anyway.
+      stopPhysicalExtenderListener();
     });
   }
 
@@ -551,7 +557,7 @@ async function boot(): Promise<void> {
   wireWakeButton();
   wireExtendButton();
 
-  startPhysicalExtenderListener();
+  void startPhysicalExtenderListener();
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);

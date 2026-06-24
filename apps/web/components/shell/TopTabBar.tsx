@@ -198,9 +198,10 @@ export function TopTabBar({ userId }: { userId: string }) {
         label="JARVIS"
         kbd="⌃2"
         icon={<KiwiIcon size={13} aria-hidden="true" />}
+        dataTour="top-tab-jarvis"
       />
 
-      <div className="ml-auto pl-2">
+      <div className="ml-auto pl-2" data-tour="top-split-toggle">
         <SplitToggle on={splitOn} onClick={onSplitToggle} />
       </div>
     </div>
@@ -236,6 +237,7 @@ function TabPill({
   icon,
   kbd,
   onClose,
+  dataTour,
 }: {
   href: string;
   active: boolean;
@@ -244,6 +246,7 @@ function TabPill({
   icon: React.ReactNode;
   kbd?: string;
   onClose?: () => void;
+  dataTour?: string;
 }) {
   // accent (JARVIS) tab: scope cyan focus ring so amber doc ring doesn't show
   // on tab focus. Plain tab keeps the default doc ring.
@@ -261,6 +264,7 @@ function TabPill({
       )}
       role="tab"
       aria-selected={active}
+      {...(dataTour ? { "data-tour": dataTour } : {})}
     >
       <Link
         href={href}

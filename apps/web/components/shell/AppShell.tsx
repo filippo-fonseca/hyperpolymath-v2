@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
 import { DailyAutoOpen } from "./DailyAutoOpen";
 import { JarvisSidePanel } from "./JarvisSidePanel";
+import { ProductTour } from "./ProductTour";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,11 @@ export function AppShell({
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+      {/* Product tour — mounts once globally; runs only when hp_tour_pending
+          is set in localStorage (written by onboarding-flow before redirect)
+          and hp_tour_v1_done is NOT set. Client-side only. */}
+      <ProductTour />
+
       {/* Sidebar collapses to width 0 when tasks fullscreen is on (D-08 /
           UI-SPEC I-6). 200ms ease-out-quart; respects reduced motion. */}
       <AnimatePresence initial={false}>

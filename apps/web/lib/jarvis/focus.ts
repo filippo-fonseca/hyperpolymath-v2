@@ -18,10 +18,26 @@
  * (Console is the homescreen at /, not rendered on /tasks etc). Multiple
  * registrations would overwrite each other — that's the desired behavior;
  * latest wins.
+ *
+ * --- Console mount signal ---
+ *
+ * JarvisConsole registers itself as mounted so that GlobalJarvisHandler (the
+ * voice-transcript fallback for non-/today routes) can detect the side panel
+ * is active and yield to JarvisConsole rather than running a second turn.
+ * Used specifically for the split-screen + Cmd+K dialog scenario: the dialog
+ * fires jarvis-voice-transcript from a non-/today pathname, which would
+ * otherwise cause both GlobalJarvisHandler AND JarvisConsole to submit.
+ *
+ * Lifecycle:
+ *   - JarvisConsole mounts → registerJarvisConsoleMounted(true)
+ *   - JarvisConsole unmounts → registerJarvisConsoleMounted(false)
+ *   - GlobalJarvisHandler.handleVoiceTranscript → checks isJarvisConsoleMounted()
+ *     and skips if true (JarvisConsole owns the pipeline when present).
  */
 type FocusFn = () => void;
 
 let _focusFn: FocusFn | null = null;
+let _consoleMounted = false;
 
 export function registerJarvisFocus(fn: FocusFn | null): void {
   _focusFn = fn;
@@ -29,4 +45,12 @@ export function registerJarvisFocus(fn: FocusFn | null): void {
 
 export function focusJarvis(): void {
   _focusFn?.();
+}
+
+export function registerJarvisConsoleMounted(mounted: boolean): void {
+  _consoleMounted = mounted;
+}
+
+export function isJarvisConsoleMounted(): boolean {
+  return _consoleMounted;
 }

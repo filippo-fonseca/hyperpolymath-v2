@@ -49,6 +49,32 @@ export async function getPeopleForUser(userId: string): Promise<PersonWithStats[
   return rows.map((r) => ({ ...r, referenceCount: countByPerson.get(r.id) ?? 0 }));
 }
 
+/**
+ * Substring name search for the wiki "@" mention autocomplete. Case-insensitive
+ * match against the full `name` (so "smith" or "john s" surfaces "John Smith"),
+ * ordered by name, capped. An empty/blank query returns the first `limit`
+ * people so typing just "@" still shows a roster to pick from.
+ */
+export async function searchPeopleForUser(
+  userId: string,
+  query: string,
+  limit = 8,
+): Promise<PersonRow[]> {
+  const trimmed = query.trim();
+  const where = trimmed
+    ? and(
+        eq(people.userId, userId),
+        sql`lower(${people.name}) like ${"%" + trimmed.toLowerCase() + "%"}`,
+      )
+    : eq(people.userId, userId);
+  return db
+    .select()
+    .from(people)
+    .where(where)
+    .orderBy(sql`lower(${people.name})`)
+    .limit(limit);
+}
+
 export async function getPersonById(
   userId: string,
   personId: string,

@@ -8,6 +8,7 @@
 
 import { startCaptureTurn } from "@/audio/capture";
 import { getEnv } from "@/env";
+import { getDeviceToken } from "@/auth/device-token";
 
 let source: EventSource | null = null;
 
@@ -106,12 +107,22 @@ function parseJson<T>(data: string): T | undefined {
  * Open the SSE connection and start listening for `trigger` and
  * `jarvis-response-*` events. Idempotent — calling while already
  * connected is a no-op. EventSource auto-reconnects on errors.
+ *
+ * The events endpoint is authenticated. EventSource cannot send custom
+ * headers, so we pass the paired device token (hpd_...) as a `?token=` query
+ * param, which the server treats identically to an Authorization: Bearer
+ * header. Without a token the connection will 401 — paste one in via the
+ * web /settings/desktop and into the desktop app's token field.
  */
-export function startPhysicalExtenderListener(): void {
+export async function startPhysicalExtenderListener(): Promise<void> {
   if (source) return;
 
   const { apiBaseUrl } = getEnv();
-  source = new EventSource(`${apiBaseUrl}/api/jarvis/physical/events`);
+  const token = await getDeviceToken();
+  const url = token
+    ? `${apiBaseUrl}/api/jarvis/physical/events?token=${encodeURIComponent(token)}`
+    : `${apiBaseUrl}/api/jarvis/physical/events`;
+  source = new EventSource(url);
   emitStatus("connecting");
 
   source.addEventListener("open", () => {
@@ -191,4 +202,14 @@ export function stopPhysicalExtenderListener(): void {
     source.close();
     source = null;
   }
+}
+
+/**
+ * Tear down and re-open the SSE connection. Call after the device token
+ * changes (save/clear) so the new `?token=` takes effect without an app
+ * restart — the auth query param is baked into the URL at connect time.
+ */
+export async function reconnectPhysicalExtenderListener(): Promise<void> {
+  stopPhysicalExtenderListener();
+  await startPhysicalExtenderListener();
 }

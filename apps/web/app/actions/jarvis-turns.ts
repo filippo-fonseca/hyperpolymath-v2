@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, asc, desc, lt } from "drizzle-orm";
+import { and, eq, asc, desc, lt, gte } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
@@ -242,5 +242,88 @@ export async function loadJarvisHistoryPage(
   }
 }
 
-// `asc` is retained for the legacy loadJarvisTurns full-load path.
-void asc;
+/**
+ * Deep-link loader. Given a turn id (e.g. the assistant turn a wiki page
+ * "processing run" was attached to), return that turn plus every turn AFTER
+ * it, chronologically, so the client can jump straight to that point in the
+ * conversation with the receipts in view. `hasMore` reports whether older
+ * turns exist before the target so the "Older messages" button stays usable.
+ */
+const LoadHistorySinceSchema = z.object({
+  turnId: z.string().uuid(),
+  limit: z.number().int().min(1).max(500).default(200),
+});
+
+export async function loadJarvisHistorySince(
+  input: z.input<typeof LoadHistorySinceSchema>,
+): Promise<
+  ActionResult<{
+    turns: TurnRow[];
+    hasMore: boolean;
+    oldestAt: string | null;
+  }>
+> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+
+  const parsed = LoadHistorySinceSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.message };
+  }
+  const { turnId, limit } = parsed.data;
+
+  try {
+    // Resolve the target turn's timestamp — scoped to this user so a guessed
+    // id can't surface another user's conversation.
+    const target = await db
+      .select({ createdAt: jarvisTurns.createdAt })
+      .from(jarvisTurns)
+      .where(and(eq(jarvisTurns.userId, userId), eq(jarvisTurns.id, turnId)))
+      .limit(1);
+    if (target.length === 0) {
+      return { success: false, error: "Turn not found" };
+    }
+    const since = target[0].createdAt;
+
+    const rows = await db
+      .select({
+        id: jarvisTurns.id,
+        kind: jarvisTurns.kind,
+        text: jarvisTurns.text,
+        textDelta: jarvisTurns.textDelta,
+        actions: jarvisTurns.actions,
+        clarification: jarvisTurns.clarification,
+        status: jarvisTurns.status,
+        errorMessage: jarvisTurns.errorMessage,
+        createdAt: jarvisTurns.createdAt,
+      })
+      .from(jarvisTurns)
+      .where(and(eq(jarvisTurns.userId, userId), gte(jarvisTurns.createdAt, since)))
+      .orderBy(asc(jarvisTurns.createdAt))
+      .limit(limit);
+
+    // Is there anything older than the target? Drives the load-more button.
+    const older = await db
+      .select({ id: jarvisTurns.id })
+      .from(jarvisTurns)
+      .where(and(eq(jarvisTurns.userId, userId), lt(jarvisTurns.createdAt, since)))
+      .limit(1);
+
+    const turns: TurnRow[] = rows.map((r) => ({
+      ...r,
+      kind: r.kind as "user" | "assistant",
+      actions: (r.actions as unknown[]) ?? [],
+    }));
+
+    const oldestAt =
+      turns.length > 0 ? turns[0].createdAt.toISOString() : null;
+
+    return {
+      success: true,
+      data: { turns, hasMore: older.length > 0, oldestAt },
+    };
+  } catch (err) {
+    console.error("[jarvis-turns] loadJarvisHistorySince failed", err);
+    return { success: false, error: "Failed to load history" };
+  }
+}

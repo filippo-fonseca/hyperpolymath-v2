@@ -7,10 +7,12 @@ import {
   CalendarDays,
   ArrowLeft,
   Github,
+  Sparkles,
+  User,
+  Eye,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { completeOnboarding } from "@/app/(app)/onboarding/actions";
+import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
 
 interface Props {
   initialDisplayName: string;
@@ -21,6 +23,15 @@ type Step = "welcome" | "you" | "glimpse";
 
 const TOTAL_STEPS = 3;
 const STEP_INDEX: Record<Step, number> = { welcome: 0, you: 1, glimpse: 2 };
+
+const STEP_META: Record<
+  Step,
+  { icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; style?: React.CSSProperties }>; label: string }
+> = {
+  welcome: { icon: Sparkles, label: "Welcome" },
+  you: { icon: User, label: "About you" },
+  glimpse: { icon: Eye, label: "Glimpse" },
+};
 
 export function OnboardingFlow({ initialDisplayName, email }: Props) {
   const [step, setStep] = useState<Step>("welcome");
@@ -42,11 +53,18 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
   }, []);
 
   const canAdvanceFromYou = displayName.trim().length > 0;
+  const stepIdx = STEP_INDEX[step];
 
   function handleSubmit() {
     if (!formRef.current) return;
     const fd = new FormData(formRef.current);
     setError(null);
+    // Signal the tour to run after onboarding redirects to /lifeos.
+    try {
+      localStorage.setItem("hp_tour_pending", "1");
+    } catch {
+      // storage unavailable; tour simply won't run
+    }
     startTransition(async () => {
       try {
         await completeOnboarding(fd);
@@ -60,240 +78,511 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
 
   return (
     <div className="w-full max-w-2xl">
-      {/* Eyebrow + step counter, mono caption so it reads as system chrome. */}
-      <div className="flex items-center justify-between mb-6">
+      {/* ── Progress breadcrumbs ── */}
+      <div className="flex items-center justify-between mb-8">
+        {/* Step breadcrumb dots */}
+        <div className="flex items-center gap-2">
+          {(["welcome", "you", "glimpse"] as Step[]).map((s, i) => {
+            const Meta = STEP_META[s];
+            const Icon = Meta.icon;
+            const isCurrent = s === step;
+            const isDone = STEP_INDEX[s] < stepIdx;
+            return (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-1.5 transition-all duration-300"
+                  style={{
+                    opacity: isCurrent ? 1 : isDone ? 0.65 : 0.35,
+                  }}
+                >
+                  <span
+                    className="inline-flex items-center justify-center rounded-full transition-all duration-300"
+                    style={{
+                      width: 22,
+                      height: 22,
+                      background: isCurrent
+                        ? "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)"
+                        : isDone
+                          ? "color-mix(in oklch, var(--ink-violet) 22%, transparent)"
+                          : "color-mix(in oklch, var(--ink) 8%, transparent)",
+                      boxShadow: isCurrent
+                        ? "0 0 12px color-mix(in oklch, var(--ink-violet) 35%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.25)"
+                        : "none",
+                    }}
+                  >
+                    <Icon
+                      size={10}
+                      strokeWidth={2}
+                      className="shrink-0"
+                      style={{
+                        color: isCurrent
+                          ? "oklch(100% 0 0)"
+                          : isDone
+                            ? "var(--ink-violet)"
+                            : "var(--ink-muted)",
+                      }}
+                    />
+                  </span>
+                  {isCurrent && (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                      {Meta.label}
+                    </span>
+                  )}
+                </div>
+                {i < 2 && (
+                  <span
+                    className="w-6 h-px transition-colors duration-300"
+                    style={{
+                      background: isDone
+                        ? "linear-gradient(90deg, var(--ink-violet), var(--ink-blue))"
+                        : "var(--edge)",
+                    }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          § Onboarding
-        </p>
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-          {String(STEP_INDEX[step] + 1).padStart(2, "0")} / {String(TOTAL_STEPS).padStart(2, "0")}
+          {String(stepIdx + 1).padStart(2, "0")}&thinsp;/&thinsp;{String(TOTAL_STEPS).padStart(2, "0")}
         </p>
       </div>
 
-      {/* Progress bar */}
+      {/* ── Progress bar ── */}
       <div
-        className="h-px w-full bg-[var(--edge)] mb-10 relative"
+        className="h-[2px] w-full rounded-full mb-10 relative overflow-hidden"
+        style={{ background: "var(--edge)" }}
         aria-hidden="true"
       >
         <span
-          className="absolute inset-y-0 left-0 bg-[var(--ink-amber)] transition-all duration-300"
-          style={{ width: `${((STEP_INDEX[step] + 1) / TOTAL_STEPS) * 100}%` }}
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+          style={{
+            width: `${((stepIdx + 1) / TOTAL_STEPS) * 100}%`,
+            background: "linear-gradient(90deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
+            boxShadow: "0 0 8px color-mix(in oklch, var(--ink-violet) 40%, transparent)",
+          }}
         />
       </div>
 
-      <div className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-10">
-        {step === "welcome" && (
-          <section className="space-y-8">
-            <div className="space-y-3">
-              <h1 className="font-serif text-4xl text-[var(--ink)]">
-                Welcome to Hyperpolymath.
-              </h1>
-              <p className="font-serif text-lg text-[var(--ink-muted)] leading-relaxed">
-                One line in. It lands in the right place: a task, a capture, or
-                a calendar event.
-              </p>
-            </div>
-            <Button size="lg" className="px-10" onClick={() => setStep("you")}>
-              Begin
-            </Button>
-          </section>
-        )}
+      {/* ── Main card ── */}
+      <div
+        className="glass-tile rounded-[20px] relative overflow-hidden"
+        style={{
+          /* Override the default glass-tile glow color toward violet/pink */
+          ["--glass-glow-color" as string]: "var(--ink-violet)",
+        }}
+      >
+        {/* Ambient gradient blobs — pink top-left, blue bottom-right */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(600px circle at 10% 0%, color-mix(in oklch, var(--ink-violet) 6%, transparent), transparent 55%), radial-gradient(500px circle at 90% 100%, color-mix(in oklch, var(--ink-blue) 5%, transparent), transparent 50%)",
+          }}
+        />
 
-        {step === "you" && (
-          <section className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="font-serif text-3xl text-[var(--ink)]">
-                About you.
-              </h2>
-              <p className="font-serif text-sm text-[var(--ink-muted)]">
-                How JARVIS should address you.
-              </p>
-            </div>
+        <div className="relative px-10 py-10">
+          {/* ── Step: Welcome ── */}
+          {step === "welcome" && (
+            <section className="space-y-10">
+              {/* HudCoreBubble as the hero focal point */}
+              <div className="flex justify-center select-none" style={{ marginBottom: -8, marginTop: -8 }}>
+                <div style={{ transform: "scale(0.52)", transformOrigin: "center", height: 112 }}>
+                  <HudCoreBubble state="thinking" />
+                </div>
+              </div>
 
-            <div className="space-y-5">
-              <Field
-                label="Preferred name"
-                htmlFor="display_name"
-              >
-                <Input
-                  id="display_name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. Filippo"
-                  autoFocus
-                  required
-                  maxLength={60}
-                />
-              </Field>
+              <div className="space-y-4 text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                  style={{
+                    background: "linear-gradient(135deg, color-mix(in oklch, var(--ink-violet) 12%, transparent), color-mix(in oklch, var(--ink-blue) 10%, transparent))",
+                    border: "1px solid color-mix(in oklch, var(--ink-violet) 22%, transparent)",
+                    color: "var(--ink-violet)",
+                  }}
+                >
+                  <Sparkles size={9} strokeWidth={2} />
+                  Your life OS is ready
+                </div>
 
-              <Field
-                label="Graduation year (optional)"
-                htmlFor="graduation_year"
-              >
-                <Input
-                  id="graduation_year"
-                  inputMode="numeric"
-                  pattern="\d{4}"
-                  value={graduationYear}
-                  onChange={(e) =>
-                    setGraduationYear(
-                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                    )
-                  }
-                  placeholder="e.g. 2028"
-                  maxLength={4}
-                />
-              </Field>
-
-              <Field label="GitHub username (optional)" htmlFor="github_username">
-                <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--canvas)] focus-within:border-[var(--ink-amber)] transition-colors">
-                  <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--edge)] text-[var(--ink-muted)]">
-                    <Github className="h-3.5 w-3.5" />
-                    <span className="font-mono text-[12px]">@</span>
+                <h1
+                  className="font-serif font-semibold leading-[1.05] tracking-[-0.02em] text-[var(--ink)]"
+                  style={{ fontSize: "clamp(2.25rem, 6vw, 3.5rem)" }}
+                >
+                  Welcome to
+                  <br />
+                  <span
+                    style={{
+                      background: "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    Hyperpolymath.
                   </span>
+                </h1>
+
+                <p className="font-serif italic text-[var(--ink-muted)] leading-relaxed mx-auto max-w-md"
+                  style={{ fontSize: "clamp(1rem, 2.5vw, 1.2rem)" }}
+                >
+                  One line in. JARVIS routes it to the right place: a task, a capture, or
+                  a calendar event.
+                </p>
+              </div>
+
+              {/* Feature pills */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {[
+                  { label: "Natural language tasks", color: "var(--ink-violet)" },
+                  { label: "AI-powered captures", color: "var(--ink-blue)" },
+                  { label: "Google Calendar sync", color: "var(--hud-cyan)" },
+                ].map(({ label, color }) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-[0.1em]"
+                    style={{
+                      background: `color-mix(in oklch, ${color} 9%, transparent)`,
+                      border: `1px solid color-mix(in oklch, ${color} 20%, transparent)`,
+                      color,
+                    }}
+                  >
+                    <span
+                      className="inline-block rounded-full"
+                      style={{ width: 4, height: 4, background: color }}
+                      aria-hidden="true"
+                    />
+                    {label}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex justify-center pt-2">
+                <GlassAccentButton onClick={() => setStep("you")}>
+                  Begin setup
+                  <ArrowRight />
+                </GlassAccentButton>
+              </div>
+            </section>
+          )}
+
+          {/* ── Step: You ── */}
+          {step === "you" && (
+            <section className="space-y-8">
+              <div className="space-y-2">
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  style={{
+                    background: "color-mix(in oklch, var(--ink-violet) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--ink-violet) 20%, transparent)",
+                    color: "var(--ink-violet)",
+                  }}
+                >
+                  <User size={9} strokeWidth={2} />
+                  Step 2 of 3
+                </div>
+                <h2
+                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
+                >
+                  About you.
+                </h2>
+                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                  How JARVIS should address you and understand your context.
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                <GlassField label="Preferred name" htmlFor="display_name" accent="violet">
                   <input
-                    id="github_username"
+                    id="display_name"
                     type="text"
-                    value={githubUsername}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Filippo"
+                    autoFocus
+                    required
+                    maxLength={60}
+                    className="w-full h-11 px-4 rounded-xl bg-transparent font-serif text-[1rem] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    style={{
+                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      transition: "border-color 150ms ease-out, box-shadow 150ms ease-out",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--ink-violet) 45%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--ink-violet) 15%, transparent)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--edge) 70%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)";
+                    }}
+                  />
+                </GlassField>
+
+                <GlassField label="Graduation year (optional)" htmlFor="graduation_year" accent="blue">
+                  <input
+                    id="graduation_year"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    value={graduationYear}
                     onChange={(e) =>
-                      setGithubUsername(
-                        e.target.value.replace(/^@/, "").trim(),
+                      setGraduationYear(
+                        e.target.value.replace(/\D/g, "").slice(0, 4),
                       )
                     }
-                    placeholder="octocat"
-                    spellCheck={false}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    maxLength={39}
-                    className="flex-1 h-9 px-3 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    placeholder="e.g. 2028"
+                    maxLength={4}
+                    className="w-full h-11 px-4 rounded-xl bg-transparent font-serif text-[1rem] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    style={{
+                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                      transition: "border-color 150ms ease-out, box-shadow 150ms ease-out",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--ink-blue) 45%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent), 0 0 0 2px color-mix(in oklch, var(--ink-blue) 15%, transparent)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "color-mix(in oklch, var(--edge) 70%, transparent)";
+                      e.currentTarget.style.boxShadow = "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)";
+                    }}
                   />
+                </GlassField>
+
+                <GlassField label="GitHub username (optional)" htmlFor="github_username" accent="violet">
+                  <div
+                    className="flex items-stretch rounded-xl overflow-hidden"
+                    style={{
+                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                    }}
+                  >
+                    <span
+                      className="flex items-center gap-1.5 pl-4 pr-3 shrink-0"
+                      style={{
+                        borderRight: "1px solid color-mix(in oklch, var(--edge) 60%, transparent)",
+                        color: "var(--ink-violet)",
+                      }}
+                    >
+                      <Github className="h-3.5 w-3.5" />
+                      <span className="font-mono text-[12px] opacity-60">@</span>
+                    </span>
+                    <input
+                      id="github_username"
+                      type="text"
+                      value={githubUsername}
+                      onChange={(e) =>
+                        setGithubUsername(
+                          e.target.value.replace(/^@/, "").trim(),
+                        )
+                      }
+                      placeholder="octocat"
+                      spellCheck={false}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      maxLength={39}
+                      className="flex-1 h-11 px-4 bg-transparent font-serif text-base text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+                    />
+                  </div>
+                </GlassField>
+
+                <GlassField label="Timezone" accent="blue">
+                  <div
+                    className="flex h-11 items-center rounded-xl px-4"
+                    style={{
+                      background: "color-mix(in oklch, var(--surface) 80%, transparent)",
+                      border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+                      boxShadow: "inset 1px 1px 3px color-mix(in oklch, var(--ink) 4%, transparent)",
+                    }}
+                  >
+                    <span className="font-serif text-base text-[var(--ink)]">{timezone}</span>
+                    <span
+                      className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] px-2 py-0.5 rounded-full"
+                      style={{
+                        color: "var(--ink-blue)",
+                        background: "color-mix(in oklch, var(--ink-blue) 10%, transparent)",
+                        border: "1px solid color-mix(in oklch, var(--ink-blue) 18%, transparent)",
+                      }}
+                    >
+                      auto-detected
+                    </span>
+                  </div>
+                </GlassField>
+
+                <p
+                  className="font-mono text-[10px] uppercase tracking-[0.1em] px-1"
+                  style={{ color: "var(--ink-muted)", opacity: 0.7 }}
+                >
+                  Signed in as {email}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <GhostBackButton onClick={() => setStep("welcome")} />
+                <GlassAccentButton
+                  disabled={!canAdvanceFromYou}
+                  onClick={() => setStep("glimpse")}
+                >
+                  Continue
+                  <ArrowRight />
+                </GlassAccentButton>
+              </div>
+            </section>
+          )}
+
+          {/* ── Step: Glimpse ── */}
+          {step === "glimpse" && (
+            <section className="space-y-8">
+              <div className="space-y-2">
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-[0.18em] mb-1"
+                  style={{
+                    background: "color-mix(in oklch, var(--ink-blue) 10%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--ink-blue) 22%, transparent)",
+                    color: "var(--ink-blue)",
+                  }}
+                >
+                  <Eye size={9} strokeWidth={2} />
+                  Step 3 of 3
                 </div>
-              </Field>
+                <h2
+                  className="font-serif font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--ink)]"
+                  style={{ fontSize: "clamp(1.75rem, 5vw, 2.75rem)" }}
+                >
+                  Try it now.
+                </h2>
+                <p className="font-serif italic text-[var(--ink-muted)] text-base leading-relaxed">
+                  A few lines to paste into JARVIS on your first session.
+                </p>
+              </div>
 
-              <Field label="Timezone">
-                <div className="flex h-9 items-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] px-3 font-serif text-base text-[var(--ink)]">
-                  {timezone}
-                  <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                    auto-detected
-                  </span>
-                </div>
-              </Field>
+              <ul className="space-y-3">
+                <ShowcaseCard
+                  icon={PenLine}
+                  label="Capture"
+                  accentColor="var(--ink-violet)"
+                  example='"i&rsquo;m tired"'
+                  description="Lands in your capture log, verbatim. JARVIS never paraphrases captures."
+                />
+                <ShowcaseCard
+                  icon={ListChecks}
+                  label="Plan"
+                  accentColor="var(--ink-blue)"
+                  example='"remind me to send the brief friday"'
+                  description="A task in the right area, due Friday, at the right priority."
+                />
+                <ShowcaseCard
+                  icon={CalendarDays}
+                  label="Schedule"
+                  accentColor="var(--hud-cyan)"
+                  example='"coffee 4pm saturday with brian"'
+                  description="Lands on your default Google Calendar."
+                />
+              </ul>
 
-              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                Signed in as {email}
-              </p>
-            </div>
+              {error && (
+                <p
+                  className="font-serif text-sm px-4 py-3 rounded-xl"
+                  style={{
+                    color: "var(--ink-coral)",
+                    background: "color-mix(in oklch, var(--ink-coral) 8%, transparent)",
+                    border: "1px solid color-mix(in oklch, var(--ink-coral) 18%, transparent)",
+                  }}
+                >
+                  {error}
+                </p>
+              )}
 
-            <div className="flex items-center justify-between pt-2">
-              <BackButton onClick={() => setStep("welcome")} />
-              <Button
-                size="lg"
-                disabled={!canAdvanceFromYou}
-                onClick={() => setStep("glimpse")}
+              <form
+                ref={formRef}
+                action={completeOnboarding}
+                className="flex items-center justify-between pt-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmit();
+                }}
               >
-                Continue
-              </Button>
-            </div>
-          </section>
-        )}
-
-        {step === "glimpse" && (
-          <section className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="font-serif text-3xl text-[var(--ink)]">
-                Examples.
-              </h2>
-              <p className="font-serif text-sm text-[var(--ink-muted)]">
-                A few lines to try first.
-              </p>
-            </div>
-
-            <ul className="space-y-3">
-              <Showcase
-                icon={PenLine}
-                label="Capture"
-                example='"i&rsquo;m tired"'
-                description="Lands in your capture log, verbatim. JARVIS never paraphrases captures."
-              />
-              <Showcase
-                icon={ListChecks}
-                label="Plan"
-                example='"remind me to send the brief friday"'
-                description="A task in the right area, due Friday, at the right priority."
-              />
-              <Showcase
-                icon={CalendarDays}
-                label="Schedule"
-                example='"coffee 4pm saturday with brian"'
-                description="Lands on your default Google Calendar."
-              />
-            </ul>
-
-            {error && (
-              <p className="font-serif text-sm text-[var(--ink-coral)]">
-                {error}
-              </p>
-            )}
-
-            <form
-              ref={formRef}
-              action={completeOnboarding}
-              className="flex items-center justify-between pt-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmit();
-              }}
-            >
-              <input type="hidden" name="display_name" value={displayName} />
-              <input type="hidden" name="timezone" value={timezone} />
-              <input
-                type="hidden"
-                name="graduation_year"
-                value={graduationYear}
-              />
-              <input
-                type="hidden"
-                name="github_username"
-                value={githubUsername}
-              />
-              <BackButton
-                onClick={() => setStep("you")}
-                disabled={isPending}
-              />
-              <Button type="submit" size="lg" disabled={isPending}>
-                {isPending ? "Saving" : "Begin"}
-              </Button>
-            </form>
-          </section>
-        )}
+                <input type="hidden" name="display_name" value={displayName} />
+                <input type="hidden" name="timezone" value={timezone} />
+                <input type="hidden" name="graduation_year" value={graduationYear} />
+                <input type="hidden" name="github_username" value={githubUsername} />
+                <GhostBackButton onClick={() => setStep("you")} disabled={isPending} />
+                <GlassAccentButton type="submit" disabled={isPending}>
+                  {isPending ? "Saving…" : "Enter Hyperpolymath"}
+                  {!isPending && <ArrowRight />}
+                </GlassAccentButton>
+              </form>
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  children: React.ReactNode;
-}) {
+/* ── Reusable sub-components ── */
+
+function ArrowRight() {
   return (
-    <div className="space-y-1.5">
-      <label
-        htmlFor={htmlFor}
-        className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] block"
-      >
-        {label}
-      </label>
-      {children}
-    </div>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path
+        d="M2 7h10M8 3l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-function BackButton({
+function GlassAccentButton({
+  children,
+  onClick,
+  disabled,
+  type = "button",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-serif text-[0.95rem] font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{
+        background: disabled
+          ? "color-mix(in oklch, var(--ink) 12%, transparent)"
+          : "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
+        color: "oklch(97% 0.003 75)",
+        boxShadow: disabled
+          ? "none"
+          : "0 2px 12px color-mix(in oklch, var(--ink-violet) 30%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.18)",
+        border: "1px solid oklch(100% 0 0 / 0.12)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GhostBackButton({
   onClick,
   disabled,
 }: {
@@ -305,7 +594,14 @@ function BackButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-40 transition-colors"
+      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors disabled:opacity-40"
+      style={{ color: "var(--ink-muted)" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = "var(--ink)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = "var(--ink-muted)";
+      }}
     >
       <ArrowLeft className="w-3.5 h-3.5" />
       Back
@@ -313,29 +609,79 @@ function BackButton({
   );
 }
 
-function Showcase({
+function GlassField({
+  label,
+  htmlFor,
+  accent = "violet",
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  accent?: "violet" | "blue";
+  children: React.ReactNode;
+}) {
+  const accentColor = accent === "violet" ? "var(--ink-violet)" : "var(--ink-blue)";
+  return (
+    <div className="space-y-1.5">
+      <label
+        htmlFor={htmlFor}
+        className="font-mono text-[10px] uppercase tracking-[0.1em] block"
+        style={{ color: accentColor }}
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function ShowcaseCard({
   icon: Icon,
   label,
+  accentColor,
   example,
   description,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>;
   label: string;
+  accentColor: string;
   example: string;
   description: string;
 }) {
   return (
-    <li className="flex items-start gap-4 rounded-md border border-[var(--edge)] bg-[var(--canvas)] p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-amber)]">
-        <Icon className="w-4 h-4" />
+    <li
+      className="flex items-start gap-4 rounded-2xl p-4 transition-all duration-200"
+      style={{
+        background: `color-mix(in oklch, ${accentColor} 5%, var(--surface))`,
+        border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
+        boxShadow: `inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 1px 3px color-mix(in oklch, var(--ink) 6%, transparent)`,
+      }}
+    >
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+        style={{
+          background: `color-mix(in oklch, ${accentColor} 12%, transparent)`,
+          border: `1px solid color-mix(in oklch, ${accentColor} 22%, transparent)`,
+          boxShadow: `0 0 12px color-mix(in oklch, ${accentColor} 15%, transparent)`,
+          color: accentColor,
+        }}
+      >
+        <Icon size={16} strokeWidth={1.75} />
       </div>
       <div className="min-w-0 space-y-1">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          <span
+            className="font-mono text-[9px] uppercase tracking-[0.16em] px-2 py-0.5 rounded-full"
+            style={{
+              color: accentColor,
+              background: `color-mix(in oklch, ${accentColor} 10%, transparent)`,
+              border: `1px solid color-mix(in oklch, ${accentColor} 18%, transparent)`,
+            }}
+          >
             {label}
           </span>
           <span
-            className="font-serif italic text-[var(--ink)]"
+            className="font-serif italic text-[var(--ink)] text-sm"
             dangerouslySetInnerHTML={{ __html: example }}
           />
         </div>

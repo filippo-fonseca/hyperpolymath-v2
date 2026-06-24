@@ -11,6 +11,7 @@ import {
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
+import { isOwnerUser } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
 
@@ -92,13 +93,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     return Response.json({ transcript: "", sttDoneAt }, { headers: CORS });
   }
 
-  emitPhysicalTranscript({
-    transcript,
-    sttDoneAt,
-    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
-    at: sttDoneAt,
-  });
-
   // 2026-06 multi-user fix: when a desktop bearer authenticated the request,
   // that token is BOUND to a specific user — always honor it. Only the
   // headless ESP32 path (validated via PHYSICAL_TRIGGER_SECRET, with no per-
@@ -114,6 +108,20 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: 409, headers: CORS },
     );
   }
+
+  // Owner-only while the physical bus is a single global emitter (see
+  // lib/auth/owner.ts). Resolve identity BEFORE emitting so a non-owner's
+  // transcript never reaches the shared SSE stream.
+  if (!(await isOwnerUser(userId))) {
+    return new Response("Forbidden", { status: 403, headers: CORS });
+  }
+
+  emitPhysicalTranscript({
+    transcript,
+    sttDoneAt,
+    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+    at: sttDoneAt,
+  });
 
   const turnId = crypto.randomUUID();
   const userTurnId = crypto.randomUUID();

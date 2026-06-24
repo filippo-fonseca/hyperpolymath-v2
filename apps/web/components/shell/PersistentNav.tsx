@@ -230,11 +230,14 @@ export function PersistentNav({ collapsed }: Props) {
             </span>
           );
 
+          // data-tour key: "nav-<slug>" derived from the href (strip leading slash).
+          const tourKey = `nav-${item.href.replace(/^\//, "")}`;
+
           if (item.disabled) {
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>
-                  <div role="button" tabIndex={0} className="w-full">
+                  <div role="button" tabIndex={0} className="w-full" data-tour={tourKey}>
                     {inner}
                   </div>
                 </TooltipTrigger>
@@ -247,7 +250,7 @@ export function PersistentNav({ collapsed }: Props) {
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>
-                  <Link href={item.href} className="w-full">
+                  <Link href={item.href} className="w-full" data-tour={tourKey}>
                     {inner}
                   </Link>
                 </TooltipTrigger>
@@ -257,7 +260,7 @@ export function PersistentNav({ collapsed }: Props) {
           }
 
           return (
-            <Link key={item.href} href={item.href} className="w-full">
+            <Link key={item.href} href={item.href} className="w-full" data-tour={tourKey}>
               {inner}
             </Link>
           );
