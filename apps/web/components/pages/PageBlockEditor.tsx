@@ -5,7 +5,10 @@ import "@blocknote/shadcn/style.css";
 import "./page-block-editor.css";
 
 import { undoJarvisAction } from "@/app/actions/jarvis";
-import { resolveOrCreatePerson } from "@/app/actions/people";
+import {
+  resolveOrCreatePerson,
+  searchPeopleForCurrentUser,
+} from "@/app/actions/people";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
@@ -197,7 +200,6 @@ export default function PageBlockEditor({
   focusRef,
   containerRef,
   onEditorReady,
-  people = [],
   onPersonCreated,
 }: Props) {
   const editor = useCreateBlockNote({
@@ -511,18 +513,30 @@ export default function PageBlockEditor({
           <SuggestionMenuController
             triggerCharacter="@"
             getItems={async (query) => {
-              const base = filterSuggestionItems(
-                [jarvisAtItem(editor), ...peopleAtItems(editor, people)],
-                query
-              );
               const trimmed = query.trim();
-              const exact = people.some(
-                (person) => person.name.toLowerCase() === trimmed.toLowerCase()
-              );
-              if (trimmed.length > 0 && !exact) {
-                base.push(createPersonAtItem(editor, trimmed, onPersonCreated));
+              // The JARVIS item is local + filtered client-side; people are
+              // fetched live per keystroke so the menu works without first
+              // warming the People-tab cache and matches full names (last
+              // names included).
+              const jarvis = filterSuggestionItems([jarvisAtItem(editor)], query);
+              const found = await searchPeopleForCurrentUser(trimmed);
+              const items: DefaultReactSuggestionItem[] = [
+                ...jarvis,
+                ...found.map((person) => ({
+                  title: person.name,
+                  subtext: person.email ?? undefined,
+                  aliases: person.email ? [person.email] : [],
+                  group: "People",
+                  onItemClick: () =>
+                    insertPersonMention(editor, person.id, person.name),
+                })),
+              ];
+              // Always offer Create for a non-empty query — even when matches
+              // already exist — so a near-duplicate name can still be added.
+              if (trimmed.length > 0) {
+                items.push(createPersonAtItem(editor, trimmed, onPersonCreated));
               }
-              return base;
+              return items;
             }}
           />
         </BlockNoteView>
@@ -558,17 +572,6 @@ function jarvisAtItem(editor: Editor): DefaultReactSuggestionItem {
  * cursor can leave the atom and continue typing cleanly. */
 function insertPersonMention(editor: Editor, personId: string, name: string) {
   editor.insertInlineContent([{ type: PERSON_MENTION_TYPE, props: { personId, name } }, " "]);
-}
-
-/** One `@` menu item per existing person. Selecting it inserts the mention. */
-function peopleAtItems(editor: Editor, people: PersonWithStats[]): DefaultReactSuggestionItem[] {
-  return people.map((person) => ({
-    title: person.name,
-    subtext: person.email ?? undefined,
-    aliases: person.email ? [person.email] : [],
-    group: "People",
-    onItemClick: () => insertPersonMention(editor, person.id, person.name),
-  }));
 }
 
 /** The trailing "Create '<query>'" item. Resolves-or-creates the person server

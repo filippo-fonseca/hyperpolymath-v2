@@ -8,6 +8,7 @@ import {
   type PersonReferenceBreakdown,
   type PersonWithStats,
   getPeopleForUser,
+  searchPeopleForUser,
   getPersonReferences,
 } from "@/lib/db/queries/people";
 import { createClient } from "@/lib/supabase/server";
@@ -250,6 +251,21 @@ export async function getPeopleForCurrentUser(): Promise<PersonWithStats[]> {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
   return getPeopleForUser(userId);
+}
+
+/**
+ * On-demand person search for the wiki "@" mention autocomplete. Fetches live
+ * per keystroke so the menu works without first warming the People-tab cache,
+ * and matches against the full name (last names included). Returns [] when
+ * unauthenticated rather than throwing — the menu should degrade quietly.
+ */
+export async function searchPeopleForCurrentUser(
+  query: string,
+): Promise<Array<{ id: string; name: string; email: string | null }>> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const rows = await searchPeopleForUser(userId, query);
+  return rows.map((r) => ({ id: r.id, name: r.name, email: r.email }));
 }
 
 /** Resolve one person's full reference breakdown for the profile page. */
