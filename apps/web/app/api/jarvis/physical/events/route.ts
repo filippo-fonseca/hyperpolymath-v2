@@ -12,6 +12,7 @@ import type {
 } from "@/lib/voice/physical-extension/types";
 import { createClient } from "@/lib/supabase/server";
 import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
+import { isOwnerUser } from "@/lib/auth/owner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -109,6 +110,16 @@ export async function GET(req: Request): Promise<Response> {
   if (!userId) {
     return new Response("Unauthorized", {
       status: 401,
+      headers: corsHeaders(origin),
+    });
+  }
+
+  // Owner-only: the bus is a single global emitter, so any subscriber would
+  // receive every user's events. Until it's partitioned per user, restrict
+  // the stream to the owner account (see lib/auth/owner.ts).
+  if (!(await isOwnerUser(userId))) {
+    return new Response("Forbidden", {
+      status: 403,
       headers: corsHeaders(origin),
     });
   }
