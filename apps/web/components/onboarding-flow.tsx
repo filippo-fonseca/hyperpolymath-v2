@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { completeOnboarding } from "@/app/(app)/onboarding/actions";
 import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
+import { TOUR_PENDING_EVENT } from "@/components/shell/ProductTour";
 import {
   BYOK_PROVIDER_IDS,
   BYOK_PROVIDERS,
@@ -76,9 +77,12 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
     if (!formRef.current) return;
     const fd = new FormData(formRef.current);
     setError(null);
-    // Signal the tour to run after onboarding redirects to /lifeos.
+    // Signal the tour to run after onboarding redirects to /lifeos. The redirect
+    // is a client-side nav so AppShell (and ProductTour) stay mounted; we
+    // dispatch an in-tab event because `storage` only fires across tabs.
     try {
       localStorage.setItem("hp_tour_pending", "1");
+      window.dispatchEvent(new Event(TOUR_PENDING_EVENT));
     } catch {
       // storage unavailable; tour simply won't run
     }
