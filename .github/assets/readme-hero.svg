@@ -44,7 +44,7 @@
   <text x="220" y="238" font-family="'EB Garamond', 'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="118" font-weight="600" letter-spacing="-2" fill="#1a1a1a">Hyperpolymath</text>
 
   <!-- Primary tagline (extra breathing room below the wordmark descenders) -->
-  <text x="224" y="328" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="22" fill="#1a1a1a" fill-opacity="0.72">A personal life-OS for people who refuse to specialize.</text>
+  <text x="600" y="330" text-anchor="middle" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="27" font-weight="600" fill="#1a1a1a" fill-opacity="0.82">A personal life-OS for people who refuse to specialize.</text>
 
   <!-- Spacer hairline above the centered statement -->
   <line x1="420" y1="386" x2="780" y2="386" stroke="#1a1a1a" stroke-opacity="0.18" stroke-width="1"/>
