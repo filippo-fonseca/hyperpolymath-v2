@@ -41,6 +41,8 @@
     "@tiptap/starter-kit": "3.23.1",
     "@tiptap/suggestion": "3.23.1",
     "@uiw/react-md-editor": "^4.1.1",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "ccusage": "^20.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
