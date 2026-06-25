@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { playPop } from "@/lib/ui/play-pop";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
@@ -138,6 +139,17 @@ export function TopTabBar({ userId }: { userId: string }) {
   const leftPath = onJarvis || onToday ? lastRoute : pathname || FALLBACK_LEFT_PATH;
   const leftMeta = metaForPath(leftPath);
   const LeftIcon = leftMeta.icon;
+
+  // Soft "pop" when the active feature tab actually changes — not on drill-in
+  // navigations within a feature (e.g. /tasks → /tasks/123) or first mount.
+  const tabKey = onJarvis ? "jarvis" : onToday ? "today" : metaForPath(pathname).label;
+  const prevTabKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevTabKey.current !== null && prevTabKey.current !== tabKey) {
+      playPop();
+    }
+    prevTabKey.current = tabKey;
+  }, [tabKey]);
 
   if (pathname.startsWith("/onboarding")) return null;
 
