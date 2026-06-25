@@ -1,41 +1,36 @@
 "use client";
 
-import { useEffect, useOptimistic, useState } from "react";
-import { usePathname } from "next/navigation";
-import {
-  ChevronLeft,
-  Pin,
-  Plus,
-  Eye,
-  EyeOff,
-  Settings,
-  Network,
-  Github,
-  Scale,
-  Globe,
-} from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
-import { Wordmark } from "./Wordmark";
-import { PersistentNav } from "./PersistentNav";
-import { SidebarTree } from "./SidebarTree";
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { getAreasForCurrentUser } from "@/app/actions/areas";
 import { AreaCreateDialog } from "@/components/areas/AreaCreateDialog";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { setSfxMuted, useSfxMuted } from "@/lib/ui/sound-prefs";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import {
-  optimisticReducer,
-  type OptimisticAction,
-} from "@/lib/realtime/optimistic-reducer";
-import { getAreasForCurrentUser } from "@/app/actions/areas";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Github,
+  Globe,
+  Network,
+  Pin,
+  Plus,
+  Scale,
+  Settings,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect, useOptimistic, useState } from "react";
+import { PersistentNav } from "./PersistentNav";
+import { SidebarTree } from "./SidebarTree";
+import { Wordmark } from "./Wordmark";
 
 interface Props {
   userId: string;
@@ -50,9 +45,7 @@ interface Props {
   };
 }
 
-export type AreaOptimisticDispatch = (
-  action: OptimisticAction<SidebarArea>,
-) => void;
+export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => void;
 
 /**
  * Sidebar — M3 owner of the areas useOptimistic state.
@@ -147,12 +140,12 @@ export function Sidebar({
     // refetch even though the data hasn't changed. Realtime (useTableSubscription
     // above) remains the legitimate update path for actual areas table changes.
     initialDataUpdatedAt: Date.now(),
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const [optimisticAreas, addOptimisticArea] = useOptimistic(
     activeAreas,
-    optimisticReducer<SidebarArea>,
+    optimisticReducer<SidebarArea>
   );
 
   const areas = showArchived ? initialAllAreas : optimisticAreas;
@@ -164,7 +157,7 @@ export function Sidebar({
         "relative h-full shrink-0",
         "transition-[width] duration-200 ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
-        !mounted && "invisible",
+        !mounted && "invisible"
       )}
     >
       <div
@@ -178,222 +171,221 @@ export function Sidebar({
           effectiveCollapsed ? "w-16" : "w-[260px]",
           // When hover-expanded, float above the page content with a soft
           // raised shadow so it reads as a temporary overlay, not a reflow.
-          collapsed && hovered &&
-            "z-50 shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]",
+          collapsed &&
+            hovered &&
+            "z-50 shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
-      {/* Header: collapsed mode centers the H with no chevron. Expanded
+        {/* Header: collapsed mode centers the H with no chevron. Expanded
           (truly or via hover) shows Wordmark + chevron/pin. */}
-      {effectiveCollapsed ? (
-        <div className="flex items-center justify-center px-3 py-3 border-b border-[var(--edge)]">
-          <Wordmark collapsed />
-        </div>
-      ) : (
-        <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
-          <Wordmark collapsed={false} />
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleChevronClick}
-                  aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-                  className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out"
-                >
-                  {collapsed ? (
-                    <Pin size={13} strokeWidth={1.5} />
-                  ) : (
-                    <ChevronLeft size={14} strokeWidth={1.5} />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      )}
+        {effectiveCollapsed ? (
+          <div className="flex items-center justify-center px-3 py-3 border-b border-[var(--edge)]">
+            <Wordmark collapsed />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
+            <Wordmark collapsed={false} />
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleChevronClick}
+                    aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+                    className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out"
+                  >
+                    {collapsed ? (
+                      <Pin size={13} strokeWidth={1.5} />
+                    ) : (
+                      <ChevronLeft size={14} strokeWidth={1.5} />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
 
-      {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
-        {/* Primary nav — labels speak for themselves now; section header
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
+          {/* Primary nav — labels speak for themselves now; section header
             removed for the cleaner Arc-style layout. */}
-        <PersistentNav collapsed={effectiveCollapsed} />
+          <PersistentNav collapsed={effectiveCollapsed} />
 
-        {/* AREAS section — heading is now the parent link to /areas, with
+          {/* AREAS section — heading is now the parent link to /areas, with
             the area tree nested beneath as proper children. Active styling
             applies on the homepage AND any /areas/[id] detail page so the
             user always knows the section is "current". */}
-        <div className="mt-6">
-          {!effectiveCollapsed && (
-            <div className="flex items-center justify-between px-2 mb-1.5">
-              <AreasParentLink />
-              <AreaCreateDialog
-                userId={userId}
-                addOptimisticArea={addOptimisticArea}
-                currentAreaCount={activeAreas.length}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Create area"
-                  className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+          <div className="mt-6">
+            {!effectiveCollapsed && (
+              <div className="flex items-center justify-between px-2 mb-1.5">
+                <AreasParentLink />
+                <AreaCreateDialog
+                  userId={userId}
+                  addOptimisticArea={addOptimisticArea}
+                  currentAreaCount={activeAreas.length}
                 >
-                  <Plus size={12} strokeWidth={1.5} />
-                </Button>
-              </AreaCreateDialog>
-            </div>
-          )}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Create area"
+                    className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+                  >
+                    <Plus size={12} strokeWidth={1.5} />
+                  </Button>
+                </AreaCreateDialog>
+              </div>
+            )}
 
-          {effectiveCollapsed && (
-            <div className="flex flex-col items-center gap-1 py-1">
-              {/* Collapsed-mode Areas link — keeps the homepage one click
+            {effectiveCollapsed && (
+              <div className="flex flex-col items-center gap-1 py-1">
+                {/* Collapsed-mode Areas link — keeps the homepage one click
                   away when the sidebar is narrow. */}
-              <AreasParentLink collapsed />
-              <AreaCreateDialog
-                userId={userId}
-                addOptimisticArea={addOptimisticArea}
-                currentAreaCount={activeAreas.length}
-              >
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Create area"
-                        className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
-                      >
-                        <Plus size={12} strokeWidth={1.5} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Create area</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </AreaCreateDialog>
-            </div>
-          )}
+                <AreasParentLink collapsed />
+                <AreaCreateDialog
+                  userId={userId}
+                  addOptimisticArea={addOptimisticArea}
+                  currentAreaCount={activeAreas.length}
+                >
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label="Create area"
+                          className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+                        >
+                          <Plus size={12} strokeWidth={1.5} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Create area</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </AreaCreateDialog>
+              </div>
+            )}
 
-          {/* Area/project tree is hidden in the collapsed rail — bare emoji
+            {/* Area/project tree is hidden in the collapsed rail — bare emoji
               glyphs read poorly there (issue #26). The framed "Areas" link +
               create button above keep the section reachable; the full tree
               returns on hover-expand / pinned-open. */}
+            {!effectiveCollapsed && (
+              <SidebarTree
+                userId={userId}
+                areas={areas}
+                collapsed={effectiveCollapsed}
+                graduationYear={graduationYear}
+                addOptimisticArea={addOptimisticArea}
+              />
+            )}
+          </div>
+
+          {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
           {!effectiveCollapsed && (
-            <SidebarTree
-              userId={userId}
-              areas={areas}
-              collapsed={effectiveCollapsed}
-              graduationYear={graduationYear}
-              addOptimisticArea={addOptimisticArea}
-            />
+            <div className="mt-6 px-4 mb-1.5">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
+                JARVIS
+              </span>
+            </div>
+          )}
+          {!effectiveCollapsed && (
+            <nav aria-label="JARVIS navigation" className="px-2">
+              <SidebarSectionLink href="/settings/memory" label="Memory" />
+            </nav>
           )}
         </div>
 
-        {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
-        {!effectiveCollapsed && (
-          <div className="mt-6 px-4 mb-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
-              JARVIS
-            </span>
-          </div>
-        )}
-        {!effectiveCollapsed && (
-          <nav aria-label="JARVIS navigation" className="px-2">
-            <SidebarSectionLink href="/settings/memory" label="Memory" />
-          </nav>
-        )}
-      </div>
-
-      {/* Footer — user chip, icon row, meta. Restructured for clarity:
+        {/* Footer — user chip, icon row, meta. Restructured for clarity:
           identity at top (avatar + display name), icon controls in the
           middle (eye / theme / settings, all uniform size), brand meta
           at the bottom. */}
-      <div className="border-t border-[var(--edge)] px-3 py-3 shrink-0 space-y-3">
-        <UserChip collapsed={effectiveCollapsed} profile={profile} />
+        <div className="border-t border-[var(--edge)] px-3 py-3 shrink-0 space-y-3">
+          <UserChip collapsed={effectiveCollapsed} profile={profile} />
 
-        <SidebarIconRow
-          collapsed={effectiveCollapsed}
-          showArchived={showArchived}
-          toggleShowArchived={toggleShowArchived}
-        />
+          <SidebarIconRow
+            collapsed={effectiveCollapsed}
+            showArchived={showArchived}
+            toggleShowArchived={toggleShowArchived}
+          />
 
-        {!effectiveCollapsed ? (
-          <div className="pt-3 border-t border-[var(--edge)] space-y-2">
-            <TooltipProvider delayDuration={300}>
-              <div className="flex items-center justify-around text-[var(--ink-muted)]">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      href="https://opensource.org/licenses/MIT"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="MIT License"
-                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
-                    >
-                      <Scale size={13} strokeWidth={1.5} />
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">MIT License</TooltipContent>
-                </Tooltip>
+          {!effectiveCollapsed ? (
+            <div className="pt-3 border-t border-[var(--edge)] space-y-2">
+              <TooltipProvider delayDuration={300}>
+                <div className="flex items-center justify-around text-[var(--ink-muted)]">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        href="https://opensource.org/licenses/MIT"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="MIT License"
+                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                      >
+                        <Scale size={13} strokeWidth={1.5} />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">MIT License</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        href="https://github.com/filippo-fonseca/hyperpolymath-v2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="GitHub repo"
+                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                      >
+                        <Github size={13} strokeWidth={1.5} />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">github.com/filippo-fonseca</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        href="https://filippofonseca.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="filippofonseca.com"
+                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                      >
+                        <Globe size={13} strokeWidth={1.5} />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">filippofonseca.com</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+              <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--ink-muted)] px-1">
+                how you do one thing is how you do everything.
+              </p>
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-[var(--edge)] text-center">
+              <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <a
                       href="https://github.com/filippo-fonseca/hyperpolymath-v2"
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label="GitHub repo"
-                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                      className="inline-block text-[14px] text-[var(--ink-muted)] opacity-40 hover:opacity-100 hover:text-[var(--ink)] transition-all select-none"
+                      aria-label="MIT licensed · github.com/filippo-fonseca"
                     >
-                      <Github size={13} strokeWidth={1.5} />
+                      ⚜
                     </a>
                   </TooltipTrigger>
-                  <TooltipContent side="top">github.com/filippo-fonseca</TooltipContent>
+                  <TooltipContent side="right">MIT · github.com/filippo-fonseca</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      href="https://filippofonseca.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="filippofonseca.com"
-                      className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
-                    >
-                      <Globe size={13} strokeWidth={1.5} />
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">filippofonseca.com</TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
-            <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--ink-muted)] px-1">
-              how you do one thing is how you do everything.
-            </p>
-          </div>
-        ) : (
-          <div className="pt-2 border-t border-[var(--edge)] text-center">
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="https://github.com/filippo-fonseca/hyperpolymath-v2"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block text-[14px] text-[var(--ink-muted)] opacity-40 hover:opacity-100 hover:text-[var(--ink)] transition-all select-none"
-                    aria-label="MIT licensed · github.com/filippo-fonseca"
-                  >
-                    ⚜
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  MIT · github.com/filippo-fonseca
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-      </div>
+              </TooltipProvider>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
@@ -422,7 +414,7 @@ function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
                 "inline-flex w-7 h-7 items-center justify-center rounded-md transition-colors duration-100 cursor-pointer-always",
                 active
                   ? "text-[var(--ink)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
               )}
             >
               <Network size={14} strokeWidth={1.5} />
@@ -444,7 +436,7 @@ function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
         "transition-colors duration-100 cursor-pointer-always",
         active
           ? "text-[var(--ink)]"
-          : "text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] hover:text-[var(--ink)]",
+          : "text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] hover:text-[var(--ink)]"
       )}
     >
       <Network
@@ -510,10 +502,7 @@ function UserChip({
   profile: Props["profile"];
 }) {
   const src = profile.avatarUrl || profile.oauthAvatarUrl;
-  const initial =
-    (profile.displayName?.trim() || profile.email || "·")
-      .charAt(0)
-      .toUpperCase();
+  const initial = (profile.displayName?.trim() || profile.email || "·").charAt(0).toUpperCase();
   const primaryLabel = profile.displayName?.trim() || profile.email;
 
   if (collapsed) {
@@ -544,9 +533,7 @@ function UserChip({
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
-        <span className="font-serif text-sm text-[var(--ink)] truncate">
-          {primaryLabel}
-        </span>
+        <span className="font-serif text-sm text-[var(--ink)] truncate">{primaryLabel}</span>
         {profile.displayName?.trim() ? (
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] truncate">
             {profile.email}
@@ -576,13 +563,9 @@ function SidebarIconRow({
   showArchived: boolean;
   toggleShowArchived: () => void;
 }) {
+  const sfxMuted = useSfxMuted();
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1",
-        collapsed ? "flex-col" : "justify-between",
-      )}
-    >
+    <div className={cn("flex items-center gap-1", collapsed ? "flex-col" : "justify-between")}>
       <SidebarIconButton
         label={showArchived ? "Hide archived" : "Show archived"}
         onClick={toggleShowArchived}
@@ -600,10 +583,15 @@ function SidebarIconRow({
       </div>
 
       <SidebarIconButton
-        label="Settings"
-        href="/settings"
+        label={sfxMuted ? "Sound effects off" : "Sound effects on"}
+        onClick={() => setSfxMuted(!sfxMuted)}
+        active={!sfxMuted}
         side={collapsed ? "right" : "top"}
       >
+        {sfxMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+      </SidebarIconButton>
+
+      <SidebarIconButton label="Settings" href="/settings" side={collapsed ? "right" : "top"}>
         <Settings size={14} />
       </SidebarIconButton>
     </div>
@@ -629,7 +617,7 @@ function SidebarIconButton({
     "inline-flex items-center justify-center w-7 h-7 transition-colors duration-150 cursor-pointer-always",
     active
       ? "sidebar-row-active text-[var(--ink)]"
-      : "sidebar-ghost-btn text-[var(--ink-muted)] hover:text-[var(--ink)]",
+      : "sidebar-ghost-btn text-[var(--ink-muted)] hover:text-[var(--ink)]"
   );
   return (
     <TooltipProvider delayDuration={300}>
@@ -686,7 +674,7 @@ function SidebarSectionLink({
         "transition-colors duration-150 ease-out cursor-pointer-always",
         isActive
           ? "sidebar-row-active sidebar-row-active-area text-[var(--hud-cyan)] font-medium"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
       )}
     >
       {label}
