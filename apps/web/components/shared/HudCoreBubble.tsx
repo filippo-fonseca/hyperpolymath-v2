@@ -33,12 +33,20 @@ interface Props {
   state?: HudCoreBubbleState;
   dimmed?: boolean;
   className?: string;
+  /**
+   * Rendered pixel size of the square SVG (default 280). Drives the real
+   * layout box — prefer this over a parent `transform: scale()`, which leaves
+   * the 280px footprint behind and bleeds the visual onto neighbouring
+   * elements.
+   */
+  size?: number;
 }
 
 export function HudCoreBubble({
   state = "idle",
   dimmed = false,
   className = "",
+  size = 280,
 }: Props) {
   const shouldReduce = useReducedMotion();
 
@@ -133,8 +141,8 @@ export function HudCoreBubble({
       <svg
         key={wakeBurstKey}
         viewBox="0 0 280 280"
-        width="280"
-        height="280"
+        width={size}
+        height={size}
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={`${animationClasses} ${

@@ -204,11 +204,11 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
           {/* ── Step: Welcome ── */}
           {step === "welcome" && (
             <section className="space-y-10">
-              {/* HudCoreBubble as the hero focal point */}
-              <div className="flex justify-center select-none" style={{ marginBottom: -8, marginTop: -8 }}>
-                <div style={{ transform: "scale(0.52)", transformOrigin: "center", height: 112 }}>
-                  <HudCoreBubble state="thinking" />
-                </div>
+              {/* HudCoreBubble as the hero focal point. Sized directly (not via
+                  a parent scale transform) so its real layout box clears the
+                  "Your life OS is ready" pill below it. */}
+              <div className="flex justify-center select-none">
+                <HudCoreBubble state="thinking" size={150} />
               </div>
 
               <div className="space-y-4 text-center">
@@ -626,17 +626,8 @@ function GlassAccentButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-serif text-[0.95rem] font-medium transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{
-        background: disabled
-          ? "color-mix(in oklch, var(--ink) 12%, transparent)"
-          : "linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-blue) 100%)",
-        color: "oklch(97% 0.003 75)",
-        boxShadow: disabled
-          ? "none"
-          : "0 2px 12px color-mix(in oklch, var(--ink-violet) 30%, transparent), inset 0 1px 0 oklch(100% 0 0 / 0.18)",
-        border: "1px solid oklch(100% 0 0 / 0.12)",
-      }}
+      className="glass-button inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-serif text-[0.95rem] font-medium text-[var(--ink)] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ ["--glass-glow-color" as string]: "var(--hud-cyan)" }}
     >
       {children}
     </button>
