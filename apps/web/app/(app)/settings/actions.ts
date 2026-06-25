@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { deleteAllUserData } from "@/lib/db/queries/delete-account";
 
 type ActionResult =
   | { success: true }
@@ -65,4 +67,60 @@ export async function updateDistanceUnit(
   revalidatePath("/training");
   revalidatePath("/lifeos");
   return { success: true };
+}
+
+/**
+ * Permanently delete the signed-in user's account: every owned row across all
+ * tables, plus the Supabase Auth user itself. Irreversible.
+ *
+ * Gated on the caller re-typing their exact account email — the same check the
+ * Danger Zone UI enforces, re-validated server-side so a crafted request can't
+ * bypass it. Auth via getClaims() only (CLAUDE.md Critical Pattern 1).
+ *
+ * Order matters: the data wipe runs in one transaction (deleteAllUserData),
+ * then the auth user is removed via the admin API. If the auth removal fails
+ * the data is already gone, so we surface that explicitly rather than pretend
+ * success. On success we sign out and redirect to /sign-in.
+ */
+export async function deleteAccountAction(
+  confirmation: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: claimsData, error } = await supabase.auth.getClaims();
+  if (error || !claimsData?.claims) {
+    return { success: false, error: "Not authenticated" };
+  }
+  const userId = claimsData.claims.sub;
+
+  const [row] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const email = row?.email ?? "";
+
+  if (
+    !email ||
+    confirmation.trim().toLowerCase() !== email.trim().toLowerCase()
+  ) {
+    return {
+      success: false,
+      error: "Confirmation does not match your account email.",
+    };
+  }
+
+  await deleteAllUserData(userId);
+
+  const admin = createAdminClient();
+  const { error: adminError } = await admin.auth.admin.deleteUser(userId);
+  if (adminError) {
+    return {
+      success: false,
+      error:
+        "Your data was removed but the account could not be fully deleted. Please contact support.",
+    };
+  }
+
+  await supabase.auth.signOut();
+  redirect("/sign-in");
 }

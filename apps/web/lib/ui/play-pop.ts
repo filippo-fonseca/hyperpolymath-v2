@@ -1,3 +1,5 @@
+import { isSfxMuted } from "@/lib/ui/sound-prefs";
+
 let popAudio: HTMLAudioElement | null = null;
 
 /**
@@ -8,6 +10,7 @@ let popAudio: HTMLAudioElement | null = null;
  */
 export function playPop(): void {
   if (typeof window === "undefined") return;
+  if (isSfxMuted()) return;
   try {
     if (!popAudio) {
       popAudio = new Audio("/pop.mp3");

@@ -9,6 +9,7 @@ import { users } from "@/lib/db/schema";
 import { Card } from "@/components/ui/card";
 import { SettingsForm } from "@/components/settings-form";
 import { SignOutButton } from "@/components/sign-out-button";
+import { DangerZoneSection } from "@/components/settings/DangerZoneSection";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { getGcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import { GcalConnectionRow } from "@/components/settings/GcalConnectionRow";
@@ -315,6 +316,10 @@ export default async function SettingsPage() {
                 Sign out
               </h3>
               <SignOutButton />
+            </Card>
+
+            <Card className={`${tile} border-[var(--ink-coral)]/30`}>
+              <DangerZoneSection email={user.email} />
             </Card>
           </section>
         </div>
