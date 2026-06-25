@@ -20,6 +20,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { buildSnapshot } from "@/lib/context/build-snapshot";
 import { persistSnapshot } from "@/lib/context/persist";
+import { checkRateLimit } from "@/lib/ratelimit/in-memory";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,6 +33,18 @@ export async function POST() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const userId = claimsData.claims.sub as string;
+
+  // Snapshot rebuild is heavy owner-DB work; cap how often a user can force it.
+  const rl = checkRateLimit(`context-rebuild:${userId}`, {
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
 
   const built = await buildSnapshot(userId);
   if (!built.ok) {
