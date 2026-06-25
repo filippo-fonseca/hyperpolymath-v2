@@ -20,6 +20,13 @@ import { X, ChevronRight, ChevronLeft } from "lucide-react";
 
 const TOUR_PENDING_KEY = "hp_tour_pending";
 const TOUR_DONE_KEY = "hp_tour_v1_done";
+/**
+ * In-tab signal that onboarding just set the pending flag. The `storage`
+ * event only fires across tabs, so without this the tour wouldn't trigger
+ * until a full reload — AppShell stays mounted through the post-onboarding
+ * client-side `redirect()` so ProductTour's mount-time check never re-runs.
+ */
+export const TOUR_PENDING_EVENT = "hp:tour-pending";
 
 /* ── Tour step definitions ── */
 
@@ -245,19 +252,26 @@ export function ProductTour() {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, markDone]);
 
-  // Bootstrap: fire once on mount when pending flag is set
+  // Bootstrap: fire on mount when the pending flag is set, AND re-check on the
+  // in-tab `hp:tour-pending` event so onboarding can trigger the tour without
+  // a full reload (AppShell stays mounted through the client-side redirect).
   useEffect(() => {
-    try {
-      const pending = localStorage.getItem(TOUR_PENDING_KEY);
-      const done = localStorage.getItem(TOUR_DONE_KEY);
-      if (pending === "1" && !done) {
-        localStorage.removeItem(TOUR_PENDING_KEY);
-        setActive(true);
-        setStepIdx(0);
+    function checkPending() {
+      try {
+        const pending = localStorage.getItem(TOUR_PENDING_KEY);
+        const done = localStorage.getItem(TOUR_DONE_KEY);
+        if (pending === "1" && !done) {
+          localStorage.removeItem(TOUR_PENDING_KEY);
+          setActive(true);
+          setStepIdx(0);
+        }
+      } catch {
+        // storage unavailable
       }
-    } catch {
-      // storage unavailable
     }
+    checkPending();
+    window.addEventListener(TOUR_PENDING_EVENT, checkPending);
+    return () => window.removeEventListener(TOUR_PENDING_EVENT, checkPending);
   }, []);
 
   const goNext = () => {
