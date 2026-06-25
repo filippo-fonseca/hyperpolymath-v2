@@ -1206,6 +1206,7 @@ export function JarvisConsole({
           getHashtags={() => initialHashtags}
           onSubmit={handleSubmit}
           disabled={streaming}
+          autoFocus
         />
       </div>
     </div>
