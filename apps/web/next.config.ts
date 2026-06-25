@@ -26,6 +26,35 @@ const nextConfig: NextConfig = {
     "/": ["../../.planning/ROADMAP.md"],
   },
 
+  // Security response headers applied to every route. Clickjacking is covered
+  // by X-Frame-Options + CSP frame-ancestors 'none'. We intentionally do NOT
+  // ship a script-src/style-src CSP here: a misconfigured one silently breaks
+  // the whole app (Next inline bootstrap, Supabase, Anthropic streaming, Google
+  // OAuth, fonts), and it can't be verified without a real browser pass. Add a
+  // full nonce-based CSP as a follow-up after testing in a Vercel preview.
+  // microphone=(self) is required for in-browser voice (STT getUserMedia).
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(self), geolocation=()",
+          },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
+  },
+
   // Phase 22: the "Pages" feature was renamed to "Wiki" and the route moved
   // from /pages to /wiki. Permanently redirect the old paths so any saved
   // links or bookmarks still resolve. The :pageId segment is preserved.
