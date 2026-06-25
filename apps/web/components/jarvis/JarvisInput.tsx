@@ -17,6 +17,7 @@ import {
   type JarvisInputPayload,
 } from "./jarvis-input-payload";
 import { registerJarvisFocus } from "@/lib/jarvis/focus";
+import { playSend } from "@/lib/ui/play-send";
 
 /**
  * JARVIS Console composer (Plan 05-03 Task 3).
@@ -365,6 +366,7 @@ export function JarvisInput({
       override,
     );
     if (!payload) return;
+    playSend();
     // Phase 6.1 Plan 02 — State 4 (submitting-ignite): trigger the 320ms
     // ignite window. The wrapper className flips to .hud-submit-ignite-border
     // (border flashes cyan-bright with --ease-out-back overshoot) and the

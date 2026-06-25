@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { playSend } from "@/lib/ui/play-send";
 
 interface Props {
   placeholder?: string;
@@ -87,6 +88,7 @@ export function LiteJarvisComposer({
       e.preventDefault();
       const trimmed = value.trim();
       if (!trimmed) return;
+      playSend();
       onSubmit(trimmed);
       setValue("");
       onValueChange?.("");
