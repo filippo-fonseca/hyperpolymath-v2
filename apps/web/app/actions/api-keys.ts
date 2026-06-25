@@ -103,7 +103,20 @@ export async function saveApiKey(
     return { ok: false, error: `That key was rejected by ${meta.label}.` };
   }
 
-  const last4 = await setUserKey(userId, provider, key);
+  let last4: string;
+  try {
+    last4 = await setUserKey(userId, provider, key);
+  } catch (err) {
+    // Most likely BYOK_ENC_KEY is unset/misconfigured on the server, or a
+    // transient DB error. Either way this must NOT escape the server action —
+    // an uncaught throw here renders the whole /settings page into the error
+    // boundary. Log the real cause server-side; return a safe inline message.
+    console.error("[saveApiKey] failed to store key:", err);
+    return {
+      ok: false,
+      error: "Couldn't save your key right now. Please try again in a moment.",
+    };
+  }
   revalidatePath("/settings");
   return { ok: true, last4 };
 }
