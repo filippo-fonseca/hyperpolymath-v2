@@ -535,7 +535,15 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     [inheritedPills, serverPage.folderName]
   );
 
-  const linkedProjects = initialActiveProjects.filter((p) => linkedProjectIds.includes(p.id));
+  // Derive the linked-project chips from the LIVE name map, not the frozen
+  // SSR-hydrated `initialActiveProjects`. An inline-created project (or one
+  // linked from another surface) is absent from that prop, so filtering it
+  // dropped the chip until a full reload; resolving through `projectNameById`
+  // (which refetches after an inline create) makes the new link show at once.
+  const linkedProjects = linkedProjectIds.map((id) => ({
+    id,
+    name: projectNameById.get(id) ?? "Project",
+  }));
 
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
 
