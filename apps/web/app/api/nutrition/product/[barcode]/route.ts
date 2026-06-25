@@ -44,7 +44,7 @@ export async function GET(
   } catch (err) {
     console.error(`[/api/nutrition/product/${barcode}] OFF upstream error:`, err);
     return NextResponse.json(
-      { product: null, status: 0, error: String(err) },
+      { product: null, status: 0, error: "Upstream lookup failed" },
       { status: 502 },
     );
   }

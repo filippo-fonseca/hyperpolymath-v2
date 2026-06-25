@@ -12,6 +12,7 @@ import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
+import { constantTimeEqual } from "@/lib/auth/constant-time";
 import { isOwnerUser } from "@/lib/auth/owner";
 import { db } from "@/lib/db";
 import { jarvisTurns } from "@/lib/db/schema";
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!desktopUserId) {
     const expected = process.env.PHYSICAL_TRIGGER_SECRET;
     const provided = req.headers.get("x-trigger-secret");
-    if (!expected || !provided || provided !== expected) {
+    if (!expected || !provided || !constantTimeEqual(provided, expected)) {
       return new Response("Unauthorized", { status: 401, headers: CORS });
     }
   }

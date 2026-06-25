@@ -28,6 +28,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { createClient } from "@/lib/supabase/server";
 import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
+import { checkRateLimit } from "@/lib/ratelimit/in-memory";
 import {
   zCreateTask,
   zCreateCapture,
@@ -38,6 +39,14 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Abuse/DoS bounds. Even though each turn spends the user's OWN key (BYOK),
+// an unbounded body inflates the user's own cost/latency and lets a script
+// hammer the route. Cap turn rate per user and reject oversized payloads.
+const RATE_LIMIT = { limit: 40, windowMs: 60_000 };
+const MAX_INPUT_CHARS = 16_000;
+const MAX_HISTORY_TURNS = 200;
+const MAX_HISTORY_CHARS = 400_000;
 
 // Touch the non-voice exports so tree-shaking doesn't drop them (still
 // referenced by test fixtures and external consumers via index.ts barrel).
@@ -84,6 +93,16 @@ export async function POST(req: NextRequest) {
   }
   const userId = claimsResult.data.claims.sub;
 
+  // 1a. Per-user turn rate limit (best-effort, per-instance — dampens scripted
+  //     abuse; not a hard global quota).
+  const rl = checkRateLimit(`jarvis:${userId}`, RATE_LIMIT);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   // 1b. BYOK — resolve the requesting user's own Anthropic key BEFORE any SSE
   //     stream is opened. No owner env fallback: a public user spends only
   //     their own tokens. Missing key → 402 with a machine-readable provider so
@@ -116,6 +135,21 @@ export async function POST(req: NextRequest) {
     body = (await req.json()) as JarvisRequestBody;
   } catch {
     return new Response("Invalid JSON", { status: 400 });
+  }
+
+  // 3b. Bound the payload before it reaches the model.
+  if (typeof body.input !== "string" || body.input.length > MAX_INPUT_CHARS) {
+    return NextResponse.json({ error: "input_too_large" }, { status: 413 });
+  }
+  if (Array.isArray(body.history)) {
+    if (
+      body.history.length > MAX_HISTORY_TURNS ||
+      JSON.stringify(body.history).length > MAX_HISTORY_CHARS
+    ) {
+      return NextResponse.json({ error: "history_too_large" }, { status: 413 });
+    }
+  } else {
+    body.history = [];
   }
 
   // 4. Slash-command forcing via tool_choice

@@ -20,6 +20,7 @@
 import Groq from "groq-sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getUserKey, MissingKeyError } from "@/lib/byok/keys";
+import { checkRateLimit } from "@/lib/ratelimit/in-memory";
 
 export const runtime = "nodejs"; // NOT Edge — groq-sdk uses Node streams
 
@@ -33,6 +34,15 @@ export async function POST(req: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   const userId = claimsResult.data.claims.sub;
+
+  // 1a. Per-user rate limit (best-effort, per-instance).
+  const rl = checkRateLimit(`stt:${userId}`, { limit: 60, windowMs: 60_000 });
+  if (!rl.ok) {
+    return Response.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
 
   // 1b. BYOK — resolve the user's own Groq key. No owner env fallback.
   let groqKey: string;

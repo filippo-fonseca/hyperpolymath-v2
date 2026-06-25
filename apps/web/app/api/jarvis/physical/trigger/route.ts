@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { emitPhysicalTrigger } from "@/lib/voice/physical-extension/bus";
 import type { PhysicalTrigger } from "@/lib/voice/physical-extension/types";
 import { getVoiceSourceStatus } from "@/lib/voice/source-claim";
+import { constantTimeEqual } from "@/lib/auth/constant-time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const provided = req.headers.get("x-trigger-secret");
-  if (!provided || provided !== expected) {
+  if (!provided || !constantTimeEqual(provided, expected)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

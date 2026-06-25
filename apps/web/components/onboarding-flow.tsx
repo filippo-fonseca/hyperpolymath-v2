@@ -528,7 +528,7 @@ export function OnboardingFlow({ initialDisplayName, email }: Props) {
                   icon={PenLine}
                   label="Capture"
                   accentColor="var(--ink-violet)"
-                  example='"i&rsquo;m tired"'
+                  example={'"i’m tired"'}
                   description="Lands in your capture log, verbatim. JARVIS never paraphrases captures."
                 />
                 <ShowcaseCard
@@ -859,10 +859,9 @@ function ShowcaseCard({
           >
             {label}
           </span>
-          <span
-            className="font-serif italic text-[var(--ink)] text-sm"
-            dangerouslySetInnerHTML={{ __html: example }}
-          />
+          <span className="font-serif italic text-[var(--ink)] text-sm">
+            {example}
+          </span>
         </div>
         <p className="font-serif text-sm text-[var(--ink-muted)] leading-relaxed">
           {description}
