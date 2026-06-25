@@ -113,6 +113,7 @@ interface TreeCtx {
   onExportFolder: (id: string, name: string) => void;
   onRenameFolder: (id: string, name: string) => void;
   onAddSubfolder: (parentId: string, name: string) => void;
+  onAddPage: (folderId: string) => void;
   onDeleteFolder: (id: string) => void;
   folders: FolderRow[];
   pageFolderOf: Map<string, string | null>;
@@ -161,6 +162,10 @@ export function PagesListClient({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Google-Drive-style grid navigation: which folder the grid is currently
+  // showing (null = top level). Only used by the grid view; the list view keeps
+  // its expand/collapse tree instead.
+  const [gridFolderId, setGridFolderId] = useState<string | null>(null);
   // The Daily Pages calendar is shown by default; collapsible per WIKI-DAILY-01.
   const [dailyOpen, setDailyOpen] = useState(true);
   const [openingDay, setOpeningDay] = useState(false);
@@ -226,6 +231,15 @@ export function PagesListClient({
     [folders]
   );
 
+  // If the grid is sitting inside a folder that gets deleted (here or via a
+  // realtime echo from another tab), fall back to the top level so we never
+  // render an empty drill-down for a folder that no longer exists.
+  useEffect(() => {
+    if (gridFolderId && !folders.some((f) => f.id === gridFolderId)) {
+      setGridFolderId(null);
+    }
+  }, [folders, gridFolderId]);
+
   const q = filter.trim().toLowerCase();
   const visiblePages = useMemo(
     () => (q ? allPages.filter((p) => p.title.toLowerCase().includes(q)) : allPages),
@@ -274,7 +288,7 @@ export function PagesListClient({
     });
   }
 
-  async function handleNewPage() {
+  async function handleNewPage(folderId: string | null = null) {
     if (creating) return;
     setCreating(true);
     try {
@@ -294,8 +308,8 @@ export function PagesListClient({
           emoji: null,
           pinned: false,
           noExport: false,
-          folderId: null,
-          folderName: null,
+          folderId,
+          folderName: folderId ? folderNames.get(folderId) ?? null : null,
           dailyDate: null,
           createdAt: now,
           updatedAt: now,
@@ -303,7 +317,8 @@ export function PagesListClient({
         },
         ...old,
       ]);
-      const result = await createPage({ id, title: "", content: "" });
+      if (folderId) expandFolder(folderId);
+      const result = await createPage({ id, title: "", content: "", folderId });
       if (!result.success) {
         void queryClient.invalidateQueries({ queryKey: pagesKey });
         return;
@@ -516,6 +531,7 @@ export function PagesListClient({
     onExportFolder: handleExportFolder,
     onRenameFolder: handleRenameFolder,
     onAddSubfolder: (parentId, name) => handleCreateFolder(name, parentId),
+    onAddPage: (folderId) => void handleNewPage(folderId),
     onDeleteFolder: handleDeleteFolder,
     folders,
     pageFolderOf,
@@ -585,7 +601,7 @@ export function PagesListClient({
           </button>
           <button
             type="button"
-            onClick={handleNewPage}
+            onClick={() => handleNewPage()}
             disabled={creating}
             aria-busy={creating}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
@@ -703,24 +719,41 @@ export function PagesListClient({
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-          {[...visiblePages]
-            .sort(
-              (a, b) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-            )
-            .map((page) => (
-              <PageCard
-                key={page.id}
-                page={page}
-                folderName={
-                  page.folderId ? folderNames.get(page.folderId) ?? null : null
-                }
-                projectNames={projectNames}
-                onOpen={() => router.push(`/wiki/${page.id}`)}
-              />
-            ))}
-        </div>
+        q ? (
+          // Active title filter: search is global, so flatten every matching
+          // page into a single gallery rather than constraining to one folder.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+            {[...visiblePages]
+              .sort(
+                (a, b) =>
+                  new Date(b.updatedAt).getTime() -
+                  new Date(a.updatedAt).getTime(),
+              )
+              .map((page) => (
+                <PageCard
+                  key={page.id}
+                  page={page}
+                  folderName={
+                    page.folderId ? folderNames.get(page.folderId) ?? null : null
+                  }
+                  projectNames={projectNames}
+                  onOpen={() => router.push(`/wiki/${page.id}`)}
+                />
+              ))}
+          </div>
+        ) : (
+          <GridDriveView
+            gridFolderId={gridFolderId}
+            onNavigate={setGridFolderId}
+            folders={folders}
+            pages={allPages}
+            folderProjects={folderProjects}
+            folderNames={folderNames}
+            projectNames={projectNames}
+            onOpenPage={(id) => router.push(`/wiki/${id}`)}
+            onAddPage={(folderId) => void handleNewPage(folderId)}
+          />
+        )
       ) : (
         <DndContext
           sensors={sensors}
@@ -889,14 +922,29 @@ function FolderNode({
             </span>
           }
           trailing={
-            <WikiFolderMenu
-              folderId={folder.id}
-              folderName={folder.name}
-              onRename={ctx.onRenameFolder}
-              onAddSubfolder={ctx.onAddSubfolder}
-              onExport={() => ctx.onExportFolder(folder.id, folder.name)}
-              onDelete={ctx.onDeleteFolder}
-            />
+            <span className="flex items-center gap-0.5">
+              <button
+                type="button"
+                aria-label={`New page in ${folder.name}`}
+                title="New page in this folder"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ctx.onAddPage(folder.id);
+                }}
+                className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
+              >
+                <Plus size={13} strokeWidth={1.5} />
+              </button>
+              <WikiFolderMenu
+                folderId={folder.id}
+                folderName={folder.name}
+                onRename={ctx.onRenameFolder}
+                onAddSubfolder={ctx.onAddSubfolder}
+                onExport={() => ctx.onExportFolder(folder.id, folder.name)}
+                onDelete={ctx.onDeleteFolder}
+              />
+            </span>
           }
         />
       </div>
@@ -1174,5 +1222,269 @@ function PageCard({
         </span>
       </div>
     </button>
+  );
+}
+
+// ─── Grid view: Google-Drive-style folder drill-down ───────────────────────
+
+/**
+ * Drive-like gallery for the grid view. Shows the contents of one folder at a
+ * time (`gridFolderId`; null = top level): subfolders first as folder cards,
+ * then pages as page cards, with a clickable breadcrumb trail back to the root.
+ * Folder/page membership is read straight off the flat `folders` + `pages`
+ * arrays (parentId / folderId), so a realtime echo repaints it for free.
+ */
+function GridDriveView({
+  gridFolderId,
+  onNavigate,
+  folders,
+  pages,
+  folderProjects,
+  folderNames,
+  projectNames,
+  onOpenPage,
+  onAddPage,
+}: {
+  gridFolderId: string | null;
+  onNavigate: (folderId: string | null) => void;
+  folders: FolderRow[];
+  pages: PageWithProjects[];
+  folderProjects: FolderProjectLink[];
+  folderNames: Map<string, string>;
+  projectNames: Map<string, string>;
+  onOpenPage: (id: string) => void;
+  onAddPage: (folderId: string) => void;
+}) {
+  const subfolders = useMemo(
+    () =>
+      folders
+        .filter((f) => (f.parentId ?? null) === gridFolderId)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [folders, gridFolderId],
+  );
+  const childPages = useMemo(
+    () =>
+      pages
+        .filter((p) => (p.folderId ?? null) === gridFolderId)
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        ),
+    [pages, gridFolderId],
+  );
+
+  // Item counts per folder (subfolders + pages) for the folder-card subtitle.
+  const childCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of folders) {
+      if (f.parentId) m.set(f.parentId, (m.get(f.parentId) ?? 0) + 1);
+    }
+    for (const p of pages) {
+      if (p.folderId) m.set(p.folderId, (m.get(p.folderId) ?? 0) + 1);
+    }
+    return m;
+  }, [folders, pages]);
+
+  // Own (direct) project links per folder, for the folder-card pill row.
+  const ownLinksByFolder = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const link of folderProjects) {
+      const list = m.get(link.folderId) ?? [];
+      list.push(link.projectId);
+      m.set(link.folderId, list);
+    }
+    return m;
+  }, [folderProjects]);
+
+  // Breadcrumb trail (root first). Cycle-safe via a visited guard.
+  const path = useMemo(() => {
+    if (!gridFolderId) return [] as { id: string; name: string }[];
+    const byId = new Map(folders.map((f) => [f.id, f] as const));
+    const chain: { id: string; name: string }[] = [];
+    const visited = new Set<string>();
+    let current: string | null = gridFolderId;
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      const node = byId.get(current);
+      if (!node) break;
+      chain.push({ id: node.id, name: node.name });
+      current = node.parentId;
+    }
+    return chain.reverse();
+  }, [gridFolderId, folders]);
+
+  const isEmpty = subfolders.length === 0 && childPages.length === 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 text-[12px] font-mono text-[var(--ink-muted)] flex-wrap">
+        <button
+          type="button"
+          onClick={() => onNavigate(null)}
+          className={`hover:text-[var(--ink)] transition-colors cursor-pointer ${
+            gridFolderId === null ? "text-[var(--ink)]" : ""
+          }`}
+        >
+          Wiki
+        </button>
+        {path.map((seg, i) => {
+          const isLast = i === path.length - 1;
+          return (
+            <span key={seg.id} className="flex items-center gap-1 min-w-0">
+              <ChevronRight
+                size={12}
+                strokeWidth={1.5}
+                className="opacity-50 flex-shrink-0"
+              />
+              <button
+                type="button"
+                onClick={() => onNavigate(seg.id)}
+                className={`truncate max-w-[180px] hover:text-[var(--ink)] transition-colors cursor-pointer ${
+                  isLast ? "text-[var(--ink)]" : ""
+                }`}
+              >
+                {seg.name}
+              </button>
+            </span>
+          );
+        })}
+        {gridFolderId && (
+          <button
+            type="button"
+            onClick={() => onAddPage(gridFolderId)}
+            title="New page in this folder"
+            className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-sm text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+          >
+            <Plus size={12} strokeWidth={1.5} />
+            <span>New page here</span>
+          </button>
+        )}
+      </nav>
+
+      {isEmpty ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <Folder
+            size={28}
+            strokeWidth={1}
+            className="text-[var(--ink-muted)] opacity-40"
+          />
+          <p className="text-[13px] font-serif text-[var(--ink-muted)]">
+            This folder is empty.
+          </p>
+        </div>
+      ) : (
+        <>
+          {subfolders.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                Folders
+              </h2>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+                {subfolders.map((folder) => (
+                  <FolderCard
+                    key={folder.id}
+                    name={folder.name}
+                    itemCount={childCount.get(folder.id) ?? 0}
+                    projectIds={ownLinksByFolder.get(folder.id) ?? []}
+                    projectNames={projectNames}
+                    onOpen={() => onNavigate(folder.id)}
+                    onAddPage={() => onAddPage(folder.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {childPages.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                Pages
+              </h2>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                {childPages.map((page) => (
+                  <PageCard
+                    key={page.id}
+                    page={page}
+                    folderName={
+                      page.folderId
+                        ? folderNames.get(page.folderId) ?? null
+                        : null
+                    }
+                    projectNames={projectNames}
+                    onOpen={() => onOpenPage(page.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function FolderCard({
+  name,
+  itemCount,
+  projectIds,
+  projectNames,
+  onOpen,
+  onAddPage,
+}: {
+  name: string;
+  itemCount: number;
+  projectIds: string[];
+  projectNames: Map<string, string>;
+  onOpen: () => void;
+  onAddPage: () => void;
+}) {
+  return (
+    <div
+      // biome-ignore lint/a11y/useSemanticElements: the card holds a nested "new page" button, so it can't itself be a <button> (no nested interactives); a keyboard-handled role=button div is the accessible alternative.
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group relative flex flex-col gap-2 h-full text-left rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 hover:border-[var(--ink-muted)] transition-colors duration-150 cursor-pointer outline-none focus-visible:border-[var(--ink-muted)]"
+    >
+      <div className="flex items-start gap-2">
+        <span className="flex-shrink-0 mt-0.5">
+          <Folder size={15} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+        </span>
+        <span className="min-w-0 flex-1 text-[14px] font-serif text-[var(--ink)] line-clamp-2">
+          {name}
+        </span>
+        <button
+          type="button"
+          aria-label={`New page in ${name}`}
+          title="New page in this folder"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddPage();
+          }}
+          className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
+        >
+          <Plus size={13} strokeWidth={1.5} />
+        </button>
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+        <ProjectPillRow
+          links={projectIds.map((projectId) => ({
+            projectId,
+            isInherited: false,
+          }))}
+          projectNames={projectNames}
+        />
+        <span className="flex-shrink-0 ml-auto text-[10px] font-mono text-[var(--ink-muted)] tabular-nums">
+          {itemCount} {itemCount === 1 ? "item" : "items"}
+        </span>
+      </div>
+    </div>
   );
 }
