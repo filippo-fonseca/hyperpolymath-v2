@@ -14,11 +14,9 @@
  *     can return partial bytes; we buffer until `\n\n`).
  */
 
+import { BYOK_PROVIDERS, isByokProvider } from "@/lib/byok/providers";
+import { playReply } from "@/lib/ui/play-reply";
 import type { ParsedDate, Priority } from "@hyperpolymath/jarvis-core";
-import {
-  BYOK_PROVIDERS,
-  isByokProvider,
-} from "@/lib/byok/providers";
 
 /**
  * Build an actionable message from a 402 `{ error: "key_missing", provider }`
@@ -45,10 +43,12 @@ export interface JarvisRequest {
   // for plain text turns — backward-compatible for existing callers.
   history: Array<{
     role: "user" | "assistant";
-    content: string | Array<{
-      type: "text" | "tool_use" | "tool_result";
-      [key: string]: unknown;
-    }>;
+    content:
+      | string
+      | Array<{
+          type: "text" | "tool_use" | "tool_result";
+          [key: string]: unknown;
+        }>;
   }>;
   parsedDates?: ParsedDate[];
   /** Client-extracted priority hint (B5 fix). Server forwards to model so
@@ -123,7 +123,7 @@ export async function streamJarvis(
    *  Sent as X-Jarvis-Stt-Done-At so the /api/jarvis route can stamp it into
    *  stages.sttDoneAt on the jarvis_events row. Null for typed (non-voice)
    *  turns — header is omitted entirely in that case. */
-  sttDoneAt: number | null = null,
+  sttDoneAt: number | null = null
 ): Promise<void> {
   // Idle-timeout guard: a hung route (cold-start stall, dropped connection,
   // proxy that never closes the socket) would otherwise leave the fetch and
@@ -266,13 +266,12 @@ export async function streamJarvis(
         } else if (eventName === "action") {
           callbacks.onAction(obj as unknown as JarvisActionEvent);
         } else if (eventName === "done") {
-          callbacks.onDone(
-            (obj.usage as Record<string, number>) ?? {},
-          );
+          // Typed turns get a notification chime when JARVIS finishes. Voice
+          // turns skip it — TTS already speaks the reply aloud.
+          if (!voiceActive) playReply();
+          callbacks.onDone((obj.usage as Record<string, number>) ?? {});
         } else if (eventName === "error") {
-          callbacks.onError(
-            typeof obj.message === "string" ? obj.message : "Unknown error",
-          );
+          callbacks.onError(typeof obj.message === "string" ? obj.message : "Unknown error");
         }
       }
     }

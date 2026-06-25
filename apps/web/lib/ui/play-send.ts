@@ -1,3 +1,5 @@
+import { isSfxMuted } from "@/lib/ui/sound-prefs";
+
 let sendAudio: HTMLAudioElement | null = null;
 
 /**
@@ -9,6 +11,7 @@ let sendAudio: HTMLAudioElement | null = null;
  */
 export function playSend(): void {
   if (typeof window === "undefined") return;
+  if (isSfxMuted()) return;
   try {
     if (!sendAudio) {
       sendAudio = new Audio("/message-sent.mp3");
