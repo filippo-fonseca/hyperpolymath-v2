@@ -84,6 +84,11 @@ interface Props {
   onSubmit: (payload: JarvisInputPayload) => void;
   disabled?: boolean;
   /**
+   * Focus the editor as soon as it mounts. The Console passes this so landing
+   * on the JARVIS tab drops the caret straight into the composer.
+   */
+  autoFocus?: boolean;
+  /**
    * Phase 6 Plan 06-03: React 19 ref-as-prop pattern (no forwardRef wrapper).
    * Optional — parent passes a ref<JarvisInputHandle> to focus the editor
    * imperatively. Cmd+K already works via the module-level singleton; this
@@ -98,6 +103,7 @@ export function JarvisInput({
   getHashtags,
   onSubmit,
   disabled,
+  autoFocus,
   ref,
 }: Props) {
   const [slashOpen, setSlashOpen] = useState(false);
@@ -138,6 +144,7 @@ export function JarvisInput({
 
   const editor = useEditor({
     immediatelyRender: false,
+    autofocus: autoFocus ? "end" : false,
     extensions: [
       StarterKit.configure({
         heading: false,
