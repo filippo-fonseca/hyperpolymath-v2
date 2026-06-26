@@ -3,6 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Plus } from "lucide-react";
+import { Spinner } from "@/components/shared/Spinner";
 import { cn } from "@/lib/utils";
 
 type TaskStatus =
@@ -89,6 +90,7 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
           key="button"
           type="button"
           onClick={openInput}
+          disabled={isPending}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -97,10 +99,20 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
             "flex items-center gap-1 w-full px-1 py-1",
             "font-sans text-[13px] text-muted-foreground",
             "hover:text-foreground transition-colors rounded",
+            "disabled:opacity-60 disabled:cursor-not-allowed",
           )}
         >
-          <Plus size={13} />
-          Add task
+          {isPending ? (
+            <>
+              <Spinner size={13} label="Adding task" />
+              Adding…
+            </>
+          ) : (
+            <>
+              <Plus size={13} />
+              Add task
+            </>
+          )}
         </motion.button>
       )}
     </AnimatePresence>

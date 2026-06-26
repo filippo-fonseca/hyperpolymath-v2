@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createHabit, updateHabit } from "@/app/actions/habits";
@@ -238,11 +239,16 @@ export function HabitDialog(props: Props) {
             onClick={handleSubmit}
             disabled={!canSave}
           >
-            {pending
-              ? "Saving…"
-              : props.mode === "create"
-                ? "Add habit"
-                : "Save"}
+            {pending ? (
+              <>
+                <Spinner size={14} label="Saving habit" />
+                Saving…
+              </>
+            ) : props.mode === "create" ? (
+              "Add habit"
+            ) : (
+              "Save"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

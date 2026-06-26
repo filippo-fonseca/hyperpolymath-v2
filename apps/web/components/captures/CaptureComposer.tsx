@@ -14,6 +14,7 @@ import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -465,7 +466,11 @@ export function CaptureComposer({
           disabled={suggesting || !editor}
           className="inline-flex items-center gap-1 font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-50 cursor-pointer-always"
         >
-          <Sparkles className="size-3" aria-hidden />
+          {suggesting ? (
+            <Spinner size={12} label="Suggesting tags" />
+          ) : (
+            <Sparkles className="size-3" aria-hidden />
+          )}
           {suggesting ? "Suggesting…" : "Suggest tags"}
         </button>
         <div className="flex items-center gap-3">
@@ -477,7 +482,14 @@ export function CaptureComposer({
             <span className="font-mono">⌘Enter</span> to capture
           </span>
           <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
-            Capture
+            {pending ? (
+              <>
+                <Spinner size={13} label="Capturing" />
+                Capturing…
+              </>
+            ) : (
+              "Capture"
+            )}
           </Button>
         </div>
       </div>

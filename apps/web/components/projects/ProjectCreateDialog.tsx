@@ -1,6 +1,7 @@
 "use client";
 
 import { createProject } from "@/app/actions/projects";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -416,7 +417,14 @@ export function ProjectCreateDialog({
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating..." : "New Project"}
+              {pending ? (
+                <>
+                  <Spinner size={14} label="Creating project" />
+                  Creating…
+                </>
+              ) : (
+                "New Project"
+              )}
             </Button>
           </DialogFooter>
         </form>

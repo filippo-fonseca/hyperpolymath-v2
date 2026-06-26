@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { X } from "lucide-react";
+import { Spinner } from "@/components/shared/Spinner";
 import { MoveToMenu } from "./MoveToMenu";
 
 interface Props {
@@ -42,8 +43,9 @@ export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, p
               type="button"
               onClick={onDeleteSelected}
               disabled={pending}
-              className="rounded-full px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50"
             >
+              {pending ? <Spinner size={12} label="Deleting tasks" /> : null}
               Delete
             </button>
             <button

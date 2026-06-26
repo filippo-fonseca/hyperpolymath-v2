@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { deleteAccountAction } from "@/app/(app)/settings/actions";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -86,7 +87,14 @@ export function DangerZoneSection({ email }: { email: string }) {
               disabled={!matches || pending}
               onClick={handleDelete}
             >
-              {pending ? "Deleting…" : "Permanently delete account"}
+              {pending ? (
+                <>
+                  <Spinner size={14} label="Deleting account" />
+                  Deleting…
+                </>
+              ) : (
+                "Permanently delete account"
+              )}
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={pending} onClick={reset}>
               Cancel
