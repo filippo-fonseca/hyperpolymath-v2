@@ -204,9 +204,11 @@ export async function runPagesBackupForUser(
   }));
   const bytes = zipSync(buildTreeZip(tree, exportablePages));
 
-  // 4. Resolve the file date in the user's own timezone (UTC fallback).
+  // 4. Resolve the file date in the user's own timezone (UTC fallback). The
+  //    cron passes the timezone it already selected; the manual action omits it,
+  //    so we read it here in that case.
   let timezone = opts.timezone ?? null;
-  if (timezone === undefined || timezone === null) {
+  if (timezone === null) {
     const row = await db
       .select({ tz: users.timezone })
       .from(users)
