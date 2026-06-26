@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
  *   - Unchecked: bg --surface, 1px --edge border.
  *   - Checked:   bg --ink, check glyph in --canvas. Mimics a stamped mark on
  *                journal paper rather than a colored toggle button.
- *   - Focus visible: amber ring via the global :focus-visible rule.
+ *   - Focus visible: cyan ring via the global :focus-visible rule (#140).
  *   - Aria-invalid: coral border.
  */
 function Checkbox({

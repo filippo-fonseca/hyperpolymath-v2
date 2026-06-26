@@ -420,9 +420,10 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Glass tile composer — focus-within flips the glass accent to amber so
-    // the composer still reads "live" while typing.
-    <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
+    // Glass tile composer — focus-within flips the glass accent to the shared
+    // cyan focus color (#140) so the composer reads "live" while typing and
+    // matches every other focused input across the app.
+    <div className="rounded-xl glass-tile focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] focus-within:[--glass-glow:12%]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">

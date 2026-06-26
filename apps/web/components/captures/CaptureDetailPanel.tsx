@@ -556,7 +556,7 @@ export function CaptureDetailPanel({
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
                     Content
                   </h3>
-                  <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
+                  <div className="rounded-xl glass-tile focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] focus-within:[--glass-glow:12%]">
                     <EditorContent editor={editor} />
                   </div>
                   <p className="font-sans text-[13px] text-muted-foreground italic">
