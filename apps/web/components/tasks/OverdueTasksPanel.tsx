@@ -360,8 +360,9 @@ function OverdueDateGroup({
 }: GroupProps) {
   const date = fromYmd(group.ymd);
   const daysAgo = differenceInCalendarDays(new Date(), date);
-  const relative =
-    daysAgo === 1 ? "Yesterday" : daysAgo > 1 ? `${daysAgo} days ago` : format(date, "EEE, MMM d");
+  // Human "how overdue" badge — empty for same-day edge (shouldn't occur for
+  // overdue, but guards the < 1 case so we never render a misleading label).
+  const relative = daysAgo === 1 ? "Yesterday" : daysAgo > 1 ? `${daysAgo} days ago` : "";
 
   return (
     <div className="rounded-lg border border-[var(--edge)] bg-[var(--surface)]/40">
@@ -382,9 +383,11 @@ function OverdueDateGroup({
           <span className="font-sans text-[13px] text-[var(--ink)]">
             {format(date, "EEE, MMM d")}
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-coral)]/80">
-            {relative === format(date, "EEE, MMM d") ? "" : relative}
-          </span>
+          {relative ? (
+            <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-coral)]/80">
+              {relative}
+            </span>
+          ) : null}
           <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
             · {group.tasks.length}
           </span>
