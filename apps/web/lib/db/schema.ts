@@ -195,6 +195,10 @@ export const tasks = pgTable(
     // to the next occurrence on completion/skip. Shape is RecurrenceRule from
     // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
     recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the task (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    url: text("url"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // task is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
@@ -224,6 +228,10 @@ export const captures = pgTable(
     // token deletion, plus the input modality ('voice' | 'text').
     sourceDevice: text("source_device"),
     sourceInput: text("source_input"),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the capture (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    url: text("url"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
@@ -318,6 +326,10 @@ export const pages = pgTable(
     // callouts, etc.). Null for legacy pages, which seed from `content` markdown.
     contentJson: jsonb("content_json"),
     emoji: text("emoji"),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the page (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the page header. Migration 0042.
+    url: text("url"),
     pinned: boolean("pinned").notNull().default(false),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
     // this page is filtered out of the personal-context snapshot.

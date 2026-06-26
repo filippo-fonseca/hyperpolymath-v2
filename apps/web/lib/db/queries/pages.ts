@@ -14,6 +14,8 @@ export interface PageWithProjects {
   content: string;
   contentJson: unknown;
   emoji: string | null;
+  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  url: string | null;
   pinned: boolean;
   /** When true, the page is excluded from the snapshot, MCP export, and graph. */
   noExport: boolean;
@@ -37,6 +39,7 @@ const PAGE_COLS = {
   content: pages.content,
   contentJson: pages.contentJson,
   emoji: pages.emoji,
+  url: pages.url,
   pinned: pages.pinned,
   noExport: pages.noExport,
   folderId: pages.folderId,
@@ -52,6 +55,7 @@ type PageRow = {
   content: string;
   contentJson: unknown;
   emoji: string | null;
+  url: string | null;
   pinned: boolean;
   noExport: boolean;
   folderId: string | null;

@@ -77,6 +77,7 @@ import { FolderPicker } from "./FolderPicker";
 import { PageProcessingRunsMenu } from "./PageProcessingRunsMenu";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
+import { UrlField } from "@/components/shared/UrlField";
 
 // BlockNote needs the browser DOM — load client-only.
 const PageBlockEditor = dynamic(() => import("./PageBlockEditor"), { ssr: false });
@@ -171,6 +172,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
   const [content, setContent] = useState(serverPage.content);
   const [contentJson, setContentJson] = useState<unknown>(serverPage.contentJson);
   const [emoji, setEmoji] = useState<string | null>(serverPage.emoji);
+  // Issue #101 — Notion-style URL property for the page. Local mirror of
+  // pages.url; autosaves through the same debounced `save` as the rest of the
+  // header. serverPage (TanStack Query + realtime) re-syncs it on external edits.
+  const [url, setUrl] = useState<string | null>(serverPage.url ?? null);
+  useEffect(() => {
+    setUrl(serverPage.url ?? null);
+  }, [serverPage.url]);
   const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>(
     serverPage.projects.map((p) => p.id)
   );
@@ -330,6 +338,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         content: string;
         contentJson: unknown;
         emoji: string | null;
+        url: string | null;
         projectIds: string[];
       }>
     ) => {
@@ -341,6 +350,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         content: overrides?.content ?? content,
         contentJson: savedJson,
         emoji: overrides?.emoji !== undefined ? overrides.emoji : emoji,
+        url: overrides?.url !== undefined ? overrides.url : url,
         projectIds: overrides?.projectIds !== undefined ? overrides.projectIds : linkedProjectIds,
       });
       // Keep people_references in sync with the page's @-mentions on the same
@@ -356,7 +366,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
       if (savedFadeTimer.current) clearTimeout(savedFadeTimer.current);
       savedFadeTimer.current = setTimeout(() => setShowSaved(false), 2000);
     },
-    [initialPage.id, title, content, contentJson, emoji, linkedProjectIds]
+    [initialPage.id, title, content, contentJson, emoji, url, linkedProjectIds]
   );
 
   const scheduleAutosave = useCallback(
@@ -444,6 +454,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     setEmoji(val);
     setEmojiOpen(false);
     scheduleAutosave({ emoji: val });
+  }
+
+  // Issue #101 — set/clear the page's URL property, then autosave on the same
+  // debounced cadence as the rest of the header (UrlField already normalized it).
+  function handleUrlChange(next: string | null) {
+    setUrl(next);
+    scheduleAutosave({ url: next });
   }
 
   function handleUnlinkProject(projectId: string) {
@@ -881,6 +898,16 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           onPick={handlePickFolder}
           onCreate={handleCreateFolder}
         />
+      </div>
+
+      {/* URL property (issue #101) — Notion-style link field. Clickable when
+          set; inline input to add/edit/clear. Autosaves like the rest of the
+          header. */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
+          URL
+        </span>
+        <UrlField value={url} onChange={handleUrlChange} />
       </div>
 
       {/* Last edited */}

@@ -524,3 +524,22 @@
 .bn-entity-ref-label {
   min-width: 0;
 }
+
+/* Inline content links (issue #101) — BlockNote's built-in Link inline content
+   auto-linkifies pasted/typed URLs and renders them as real <a> elements. We
+   give those anchors the cyan HUD accent so they read as clickable, and ensure
+   they open in a new tab (the target/rel are also set on the editor's link
+   default). The entity-ref / person-pill anchors carry their own classes and
+   their own (text-decoration: none) styling, so the :not() guards keep this
+   rule scoped to genuine content URLs. */
+.bn-editor a[href]:not(.bn-entity-ref):not(.bn-person-pill) {
+  color: var(--hud-cyan);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--hud-cyan) 50%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.bn-editor a[href]:not(.bn-entity-ref):not(.bn-person-pill):hover {
+  text-decoration-color: var(--hud-cyan);
+}

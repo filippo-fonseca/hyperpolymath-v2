@@ -13,6 +13,8 @@ export interface TaskWithProjects {
   kanbanPosition: number;
   completedAt: Date | null;
   createdAt: Date;
+  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  url: string | null;
   /**
    * Issue #144 — recurrence rule (NULL = one-off task). When set, this row is a
    * recurring-task series whose due_date advances to the next occurrence on
@@ -71,6 +73,7 @@ export async function getAllTasksForUser(
     kanbanPosition: t.kanbanPosition,
     completedAt: t.completedAt,
     createdAt: t.createdAt,
+    url: t.url,
     recurrence: (t.recurrence as RecurrenceRule | null) ?? null,
     projects: linksByTask.get(t.id) ?? [],
   }));
@@ -105,6 +108,7 @@ export async function getTasksForProject(
     kanbanPosition: r.task.kanbanPosition,
     completedAt: r.task.completedAt,
     createdAt: r.task.createdAt,
+    url: r.task.url,
     recurrence: (r.task.recurrence as RecurrenceRule | null) ?? null,
     projects: [{ id: projectId, name: "" }],
   }));
