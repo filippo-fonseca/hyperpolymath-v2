@@ -1,6 +1,7 @@
 "use client";
 
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { NavArrows } from "./NavArrows";
 import { useTodayDailyPage } from "@/lib/pages/useTodayDailyPage";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { cn } from "@/lib/utils";
@@ -176,6 +177,8 @@ export function TopTabBar({ userId }: { userId: string }) {
       className="relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
       style={{ minHeight: 40 }}
     >
+      <NavArrows />
+
       {todayPath && (
         <TabPill
           href={todayPath}
