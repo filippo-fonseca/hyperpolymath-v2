@@ -307,6 +307,8 @@ export function PagesListClient({
           contentJson: null,
           emoji: null,
           pinned: false,
+          coverImageUrl: null,
+          coverImageAttribution: null,
           noExport: false,
           folderId,
           folderName: folderId ? folderNames.get(folderId) ?? null : null,

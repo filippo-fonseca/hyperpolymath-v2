@@ -17,6 +17,10 @@ export interface PageWithProjects {
   /** Issue #101 — Notion-style URL property (NULL = unset). */
   url: string | null;
   pinned: boolean;
+  /** Notion-style cover/banner image URL (issue #28); NULL = no banner. */
+  coverImageUrl: string | null;
+  /** Unsplash photographer credit when the cover came from Unsplash; else NULL. */
+  coverImageAttribution: string | null;
   /** When true, the page is excluded from the snapshot, MCP export, and graph. */
   noExport: boolean;
   /** The folder this page sits in globally (Phase 21: one folder per page). */
@@ -41,6 +45,8 @@ const PAGE_COLS = {
   emoji: pages.emoji,
   url: pages.url,
   pinned: pages.pinned,
+  coverImageUrl: pages.coverImageUrl,
+  coverImageAttribution: pages.coverImageAttribution,
   noExport: pages.noExport,
   folderId: pages.folderId,
   folderName: pageFolders.name,
@@ -57,6 +63,8 @@ type PageRow = {
   emoji: string | null;
   url: string | null;
   pinned: boolean;
+  coverImageUrl: string | null;
+  coverImageAttribution: string | null;
   noExport: boolean;
   folderId: string | null;
   folderName: string | null;

@@ -331,6 +331,14 @@ export const pages = pgTable(
     // unset). Rendered as a clickable link in the page header. Migration 0042.
     url: text("url"),
     pinned: boolean("pinned").notNull().default(false),
+    // Issue #28 — Notion-style cover/banner image (migration 0042). coverImageUrl
+    // holds the chosen image (an Unsplash `images.unsplash.com` URL or any direct
+    // image URL the user pastes); NULL = no banner. coverImageAttribution holds the
+    // Unsplash photographer credit ("Name on Unsplash") when the cover came from
+    // the Unsplash picker, so the required attribution can render over the banner;
+    // it stays NULL for plain image-URL covers.
+    coverImageUrl: text("cover_image_url"),
+    coverImageAttribution: text("cover_image_attribution"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
     // this page is filtered out of the personal-context snapshot.
     noExport: boolean("no_export").notNull().default(false),
