@@ -188,6 +188,11 @@ export const tasks = pgTable(
     dueDate: date("due_date"),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Issue #144 — Recurring TASKS (DISTINCT from Habits). NULL = one-off task.
+    // Non-null = a recurring series whose single live row advances its due_date
+    // to the next occurrence on completion/skip. Shape is RecurrenceRule from
+    // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
+    recurrence: jsonb("recurrence").$type<import("@/lib/tasks/recurrence").RecurrenceRule>(),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // task is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
