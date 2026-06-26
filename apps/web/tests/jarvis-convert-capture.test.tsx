@@ -219,6 +219,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdVia: "jarvis",
     sourceDevice: null,
     sourceInput: null,
+    url: null,
       hashtags: [],
       projects: [],
     };
@@ -230,6 +231,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdVia: null,
     sourceDevice: null,
     sourceInput: null,
+    url: null,
       hashtags: [],
       projects: [],
     };

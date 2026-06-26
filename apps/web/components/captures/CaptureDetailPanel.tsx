@@ -46,6 +46,7 @@ import {
 } from "@/components/shared/ProjectMultiSelect";
 import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
 import { RelativeTime } from "@/components/shared/RelativeTime";
+import { UrlField } from "@/components/shared/UrlField";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
@@ -104,6 +105,7 @@ interface FormState {
   content: string;
   hashtagNames: string[];
   projectIds: string[];
+  url: string | null;
 }
 
 function captureToFormState(c: CaptureWithLinks): FormState {
@@ -112,6 +114,7 @@ function captureToFormState(c: CaptureWithLinks): FormState {
     // Preserve first-seen casing from the loaded capture
     hashtagNames: c.hashtags.map((h) => h.displayName),
     projectIds: c.projects.map((p) => p.id),
+    url: c.url ?? null,
   };
 }
 
@@ -208,6 +211,7 @@ export function CaptureDetailPanel({
     content: "",
     hashtagNames: [],
     projectIds: [],
+    url: null,
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
   // Mirror of the editor's current parsed state. TipTap's editor instance
@@ -360,7 +364,8 @@ export function CaptureDetailPanel({
       JSON.stringify([...editorState.hashtagNames].sort()) !==
         JSON.stringify([...initialForm.hashtagNames].sort()) ||
       JSON.stringify([...form.projectIds].sort()) !==
-        JSON.stringify([...initialForm.projectIds].sort()));
+        JSON.stringify([...initialForm.projectIds].sort()) ||
+      form.url !== initialForm.url);
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
@@ -394,6 +399,7 @@ export function CaptureDetailPanel({
       content,
       hashtags: optimisticHashtags,
       projects: optimisticProjects,
+      url: form.url,
       updatedAt: new Date(),
     });
 
@@ -402,6 +408,7 @@ export function CaptureDetailPanel({
       content,
       hashtagNames,
       projectIds: form.projectIds,
+      url: form.url,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -409,9 +416,9 @@ export function CaptureDetailPanel({
       return;
     }
     toast("Capture updated.");
-    setInitialForm({ content, hashtagNames, projectIds: form.projectIds });
+    setInitialForm({ content, hashtagNames, projectIds: form.projectIds, url: form.url });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
-  }, [capture, parseEditor, form.projectIds, onOptimisticUpdate, onOptimisticRevert, projects]);
+  }, [capture, parseEditor, form.projectIds, form.url, onOptimisticUpdate, onOptimisticRevert, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -578,6 +585,19 @@ export function CaptureDetailPanel({
                     placeholder="Link to projects"
                     areas={areas}
                     onCreateProject={onCreateProject}
+                  />
+                </section>
+
+                {/* URL property (issue #101) — Notion-style link field. Clickable
+                    when set; inline input to add/edit/clear. */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    URL
+                  </h3>
+                  <UrlField
+                    value={form.url}
+                    onChange={(next) => setForm((prev) => ({ ...prev, url: next }))}
+                    disabled={isPending}
                   />
                 </section>
 

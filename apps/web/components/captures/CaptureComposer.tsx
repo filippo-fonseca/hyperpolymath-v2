@@ -342,6 +342,9 @@ export function CaptureComposer({
       createdVia: null,
       sourceDevice: "Web",
       sourceInput: "text",
+      // Issue #101 — the quick-capture composer doesn't set a URL property; it's
+      // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
+      url: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
