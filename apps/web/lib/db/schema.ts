@@ -23,6 +23,8 @@ import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
+// Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -192,7 +194,7 @@ export const tasks = pgTable(
     // Non-null = a recurring series whose single live row advances its due_date
     // to the next occurrence on completion/skip. Shape is RecurrenceRule from
     // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
-    recurrence: jsonb("recurrence").$type<import("@/lib/tasks/recurrence").RecurrenceRule>(),
+    recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // task is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
