@@ -10,15 +10,15 @@ import { cn } from "@/lib/utils"
  * Every variant has explicit hover + active + disabled states; 150ms
  * transition-colors duration; cursor-pointer-always universal rule from
  * Phase 6 06-01; `focus-visible:outline-none` defers to the global
- * :focus-visible rule in globals.css which paints --ring-doc.
+ * :focus-visible rule in globals.css which paints the shared cyan
+ * --ring-focus token (#140).
  *
  * Outline/secondary ride the .glass-button utility (globals.css glass
  * surface system) — translucent, blurred, specular edge, pressed inset.
  * Default (solid ink) and ghost/link stay flat to preserve hierarchy.
  *
- * Destructive intentionally uses --ring-doc (amber) on focus, not red — keeps
- * the button bordered + colored in coral but the ring stays in the document
- * register per UI-SPEC §9a.
+ * Destructive stays bordered + colored in coral but its focus ring is the
+ * same shared cyan as every other control, not a per-variant hue (#140).
  */
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-serif whitespace-nowrap cursor-pointer-always " +
@@ -32,7 +32,7 @@ const buttonVariants = cva(
         // Document primary — solid ink fill
         default:
           "bg-[var(--ink)] text-[var(--canvas)] hover:opacity-90 active:opacity-80",
-        // Destructive — bordered coral, amber ring on focus (UI-SPEC §9a)
+        // Destructive — bordered coral, shared cyan ring on focus (#140)
         destructive:
           "bg-transparent border border-[var(--ink-coral)] text-[var(--ink-coral)] " +
           "hover:bg-[color:rgb(220_38_38_/_0.08)] active:bg-[color:rgb(220_38_38_/_0.16)]",
