@@ -433,7 +433,39 @@ const CreateActivitySchema = z.object({
     .max(1000)
     .nullable()
     .optional(),
+  // Retroactive logging (issue #12): a session done in the past is created
+  // directly as 'done' with its actuals captured, rather than landing as a
+  // 'planned' row the user then has to check off. Defaults to 'planned' so
+  // every existing caller keeps its current behaviour.
+  status: z.enum(["planned", "done"]).optional(),
+  actualDurationMin: z
+    .number()
+    .int()
+    .positive()
+    .max(1440)
+    .nullable()
+    .optional(),
+  actualDistanceKm: z
+    .number()
+    .nonnegative()
+    .max(1000)
+    .nullable()
+    .optional(),
 });
+
+/**
+ * The current calendar date in the server's timezone, formatted as an ISO
+ * `YYYY-MM-DD` string. Used to reject future-dated retroactive logs (issue
+ * #12) — training is day-granular (DATE column, no time-of-day per D-02), so a
+ * same-day log is always allowed; only strictly future days are rejected.
+ *
+ * Day-granular tolerance: the planner's `scheduledDate` is compared lexically
+ * (ISO dates sort chronologically), so a TZ skew of a few hours at most lets
+ * the user log "today" in their own timezone, never a genuinely future day.
+ */
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export async function createActivity(
   input: unknown,
@@ -446,6 +478,16 @@ export async function createActivity(
       success: false,
       error: parsed.error.issues[0]?.message ?? "Invalid input",
     };
+
+  const logAsDone = parsed.data.status === "done";
+
+  // Retroactive logging is past-or-today only — you can't log a session that
+  // hasn't happened yet (issue #12). This guard applies ONLY to completed
+  // logs; planning a future activity is the planner board's normal behaviour
+  // and must stay allowed.
+  if (logAsDone && parsed.data.scheduledDate > todayISO()) {
+    return { success: false, error: "Can't log a session for a future date" };
+  }
 
   // Verify type belongs to user
   const [type] = await db
@@ -486,6 +528,16 @@ export async function createActivity(
         parsed.data.plannedDistanceKm != null
           ? parsed.data.plannedDistanceKm.toString()
           : null,
+      // Retroactive log (issue #12): a session created as 'done' carries its
+      // actuals and a completion timestamp so it counts toward adherence/stats
+      // immediately, exactly as if it had been checked off on the board.
+      status: logAsDone ? "done" : "planned",
+      actualDurationMin: logAsDone ? parsed.data.actualDurationMin ?? null : null,
+      actualDistanceKm:
+        logAsDone && parsed.data.actualDistanceKm != null
+          ? parsed.data.actualDistanceKm.toString()
+          : null,
+      completedAt: logAsDone ? sql`now()` : null,
       dayOrderIndex: maxPos + 1,
     })
     .returning({ id: trainingActivities.id });
