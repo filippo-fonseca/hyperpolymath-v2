@@ -23,6 +23,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/ratelimit/in-memory";
+import type { UnsplashPhoto } from "@/lib/pages/unsplash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,23 +35,6 @@ interface UnsplashApiPhoto {
   urls: { raw: string; full: string; regular: string; small: string; thumb: string };
   links: { download_location: string };
   user: { name: string; links: { html: string } };
-}
-
-/** Trimmed photo shape returned to the picker client. */
-export interface UnsplashPhoto {
-  id: string;
-  /** Display URL for the picker grid thumbnail. */
-  thumbUrl: string;
-  /** URL stored as the page cover (regular size — good banner resolution). */
-  fullUrl: string;
-  /** Photographer display name. */
-  authorName: string;
-  /** Photographer's Unsplash profile URL (UTM appended client-side if desired). */
-  authorUrl: string;
-  /** Alt text for the <img>. */
-  alt: string;
-  /** Unsplash download-tracking endpoint to ping on selection (API guideline). */
-  downloadLocation: string;
 }
 
 export async function GET(req: Request): Promise<Response> {
