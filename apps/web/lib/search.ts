@@ -15,6 +15,17 @@ import { entityHref } from "@/lib/entity-href";
 
 export type SearchType = "area" | "project" | "task" | "capture" | "page" | "journal" | "habit";
 
+/**
+ * One navigable ancestor in a result's hierarchy. `href` is present when that
+ * ancestor has its own detail surface (areas, projects), letting the user jump
+ * straight to it from the result row without leaving search.
+ */
+export interface BreadcrumbCrumb {
+  label: string;
+  /** Canonical detail URL for the ancestor, or null if it has no surface. */
+  href: string | null;
+}
+
 export interface SearchEntry {
   id: string;
   type: SearchType;
@@ -23,8 +34,17 @@ export interface SearchEntry {
   searchText: string;
   /** First ~80 chars of a capture body (captures only). */
   preview?: string;
-  /** Hierarchy, e.g. ['Cadex 👟', 'MVP'] for a task. */
+  /**
+   * Hierarchy labels, e.g. ['Cadex 👟', 'MVP'] for a task. Kept as a flat
+   * string list for non-interactive surfaces and tests.
+   */
   breadcrumb: string[];
+  /**
+   * Navigable form of `breadcrumb`: same order, each ancestor carrying its
+   * own href so the result row can offer click-through to any ancestor.
+   * `breadcrumb[i]` and `crumbs[i]` describe the same node.
+   */
+  crumbs: BreadcrumbCrumb[];
   /** Inline meta, e.g. 'P1 · due 6/19' for a task. */
   meta?: string;
   tags?: string[];
@@ -137,19 +157,27 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       title,
       searchText: title.toLowerCase(),
       breadcrumb: [],
+      crumbs: [],
       href: entityHref({ kind: "area", id: a.id }),
     });
   }
 
   for (const p of snapshot.projects) {
     const area = areaById.get(p.areaId);
-    const breadcrumb = area ? [areaLabel(area.name, area.emoji)] : [];
+    const areaCrumb: BreadcrumbCrumb | null = area
+      ? {
+          label: areaLabel(area.name, area.emoji),
+          href: entityHref({ kind: "area", id: area.id }),
+        }
+      : null;
+    const crumbs = areaCrumb ? [areaCrumb] : [];
     entries.push({
       id: p.id,
       type: "project",
       title: p.name,
       searchText: p.name.toLowerCase(),
-      breadcrumb,
+      breadcrumb: crumbs.map((c) => c.label),
+      crumbs,
       href: entityHref({ kind: "project", id: p.id }),
     });
   }
@@ -157,15 +185,26 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
   for (const t of snapshot.tasks) {
     const firstProject = t.projectIds.map((id) => projectById.get(id)).find(Boolean);
     const area = firstProject ? areaById.get(firstProject.areaId) : undefined;
-    const breadcrumb: string[] = [];
-    if (area) breadcrumb.push(areaLabel(area.name, area.emoji));
-    if (firstProject) breadcrumb.push(firstProject.name);
+    const crumbs: BreadcrumbCrumb[] = [];
+    if (area) {
+      crumbs.push({
+        label: areaLabel(area.name, area.emoji),
+        href: entityHref({ kind: "area", id: area.id }),
+      });
+    }
+    if (firstProject) {
+      crumbs.push({
+        label: firstProject.name,
+        href: entityHref({ kind: "project", id: firstProject.id }),
+      });
+    }
     entries.push({
       id: t.id,
       type: "task",
       title: t.title,
       searchText: t.title.toLowerCase(),
-      breadcrumb,
+      breadcrumb: crumbs.map((c) => c.label),
+      crumbs,
       meta: taskMeta(t.priority, t.dueDate),
       href: entityHref({ kind: "task", id: t.id }),
       updatedAt: t.createdAt,
@@ -184,6 +223,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       searchText: `${body} ${tagBlob}`.toLowerCase(),
       preview,
       breadcrumb: [],
+      crumbs: [],
       meta: safeFormat(c.createdAt, "MMM d") ?? undefined,
       tags: c.tags,
       href: entityHref({ kind: "capture", id: c.id }),
@@ -204,6 +244,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       searchText: `${title} ${body}`.toLowerCase(),
       preview,
       breadcrumb: [],
+      crumbs: [],
       meta: safeFormat(p.updatedAt, "MMM d") ?? undefined,
       href: entityHref({ kind: "page", id: p.id }),
       updatedAt: p.updatedAt || p.createdAt,
@@ -222,6 +263,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       searchText: `${title} ${body}`.toLowerCase(),
       preview,
       breadcrumb: [],
+      crumbs: [],
       meta: safeFormat(j.date, "MMM d") ?? undefined,
       href: entityHref({ kind: "journal", date: j.date }),
       updatedAt: j.updatedAt || j.createdAt,
@@ -235,6 +277,7 @@ export function buildSearchIndex(snapshot: SearchSnapshot): SearchEntry[] {
       title: h.name,
       searchText: h.name.toLowerCase(),
       breadcrumb: [],
+      crumbs: [],
       meta: h.currentStreak > 0 ? `${h.currentStreak}-day streak` : undefined,
       href: entityHref({ kind: "habit", id: h.id }),
     });

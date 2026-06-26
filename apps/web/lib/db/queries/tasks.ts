@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tasks, tasksProjects, projects } from "@/lib/db/schema";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 export interface TaskWithProjects {
   id: string;
@@ -12,6 +13,12 @@ export interface TaskWithProjects {
   kanbanPosition: number;
   completedAt: Date | null;
   createdAt: Date;
+  /**
+   * Issue #144 — recurrence rule (NULL = one-off task). When set, this row is a
+   * recurring-task series whose due_date advances to the next occurrence on
+   * completion/skip. Distinct from Habits.
+   */
+  recurrence: RecurrenceRule | null;
   projects: { id: string; name: string }[];
 }
 
@@ -64,6 +71,7 @@ export async function getAllTasksForUser(
     kanbanPosition: t.kanbanPosition,
     completedAt: t.completedAt,
     createdAt: t.createdAt,
+    recurrence: (t.recurrence as RecurrenceRule | null) ?? null,
     projects: linksByTask.get(t.id) ?? [],
   }));
 }
@@ -97,6 +105,7 @@ export async function getTasksForProject(
     kanbanPosition: r.task.kanbanPosition,
     completedAt: r.task.completedAt,
     createdAt: r.task.createdAt,
+    recurrence: (r.task.recurrence as RecurrenceRule | null) ?? null,
     projects: [{ id: projectId, name: "" }],
   }));
 }

@@ -10,7 +10,11 @@
  * client components (Settings panel, onboarding step) as well as the server.
  */
 
-export type ByokProvider = "anthropic" | "groq" | "elevenlabs";
+export type ByokProvider =
+  | "anthropic"
+  | "anthropic_admin"
+  | "groq"
+  | "elevenlabs";
 
 export interface ByokProviderMeta {
   id: ByokProvider;
@@ -34,6 +38,22 @@ export const BYOK_PROVIDERS: Record<ByokProvider, ByokProviderMeta> = {
     consoleUrl: "https://console.anthropic.com/settings/keys",
     keyPrefix: "sk-ant-",
     required: true,
+  },
+  anthropic_admin: {
+    id: "anthropic_admin",
+    // An Admin key (org / workspace scope) is distinct from the per-request
+    // API key above: it powers your own usage + cost dashboards, reading from
+    // YOUR Anthropic account, never the owner's. Optional — JARVIS works
+    // without it; only the spend/usage panels go dark when it is absent.
+    label: "Anthropic Admin",
+    powers:
+      "Usage & cost insights — reads spend from your own Anthropic account",
+    consoleUrl: "https://console.anthropic.com/settings/admin-keys",
+    // Both admin keys (sk-ant-admin01-) and workspace keys (sk-ant-api03-)
+    // share the sk-ant- prefix, so we validate against the common stem to
+    // avoid rejecting a legitimate workspace-scoped key.
+    keyPrefix: "sk-ant-",
+    required: false,
   },
   groq: {
     id: "groq",

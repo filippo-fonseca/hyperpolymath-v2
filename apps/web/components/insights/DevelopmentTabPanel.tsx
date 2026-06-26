@@ -6,6 +6,7 @@ import type { DevRun, DevRunItem } from "@/lib/db/queries/dev-runs";
 import type { Result } from "@/lib/integrations/result";
 import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
 import type { AnthropicDailyUsage } from "@/lib/integrations/anthropic-api/usage";
+import type { AnthropicDailyRequests } from "@/lib/integrations/anthropic-api/trends";
 import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
 import { AnthropicApiPanel } from "./development/AnthropicApiPanel";
 import { ClaudeSubscriptionPanel } from "./development/ClaudeSubscriptionPanel";
@@ -22,6 +23,9 @@ import { ClaudeCodePanel } from "./life/ClaudeCodePanel";
 interface DevelopmentTabPanelProps {
   runs: DevRun[];
   anthropicApi: Result<AnthropicDailyUsage[]>;
+  // Optional per-day request counts (issue #133). The panel degrades when this
+  // is absent or errored, so it's allowed to be undefined.
+  anthropicApiRequests?: Result<AnthropicDailyRequests[]>;
   subscription: Result<SubscriptionUsage>;
   claudeCode: Result<DailyUsage[]>;
 }
@@ -63,6 +67,7 @@ function isPrHref(href: string | null): boolean {
 export function DevelopmentTabPanel({
   runs,
   anthropicApi,
+  anthropicApiRequests,
   subscription,
   claudeCode,
 }: DevelopmentTabPanelProps) {
@@ -70,7 +75,10 @@ export function DevelopmentTabPanel({
     <div className="flex flex-col gap-6">
       {/* Spend panels: two-up on wide viewports, matching LifeTabPanel's grid. */}
       <div className="flex flex-col gap-6 @2xl/main:grid @2xl/main:grid-cols-2">
-        <AnthropicApiPanel result={anthropicApi} />
+        <AnthropicApiPanel
+          result={anthropicApi}
+          requests={anthropicApiRequests}
+        />
         <ClaudeSubscriptionPanel result={subscription} />
         <div className="@2xl/main:col-span-2">
           <ClaudeCodePanel result={claudeCode} />

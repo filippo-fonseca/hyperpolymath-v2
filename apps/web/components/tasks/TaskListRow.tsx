@@ -4,10 +4,15 @@ import { useState, useRef, useTransition } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { motion } from "motion/react";
-import { GripVertical, MoreHorizontal } from "lucide-react";
+import { GripVertical, MoreHorizontal, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
-import { updateTask, updateTaskStatus } from "@/app/actions/tasks";
+import {
+  advanceRecurringTask,
+  updateTask,
+  updateTaskStatus,
+} from "@/app/actions/tasks";
+import { shortRuleLabel } from "@/lib/tasks/recurrence";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -121,6 +126,24 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
 
   function toggleLesno(e: React.MouseEvent) {
     e.stopPropagation();
+    // Issue #144 — a recurring task never gets permanently completed from the
+    // checkbox: completing the current occurrence advances it to the next date.
+    if (task.recurrence && !isLesno) {
+      startTransition(async () => {
+        const r = await advanceRecurringTask({ id: task.id, mode: "complete" });
+        if (!r.success) {
+          toast.error(r.error);
+          return;
+        }
+        addOptimistic({
+          type: "update",
+          id: task.id,
+          patch: { dueDate: r.data.nextDueDate, status: "not started", completedAt: null },
+        });
+        toast("Done. Next occurrence scheduled.");
+      });
+      return;
+    }
     const newStatus: Status = isLesno ? "not started" : "lesno";
     startTransition(async () => {
       addOptimistic({
@@ -250,6 +273,17 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         <span className="font-mono text-xs text-[var(--ink-muted)] truncate max-w-[120px] flex-shrink-0">
           {task.projects[0]!.name}
           {task.projects.length > 1 && ` +${task.projects.length - 1}`}
+        </span>
+      )}
+
+      {/* Recurring marker (issue #144) — cyan, distinct from one-offs/habits. */}
+      {task.recurrence && (
+        <span
+          title={shortRuleLabel(task.recurrence)}
+          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--hud-cyan)] flex-shrink-0 uppercase tracking-[0.04em]"
+        >
+          <Repeat size={11} strokeWidth={2} />
+          {shortRuleLabel(task.recurrence)}
         </span>
       )}
 

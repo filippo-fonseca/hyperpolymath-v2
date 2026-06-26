@@ -2,6 +2,7 @@
 
 import { createActivity } from "@/app/actions/training";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import type { ActivityWithType, TypeWithBatch } from "@/lib/db/queries/training";
 import { type DistanceUnit, displayToKm } from "@/lib/training/distance";
+import { formatISODate } from "@/lib/training/week";
 import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -36,10 +38,20 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
   const [open, setOpen] = useState(false);
   const [typeId, setTypeId] = useState<string>("");
   const [title, setTitle] = useState("");
+  // Retroactive logging (issue #12): the date defaults to this column's day but
+  // can be moved to any past day so a session done earlier lands on the right
+  // date. `logDone` records it as a completed session (status='done' + actuals)
+  // instead of a planned one.
+  const [date, setDate] = useState(dateISO);
+  const [logDone, setLogDone] = useState(false);
   const [durationStr, setDurationStr] = useState("");
   const [distanceStr, setDistanceStr] = useState("");
   const [pending, setPending] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+
+  // Cap the date picker at today — you can't log a session that hasn't happened
+  // yet. Mirrors the server-side guard in `createActivity`.
+  const todayISO = formatISODate(new Date());
 
   // Group types by batchName for the Select dropdown.
   const grouped = (() => {
@@ -61,10 +73,12 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
       titleRef.current?.focus();
     } else {
       setTitle("");
+      setDate(dateISO);
+      setLogDone(false);
       setDurationStr("");
       setDistanceStr("");
     }
-  }, [open]);
+  }, [open, dateISO]);
 
   // Default to the first available type when expanding.
   useEffect(() => {
@@ -83,36 +97,53 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
       return;
     }
 
-    const plannedDurationMin = durationStr ? Number.parseInt(durationStr, 10) : null;
-    const plannedDistanceKm =
+    // Future dates are only rejected when logging a completed session — the
+    // planner still allows scheduling planned activities on future days.
+    if (logDone && date > todayISO) {
+      toast.error("Can't log a session for a future date");
+      return;
+    }
+
+    const durationVal = durationStr ? Number.parseInt(durationStr, 10) : null;
+    const distanceVal =
       showDistance && distanceStr
         ? displayToKm(Number.parseFloat(distanceStr), distanceUnit)
         : null;
 
     // RT-05 — client-generated UUID lets the Realtime echo dedupe by id.
     const newId = crypto.randomUUID();
-    const durationMin = Number.isFinite(plannedDurationMin) ? plannedDurationMin : null;
+    const durationMin = Number.isFinite(durationVal) ? durationVal : null;
     const distanceKm =
-      plannedDistanceKm != null && Number.isFinite(plannedDistanceKm) ? plannedDistanceKm : null;
+      distanceVal != null && Number.isFinite(distanceVal) ? distanceVal : null;
 
-    // Optimistic insert — the card shows in this column instantly. The overlay
-    // holds it until the week query refetches with the canonical row.
+    // When logging a past session as already done (issue #12) the entered
+    // duration/distance are the *actuals* — a retro log was never "planned", so
+    // we leave the planned fields null and let stats coalesce
+    // (`actualDurationMin ?? plannedDurationMin`). For a normal planned add they
+    // remain the planned values, exactly as before.
+    const durationPlanned = logDone ? null : durationMin;
+    const distancePlanned = logDone ? null : distanceKm;
+    const durationActual = logDone ? durationMin : null;
+    const distanceActual = logDone ? distanceKm : null;
+
+    // Optimistic insert — the card shows in the matching day column instantly.
+    // The overlay holds it until the week query refetches the canonical row.
     if (selectedType) {
       const now = new Date();
       const optimisticRow: ActivityWithType = {
         id: newId,
         userId: "",
         activityTypeId: typeId,
-        scheduledDate: dateISO,
+        scheduledDate: date,
         title: title.trim(),
         description: null,
-        plannedDurationMin: durationMin,
-        actualDurationMin: null,
-        plannedDistanceKm: distanceKm != null ? distanceKm.toString() : null,
-        actualDistanceKm: null,
-        status: "planned",
+        plannedDurationMin: durationPlanned,
+        actualDurationMin: durationActual,
+        plannedDistanceKm: distancePlanned != null ? distancePlanned.toString() : null,
+        actualDistanceKm: distanceActual != null ? distanceActual.toString() : null,
+        status: logDone ? "done" : "planned",
         dayOrderIndex: Number.MAX_SAFE_INTEGER,
-        completedAt: null,
+        completedAt: logDone ? now : null,
         createdAt: now,
         updatedAt: now,
         type: {
@@ -131,10 +162,17 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
     const res = await createActivity({
       id: newId,
       activityTypeId: typeId,
-      scheduledDate: dateISO,
+      scheduledDate: date,
       title: title.trim(),
-      plannedDurationMin: durationMin,
-      plannedDistanceKm: distanceKm,
+      plannedDurationMin: durationPlanned,
+      plannedDistanceKm: distancePlanned,
+      ...(logDone
+        ? {
+            status: "done" as const,
+            actualDurationMin: durationActual,
+            actualDistanceKm: distanceActual,
+          }
+        : {}),
     });
     setPending(false);
 
@@ -227,6 +265,26 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
         ) : null}
       </div>
 
+      {/* Retroactive logging (issue #12): override the date to back-date a
+          session, and toggle "Logged" to record it as already done. */}
+      <Input
+        type="date"
+        value={date}
+        max={logDone ? todayISO : undefined}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Session date"
+        className="h-7 text-xs"
+      />
+
+      <label className="flex cursor-pointer items-center gap-1.5 px-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <Checkbox
+          checked={logDone}
+          onCheckedChange={(v) => setLogDone(v === true)}
+          className="size-3.5"
+        />
+        Logged (already done)
+      </label>
+
       <div className="flex items-center justify-end gap-1">
         <Button
           type="button"
@@ -243,7 +301,7 @@ export function ActivityCreateInline({ dateISO, types, distanceUnit, addOptimist
           className="h-6 px-2 text-[10px]"
           disabled={pending || !title.trim() || !typeId}
         >
-          Add
+          {logDone ? "Log" : "Add"}
         </Button>
       </div>
     </form>

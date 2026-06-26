@@ -121,8 +121,13 @@ export function ClaudeCodePanel({ result }: Props) {
           </span>
         </div>
       </header>
-      <div style={{ width: '100%', height: 200 }}>
-        <ResponsiveContainer>
+      <div style={{ height: 200 }}>
+        {/* Explicit width/height: recharts 3's ResponsiveContainer can measure
+            its parent at 0px on the first paint inside a spanning grid cell
+            (this panel sits in @2xl/main:col-span-2), leaving the bar chart
+            blank. Passing 100%/100% matches InsightsCharts / PipelineLatencyPanel
+            and makes the dimensions deterministic. */}
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="#d4cfc4" strokeDasharray="2 4" vertical={false} />
             <XAxis

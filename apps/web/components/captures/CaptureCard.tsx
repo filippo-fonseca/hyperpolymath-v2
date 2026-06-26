@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { highlightSegments } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 import { HashtagChip } from "./HashtagChip";
@@ -32,6 +33,13 @@ import { HashtagChip } from "./HashtagChip";
 interface Props {
   capture: CaptureWithLinks;
   compact?: boolean;
+  /**
+   * Issue #139 — active captures search term. When non-empty, every occurrence
+   * of it inside the capture body's plain text is wrapped in a cyan-accented
+   * <mark>. Empty / undefined = no highlighting (the default for non-search
+   * surfaces like the project detail Captures column).
+   */
+  searchQuery?: string;
   /**
    * Click on the card body opens the canonical CaptureDetailPanel.
    * In `compact` mode (project detail Captures column) the panel is owned by
@@ -107,6 +115,7 @@ interface Props {
 export function CaptureCard({
   capture,
   compact = false,
+  searchQuery,
   onOpen,
   onOptimisticDelete,
   onOptimisticRevert,
@@ -319,11 +328,11 @@ export function CaptureCard({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <CaptureBody capture={capture} compact={compact} />
+                <CaptureBody capture={capture} compact={compact} searchQuery={searchQuery} />
               </div>
             </div>
           ) : (
-            <CaptureBody capture={capture} compact={compact} />
+            <CaptureBody capture={capture} compact={compact} searchQuery={searchQuery} />
           )}
         </motion.div>
       )}
@@ -375,19 +384,27 @@ export function CaptureCard({
  * Renders capture content with inline #hashtag chips substituted into the text.
  * Walks the raw `content` string, splits on `#word` patterns, and renders matched
  * substrings as <HashtagChip asButton={false} /> (no interaction inside the card body).
+ *
+ * Issue #139 — when `searchQuery` is non-empty, every occurrence of it inside the
+ * plain-text segments is wrapped in a cyan-accented <mark> (.captures-search-mark)
+ * via highlightSegments. Hashtag chips are left untouched (they're their own
+ * visual register). Reuses the shared, case-insensitive matcher from lib/search.
  */
 function CaptureBody({
   capture,
   compact,
+  searchQuery,
 }: {
   capture: CaptureWithLinks;
   compact: boolean;
+  searchQuery?: string;
 }) {
   // Map lowercase-name → displayName lookup
   const tagLookup = new Map(capture.hashtags.map((h) => [h.name, h.displayName]));
 
   // Split content on whitespace, but preserve whitespace by capturing groups
   const parts = capture.content.split(/(\s+)/);
+  const query = searchQuery?.trim() ?? "";
 
   const rendered = parts.map((part, i) => {
     const m = /^#([\p{L}\p{N}_]+)$/u.exec(part);
@@ -396,7 +413,25 @@ function CaptureBody({
       const displayName = tagLookup.get(lower) ?? m[1];
       return <HashtagChip key={`${i}-tag`} displayName={displayName} asButton={false} />;
     }
-    return <span key={`${i}-text`}>{part}</span>;
+    if (!query) {
+      return <span key={`${i}-text`}>{part}</span>;
+    }
+    // Reuse the shared substring matcher; wrap matched segments in the cyan
+    // captures-search mark, leave the rest as plain text. Highlights ALL
+    // occurrences within this segment (issue #139 AC).
+    return (
+      <span key={`${i}-text`}>
+        {highlightSegments(part, query).map((seg, j) =>
+          seg.match ? (
+            <mark key={j} className="captures-search-mark">
+              {seg.text}
+            </mark>
+          ) : (
+            <span key={j}>{seg.text}</span>
+          ),
+        )}
+      </span>
+    );
   });
 
   return (
