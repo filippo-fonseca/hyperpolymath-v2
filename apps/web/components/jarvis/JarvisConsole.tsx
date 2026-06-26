@@ -1159,10 +1159,11 @@ export function JarvisConsole({
   const coreDimmed = turns.length > 0;
 
   return (
-    // Phase 6 Plan 06-05 (UI-SPEC §11a): .agent-mode-scope activates the
-    // JARVIS-blue focus-visible ring on all interactive descendants. The
-    // globals.css default rule paints amber rings on Journal-mode routes;
-    // this opt-in wrapper swaps the ring to JARVIS-blue inside the Console.
+    // Phase 6 Plan 06-05 (UI-SPEC §11a): .agent-mode-scope marks interactive
+    // descendants for the agent focus ring. Since issue #140 unified the focus
+    // identity, that ring and the global default both resolve to the same cyan
+    // --ring-focus token, so the Console stays visually consistent with the
+    // rest of the app while keeping its opt-in scope hook.
     //
     // Phase 6.1 Plan 02 (UI-SPEC §5a, §6d, §6e):
     //   - HudCornerCrops: 4 viewport-corner L-bracket crops, 12px legs, breathing 6s loop

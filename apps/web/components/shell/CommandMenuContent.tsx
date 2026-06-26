@@ -67,10 +67,10 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
 
   return (
     <div className="flex flex-col gap-4">
-      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes --ink-amber
-          when any child has focus; 150ms transition matches Tasks/Captures
-          composer wrappers across the app. */}
-      <div className="rounded-sm border border-transparent focus-within:border-[var(--ink-amber)] transition-colors duration-150 ease-out p-2">
+      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes the shared cyan
+          focus color (#140) when any child has focus; 150ms transition matches
+          the Tasks/Captures composer wrappers across the app. */}
+      <div className="rounded-sm border border-transparent focus-within:border-[var(--hud-cyan)] transition-colors duration-150 ease-out p-2">
         <CaptureComposer
           hashtags={hashtags}
           projects={projects}
