@@ -10,6 +10,23 @@
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start-triage.sh\"",
             "timeout": 15,
             "statusMessage": "Loading open issues for triage"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/keep-awake.sh\"",
+            "timeout": 10,
+            "statusMessage": "Keeping the Mac awake for this session"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-keep-awake.sh\"",
+            "timeout": 10
           }
         ]
       }
