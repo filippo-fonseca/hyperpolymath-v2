@@ -18,9 +18,9 @@ import {
  *
  * Root container uses --surface-raised + --ink so it nests cleanly inside a
  * Dialog. Items keep the serif body register; group heading + shortcut chip
- * use mono caps for chrome. The amber focus ring on the input comes from
- * the global :focus-visible rule (we leave focus-visible:outline-none here
- * so cmdk's keyboard-driven flow doesn't fight the global).
+ * use mono caps for chrome. The cyan focus ring on the input comes from
+ * the global :focus-visible rule (#140); we leave focus-visible:outline-none
+ * here so cmdk's keyboard-driven flow doesn't fight the global.
  */
 
 function Command({

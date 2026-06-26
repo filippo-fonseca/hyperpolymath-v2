@@ -2,6 +2,7 @@
 
 import { deleteProject, updateProject } from "@/app/actions/projects";
 import { MoveProjectDialog } from "@/components/areas/MoveProjectDialog";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -199,7 +200,14 @@ export function AreaProjectCardMenu({
               Never mind
             </Button>
             <Button onClick={handleRename} disabled={isRenaming || !renameName.trim()}>
-              {isRenaming ? "Saving..." : "Save"}
+              {isRenaming ? (
+                <>
+                  <Spinner size={14} label="Saving project" />
+                  Saving…
+                </>
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -256,7 +264,14 @@ export function AreaProjectCardMenu({
               Never mind
             </Button>
             <Button onClick={handleSaveEdit} disabled={isSavingEdit}>
-              {isSavingEdit ? "Saving..." : "Save changes"}
+              {isSavingEdit ? (
+                <>
+                  <Spinner size={14} label="Saving project" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -287,7 +302,14 @@ export function AreaProjectCardMenu({
               Never mind
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete project"}
+              {isDeleting ? (
+                <>
+                  <Spinner size={14} label="Deleting project" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete project"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

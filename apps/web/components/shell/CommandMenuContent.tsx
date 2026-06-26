@@ -32,8 +32,9 @@ interface Props {
  * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §12e + §12f):
  *
  * Cmd+K modal sits on diplomatic-tier chrome. Composer wrapper gets the
- * doc focus-amber treatment (1px transparent border → 1px --ink-amber on
- * focus-within, 150ms transition) per UI-SPEC §9d Input register. Calendar
+ * shared cyan focus treatment (1px transparent border → 1px --hud-cyan on
+ * focus-within, 150ms transition) per UI-SPEC §9d Input register and the
+ * unified focus identity from issue #140. Calendar
  * section uses mono chrome (section label + button label) per UI-SPEC §5f.
  * "New event" copy + /calendar?create=now deep-link mechanism preserved
  * per UI-SPEC §14 carry-forward.
@@ -67,10 +68,10 @@ export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Prop
 
   return (
     <div className="flex flex-col gap-4">
-      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes --ink-amber
-          when any child has focus; 150ms transition matches Tasks/Captures
-          composer wrappers across the app. */}
-      <div className="rounded-sm border border-transparent focus-within:border-[var(--ink-amber)] transition-colors duration-150 ease-out p-2">
+      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes the shared cyan
+          focus color (#140) when any child has focus; 150ms transition matches
+          the Tasks/Captures composer wrappers across the app. */}
+      <div className="rounded-sm border border-transparent focus-within:border-[var(--hud-cyan)] transition-colors duration-150 ease-out p-2">
         <CaptureComposer
           hashtags={hashtags}
           projects={projects}

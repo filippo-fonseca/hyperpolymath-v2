@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { UrlField } from "@/components/shared/UrlField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
@@ -166,6 +167,7 @@ interface FormState {
   status: Status;
   priority: Priority;
   dueDate: string;
+  url: string | null;
   notes: string;
   projectIds: string[];
   recurrence: RecurrenceRule | null;
@@ -177,6 +179,7 @@ function toFormState(task: TaskWithProjects): FormState {
     status: task.status as Status,
     priority: task.priority as Priority,
     dueDate: task.dueDate ?? "",
+    url: task.url ?? null,
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
     recurrence: task.recurrence ?? null,
@@ -189,6 +192,7 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.status !== b.status ||
     a.priority !== b.priority ||
     a.dueDate !== b.dueDate ||
+    a.url !== b.url ||
     a.notes !== b.notes ||
     JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort()) ||
     JSON.stringify(a.recurrence) !== JSON.stringify(b.recurrence)
@@ -218,6 +222,7 @@ export function TaskDetailPanel({
     status: "not started",
     priority: "P3",
     dueDate: "",
+    url: null,
     notes: "",
     projectIds: [],
     recurrence: null,
@@ -258,6 +263,7 @@ export function TaskDetailPanel({
         priority: form.priority,
         status: form.status,
         dueDate: form.dueDate || null,
+        url: form.url,
         kanbanPosition: 0,
         completedAt: null,
         createdAt: new Date(),
@@ -272,6 +278,7 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      url: form.url,
       projectIds: form.projectIds,
       recurrence: form.recurrence,
     });
@@ -295,6 +302,7 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      url: form.url,
       recurrence: form.recurrence,
     };
     // D-04: optimistic update first (D-02 instant) — project links also flow
@@ -537,6 +545,16 @@ export function TaskDetailPanel({
                       Will move to Inbox
                     </p>
                   )}
+                </FieldSection>
+
+                {/* 3a. URL (issue #101) — Notion-style link property. Clickable
+                    link when set; inline input to add/edit/clear. */}
+                <FieldSection label="URL">
+                  <UrlField
+                    value={form.url}
+                    onChange={(next) => set("url", next)}
+                    disabled={isPending}
+                  />
                 </FieldSection>
 
                 {/* 3b. Recurrence (issue #144) — recurring TASK, distinct from

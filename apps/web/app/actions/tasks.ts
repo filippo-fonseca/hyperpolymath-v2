@@ -51,6 +51,9 @@ const CreateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Issue #101 — Notion-style URL property. Stored verbatim (normalized
+  // client-side); null/absent = unset. Capped to keep the column sane.
+  url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
   // Issue #144 — optional recurrence rule. null/absent = one-off task.
   recurrence: RecurrenceRuleSchema.nullable().optional(),
@@ -87,6 +90,7 @@ export async function createTask(
         priority: parsed.data.priority,
         status: parsed.data.status,
         dueDate: parsed.data.dueDate ?? null,
+        url: parsed.data.url ? parsed.data.url : null,
         recurrence: parsed.data.recurrence
           ? normalizeRule(parsed.data.recurrence)
           : null,
@@ -138,6 +142,9 @@ const UpdateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Issue #101 — set, change, or clear (null) the URL property. Flows through
+  // the generic `rest` apply loop below (null = clear, string = set).
+  url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
   // Issue #144 — set a rule, change it, or clear it (null ends the recurrence,
   // turning the task back into a one-off).
@@ -160,6 +167,9 @@ export async function updateTask(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = { updatedAt: sql`now()` };
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) updates[k] = v;
+  // Issue #101 — treat an empty/whitespace URL as a clear (null) so the column
+  // never holds the empty string.
+  if (rest.url !== undefined) updates.url = rest.url ? rest.url : null;
   // Issue #144 — normalize a non-null recurrence rule before persisting.
   // `null` (clear / end recurrence) passes through verbatim.
   if (rest.recurrence !== undefined && rest.recurrence !== null) {

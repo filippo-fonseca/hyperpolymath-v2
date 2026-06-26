@@ -7,6 +7,7 @@ import {
   unarchiveProject,
   updateProject,
 } from "@/app/actions/projects";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -171,7 +172,14 @@ export function ProjectSettingsDialog({
                 disabled={savingDates || !datesDirty}
                 className="self-start"
               >
-                {savingDates ? "Saving..." : "Save dates"}
+                {savingDates ? (
+                  <>
+                    <Spinner size={14} label="Saving dates" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save dates"
+                )}
               </Button>
             </section>
 
@@ -197,7 +205,14 @@ export function ProjectSettingsDialog({
                   </Select>
                 </div>
                 <Button onClick={handleMove} disabled={move.pending || areaId === project.areaId}>
-                  {move.pending ? "Moving..." : "Move"}
+                  {move.pending ? (
+                    <>
+                      <Spinner size={14} label="Moving project" />
+                      Moving…
+                    </>
+                  ) : (
+                    "Move"
+                  )}
                 </Button>
               </div>
             </section>
@@ -219,7 +234,13 @@ export function ProjectSettingsDialog({
                   </span>
                 </div>
                 <Button variant="outline" onClick={handleArchiveToggle} disabled={archive.pending}>
-                  {archive.pending ? "..." : isArchived ? "Unarchive" : "Archive"}
+                  {archive.pending ? (
+                    <Spinner size={14} label="Updating project" />
+                  ) : isArchived ? (
+                    "Unarchive"
+                  ) : (
+                    "Archive"
+                  )}
                 </Button>
               </div>
             </section>
@@ -264,7 +285,14 @@ export function ProjectSettingsDialog({
               Never mind
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={remove.pending}>
-              {remove.pending ? "Deleting..." : "Delete project"}
+              {remove.pending ? (
+                <>
+                  <Spinner size={14} label="Deleting project" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete project"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
