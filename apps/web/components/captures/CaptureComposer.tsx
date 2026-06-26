@@ -319,6 +319,10 @@ export function CaptureComposer({
         name: name.toLowerCase(),
         displayName: name,
       })),
+      // Optimistic person chips — `id: "pending-${name}"` since createCapture
+      // resolve-or-creates the canonical person row server side. Replaced by
+      // the canonical people_references join on the next refetch.
+      people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       // Optimistic project chips — map id → name from the in-scope `projects`
       // option list. Same caveat: replaced by canonical join on refetch.
       projects: selectedProjectIds

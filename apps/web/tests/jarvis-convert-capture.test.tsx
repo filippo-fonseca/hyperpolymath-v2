@@ -217,6 +217,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
     sourceDevice: null,
     sourceInput: null,
       hashtags: [],
+      people: [],
       projects: [],
     };
     const sampleManual: import("@/lib/db/queries/captures").CaptureWithLinks = {
@@ -228,6 +229,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
     sourceDevice: null,
     sourceInput: null,
       hashtags: [],
+      people: [],
       projects: [],
     };
     expect(sampleJarvis.createdVia).toBe("jarvis");
