@@ -307,6 +307,7 @@ export function PagesListClient({
           contentJson: null,
           emoji: null,
           pinned: false,
+          url: null,
           coverImageUrl: null,
           coverImageAttribution: null,
           noExport: false,
