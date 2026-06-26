@@ -1,6 +1,7 @@
 "use client";
 
 import { updateProject } from "@/app/actions/projects";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -293,7 +294,14 @@ export function ProjectEditClassDialog({
               {isDirty ? "Discard changes" : "Never mind"}
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save changes"}
+              {saving ? (
+                <>
+                  <Spinner size={14} label="Saving project" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </form>
