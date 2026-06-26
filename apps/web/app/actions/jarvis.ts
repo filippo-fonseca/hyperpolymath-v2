@@ -28,6 +28,7 @@ import { db } from "@/lib/db";
 import { captures, tasks, tasksProjects } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { undoJarvisActionForUser, type UndoTarget } from "@/lib/jarvis/undo";
+import { RecurrenceRuleSchema, normalizeRule } from "@/lib/tasks/recurrence";
 
 export type {
   UndoTarget,
@@ -49,6 +50,14 @@ const ConvertSchema = z.object({
   // glyph from HANDOFF preserved literals.
   priority: z.enum(["P∞", "P1", "P2", "P3"]).default("P3"),
   projectIds: z.array(z.string().uuid()).default([]),
+  // Issue #144 — optionally make the converted task recurring. null/absent = one-off.
+  recurrence: RecurrenceRuleSchema.nullable().optional(),
+  // Optional due date for the (first occurrence of the) task. YYYY-MM-DD.
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export type ConvertCaptureToTaskInput = z.input<typeof ConvertSchema>;
@@ -91,6 +100,10 @@ export async function convertCaptureToTask(
         title: parsed.data.title,
         priority: parsed.data.priority,
         status: "not started", // DB enum literal with SPACE
+        dueDate: parsed.data.dueDate ?? null,
+        recurrence: parsed.data.recurrence
+          ? normalizeRule(parsed.data.recurrence)
+          : null,
       });
       if (parsed.data.projectIds.length > 0) {
         await tx.insert(tasksProjects).values(

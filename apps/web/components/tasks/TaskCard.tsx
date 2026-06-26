@@ -2,9 +2,10 @@
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Repeat } from "lucide-react";
 import { motion } from "motion/react";
 import { PriorityChip } from "./PriorityChip";
+import { shortRuleLabel } from "@/lib/tasks/recurrence";
 
 /** Which property pills render on a task card. Owned + persisted by KanbanBoard. */
 export interface CardFields {
@@ -25,7 +26,7 @@ function CardPill({
   tone = "muted",
 }: {
   children: React.ReactNode;
-  tone?: "muted" | "coral";
+  tone?: "muted" | "coral" | "cyan";
 }) {
   return (
     <span
@@ -34,7 +35,9 @@ function CardPill({
         "font-mono text-[11px] border",
         tone === "coral"
           ? "border-[var(--ink-coral)]/40 text-[var(--ink-coral)]"
-          : "border-[var(--edge)] text-[var(--ink-muted)]"
+          : tone === "cyan"
+            ? "border-[var(--hud-cyan)]/40 text-[var(--hud-cyan)]"
+            : "border-[var(--edge)] text-[var(--ink-muted)]"
       )}
       style={{
         backgroundColor: "color-mix(in oklch, var(--surface-raised) 70%, transparent)",
@@ -165,8 +168,19 @@ export function TaskCard({
           {task.title}
         </p>
 
-        {(cardFields.priority || cardFields.dueDate || cardFields.project) && (
+        {(task.recurrence ||
+          cardFields.priority ||
+          cardFields.dueDate ||
+          cardFields.project) && (
           <div className="flex flex-wrap items-center gap-1.5">
+            {/* Recurring-task marker (issue #144) — cyan repeat pill, distinct
+                from one-off tasks and from amber habits. */}
+            {task.recurrence && (
+              <CardPill tone="cyan">
+                <Repeat size={11} strokeWidth={2} />
+                {shortRuleLabel(task.recurrence)}
+              </CardPill>
+            )}
             {cardFields.priority && (
               <CardPill>
                 <PriorityChip priority={task.priority} />

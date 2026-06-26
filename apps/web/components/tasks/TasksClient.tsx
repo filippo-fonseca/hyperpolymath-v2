@@ -605,6 +605,7 @@ export function TasksClient({
           kanbanPosition: 0,
           completedAt: null,
           createdAt: new Date(),
+          recurrence: null,
           projects: [],
         },
       });
@@ -650,6 +651,7 @@ export function TasksClient({
         kanbanPosition: 0,
         completedAt: null,
         createdAt: new Date(),
+        recurrence: null,
         projects: [],
       }
     : null;
