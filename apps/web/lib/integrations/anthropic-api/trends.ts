@@ -2,6 +2,7 @@ import 'server-only';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { err, ok, type Result } from '@/lib/integrations/result';
+import { getUserKeyOrNull } from '@/lib/byok/keys';
 
 /**
  * Anthropic API usage TRENDS data layer (issue #133).
@@ -136,12 +137,13 @@ function aggregate(
 /**
  * Resolves the Admin API key used for the org-scoped Usage Report call.
  *
- * #150 RECONCILIATION POINT: replace the env read with the per-user BYOK key
- * (`getUserKeyOrNull(userId, 'anthropic_admin')`). `userId` is already plumbed
- * in for exactly this reason.
+ * Per-user BYOK (issue #150): reads THIS user's own encrypted Anthropic Admin
+ * key. There is deliberately no fallback to the owner's ANTHROPIC_ADMIN_KEY env
+ * var — a public user must never read usage billed to the owner's account,
+ * matching getAnthropicApiUsage()'s security model.
  */
-async function resolveAdminKey(_userId: string): Promise<string | null> {
-  return process.env.ANTHROPIC_ADMIN_KEY ?? null;
+async function resolveAdminKey(userId: string): Promise<string | null> {
+  return getUserKeyOrNull(userId, 'anthropic_admin');
 }
 
 export async function getAnthropicApiRequestTrends(): Promise<
