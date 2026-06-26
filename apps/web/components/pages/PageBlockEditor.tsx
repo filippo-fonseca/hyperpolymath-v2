@@ -9,6 +9,10 @@ import {
   resolveOrCreatePerson,
   searchPeopleForCurrentUser,
 } from "@/app/actions/people";
+import {
+  type WikiReferenceCandidate,
+  searchEntitiesForReference,
+} from "@/app/actions/wiki-references";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
@@ -40,6 +44,11 @@ import {
   JarvisPillProvider,
   jarvisReceiptInlineSpec,
 } from "./JarvisReceiptInline";
+import {
+  ENTITY_REFERENCE_TYPE,
+  type EntityReferenceKind,
+  entityReferenceInlineSpec,
+} from "./EntityReferenceInline";
 import { PERSON_MENTION_TYPE, personMentionInlineSpec } from "./PersonMentionInline";
 
 // Notion-style callout: a leading emoji plus editable inline content on a
@@ -69,6 +78,7 @@ const schema = BlockNoteSchema.create({
     ...defaultInlineContentSpecs,
     [JARVIS_RECEIPT_TYPE]: jarvisReceiptInlineSpec,
     [PERSON_MENTION_TYPE]: personMentionInlineSpec,
+    [ENTITY_REFERENCE_TYPE]: entityReferenceInlineSpec,
   },
 });
 
@@ -519,7 +529,13 @@ export default function PageBlockEditor({
               // warming the People-tab cache and matches full names (last
               // names included).
               const jarvis = filterSuggestionItems([jarvisAtItem(editor)], query);
-              const found = await searchPeopleForCurrentUser(trimmed);
+              // People and entity references are both fetched live per
+              // keystroke so the `@` menu spans the whole knowledge graph
+              // (people + areas/projects/tasks/pages) the instant it opens.
+              const [found, entities] = await Promise.all([
+                searchPeopleForCurrentUser(trimmed),
+                entityReferenceItems(editor, trimmed),
+              ]);
               const items: DefaultReactSuggestionItem[] = [
                 ...jarvis,
                 ...found.map((person) => ({
@@ -530,6 +546,7 @@ export default function PageBlockEditor({
                   onItemClick: () =>
                     insertPersonMention(editor, person.id, person.name),
                 })),
+                ...entities,
               ];
               // Always offer Create for a non-empty query — even when matches
               // already exist — so a near-duplicate name can still be added.
@@ -537,6 +554,21 @@ export default function PageBlockEditor({
                 items.push(createPersonAtItem(editor, trimmed, onPersonCreated));
               }
               return items;
+            }}
+          />
+          {/* `[` trigger — Notion / wiki-link "[[" muscle memory for inserting
+              a reference to an app entity (area / project / task / page). The
+              menu opens on the first "[" and searches across entities; a second
+              "[" simply continues the query (BlockNote treats it as part of the
+              text after the trigger). Selecting an item inserts an
+              entityReference chip persisted in content_json. */}
+          <SuggestionMenuController
+            triggerCharacter="["
+            getItems={async (query) => {
+              // Strip a leading second "[" so typing the familiar "[[" still
+              // queries cleanly rather than searching for a literal bracket.
+              const trimmed = query.replace(/^\[+/, "").trim();
+              return entityReferenceItems(editor, trimmed);
             }}
           />
         </BlockNoteView>
@@ -595,6 +627,55 @@ function createPersonAtItem(
       })();
     },
   };
+}
+
+/** Human-readable group label per referenceable entity kind, used to bucket
+ * the reference picker results so areas/projects/tasks/pages read cleanly. */
+const ENTITY_GROUP_LABEL: Record<EntityReferenceKind, string> = {
+  area: "Areas",
+  project: "Projects",
+  task: "Tasks",
+  page: "Pages",
+};
+
+/**
+ * Insert an entity-reference chip at the cursor, plus a trailing space so the
+ * cursor can leave the atom and continue typing cleanly (mirrors person
+ * mentions). The chip persists in content_json via its props.
+ */
+function insertEntityReference(editor: Editor, candidate: WikiReferenceCandidate) {
+  editor.insertInlineContent([
+    {
+      type: ENTITY_REFERENCE_TYPE,
+      props: {
+        refKind: candidate.kind,
+        refId: candidate.id,
+        label: candidate.label,
+        emoji: candidate.emoji ?? "",
+      },
+    },
+    " ",
+  ]);
+}
+
+/**
+ * Build the entity-reference suggestion items for a query: run the wiki search
+ * action, then map each candidate to a BlockNote suggestion item grouped by
+ * kind. The visible label carries the entity's emoji (where it has one) and its
+ * context (e.g. a project's parent area) as subtext.
+ */
+async function entityReferenceItems(
+  editor: Editor,
+  query: string,
+): Promise<DefaultReactSuggestionItem[]> {
+  const candidates = await searchEntitiesForReference(query);
+  return candidates.map((candidate) => ({
+    title: candidate.emoji ? `${candidate.emoji} ${candidate.label}` : candidate.label,
+    subtext: candidate.context ?? undefined,
+    aliases: [candidate.label],
+    group: ENTITY_GROUP_LABEL[candidate.kind],
+    onItemClick: () => insertEntityReference(editor, candidate),
+  }));
 }
 
 function normalizeInitial(json: unknown): PartialBlock[] | undefined {
