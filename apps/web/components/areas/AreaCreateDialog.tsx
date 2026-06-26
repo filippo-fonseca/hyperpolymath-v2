@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -169,7 +170,14 @@ export function AreaCreateDialog({
               Never mind
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting ? "Creating..." : "New Area"}
+              {isSubmitting ? (
+                <>
+                  <Spinner size={14} label="Creating area" />
+                  Creating…
+                </>
+              ) : (
+                "New Area"
+              )}
             </Button>
           </DialogFooter>
         </form>

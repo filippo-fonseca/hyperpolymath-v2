@@ -1,6 +1,7 @@
 "use client";
 
 import { archiveArea, deleteArea, unarchiveArea, updateArea } from "@/app/actions/areas";
+import { Spinner } from "@/components/shared/Spinner";
 import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -230,7 +231,14 @@ export function AreaActionsMenu({
               Never mind
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete area"}
+              {isDeleting ? (
+                <>
+                  <Spinner size={14} label="Deleting area" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete area"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -259,7 +267,14 @@ export function AreaActionsMenu({
               Never mind
             </Button>
             <Button onClick={handleRename} disabled={isRenaming}>
-              {isRenaming ? "Saving..." : "Save changes"}
+              {isRenaming ? (
+                <>
+                  <Spinner size={14} label="Saving area" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
