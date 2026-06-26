@@ -209,6 +209,7 @@ export function ProjectTasksSection({
           kanbanPosition: 0,
           completedAt: null,
           createdAt: new Date(),
+          recurrence: null,
           // Pre-link to this project so the optimistic row passes the
           // projectTasks filter and appears instantly.
           projects: [{ id: projectId, name: "" }],
@@ -252,6 +253,7 @@ export function ProjectTasksSection({
         kanbanPosition: 0,
         completedAt: null,
         createdAt: new Date(),
+        recurrence: null,
         projects: [{ id: projectId, name: currentProject?.name ?? "" }],
       }
     : null;
