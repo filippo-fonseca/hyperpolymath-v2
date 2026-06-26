@@ -59,6 +59,25 @@ async function probeKey(
           messages: [{ role: "user", content: "hi" }],
         }),
       });
+    } else if (provider === "anthropic_admin") {
+      // Admin keys authenticate against the org-scoped Admin API, not
+      // /v1/messages. Probe the Cost API (the very endpoint the usage panel
+      // calls) with a 1-day window so a workspace key with no admin scope is
+      // rejected here rather than silently failing later.
+      const startingAt = new Date();
+      startingAt.setUTCDate(startingAt.getUTCDate() - 1);
+      startingAt.setUTCHours(0, 0, 0, 0);
+      const iso = startingAt.toISOString().replace(/\.\d{3}Z$/, "Z");
+      res = await fetch(
+        `https://api.anthropic.com/v1/organizations/cost_report?starting_at=${encodeURIComponent(iso)}&bucket_width=1d`,
+        {
+          method: "GET",
+          headers: {
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+          },
+        },
+      );
     } else if (provider === "groq") {
       res = await fetch("https://api.groq.com/openai/v1/models", {
         method: "GET",
