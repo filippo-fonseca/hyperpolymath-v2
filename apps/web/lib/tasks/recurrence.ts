@@ -37,20 +37,17 @@ export interface RecurrenceRule {
   weekdays?: number[];
 }
 
-/** Zod schema for the recurrence rule — used by server actions to validate input. */
-export const RecurrenceRuleSchema = z
-  .object({
-    frequency: z.enum(["daily", "weekly", "custom"]),
-    interval: z.number().int().min(1).max(365).default(1),
-    weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
-  })
-  .superRefine((rule, ctx) => {
-    if (rule.frequency === "weekly" && rule.weekdays && rule.weekdays.length === 0) {
-      // Empty weekday list on a weekly rule is allowed (anchor-weekday fallback),
-      // but a present-yet-empty array is a smell; normalize via normalizeRule.
-      void ctx;
-    }
-  });
+/**
+ * Zod schema for the recurrence rule — used by server actions to validate input.
+ * An empty/absent `weekdays` on a weekly rule is permitted (the computation falls
+ * back to the anchor date's weekday); callers should pass it through normalizeRule
+ * before persisting.
+ */
+export const RecurrenceRuleSchema = z.object({
+  frequency: z.enum(["daily", "weekly", "custom"]),
+  interval: z.number().int().min(1).max(365).default(1),
+  weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+});
 
 /**
  * Normalize a rule: clamp interval, sort+dedupe weekdays, drop weekdays for
