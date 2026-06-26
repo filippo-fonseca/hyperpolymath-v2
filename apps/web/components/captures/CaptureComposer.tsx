@@ -3,7 +3,8 @@
 import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 
 import { Sparkles } from "lucide-react";
@@ -115,6 +116,12 @@ export function CaptureComposer({
   const [suggestions, setSuggestions] = useState<SuggestedTag[]>([]);
   const [suggesting, setSuggesting] = useState(false);
 
+  // Live editor handle for editorProps.handleKeyDown — the `editor` const below
+  // is used-before-definition inside useEditor's config, so the Cmd+K handler
+  // reads the instance through this ref instead (kept in sync right after the
+  // hook returns). Mirrors the JarvisInput composer pattern.
+  const editorRef = useRef<Editor | null>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -165,9 +172,33 @@ export function CaptureComposer({
           "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 font-serif text-base",
         "data-placeholder": "What's on your mind? Use #tags to organize.",
       },
+      // Cmd/Ctrl+K opens the inline `#`-token dropdown at the caret (#145).
+      // We insert the trigger char into the doc, which is exactly what typing
+      // `#` does — the Mention suggestion plugin observes the new char and
+      // opens its popover, giving full parity with the typed trigger (same
+      // items, same keyboard nav, same commit path).
+      //
+      // This handler runs on the editor's DOM node during dispatch, BEFORE the
+      // window-level GlobalHotkeys listener that binds plain Cmd+K to "focus
+      // JARVIS". stopPropagation() keeps that global handler from also firing
+      // and yanking focus out of the composer; preventDefault() suppresses any
+      // browser default for the chord.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key === "k") {
+          event.preventDefault();
+          event.stopPropagation();
+          editorRef.current?.chain().focus().insertContent("#").run();
+          return true;
+        }
+        return false;
+      },
     },
     autofocus: autoFocus ?? false,
   });
+
+  // Keep the ref pointed at the live editor instance so editorProps.handleKeyDown
+  // (frozen at editor-creation time) can reach the current editor for Cmd+K.
+  editorRef.current = editor;
 
   function parseEditor(): {
     content: string;
@@ -437,7 +468,13 @@ export function CaptureComposer({
           {suggesting ? "Suggesting…" : "Suggest tags"}
         </button>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-[var(--ink-muted)]">Cmd+Enter to capture</span>
+          <span
+            className="font-mono text-xs text-[var(--ink-muted)]"
+            title="Press ⌘K (Ctrl+K) in the editor to insert a #tag"
+          >
+            <span className="font-mono">⌘K</span> for tags ·{" "}
+            <span className="font-mono">⌘Enter</span> to capture
+          </span>
           <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
             Capture
           </Button>
