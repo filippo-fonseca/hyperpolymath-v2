@@ -1,19 +1,30 @@
 /**
- * /api/cron/wiki-backup — Vercel cron handler (Phase 28).
+ * /api/cron/wiki-backup — Vercel cron handler (Phase 28; per-user controls +
+ * status added for issue #142).
  *
- * Runs daily at `0 6 * * *` UTC per vercel.json (one hour after the 05:00
- * snapshot cron so the two never contend). Loops every row in `users`, builds
- * that user's Wiki as a markdown ZIP, and uploads it to their Google Drive.
- * Failures on one user do NOT abort the others (per-user independence; logged +
- * returned in the response body).
+ * Runs daily at `0 7 * * *` UTC per vercel.json (after the 05:00 snapshot and
+ * 06:00 captures crons so the three never contend). Loops every row in `users`
+ * whose `pages_backup_enabled` is true, builds that user's Pages (Wiki) as a
+ * markdown ZIP, and uploads it to their Google Drive. The actual per-user
+ * gather→serialize→upload→record pipeline lives in `runPagesBackupForUser`
+ * (shared with the manual "Back up now" Server Action), which NEVER throws for
+ * an expected condition and records last-run status on the user row.
  *
- * Each user's backup file is dated in THEIR IANA timezone (`users.timezone`),
- * matching how the snapshot cron derives `snapshot_date`, so a 1 AM EDT firing
- * lands on the calendar day the user calls "today". Null timezone falls back to
- * UTC. One backup file per user per day; same-day re-runs overwrite in place.
+ * Per-user independence: one user's backup outcome (including a hard error) can
+ * never abort the others. Each result is tallied into the response body so a run
+ * is auditable from the cron logs.
  *
- * Users with zero Wiki pages are SKIPPED (no empty backup) and counted as
- * skipped rather than failed.
+ * Status tallies in the response:
+ *   - ok               — a dated ZIP was written/updated in the user's Drive.
+ *   - skipped_empty    — the user has no pages (no empty backup written).
+ *   - not_connected    — no stored Google token (user must connect Google).
+ *   - needs_drive_scope— token predates the drive.file scope; user must reconnect.
+ *   - error            — any other failure (logged + listed in `failures`).
+ *   - skipped_disabled — the user turned the daily backup off in /settings.
+ *
+ * Date math lives inside the runner (dates the file in the user's own timezone,
+ * UTC when null), so a 1 AM-local firing lands on the calendar day the user
+ * calls "today". Same-day re-runs overwrite the dated file in place.
  *
  * Auth: `Authorization: Bearer ${CRON_SECRET}`. A missing CRON_SECRET returns
  * 500 (fail loud on misconfig) rather than letting unauthenticated traffic
@@ -25,18 +36,13 @@
  */
 
 import { NextResponse } from "next/server";
-import { zipSync } from "fflate";
 import { constantTimeEqual } from "@/lib/auth/constant-time";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { getPagesForUser } from "@/lib/db/queries/pages";
-import { getFoldersForUser, getFolderProjects } from "@/lib/db/queries/folders";
-import { buildPagesTree } from "@/lib/pages/tree";
 import {
-  buildTreeZip,
-  type ExportablePage,
-} from "@/lib/pages/markdown-export";
-import { uploadWikiBackup } from "@/lib/gdrive/backup";
+  runPagesBackupForUser,
+  type PagesBackupStatus,
+} from "@/lib/gdrive/run-backup";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -45,21 +51,6 @@ export const dynamic = "force-dynamic";
 interface Failure {
   userId: string;
   error: string;
-}
-
-/**
- * Today (YYYY-MM-DD) in the given IANA timezone. en-CA formats a Date as
- * `YYYY-MM-DD` natively. This mirrors the `todayInTimezone` helper that
- * `lib/context/persist.ts` uses to derive `snapshot_date`, so the wiki backup's
- * per-user date math matches the snapshot cron's.
- */
-function todayInTimezone(tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 }
 
 export async function GET(req: Request) {
@@ -75,66 +66,55 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Pull every user. Single-user MVP — but the loop shape is
-  // forward-compatible with the multi-user future. Failures per user are
-  // independent.
+  // Pull every user with backups enabled. Single-user MVP — but the loop shape
+  // is forward-compatible with the multi-user future. Failures per user are
+  // independent (the runner records each user's status and never throws).
   const allUsers = await db
-    .select({ id: users.id, timezone: users.timezone })
+    .select({
+      id: users.id,
+      timezone: users.timezone,
+      enabled: users.pagesBackupEnabled,
+    })
     .from(users);
 
-  let backupsWritten = 0;
-  let skipped = 0;
+  // Tally counts per status, plus a collected list of hard failures.
+  const counts: Record<PagesBackupStatus | "skipped_disabled", number> = {
+    ok: 0,
+    skipped_empty: 0,
+    not_connected: 0,
+    needs_drive_scope: 0,
+    error: 0,
+    skipped_disabled: 0,
+  };
   const failures: Failure[] = [];
 
-  for (const { id, timezone } of allUsers) {
-    try {
-      const [pages, folders, folderProjects] = await Promise.all([
-        getPagesForUser(id),
-        getFoldersForUser(id),
-        getFolderProjects(id),
-      ]);
+  for (const { id, timezone, enabled } of allUsers) {
+    // Respect the per-user opt-out. A disabled user is skipped entirely (no
+    // Google call, no status write) so toggling off truly pauses the cron.
+    if (!enabled) {
+      counts.skipped_disabled++;
+      continue;
+    }
 
-      // No pages = nothing to back up. Skip the upload (no empty backup) and
-      // count it as skipped, not a failure.
-      if (pages.length === 0) {
-        skipped++;
-        continue;
-      }
-
-      const tree = buildPagesTree(folders, folderProjects, pages);
-      const exportablePages: ExportablePage[] = pages.map((p) => ({
-        id: p.id,
-        title: p.title,
-        content: p.content,
-      }));
-      const files = buildTreeZip(tree, exportablePages);
-      const bytes = zipSync(files);
-
-      // Date the file in the user's own timezone (UTC when null), so a backup
-      // lands on the calendar day the user calls "today".
-      const date = timezone
-        ? todayInTimezone(timezone)
-        : new Date().toISOString().slice(0, 10);
-      const fileName = `wiki-backup-${date}.zip`;
-
-      await uploadWikiBackup(id, fileName, bytes);
-      backupsWritten++;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "wiki backup failed";
+    const result = await runPagesBackupForUser(id, { timezone });
+    counts[result.status]++;
+    if (result.status === "error" && result.error) {
       console.error("[cron wiki-backup] backup failed", {
         userId: id,
-        error: message,
+        error: result.error,
       });
-      failures.push({ userId: id, error: message });
-      continue;
+      failures.push({ userId: id, error: result.error });
     }
   }
 
   return NextResponse.json({
     ok: true,
-    backups_written: backupsWritten,
-    skipped,
+    backups_written: counts.ok,
+    skipped_empty: counts.skipped_empty,
+    skipped_disabled: counts.skipped_disabled,
+    not_connected: counts.not_connected,
+    needs_drive_scope: counts.needs_drive_scope,
+    errors: counts.error,
     failures,
   });
 }

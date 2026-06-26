@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     { "path": "/api/cron/snapshot-context", "schedule": "0 5 * * *" },
-    { "path": "/api/cron/captures-to-issues", "schedule": "0 13 * * *" }
+    { "path": "/api/cron/captures-to-issues", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/wiki-backup", "schedule": "0 7 * * *" }
   ]
 }
