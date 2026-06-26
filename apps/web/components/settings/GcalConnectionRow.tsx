@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { disconnectGcal } from "@/app/actions/gcal-connection";
 import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
@@ -127,7 +128,14 @@ export function GcalConnectionRow({ status }: Props) {
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={pending}>
-              {pending ? "Disconnecting…" : "Disconnect"}
+              {pending ? (
+                <>
+                  <Spinner size={14} label="Disconnecting" />
+                  Disconnecting…
+                </>
+              ) : (
+                "Disconnect"
+              )}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
