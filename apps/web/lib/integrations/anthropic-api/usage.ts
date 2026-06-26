@@ -6,16 +6,20 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { anthropicApiUsage } from '@/lib/db/schema';
 import { err, ok, type Result } from '@/lib/integrations/result';
+import { getUserKeyOrNull } from '@/lib/byok/keys';
 
 /**
  * Anthropic API (pay-as-you-go) usage data layer (260616-g0y, DEC-1).
  *
  * Unlike Claude Code (which reads local JSONL via a laptop cron), the Anthropic
- * Cost API is a server-to-server call: apps/web/.env.local holds
- * ANTHROPIC_ADMIN_KEY and the /insights page is already force-dynamic. So this
- * fetches the Cost API live on page load, caches in-process for 60s, and
- * best-effort writes through the fetched days into anthropic_api_usage so the
- * table stays warm (a future cron can take over without a UI rewrite).
+ * Cost API is a server-to-server call. Per issue #150 the Admin key is now a
+ * per-user BYOK secret (encrypted, scoped to the caller via lib/byok/keys.ts),
+ * NOT the owner's ANTHROPIC_ADMIN_KEY env var — so a public user only ever sees
+ * cost data billed to their own Anthropic account. The /insights page is
+ * already force-dynamic. So this fetches the Cost API live on page load, caches
+ * in-process for 60s, and best-effort writes through the fetched days into
+ * anthropic_api_usage so the table stays warm (a future cron can take over
+ * without a UI rewrite).
  *
  * Failure handling (D-06 Result contract): if the live fetch fails (e.g. the
  * key is a workspace key rather than a real Admin key, which returns 401), fall
@@ -223,9 +227,14 @@ export async function getAnthropicApiUsage(): Promise<Result<AnthropicDailyUsage
     return cache.data;
   }
 
-  const adminKey = process.env.ANTHROPIC_ADMIN_KEY;
+  // Per-user BYOK: read THIS user's own Anthropic Admin key (issue #150). There
+  // is deliberately no fallback to the owner's ANTHROPIC_ADMIN_KEY env var — a
+  // public user must never read cost data billed to the owner's account. If the
+  // user hasn't set an admin key, the panel stays dark for them (serve any warm
+  // table rows we already have, else a clear "not configured" error).
+  const adminKey = await getUserKeyOrNull(userId, 'anthropic_admin');
 
-  // No admin key configured: serve whatever the table holds, else error.
+  // No admin key configured for this user: serve whatever the table holds, else error.
   if (!adminKey) {
     try {
       const fallback = await readTable(userId);
@@ -237,7 +246,7 @@ export async function getAnthropicApiUsage(): Promise<Result<AnthropicDailyUsage
     } catch {
       // fall through to the error below
     }
-    return err('ANTHROPIC_ADMIN_KEY not configured');
+    return err('No Anthropic Admin key set — add one in Settings → API keys to see usage & cost.');
   }
 
   try {
