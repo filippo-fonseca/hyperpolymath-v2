@@ -90,6 +90,22 @@ export const users = pgTable("users", {
   // layer (lib/training/distance.ts in later plans) converts at the IO
   // boundary. CHECK constraint enforced in migration 0022.
   distanceUnit: text("distance_unit").notNull().default("km"),
+  // Issue #142 — daily Pages (Wiki) backup to Google Drive. Per-user opt-out +
+  // last-run telemetry for the /settings backup section. See migration 0044.
+  //   pagesBackupEnabled  — when false, the daily cron skips this user (manual
+  //                         "Back up now" still works regardless of the flag).
+  //   pagesBackupLastRunAt — timestamp of the last attempt (success OR failure).
+  //   pagesBackupLastStatus — short machine-readable status of that attempt:
+  //                         "ok" | "skipped_empty" | "not_connected" |
+  //                         "needs_drive_scope" | "error".
+  //   pagesBackupLastError — human-readable detail when the last attempt failed
+  //                         (null on success). Surfaced in the settings UI.
+  pagesBackupEnabled: boolean("pages_backup_enabled").notNull().default(true),
+  pagesBackupLastRunAt: timestamp("pages_backup_last_run_at", {
+    withTimezone: true,
+  }),
+  pagesBackupLastStatus: text("pages_backup_last_status"),
+  pagesBackupLastError: text("pages_backup_last_error"),
 });
 
 // BYOK — per-user third-party API keys (Anthropic / Groq / ElevenLabs), stored
