@@ -1095,3 +1095,15 @@ select:focus-visible {
   border-radius: 2px;
   padding: 0 2px;
 }
+
+/* Captures feed search (issue #139) — matched-substring highlight in the HUD
+   cyan accent, distinct from the global-search amber mark. Cyan-tinted wash
+   keeps --ink body text for high contrast/readability against the glass tile,
+   rather than coloring low-contrast cyan text on a cyan ground. */
+.captures-search-mark {
+  background: color-mix(in oklch, var(--hud-cyan) 28%, transparent);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 0 2px;
+  text-decoration: none;
+}

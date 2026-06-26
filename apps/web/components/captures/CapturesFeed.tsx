@@ -10,6 +10,12 @@ interface Props {
   captures: CaptureWithLinks[];
   activeHashtagId: string | null;
   isSearchActive: boolean;
+  /**
+   * Issue #139 — the live search term, forwarded to each card so matched
+   * substrings in the capture body are highlighted in the cyan accent. Empty
+   * string means no active search → no highlighting.
+   */
+  searchQuery?: string;
   onClearHashtag: () => void;
   onClearSearch: () => void;
   /**
@@ -57,6 +63,7 @@ export function CapturesFeed({
   captures,
   activeHashtagId,
   isSearchActive,
+  searchQuery,
   onClearHashtag,
   onClearSearch,
   onSelectCapture,
@@ -105,6 +112,7 @@ export function CapturesFeed({
           <CaptureCard
             key={c.id}
             capture={c}
+            searchQuery={searchQuery}
             onOpen={() => onSelectCapture(c)}
             onOptimisticDelete={onOptimisticDelete}
             onDeleteCapture={onDeleteCapture}
