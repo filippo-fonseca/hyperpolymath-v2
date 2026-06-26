@@ -363,6 +363,7 @@ export function CapturesClient({
       <CaptureDetailPanel
         capture={selectedCapture}
         hashtags={hashtagSuggestions}
+        people={composerPeople}
         projects={projects}
         areas={areas}
         onCreateProject={handleCreateProject}

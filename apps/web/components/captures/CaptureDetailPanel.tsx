@@ -48,7 +48,10 @@ import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateF
 import { RelativeTime } from "@/components/shared/RelativeTime";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { HashtagDecorations } from "./hashtag-decorations";
+import { createPersonDecorations } from "./person-decorations";
+import { createPersonSuggestion } from "./person-suggestions";
 import { deleteCapture, updateCapture } from "@/app/actions/captures";
+import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
@@ -59,9 +62,16 @@ interface HashtagSource {
   displayName: string;
 }
 
+interface PersonSource {
+  id: string;
+  name: string;
+}
+
 interface Props {
   capture: CaptureWithLinks | null;
   hashtags: HashtagSource[];
+  /** The user's people, for the `@`-mention menu + live decoration (Phase C). */
+  people?: PersonSource[];
   projects: ProjectMultiSelectOption[];
   /** Areas a new project can be filed under (inline project creation). */
   areas?: InlineProjectArea[];
@@ -103,6 +113,7 @@ interface Props {
 interface FormState {
   content: string;
   hashtagNames: string[];
+  personNames: string[];
   projectIds: string[];
 }
 
@@ -111,6 +122,7 @@ function captureToFormState(c: CaptureWithLinks): FormState {
     content: c.content,
     // Preserve first-seen casing from the loaded capture
     hashtagNames: c.hashtags.map((h) => h.displayName),
+    personNames: c.people.map((p) => p.name),
     projectIds: c.projects.map((p) => p.id),
   };
 }
@@ -128,32 +140,33 @@ function captureToFormState(c: CaptureWithLinks): FormState {
 function contentToTipTapDoc(
   content: string,
   knownHashtags: { name: string; displayName: string }[],
+  knownPeople: { name: string }[] = [],
 ) {
   const lookup = new Map(knownHashtags.map((h) => [h.name, h.displayName]));
+  type Inline =
+    | { type: "text"; text: string }
+    | { type: "mention"; attrs: { id: string; label: string } }
+    | { type: "personMention"; attrs: { id: string; label: string } };
   // Split paragraphs first (preserve newlines as paragraph boundaries)
   const paragraphs = content.split(/\n+/);
   return {
     type: "doc",
     content: paragraphs.map((para) => {
-      const inline: Array<
-        | { type: "text"; text: string }
-        | { type: "mention"; attrs: { id: string; label: string } }
-      > = [];
-      const parts = para.split(/(\s+)/);
-      for (const part of parts) {
-        const m = /^#([\p{L}\p{N}_]+)$/u.exec(part);
-        if (m && m[1]) {
-          const lower = m[1].toLowerCase();
-          if (lookup.has(lower)) {
-            const display = lookup.get(lower) ?? m[1];
-            inline.push({
-              type: "mention",
-              attrs: { id: display, label: display },
-            });
-            continue;
-          }
+      // Tokenize each paragraph with the shared tokenizer so #tags and known
+      // @people seed as committed mention nodes (the rest stays plain text).
+      const segments = tokenizeContent(para, {
+        hashtagDisplay: lookup,
+        personNames: knownPeople.map((p) => p.name),
+      });
+      const inline: Inline[] = [];
+      for (const seg of segments) {
+        if (seg.kind === "hashtag") {
+          inline.push({ type: "mention", attrs: { id: seg.display, label: seg.display } });
+        } else if (seg.kind === "person") {
+          inline.push({ type: "personMention", attrs: { id: seg.display, label: seg.display } });
+        } else if (seg.value) {
+          inline.push({ type: "text", text: seg.value });
         }
-        if (part) inline.push({ type: "text", text: part });
       }
       return inline.length === 0
         ? { type: "paragraph" }
@@ -181,6 +194,7 @@ function contentToTipTapDoc(
 export function CaptureDetailPanel({
   capture,
   hashtags,
+  people = [],
   projects,
   areas,
   onCreateProject,
@@ -207,6 +221,7 @@ export function CaptureDetailPanel({
   const [form, setForm] = useState<FormState>({
     content: "",
     hashtagNames: [],
+    personNames: [],
     projectIds: [],
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
@@ -219,12 +234,13 @@ export function CaptureDetailPanel({
   const [editorState, setEditorState] = useState<{
     content: string;
     hashtagNames: string[];
-  }>({ content: "", hashtagNames: [] });
+    personNames: string[];
+  }>({ content: "", hashtagNames: [], personNames: [] });
 
   // Build initial TipTap doc from the loaded capture (rebuilt on capture change)
   const initialDoc = useMemo(() => {
     if (!capture) return { type: "doc", content: [{ type: "paragraph" }] };
-    return contentToTipTapDoc(capture.content, capture.hashtags);
+    return contentToTipTapDoc(capture.content, capture.hashtags, capture.people);
   }, [capture]);
 
   // Permissive parse of an arbitrary TipTap JSON doc. Pulled out of the
@@ -232,8 +248,9 @@ export function CaptureDetailPanel({
   // editor instance) can use the same extraction logic without depending on
   // the closed-over `editor` ref.
   const parseEditorJSON = useCallback(
-    (json: unknown): { content: string; hashtagNames: string[] } => {
+    (json: unknown): { content: string; hashtagNames: string[]; personNames: string[] } => {
       const tagCasing = new Map<string, string>();
+      const personCasing = new Map<string, string>();
       let content = "";
       const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
 
@@ -264,6 +281,12 @@ export function CaptureDetailPanel({
           tagCasing.set(lower, label);
           content += `#${label}`;
         }
+        if (n.type === "personMention" && typeof n.attrs?.label === "string") {
+          const label = n.attrs.label;
+          const lower = label.toLowerCase();
+          if (!personCasing.has(lower)) personCasing.set(lower, label);
+          content += `@${label}`;
+        }
         if (n.type === "paragraph" || n.type === "doc") {
           (n.content ?? []).forEach(walk);
           if (n.type === "paragraph") content += "\n";
@@ -273,6 +296,7 @@ export function CaptureDetailPanel({
       return {
         content: content.trim(),
         hashtagNames: Array.from(tagCasing.values()),
+        personNames: Array.from(personCasing.values()),
       };
     },
     [],
@@ -303,9 +327,24 @@ export function CaptureDetailPanel({
           },
           suggestion: createHashtagSuggestion(() => hashtags),
         }),
+        // `@person` mention — twin of the composer's personMention node so
+        // editing a capture supports the same dropdown + inline-create flow.
+        Mention.extend({ name: "personMention" }).configure({
+          HTMLAttributes: { class: "person-chip-inline" },
+          renderHTML({ options, node }) {
+            return [
+              "span",
+              { ...options.HTMLAttributes, "data-person": node.attrs.label },
+              `@${node.attrs.label}`,
+            ];
+          },
+          suggestion: createPersonSuggestion(() => people),
+        }),
         // Live-decorate plain `#word` text so the token styling lands without
         // waiting for the suggestion popover to commit a Mention node (#41).
         HashtagDecorations,
+        // Same for `@name` matching a known person (amber register).
+        createPersonDecorations(() => people),
       ],
       editorProps: {
         attributes: {
@@ -326,7 +365,7 @@ export function CaptureDetailPanel({
     // Recreate the editor when the capture identity changes so its content
     // reflects the freshly-loaded doc (otherwise reusing the same editor
     // instance shows stale content).
-    [capture?.id, hashtags],
+    [capture?.id, hashtags, people],
   );
 
   // Sync form state when capture changes. `onUpdate` doesn't fire on initial
@@ -337,7 +376,11 @@ export function CaptureDetailPanel({
       const f = captureToFormState(capture);
       setForm(f);
       setInitialForm(f);
-      setEditorState({ content: f.content, hashtagNames: f.hashtagNames });
+      setEditorState({
+        content: f.content,
+        hashtagNames: f.hashtagNames,
+        personNames: f.personNames,
+      });
     }
   }, [capture?.id]);
 
@@ -347,24 +390,27 @@ export function CaptureDetailPanel({
   const parseEditor = useCallback((): {
     content: string;
     hashtagNames: string[];
+    personNames: string[];
   } => {
-    if (!editor) return { content: "", hashtagNames: [] };
+    if (!editor) return { content: "", hashtagNames: [], personNames: [] };
     return parseEditorJSON(editor.getJSON());
   }, [editor, parseEditorJSON]);
 
-  // Dirty check — content/hashtags from `editorState` (kept in sync by
+  // Dirty check — content/hashtags/people from `editorState` (kept in sync by
   // `onUpdate`), projects from `form` state.
   const dirty =
     !!capture &&
     (editorState.content !== initialForm.content ||
       JSON.stringify([...editorState.hashtagNames].sort()) !==
         JSON.stringify([...initialForm.hashtagNames].sort()) ||
+      JSON.stringify([...editorState.personNames].sort()) !==
+        JSON.stringify([...initialForm.personNames].sort()) ||
       JSON.stringify([...form.projectIds].sort()) !==
         JSON.stringify([...initialForm.projectIds].sort()));
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
-    const { content, hashtagNames } = parseEditor();
+    const { content, hashtagNames, personNames } = parseEditor();
     if (!content) {
       toast.error("Capture cannot be empty.");
       return;
@@ -390,9 +436,14 @@ export function CaptureDetailPanel({
         return p ? { id: p.id, name: p.name } : null;
       })
       .filter((p): p is { id: string; name: string } => p !== null);
+    const optimisticPeople = personNames.map((name) => {
+      const known = capture.people.find((p) => p.name.toLowerCase() === name.toLowerCase());
+      return known ?? { id: `pending-${name}`, name };
+    });
     onOptimisticUpdate?.(capture.id, {
       content,
       hashtags: optimisticHashtags,
+      people: optimisticPeople,
       projects: optimisticProjects,
       updatedAt: new Date(),
     });
@@ -401,6 +452,7 @@ export function CaptureDetailPanel({
       id: capture.id,
       content,
       hashtagNames,
+      personNames,
       projectIds: form.projectIds,
     });
     if (!r.success) {
@@ -409,7 +461,7 @@ export function CaptureDetailPanel({
       return;
     }
     toast("Capture updated.");
-    setInitialForm({ content, hashtagNames, projectIds: form.projectIds });
+    setInitialForm({ content, hashtagNames, personNames, projectIds: form.projectIds });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
   }, [capture, parseEditor, form.projectIds, onOptimisticUpdate, onOptimisticRevert, projects]);
 
