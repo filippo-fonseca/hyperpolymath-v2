@@ -946,14 +946,9 @@ select:focus-visible,
   box-shadow: var(--ring-focus);
   border-color: var(--hud-cyan);
 }
-
-/* Reusable opt-in: drop `.focus-ring` on any element (even non-native ones)
-   to get the canonical cyan focus ring. Lets new components inherit the
-   shared token without re-declaring focus styling. */
-.focus-ring:focus-visible {
-  outline: none;
-  box-shadow: var(--ring-focus);
-}
+/* `.focus-ring` (above) is the reusable opt-in: drop it on any element — even
+   a non-native one — to inherit the canonical cyan ring without re-declaring
+   focus styling anywhere. */
 
 /* Agent mode kept as an explicit alias so .agent-mode-scope / .agent-focus
    call sites still resolve, but it now renders the identical cyan ring. */
