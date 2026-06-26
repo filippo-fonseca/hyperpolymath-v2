@@ -24,10 +24,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 import { HashtagChip } from "./HashtagChip";
+import { PersonChip } from "./PersonChip";
 
 interface Props {
   capture: CaptureWithLinks;
@@ -372,9 +374,11 @@ export function CaptureCard({
 }
 
 /**
- * Renders capture content with inline #hashtag chips substituted into the text.
- * Walks the raw `content` string, splits on `#word` patterns, and renders matched
- * substrings as <HashtagChip asButton={false} /> (no interaction inside the card body).
+ * Renders capture content with inline #hashtag and @person chips substituted
+ * into the text. Uses the shared `tokenizeContent` tokenizer so every `#…` pills
+ * regardless of adjacent punctuation (`#tag,`, `(#tag)`), and `@name` pills only
+ * when it matches a linked person — keeping read-rendering consistent with the
+ * composer/decoration/save path.
  */
 function CaptureBody({
   capture,
@@ -385,18 +389,21 @@ function CaptureBody({
 }) {
   // Map lowercase-name → displayName lookup
   const tagLookup = new Map(capture.hashtags.map((h) => [h.name, h.displayName]));
+  const personNames = capture.people?.map((p) => p.name) ?? [];
 
-  // Split content on whitespace, but preserve whitespace by capturing groups
-  const parts = capture.content.split(/(\s+)/);
+  const segments = tokenizeContent(capture.content, {
+    hashtagDisplay: tagLookup,
+    personNames,
+  });
 
-  const rendered = parts.map((part, i) => {
-    const m = /^#([\p{L}\p{N}_]+)$/u.exec(part);
-    if (m && m[1]) {
-      const lower = m[1].toLowerCase();
-      const displayName = tagLookup.get(lower) ?? m[1];
-      return <HashtagChip key={`${i}-tag`} displayName={displayName} asButton={false} />;
+  const rendered = segments.map((seg, i) => {
+    if (seg.kind === "hashtag") {
+      return <HashtagChip key={`${i}-tag`} displayName={seg.display} asButton={false} />;
     }
-    return <span key={`${i}-text`}>{part}</span>;
+    if (seg.kind === "person") {
+      return <PersonChip key={`${i}-person`} name={seg.display} asButton={false} />;
+    }
+    return <span key={`${i}-text`}>{seg.value}</span>;
   });
 
   return (
