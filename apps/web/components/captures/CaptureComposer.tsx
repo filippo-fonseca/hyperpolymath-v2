@@ -18,6 +18,7 @@ import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
+import { createPersonDecorations } from "./person-decorations";
 import { createPersonSuggestion } from "./person-suggestions";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 
@@ -158,6 +159,8 @@ export function CaptureComposer({
       // Live-decorate plain `#word` text so the token styling lands without
       // waiting for the suggestion popover to commit a Mention node (#41).
       HashtagDecorations,
+      // Same idea for `@name` matching a known person (amber register).
+      createPersonDecorations(() => people),
     ],
     editorProps: {
       attributes: {
