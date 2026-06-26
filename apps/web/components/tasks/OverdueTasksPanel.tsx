@@ -406,7 +406,10 @@ function OverdueDateGroup({
           >
             {groupAllSelected ? "Clear" : "Select"}
           </button>
-          <MoveToMenu onPick={onReschedule} variant="inline" from={date} />
+          {/* Shortcuts resolve relative to TODAY (MoveToMenu's default anchor),
+              not the past due date — rescheduling overdue work always moves it
+              forward. */}
+          <MoveToMenu onPick={onReschedule} variant="inline" />
         </div>
       </div>
 
