@@ -6,6 +6,7 @@ import type { PipelineLatencyStats } from "@/lib/db/queries/analytics";
 import type { DailyUsage } from "@/lib/integrations/claude-code/usage";
 import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
 import type { AnthropicDailyUsage } from "@/lib/integrations/anthropic-api/usage";
+import type { AnthropicDailyRequests } from "@/lib/integrations/anthropic-api/trends";
 import type { Session } from "@/lib/integrations/flow/sessions";
 import type { Result } from "@/lib/integrations/result";
 import type { StravaData } from "@/lib/integrations/strava/types";
@@ -47,6 +48,8 @@ interface Props {
   development?: {
     runs: DevRun[];
     anthropicApi: Result<AnthropicDailyUsage[]>;
+    // Optional per-day request counts (issue #133). Panel degrades if absent.
+    anthropicApiRequests?: Result<AnthropicDailyRequests[]>;
     subscription: Result<SubscriptionUsage>;
     claudeCode: Result<DailyUsage[]>;
   } | null;
@@ -95,6 +98,7 @@ export function InsightsTabs({
         <DevelopmentTabPanel
           runs={development.runs}
           anthropicApi={development.anthropicApi}
+          anthropicApiRequests={development.anthropicApiRequests}
           subscription={development.subscription}
           claudeCode={development.claudeCode}
         />
