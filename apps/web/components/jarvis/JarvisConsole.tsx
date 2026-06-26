@@ -44,6 +44,14 @@ import {
 } from "@/lib/voice/voice-stage-collector";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import { registerJarvisConsoleMounted } from "@/lib/jarvis/focus";
+// Issue #149 — unread-badge bus. While a console is mounted-and-visible the
+// user IS viewing the conversation, so registerConsoleViewing holds the count
+// at zero; replies that land while the tab is backgrounded still bump.
+import {
+  bumpUnread,
+  ensureVisibilityListener,
+  registerConsoleViewing,
+} from "@/lib/jarvis/unread-bus";
 
 /**
  * Fire-and-forget save. Errors are logged but never bubble — scrollback
@@ -216,6 +224,15 @@ export function JarvisConsole({
   useEffect(() => {
     registerJarvisConsoleMounted(true);
     return () => registerJarvisConsoleMounted(false);
+  }, []);
+
+  // Issue #149 — mark the conversation as "being viewed" while this console is
+  // mounted. registerConsoleViewing clears any pending unread count on mount
+  // (the user is now looking at it) and ensureVisibilityListener resets the
+  // count whenever the tab returns to the foreground.
+  useEffect(() => {
+    ensureVisibilityListener();
+    return registerConsoleViewing();
   }, []);
 
   // Issue #17: JARVIS mutations refreshed the underlying lists only via the
@@ -690,6 +707,11 @@ export function JarvisConsole({
             });
             if (completed) persistTurn(completed);
 
+            // Issue #149 — the reply just completed; bump the unread badge if
+            // the user isn't currently viewing this conversation (the bus
+            // no-ops when a mounted console is foregrounded).
+            bumpUnread();
+
             // Phase 10 Plan 10-04 (LAT-02) — final flush: emit any
             // unfinished tail in the rolling buffer as the last sentence.
             if (ttsBuffer.trim()) {
@@ -925,6 +947,9 @@ export function JarvisConsole({
         ),
       );
       setStreaming(false);
+      // Issue #149 — desktop-relayed reply completed; bump the unread badge
+      // if the conversation isn't currently being viewed.
+      bumpUnread();
     }
 
     window.addEventListener("jarvis-response-start", handleResponseStart);
