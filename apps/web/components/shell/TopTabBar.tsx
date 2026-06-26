@@ -27,6 +27,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { playPop } from "@/lib/ui/play-pop";
+import { JarvisUnreadBadge } from "@/components/jarvis/JarvisUnreadBadge";
 
 const JARVIS_PATH = "/today";
 const FALLBACK_LEFT_PATH = "/lifeos";
@@ -211,6 +212,7 @@ export function TopTabBar({ userId }: { userId: string }) {
         kbd="⌃2"
         icon={<KiwiIcon size={13} aria-hidden="true" />}
         dataTour="top-tab-jarvis"
+        badge={<JarvisUnreadBadge />}
       />
 
       <div className="ml-auto pl-2" data-tour="top-split-toggle">
@@ -250,6 +252,7 @@ function TabPill({
   kbd,
   onClose,
   dataTour,
+  badge,
 }: {
   href: string;
   active: boolean;
@@ -259,6 +262,8 @@ function TabPill({
   kbd?: string;
   onClose?: () => void;
   dataTour?: string;
+  /** Optional trailing indicator (e.g. JARVIS unread-message counter). */
+  badge?: React.ReactNode;
 }) {
   // accent (JARVIS) tab: scope cyan focus ring so amber doc ring doesn't show
   // on tab focus. Plain tab keeps the default doc ring.
@@ -311,6 +316,7 @@ function TabPill({
           {icon}
         </span>
         <span className="truncate max-w-[160px]">{label}</span>
+        {badge}
         {kbd && (
           <span
             className={cn(
