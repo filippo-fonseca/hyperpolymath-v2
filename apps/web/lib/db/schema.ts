@@ -101,7 +101,7 @@ export const userApiKeys = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider").notNull(), // "anthropic" | "groq" | "elevenlabs"
+    provider: text("provider").notNull(), // "anthropic" | "anthropic_admin" | "groq" | "elevenlabs"
     keyEncrypted: bytea("key_encrypted").notNull(),
     last4: text("last4").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
