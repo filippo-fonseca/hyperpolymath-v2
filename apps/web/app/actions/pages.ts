@@ -113,6 +113,11 @@ const UpdatePageSchema = z.object({
   contentJson: z.unknown().optional(),
   emoji: z.string().nullable().optional(),
   pinned: z.boolean().optional(),
+  // Issue #28 — Notion-style cover/banner image. coverImageUrl must be an http(s)
+  // URL (or null to remove the banner); coverImageAttribution is the optional
+  // Unsplash credit string. Both omitted = the cover is untouched on this save.
+  coverImageUrl: z.string().url().max(2000).nullable().optional(),
+  coverImageAttribution: z.string().max(300).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
@@ -132,7 +137,9 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
       parsed.data.content !== undefined ||
       parsed.data.contentJson !== undefined ||
       parsed.data.emoji !== undefined ||
-      parsed.data.pinned !== undefined;
+      parsed.data.pinned !== undefined ||
+      parsed.data.coverImageUrl !== undefined ||
+      parsed.data.coverImageAttribution !== undefined;
 
     if (hasScalarUpdate) {
       const set: Record<string, unknown> = { updatedAt: sql`now()` };
@@ -141,6 +148,9 @@ export async function updatePage(input: unknown): Promise<ActionResult<null>> {
       if (parsed.data.contentJson !== undefined) set.contentJson = parsed.data.contentJson;
       if (parsed.data.emoji !== undefined) set.emoji = parsed.data.emoji;
       if (parsed.data.pinned !== undefined) set.pinned = parsed.data.pinned;
+      if (parsed.data.coverImageUrl !== undefined) set.coverImageUrl = parsed.data.coverImageUrl;
+      if (parsed.data.coverImageAttribution !== undefined)
+        set.coverImageAttribution = parsed.data.coverImageAttribution;
 
       await tx
         .update(pages)
