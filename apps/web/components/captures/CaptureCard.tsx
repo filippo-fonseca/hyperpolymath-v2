@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { highlightSegments } from "@/lib/search";
+import { splitTextWithUrls } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 import { HashtagChip } from "./HashtagChip";
@@ -406,6 +407,46 @@ function CaptureBody({
   const parts = capture.content.split(/(\s+)/);
   const query = searchQuery?.trim() ?? "";
 
+  // Render a plain-text run (no hashtag) with both URL autolinking (issue #101)
+  // and search highlighting (issue #139). URLs win: a matched URL becomes a real
+  // clickable anchor (new tab); the text around it still gets the cyan search
+  // mark when a query is active.
+  function renderTextRun(text: string, keyPrefix: string) {
+    return splitTextWithUrls(text).map((seg, j) => {
+      if (seg.href) {
+        return (
+          <a
+            key={`${keyPrefix}-url-${j}`}
+            href={seg.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            // Stop the card's onOpen click from firing when following the link.
+            onClick={(e) => e.stopPropagation()}
+            className="text-[var(--hud-cyan)] underline decoration-[color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] underline-offset-2 hover:decoration-[var(--hud-cyan)] break-all"
+          >
+            {seg.text}
+          </a>
+        );
+      }
+      if (!query) {
+        return <span key={`${keyPrefix}-text-${j}`}>{seg.text}</span>;
+      }
+      return (
+        <span key={`${keyPrefix}-text-${j}`}>
+          {highlightSegments(seg.text, query).map((m, k) =>
+            m.match ? (
+              <mark key={k} className="captures-search-mark">
+                {m.text}
+              </mark>
+            ) : (
+              <span key={k}>{m.text}</span>
+            ),
+          )}
+        </span>
+      );
+    });
+  }
+
   const rendered = parts.map((part, i) => {
     const m = /^#([\p{L}\p{N}_]+)$/u.exec(part);
     if (m && m[1]) {
@@ -413,25 +454,7 @@ function CaptureBody({
       const displayName = tagLookup.get(lower) ?? m[1];
       return <HashtagChip key={`${i}-tag`} displayName={displayName} asButton={false} />;
     }
-    if (!query) {
-      return <span key={`${i}-text`}>{part}</span>;
-    }
-    // Reuse the shared substring matcher; wrap matched segments in the cyan
-    // captures-search mark, leave the rest as plain text. Highlights ALL
-    // occurrences within this segment (issue #139 AC).
-    return (
-      <span key={`${i}-text`}>
-        {highlightSegments(part, query).map((seg, j) =>
-          seg.match ? (
-            <mark key={j} className="captures-search-mark">
-              {seg.text}
-            </mark>
-          ) : (
-            <span key={j}>{seg.text}</span>
-          ),
-        )}
-      </span>
-    );
+    return <span key={`${i}-text`}>{renderTextRun(part, String(i))}</span>;
   });
 
   return (
