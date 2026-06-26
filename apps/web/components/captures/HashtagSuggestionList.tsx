@@ -100,6 +100,18 @@ export const HashtagSuggestionList = forwardRef<
           enterHandler();
           return true;
         }
+        // Space finalizes the highlighted hashtag too (#137). The user can
+        // commit a tag with EITHER Space or Enter — Enter stays optional, no
+        // confirmation keystroke required. We only intercept Space when there
+        // is a real item to commit (length > 0, which is always true while the
+        // popover is open since items() emits the "(new)" sentinel for any
+        // non-empty query). The command() inserts the mention node followed by
+        // a trailing space, so returning `true` here (which makes ProseMirror
+        // call preventDefault) avoids a doubled space after the chip.
+        if (event.key === " " && items.length > 0) {
+          enterHandler();
+          return true;
+        }
         return false;
       },
     }),
