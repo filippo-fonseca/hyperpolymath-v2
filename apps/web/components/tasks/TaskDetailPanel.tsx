@@ -1,6 +1,6 @@
 "use client";
 
-import { createTask, updateTask } from "@/app/actions/tasks";
+import { advanceRecurringTask, createTask, updateTask } from "@/app/actions/tasks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,9 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
+import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -166,6 +168,7 @@ interface FormState {
   dueDate: string;
   notes: string;
   projectIds: string[];
+  recurrence: RecurrenceRule | null;
 }
 
 function toFormState(task: TaskWithProjects): FormState {
@@ -176,6 +179,7 @@ function toFormState(task: TaskWithProjects): FormState {
     dueDate: task.dueDate ?? "",
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
+    recurrence: task.recurrence ?? null,
   };
 }
 
@@ -186,7 +190,8 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.priority !== b.priority ||
     a.dueDate !== b.dueDate ||
     a.notes !== b.notes ||
-    JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort())
+    JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort()) ||
+    JSON.stringify(a.recurrence) !== JSON.stringify(b.recurrence)
   );
 }
 
@@ -215,6 +220,7 @@ export function TaskDetailPanel({
     dueDate: "",
     notes: "",
     projectIds: [],
+    recurrence: null,
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
 
@@ -255,6 +261,7 @@ export function TaskDetailPanel({
         kanbanPosition: 0,
         completedAt: null,
         createdAt: new Date(),
+        recurrence: form.recurrence,
         projects: projectChips,
       },
     });
@@ -266,6 +273,7 @@ export function TaskDetailPanel({
       status: form.status,
       dueDate: form.dueDate || null,
       projectIds: form.projectIds,
+      recurrence: form.recurrence,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -287,6 +295,7 @@ export function TaskDetailPanel({
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
+      recurrence: form.recurrence,
     };
     // D-04: optimistic update first (D-02 instant) — project links also flow
     // through to optimistic state via the patch
@@ -318,6 +327,26 @@ export function TaskDetailPanel({
     setInitialForm(form);
     // Realtime echo invalidates ['tasks', userId] → refetch → cache settles.
   }, [task, form, projects, addOptimistic, isCreate, handleCreate]);
+
+  // Advance a recurring task to its next occurrence (issue #144). Completing an
+  // occurrence does NOT permanently finish the series — the row rolls its due
+  // date forward and resets to "not started". Optimistic so the panel reflects
+  // it instantly; Realtime echo reconciles.
+  const handleAdvanceOccurrence = useCallback(async () => {
+    if (!task || !form.recurrence) return;
+    const r = await advanceRecurringTask({ id: task.id, mode: "complete" });
+    if (!r.success) {
+      toast.error(r.error);
+      return;
+    }
+    addOptimistic({
+      type: "update",
+      id: task.id,
+      patch: { dueDate: r.data.nextDueDate, status: "not started", completedAt: null },
+    });
+    toast("Done. Next occurrence scheduled.");
+    onClose();
+  }, [task, form.recurrence, addOptimistic, onClose]);
 
   // Cmd+Enter to save
   useEffect(() => {
@@ -507,6 +536,33 @@ export function TaskDetailPanel({
                     <p className="font-mono text-[11px] text-[var(--ink-muted)]">
                       Will move to Inbox
                     </p>
+                  )}
+                </FieldSection>
+
+                {/* 3b. Recurrence (issue #144) — recurring TASK, distinct from
+                    Habits. Cyan-accented control + an "advance to next" action
+                    that rolls the due date forward when this occurrence is done. */}
+                <FieldSection label="Repeat">
+                  <TaskRecurrenceControl
+                    value={form.recurrence}
+                    onChange={(next) => set("recurrence", next)}
+                    disabled={isPending}
+                  />
+                  {!isCreate && form.recurrence && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => startTransition(() => void handleAdvanceOccurrence())}
+                      className={cn(
+                        "mt-1 inline-flex w-fit items-center gap-1.5 rounded-md px-2.5 py-1",
+                        "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+                        "border border-[var(--hud-cyan)]/50 text-[var(--hud-cyan)]",
+                        "hover:bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)]",
+                        "transition-colors duration-150 ease-out disabled:opacity-40"
+                      )}
+                    >
+                      Complete · advance to next
+                    </button>
                   )}
                 </FieldSection>
 
