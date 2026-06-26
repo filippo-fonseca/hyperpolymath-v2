@@ -5,6 +5,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandMenu } from "@/components/shell/CommandMenu";
 import { GlobalHotkeys } from "@/components/shell/GlobalHotkeys";
+import { NavHistoryProvider } from "@/components/shell/NavHistoryProvider";
 import { ShortcutsCheatSheet } from "@/components/shell/ShortcutsCheatSheet";
 import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
@@ -59,6 +60,9 @@ export default async function AppLayout({
     <NuqsAdapter>
       <QueryProvider>
         <SearchProvider userId={user.id} initialSnapshot={searchSnapshot}>
+          {/* NavHistoryProvider — in-memory Back/Forward stack. Must wrap both
+            AppShell (TopTabBar → NavArrows) and GlobalHotkeys (⌘[ / ⌘]). */}
+          <NavHistoryProvider>
           <AppShell
             userId={user.id}
             activeAreas={activeAreas}
@@ -76,6 +80,7 @@ export default async function AppLayout({
           {/* Phase 6 Plan 06-03 (AES-05, D-02): Cmd+K focuses JARVIS Console input
             anywhere in (app). CommandMenu rebound to Cmd+Shift+K. */}
           <GlobalHotkeys />
+          </NavHistoryProvider>
           {/* Quick 260607-g56: Cmd+K opens a lite JARVIS dialog from any (app)
             route EXCEPT /today (where GlobalHotkeys.focusJarvis wins). */}
           <GlobalJarvisDialog />
