@@ -20,6 +20,8 @@ import { VoiceSettingsSection } from "@/components/settings/voice/VoiceSettingsS
 import { DistanceUnitToggle } from "@/components/training/settings/DistanceUnitToggle";
 import { SettingsSectionNav } from "@/components/settings/SettingsSectionNav";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
+import { PagesBackupSection } from "@/components/settings/PagesBackupSection";
+import { getPagesBackupSettings } from "@/lib/db/queries/pages-backup";
 import { listUserKeyStatus } from "@/lib/byok/keys";
 import {
   getValidGcalToken,
@@ -32,7 +34,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireOnboarded();
-  const [gcalStatus, oauthAvatar, distanceUnitRow, apiKeyStatus] =
+  const [gcalStatus, oauthAvatar, distanceUnitRow, apiKeyStatus, backupSettings] =
     await Promise.all([
       getGcalConnectionStatus(user.id),
       getAuthAvatar(),
@@ -42,6 +44,7 @@ export default async function SettingsPage() {
         .where(eq(users.id, user.id))
         .limit(1),
       listUserKeyStatus(user.id),
+      getPagesBackupSettings(user.id),
     ]);
   const currentDistanceUnit: "km" | "mi" =
     distanceUnitRow[0]?.unit === "mi" ? "mi" : "km";
@@ -179,6 +182,23 @@ export default async function SettingsPage() {
                   <TimezoneOverrideRow currentTimezone={currentTimezone} />
                 </>
               )}
+            </Card>
+
+            <Card className={tile}>
+              <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+                Pages backup
+              </h3>
+              <p className="font-serif text-base text-[var(--ink-muted)]">
+                Keep an automatic daily copy of your entire Wiki in Google Drive.
+                Each page is exported as Markdown into a private folder only this
+                app can touch (the <code>drive.file</code> scope). If you
+                connected Google before backups existed, reconnect once to grant
+                Drive permission.
+              </p>
+              <PagesBackupSection
+                settings={backupSettings}
+                gcalConnected={gcalStatus === "connected"}
+              />
             </Card>
           </section>
 

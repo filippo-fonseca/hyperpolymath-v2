@@ -3,7 +3,8 @@
 import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 
 import { Sparkles } from "lucide-react";
@@ -13,6 +14,7 @@ import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -116,6 +118,12 @@ export function CaptureComposer({
   const [suggestions, setSuggestions] = useState<SuggestedTag[]>([]);
   const [suggesting, setSuggesting] = useState(false);
 
+  // Live editor handle for editorProps.handleKeyDown — the `editor` const below
+  // is used-before-definition inside useEditor's config, so the Cmd+K handler
+  // reads the instance through this ref instead (kept in sync right after the
+  // hook returns). Mirrors the JarvisInput composer pattern.
+  const editorRef = useRef<Editor | null>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -168,9 +176,33 @@ export function CaptureComposer({
           "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 font-serif text-base",
         "data-placeholder": "What's on your mind? Use #tags to organize.",
       },
+      // Cmd/Ctrl+K opens the inline `#`-token dropdown at the caret (#145).
+      // We insert the trigger char into the doc, which is exactly what typing
+      // `#` does — the Mention suggestion plugin observes the new char and
+      // opens its popover, giving full parity with the typed trigger (same
+      // items, same keyboard nav, same commit path).
+      //
+      // This handler runs on the editor's DOM node during dispatch, BEFORE the
+      // window-level GlobalHotkeys listener that binds plain Cmd+K to "focus
+      // JARVIS". stopPropagation() keeps that global handler from also firing
+      // and yanking focus out of the composer; preventDefault() suppresses any
+      // browser default for the chord.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key === "k") {
+          event.preventDefault();
+          event.stopPropagation();
+          editorRef.current?.chain().focus().insertContent("#").run();
+          return true;
+        }
+        return false;
+      },
     },
     autofocus: autoFocus ?? false,
   });
+
+  // Keep the ref pointed at the live editor instance so editorProps.handleKeyDown
+  // (frozen at editor-creation time) can reach the current editor for Cmd+K.
+  editorRef.current = editor;
 
   function parseEditor(): {
     content: string;
@@ -314,6 +346,9 @@ export function CaptureComposer({
       createdVia: null,
       sourceDevice: "Web",
       sourceInput: "text",
+      // Issue #101 — the quick-capture composer doesn't set a URL property; it's
+      // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
+      url: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
@@ -396,9 +431,10 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Glass tile composer — focus-within flips the glass accent to amber so
-    // the composer still reads "live" while typing.
-    <div className="rounded-xl glass-tile focus-within:border-[var(--ink-amber)] focus-within:[--glass-glow-color:var(--ink-amber)] focus-within:[--glass-glow:12%]">
+    // Glass tile composer — focus-within flips the glass accent to the shared
+    // cyan focus color (#140) so the composer reads "live" while typing and
+    // matches every other focused input across the app.
+    <div className="rounded-xl glass-tile focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] focus-within:[--glass-glow:12%]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
@@ -440,13 +476,30 @@ export function CaptureComposer({
           disabled={suggesting || !editor}
           className="inline-flex items-center gap-1 font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-50 cursor-pointer-always"
         >
-          <Sparkles className="size-3" aria-hidden />
+          {suggesting ? (
+            <Spinner size={12} label="Suggesting tags" />
+          ) : (
+            <Sparkles className="size-3" aria-hidden />
+          )}
           {suggesting ? "Suggesting…" : "Suggest tags"}
         </button>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-[var(--ink-muted)]">Cmd+Enter to capture</span>
+          <span
+            className="font-mono text-xs text-[var(--ink-muted)]"
+            title="Press ⌘K (Ctrl+K) in the editor to insert a #tag"
+          >
+            <span className="font-mono">⌘K</span> for tags ·{" "}
+            <span className="font-mono">⌘Enter</span> to capture
+          </span>
           <Button onClick={handleSubmit} disabled={pending || !editor} size="sm">
-            Capture
+            {pending ? (
+              <>
+                <Spinner size={13} label="Capturing" />
+                Capturing…
+              </>
+            ) : (
+              "Capture"
+            )}
           </Button>
         </div>
       </div>

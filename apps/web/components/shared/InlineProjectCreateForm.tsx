@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,7 +101,14 @@ export function InlineProjectCreateForm({ areas, onCreate, onDone, onCancel }: P
           onClick={() => void submit()}
           disabled={submitting || !name.trim() || !areaId}
         >
-          {submitting ? "Creating..." : "Create"}
+          {submitting ? (
+            <>
+              <Spinner size={12} label="Creating project" />
+              Creating…
+            </>
+          ) : (
+            "Create"
+          )}
         </Button>
       </div>
     </div>

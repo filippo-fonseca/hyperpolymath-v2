@@ -127,6 +127,9 @@ describe("ConvertCaptureToTaskDialog", () => {
       title: "Pick up groceries tomorrow",
       priority: "P3", // default
       projectIds: ["bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"],
+      // Issue #144 — recurrence + due date default to "one-off, no date".
+      recurrence: null,
+      dueDate: null,
     });
     expect(toastMock.success).toHaveBeenCalledWith("Converted to task");
     // Dialog closed
@@ -216,6 +219,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdVia: "jarvis",
     sourceDevice: null,
     sourceInput: null,
+    url: null,
       hashtags: [],
       people: [],
       projects: [],
@@ -228,6 +232,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdVia: null,
     sourceDevice: null,
     sourceInput: null,
+    url: null,
       hashtags: [],
       people: [],
       projects: [],

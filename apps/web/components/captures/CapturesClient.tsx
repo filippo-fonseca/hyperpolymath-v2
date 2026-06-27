@@ -141,6 +141,11 @@ export function CapturesClient({
 
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
+  // Issue #139 — live search text (un-debounced) used purely to highlight the
+  // matched substring inside each rendered capture card. Kept separate from
+  // `searchResultIds` (the debounced server-side match set that drives which
+  // cards show) so the highlight tracks every keystroke.
+  const [searchQuery, setSearchQuery] = useState("");
   // URL-driven (?capture=<id>) so the person profile card can deep-link into a
   // specific capture and open its detail panel.
   const [selectedCaptureId, setSelectedCaptureId] = useQueryState("capture", parseAsString);
@@ -253,6 +258,11 @@ export function CapturesClient({
     setSearchResultIds(ids);
   }, []);
 
+  // Issue #139 — capture the live query for highlighting matched text in cards.
+  const handleSearchQueryChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
   // Optimistic-action callbacks passed down to the surfaces that mutate.
   // These wrap `addOptimistic` so consumers don't see the reducer shape.
   const handleOptimisticInsert = useCallback(
@@ -322,7 +332,11 @@ export function CapturesClient({
         />
       </aside>
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden min-w-0">
-        <CaptureSearch activeHashtagId={activeTagId} onResults={handleSearchResults} />
+        <CaptureSearch
+          activeHashtagId={activeTagId}
+          onResults={handleSearchResults}
+          onQueryChange={handleSearchQueryChange}
+        />
         <div className="sticky top-0 z-10">
           <CaptureComposer
             userId={userId}
@@ -347,6 +361,10 @@ export function CapturesClient({
               captures={filtered}
               activeHashtagId={activeTagId}
               isSearchActive={searchResultIds !== null}
+              // Issue #139 — only highlight while a search is actually active
+              // (results gated, not just typing). Cleared automatically when
+              // searchResultIds returns to null (empty field / Clear search).
+              searchQuery={searchResultIds !== null ? searchQuery : ""}
               onClearHashtag={() => setActiveTagId(null)}
               onClearSearch={() => handleSearchResults(null)}
               onSelectCapture={(c) => setSelectedCaptureId(c.id)}

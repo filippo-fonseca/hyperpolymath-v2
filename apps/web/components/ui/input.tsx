@@ -6,11 +6,9 @@ import { cn } from "@/lib/utils"
  * Phase 06.1 Plan 04 (UI-SPEC §9d) — Document-tier Input.
  *
  * bg --surface + 1px --edge border at rest. Focus border + ring are both
- * painted by the global `input:focus-visible` rule in globals.css (calm
- * neutral --edge-hud, not the amber doc ring — see comment at globals.css
- * §"Focus-visible ring system"). The earlier amber border override here
- * fought that global rule and produced an inconsistent amber-border-inside-
- * cyan-ring focus state — see issue #43.
+ * painted by the global `input:focus-visible` rule in globals.css, which
+ * resolves to the canonical cyan --ring-focus token (issue #140). No local
+ * focus override here so the field inherits the one shared focus identity.
  *
  * 150ms transition-colors keeps the resting → focus swap feeling deliberate.
  */

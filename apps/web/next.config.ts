@@ -3,6 +3,19 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // Issue #28 — Notion-style page cover images. Banners chosen from the Unsplash
+  // picker are served from images.unsplash.com; allow next/image to optimize them.
+  // (User-pasted arbitrary image URLs are rendered with the unoptimized escape
+  // hatch on the <Image> itself, so they don't need a remotePattern here.)
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
   // Next 16: Turbopack is default; no explicit flag needed
   // Transpile our pure-TS workspace packages (ESM source, no build step).
   // Required so Next's bundler walks their TS files instead of trying to

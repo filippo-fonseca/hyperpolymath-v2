@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { sql, eq } from "drizzle-orm";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -131,6 +132,15 @@ export async function completeOnboarding(formData: FormData): Promise<void> {
       })),
     );
   }
+
+  // Revalidate the (app) group layout before redirecting. Completing onboarding
+  // flips `onboarded_at` (the requireOnboarded gate) and seeds the default areas
+  // that the shared layout renders into the sidebar. The post-submit redirect is
+  // a client-side nav, so without this the destination renders from cached RSC
+  // and the seeded areas + post-welcome shell state only appear after a manual
+  // refresh. Revalidate the layout segment so it all renders live. Mirrors the
+  // `revalidatePath("/", "layout")` convention used by the profile update action.
+  revalidatePath("/", "layout");
 
   redirect("/lifeos");
 }

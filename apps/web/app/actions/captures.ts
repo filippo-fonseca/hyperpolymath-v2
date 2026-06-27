@@ -36,6 +36,9 @@ const CreateCaptureSchema = z.object({
   // side so the editor never needs an id round-trip mid-typing.
   personNames: z.array(z.string().trim().min(1).max(200)).max(40).default([]),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
+  // Issue #101 — Notion-style URL property. Stored verbatim (normalized
+  // client-side); null/absent = unset.
+  url: z.string().trim().max(2048).nullable().optional(),
 });
 
 export async function createCapture(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -57,6 +60,7 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
         ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         content: parsed.data.content,
+        url: parsed.data.url ? parsed.data.url : null,
         sourceDevice: "Web",
         sourceInput: "text",
       })
@@ -135,6 +139,8 @@ const UpdateCaptureSchema = z.object({
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   personNames: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
+  // Issue #101 — set, change, or clear (null) the URL property.
+  url: z.string().trim().max(2048).nullable().optional(),
 });
 
 export async function updateCapture(input: unknown): Promise<ActionResult<null>> {
@@ -148,10 +154,16 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     };
 
   await db.transaction(async (tx) => {
-    if (parsed.data.content !== undefined) {
+    // Coalesce the scalar column writes (content + url) into one UPDATE so a
+    // url-only edit doesn't depend on content being present. An empty/whitespace
+    // url is treated as a clear (null).
+    const scalarSet: Record<string, unknown> = {};
+    if (parsed.data.content !== undefined) scalarSet.content = parsed.data.content;
+    if (parsed.data.url !== undefined) scalarSet.url = parsed.data.url ? parsed.data.url : null;
+    if (Object.keys(scalarSet).length > 0) {
       await tx
         .update(captures)
-        .set({ content: parsed.data.content, updatedAt: sql`now()` })
+        .set({ ...scalarSet, updatedAt: sql`now()` })
         .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)));
     }
 

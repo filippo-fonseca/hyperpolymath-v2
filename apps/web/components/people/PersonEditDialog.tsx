@@ -1,6 +1,7 @@
 "use client";
 
 import { createPerson, updatePerson } from "@/app/actions/people";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -276,7 +277,16 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
             Cancel
           </Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save" : "Add person"}
+            {saving ? (
+              <>
+                <Spinner size={14} label="Saving person" />
+                Saving…
+              </>
+            ) : isEdit ? (
+              "Save"
+            ) : (
+              "Add person"
+            )}
           </Button>
         </div>
       </DialogContent>

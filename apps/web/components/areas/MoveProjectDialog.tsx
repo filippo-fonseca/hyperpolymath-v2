@@ -1,6 +1,7 @@
 "use client";
 
 import { moveProjectToArea } from "@/app/actions/projects";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,7 +98,14 @@ export function MoveProjectDialog({
             Never mind
           </Button>
           <Button onClick={handleMove} disabled={isMoving || !targetAreaId}>
-            {isMoving ? "Moving..." : "Move project"}
+            {isMoving ? (
+              <>
+                <Spinner size={14} label="Moving project" />
+                Moving…
+              </>
+            ) : (
+              "Move project"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

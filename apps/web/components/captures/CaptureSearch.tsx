@@ -8,6 +8,13 @@ import { searchCaptures } from "@/app/actions/captures";
 interface Props {
   activeHashtagId: string | null;
   onResults: (ids: string[] | null) => void;
+  /**
+   * Issue #139 — surfaces the live (un-debounced) query text so the parent can
+   * highlight matched substrings in the rendered capture cards. Fires on every
+   * keystroke, independent of the debounced search request below; passes "" when
+   * the field is empty so the parent can clear any active highlight immediately.
+   */
+  onQueryChange?: (query: string) => void;
 }
 
 /**
@@ -19,8 +26,14 @@ interface Props {
  *   - null = "no search active, show full feed"
  *   - [] = "search active, no matches" (caller renders the empty state)
  */
-export function CaptureSearch({ activeHashtagId, onResults }: Props) {
+export function CaptureSearch({ activeHashtagId, onResults, onQueryChange }: Props) {
   const [query, setQuery] = useState("");
+
+  // Issue #139 — report the raw query upward immediately (not debounced) so the
+  // highlight tracks each keystroke, even before the debounced search resolves.
+  useEffect(() => {
+    onQueryChange?.(query);
+  }, [query, onQueryChange]);
 
   useEffect(() => {
     if (!query.trim()) {

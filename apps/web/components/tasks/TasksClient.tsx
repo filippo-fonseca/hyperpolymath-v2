@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { toast } from "sonner";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
+import { OverdueTasksPanel } from "./OverdueTasksPanel";
 import { DaySwitcher } from "./DaySwitcher";
 import { TaskOverviewView } from "./TaskOverviewView";
 import { TaskDetailPanel } from "./TaskDetailPanel";
@@ -337,6 +338,51 @@ export function TasksClient({
     [filtered]
   );
 
+  // Overdue tasks (issue #143): due date strictly before today's start, not
+  // completed, and (by the dueDate guard) never undated. Computed from the
+  // OPTIMISTIC `tasks` rather than the day-filtered slice so the panel spans
+  // every overdue date regardless of which day the kanban is showing — and so
+  // a reschedule optimistically removes the row the instant its dueDate moves
+  // forward. Deliberately bypasses the `filtered`/`showLesno` plumbing: the
+  // overdue set is its own concern, always lesno-free.
+  const overdueTasks = useMemo(() => {
+    const today = startOfDay(new Date());
+    return optimisticTasks
+      .filter((t) => {
+        if (pendingDeleteIds.has(t.id)) return false;
+        if (!t.dueDate) return false;
+        if (t.status === "lesno") return false;
+        return isBefore(fromYmd(t.dueDate), today);
+      })
+      .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  }, [optimisticTasks, pendingDeleteIds]);
+
+  // Reschedule a set of overdue tasks to a new day. REUSES the existing
+  // bulkUpdateTaskDueDate server action (no new endpoint) — same optimistic +
+  // invalidate shape as handleBulkMove. Works for the panel's mass action, the
+  // per-group quick action, and the drag-out-of-panel path.
+  const handleRescheduleOverdue = useCallback(
+    async (ids: string[], dueYmd: string) => {
+      if (ids.length === 0) return;
+      startTransition(() => {
+        for (const id of ids) {
+          addOptimistic({ type: "update", id, patch: { dueDate: dueYmd } });
+        }
+      });
+      const r = await bulkUpdateTaskDueDate({ ids, dueDate: dueYmd });
+      if (!r.success) {
+        toast.error(r.error);
+        for (const id of ids) addOptimistic({ type: "revert", id });
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
+      toast.success(
+        `${ids.length} task${ids.length === 1 ? "" : "s"} rescheduled to ${dueYmd}`
+      );
+    },
+    [addOptimistic, queryClient, userId, startTransition]
+  );
+
   // Multi-select helpers
   const toggleSelected = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -556,9 +602,11 @@ export function TasksClient({
           priority: "P3",
           status: input.status,
           dueDate: defaultedDueDate,
+          url: null,
           kanbanPosition: 0,
           completedAt: null,
           createdAt: new Date(),
+          recurrence: null,
           projects: [],
         },
       });
@@ -601,9 +649,11 @@ export function TasksClient({
         priority: "P3",
         status: draftStatus,
         dueDate: dateYmd,
+        url: null,
         kanbanPosition: 0,
         completedAt: null,
         createdAt: new Date(),
+        recurrence: null,
         projects: [],
       }
     : null;
@@ -796,7 +846,26 @@ export function TasksClient({
           }}
         />
       ) : (
-        <div className="flex flex-1 min-h-0 flex-row gap-4">
+        <div className="flex flex-1 min-h-0 flex-col">
+          {/* Overdue Tasks Panel (issue #143) — spans the full width above the
+              day-scoped surface. Aggregates every passed-due task grouped by
+              its original due date; cards are draggable (reusing the lifted
+              `draggedTaskId` state) so dropping one on a kanban column / list
+              drop area / overview day reschedules it forward and the optimistic
+              update removes it from the panel. Mass + per-group reschedule reuse
+              `bulkUpdateTaskDueDate` via handleRescheduleOverdue. */}
+          {overdueTasks.length > 0 ? (
+            <OverdueTasksPanel
+              overdueTasks={overdueTasks}
+              onTaskClick={setOpenTaskId}
+              onReschedule={(ids, dueYmd) => void handleRescheduleOverdue(ids, dueYmd)}
+              draggedTaskId={draggedTaskId}
+              onDragStart={(id) => setDraggedTaskId(id)}
+              onDragEnd={() => setDraggedTaskId(null)}
+            />
+          ) : null}
+
+          <div className="flex flex-1 min-h-0 flex-row gap-4">
           {/* D-01: persistent first-class Inbox — always present across every
               view (kanban / list / overview) so dateless tasks stay visible
               regardless of the central day-scoped surface. */}
@@ -880,6 +949,7 @@ export function TasksClient({
                 />
               </div>
             )}
+          </div>
           </div>
         </div>
       )}

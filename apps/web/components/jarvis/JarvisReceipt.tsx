@@ -1,6 +1,7 @@
 "use client";
 
 import { forgetFactAction } from "@/app/actions/jarvis-facts";
+import { HashtagChip } from "@/components/captures/HashtagChip";
 import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
 import { Button } from "@/components/ui/button";
 import { entityHref, findResultRef, receiptEntityRef } from "@/lib/entity-href";
@@ -542,9 +543,15 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {action.name === "create_capture" ? (
             <>
               <div className={titleCls}>{String(receipt.content ?? "")}</div>
+              {/* Issue #137: render the capture's hashtags as visible sage chips
+                  (same HashtagChip used across the captures surfaces) instead of
+                  a plain "#a #b" mono string, so a quick-capture's tags read as
+                  tags in the JARVIS conversation. Purely visual (asButton=false). */}
               {Array.isArray(receipt.hashtags) && receipt.hashtags.length ? (
-                <div className="font-mono text-xs text-[var(--ink-muted)]">
-                  #{(receipt.hashtags as string[]).join(" #")}
+                <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                  {(receipt.hashtags as string[]).map((tag) => (
+                    <HashtagChip key={tag} displayName={tag} asButton={false} />
+                  ))}
                 </div>
               ) : null}
             </>

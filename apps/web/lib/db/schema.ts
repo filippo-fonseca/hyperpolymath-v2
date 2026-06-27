@@ -23,6 +23,8 @@ import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
+// Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -88,6 +90,22 @@ export const users = pgTable("users", {
   // layer (lib/training/distance.ts in later plans) converts at the IO
   // boundary. CHECK constraint enforced in migration 0022.
   distanceUnit: text("distance_unit").notNull().default("km"),
+  // Issue #142 — daily Pages (Wiki) backup to Google Drive. Per-user opt-out +
+  // last-run telemetry for the /settings backup section. See migration 0044.
+  //   pagesBackupEnabled  — when false, the daily cron skips this user (manual
+  //                         "Back up now" still works regardless of the flag).
+  //   pagesBackupLastRunAt — timestamp of the last attempt (success OR failure).
+  //   pagesBackupLastStatus — short machine-readable status of that attempt:
+  //                         "ok" | "skipped_empty" | "not_connected" |
+  //                         "needs_drive_scope" | "error".
+  //   pagesBackupLastError — human-readable detail when the last attempt failed
+  //                         (null on success). Surfaced in the settings UI.
+  pagesBackupEnabled: boolean("pages_backup_enabled").notNull().default(true),
+  pagesBackupLastRunAt: timestamp("pages_backup_last_run_at", {
+    withTimezone: true,
+  }),
+  pagesBackupLastStatus: text("pages_backup_last_status"),
+  pagesBackupLastError: text("pages_backup_last_error"),
 });
 
 // BYOK — per-user third-party API keys (Anthropic / Groq / ElevenLabs), stored
@@ -101,7 +119,7 @@ export const userApiKeys = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider").notNull(), // "anthropic" | "groq" | "elevenlabs"
+    provider: text("provider").notNull(), // "anthropic" | "anthropic_admin" | "groq" | "elevenlabs"
     keyEncrypted: bytea("key_encrypted").notNull(),
     last4: text("last4").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -188,6 +206,15 @@ export const tasks = pgTable(
     dueDate: date("due_date"),
     kanbanPosition: integer("kanban_position").notNull().default(0),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    // Issue #144 — Recurring TASKS (DISTINCT from Habits). NULL = one-off task.
+    // Non-null = a recurring series whose single live row advances its due_date
+    // to the next occurrence on completion/skip. Shape is RecurrenceRule from
+    // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
+    recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the task (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    url: text("url"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // task is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
@@ -217,6 +244,10 @@ export const captures = pgTable(
     // token deletion, plus the input modality ('voice' | 'text').
     sourceDevice: text("source_device"),
     sourceInput: text("source_input"),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the capture (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    url: text("url"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
@@ -311,7 +342,19 @@ export const pages = pgTable(
     // callouts, etc.). Null for legacy pages, which seed from `content` markdown.
     contentJson: jsonb("content_json"),
     emoji: text("emoji"),
+    // Issue #101 — Notion-style "URL" property. Optional canonical link the user
+    // attaches to the page (normalized to include a scheme client-side; NULL =
+    // unset). Rendered as a clickable link in the page header. Migration 0042.
+    url: text("url"),
     pinned: boolean("pinned").notNull().default(false),
+    // Issue #28 — Notion-style cover/banner image (migration 0042). coverImageUrl
+    // holds the chosen image (an Unsplash `images.unsplash.com` URL or any direct
+    // image URL the user pastes); NULL = no banner. coverImageAttribution holds the
+    // Unsplash photographer credit ("Name on Unsplash") when the cover came from
+    // the Unsplash picker, so the required attribution can render over the banner;
+    // it stays NULL for plain image-URL covers.
+    coverImageUrl: text("cover_image_url"),
+    coverImageAttribution: text("cover_image_attribution"),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true,
     // this page is filtered out of the personal-context snapshot.
     noExport: boolean("no_export").notNull().default(false),

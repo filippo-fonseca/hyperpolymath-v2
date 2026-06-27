@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { focusJarvis } from '@/lib/jarvis/focus';
 import { readSplitScreen } from '@/lib/ui/useSplitScreen';
+import { useNavHistory } from './NavHistoryProvider';
 
 const JARVIS_PATH = '/today';
 const FALLBACK_LEFT_PATH = '/lifeos';
@@ -23,6 +24,7 @@ const TODAY_ROUTE_KEY = 'top-tab-today-route';
 export function GlobalHotkeys() {
   const router = useRouter();
   const pathname = usePathname() ?? '';
+  const { goBack, goForward } = useNavHistory();
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -30,6 +32,22 @@ export function GlobalHotkeys() {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'k') {
         e.preventDefault();
         focusJarvis();
+        return;
+      }
+
+      // Cmd/Ctrl+[ → back · Cmd/Ctrl+] → forward (browser-style). Global on
+      // every screen. goBack/goForward are no-ops at the history bounds, so
+      // back from the first screen / forward with no branch does nothing.
+      // Skip Alt/Shift so we don't fight native combos.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        (e.key === '[' || e.key === ']')
+      ) {
+        e.preventDefault();
+        if (e.key === '[') goBack();
+        else goForward();
         return;
       }
 
@@ -78,7 +96,7 @@ export function GlobalHotkeys() {
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [pathname, router]);
+  }, [pathname, router, goBack, goForward]);
 
   return null;
 }

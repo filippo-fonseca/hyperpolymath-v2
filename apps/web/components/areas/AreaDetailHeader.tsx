@@ -2,6 +2,7 @@
 
 import { updateArea } from "@/app/actions/areas";
 import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -140,7 +141,14 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
               Never mind
             </Button>
             <Button onClick={handleSaveEdit} disabled={isSaving || !name.trim()}>
-              {isSaving ? "Saving..." : "Save changes"}
+              {isSaving ? (
+                <>
+                  <Spinner size={14} label="Saving area" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

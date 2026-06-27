@@ -1,0 +1,127 @@
+"use client";
+
+import { type CoverSelection, CoverImagePicker } from "./CoverImagePicker";
+import { ImagePlus, RefreshCw, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+
+interface Props {
+  /** The current cover URL, or null when the page has no banner. */
+  coverUrl: string | null;
+  /** Unsplash photographer credit ("Name on Unsplash"), or null. */
+  attribution: string | null;
+  /**
+   * Persist a new cover. `attribution` is the Unsplash credit (null for a plain
+   * image-URL cover); null `url` removes the banner. The parent decides how to
+   * persist (autosave) and may fire the Unsplash download-tracking ping.
+   */
+  onChange: (next: CoverSelection | { url: null; attribution: null; downloadLocation: null }) => void;
+}
+
+const UNSPLASH_HOST = "images.unsplash.com";
+
+/**
+ * Notion-style page banner (issue #28). Renders across the top of the page.
+ *
+ * - No cover: shows a slim "Add cover" affordance.
+ * - With cover: renders the image full-bleed across the editor column, with
+ *   hover controls to change or remove it, and an Unsplash attribution credit
+ *   pinned bottom-right when present.
+ *
+ * Unsplash-hosted covers go through next/image's optimizer (the host is
+ * allow-listed in next.config). Arbitrary pasted URLs use `unoptimized` so the
+ * optimizer never has to fetch an un-allow-listed remote host.
+ */
+export function PageCoverImage({ coverUrl, attribution, onChange }: Props) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  function handleSelect(selection: CoverSelection) {
+    onChange(selection);
+    // Fire-and-forget the Unsplash download-tracking ping (API guideline).
+    if (selection.downloadLocation) {
+      void fetch("/api/integrations/unsplash/track-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ downloadLocation: selection.downloadLocation }),
+      }).catch(() => {
+        /* courtesy ping — ignore failures */
+      });
+    }
+  }
+
+  function handleRemove() {
+    onChange({ url: null, attribution: null, downloadLocation: null });
+  }
+
+  // No cover yet: slim add affordance.
+  if (!coverUrl) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="group inline-flex w-fit items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[11px] text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] cursor-pointer"
+        >
+          <ImagePlus size={13} strokeWidth={1.5} />
+          Add cover
+        </button>
+        <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+      </>
+    );
+  }
+
+  let isUnsplash = false;
+  try {
+    isUnsplash = new URL(coverUrl).hostname === UNSPLASH_HOST;
+  } catch {
+    isUnsplash = false;
+  }
+
+  return (
+    <>
+      <div className="group relative -mx-6 mb-2 h-44 w-[calc(100%+3rem)] overflow-hidden border-b border-[var(--edge)] sm:h-52">
+        <Image
+          src={coverUrl}
+          alt={attribution ? `Cover photo — ${attribution}` : "Page cover"}
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 768px"
+          unoptimized={!isUnsplash}
+          className="object-cover object-center"
+        />
+
+        {/* Hover controls, top-right. */}
+        <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            title="Change cover"
+            className="inline-flex items-center gap-1 rounded-sm bg-black/55 px-2 py-1 font-mono text-[11px] text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 cursor-pointer"
+          >
+            <RefreshCw size={11} strokeWidth={1.75} />
+            Change cover
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            title="Remove cover"
+            aria-label="Remove cover"
+            className="inline-flex items-center rounded-sm bg-black/55 px-1.5 py-1 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-red-300 cursor-pointer"
+          >
+            <Trash2 size={12} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {/* Unsplash attribution credit, bottom-right. Required by the Unsplash
+            API Guidelines when a photo is displayed. */}
+        {attribution && (
+          <span className="absolute bottom-1.5 right-2 rounded-sm bg-black/45 px-1.5 py-0.5 font-mono text-[10px] text-white/85 backdrop-blur-sm">
+            {attribution}
+          </span>
+        )}
+      </div>
+
+      <CoverImagePicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelect} />
+    </>
+  );
+}

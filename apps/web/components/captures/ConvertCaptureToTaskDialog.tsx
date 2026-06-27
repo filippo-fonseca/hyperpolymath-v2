@@ -24,6 +24,8 @@ import {
   ProjectMultiSelect,
   type ProjectMultiSelectOption,
 } from "@/components/shared/ProjectMultiSelect";
+import { TaskRecurrenceControl } from "@/components/tasks/TaskRecurrenceControl";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 import { convertCaptureToTask } from "@/app/actions/jarvis";
 
 /**
@@ -91,6 +93,9 @@ export function ConvertCaptureToTaskDialog({
   const [title, setTitle] = useState(() => capture.content.slice(0, 80));
   const [priority, setPriority] = useState<"P∞" | "P1" | "P2" | "P3">("P3");
   const [projectIds, setProjectIds] = useState<string[]>(existingProjectIds);
+  // Issue #144 — optional recurrence + anchor due date for the converted task.
+  const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(null);
+  const [dueDate, setDueDate] = useState("");
   const [pending, setPending] = useState(false);
 
   // If the parent passes a different capture (rare but possible if the
@@ -99,6 +104,8 @@ export function ConvertCaptureToTaskDialog({
     setTitle(capture.content.slice(0, 80));
     setProjectIds(existingProjectIds);
     setPriority("P3");
+    setRecurrence(null);
+    setDueDate("");
   }, [capture.id]);
   // existingProjectIds is captured by `capture.id`-keyed remount; intentional.
 
@@ -109,6 +116,8 @@ export function ConvertCaptureToTaskDialog({
       title: title.trim(),
       priority,
       projectIds,
+      recurrence,
+      dueDate: dueDate || null,
     });
     setPending(false);
 
@@ -173,6 +182,27 @@ export function ConvertCaptureToTaskDialog({
               onChange={setProjectIds}
               projects={availableProjects}
               placeholder="Link to projects"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="convert-due">
+              {recurrence ? "Starts on" : "Due date"}
+            </Label>
+            <Input
+              id="convert-due"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+          {/* Issue #144 — turn the converted task into a recurring task right
+              from the capture flow. Distinct from Habits (cyan, no streaks). */}
+          <div className="space-y-1.5">
+            <Label>Repeat</Label>
+            <TaskRecurrenceControl
+              value={recurrence}
+              onChange={setRecurrence}
+              disabled={pending}
             />
           </div>
         </div>

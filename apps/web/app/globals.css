@@ -64,9 +64,19 @@
   --ink-violet: oklch(62% 0.13 295);
   --ink-blue: oklch(60% 0.13 255);
 
-  /* Focus ring tokens (replace --shadow-nm-focus-*) */
-  --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
-  --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 8px var(--hud-cyan-glow);
+  /* Focus ring tokens (replace --shadow-nm-focus-*)
+
+     Issue #140 — single cyan focus identity across the whole app. --ring-focus
+     is the canonical token: a thick 2px --hud-cyan ring offset by a 2px canvas
+     gap, plus a soft cyan halo. Because it is painted with box-shadow, the ring
+     automatically traces each element's own border-radius (no per-field radius
+     wiring needed). --ring-doc + --ring-hud now alias --ring-focus so every
+     existing consumer (buttons, links, role=button, tabindex, inputs) inherits
+     the same cyan treatment. Apply the .focus-ring utility to opt new elements
+     in without touching globals again. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
+  --ring-doc: var(--ring-focus);
+  --ring-hud: var(--ring-focus);
 
   /* Motion easing tokens */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
@@ -793,8 +803,10 @@ select,
   --ink-coral: oklch(68% 0.15 25);
   --ink-violet: oklch(68% 0.12 295);
   --ink-blue: oklch(67% 0.12 255);
-  --ring-doc: 0 0 0 2px var(--canvas), 0 0 0 3px var(--ink-amber);
-  --ring-hud: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
+  /* Issue #140 — cyan focus identity (dark). See light block for rationale. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 12px var(--hud-cyan-glow);
+  --ring-doc: var(--ring-focus);
+  --ring-hud: var(--ring-focus);
 }
 
 /* =====================================================================
@@ -928,33 +940,30 @@ select,
 /* ─── Phase 6.1 Plan 06.1-01 — Focus-visible ring system (UI-SPEC §11a) ─────────
    Applied via focus-visible: only — keyboard navigation surfaces rings;
    mouse clicks do not (UI-SPEC §11a explicit rule).
-   Two flavors:
-     - Journal: amber ring via --ring-doc (default for all routes)
-     - Agent  : HUD-cyan ring via --ring-hud (opt-in via .agent-focus
-                class on the element OR on an ancestor with .agent-mode-scope)
-
-   Default rule covers ALL interactive elements. Agent-mode override is
-   opt-in to avoid bleeding HUD rings into Journal-mode surfaces. */
+   Issue #140 — one cyan focus identity everywhere. The default rule, the
+   text-entry rule, and the agent-mode opt-in all resolve to --ring-focus
+   (cyan, 2px ring). The .focus-ring utility below is the single class any
+   future component can apply to inherit the exact same treatment without
+   editing this file. Because the ring is a box-shadow it follows the
+   element's own border-radius automatically. */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
-[tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: none;
-  box-shadow: var(--ring-doc);
-}
-
-/* Text-entry fields get a calm, neutral focus ring — NOT the amber doc ring.
-   Text inputs match :focus-visible even on mouse click, so the amber ring read
-   as a "weird orange outline" on every textbox. A subtle edge ring keeps the
-   journal-paper restraint without the brand-accent shout. */
+[tabindex]:not([tabindex="-1"]):focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-select:focus-visible {
+select:focus-visible,
+.focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--canvas), 0 0 0 3px var(--edge-hud);
-  border-color: var(--edge-hud);
+  box-shadow: var(--ring-focus);
+  border-color: var(--hud-cyan);
 }
+/* `.focus-ring` (above) is the reusable opt-in: drop it on any element — even
+   a non-native one — to inherit the canonical cyan ring without re-declaring
+   focus styling anywhere. */
 
+/* Agent mode kept as an explicit alias so .agent-mode-scope / .agent-focus
+   call sites still resolve, but it now renders the identical cyan ring. */
 .agent-mode-scope button:focus-visible,
 .agent-mode-scope a:focus-visible,
 .agent-mode-scope [role="button"]:focus-visible,
@@ -962,7 +971,7 @@ select:focus-visible {
 .agent-mode-scope textarea:focus-visible,
 .agent-focus:focus-visible {
   outline: none;
-  box-shadow: var(--ring-hud);
+  box-shadow: var(--ring-focus);
 }
 
 /* =====================================================================
@@ -1106,4 +1115,16 @@ select:focus-visible {
   color: var(--ink);
   border-radius: 2px;
   padding: 0 2px;
+}
+
+/* Captures feed search (issue #139) — matched-substring highlight in the HUD
+   cyan accent, distinct from the global-search amber mark. Cyan-tinted wash
+   keeps --ink body text for high contrast/readability against the glass tile,
+   rather than coloring low-contrast cyan text on a cyan ground. */
+.captures-search-mark {
+  background: color-mix(in oklch, var(--hud-cyan) 28%, transparent);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 0 2px;
+  text-decoration: none;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteArea, updateArea } from "@/app/actions/areas";
+import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -155,7 +156,14 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
               Never mind
             </Button>
             <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
-              {isSaving ? "Saving..." : "Save changes"}
+              {isSaving ? (
+                <>
+                  <Spinner size={14} label="Saving area" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -180,7 +188,14 @@ export function AreaCardMenu({ areaId, areaName, areaEmoji }: Props) {
               Never mind
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete area"}
+              {isDeleting ? (
+                <>
+                  <Spinner size={14} label="Deleting area" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete area"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

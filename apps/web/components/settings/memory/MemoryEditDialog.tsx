@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { rememberFactAction } from "@/app/actions/jarvis-facts";
@@ -83,7 +84,14 @@ export function MemoryEditDialog({ fact, onClose }: Props) {
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving || value.trim().length === 0}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? (
+              <>
+                <Spinner size={14} label="Saving fact" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

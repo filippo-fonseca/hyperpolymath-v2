@@ -280,7 +280,7 @@ export function ProfileSection({
         <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
           GitHub username
         </span>
-        <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--ink-amber)] transition-colors">
+        <div className="flex items-stretch rounded-md border border-[var(--edge)] bg-[var(--surface)] focus-within:border-[var(--hud-cyan)] transition-colors">
           <span className="flex items-center gap-1.5 pl-3 pr-2 border-r border-[var(--edge)] text-[var(--ink-muted)]">
             <Github className="h-3.5 w-3.5" />
             <span className="font-mono text-[12px]">@</span>

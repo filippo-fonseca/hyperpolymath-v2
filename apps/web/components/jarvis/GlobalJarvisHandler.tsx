@@ -27,6 +27,10 @@ import {
   setActiveTurnId,
 } from "@/lib/voice/voice-stage-collector";
 import { isJarvisConsoleMounted } from "@/lib/jarvis/focus";
+// Issue #149 — unread-badge bus. This handler runs the JARVIS turn on routes
+// where no console is mounted (the canonical "submitted via Cmd+K from another
+// tab" case), so its completed replies are always unread by definition.
+import { bumpUnread } from "@/lib/jarvis/unread-bus";
 
 /**
  * GlobalJarvisHandler — voice transcript pipeline for pages WITHOUT the
@@ -317,6 +321,11 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
             // no flushSync is needed).
             assistant.status = "done";
             persistTurn(assistant);
+
+            // Issue #149 — this handler only runs where no JARVIS console is
+            // mounted, so a completed reply here is unread by definition. Bump
+            // the badge (the bus still gates on document-visibility internally).
+            bumpUnread();
 
             abort = null;
           },

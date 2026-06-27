@@ -1,6 +1,7 @@
 "use client";
 
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -205,7 +206,14 @@ export function ProjectAutocomplete({
                   onClick={() => void submitCreate()}
                   disabled={submitting || !draftName.trim() || !draftAreaId}
                 >
-                  {submitting ? "Creating..." : "Create"}
+                  {submitting ? (
+                    <>
+                      <Spinner size={12} label="Creating project" />
+                      Creating…
+                    </>
+                  ) : (
+                    "Create"
+                  )}
                 </Button>
               </div>
             </div>

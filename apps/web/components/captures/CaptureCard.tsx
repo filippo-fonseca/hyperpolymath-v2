@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { highlightSegments } from "@/lib/search";
+import { splitTextWithUrls } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 import { HashtagChip } from "./HashtagChip";
@@ -34,6 +36,13 @@ import { PersonChip } from "./PersonChip";
 interface Props {
   capture: CaptureWithLinks;
   compact?: boolean;
+  /**
+   * Issue #139 — active captures search term. When non-empty, every occurrence
+   * of it inside the capture body's plain text is wrapped in a cyan-accented
+   * <mark>. Empty / undefined = no highlighting (the default for non-search
+   * surfaces like the project detail Captures column).
+   */
+  searchQuery?: string;
   /**
    * Click on the card body opens the canonical CaptureDetailPanel.
    * In `compact` mode (project detail Captures column) the panel is owned by
@@ -109,6 +118,7 @@ interface Props {
 export function CaptureCard({
   capture,
   compact = false,
+  searchQuery,
   onOpen,
   onOptimisticDelete,
   onOptimisticRevert,
@@ -321,11 +331,11 @@ export function CaptureCard({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <CaptureBody capture={capture} compact={compact} />
+                <CaptureBody capture={capture} compact={compact} searchQuery={searchQuery} />
               </div>
             </div>
           ) : (
-            <CaptureBody capture={capture} compact={compact} />
+            <CaptureBody capture={capture} compact={compact} searchQuery={searchQuery} />
           )}
         </motion.div>
       )}
@@ -379,13 +389,19 @@ export function CaptureCard({
  * regardless of adjacent punctuation (`#tag,`, `(#tag)`), and `@name` pills only
  * when it matches a linked person — keeping read-rendering consistent with the
  * composer/decoration/save path.
+ *
+ * Plain-text segments still get URL autolinking (issue #101) and, when
+ * `searchQuery` is non-empty, case-insensitive search highlighting (issue #139)
+ * via renderTextRun. Hashtag/person chips are left untouched (their own register).
  */
 function CaptureBody({
   capture,
   compact,
+  searchQuery,
 }: {
   capture: CaptureWithLinks;
   compact: boolean;
+  searchQuery?: string;
 }) {
   // Map lowercase-name → displayName lookup
   const tagLookup = new Map(capture.hashtags.map((h) => [h.name, h.displayName]));
@@ -395,6 +411,47 @@ function CaptureBody({
     hashtagDisplay: tagLookup,
     personNames,
   });
+  const query = searchQuery?.trim() ?? "";
+
+  // Render a plain-text run (no hashtag) with both URL autolinking (issue #101)
+  // and search highlighting (issue #139). URLs win: a matched URL becomes a real
+  // clickable anchor (new tab); the text around it still gets the cyan search
+  // mark when a query is active.
+  function renderTextRun(text: string, keyPrefix: string) {
+    return splitTextWithUrls(text).map((seg, j) => {
+      if (seg.href) {
+        return (
+          <a
+            key={`${keyPrefix}-url-${j}`}
+            href={seg.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            // Stop the card's onOpen click from firing when following the link.
+            onClick={(e) => e.stopPropagation()}
+            className="text-[var(--hud-cyan)] underline decoration-[color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] underline-offset-2 hover:decoration-[var(--hud-cyan)] break-all"
+          >
+            {seg.text}
+          </a>
+        );
+      }
+      if (!query) {
+        return <span key={`${keyPrefix}-text-${j}`}>{seg.text}</span>;
+      }
+      return (
+        <span key={`${keyPrefix}-text-${j}`}>
+          {highlightSegments(seg.text, query).map((m, k) =>
+            m.match ? (
+              <mark key={k} className="captures-search-mark">
+                {m.text}
+              </mark>
+            ) : (
+              <span key={k}>{m.text}</span>
+            ),
+          )}
+        </span>
+      );
+    });
+  }
 
   const rendered = segments.map((seg, i) => {
     if (seg.kind === "hashtag") {
@@ -403,7 +460,7 @@ function CaptureBody({
     if (seg.kind === "person") {
       return <PersonChip key={`${i}-person`} name={seg.display} asButton={false} />;
     }
-    return <span key={`${i}-text`}>{seg.value}</span>;
+    return <span key={`${i}-text`}>{renderTextRun(seg.value, String(i))}</span>;
   });
 
   return (

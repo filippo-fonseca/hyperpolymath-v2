@@ -26,6 +26,8 @@ export interface CaptureWithLinks {
   /** Provenance (migration 0028): device token name or 'Web'; 'voice' | 'text'. */
   sourceDevice: string | null;
   sourceInput: string | null;
+  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  url: string | null;
   hashtags: { id: string; displayName: string; name: string }[];
   /** @-mentioned people linked to this capture (Phase C). */
   people: { id: string; name: string }[];
@@ -89,6 +91,7 @@ export async function getCapturesForUser(
     createdVia: string | null;
     sourceDevice: string | null;
     sourceInput: string | null;
+    url: string | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -103,6 +106,7 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        url: captures.url,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -118,6 +122,7 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        url: captures.url,
       })
       .from(captures)
       .innerJoin(
@@ -141,6 +146,7 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        url: captures.url,
       })
       .from(captures)
       .where(eq(captures.userId, userId))

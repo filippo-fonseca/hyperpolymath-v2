@@ -5,6 +5,12 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { tasks, tasksProjects, projects } from "@/lib/db/schema";
+import {
+  RecurrenceRuleSchema,
+  normalizeRule,
+  nextOccurrence,
+} from "@/lib/tasks/recurrence";
+import { format } from "date-fns";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -45,7 +51,12 @@ const CreateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Issue #101 — Notion-style URL property. Stored verbatim (normalized
+  // client-side); null/absent = unset. Capped to keep the column sane.
+  url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
+  // Issue #144 — optional recurrence rule. null/absent = one-off task.
+  recurrence: RecurrenceRuleSchema.nullable().optional(),
 });
 
 export async function createTask(
@@ -79,6 +90,10 @@ export async function createTask(
         priority: parsed.data.priority,
         status: parsed.data.status,
         dueDate: parsed.data.dueDate ?? null,
+        url: parsed.data.url ? parsed.data.url : null,
+        recurrence: parsed.data.recurrence
+          ? normalizeRule(parsed.data.recurrence)
+          : null,
         kanbanPosition: maxPos + 1,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         completedAt: (parsed.data.status === "lesno" ? sql`now()` : null) as any,
@@ -127,7 +142,13 @@ const UpdateTaskSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional(),
+  // Issue #101 — set, change, or clear (null) the URL property. Flows through
+  // the generic `rest` apply loop below (null = clear, string = set).
+  url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
+  // Issue #144 — set a rule, change it, or clear it (null ends the recurrence,
+  // turning the task back into a one-off).
+  recurrence: RecurrenceRuleSchema.nullable().optional(),
 });
 
 export async function updateTask(
@@ -146,6 +167,14 @@ export async function updateTask(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = { updatedAt: sql`now()` };
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) updates[k] = v;
+  // Issue #101 — treat an empty/whitespace URL as a clear (null) so the column
+  // never holds the empty string.
+  if (rest.url !== undefined) updates.url = rest.url ? rest.url : null;
+  // Issue #144 — normalize a non-null recurrence rule before persisting.
+  // `null` (clear / end recurrence) passes through verbatim.
+  if (rest.recurrence !== undefined && rest.recurrence !== null) {
+    updates.recurrence = normalizeRule(rest.recurrence);
+  }
   // If status transitions to lesno, set completedAt; if away from lesno, clear it
   const newStatus = rest.status as string | undefined;
   if (newStatus === "lesno") updates.completedAt = sql`now()`;
@@ -297,6 +326,99 @@ export async function bulkDeleteTasks(
     .returning({ id: tasks.id });
 
   return { success: true, data: { deleted: result.length } };
+}
+
+// ---------------------------------------------------------------------------
+// Recurring tasks (issue #144)
+// ---------------------------------------------------------------------------
+
+/**
+ * Advance a recurring task to its NEXT occurrence.
+ *
+ * The whole series is one live row. "Completing" or "skipping" an occurrence does
+ * NOT permanently finish the task: it advances `due_date` to the next date the
+ * rule fires and resets the row to "not started" so it surfaces fresh at the
+ * appropriate time. This is the deliberate departure from Habits — no streak, no
+ * per-day log, just a self-rescheduling to-do.
+ *
+ * `mode: "complete"` is the "I did this occurrence" path; `mode: "skip"` is the
+ * "skip / reschedule this occurrence" path. Both compute the same next date; they
+ * differ only in the toast the client shows. Missed occurrences are handled
+ * implicitly: the next date is always computed from the CURRENT due date (or
+ * today if none), and `nextOccurrence` guarantees a date strictly in the future
+ * of that anchor — overdue recurring tasks simply roll forward when actioned.
+ *
+ * If the task has no recurrence rule, this is a no-op error (caller should use
+ * updateTaskStatus instead).
+ */
+const AdvanceRecurringSchema = z.object({
+  id: z.string().uuid(),
+  mode: z.enum(["complete", "skip"]).default("complete"),
+});
+
+export async function advanceRecurringTask(
+  input: unknown,
+): Promise<ActionResult<{ nextDueDate: string }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = AdvanceRecurringSchema.safeParse(input);
+  if (!parsed.success)
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+
+  const [row] = await db
+    .select({ recurrence: tasks.recurrence, dueDate: tasks.dueDate })
+    .from(tasks)
+    .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)))
+    .limit(1);
+
+  if (!row) return { success: false, error: "Task not found" };
+  if (!row.recurrence)
+    return { success: false, error: "Task is not recurring" };
+
+  // Anchor the next date on the current due date, or today if the row has none.
+  const anchor = row.dueDate ?? format(new Date(), "yyyy-MM-dd");
+  const next = nextOccurrence(row.recurrence, anchor);
+
+  await db
+    .update(tasks)
+    .set({
+      dueDate: next,
+      // Reset to the start of the column lifecycle for the new occurrence.
+      status: "not started",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      completedAt: null as any,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(tasks.id, parsed.data.id), eq(tasks.userId, userId)));
+
+  return { success: true, data: { nextDueDate: next } };
+}
+
+/**
+ * End the recurrence on a task: clears the rule so the row becomes an ordinary
+ * one-off task (its current due date / status are untouched). This is the
+ * "stop repeating, keep this instance" path. To delete the whole series, use
+ * deleteTask (one row == the series).
+ */
+export async function endTaskRecurrence(
+  id: string,
+): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success)
+    return { success: false, error: "Invalid id" };
+  await db
+    .update(tasks)
+    .set({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recurrence: null as any,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  return { success: true, data: null };
 }
 
 export async function deleteTask(id: string): Promise<ActionResult<null>> {

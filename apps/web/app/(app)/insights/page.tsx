@@ -9,6 +9,7 @@ import { getRecentDevRuns } from "@/lib/db/queries/dev-runs";
 import { getClaudeCodeUsage } from "@/lib/integrations/claude-code/usage";
 import { getClaudeSubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
 import { getAnthropicApiUsage } from "@/lib/integrations/anthropic-api/usage";
+import { getAnthropicApiRequestTrends } from "@/lib/integrations/anthropic-api/trends";
 import { getFlowSessions } from "@/lib/integrations/flow/sessions";
 import { getStravaActivities } from "@/lib/integrations/strava/activities";
 
@@ -92,6 +93,15 @@ export default async function InsightsPage({
           ok: false as const,
           error: String(e?.message ?? e),
         })),
+        // issue #133 — per-day request counts from the Usage Report API. The
+        // panel degrades gracefully if this errors, so it's safe to fetch
+        // alongside the cost read.
+        anthropicApiRequests: await getAnthropicApiRequestTrends().catch(
+          (e) => ({
+            ok: false as const,
+            error: String(e?.message ?? e),
+          }),
+        ),
         subscription: await getClaudeSubscriptionUsage().catch((e) => ({
           ok: false as const,
           error: String(e?.message ?? e),
