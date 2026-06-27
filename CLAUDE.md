@@ -250,6 +250,21 @@ Commit as you go, in small focused commits, one per logical unit of work. This i
 - Stage with explicit pathspecs (never `git add -A` / `git add .`) so each commit holds only its intended files.
 - Never push without explicit approval (see the global instructions). Commit-often does NOT imply push-often.
 
+## Orchestrator mode: parallel issue-fixing
+
+When asked to "go orchestrator mode" (or to knock out many open issues at once with subagents):
+
+- Spawn parallel subagents, one per GitHub issue, each in its own isolated git worktree (Agent `isolation: "worktree"`) so they never clobber the shared working tree or each other.
+- Each agent branches from fresh `origin/main` (`git fetch origin && git checkout -b <branch> origin/main`) because an isolated worktree can start on a stale base. It then implements the fix in small focused commits (explicit pathspecs), verifies typecheck/build green (running `pnpm install` first if the worktree lacks `node_modules`), pushes its branch, and opens one PR referencing the issue (`Closes #N` only when it fully resolves it).
+- Migrations ride along in the PR but are NOT applied by the agent: author idempotent SQL (`CREATE TABLE IF NOT EXISTS`, FKs wrapped in `DO $$ BEGIN ... EXCEPTION WHEN duplicate_object THEN null; END $$;`, `CREATE INDEX IF NOT EXISTS`, `--> statement-breakpoint` between statements) in `apps/web/drizzle/`, mirroring the existing DDL style. Never touch `drizzle/meta/_journal.json` (the repo applies migrations by hand, idempotently).
+- Only interrupt the user if a blocker truly needs their input; keep every independent agent working meanwhile. Defer issues that depend on unbuilt work rather than building speculatively.
+- The orchestrator (you) manages the fleet: collect PRs as agents finish, then on the user's go-ahead batch-merge them and apply each PR's migration to prod.
+
+## Applying migrations to prod
+
+- Prod Postgres is the remote Supabase pooler. The live `DATABASE_URL` is in the Vercel project env (`vercel env pull`), NOT in `.env.local` (its commented `CLOUD_DATABASE_URL` is stale and points at a dead project ref).
+- Apply migration SQL idempotently with the `postgres` driver (`prepare: false`); the migrations are written `IF NOT EXISTS` / guarded so re-runs are safe. Verify the object exists afterward. Do not rely on `drizzle-kit migrate` here (the journal is intentionally stale).
+
 ## GSD Workflow Enforcement
 
 Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
