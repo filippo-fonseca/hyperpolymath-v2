@@ -59,6 +59,8 @@ interface Props {
     due: string[];
     project: string[];
   };
+  hashtags?: { id: string; name: string; displayName: string }[];
+  people?: { id: string; name: string }[];
 }
 
 export type TasksOptimisticDispatch = (action: OptimisticListAction<TaskWithProjects>) => void;
@@ -86,6 +88,8 @@ export function TasksClient({
   projects: initialProjects,
   areas,
   initialFilters,
+  hashtags = [],
+  people = [],
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -981,6 +985,8 @@ export function TasksClient({
       <TaskDetailPanel
         task={openTask}
         projects={projects}
+        hashtags={hashtags}
+        people={people}
         areas={areas}
         onCreateProject={handleCreateProject}
         open={!!openTask}
@@ -1024,6 +1030,8 @@ export function TasksClient({
       <TaskDetailPanel
         task={draftTask}
         projects={projects}
+        hashtags={hashtags}
+        people={people}
         areas={areas}
         onCreateProject={handleCreateProject}
         open={!!draftTask}

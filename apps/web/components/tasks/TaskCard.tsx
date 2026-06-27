@@ -1,5 +1,8 @@
 "use client";
 
+import { HashtagChip } from "@/components/captures/HashtagChip";
+import { PersonChip } from "@/components/captures/PersonChip";
+import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { Check, Repeat } from "lucide-react";
@@ -159,19 +162,21 @@ export function TaskCard({
             <Check size={11} strokeWidth={2.5} />
           </button>
         ) : null}
-        <p
+        <div
           className={cn(
             "font-serif text-base line-clamp-2 mb-2",
             isLesno ? "line-through text-[var(--ink-muted)]" : "text-[var(--ink)]"
           )}
         >
-          {task.title}
-        </p>
+          <TaskTitle task={task} />
+        </div>
 
         {(task.recurrence ||
           cardFields.priority ||
           cardFields.dueDate ||
-          cardFields.project) && (
+          cardFields.project ||
+          task.hashtags.length > 0 ||
+          task.people.length > 0) && (
           <div className="flex flex-wrap items-center gap-1.5">
             {/* Recurring-task marker (issue #144) — cyan repeat pill, distinct
                 from one-off tasks and from amber habits. */}
@@ -196,10 +201,38 @@ export function TaskCard({
                 {task.projects.length > 1 && ` +${task.projects.length - 1}`}
               </CardPill>
             )}
+            {/* Issue #159 — inline #hashtag chips */}
+            {task.hashtags.map((h) => (
+              <HashtagChip key={h.id} displayName={h.displayName} asButton={false} />
+            ))}
+            {/* Issue #159 — inline @person chips */}
+            {task.people.map((p) => (
+              <PersonChip key={p.id} name={p.name} asButton={false} />
+            ))}
           </div>
         )}
       </motion.div>
     </div>
+  );
+}
+
+/** Renders the task title with inline #hashtag and @person chips substituted. */
+function TaskTitle({ task }: { task: TaskWithProjects }) {
+  const tagLookup = new Map(task.hashtags.map((h) => [h.name, h.displayName]));
+  const personNames = task.people.map((p) => p.name);
+  const segments = tokenizeContent(task.title, { hashtagDisplay: tagLookup, personNames });
+  return (
+    <>
+      {segments.map((seg, i) => {
+        if (seg.kind === "hashtag") {
+          return <HashtagChip key={i} displayName={seg.display} asButton={false} />;
+        }
+        if (seg.kind === "person") {
+          return <PersonChip key={i} name={seg.display} asButton={false} />;
+        }
+        return <span key={i}>{seg.value}</span>;
+      })}
+    </>
   );
 }
 

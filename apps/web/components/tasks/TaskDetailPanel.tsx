@@ -1,5 +1,9 @@
 "use client";
 
+import Mention from "@tiptap/extension-mention";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+
 import { advanceRecurringTask, createTask, updateTask } from "@/app/actions/tasks";
 import {
   AlertDialog,
@@ -22,7 +26,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
+
+import { createPersonDecorations } from "@/components/captures/person-decorations";
+import { createPersonSuggestion } from "@/components/captures/person-suggestions";
+import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -48,9 +56,24 @@ interface ProjectOption {
   areaEmoji?: string | null;
 }
 
+interface HashtagOption {
+  id: string;
+  name: string;
+  displayName: string;
+}
+
+interface PersonOption {
+  id: string;
+  name: string;
+}
+
 interface Props {
   task: TaskWithProjects | null;
   projects: ProjectOption[];
+  /** User's existing hashtags — feeds the # suggestion popover. */
+  hashtags?: HashtagOption[];
+  /** User's known people — feeds the @ suggestion popover + live decoration. */
+  people?: PersonOption[];
   /**
    * Areas the user can file a new inline-created project under (issue #34).
    * Passed straight through to ProjectAutocomplete's create form.
@@ -171,6 +194,8 @@ interface FormState {
   notes: string;
   projectIds: string[];
   recurrence: RecurrenceRule | null;
+  hashtagNames: string[];
+  personNames: string[];
 }
 
 function toFormState(task: TaskWithProjects): FormState {
@@ -183,6 +208,8 @@ function toFormState(task: TaskWithProjects): FormState {
     notes: task.notes ?? "",
     projectIds: task.projects.map((p) => p.id),
     recurrence: task.recurrence ?? null,
+    hashtagNames: task.hashtags.map((h) => h.displayName),
+    personNames: task.people.map((p) => p.name),
   };
 }
 
@@ -195,13 +222,17 @@ function isDirty(a: FormState, b: FormState): boolean {
     a.url !== b.url ||
     a.notes !== b.notes ||
     JSON.stringify(a.projectIds.sort()) !== JSON.stringify(b.projectIds.sort()) ||
-    JSON.stringify(a.recurrence) !== JSON.stringify(b.recurrence)
+    JSON.stringify(a.recurrence) !== JSON.stringify(b.recurrence) ||
+    JSON.stringify([...a.hashtagNames].sort()) !== JSON.stringify([...b.hashtagNames].sort()) ||
+    JSON.stringify([...a.personNames].sort()) !== JSON.stringify([...b.personNames].sort())
   );
 }
 
 export function TaskDetailPanel({
   task,
   projects,
+  hashtags: initialHashtags = [],
+  people: initialPeople = [],
   areas,
   onCreateProject,
   open,
@@ -213,6 +244,8 @@ export function TaskDetailPanel({
   const isCreate = mode === "create";
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [hashtags] = useState(initialHashtags);
+  const [people] = useState(initialPeople);
   // Discard-confirm dialog. Same pattern as CaptureDetailPanel: when the
   // user attempts to close (Esc, click outside, ×) or hits Cancel while
   // dirty, queue the action and show the AlertDialog.
@@ -226,8 +259,122 @@ export function TaskDetailPanel({
     notes: "",
     projectIds: [],
     recurrence: null,
+    hashtagNames: [],
+    personNames: [],
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
+
+  // TipTap notes editor — supports #hashtag and @person inline.
+  // `immediatelyRender: false` avoids SSR hydration mismatch (Next 16 + React 19).
+  const notesEditor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        codeBlock: false,
+        bulletList: false,
+        orderedList: false,
+        blockquote: false,
+        horizontalRule: false,
+        strike: false,
+        code: false,
+      }),
+      Mention.configure({
+        HTMLAttributes: { class: "hashtag-chip-inline" },
+        renderHTML({ options, node }) {
+          return [
+            "span",
+            { ...options.HTMLAttributes, "data-hashtag": node.attrs.label },
+            `#${node.attrs.label}`,
+          ];
+        },
+        suggestion: createHashtagSuggestion(() => hashtags),
+      }),
+      Mention.extend({ name: "personMention" }).configure({
+        HTMLAttributes: { class: "person-chip-inline" },
+        renderHTML({ options, node }) {
+          return [
+            "span",
+            { ...options.HTMLAttributes, "data-person": node.attrs.label },
+            `@${node.attrs.label}`,
+          ];
+        },
+        suggestion: createPersonSuggestion(() => people),
+      }),
+      HashtagDecorations,
+      createPersonDecorations(() => people),
+    ],
+    editorProps: {
+      attributes: {
+        class:
+          "task-notes-editor focus:outline-none min-h-[80px] max-h-[200px] overflow-y-auto p-3 font-serif text-base",
+        "data-placeholder": "Add a description… Use #tags and @people.",
+      },
+    },
+    content: form.notes ? `<p>${form.notes.split("\n").join("</p><p>")}</p>` : "",
+  });
+
+  // Parse the notes TipTap doc into { notes, hashtagNames, personNames }.
+  function parseNotesEditor(): { notes: string; hashtagNames: string[]; personNames: string[] } {
+    if (!notesEditor) return { notes: "", hashtagNames: [], personNames: [] };
+    const json = notesEditor.getJSON();
+    const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+    const tagCasing = new Map<string, string>();
+    const personCasing = new Map<string, string>();
+    let notes = "";
+
+    function walk(node: unknown): void {
+      if (!node || typeof node !== "object") return;
+      const n = node as {
+        type?: string;
+        text?: string;
+        attrs?: { label?: string };
+        content?: unknown[];
+      };
+      if (n.type === "text" && typeof n.text === "string") {
+        notes += n.text;
+        for (const m of n.text.matchAll(HASHTAG_RE)) {
+          const raw = m[1];
+          if (!raw) continue;
+          const lower = raw.toLowerCase();
+          if (!tagCasing.has(lower)) tagCasing.set(lower, raw);
+        }
+      }
+      if (n.type === "mention" && typeof n.attrs?.label === "string") {
+        const label = n.attrs.label;
+        tagCasing.set(label.toLowerCase(), label);
+        notes += `#${label}`;
+      }
+      if (n.type === "personMention" && typeof n.attrs?.label === "string") {
+        const label = n.attrs.label;
+        const lower = label.toLowerCase();
+        if (!personCasing.has(lower)) personCasing.set(lower, label);
+        notes += `@${label}`;
+      }
+      if (n.type === "paragraph" || n.type === "doc") {
+        (n.content ?? []).forEach(walk);
+        if (n.type === "paragraph") notes += "\n";
+      }
+    }
+    walk(json);
+    return {
+      notes: notes.trim(),
+      hashtagNames: Array.from(tagCasing.values()),
+      personNames: Array.from(personCasing.values()),
+    };
+  }
+
+  // Sync notes editor content when the task changes (panel opens a different task).
+  useEffect(() => {
+    if (!notesEditor) return;
+    const newContent = form.notes
+      ? `<p>${form.notes.split("\n").join("</p><p>")}</p>`
+      : "";
+    if (notesEditor.getHTML() !== newContent) {
+      notesEditor.commands.setContent(newContent, { emitUpdate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id]);
 
   // Sync form when task changes
   useEffect(() => {
@@ -249,6 +396,7 @@ export function TaskDetailPanel({
   const handleCreate = useCallback(async () => {
     const title = form.title.trim();
     if (!title) return;
+    const { notes, hashtagNames, personNames } = parseNotesEditor();
     const newId = crypto.randomUUID();
     const projectChips = projects
       .filter((p) => form.projectIds.includes(p.id))
@@ -259,7 +407,7 @@ export function TaskDetailPanel({
       row: {
         id: newId,
         title,
-        notes: form.notes || null,
+        notes: notes || null,
         priority: form.priority,
         status: form.status,
         dueDate: form.dueDate || null,
@@ -269,20 +417,22 @@ export function TaskDetailPanel({
         createdAt: new Date(),
         recurrence: form.recurrence,
         projects: projectChips,
-        hashtags: [],
-        people: [],
+        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       },
     });
     const r = await createTask({
       id: newId,
       title,
-      notes: form.notes || null,
+      notes: notes || null,
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
       url: form.url,
       projectIds: form.projectIds,
       recurrence: form.recurrence,
+      hashtagNames,
+      personNames,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -290,7 +440,8 @@ export function TaskDetailPanel({
       return;
     }
     onClose();
-  }, [form, projects, addOptimistic, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, projects, addOptimistic, onClose, notesEditor]);
 
   const handleSave = useCallback(async () => {
     if (!task) return;
@@ -298,9 +449,10 @@ export function TaskDetailPanel({
       await handleCreate();
       return;
     }
+    const { notes, hashtagNames, personNames } = parseNotesEditor();
     const patch = {
       title: form.title.trim() || task.title,
-      notes: form.notes || null,
+      notes: notes || null,
       priority: form.priority,
       status: form.status,
       dueDate: form.dueDate || null,
@@ -318,12 +470,16 @@ export function TaskDetailPanel({
       patch: {
         ...patch,
         projects: projectChips,
+        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       },
     });
     const r = await updateTask({
       id: task.id,
       ...patch,
       projectIds: form.projectIds,
+      hashtagNames,
+      personNames,
     });
     if (!r.success) {
       // D-03: explicit revert (RT-06: overlay no longer auto-reverts) + toast.error
@@ -334,9 +490,10 @@ export function TaskDetailPanel({
     if (form.status === "lesno" && task.status !== "lesno") {
       toast("Lesno.");
     }
-    setInitialForm(form);
+    setInitialForm({ ...form, notes, hashtagNames, personNames });
     // Realtime echo invalidates ['tasks', userId] → refetch → cache settles.
-  }, [task, form, projects, addOptimistic, isCreate, handleCreate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task, form, projects, addOptimistic, isCreate, handleCreate, notesEditor]);
 
   // Advance a recurring task to its next occurrence (issue #144). Completing an
   // occurrence does NOT permanently finish the series — the row rolls its due
@@ -597,15 +754,11 @@ export function TaskDetailPanel({
                   />
                 </FieldSection>
 
-                {/* 5. Description */}
+                {/* 5. Description — TipTap editor with #hashtag and @person support */}
                 <FieldSection label="Description">
-                  <Textarea
-                    value={form.notes}
-                    onChange={(e) => set("notes", e.target.value)}
-                    placeholder="Add a description…"
-                    className="font-serif text-base resize-none min-h-[100px]"
-                    rows={4}
-                  />
+                  <div className="rounded-md border border-[var(--edge)] focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] transition-colors duration-150">
+                    <EditorContent editor={notesEditor} />
+                  </div>
                 </FieldSection>
               </div>
 
