@@ -1,6 +1,14 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tasks, tasksProjects, projects } from "@/lib/db/schema";
+import {
+  tasks,
+  tasksProjects,
+  tasksHashtags,
+  hashtags,
+  peopleReferences,
+  people,
+  projects,
+} from "@/lib/db/schema";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 export interface TaskWithProjects {
@@ -22,6 +30,10 @@ export interface TaskWithProjects {
    */
   recurrence: RecurrenceRule | null;
   projects: { id: string; name: string }[];
+  /** Issue #159 — linked #hashtags (canonical name + first-seen displayName). */
+  hashtags: { id: string; name: string; displayName: string }[];
+  /** Issue #159 — @-mentioned people (from people_references, fromType "task"). */
+  people: { id: string; name: string }[];
 }
 
 /**
@@ -63,6 +75,52 @@ export async function getAllTasksForUser(
     linksByTask.set(l.taskId, list);
   }
 
+  // Issue #159 — linked hashtags per task.
+  const tagRows = await db
+    .select({
+      taskId: tasksHashtags.taskId,
+      id: hashtags.id,
+      name: hashtags.name,
+      displayName: hashtags.displayName,
+    })
+    .from(tasksHashtags)
+    .innerJoin(hashtags, eq(hashtags.id, tasksHashtags.hashtagId))
+    .where(
+      and(eq(tasksHashtags.userId, userId), inArray(tasksHashtags.taskId, taskIds)),
+    );
+  const tagsByTask = new Map<
+    string,
+    { id: string; name: string; displayName: string }[]
+  >();
+  for (const r of tagRows) {
+    const list = tagsByTask.get(r.taskId) ?? [];
+    list.push({ id: r.id, name: r.name, displayName: r.displayName });
+    tagsByTask.set(r.taskId, list);
+  }
+
+  // Issue #159 — @-mentioned people per task (polymorphic people_references).
+  const peopleRows = await db
+    .select({
+      taskId: peopleReferences.fromId,
+      id: people.id,
+      name: people.name,
+    })
+    .from(peopleReferences)
+    .innerJoin(people, eq(people.id, peopleReferences.personId))
+    .where(
+      and(
+        eq(peopleReferences.userId, userId),
+        eq(peopleReferences.fromType, "task"),
+        inArray(peopleReferences.fromId, taskIds),
+      ),
+    );
+  const peopleByTask = new Map<string, { id: string; name: string }[]>();
+  for (const r of peopleRows) {
+    const list = peopleByTask.get(r.taskId) ?? [];
+    list.push({ id: r.id, name: r.name });
+    peopleByTask.set(r.taskId, list);
+  }
+
   return taskRows.map((t) => ({
     id: t.id,
     title: t.title,
@@ -76,6 +134,8 @@ export async function getAllTasksForUser(
     url: t.url,
     recurrence: (t.recurrence as RecurrenceRule | null) ?? null,
     projects: linksByTask.get(t.id) ?? [],
+    hashtags: tagsByTask.get(t.id) ?? [],
+    people: peopleByTask.get(t.id) ?? [],
   }));
 }
 
@@ -111,5 +171,8 @@ export async function getTasksForProject(
     url: r.task.url,
     recurrence: (r.task.recurrence as RecurrenceRule | null) ?? null,
     projects: [{ id: projectId, name: "" }],
+    // Project detail view doesn't render tag/person chips; keep the query lean.
+    hashtags: [],
+    people: [],
   }));
 }

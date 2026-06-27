@@ -214,6 +214,8 @@ export function ProjectTasksSection({
           // Pre-link to this project so the optimistic row passes the
           // projectTasks filter and appears instantly.
           projects: [{ id: projectId, name: "" }],
+          hashtags: [],
+          people: [],
         },
       });
       const r = await createTask({
@@ -257,6 +259,8 @@ export function ProjectTasksSection({
         createdAt: new Date(),
         recurrence: null,
         projects: [{ id: projectId, name: currentProject?.name ?? "" }],
+        hashtags: [],
+        people: [],
       }
     : null;
 
