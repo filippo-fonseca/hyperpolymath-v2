@@ -455,6 +455,20 @@ export const capturesHashtags = pgTable("captures_hashtags", {
   index("captures_hashtags_user_idx").on(t.userId),
 ]);
 
+export const tasksHashtags = pgTable("tasks_hashtags", {
+  taskId: uuid("task_id")
+    .notNull()
+    .references(() => tasks.id, { onDelete: "cascade" }),
+  hashtagId: uuid("hashtag_id")
+    .notNull()
+    .references(() => hashtags.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.taskId, t.hashtagId] }),
+  index("tasks_hashtags_hashtag_idx").on(t.hashtagId),
+  index("tasks_hashtags_user_idx").on(t.userId),
+]);
+
 // kiwi_events — telemetry table ships now per D-01 (Phase 5 reads/writes; Phase 1 just creates the shell)
 export const kiwiEvents = pgTable(
   "kiwi_events",
