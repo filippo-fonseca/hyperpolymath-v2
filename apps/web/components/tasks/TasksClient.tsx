@@ -211,6 +211,17 @@ export function TasksClient({
   // calls createTask, Cancel/close discards.
   const [draftStatus, setDraftStatus] = useState<TaskStatus | null>(null);
 
+  // Deep-link create: `/tasks?create=now` (from the Cmd+Shift+K command palette
+  // or the new-task keyboard shortcut) opens the draft panel in create mode,
+  // then strips the param so a later refresh doesn't reopen it.
+  const [createParam, setCreateParam] = useQueryState("create", parseAsString);
+  useEffect(() => {
+    if (createParam === "now") {
+      setDraftStatus("not started");
+      void setCreateParam(null);
+    }
+  }, [createParam, setCreateParam]);
+
   // Auto-hide completed "lesno"tasks by default (per user spec). Persisted in
   // localStorage so the choice survives page reloads. Toggle pill sits in the
   // toolbar next to the view switcher.
