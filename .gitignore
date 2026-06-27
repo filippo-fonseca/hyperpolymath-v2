@@ -23,6 +23,7 @@ build/
 .env.development
 .env.production
 !.env.example
+.env.example
 
 # OS
 .DS_Store
