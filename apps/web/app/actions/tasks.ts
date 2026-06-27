@@ -4,13 +4,18 @@ import { z } from "zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { tasks, tasksProjects, projects } from "@/lib/db/schema";
+import { tasks, tasksHashtags, tasksProjects, projects } from "@/lib/db/schema";
 import {
   RecurrenceRuleSchema,
   normalizeRule,
   nextOccurrence,
 } from "@/lib/tasks/recurrence";
 import { format } from "date-fns";
+import { upsertHashtag } from "./hashtags";
+import {
+  reconcilePersonReferencesForUser,
+  resolveOrCreatePersonForUser,
+} from "./people";
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -55,6 +60,11 @@ const CreateTaskSchema = z.object({
   // client-side); null/absent = unset. Capped to keep the column sane.
   url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).default([]),
+  // Issue #159 — inline #hashtags and @people parsed from the task title/notes
+  // editor. Tags carried as raw names (resolve-or-upserted server-side against
+  // the shared hashtags table); people carried as names (resolve-or-created).
+  hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  personNames: z.array(z.string().trim().min(1).max(200)).max(40).default([]),
   // Issue #144 — optional recurrence rule. null/absent = one-off task.
   recurrence: RecurrenceRuleSchema.nullable().optional(),
 });
@@ -125,8 +135,43 @@ export async function createTask(
         );
       }
     }
+
+    // Issue #159 — upsert each #hashtag (atomic via tx, race-safe) and link it
+    // to the task. Mirrors createCapture's hashtag path.
+    if (parsed.data.hashtagNames.length > 0) {
+      const seen = new Set<string>();
+      const uniqueRaw = parsed.data.hashtagNames.filter((t) => {
+        const k = t.toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      const tagIds: string[] = [];
+      for (const raw of uniqueRaw) {
+        const tag = await upsertHashtag(userId, raw, tx);
+        tagIds.push(tag.id);
+      }
+      if (tagIds.length > 0) {
+        await tx.insert(tasksHashtags).values(
+          tagIds.map((hashtagId) => ({ taskId: row!.id, hashtagId, userId })),
+        );
+      }
+    }
+
     return row!.id;
   });
+
+  // Issue #159 — resolve @-mentioned people (creating new ones) and reconcile
+  // people_references for this task. Runs after the task exists; reconcile diffs
+  // against the (empty, on create) stored set. Same pattern as createCapture.
+  if (parsed.data.personNames.length > 0) {
+    const personIds: string[] = [];
+    for (const name of parsed.data.personNames) {
+      const person = await resolveOrCreatePersonForUser(userId, name);
+      if (person) personIds.push(person.id);
+    }
+    await reconcilePersonReferencesForUser(userId, "task", result, personIds);
+  }
 
   return { success: true, data: { id: result } };
 }
@@ -146,6 +191,10 @@ const UpdateTaskSchema = z.object({
   // the generic `rest` apply loop below (null = clear, string = set).
   url: z.string().trim().max(2048).nullable().optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
+  // Issue #159 — when present, replaces the task's tag/person links. Absent =
+  // leave existing links untouched (a title-only edit never clears them).
+  hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  personNames: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
   // Issue #144 — set a rule, change it, or clear it (null ends the recurrence,
   // turning the task back into a one-off).
   recurrence: RecurrenceRuleSchema.nullable().optional(),
@@ -163,7 +212,9 @@ export async function updateTask(
       error: parsed.error.issues[0]?.message ?? "Invalid input",
     };
 
-  const { id, projectIds, ...rest } = parsed.data;
+  // Pull the relation fields out of `rest` so they never leak into the scalar
+  // column UPDATE below — they're reconciled against join tables separately.
+  const { id, projectIds, hashtagNames, personNames, ...rest } = parsed.data;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = { updatedAt: sql`now()` };
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) updates[k] = v;
@@ -213,7 +264,39 @@ export async function updateTask(
         }
       }
     }
+
+    // Issue #159 — replace the task's hashtag links when the field is present.
+    // Delete-then-reinsert mirrors updateCapture; absent field = no-op.
+    if (hashtagNames !== undefined) {
+      await tx
+        .delete(tasksHashtags)
+        .where(and(eq(tasksHashtags.taskId, id), eq(tasksHashtags.userId, userId)));
+      const seen = new Set<string>();
+      const uniqueRaw = hashtagNames.filter((t) => {
+        const k = t.toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      for (const raw of uniqueRaw) {
+        const tag = await upsertHashtag(userId, raw, tx);
+        await tx
+          .insert(tasksHashtags)
+          .values({ taskId: id, hashtagId: tag.id, userId });
+      }
+    }
   });
+
+  // Issue #159 — reconcile @-mentioned people only when the field is present,
+  // so a title/status-only update never clears existing mentions.
+  if (personNames !== undefined) {
+    const personIds: string[] = [];
+    for (const name of personNames) {
+      const person = await resolveOrCreatePersonForUser(userId, name);
+      if (person) personIds.push(person.id);
+    }
+    await reconcilePersonReferencesForUser(userId, "task", id, personIds);
+  }
 
   return { success: true, data: null };
 }
