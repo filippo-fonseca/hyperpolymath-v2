@@ -10,6 +10,7 @@ import type { AnthropicDailyRequests } from "@/lib/integrations/anthropic-api/tr
 import type { SubscriptionUsage } from "@/lib/integrations/claude-code/subscription";
 import { AnthropicApiPanel } from "./development/AnthropicApiPanel";
 import { ClaudeSubscriptionPanel } from "./development/ClaudeSubscriptionPanel";
+import { ManualTriggerPanel } from "./development/ManualTriggerPanel";
 import { ClaudeCodePanel } from "./life/ClaudeCodePanel";
 
 /**
@@ -85,8 +86,11 @@ export function DevelopmentTabPanel({
         </div>
       </div>
 
-      {/* Auto-dev runs list (unchanged). EmptyState is now a section, not an
-          early return for the whole panel, so the spend panels always render. */}
+      {/* Manual triggers for captures-to-issues and kiwi-autodev. */}
+      <ManualTriggerPanel />
+
+      {/* Auto-dev runs list. EmptyState is a section, not an early return for
+          the whole panel, so the spend panels and trigger buttons always render. */}
       {runs.length === 0 ? (
         <EmptyState
           heading="No auto-dev runs yet."
