@@ -5,6 +5,8 @@ import {
   capturesHashtags,
   capturesProjects,
   hashtags,
+  people,
+  peopleReferences,
   projects,
 } from "@/lib/db/schema";
 
@@ -27,6 +29,8 @@ export interface CaptureWithLinks {
   /** Issue #101 — Notion-style URL property (NULL = unset). */
   url: string | null;
   hashtags: { id: string; displayName: string; name: string }[];
+  /** @-mentioned people linked to this capture (Phase C). */
+  people: { id: string; name: string }[];
   projects: { id: string; name: string }[];
 }
 
@@ -184,6 +188,24 @@ export async function getCapturesForUser(
       ),
     );
 
+  // Phase C: @-mentioned people linked to these captures, via the polymorphic
+  // people_references join (fromType='capture').
+  const peopleLinks = await db
+    .select({
+      captureId: peopleReferences.fromId,
+      id: people.id,
+      name: people.name,
+    })
+    .from(peopleReferences)
+    .innerJoin(people, eq(people.id, peopleReferences.personId))
+    .where(
+      and(
+        eq(peopleReferences.userId, userId),
+        eq(peopleReferences.fromType, "capture"),
+        inArray(peopleReferences.fromId, captureIds),
+      ),
+    );
+
   const tagsByCapture = new Map<string, CaptureWithLinks["hashtags"]>();
   for (const t of tagLinks) {
     const list = tagsByCapture.get(t.captureId) ?? [];
@@ -196,10 +218,17 @@ export async function getCapturesForUser(
     list.push({ id: p.id, name: p.name });
     projsByCapture.set(p.captureId, list);
   }
+  const peopleByCapture = new Map<string, CaptureWithLinks["people"]>();
+  for (const p of peopleLinks) {
+    const list = peopleByCapture.get(p.captureId) ?? [];
+    list.push({ id: p.id, name: p.name });
+    peopleByCapture.set(p.captureId, list);
+  }
 
   return captureRows.map((c) => ({
     ...c,
     hashtags: tagsByCapture.get(c.id) ?? [],
+    people: peopleByCapture.get(c.id) ?? [],
     projects: projsByCapture.get(c.id) ?? [],
   }));
 }

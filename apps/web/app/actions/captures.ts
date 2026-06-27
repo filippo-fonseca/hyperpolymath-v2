@@ -137,6 +137,7 @@ const UpdateCaptureSchema = z.object({
   id: z.string().uuid(),
   content: z.string().trim().min(1).max(20000).optional(),
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  personNames: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
   // Issue #101 — set, change, or clear (null) the URL property.
   url: z.string().trim().max(2048).nullable().optional(),
@@ -215,6 +216,18 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
       }
     }
   });
+
+  // Phase C: reconcile @-mentioned people for this capture. Only when the field
+  // is present, so a content/hashtag-only update never clears existing links.
+  // Runs after the tx (resolve-or-create matches createCapture's pattern).
+  if (parsed.data.personNames !== undefined) {
+    const personIds: string[] = [];
+    for (const name of parsed.data.personNames) {
+      const person = await resolveOrCreatePersonForUser(userId, name);
+      if (person) personIds.push(person.id);
+    }
+    await reconcilePersonReferencesForUser(userId, "capture", parsed.data.id, personIds);
+  }
 
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };

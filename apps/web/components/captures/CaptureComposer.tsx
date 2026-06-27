@@ -20,6 +20,7 @@ import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
+import { createPersonDecorations } from "./person-decorations";
 import { createPersonSuggestion } from "./person-suggestions";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 
@@ -166,6 +167,8 @@ export function CaptureComposer({
       // Live-decorate plain `#word` text so the token styling lands without
       // waiting for the suggestion popover to commit a Mention node (#41).
       HashtagDecorations,
+      // Same idea for `@name` matching a known person (amber register).
+      createPersonDecorations(() => people),
     ],
     editorProps: {
       attributes: {
@@ -354,6 +357,10 @@ export function CaptureComposer({
         name: name.toLowerCase(),
         displayName: name,
       })),
+      // Optimistic person chips — `id: "pending-${name}"` since createCapture
+      // resolve-or-creates the canonical person row server side. Replaced by
+      // the canonical people_references join on the next refetch.
+      people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       // Optimistic project chips — map id → name from the in-scope `projects`
       // option list. Same caveat: replaced by canonical join on refetch.
       projects: selectedProjectIds
