@@ -31,7 +31,7 @@
 
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, unlink } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +58,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const WEB_ENV_LOCAL = path.join(REPO_ROOT, 'apps', 'web', '.env.local');
 const KIWI_DIR = path.join(REPO_ROOT, '.kiwi-auto');
+// Sentinel file written by the web app's /api/dev/trigger-autodev route. When
+// present, the once-per-day idempotency lock is bypassed so a manual trigger
+// fires even if the worker already ran today. The file is deleted at the start
+// of each manually-triggered run so it does not cause repeated bypasses.
+const MANUAL_TRIGGER = path.join(KIWI_DIR, '.manual-trigger');
 const LOG_DIR = path.join(__dirname, 'logs');
 
 // Config: env first (launchd sources config.sh), then literal fallbacks that
@@ -574,12 +579,26 @@ async function main() {
 
   const startedAt = new Date().toISOString();
 
-  // Re-check the gate; if ineligible, exit 0 quietly.
-  try {
-    await execFileP(path.join(__dirname, 'gate.sh'), [], { timeout: 60_000 });
-  } catch {
-    log('gate ineligible at run time; exiting quietly');
-    return;
+  // Check for a manual trigger sentinel written by the web app's
+  // /api/dev/trigger-autodev route. When present, bypass gate.sh (which would
+  // block on the once-per-day lock) and delete the sentinel immediately so
+  // repeated polls do not fire again.
+  const isManualTrigger = await fileExists(MANUAL_TRIGGER);
+  if (isManualTrigger) {
+    log('manual trigger sentinel found; bypassing once-per-day gate');
+    try {
+      await unlink(MANUAL_TRIGGER);
+    } catch {
+      // Best-effort: a missing or unlink-failing sentinel still allows the run.
+    }
+  } else {
+    // Re-check the gate; if ineligible, exit 0 quietly.
+    try {
+      await execFileP(path.join(__dirname, 'gate.sh'), [], { timeout: 60_000 });
+    } catch {
+      log('gate ineligible at run time; exiting quietly');
+      return;
+    }
   }
 
   const RUN_DATE = new Date().toISOString().slice(0, 10);
