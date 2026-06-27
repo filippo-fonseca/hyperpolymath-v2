@@ -713,8 +713,10 @@ export function PagesListClient({
 
       {/* Tree */}
       {isEmpty ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <FileText size={28} strokeWidth={1} className="text-[var(--ink-muted)] opacity-40" />
+        <div className="flex flex-col items-center gap-4 py-16 text-center">
+          <div className="flex items-center justify-center w-14 h-14 rounded-2xl glass-tile">
+            <FileText size={22} strokeWidth={1.2} className="text-[var(--ink-muted)] opacity-60" />
+          </div>
           <p className="text-[13px] font-serif text-[var(--ink-muted)]">
             {filter
               ? "No pages match that filter."
@@ -898,7 +900,7 @@ function FolderNode({
     <div className="flex flex-col">
       <div
         ref={setDropRef}
-        className={`rounded-sm transition-colors duration-100 ${
+        className={`rounded-md transition-colors duration-100 ${
           highlight
             ? "bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--hud-cyan)]"
             : ""
@@ -1192,27 +1194,27 @@ function PageCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group flex flex-col gap-2 h-full text-left rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 hover:border-[var(--ink-muted)] transition-colors duration-150 cursor-pointer"
+      className="group flex flex-col gap-3 h-full text-left rounded-xl glass-tile p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-1"
     >
-      <div className="flex items-start gap-2">
-        <span className="flex-shrink-0 text-[15px] leading-none mt-0.5">
+      <div className="flex items-start gap-3">
+        <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-[color-mix(in_oklch,var(--surface-raised)_80%,transparent)] border border-[var(--edge)] text-[16px] leading-none">
           {page.emoji ?? (
             <FileText size={15} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
           )}
         </span>
-        <span className="min-w-0 flex-1 text-[14px] font-serif text-[var(--ink)] line-clamp-2">
+        <span className="min-w-0 flex-1 pt-0.5 text-[14px] font-serif text-[var(--ink)] line-clamp-3 leading-snug">
           {page.title || (
             <span className="text-[var(--ink-muted)] italic">Untitled page</span>
           )}
         </span>
       </div>
       {folderName && (
-        <span className="flex items-center gap-1 text-[10px] font-mono text-[var(--ink-muted)] truncate">
-          <Folder size={10} strokeWidth={1.5} />
+        <span className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--ink-muted)] truncate">
+          <Folder size={10} strokeWidth={1.5} className="flex-shrink-0" />
           {folderName}
         </span>
       )}
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1 border-t border-[var(--edge)] border-opacity-50">
         <ProjectPillRow
           links={page.projects.map((p) => ({
             projectId: p.id,
@@ -1319,7 +1321,7 @@ function GridDriveView({
   const isEmpty = subfolders.length === 0 && childPages.length === 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-[12px] font-mono text-[var(--ink-muted)] flex-wrap">
         <button
@@ -1357,7 +1359,7 @@ function GridDriveView({
             type="button"
             onClick={() => onAddPage(gridFolderId)}
             title="New page in this folder"
-            className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-sm text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 cursor-pointer"
+            className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md glass-button text-[var(--ink)] transition-colors duration-150 cursor-pointer"
           >
             <Plus size={12} strokeWidth={1.5} />
             <span>New page here</span>
@@ -1367,11 +1369,13 @@ function GridDriveView({
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <Folder
-            size={28}
-            strokeWidth={1}
-            className="text-[var(--ink-muted)] opacity-40"
-          />
+          <div className="flex items-center justify-center w-14 h-14 rounded-2xl glass-tile">
+            <Folder
+              size={24}
+              strokeWidth={1.2}
+              className="text-[var(--ink-muted)] opacity-60"
+            />
+          </div>
           <p className="text-[13px] font-serif text-[var(--ink-muted)]">
             This folder is empty.
           </p>
@@ -1379,11 +1383,11 @@ function GridDriveView({
       ) : (
         <>
           {subfolders.length > 0 && (
-            <section className="flex flex-col gap-2">
+            <section className="flex flex-col gap-3">
               <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
                 Folders
               </h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                 {subfolders.map((folder) => (
                   <FolderCard
                     key={folder.id}
@@ -1400,11 +1404,11 @@ function GridDriveView({
           )}
 
           {childPages.length > 0 && (
-            <section className="flex flex-col gap-2">
+            <section className="flex flex-col gap-3">
               <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
                 Pages
               </h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
                 {childPages.map((page) => (
                   <PageCard
                     key={page.id}
@@ -1454,15 +1458,17 @@ function FolderCard({
           onOpen();
         }
       }}
-      className="group relative flex flex-col gap-2 h-full text-left rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 hover:border-[var(--ink-muted)] transition-colors duration-150 cursor-pointer outline-none focus-visible:border-[var(--ink-muted)]"
+      className="group relative flex flex-col gap-3 h-full text-left rounded-xl glass-tile p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-1"
     >
-      <div className="flex items-start gap-2">
-        <span className="flex-shrink-0 mt-0.5">
-          <Folder size={15} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-        </span>
-        <span className="min-w-0 flex-1 text-[14px] font-serif text-[var(--ink)] line-clamp-2">
-          {name}
-        </span>
+      {/* Top: folder icon block + add-page action */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] border border-[color-mix(in_oklch,var(--hud-cyan)_20%,var(--edge))]">
+          <Folder
+            size={18}
+            strokeWidth={1.5}
+            className="text-[var(--hud-cyan-dim)]"
+          />
+        </div>
         <button
           type="button"
           aria-label={`New page in ${name}`}
@@ -1471,12 +1477,19 @@ function FolderCard({
             e.stopPropagation();
             onAddPage();
           }}
-          className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
+          className="glass-button flex-shrink-0 p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
         >
           <Plus size={13} strokeWidth={1.5} />
         </button>
       </div>
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+
+      {/* Folder name */}
+      <span className="min-w-0 text-[14px] font-serif text-[var(--ink)] line-clamp-2 leading-snug">
+        {name}
+      </span>
+
+      {/* Footer */}
+      <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[var(--edge)] border-opacity-50">
         <ProjectPillRow
           links={projectIds.map((projectId) => ({
             projectId,
