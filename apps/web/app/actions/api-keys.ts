@@ -88,6 +88,22 @@ async function probeKey(
         method: "GET",
         headers: { "xi-api-key": key },
       });
+      // ElevenLabs keys are permission-scoped. A key created just for TTS lacks
+      // the user_read scope and gets 401 "missing_permissions" on /v1/user even
+      // though it speaks fine — so don't reject those. Only a genuinely invalid
+      // key (wrong/revoked secret) should be turned away here.
+      if (res.status === 401 || res.status === 403) {
+        let status = "";
+        try {
+          const body = (await res.json()) as { detail?: { status?: string } | string };
+          status = typeof body.detail === "string" ? body.detail : (body.detail?.status ?? "");
+        } catch {
+          // No/!JSON body — can't tell scope from invalid; don't hard-block.
+          return "unknown";
+        }
+        return status === "missing_permissions" ? "valid" : "invalid";
+      }
+      return "valid";
     }
     if (res.status === 401 || res.status === 403) return "invalid";
     return "valid";
