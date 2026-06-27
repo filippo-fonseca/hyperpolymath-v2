@@ -56,6 +56,10 @@ export function deriveEdges(input: {
     for (const pid of t.projectIds) {
       edges.push({ type: "task_in_project", from: t.id, to: pid });
     }
+    // Issue #159 — #hashtag links, mirroring capture_tagged below.
+    for (const tag of t.tags) {
+      edges.push({ type: "task_tagged", from: t.id, tag });
+    }
   }
 
   for (const c of input.captures) {

@@ -269,6 +269,8 @@ export function TaskDetailPanel({
         createdAt: new Date(),
         recurrence: form.recurrence,
         projects: projectChips,
+        hashtags: [],
+        people: [],
       },
     });
     const r = await createTask({

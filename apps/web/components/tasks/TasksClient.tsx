@@ -619,6 +619,8 @@ export function TasksClient({
           createdAt: new Date(),
           recurrence: null,
           projects: [],
+          hashtags: [],
+          people: [],
         },
       });
       const r = await createTask({
@@ -666,6 +668,8 @@ export function TasksClient({
         createdAt: new Date(),
         recurrence: null,
         projects: [],
+        hashtags: [],
+        people: [],
       }
     : null;
 
