@@ -11,9 +11,9 @@
  * (no JOIN through tasks needed). Composite-PK on (taskId, projectId).
  */
 
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db as defaultDb } from "@/lib/db";
-import { tasks as tasksTable, tasksProjects } from "@/lib/db/schema";
+import { hashtags, tasks as tasksTable, tasksHashtags, tasksProjects } from "@/lib/db/schema";
 import type { Node } from "../types";
 
 export type DB = typeof defaultDb;
@@ -63,6 +63,24 @@ export async function loadTasks(
     byTask.set(link.taskId, arr);
   }
 
+  // Issue #159 — linked hashtag display names per task (scoped owner-only via
+  // the denormalized user_id on the junction). Drives both the node `tags`
+  // array and the task_tagged edges.
+  const rowIds = rows.map((r) => r.id);
+  const tagsByTask = new Map<string, string[]>();
+  if (rowIds.length > 0) {
+    const tagLinks = await db
+      .select({ taskId: tasksHashtags.taskId, displayName: hashtags.displayName })
+      .from(tasksHashtags)
+      .innerJoin(hashtags, eq(hashtags.id, tasksHashtags.hashtagId))
+      .where(and(eq(tasksHashtags.userId, userId), inArray(tasksHashtags.taskId, rowIds)));
+    for (const link of tagLinks) {
+      const arr = tagsByTask.get(link.taskId) ?? [];
+      arr.push(link.displayName);
+      tagsByTask.set(link.taskId, arr);
+    }
+  }
+
   let excluded = 0;
   const nodes: Node[] = [];
   for (const r of rows) {
@@ -79,6 +97,7 @@ export async function loadTasks(
       status: r.status as TaskStatus,
       dueDate: dateToISO(r.dueDate),
       projectIds: byTask.get(r.id) ?? [],
+      tags: tagsByTask.get(r.id) ?? [],
     });
   }
 

@@ -48,6 +48,8 @@ export const NodeSchema = z.discriminatedUnion("type", [
     status: z.enum(["not started", "up next", "in progress", "almost done", "lesno"]),
     dueDate: z.string().nullable(),
     projectIds: z.array(z.string().uuid()),
+    // Issue #159 — linked #hashtag display names (mirrors capture nodes).
+    tags: z.array(z.string()),
   }),
   z.object({
     type: z.literal("capture"),
@@ -147,6 +149,11 @@ export const EdgeSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("capture_tagged"),
+    from: z.string().uuid(),
+    tag: z.string(),
+  }),
+  z.object({
+    type: z.literal("task_tagged"),
     from: z.string().uuid(),
     tag: z.string(),
   }),
