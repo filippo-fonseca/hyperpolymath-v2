@@ -27,7 +27,11 @@ import {
   defaultBlockSpecs,
   defaultInlineContentSpecs,
 } from "@blocknote/core";
-import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
+import {
+  SuggestionMenu,
+  filterSuggestionItems,
+  insertOrUpdateBlockForSlashMenu,
+} from "@blocknote/core/extensions";
 import {
   type DefaultReactSuggestionItem,
   SuggestionMenuController,
@@ -218,6 +222,43 @@ export default function PageBlockEditor({
   });
 
   const queryClient = useQueryClient();
+
+  // Local ref to the editor wrapper. Used to scope the Cmd+K keydown listener
+  // (below) so it only fires when the user is actually inside the editor. The
+  // parent's optional `containerRef` is populated through the same callback so
+  // the in-page search code keeps working unchanged.
+  const localContainerRef = useRef<HTMLDivElement | null>(null);
+  const setContainerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      localContainerRef.current = el;
+      if (containerRef) {
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }
+    },
+    [containerRef]
+  );
+
+  // Cmd/Ctrl+K inside the editor opens the `/` slash menu — a keyboard-first
+  // way to reach the inline drop-down without typing a trigger character
+  // (Issue #145). Attached as a *native* listener on the editor container
+  // (not a React onKeyDown) so calling stopPropagation() actually prevents
+  // the window-level GlobalHotkeys handler — which otherwise hijacks Cmd+K
+  // to focus JARVIS — from firing. Outside the editor, Cmd+K still focuses
+  // JARVIS as before; this listener never sees those events.
+  useEffect(() => {
+    const container = localContainerRef.current;
+    if (!container) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.shiftKey || e.altKey) return;
+      if (e.key !== "k" && e.key !== "K") return;
+      e.preventDefault();
+      e.stopPropagation();
+      editor.getExtension(SuggestionMenu)?.openSuggestionMenu("/");
+    }
+    container.addEventListener("keydown", onKeyDown);
+    return () => container.removeEventListener("keydown", onKeyDown);
+  }, [editor]);
 
   // Executed actions per resolved turn, keyed by turnId. Populated when a turn
   // resolves (submitPill success) so the receipt pill's 5s undo can invert the
@@ -486,7 +527,7 @@ export default function PageBlockEditor({
     <JarvisPillProvider value={pillContextValue}>
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: surface affordance mirrors the editor's own keyboard handling */}
       <div
-        ref={containerRef}
+        ref={setContainerRef}
         className="flex flex-1 flex-col cursor-text"
         data-hide-receipts={hideReceipts ? "true" : "false"}
         onMouseDown={handleSurfaceMouseDown}
