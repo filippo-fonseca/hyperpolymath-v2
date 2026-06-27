@@ -2,7 +2,8 @@ import { TasksClient } from "@/components/tasks/TasksClient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { areas, projects } from "@/lib/db/schema";
+import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
+import { areas, people, projects } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 
 interface Props {
@@ -29,7 +30,7 @@ export default async function TasksPage({ searchParams }: Props) {
   const sp = await searchParams;
   const user = await requireOnboarded();
 
-  const [tasks, projectRows, areaRows] = await Promise.all([
+  const [tasks, projectRows, areaRows, hashtagRows, peopleRows] = await Promise.all([
     getAllTasksForUser(user.id),
     db
       .select({
@@ -52,6 +53,11 @@ export default async function TasksPage({ searchParams }: Props) {
       })
       .from(areas)
       .where(and(eq(areas.userId, user.id), isNull(areas.archivedAt))),
+    getHashtagSuggestions(user.id),
+    db
+      .select({ id: people.id, name: people.name })
+      .from(people)
+      .where(eq(people.userId, user.id)),
   ]);
 
   // Per Pitfall 3: pass searchParams-derived initial filters so SSR matches client nuqs hydration.
@@ -70,6 +76,8 @@ export default async function TasksPage({ searchParams }: Props) {
       projects={projectRows}
       areas={areaRows}
       initialFilters={initialFilters}
+      hashtags={hashtagRows}
+      people={peopleRows}
     />
   );
 }
