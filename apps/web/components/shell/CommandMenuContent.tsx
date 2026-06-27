@@ -1,123 +1,128 @@
 "use client";
 
-import { Calendar, FileText, Loader2 } from "lucide-react";
+import { Calendar, FileText, ListTodo, NotebookPen, PencilLine } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
+import { createCapture } from "@/app/actions/captures";
 import { createPage } from "@/app/actions/pages";
-import { CaptureComposer } from "@/components/captures/CaptureComposer";
-import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@/components/ui/command";
 
 interface Props {
-  hashtags: { id: string; name: string; displayName: string }[];
-  projects: ProjectMultiSelectOption[];
-  onSubmitSuccess: () => void;
+  /** Live text typed into the palette's CommandInput (controlled upstream). */
+  search: string;
+  /** Close the palette after a command runs. */
+  onRun: () => void;
+  /** Switch the palette into the full capture-composer mode. */
+  onCompose: () => void;
+}
+
+// Pull #hashtags out of free text so a quick capture typed straight into the
+// palette links its tags, mirroring how the /captures composer extracts them.
+function extractHashtags(text: string): string[] {
+  const out = new Set<string>();
+  for (const m of text.matchAll(/#([\p{L}\p{N}_-]+)/gu)) {
+    out.add(m[1].toLowerCase());
+  }
+  return Array.from(out);
 }
 
 /**
- * Slot component — the contents of the Cmd+K modal (Warning 12 — Phase 5 seam).
+ * Contents of the Cmd+Shift+K command palette (issue #161).
  *
- * Phase 2: wraps the CaptureComposer used by /captures (D-09 single source of truth).
- * Phase 3: Cmd+K mount has NO `onOptimisticInsert` prop (composer is not inside
- * CapturesClient here). Realtime echo + invalidation paints /captures within ~1s.
- * Phase 4 Plan 04-04: adds a "Calendar" affordance — "New event" — that
- * navigates to `/calendar?create=now`. CalendarClient consumes the search
- * param and opens EventDetailPanel pre-filled at the next round half-hour.
- * The deep-link approach (vs an event bus) keeps Cmd+K stateless and lets a
- * full-page transition pick up the panel even if /calendar wasn't yet
- * mounted in the current session.
- * Phase 5: replaced wholesale with the Kiwi agent UI; CommandMenu.tsx itself
- * never changes.
- *
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §12e + §12f):
- *
- * Cmd+K modal sits on diplomatic-tier chrome. Composer wrapper gets the
- * shared cyan focus treatment (1px transparent border → 1px --hud-cyan on
- * focus-within, 150ms transition) per UI-SPEC §9d Input register and the
- * unified focus identity from issue #140. Calendar
- * section uses mono chrome (section label + button label) per UI-SPEC §5f.
- * "New event" copy + /calendar?create=now deep-link mechanism preserved
- * per UI-SPEC §14 carry-forward.
+ * A cmdk-filtered command list: typing "new", "page", "wiki", "task", "qc", …
+ * narrows to the matching create action via each item's `keywords`. Selecting a
+ * command opens/navigates to that feature. Free text additionally surfaces a
+ * "Capture …" item so a thought (with inline #hashtags) can be written straight
+ * from the palette without leaving for /captures first.
  */
-export function CommandMenuContent({ hashtags, projects, onSubmitSuccess }: Props) {
+export function CommandMenuContent({ search, onRun, onCompose }: Props) {
   const router = useRouter();
-  const [creatingPage, setCreatingPage] = useState(false);
+  const trimmed = search.trim();
 
-  const handleNewPage = async () => {
-    if (creatingPage) return;
-    setCreatingPage(true);
-    try {
-      // Client-generated UUID so the Realtime echo is a no-op for the list.
-      const id = crypto.randomUUID();
-      const result = await createPage({ id, title: "", content: "" });
-      onSubmitSuccess(); // close the Cmd+K dialog
-      if (result.success) router.push(`/wiki/${result.data.id}`);
-    } finally {
-      setCreatingPage(false);
-    }
-  };
+  function go(href: string) {
+    onRun();
+    router.push(href);
+  }
 
-  const handleNewEvent = () => {
-    // Deep-link approach (Plan 04-04 Task 2 Step 3 — "simpler approach
-    // preferred for MVP"). CalendarClient's useEffect on `?create=now`
-    // opens the panel pre-filled with the next round half-hour and a
-    // 60-minute block, then strips the param via router.replace.
-    onSubmitSuccess(); // close the Cmd+K dialog first
-    router.push("/calendar?create=now");
-  };
+  async function newPage() {
+    onRun();
+    const r = await createPage({ id: crypto.randomUUID(), title: "", content: "" });
+    if (r.success) router.push(`/wiki/${r.data.id}`);
+  }
+
+  async function captureText() {
+    if (!trimmed) return;
+    onRun();
+    await createCapture({
+      id: crypto.randomUUID(),
+      content: trimmed,
+      hashtagNames: extractHashtags(trimmed),
+    });
+    router.push("/captures");
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* UI-SPEC §9d — doc-tier input wrapper. Border becomes the shared cyan
-          focus color (#140) when any child has focus; 150ms transition matches
-          the Tasks/Captures composer wrappers across the app. */}
-      <div className="rounded-sm border border-transparent focus-within:border-[var(--hud-cyan)] transition-colors duration-150 ease-out p-2">
-        <CaptureComposer
-          hashtags={hashtags}
-          projects={projects}
-          onSubmitSuccess={onSubmitSuccess}
-          autoFocus
-        />
-      </div>
-      <div className="flex flex-col gap-1 border-t border-[var(--edge)] pt-3">
-        {/* Mono section label per UI-SPEC §12c chrome register */}
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] px-1">
-          Calendar
-        </span>
-        <button
-          type="button"
-          onClick={handleNewEvent}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always"
+    <CommandList>
+      <CommandEmpty>No matching command — keep typing to capture a thought.</CommandEmpty>
+
+      {/* Create commands first so a keyword match (e.g. "task") is the default
+          selection; the free-text Capture item sits below as the fallback. */}
+      <CommandGroup heading="Create">
+        <CommandItem
+          value="new quick capture qc note thought jot"
+          keywords={["qc", "capture", "note", "thought", "jot", "quick"]}
+          onSelect={onCompose}
         >
-          <Calendar size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
+          <NotebookPen />
+          <span>New quick capture</span>
+          <CommandShortcut>⌃⌥C</CommandShortcut>
+        </CommandItem>
+        <CommandItem
+          value="new task todo to-do"
+          keywords={["task", "todo", "to-do"]}
+          onSelect={() => go("/tasks?create=now")}
+        >
+          <ListTodo />
+          <span>New task</span>
+          <CommandShortcut>⌃⌥T</CommandShortcut>
+        </CommandItem>
+        <CommandItem
+          value="new page wiki doc document"
+          keywords={["page", "wiki", "doc", "document"]}
+          onSelect={newPage}
+        >
+          <FileText />
+          <span>New page</span>
+          <CommandShortcut>⌃⌥P</CommandShortcut>
+        </CommandItem>
+        <CommandItem
+          value="new event calendar meeting"
+          keywords={["event", "calendar", "meeting", "cal"]}
+          onSelect={() => go("/calendar?create=now")}
+        >
+          <Calendar />
           <span>New event</span>
-          <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-[var(--ink-muted)]">
-            /calendar?create=now
-          </span>
-        </button>
-      </div>
-      <div className="flex flex-col gap-1 border-t border-[var(--edge)] pt-3">
-        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)] px-1">
-          Wiki
-        </span>
-        <button
-          type="button"
-          onClick={handleNewPage}
-          disabled={creatingPage}
-          aria-busy={creatingPage}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-sm text-left text-[13px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer-always disabled:opacity-50 disabled:cursor-wait"
-        >
-          {creatingPage ? (
-            <Loader2 size={14} strokeWidth={1.5} className="animate-spin text-[var(--ink-muted)]" />
-          ) : (
-            <FileText size={14} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          )}
-          <span>{creatingPage ? "Creating…" : "New page"}</span>
-          <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-[var(--ink-muted)]">
-            /wiki
-          </span>
-        </button>
-      </div>
-    </div>
+          <CommandShortcut>⌃⌥E</CommandShortcut>
+        </CommandItem>
+      </CommandGroup>
+
+      {trimmed.length > 0 && (
+        <CommandGroup heading="Capture">
+          <CommandItem value={`__capture__ ${trimmed}`} forceMount onSelect={captureText}>
+            <PencilLine />
+            <span>
+              Capture <span className="italic">“{trimmed}”</span>
+            </span>
+            <CommandShortcut>⏎</CommandShortcut>
+          </CommandItem>
+        </CommandGroup>
+      )}
+    </CommandList>
   );
 }
