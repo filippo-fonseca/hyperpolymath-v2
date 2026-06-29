@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import type { ScrollbackAssistantTurn, ScrollbackTurn, ScrollbackAction } from "./jarvis-types";
 import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
@@ -80,6 +80,12 @@ interface Props {
    * spot. Takes priority over the bottom auto-scroll.
    */
   scrollToTurnId?: string | null;
+  /**
+   * Phase 33 Plan 02 — retry a failed assistant turn. Fires when the user
+   * clicks the "↺ Retry" button on a turn whose status === "error". The
+   * parent (JarvisConsole) finds the preceding user turn and re-submits it.
+   */
+  onRetry?: (turnId: string) => void;
 }
 
 /**
@@ -168,6 +174,7 @@ export function JarvisScrollback({
   loadingOlder = false,
   onLoadOlder,
   scrollToTurnId = null,
+  onRetry,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -300,7 +307,7 @@ export function JarvisScrollback({
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto overscroll-contain px-6 py-4 font-mono hud-scrollbar"
+      className="h-full overflow-y-auto overscroll-contain px-6 py-4 hud-scrollbar"
     >
       {/* "Older messages" pagination button — only when there's another
           page behind the oldest currently-loaded turn. Sits at the top so
@@ -342,160 +349,205 @@ export function JarvisScrollback({
             <div className="flex-1 h-px bg-[var(--edge)]" />
           </div>
           {group.turns.map((turn) => (
-            <div key={turn.id} data-turn-id={turn.id} className="mb-3 group">
-          {turn.kind === "user" ? (
-            <div className="text-sm flex items-baseline gap-2">
-              <span className="select-none mr-1.5 opacity-60 text-muted-foreground">
-                {">"}
-              </span>
-              {isDailyPageProcessText(turn.text) ? (
-                // Turns from the Daily Page "process this page" button carry a
-                // canned instruction as their text. Badge them instead of
-                // echoing the raw prompt so they read as a distinct action.
-                <span className="flex-1 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
-                    <CalendarDays size={11} strokeWidth={1.75} />
-                    Daily Page
-                  </span>
-                  <span className="font-mono text-foreground/60 text-[13px]">
-                    Processed this page
-                  </span>
-                </span>
+            <div key={turn.id} data-turn-id={turn.id} className="group">
+              {turn.kind === "user" ? (
+                // Phase 33 Plan 02 — RIGHT-aligned user bubble (iMessage register).
+                // Neutral glass surface; the `>` terminal prompt is retired.
+                <div className="flex justify-end mb-3">
+                  <div className="flex flex-col items-end max-w-[72%]">
+                    <motion.div
+                      initial={shouldReduce ? false : { opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                      className="relative rounded-2xl px-4 py-2.5"
+                      style={{
+                        backgroundColor: "var(--glass-bg)",
+                        backdropFilter: "blur(12px)",
+                        WebkitBackdropFilter: "blur(12px)",
+                        border:
+                          "1px solid color-mix(in oklch, var(--edge) 45%, transparent)",
+                        boxShadow:
+                          "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo)",
+                      }}
+                    >
+                      {isDailyPageProcessText(turn.text) ? (
+                        // Turns from the Daily Page "process this page" button carry
+                        // a canned instruction as their text. Badge them instead of
+                        // echoing the raw prompt so they read as a distinct action.
+                        <span className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+                            <CalendarDays size={11} strokeWidth={1.75} />
+                            Daily Page
+                          </span>
+                          <span className="font-sans text-[14px] text-[var(--ink-muted)]">
+                            Processed this page
+                          </span>
+                        </span>
+                      ) : (
+                        <p className="font-sans text-[15px] text-[var(--ink)] whitespace-pre-wrap break-words">
+                          {stripSystemTags(turn.text)}
+                        </p>
+                      )}
+                    </motion.div>
+                    <div className="mt-1 px-1">
+                      <TurnTimestamp createdAt={turn.createdAt} />
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <span className="font-mono text-foreground/80 flex-1">
-                  {stripSystemTags(turn.text)}
-                </span>
-              )}
-              <TurnTimestamp createdAt={turn.createdAt} />
-            </div>
-          ) : (
-            // Phase 6.1 Plan 02 (UI-SPEC §6b state 8): error glitch class on
-            // the assistant turn region — 80ms translateX(2px) jitter via the
-            // .hud-error-glitch keyframe. relative + overflow-hidden anchor
-            // the absolutely-positioned scan-reveal line during the
-            // streaming→done transition.
-            <div
-              className={`ml-3 relative overflow-hidden ${
-                turn.status === "error" && !shouldReduce ? "hud-error-glitch" : ""
-              }`}
-            >
-              <div className="absolute top-0 right-0">
-                <TurnTimestamp createdAt={turn.createdAt} />
-              </div>
-              {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring while
-                  status='streaming' and no textDelta has arrived. Replaces the
-                  Phase 5 <ThinkingWord /> indicator. Once the first token
-                  lands, the ring unmounts and the streaming prose renders. */}
-              {turn.status === "streaming" &&
-              !turn.textDelta &&
-              turn.actions.length === 0 ? (
-                <div className="flex items-center gap-3 mb-2">
-                  <HudThinkingRing size={32} />
-                  <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-[0.08em]">
-                    THINKING
-                  </span>
-                </div>
-              ) : null}
-
-              {/* Phase 6.1 Plan 02 (UI-SPEC §4a + §6b state 6): JARVIS prose
-                  in JetBrains Mono 500 italic 16px — the agent register.
-                  Phase 6 used font-serif text-base; Phase 6.1 swaps to
-                  font-mono italic font-medium per spec.
-
-                  Streaming caret: 2px --hud-cyan-bright bar trails the last
-                  rendered character; .hud-streaming-caret class drives the
-                  1.1s opacity + glow pulse (Plan 01 keyframe). A 32px wide
-                  --hud-cyan-glow-soft light-trail mounts as an absolute
-                  sibling span when not under reduced-motion. */}
-              {turn.textDelta ? (
-                <div
-                  className="font-mono text-base italic font-medium mb-2 leading-relaxed"
-                  style={{ color: "var(--ink)" }}
-                >
-                  {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
-                  {turn.status === "streaming" ? (
-                    <span className="relative inline-block ml-0.5">
-                      {/* Light-trail: 32px gradient behind caret (Linear
-                          physical-light precedent). Absolutely positioned
-                          so it doesn't shift the text baseline. */}
-                      {!shouldReduce ? (
-                        <span
-                          className="absolute right-2 top-0 h-full pointer-events-none"
-                          style={{
-                            width: "32px",
-                            transform: "translateX(-100%)",
-                            background:
-                              "linear-gradient(90deg, transparent 0%, var(--hud-cyan-glow-soft) 50%, transparent 100%)",
-                          }}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                      {/* Caret bar — pulses via .hud-streaming-caret when
-                          motion is allowed; static 2px bar otherwise. */}
-                      <span
-                        className={shouldReduce ? "" : "hud-streaming-caret"}
-                        style={{
-                          display: "inline-block",
-                          width: "2px",
-                          height: "1em",
-                          backgroundColor: "var(--hud-cyan-bright)",
-                          verticalAlign: "middle",
-                          boxShadow: shouldReduce
-                            ? "none"
-                            : "0 0 8px var(--hud-cyan-glow)",
-                        }}
-                        aria-hidden="true"
-                      />
+                // Phase 33 Plan 02 — LEFT-aligned JARVIS bubble. Cyan glow halo
+                // marks the agent voice; the "JARVIS" label sits above so the
+                // assistant column reads as a named speaker rather than a wall
+                // of streaming prose.
+                <div className="flex justify-start mb-3">
+                  <div className="flex flex-col max-w-[82%]">
+                    <span
+                      className="font-mono text-[11px] uppercase tracking-[0.08em] mb-1 ml-1"
+                      style={{ color: "var(--hud-cyan)" }}
+                    >
+                      JARVIS
                     </span>
-                  ) : null}
-                </div>
-              ) : null}
+                    <motion.div
+                      initial={shouldReduce ? false : { opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                      className={`relative glass-tile rounded-2xl px-4 py-3 overflow-hidden${
+                        turn.status === "error" && !shouldReduce
+                          ? " hud-error-glitch"
+                          : ""
+                      }`}
+                      style={{
+                        boxShadow:
+                          "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo), 0 0 20px var(--hud-cyan-glow-soft)",
+                        borderLeft:
+                          turn.status === "error"
+                            ? "3px solid var(--ink-coral)"
+                            : undefined,
+                      }}
+                    >
+                      {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 5): thinking ring
+                          while status='streaming' and no textDelta has arrived. */}
+                      {turn.status === "streaming" &&
+                      !turn.textDelta &&
+                      turn.actions.length === 0 ? (
+                        <div className="flex items-center gap-3 mb-2">
+                          <HudThinkingRing size={32} />
+                          <span className="font-mono text-xs text-[var(--ink-muted)] uppercase tracking-[0.08em]">
+                            THINKING
+                          </span>
+                        </div>
+                      ) : null}
 
-              {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 7): one-shot scan reveal
-                  on the streaming→done transition. Uses .hud-scan-line driven
-                  by the --hud-cyan-bright 70%-stop gradient over 420ms (Phase
-                  6's predecessor class fully retired). */}
-              <ScanRevealOverlay status={turn.status} />
+                      {/* Phase 6.1 Plan 02 (UI-SPEC §4a + §6b state 6): JARVIS
+                          prose in JetBrains Mono 500 italic 16px — the agent
+                          register. Streaming caret + light-trail trail the last
+                          rendered character while status === "streaming". */}
+                      {turn.textDelta ? (
+                        <div
+                          className="font-mono text-base italic font-medium leading-relaxed"
+                          style={{ color: "var(--ink)" }}
+                        >
+                          {renderInlineMarkdown(stripSystemTags(turn.textDelta))}
+                          {turn.status === "streaming" ? (
+                            <span className="relative inline-block ml-0.5">
+                              {!shouldReduce ? (
+                                <span
+                                  className="absolute right-2 top-0 h-full pointer-events-none"
+                                  style={{
+                                    width: "32px",
+                                    transform: "translateX(-100%)",
+                                    background:
+                                      "linear-gradient(90deg, transparent 0%, var(--hud-cyan-glow-soft) 50%, transparent 100%)",
+                                  }}
+                                  aria-hidden="true"
+                                />
+                              ) : null}
+                              <span
+                                className={
+                                  shouldReduce ? "" : "hud-streaming-caret"
+                                }
+                                style={{
+                                  display: "inline-block",
+                                  width: "2px",
+                                  height: "1em",
+                                  backgroundColor: "var(--hud-cyan-bright)",
+                                  verticalAlign: "middle",
+                                  boxShadow: shouldReduce
+                                    ? "none"
+                                    : "0 0 8px var(--hud-cyan-glow)",
+                                }}
+                                aria-hidden="true"
+                              />
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
 
-              {/* Phase 5.1 D-A2 / JARVIS-19: clarification receipt renders
-                  AFTER prose text and BEFORE action receipts per plan spec. */}
-              {turn.clarification ? (
-                <JarvisClarification
-                  clarification={turn.clarification}
-                  onReply={
-                    onClarificationReply
-                      ? (text) => onClarificationReply(turn.id, text)
-                      : undefined
-                  }
-                />
-              ) : null}
-              {turn.actions.map((a, i) => (
-                <JarvisReceipt
-                  key={a.toolUseId || `${turn.id}-action-${i}`}
-                  action={a}
-                  variant={turn.textDelta ? "compact" : "default"}
-                  onUndo={
-                    // Capability-based gate: only pass onUndo when the action
-                    // carries inversion data (before/snapshot/id). find_*,
-                    // remember_fact, and ask_clarification never have inversion
-                    // data, so they silently receive undefined.
-                    onUndoAction && isUndoable(a)
-                      ? () => onUndoAction(turn.id, a)
-                      : undefined
-                  }
-                />
-              ))}
-              {turn.status === "error" ? (
-                <div
-                  className="text-xs font-mono mt-1"
-                  style={{ color: "var(--ink-coral)" }}
-                >
-                  {turn.errorMessage}
+                      {/* Phase 6.1 Plan 02 (UI-SPEC §6b state 7): one-shot scan
+                          reveal on the streaming→done transition. */}
+                      <ScanRevealOverlay status={turn.status} />
+
+                      {/* Phase 5.1 D-A2 / JARVIS-19: clarification receipt renders
+                          AFTER prose text and BEFORE action receipts per spec. */}
+                      {turn.clarification ? (
+                        <div className={turn.textDelta ? "mt-2" : ""}>
+                          <JarvisClarification
+                            clarification={turn.clarification}
+                            onReply={
+                              onClarificationReply
+                                ? (text) =>
+                                    onClarificationReply(turn.id, text)
+                                : undefined
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      {turn.actions.length > 0 ? (
+                        <div
+                          className={
+                            turn.textDelta || turn.clarification ? "mt-2" : ""
+                          }
+                        >
+                          {turn.actions.map((a, i) => (
+                            <JarvisReceipt
+                              key={a.toolUseId || `${turn.id}-action-${i}`}
+                              action={a}
+                              variant={turn.textDelta ? "compact" : "default"}
+                              onUndo={
+                                onUndoAction && isUndoable(a)
+                                  ? () => onUndoAction(turn.id, a)
+                                  : undefined
+                              }
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                      {turn.status === "error" ? (
+                        <div
+                          className="text-xs font-mono mt-2"
+                          style={{ color: "var(--ink-coral)" }}
+                        >
+                          {turn.errorMessage}
+                        </div>
+                      ) : null}
+                      {turn.status === "error" && onRetry ? (
+                        <button
+                          type="button"
+                          onClick={() => onRetry(turn.id)}
+                          className="mt-2 font-mono text-[12px] uppercase tracking-[0.06em] hover:opacity-80 transition-opacity"
+                          style={{ color: "var(--hud-cyan)" }}
+                        >
+                          ↺ Retry
+                        </button>
+                      ) : null}
+                    </motion.div>
+                    <div className="mt-1 ml-1">
+                      <TurnTimestamp createdAt={turn.createdAt} />
+                    </div>
+                  </div>
                 </div>
-              ) : null}
+              )}
             </div>
-          )}
-        </div>
           ))}
         </div>
       ))}
