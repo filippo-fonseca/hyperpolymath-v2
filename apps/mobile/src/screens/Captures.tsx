@@ -49,7 +49,6 @@ function relativeTime(iso: string): string {
 interface FormState {
   id: string | null;
   content: string;
-  hashtags: string; // space-separated, with or without #
 }
 
 export function CapturesScreen({ active }: { active: boolean }) {
@@ -86,18 +85,26 @@ export function CapturesScreen({ active }: { active: boolean }) {
     });
   }, [data, query, activeTag]);
 
-  const parseTags = (raw: string): string[] =>
-    raw
-      .split(/[\s,]+/)
-      .map((t) => t.trim().replace(/^#/, ""))
-      .filter(Boolean)
-      .slice(0, 20);
+  // Extract inline #hashtags from the capture text, mirroring the web composer
+  // (CAPT-08): #word not preceded by a letter/number/underscore; first-seen
+  // casing wins, server lowercases for canonical storage.
+  const extractHashtags = (text: string): string[] => {
+    const re = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
+    const seen = new Map<string, string>();
+    for (const m of text.matchAll(re)) {
+      const raw = m[1];
+      if (!raw) continue;
+      const lower = raw.toLowerCase();
+      if (!seen.has(lower)) seen.set(lower, raw);
+    }
+    return [...seen.values()].slice(0, 20);
+  };
 
   const save = async () => {
     if (!form || !form.content.trim()) return;
     const payload = {
       content: form.content.trim(),
-      hashtagNames: parseTags(form.hashtags),
+      hashtagNames: extractHashtags(form.content),
     };
     const id = form.id;
     setForm(null);
@@ -202,19 +209,12 @@ export function CapturesScreen({ active }: { active: boolean }) {
           <Pressable
             key={c.id}
             onPress={() =>
-              setForm({
-                id: c.id,
-                content: c.content,
-                hashtags: c.hashtags.map((h) => `#${h.displayName}`).join(" "),
-              })
+              setForm({ id: c.id, content: c.content })
             }
             style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
           >
             <Text style={styles.content}>{c.content}</Text>
             <View style={styles.metaRow}>
-              {c.hashtags.length ? (
-                <Text style={styles.tags}>#{c.hashtags.map((h) => h.displayName).join(" #")}</Text>
-              ) : null}
               <Text style={styles.time}>
                 {relativeTime(c.createdAt)}
                 {c.sourceDevice ? ` · ${c.sourceDevice}` : ""}
@@ -226,7 +226,7 @@ export function CapturesScreen({ active }: { active: boolean }) {
         <View style={{ height: 90 }} />
       </ScrollView>
 
-      <Fab onPress={() => setForm({ id: null, content: "", hashtags: "" })} />
+      <Fab onPress={() => setForm({ id: null, content: "" })} />
 
       <FormSheet
         visible={form !== null}
@@ -241,15 +241,9 @@ export function CapturesScreen({ active }: { active: boolean }) {
             <Field
               value={form.content}
               onChangeText={(content) => setForm({ ...form, content })}
-              placeholder="What's on your mind?"
+              placeholder="What's on your mind? Use #tags inline"
               multiline
               autoFocus={!form.id}
-            />
-            <FieldLabel>HASHTAGS</FieldLabel>
-            <Field
-              value={form.hashtags}
-              onChangeText={(hashtags) => setForm({ ...form, hashtags })}
-              placeholder="#idea #books"
             />
             {form.id ? (
               <Pressable
