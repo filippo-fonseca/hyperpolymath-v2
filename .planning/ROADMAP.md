@@ -54,6 +54,7 @@ Phases 21–32 overhaul the Pages feature (renamed **Wiki**) and bring JARVIS in
 - [ ] **Phase 30: Page of the Day / Daily Pages** - Toggleable Daily Pages section with Journal-style calendar; auto-create one dated page per day (idempotent); "Daily Page" pill; an automatic "process this page" JARVIS button (Daily Pages only) that runs the whole page through the shared engine — supersedes Morning Dump (#69/#32/#33).
 - [ ] **Phase 31: In-document @JARVIS engine integration** - Inline invocation runs the SAME engine (`jarvis-core` tools + `createServerExecutor` + `runJarvisTurnStream` / `/api/jarvis`); scope resolver (whole page / section / block / sub-block, block-first); page content as context; persists a real `jarvis_turns` turn with receipts + 5s undo.
 - [ ] **Phase 32: In-document @JARVIS inline UX** - `@` autocomplete dropdown (`@J`+Enter); neumorphic mono pill, Cmd+Enter to submit; loading → receipt transform; hover tooltip with original prompt; `/Jarvis` slash entry with logo; nav-bar hide-receipts toggle; receipts always excluded from exports.
+- [ ] **Phase 33: JARVIS page UI redesign + cmd+K reliability** - Full visual overhaul of the JARVIS tab (chat bubbles, receipts, composer, streaming indicator) to "Apple Messages × JARVIS × Sunday Robotics" glassy aesthetic; fix cmd+K palette messages aborting on navigation; add 5s undo and retry for cmd+K-initiated messages.
 
 ## Phase Details
 
@@ -711,6 +712,23 @@ Plans:
   3. `/Jarvis` invokes from the slash menu; the nav-bar toggle hides receipts and exports never contain them
 **Plans**: TBD (`/gsd:plan-phase 32`)
 
+### Phase 33: JARVIS page UI redesign + cmd+K reliability
+
+**Goal**: Two coupled deliverables. (1) Full visual overhaul of the JARVIS tab page — chat bubbles, receipts, composer, streaming indicator — to a "Apple Messages × JARVIS × Sunday Robotics" glassy aesthetic: clean neumorphic surfaces using the existing `.glass-tile` / `.glass-button` tokens, cyan accent, iMessage-style bubble layout with HUD sensibility, sleek inline receipt cards (not heavy boxes). (2) Fix issue #172: cmd+K palette messages abort when the user navigates away; after the fix, messages complete regardless of navigation, appear in the JARVIS tab conversation with the standard 5s undo, and are retry-able if anything goes wrong.
+**Depends on**: Phase 5, Phase 5.1, Phase 6.2 (glass token system), Phase 16 (session memory + CRUD)
+**Requirements**: JAR-UI-01, JAR-UI-02, JAR-UI-03, JAR-UI-04, JAR-UI-05, JAR-REL-01, JAR-REL-02, JAR-REL-03, JAR-REL-04
+**Success Criteria**:
+  1. The JARVIS tab renders with glass-surface bubbles, cyan accent glows on Jarvis messages, and a sleek composer — visually indistinguishable from "Apple Messages × HUD" at a glance
+  2. Receipts render as slim inline cards with a subtle glass inset, not heavy border boxes
+  3. A message sent from ⌘K completes even if the user navigates away before the response arrives
+  4. After ⌘K submission, the user can switch to the JARVIS tab and see the in-flight or completed turn with the standard 5s undo countdown
+  5. If a message aborted for any reason, a retry button is visible on the failed turn bubble
+**Plans**: 3 plans
+Plans:
+- [ ] 33-01-PLAN.md — cmd+K reliability: sessionStorage handoff + GlobalJarvisHandler hardening
+- [ ] 33-02-PLAN.md — Bubble layout rearchitecture + glass composer + hud-focus-breathe fix
+- [ ] 33-03-PLAN.md — Dead-code cleanup, split-screen ambient fix, full-path checkpoint
+
 ## Progress
 
 **Execution Order:**
@@ -753,6 +771,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 6.1
 | 30. Page of the Day / Daily Pages | 0/TBD | Not started | - |
 | 31. In-document @JARVIS engine integration | 0/TBD | Not started | - |
 | 32. In-document @JARVIS inline UX | 0/TBD | Not started | - |
+| 33. JARVIS page UI redesign + cmd+K reliability | 0/TBD | Not started | - |
 
 ## Backlog
 
