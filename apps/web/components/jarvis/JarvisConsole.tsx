@@ -1200,6 +1200,23 @@ export function JarvisConsole({
           onUndoAction={handleUndoAction}
           onClarificationReply={handleClarificationReply}
           scrollToTurnId={messageId}
+          // Phase 33 Plan 02 — re-submit the user turn that preceded the
+          // errored assistant turn so the user can retry from the bubble.
+          onRetry={(turnId) => {
+            const allTurns = turnsRef.current;
+            const idx = allTurns.findIndex((t) => t.id === turnId);
+            const userTurn = idx > 0 ? allTurns[idx - 1] : null;
+            if (userTurn && userTurn.kind === "user") {
+              void handleSubmit({
+                input: userTurn.text,
+                parsedDates: [],
+                parsedPriority: null,
+                slashCommand: null,
+                projectIds: [],
+                hashtags: [],
+              });
+            }
+          }}
           hasMore={hasMore}
           loadingOlder={loadingOlder}
           onLoadOlder={async () => {
@@ -1224,7 +1241,19 @@ export function JarvisConsole({
           }}
         />
       </div>
-      <div className="relative z-10 border-t bg-card px-6 py-3">
+      {/* Phase 33 Plan 02 — glass composer strip. Replaces the flat bg-card +
+          default border-t with a translucent surface + 12px backdrop blur so
+          the strip belongs to the same glass register as the JARVIS bubbles. */}
+      <div
+        className="relative z-10 border-t px-6 py-3"
+        style={{
+          backgroundColor: "var(--glass-bg)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderTopColor:
+            "color-mix(in oklch, var(--edge-hud) 60%, transparent)",
+        }}
+      >
         <JarvisInput
           ref={jarvisInputRef}
           userTimezone={userTimezone}
