@@ -1,10 +1,7 @@
 "use client";
 
 import { Calendar, FileText, ListTodo, NotebookPen, PencilLine } from "lucide-react";
-import { useRouter } from "next/navigation";
 
-import { createCapture } from "@/app/actions/captures";
-import { createPage } from "@/app/actions/pages";
 import {
   CommandEmpty,
   CommandGroup,
@@ -12,6 +9,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { useQuickCreateActions } from "@/components/shell/useQuickCreateActions";
 
 interface Props {
   /** Live text typed into the palette's CommandInput (controlled upstream). */
@@ -22,16 +20,6 @@ interface Props {
   onCompose: () => void;
 }
 
-// Pull #hashtags out of free text so a quick capture typed straight into the
-// palette links its tags, mirroring how the /captures composer extracts them.
-function extractHashtags(text: string): string[] {
-  const out = new Set<string>();
-  for (const m of text.matchAll(/#([\p{L}\p{N}_-]+)/gu)) {
-    out.add(m[1].toLowerCase());
-  }
-  return Array.from(out);
-}
-
 /**
  * Contents of the Cmd+Shift+K command palette (issue #161).
  *
@@ -40,31 +28,33 @@ function extractHashtags(text: string): string[] {
  * command opens/navigates to that feature. Free text additionally surfaces a
  * "Capture …" item so a thought (with inline #hashtags) can be written straight
  * from the palette without leaving for /captures first.
+ *
+ * The create logic (createPage, createCapture, route navigations) is sourced
+ * from the shared useQuickCreateActions hook so this palette and the Cmd+K
+ * JARVIS dialog stay in lockstep. The cmdk markup (value strings, keywords,
+ * shortcuts, the compose path, the free-text Capture item) is unchanged.
  */
 export function CommandMenuContent({ search, onRun, onCompose }: Props) {
-  const router = useRouter();
   const trimmed = search.trim();
+  // onCompose wires "New quick capture" to this palette's composer mode.
+  const { actions, captureText } = useQuickCreateActions({ onCompose });
 
-  function go(href: string) {
-    onRun();
-    router.push(href);
+  const byId = (id: string) => actions.find((a) => a.id === id);
+
+  // Wrap a create action so the palette closes first (the compose path keeps the
+  // palette open, so it is wired to onCompose directly below instead).
+  function runAndClose(id: string) {
+    return () => {
+      onRun();
+      void byId(id)?.run();
+    };
   }
 
-  async function newPage() {
+  function runCaptureText() {
+    const ct = captureText(trimmed);
+    if (!ct) return;
     onRun();
-    const r = await createPage({ id: crypto.randomUUID(), title: "", content: "" });
-    if (r.success) router.push(`/wiki/${r.data.id}`);
-  }
-
-  async function captureText() {
-    if (!trimmed) return;
-    onRun();
-    await createCapture({
-      id: crypto.randomUUID(),
-      content: trimmed,
-      hashtagNames: extractHashtags(trimmed),
-    });
-    router.push("/captures");
+    void ct.run();
   }
 
   return (
@@ -86,7 +76,7 @@ export function CommandMenuContent({ search, onRun, onCompose }: Props) {
         <CommandItem
           value="new task todo to-do"
           keywords={["task", "todo", "to-do"]}
-          onSelect={() => go("/tasks?create=now")}
+          onSelect={runAndClose("new-task")}
         >
           <ListTodo />
           <span>New task</span>
@@ -95,7 +85,7 @@ export function CommandMenuContent({ search, onRun, onCompose }: Props) {
         <CommandItem
           value="new page wiki doc document"
           keywords={["page", "wiki", "doc", "document"]}
-          onSelect={newPage}
+          onSelect={runAndClose("new-page")}
         >
           <FileText />
           <span>New page</span>
@@ -104,7 +94,7 @@ export function CommandMenuContent({ search, onRun, onCompose }: Props) {
         <CommandItem
           value="new event calendar meeting"
           keywords={["event", "calendar", "meeting", "cal"]}
-          onSelect={() => go("/calendar?create=now")}
+          onSelect={runAndClose("new-event")}
         >
           <Calendar />
           <span>New event</span>
@@ -114,7 +104,7 @@ export function CommandMenuContent({ search, onRun, onCompose }: Props) {
 
       {trimmed.length > 0 && (
         <CommandGroup heading="Capture">
-          <CommandItem value={`__capture__ ${trimmed}`} forceMount onSelect={captureText}>
+          <CommandItem value={`__capture__ ${trimmed}`} forceMount onSelect={runCaptureText}>
             <PencilLine />
             <span>
               Capture <span className="italic">“{trimmed}”</span>
