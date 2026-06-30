@@ -59,11 +59,7 @@ import {
   listEvents,
   patchEvent,
 } from "@/lib/gcal/events";
-import {
-  GcalNotConnectedError,
-  GcalTokenRevokedError,
-  getValidGcalToken,
-} from "@/lib/gcal/token";
+import { GcalNotConnectedError, GcalTokenRevokedError, getValidGcalToken } from "@/lib/gcal/token";
 import type {
   ActionExecutor,
   AskClarificationAction,
@@ -86,10 +82,7 @@ import type {
   UpdateEventAction,
   UpdateTaskAction,
 } from "@hyperpolymath/jarvis-core";
-import {
-  validateCalendarId,
-  validateProjectIds,
-} from "./validate-references";
+import { validateCalendarId, validateProjectIds } from "./validate-references";
 
 /**
  * Phase 5.1 D-P2 #3 / JARVIS-21 — check if all model-emitted project_ids
@@ -100,7 +93,7 @@ import {
  */
 async function resolveProjectIds(
   ctx: ExecutionContext,
-  projectIds: string[] | undefined,
+  projectIds: string[] | undefined
 ): Promise<Awaited<ReturnType<typeof validateProjectIds>>> {
   if (!projectIds || projectIds.length === 0) {
     return { ok: true, ids: [], rejected: [] };
@@ -126,17 +119,14 @@ function dateInUserTz(iso: string, tz: string): string {
 
 export function createServerExecutor(): ActionExecutor {
   return {
-    async createTask(
-      input: CreateTaskAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async createTask(input: CreateTaskAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       // Unknown/hallucinated project IDs are DROPPED, not fatal (2026-06-11):
       // the task still lands, just unassigned — failing the whole action left
       // the user with nothing. projectCheck.ids is the validated-owned subset.
       const projectCheck = await resolveProjectIds(ctx, input.project_ids);
       if (projectCheck.rejected.length > 0) {
         console.warn(
-          `[jarvis] createTask: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`,
+          `[jarvis] createTask: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`
         );
       }
 
@@ -165,7 +155,7 @@ export function createServerExecutor(): ActionExecutor {
                 taskId,
                 projectId: pid,
                 userId: ctx.userId, // denormalized for RLS perf (D-03)
-              })),
+              }))
             );
           }
         });
@@ -179,9 +169,7 @@ export function createServerExecutor(): ActionExecutor {
             // No-date → Inbox (D-02 / I-7): an undated task carries NO due on
             // the receipt and sets `inbox: true` so the formatter renders
             // "Added to your Inbox." instead of synthesizing a today date.
-            due: input.due
-              ? dateInUserTz(input.due, ctx.userTimezone)
-              : undefined,
+            due: input.due ? dateInUserTz(input.due, ctx.userTimezone) : undefined,
             inbox: !input.due,
             project_ids: projectCheck.ids,
             voice_summary: input.voice_summary,
@@ -198,13 +186,13 @@ export function createServerExecutor(): ActionExecutor {
 
     async createCapture(
       input: CreateCaptureAction,
-      ctx: ExecutionContext,
+      ctx: ExecutionContext
     ): Promise<ExecutorResult> {
       // Same drop-don't-fail policy as createTask — see comment there.
       const projectCheck = await resolveProjectIds(ctx, input.project_ids);
       if (projectCheck.rejected.length > 0) {
         console.warn(
-          `[jarvis] createCapture: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`,
+          `[jarvis] createCapture: dropping unknown project ids: ${projectCheck.rejected.join(", ")}`
         );
       }
 
@@ -240,7 +228,7 @@ export function createServerExecutor(): ActionExecutor {
                 captureId,
                 projectId: pid,
                 userId: ctx.userId,
-              })),
+              }))
             );
           }
         });
@@ -269,10 +257,7 @@ export function createServerExecutor(): ActionExecutor {
       }
     },
 
-    async createEvent(
-      input: CreateEventAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async createEvent(input: CreateEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const calCheck = await validateCalendarId(ctx.userId, input.calendar_id);
       if (!calCheck.ok || !calCheck.calendarId) {
         return {
@@ -333,7 +318,7 @@ export function createServerExecutor(): ActionExecutor {
      */
     async askClarification(
       input: AskClarificationAction,
-      _ctx: ExecutionContext,
+      _ctx: ExecutionContext
     ): Promise<ExecutorResult> {
       return {
         ok: true,
@@ -357,10 +342,7 @@ export function createServerExecutor(): ActionExecutor {
      *   4. Fact is inserted IMMEDIATELY — the 10s countdown is the user's undo
      *      window (mirrors Phase 5's 5s undo pattern for create_task/capture).
      */
-    async rememberFact(
-      input: RememberFactAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async rememberFact(input: RememberFactAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       try {
         const now = new Date();
         const [row] = await db
@@ -415,16 +397,14 @@ export function createServerExecutor(): ActionExecutor {
     // This is RLS-equivalent ownership re-verification at the executor boundary.
     // -------------------------------------------------------------------------
 
-    async updateTask(
-      input: UpdateTaskAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async updateTask(input: UpdateTaskAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       // Strict tool use sends ALL fields; null means "not changing" (the 24-optional
       // grammar limit forces nullable-required schemas). "" clears clearable fields.
       const set: Partial<typeof tasks.$inferInsert> = {};
       if (input.title != null) set.title = input.title;
       // `description` maps to tasks.notes column — tasks table has no description column
-      if (input.description != null) set.notes = input.description === "" ? null : input.description;
+      if (input.description != null)
+        set.notes = input.description === "" ? null : input.description;
       if (input.priority != null) set.priority = input.priority;
       if (input.status != null) set.status = input.status;
       if (input.due != null) {
@@ -436,7 +416,13 @@ export function createServerExecutor(): ActionExecutor {
       // We only include the keys present in `set` (excluding updatedAt) so the
       // undo payload is a minimal diff, not the full row.
       let beforeSnapshot: Record<string, unknown> = {};
-      let rows: { id: string; title: string; status: string; priority: string; dueDate: string | null }[] = [];
+      let rows: {
+        id: string;
+        title: string;
+        status: string;
+        priority: string;
+        dueDate: string | null;
+      }[] = [];
 
       const result = await db.transaction(async (tx) => {
         const existing = await tx
@@ -492,10 +478,7 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async deleteTask(
-      input: DeleteTaskAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async deleteTask(input: DeleteTaskAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const rows = await db
         .delete(tasks)
         .where(and(eq(tasks.id, input.id), eq(tasks.userId, ctx.userId)))
@@ -513,7 +496,7 @@ export function createServerExecutor(): ActionExecutor {
 
     async updateCapture(
       input: UpdateCaptureAction,
-      ctx: ExecutionContext,
+      ctx: ExecutionContext
     ): Promise<ExecutorResult> {
       const set: Partial<typeof captures.$inferInsert> = {};
       if (input.content != null) set.content = input.content;
@@ -561,7 +544,7 @@ export function createServerExecutor(): ActionExecutor {
 
     async deleteCapture(
       input: DeleteCaptureAction,
-      ctx: ExecutionContext,
+      ctx: ExecutionContext
     ): Promise<ExecutorResult> {
       const rows = await db
         .delete(captures)
@@ -583,10 +566,7 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async findTasks(
-      input: FindTasksAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async findTasks(input: FindTasksAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const conditions = [eq(tasks.userId, ctx.userId)];
       if (input.query) {
         conditions.push(ilike(tasks.title, `%${input.query}%`));
@@ -615,10 +595,7 @@ export function createServerExecutor(): ActionExecutor {
       return { ok: true, id: "find_tasks", receipt: { matches: rows } };
     },
 
-    async findCaptures(
-      input: FindCapturesAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async findCaptures(input: FindCapturesAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const conditions = [eq(captures.userId, ctx.userId)];
       if (input.query) {
         conditions.push(ilike(captures.content, `%${input.query}%`));
@@ -641,10 +618,7 @@ export function createServerExecutor(): ActionExecutor {
       return { ok: true, id: "find_captures", receipt: { matches: rows } };
     },
 
-    async updateEvent(
-      input: UpdateEventAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async updateEvent(input: UpdateEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       try {
         const cal = await getValidGcalToken(ctx.userId);
         const patch: Partial<import("googleapis").calendar_v3.Schema$Event> = {};
@@ -686,8 +660,9 @@ export function createServerExecutor(): ActionExecutor {
           return { ok: false, kind: "revoked", error: "Google Calendar access revoked" };
         }
         // 404 from getEvent — event not found
-        const code = (err as { code?: number; status?: number } | null)?.code
-          ?? (err as { code?: number; status?: number } | null)?.status;
+        const code =
+          (err as { code?: number; status?: number } | null)?.code ??
+          (err as { code?: number; status?: number } | null)?.status;
         if (code === 404 || code === 410) {
           return { ok: false, kind: "not_found", error: "Event not found" };
         }
@@ -695,10 +670,7 @@ export function createServerExecutor(): ActionExecutor {
       }
     },
 
-    async deleteEvent(
-      input: DeleteEventAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async deleteEvent(input: DeleteEventAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       try {
         const cal = await getValidGcalToken(ctx.userId);
 
@@ -710,7 +682,9 @@ export function createServerExecutor(): ActionExecutor {
           const { data } = await gcalGetEvent(cal, input.calendar_id, input.id);
           // Strip auto-assigned fields that would break re-insert
           const { etag, htmlLink, iCalUID, ...rest } = data as Record<string, unknown>;
-          void etag; void htmlLink; void iCalUID;
+          void etag;
+          void htmlLink;
+          void iCalUID;
           snapshot = rest;
         } catch {
           // 404 / 410 — snapshot unavailable; proceed with delete
@@ -738,10 +712,7 @@ export function createServerExecutor(): ActionExecutor {
       }
     },
 
-    async findEvents(
-      input: FindEventsAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async findEvents(input: FindEventsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       try {
         const cal = await getValidGcalToken(ctx.userId);
         // Phase 16 Open Question 3: search the default calendar only for MVP.
@@ -782,10 +753,7 @@ export function createServerExecutor(): ActionExecutor {
     // ctx.userId via the helpers in app/actions/people.ts.
     // -------------------------------------------------------------------------
 
-    async createPerson(
-      input: CreatePersonAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async createPerson(input: CreatePersonAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const name = input.name.trim();
       if (!name) {
         return { ok: false, kind: "validation", error: "Person name is required" };
@@ -825,10 +793,7 @@ export function createServerExecutor(): ActionExecutor {
       }
     },
 
-    async findPeople(
-      input: FindPeopleAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async findPeople(input: FindPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       // getPeopleForUser returns the full name-sorted roster with reference
       // counts. For MVP scale (single user, hundreds of people) we filter in JS
       // by a case-insensitive substring rather than adding a dedicated query.
@@ -838,7 +803,7 @@ export function createServerExecutor(): ActionExecutor {
         ? roster.filter(
             (person) =>
               person.name.toLowerCase().includes(q) ||
-              person.tags.some((tag) => tag.toLowerCase().includes(q)),
+              person.tags.some((tag) => tag.toLowerCase().includes(q))
           )
         : roster;
       const matches = filtered.slice(0, 10).map((person) => ({
@@ -850,10 +815,7 @@ export function createServerExecutor(): ActionExecutor {
       return { ok: true, id: "find_people", receipt: { matches } };
     },
 
-    async linkPeople(
-      input: LinkPeopleAction,
-      ctx: ExecutionContext,
-    ): Promise<ExecutorResult> {
+    async linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult> {
       const fromType = input.from_type as PersonRefFromType;
       const fromId = input.from_id.trim();
       if (!fromId) {
@@ -881,8 +843,8 @@ export function createServerExecutor(): ActionExecutor {
               and(
                 eq(peopleReferences.userId, ctx.userId),
                 eq(peopleReferences.fromType, fromType),
-                eq(peopleReferences.fromId, fromId),
-              ),
+                eq(peopleReferences.fromId, fromId)
+              )
             )
         ).map((r) => r.personId);
 
