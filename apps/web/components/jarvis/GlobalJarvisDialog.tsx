@@ -155,8 +155,11 @@ export function GlobalJarvisDialog() {
         return false;
       }
       if (e.key === "Escape") {
-        // First Escape clears the list/term; second closes the overlay.
-        if (hasItems || focusedIndex >= 0) {
+        // First Escape clears the typed term / focus; second closes the overlay.
+        // The core actions show even with an empty term, so don't claim Escape
+        // just because they're visible: only claim when there's something to
+        // clear (a typed term or a focused row), else fall through to close.
+        if (term.trim().length > 0 || focusedIndex >= 0) {
           e.preventDefault();
           clear();
           setFocusedIndex(-1);
@@ -166,7 +169,7 @@ export function GlobalJarvisDialog() {
       }
       return false;
     },
-    [combinedLength, focusedIndex, visibleActions, flat, navigate, runAction, clear]
+    [combinedLength, focusedIndex, visibleActions, flat, navigate, runAction, clear, term]
   );
 
   const composer = (
