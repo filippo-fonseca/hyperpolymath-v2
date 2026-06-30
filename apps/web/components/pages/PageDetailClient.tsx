@@ -46,10 +46,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { DAILY_PAGE_PROCESS_PROMPT } from "@/lib/jarvis/daily-page-process";
 import type { ResolverBlock } from "@/lib/jarvis/scope-resolver";
 import { computeBlockHashes, diffBlockHashes } from "@/lib/pages/block-hash";
-import {
-  getLatestProcessingRun,
-  recordProcessingRun,
-} from "@/app/actions/page-processing";
+import { getLatestProcessingRun, recordProcessingRun } from "@/app/actions/page-processing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -260,10 +257,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
       const blockHashes = computeBlockHashes(editor.document);
       const lastRun = await getLatestProcessingRun(initialPage.id);
       const isFirstRun = lastRun === null;
-      const { changedBlockIds } = diffBlockHashes(
-        lastRun?.blockHashes ?? null,
-        blockHashes,
-      );
+      const { changedBlockIds } = diffBlockHashes(lastRun?.blockHashes ?? null, blockHashes);
 
       // Re-process with nothing changed: skip the model call, but still record
       // the snapshot so history shows the no-op and the baseline stays current.
@@ -421,6 +415,26 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [searchOpen]);
+
+  // Cmd+Enter / Ctrl+Enter runs the same "process this page" action as the
+  // Daily Page button. Scoped to Daily Pages, and only when focus is inside this
+  // page island so it never fires from elsewhere in the app. The in-editor
+  // JARVIS prompt pill stops propagation on its own Cmd+Enter, so typing there
+  // won't reach this window listener.
+  useEffect(() => {
+    if (!isDailyPage) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!((e.metaKey || e.ctrlKey) && e.key === "Enter")) return;
+      const root = editorContainerRef.current?.closest("[data-page-island]");
+      const active = document.activeElement;
+      const focusInside = active instanceof Node && root?.contains(active);
+      if (!focusInside) return;
+      e.preventDefault();
+      void handleProcessDailyPage();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDailyPage, handleProcessDailyPage]);
 
   function handleEditorChange(json: unknown, markdown: string) {
     setContentJson(json);
