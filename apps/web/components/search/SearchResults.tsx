@@ -19,6 +19,12 @@ interface Props {
   onSelect: (entry: SearchEntry) => void;
   registerItemRef: (index: number, el: HTMLButtonElement | null) => void;
   variant?: "full" | "compact";
+  /**
+   * Shifts the indices used for focus + ref registration. Lets a host place
+   * other focusable rows (e.g. quick-create actions) ahead of the results under
+   * one shared focusedIndex. Defaults to 0 (results start the list).
+   */
+  indexOffset?: number;
 }
 
 /** Flat, ordered list of visible entries (used by the parent for keyboard nav). */
@@ -50,8 +56,10 @@ export function SearchResults({
   onSelect,
   registerItemRef,
   variant = "full",
+  indexOffset = 0,
 }: Props) {
-  let runningIndex = -1;
+  // Start one below the offset so the first entry lands at exactly indexOffset.
+  let runningIndex = indexOffset - 1;
 
   return (
     <div className={variant === "compact" ? "flex flex-col gap-3" : "flex flex-col gap-6"}>

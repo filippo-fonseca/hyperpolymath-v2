@@ -69,13 +69,25 @@ interface Props {
   focusedIndex: number;
   onSelect: (entry: SearchEntry) => void;
   registerItemRef: (index: number, el: HTMLButtonElement | null) => void;
+  /**
+   * Offset applied to result indices so the host can share one focusedIndex
+   * across rows that precede the results (e.g. quick-create actions).
+   */
+  indexOffset?: number;
 }
 
 /**
  * Compact, non-blocking search dropdown anchored below the Cmd+K composer.
  * Absolutely positioned so it never shifts the input (opacity-only fade-in).
  */
-export function SearchDropdown({ results, query, focusedIndex, onSelect, registerItemRef }: Props) {
+export function SearchDropdown({
+  results,
+  query,
+  focusedIndex,
+  onSelect,
+  registerItemRef,
+  indexOffset = 0,
+}: Props) {
   const reduceMotion = useReducedMotion();
   if (results.total === 0) return null;
 
@@ -95,6 +107,7 @@ export function SearchDropdown({ results, query, focusedIndex, onSelect, registe
           onSelect={onSelect}
           registerItemRef={registerItemRef}
           variant="compact"
+          indexOffset={indexOffset}
         />
       </div>
       <div className="flex items-center gap-1.5 border-t border-[var(--edge)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
