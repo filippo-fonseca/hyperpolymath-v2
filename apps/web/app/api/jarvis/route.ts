@@ -67,10 +67,12 @@ interface JarvisRequestBody {
   // content remains valid for plain text turns (backward-compatible widening).
   history: Array<{
     role: "user" | "assistant";
-    content: string | Array<{
-      type: "text" | "tool_use" | "tool_result";
-      [key: string]: unknown;
-    }>;
+    content:
+      | string
+      | Array<{
+          type: "text" | "tool_use" | "tool_result";
+          [key: string]: unknown;
+        }>;
   }>;
   parsedDates?: Array<{
     text: string;
@@ -82,6 +84,7 @@ interface JarvisRequestBody {
   slashCommand?: "task" | "capture" | "event" | "ask" | "help" | null;
   linkedProjectIds?: string[];
   linkedHashtags?: string[];
+  linkedPeople?: Array<{ id: string; name: string }>;
 }
 
 export async function POST(req: NextRequest) {
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
   if (!rl.ok) {
     return NextResponse.json(
       { error: "rate_limited" },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
     );
   }
 
@@ -112,10 +115,7 @@ export async function POST(req: NextRequest) {
     anthropicKey = await getUserKey(userId, "anthropic");
   } catch (e) {
     if (e instanceof MissingKeyError) {
-      return NextResponse.json(
-        { error: "key_missing", provider: e.provider },
-        { status: 402 },
-      );
+      return NextResponse.json({ error: "key_missing", provider: e.provider }, { status: 402 });
     }
     throw e;
   }
@@ -160,8 +160,7 @@ export async function POST(req: NextRequest) {
   //    (none)                     → auto-infer
   const META_QUESTION_RE =
     /^(what\s+(?:did|do|does|are|is|was|were|have|will)|did\s+(?:i|we|you)|do\s+(?:i|we|you)|have\s+(?:i|we|you)|show\s+me|tell\s+me|list\s+|summari[sz]e|recap|how\s+many|how\s+much)\b/i;
-  const bareMetaQuestion =
-    !body.slashCommand && META_QUESTION_RE.test(body.input.trim());
+  const bareMetaQuestion = !body.slashCommand && META_QUESTION_RE.test(body.input.trim());
   const askMode = body.slashCommand === "ask" || bareMetaQuestion;
   const isClarificationReply = body.input.trimStart().startsWith("[CLARIFICATION REPLY]");
 
@@ -184,7 +183,8 @@ export async function POST(req: NextRequest) {
   }
   if (
     (body.linkedProjectIds?.length ?? 0) > 0 ||
-    (body.linkedHashtags?.length ?? 0) > 0
+    (body.linkedHashtags?.length ?? 0) > 0 ||
+    (body.linkedPeople?.length ?? 0) > 0
   ) {
     const parts: string[] = [];
     if (body.linkedProjectIds && body.linkedProjectIds.length > 0) {
@@ -192,6 +192,9 @@ export async function POST(req: NextRequest) {
     }
     if (body.linkedHashtags && body.linkedHashtags.length > 0) {
       parts.push(`hashtags=${JSON.stringify(body.linkedHashtags)}`);
+    }
+    if (body.linkedPeople && body.linkedPeople.length > 0) {
+      parts.push(`people=${JSON.stringify(body.linkedPeople)}`);
     }
     userContent += `\n\n[Linked references in this message (client-validated): ${parts.join(", ")}]`;
   }
@@ -202,10 +205,7 @@ export async function POST(req: NextRequest) {
   const messages: Array<{
     role: "user" | "assistant";
     content: string | Array<{ type: "text" | "tool_use" | "tool_result"; [key: string]: unknown }>;
-  }> = [
-    ...body.history,
-    { role: "user", content: userContent },
-  ];
+  }> = [...body.history, { role: "user", content: userContent }];
 
   // 6. allDay lookup for receipt enrichment
   const parsedDateAllDayByIso = new Map<string, boolean>();
@@ -253,9 +253,7 @@ export async function POST(req: NextRequest) {
         },
         onClarification: (toolUseId, question, options, suggestedAction) => {
           controller.enqueue(
-            encoder.encode(
-              sse("clarification", { toolUseId, question, options, suggestedAction }),
-            ),
+            encoder.encode(sse("clarification", { toolUseId, question, options, suggestedAction }))
           );
         },
         onAction: (toolUseId, name, result) => {
@@ -274,9 +272,7 @@ export async function POST(req: NextRequest) {
               }
             }
           }
-          controller.enqueue(
-            encoder.encode(sse("action", { toolUseId, name, result })),
-          );
+          controller.enqueue(encoder.encode(sse("action", { toolUseId, name, result })));
         },
         onDone: (usage) => {
           controller.enqueue(encoder.encode(sse("done", { usage })));
