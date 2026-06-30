@@ -69,13 +69,33 @@ interface Props {
   focusedIndex: number;
   onSelect: (entry: SearchEntry) => void;
   registerItemRef: (index: number, el: HTMLButtonElement | null) => void;
+  /**
+   * Offset applied to result indices so the host can share one focusedIndex
+   * across rows that precede the results (e.g. quick-create actions).
+   */
+  indexOffset?: number;
+  /**
+   * Render in normal document flow instead of absolutely anchored below the
+   * composer. Used when the host stacks the dropdown under other rows (the
+   * quick-create actions list) inside its own positioned container.
+   */
+  inline?: boolean;
 }
 
 /**
  * Compact, non-blocking search dropdown anchored below the Cmd+K composer.
- * Absolutely positioned so it never shifts the input (opacity-only fade-in).
+ * Absolutely positioned so it never shifts the input (opacity-only fade-in),
+ * unless `inline` is set and the host owns the positioning.
  */
-export function SearchDropdown({ results, query, focusedIndex, onSelect, registerItemRef }: Props) {
+export function SearchDropdown({
+  results,
+  query,
+  focusedIndex,
+  onSelect,
+  registerItemRef,
+  indexOffset = 0,
+  inline = false,
+}: Props) {
   const reduceMotion = useReducedMotion();
   if (results.total === 0) return null;
 
@@ -84,7 +104,11 @@ export function SearchDropdown({ results, query, focusedIndex, onSelect, registe
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg"
+      className={
+        inline
+          ? "overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg"
+          : "absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg"
+      }
     >
       <div className="max-h-[340px] overflow-y-auto p-2">
         <SearchResults
@@ -95,6 +119,7 @@ export function SearchDropdown({ results, query, focusedIndex, onSelect, registe
           onSelect={onSelect}
           registerItemRef={registerItemRef}
           variant="compact"
+          indexOffset={indexOffset}
         />
       </div>
       <div className="flex items-center gap-1.5 border-t border-[var(--edge)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
