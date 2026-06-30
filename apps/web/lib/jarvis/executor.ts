@@ -45,6 +45,7 @@ import {
   tasksProjects,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
+import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import {
   reconcilePersonReferencesForUser,
   resolveOrCreatePersonForUser,
@@ -243,6 +244,11 @@ export function createServerExecutor(): ActionExecutor {
             );
           }
         });
+        // Background auto-tagging (after the capture commits). Scheduled via
+        // after() inside the helper so it never delays the JARVIS turn; any
+        // explicit model-supplied hashtags are deduped against the DB so they
+        // are not re-applied. Realtime surfaces the result live.
+        scheduleAutoTagging(captureId, ctx.userId, input.content);
         return {
           ok: true,
           id: captureId,
