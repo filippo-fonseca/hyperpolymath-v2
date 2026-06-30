@@ -13,6 +13,7 @@ import {
   useQuickCreateActions,
   type QuickCreateAction,
 } from "@/components/shell/useQuickCreateActions";
+import { registerJarvisDialogClose } from "@/lib/jarvis/focus";
 import { cn } from "@/lib/utils";
 import type { SearchEntry } from "@/lib/search";
 
@@ -79,6 +80,15 @@ export function GlobalJarvisDialog() {
       setFocusedIndex(-1);
     }
   }, [open, clear]);
+
+  // Expose a closer to GlobalHotkeys while open so its quick-create shortcuts
+  // dismiss this dialog (matching the Arrow+Enter path). Only registered when
+  // open, so closed-dialog shortcuts stay unaffected.
+  useEffect(() => {
+    if (!open) return;
+    registerJarvisDialogClose(() => setOpen(false));
+    return () => registerJarvisDialogClose(null);
+  }, [open]);
 
   // Focus moves invalidate when the typed term changes.
   useEffect(() => {

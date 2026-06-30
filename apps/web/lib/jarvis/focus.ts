@@ -33,11 +33,25 @@
  *   - JarvisConsole unmounts → registerJarvisConsoleMounted(false)
  *   - GlobalJarvisHandler.handleVoiceTranscript → checks isJarvisConsoleMounted()
  *     and skips if true (JarvisConsole owns the pipeline when present).
+ *
+ * --- Cmd+K dialog close signal ---
+ *
+ * GlobalHotkeys owns the window-level quick-create shortcuts (Ctrl+Alt+C/T/E/P),
+ * but the Cmd+K dialog's open state lives in GlobalJarvisDialog, a sibling with
+ * no shared ancestor. Same singleton pattern: the dialog registers a closer
+ * while open, and GlobalHotkeys calls closeJarvisDialog() before running a
+ * shortcut so the shortcut path dismisses the dialog exactly like Arrow+Enter.
+ *
+ * Lifecycle:
+ *   - GlobalJarvisDialog open → registerJarvisDialogClose(() => setOpen(false))
+ *   - GlobalJarvisDialog closed → registerJarvisDialogClose(null)
+ *   - GlobalHotkeys quick-create shortcut → closeJarvisDialog() then runs action
  */
 type FocusFn = () => void;
 
 let _focusFn: FocusFn | null = null;
 let _consoleMounted = false;
+let _dialogCloseFn: FocusFn | null = null;
 
 export function registerJarvisFocus(fn: FocusFn | null): void {
   _focusFn = fn;
@@ -53,4 +67,12 @@ export function registerJarvisConsoleMounted(mounted: boolean): void {
 
 export function isJarvisConsoleMounted(): boolean {
   return _consoleMounted;
+}
+
+export function registerJarvisDialogClose(fn: FocusFn | null): void {
+  _dialogCloseFn = fn;
+}
+
+export function closeJarvisDialog(): void {
+  _dialogCloseFn?.();
 }
