@@ -7,25 +7,20 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import { createProjectSuggestion } from "./project-suggestions";
-import {
-  SlashCommandPopover,
-  SLASH_COMMANDS,
-  type SlashCommandKey,
-} from "./SlashCommandPopover";
-import {
-  buildJarvisInputPayload,
-  type JarvisInputPayload,
-} from "./jarvis-input-payload";
+import { createPersonSuggestion, type PersonSource } from "./person-suggestions";
+import { SlashCommandPopover, SLASH_COMMANDS, type SlashCommandKey } from "./SlashCommandPopover";
+import { buildJarvisInputPayload, type JarvisInputPayload } from "./jarvis-input-payload";
 import { registerJarvisFocus } from "@/lib/jarvis/focus";
 import { playSend } from "@/lib/ui/play-send";
 
 /**
  * JARVIS Console composer (Plan 05-03 Task 3).
  *
- * Mounts TWO Mention extension instances in the same TipTap editor:
+ * Mounts THREE Mention extension instances in the same TipTap editor:
  *   - `#hashtag`  → default Mention (node name "mention", reused from Phase 2)
  *   - `$project`  → Mention.extend({ name: "projectMention" })
- * Different node names let both popovers coexist without trigger collision.
+ *   - `@person`   → Mention.extend({ name: "personMention" })
+ * Different node names let all popovers coexist without trigger collision.
  *
  * Slash commands shape the request sent to Claude (forcing tool_choice).
  *   - /task | /capture | /event → server pins tool_choice to that tool
@@ -82,6 +77,13 @@ interface Props {
   userTimezone: string;
   getProjects: () => ProjectSource[];
   getHashtags: () => HashtagSource[];
+  /**
+   * `@person` autocomplete source. Called per keystroke with the current query
+   * so the menu lists matching people the user already has (mention-existing
+   * only — no inline create here; the captures composer owns that flow).
+   * Optional so any lightweight mount site can omit it and skip the menu.
+   */
+  getPeople?: (query: string) => Promise<PersonSource[]> | PersonSource[];
   onSubmit: (payload: JarvisInputPayload) => void;
   disabled?: boolean;
   /**
@@ -102,6 +104,7 @@ export function JarvisInput({
   userTimezone,
   getProjects,
   getHashtags,
+  getPeople,
   onSubmit,
   disabled,
   autoFocus,
@@ -116,8 +119,7 @@ export function JarvisInput({
   // remember the selection here. The next Enter submits the body with this
   // command as a slashCommandOverride. State (for UI chip) + Ref (for the
   // editor keyDown handler's closure, which freezes after editor mount).
-  const [pinnedSlashCommand, setPinnedSlashCommand] =
-    useState<SlashCommandKey | null>(null);
+  const [pinnedSlashCommand, setPinnedSlashCommand] = useState<SlashCommandKey | null>(null);
   const pinnedSlashCommandRef = useRef<SlashCommandKey | null>(null);
 
   // Phase 6.1 Plan 02 — 7-state JARVIS Console interaction machine.
@@ -137,11 +139,15 @@ export function JarvisInput({
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
 
-  // Memoize the extended Mention class so we don't recreate it on every render.
-  const ProjectMention = useMemo(
-    () => Mention.extend({ name: "projectMention" }),
-    [],
-  );
+  // Memoize the extended Mention classes so we don't recreate them on every render.
+  const ProjectMention = useMemo(() => Mention.extend({ name: "projectMention" }), []);
+  const PersonMention = useMemo(() => Mention.extend({ name: "personMention" }), []);
+
+  // `getPeople` is read inside the suggestion config, which TipTap freezes at
+  // editor-creation time. Route through a ref so live prop changes are seen
+  // without recreating the editor. Defaults to an empty list when omitted.
+  const getPeopleRef = useRef(getPeople);
+  getPeopleRef.current = getPeople;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -179,6 +185,19 @@ export function JarvisInput({
         },
         suggestion: createProjectSuggestion(getProjects),
       }),
+      PersonMention.configure({
+        HTMLAttributes: { class: "person-chip-inline" },
+        renderHTML({ options, node }) {
+          return [
+            "span",
+            { ...options.HTMLAttributes, "data-person": node.attrs.id },
+            `@${node.attrs.label}`,
+          ];
+        },
+        suggestion: createPersonSuggestion((query) =>
+          getPeopleRef.current ? getPeopleRef.current(query) : []
+        ),
+      }),
     ],
     editorProps: {
       attributes: {
@@ -195,30 +214,23 @@ export function JarvisInput({
         const text = _view.state.doc.textContent;
         const trimmed = text.trimStart();
         const slashIsOpen =
-          trimmed.startsWith("/") &&
-          !/\s/.test(trimmed.slice(1).split(/\s/)[0] ?? "");
+          trimmed.startsWith("/") && !/\s/.test(trimmed.slice(1).split(/\s/)[0] ?? "");
 
         // M3 + Bug 2 fix: explicit slash-popover keyboard branch
         if (slashIsOpen && slashOpen) {
           // Compute the filtered list from current slashQuery so Arrow nav
           // stays in bounds.
           const query = trimmed.slice(1).split(/\s/)[0] ?? "";
-          const filtered = SLASH_COMMANDS.filter((c) =>
-            c.key.startsWith(query.toLowerCase()),
-          );
+          const filtered = SLASH_COMMANDS.filter((c) => c.key.startsWith(query.toLowerCase()));
 
           if (event.key === "ArrowUp") {
             setSlashSelected((p) =>
-              filtered.length === 0
-                ? 0
-                : (p - 1 + filtered.length) % filtered.length,
+              filtered.length === 0 ? 0 : (p - 1 + filtered.length) % filtered.length
             );
             return true;
           }
           if (event.key === "ArrowDown") {
-            setSlashSelected((p) =>
-              filtered.length === 0 ? 0 : (p + 1) % filtered.length,
-            );
+            setSlashSelected((p) => (filtered.length === 0 ? 0 : (p + 1) % filtered.length));
             return true;
           }
           // Enter / Tab: PIN the chosen command + strip the slash prefix from
@@ -226,12 +238,8 @@ export function JarvisInput({
           // press Enter again to submit. (Pre-fix behaviour was: Enter on
           // slash popover submitted immediately with empty body, blocking
           // the user from typing the body at all.)
-          if (
-            (event.key === "Enter" && !event.shiftKey) ||
-            event.key === "Tab"
-          ) {
-            const picked =
-              filtered[Math.min(slashSelected, filtered.length - 1)];
+          if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+            const picked = filtered[Math.min(slashSelected, filtered.length - 1)];
             if (picked) {
               if (picked.key === "help") {
                 setShowHelp(true);
@@ -292,7 +300,7 @@ export function JarvisInput({
         editor?.commands.focus("end");
       },
     }),
-    [editor],
+    [editor]
   );
 
   // Phase 6 Plan 06-03 (AES-05, D-02): register a focus function at the
@@ -359,12 +367,7 @@ export function JarvisInput({
    */
   function submitFromView(text: string, json: unknown) {
     const override = pinnedSlashCommandRef.current;
-    const payload = buildJarvisInputPayload(
-      text,
-      json,
-      userTimezoneRef.current,
-      override,
-    );
+    const payload = buildJarvisInputPayload(text, json, userTimezoneRef.current, override);
     if (!payload) return;
     playSend();
     // Phase 6.1 Plan 02 — State 4 (submitting-ignite): trigger the 320ms
@@ -396,7 +399,7 @@ export function JarvisInput({
    */
   function pinSlashCommand(
     key: SlashCommandKey,
-    view?: { state: { doc: { textContent: string } } } | null,
+    view?: { state: { doc: { textContent: string } } } | null
   ) {
     pinnedSlashCommandRef.current = key;
     setPinnedSlashCommand(key);
@@ -406,8 +409,7 @@ export function JarvisInput({
     if (!editor) return;
     // Strip the `/<cmd>` prefix word from the current doc. Reading via the
     // view (when available) avoids `editor.getText()` staleness.
-    const current =
-      view?.state.doc.textContent ?? editor.getText();
+    const current = view?.state.doc.textContent ?? editor.getText();
     const stripped = current.replace(/^\s*\/\S*\s*/, "");
     editor.commands.setContent(stripped);
     // Move caret to end so the user can keep typing the body.
@@ -528,19 +530,18 @@ export function JarvisInput({
 
         <div className="flex items-center justify-between px-4 pb-2.5 pt-2 border-t border-[color-mix(in_oklch,var(--edge)_60%,transparent)]">
           <span className="font-sans text-[12px] text-[color-mix(in_oklch,var(--ink-muted)_85%,transparent)]">
-            Enter to send · <span className="font-mono text-[11px]">/</span>{" "}
-            commands · <span className="font-mono text-[11px]">$</span> projects
-            · <span className="font-mono text-[11px]">#</span> tags
+            Enter to send · <span className="font-mono text-[11px]">/</span> commands ·{" "}
+            <span className="font-mono text-[11px]">$</span> projects ·{" "}
+            <span className="font-mono text-[11px]">#</span> tags ·{" "}
+            <span className="font-mono text-[11px]">@</span> people
           </span>
           {/* ⌘K hint chip — cleaner pill, sentence-case-style label tucked
               behind the kbd glyph. Hidden below md per UI-SPEC §10c. */}
           <kbd
             className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-mono text-[var(--ink-muted)] select-none"
             style={{
-              border:
-                "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
-              backgroundColor:
-                "color-mix(in oklch, var(--surface) 92%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--edge) 70%, transparent)",
+              backgroundColor: "color-mix(in oklch, var(--surface) 92%, transparent)",
             }}
             aria-hidden="true"
             title="Focus JARVIS from anywhere"

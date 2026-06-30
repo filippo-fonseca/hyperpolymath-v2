@@ -4,15 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  streamJarvis,
-  type JarvisRequest,
-} from "./jarvis-stream-client";
+import { streamJarvis, type JarvisRequest } from "./jarvis-stream-client";
 import { useVoiceSettings } from "@/lib/voice/use-voice-settings";
 import { JarvisScrollback } from "./JarvisScrollback";
 import { JarvisInput, type JarvisInputHandle, type JarvisInputPayload } from "./JarvisInput";
 import type { ScrollbackAction, ScrollbackClarification, ScrollbackTurn } from "./jarvis-types";
 import { undoJarvisAction } from "@/app/actions/jarvis";
+import { searchPeopleForCurrentUser } from "@/app/actions/people";
 import { actionToUndoTarget } from "@/lib/jarvis/action-to-undo-target";
 // Phase 6.1 Plan 02 — JARVIS Console chrome (UI-SPEC §5a, §6d, §6e, §9f).
 // HudCornerCrops + HudEdgeInstrumentation come from Plan 01 (shared primitives
@@ -38,10 +36,7 @@ import { createClient } from "@/lib/supabase/client";
 // Phase 9 / TEL-01 — voice-stage collector binding. setActiveTurnId binds the
 // turnId returned by the server (SSE turn-start event); collectStage(vad_end_at)
 // then lands the LOCALLY-captured timestamp piped through the transcript event.
-import {
-  collectStage,
-  setActiveTurnId,
-} from "@/lib/voice/voice-stage-collector";
+import { collectStage, setActiveTurnId } from "@/lib/voice/voice-stage-collector";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import { registerJarvisConsoleMounted } from "@/lib/jarvis/focus";
 // Issue #149 — unread-badge bus. While a console is mounted-and-visible the
@@ -65,11 +60,9 @@ function persistTurn(turn: ScrollbackTurn): void {
     text: turn.kind === "user" ? turn.text : null,
     textDelta: turn.kind === "assistant" ? turn.textDelta : null,
     actions: turn.kind === "assistant" ? turn.actions : [],
-    clarification:
-      turn.kind === "assistant" ? turn.clarification ?? null : null,
+    clarification: turn.kind === "assistant" ? (turn.clarification ?? null) : null,
     status: turn.kind === "assistant" ? turn.status : null,
-    errorMessage:
-      turn.kind === "assistant" ? turn.errorMessage ?? null : null,
+    errorMessage: turn.kind === "assistant" ? (turn.errorMessage ?? null) : null,
     createdAt: turn.createdAt.toISOString(),
   }).catch((err) => {
     console.warn("[jarvis] persistTurn failed (non-fatal)", err);
@@ -116,8 +109,7 @@ function mapTurnRow(r: JarvisTurnRow): ScrollbackTurn {
     actions: (r.actions as ScrollbackAction[]) ?? [],
     status: (rawStatus as "done" | "error") ?? "done",
     errorMessage: r.errorMessage ?? undefined,
-    clarification:
-      (r.clarification as ScrollbackClarification | null) ?? undefined,
+    clarification: (r.clarification as ScrollbackClarification | null) ?? undefined,
     createdAt: new Date(r.createdAt),
   };
 }
@@ -206,8 +198,7 @@ export function JarvisConsole({
   // `isVoice` parameter; the derived flag below is now only a base capability
   // signal for components that need to know "is voice infra usable at all".
   const { settings: voiceSettings } = useVoiceSettings();
-  const voiceCapable =
-    voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
+  const voiceCapable = voiceSettings.voiceEnabled && !voiceSettings.discreetMode;
 
   // Phase 14-03: hard browser mic guard. When the desktop daemon holds a
   // fresh voice-source claim, the browser mic is fully suppressed at the
@@ -270,10 +261,7 @@ export function JarvisConsole({
     // Append-if-absent, update-if-present-and-not-streaming. Never clobber a
     // turn that is actively streaming (its local state is ahead of the DB),
     // then re-sort chronologically.
-    function mergeById(
-      prev: ScrollbackTurn[],
-      incoming: ScrollbackTurn[],
-    ): ScrollbackTurn[] {
+    function mergeById(prev: ScrollbackTurn[], incoming: ScrollbackTurn[]): ScrollbackTurn[] {
       const next = [...prev];
       const indexById = new Map(next.map((t, i) => [t.id, i] as const));
       for (const turn of incoming) {
@@ -318,7 +306,7 @@ export function JarvisConsole({
       },
       () => {
         void refreshAndMerge();
-      },
+      }
     );
 
     // The module-private _initRealtimeAuth in useTableSubscription is NOT
@@ -382,7 +370,13 @@ export function JarvisConsole({
     switch (action.name) {
       case "create_task":
       case "update_task":
-        return { id: (action.result as { id?: string })?.id ?? r.id, title: r.title, status: r.status, priority: r.priority, due: r.due };
+        return {
+          id: (action.result as { id?: string })?.id ?? r.id,
+          title: r.title,
+          status: r.status,
+          priority: r.priority,
+          due: r.due,
+        };
       case "delete_task":
         return { id: r.id ?? (action.result as { id?: string })?.id };
       case "create_capture":
@@ -392,7 +386,13 @@ export function JarvisConsole({
         return { id: r.id ?? (action.result as { id?: string })?.id };
       case "create_event":
       case "update_event":
-        return { id: (action.result as { id?: string })?.id ?? r.id, calendar_id: r.calendar_id, title: r.title, start: r.start, end: r.end };
+        return {
+          id: (action.result as { id?: string })?.id ?? r.id,
+          calendar_id: r.calendar_id,
+          title: r.title,
+          start: r.start,
+          end: r.end,
+        };
       case "delete_event":
         return { id: r.id ?? (action.result as { id?: string })?.id, calendar_id: r.calendar_id };
       case "find_tasks":
@@ -409,7 +409,9 @@ export function JarvisConsole({
   }
 
   const buildHistory = useCallback(
-    (current: ScrollbackTurn[]): Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> => {
+    (
+      current: ScrollbackTurn[]
+    ): Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> => {
       const recent = current.slice(-HISTORY_TURN_LIMIT);
       const out: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> = [];
       for (const t of recent) {
@@ -428,7 +430,12 @@ export function JarvisConsole({
         const assistantBlocks: ContentBlock[] = [];
         if (t.textDelta) assistantBlocks.push({ type: "text", text: t.textDelta });
         for (const a of doneActions) {
-          assistantBlocks.push({ type: "tool_use", id: a.toolUseId, name: a.name, input: reconstructToolInput(a) });
+          assistantBlocks.push({
+            type: "tool_use",
+            id: a.toolUseId,
+            name: a.name,
+            input: reconstructToolInput(a),
+          });
         }
         out.push({ role: "assistant" as const, content: assistantBlocks });
         // Anthropic REQUIRES that the immediately following turn carry tool_result
@@ -454,7 +461,7 @@ export function JarvisConsole({
       }
       return out;
     },
-    [],
+    []
   );
 
   const handleSubmit = useCallback(
@@ -468,7 +475,7 @@ export function JarvisConsole({
          *  CustomEvent detail, forwarded here, and collectStage-d inside the
          *  onTurnStart callback AFTER setActiveTurnId binds the row. */
         vadEndAt?: number;
-      },
+      }
     ) => {
       // voiceActive header is now ALWAYS false — the model no longer needs to
       // emit a separate voice_summary field. The spoken response is the
@@ -498,8 +505,8 @@ export function JarvisConsole({
                 ...t,
                 clarification: { ...t.clarification, answered: true },
               }
-            : t,
-        ),
+            : t
+        )
       );
       const assistantTurn: ScrollbackTurn = {
         kind: "assistant",
@@ -545,6 +552,7 @@ export function JarvisConsole({
         slashCommand: payload.slashCommand,
         linkedProjectIds: payload.projectIds, // M5
         linkedHashtags: payload.hashtags, // M6
+        linkedPeople: payload.people,
       };
 
       // Phase 9 / TEL-01 — capture for use inside onTurnStart (below). The
@@ -572,8 +580,8 @@ export function JarvisConsole({
               prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, textDelta: t.textDelta + delta }
-                  : t,
-              ),
+                  : t
+              )
             );
             // Phase 10 Plan 10-04 (LAT-02) — per-sentence TTS dispatch as
             // text deltas arrive. The splitter accumulates the rolling
@@ -593,7 +601,7 @@ export function JarvisConsole({
                     voiceId: voiceSettings.voiceId,
                     isVoice: turnIsVoice,
                   },
-                }),
+                })
               );
             }
           },
@@ -610,8 +618,8 @@ export function JarvisConsole({
               prev.map((t) =>
                 t.id === assistantId && t.kind === "assistant"
                   ? { ...t, actions: [...t.actions, placeholder] }
-                  : t,
-              ),
+                  : t
+              )
             );
           },
           // Phase 5.1 (D-A2 / JARVIS-19): clarification SSE event — store on current turn.
@@ -627,10 +635,8 @@ export function JarvisConsole({
             };
             setTurns((prev) =>
               prev.map((t) =>
-                t.id === assistantId && t.kind === "assistant"
-                  ? { ...t, clarification: clar }
-                  : t,
-              ),
+                t.id === assistantId && t.kind === "assistant" ? { ...t, clarification: clar } : t
+              )
             );
           },
           onAction: (data) => {
@@ -650,7 +656,7 @@ export function JarvisConsole({
                                   status: "done" as const,
                                   result: data.result as ScrollbackAction["result"],
                                 }
-                              : a,
+                              : a
                           )
                         : [
                             ...t.actions,
@@ -662,8 +668,8 @@ export function JarvisConsole({
                             },
                           ],
                     }
-                  : t,
-              ),
+                  : t
+              )
             );
 
             // Issue #17: refresh the lists this action touched. Fires once per
@@ -697,11 +703,9 @@ export function JarvisConsole({
                 const next = prev.map((t) =>
                   t.id === assistantId && t.kind === "assistant"
                     ? { ...t, status: "done" as const }
-                    : t,
+                    : t
                 );
-                completed = next.find(
-                  (t) => t.id === assistantId && t.kind === "assistant",
-                );
+                completed = next.find((t) => t.id === assistantId && t.kind === "assistant");
                 return next;
               });
             });
@@ -726,7 +730,7 @@ export function JarvisConsole({
                       voiceId: voiceSettings.voiceId,
                       isVoice: turnIsVoice,
                     },
-                  }),
+                  })
                 );
               }
               ttsBuffer = "";
@@ -746,7 +750,7 @@ export function JarvisConsole({
                     voiceId: voiceSettings.voiceId,
                     isVoice: turnIsVoice,
                   },
-                }),
+                })
               );
               ttsSeq = 1;
             }
@@ -756,7 +760,7 @@ export function JarvisConsole({
             window.dispatchEvent(
               new CustomEvent("jarvis-voice-end-of-turn", {
                 detail: { isVoice: turnIsVoice },
-              }),
+              })
             );
 
             setStreaming(false);
@@ -771,11 +775,9 @@ export function JarvisConsole({
                 const next = prev.map((t) =>
                   t.id === assistantId && t.kind === "assistant"
                     ? { ...t, status: "error" as const, errorMessage: message }
-                    : t,
+                    : t
                 );
-                errored = next.find(
-                  (t) => t.id === assistantId && t.kind === "assistant",
-                );
+                errored = next.find((t) => t.id === assistantId && t.kind === "assistant");
                 return next;
               });
             });
@@ -788,10 +790,10 @@ export function JarvisConsole({
         voiceActive,
         // Phase 9 / TEL-01: forward STT-done-at from the voice transcript
         // event when the input came from voice. Null for typed turns.
-        opts?.sttDoneAt ?? null,
+        opts?.sttDoneAt ?? null
       );
     },
-    [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId],
+    [buildHistory, voiceCapable, voiceSettings.voiceId, queryClient, userId]
   );
 
   // jarvis-voice-transcript handler — two distinct sources use this event:
@@ -847,14 +849,12 @@ export function JarvisConsole({
         slashCommand: null,
         projectIds: [],
         hashtags: [],
+        people: [],
       });
     }
     window.addEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     return () => {
-      window.removeEventListener(
-        "jarvis-voice-transcript",
-        handleVoiceTranscript,
-      );
+      window.removeEventListener("jarvis-voice-transcript", handleVoiceTranscript);
     };
   }, [handleSubmit]);
 
@@ -893,18 +893,20 @@ export function JarvisConsole({
         prev.map((t) =>
           t.id === assistantId && t.kind === "assistant"
             ? { ...t, textDelta: t.textDelta + detail.delta }
-            : t,
-        ),
+            : t
+        )
       );
     }
 
     function handleToolCall(e: Event) {
-      const detail = (e as CustomEvent<{
-        turnId: string;
-        toolUseId: string;
-        name: string;
-        result: unknown;
-      }>).detail;
+      const detail = (
+        e as CustomEvent<{
+          turnId: string;
+          toolUseId: string;
+          name: string;
+          result: unknown;
+        }>
+      ).detail;
       if (!detail?.turnId) return;
       const assistantId = activeTurnMap.get(detail.turnId);
       if (!assistantId) return;
@@ -923,8 +925,8 @@ export function JarvisConsole({
                   },
                 ],
               }
-            : t,
-        ),
+            : t
+        )
       );
       // Issue #17: desktop-run actions mutate the same tables; refresh the
       // affected lists so the browser view reflects them without a reload.
@@ -941,10 +943,8 @@ export function JarvisConsole({
       activeTurnMap.delete(detail.turnId);
       setTurns((prev) =>
         prev.map((t) =>
-          t.id === assistantId && t.kind === "assistant"
-            ? { ...t, status: "done" as const }
-            : t,
-        ),
+          t.id === assistantId && t.kind === "assistant" ? { ...t, status: "done" as const } : t
+        )
       );
       setStreaming(false);
       // Issue #149 — desktop-relayed reply completed; bump the unread badge
@@ -986,6 +986,7 @@ export function JarvisConsole({
         slashCommand: null,
         projectIds: [],
         hashtags: [],
+        people: [],
       });
     }, 0);
     return () => clearTimeout(t);
@@ -1034,10 +1035,10 @@ export function JarvisConsole({
               ? {
                   ...t,
                   actions: t.actions.map((a) =>
-                    a.toolUseId === action.toolUseId ? { ...a, undone: true } : a,
+                    a.toolUseId === action.toolUseId ? { ...a, undone: true } : a
                   ),
                 }
-              : t,
+              : t
           );
           updated = next.find((t) => t.id === turnId && t.kind === "assistant");
           return next;
@@ -1060,16 +1061,12 @@ export function JarvisConsole({
                 ? {
                     ...t,
                     actions: t.actions.map((a) =>
-                      a.toolUseId === action.toolUseId
-                        ? { ...a, undone: false }
-                        : a,
+                      a.toolUseId === action.toolUseId ? { ...a, undone: false } : a
                     ),
                   }
-                : t,
+                : t
             );
-            reverted = next.find(
-              (t) => t.id === turnId && t.kind === "assistant",
-            );
+            reverted = next.find((t) => t.id === turnId && t.kind === "assistant");
             return next;
           });
         });
@@ -1084,7 +1081,7 @@ export function JarvisConsole({
         toast.success("Undone");
       }
     },
-    [queryClient, userId],
+    [queryClient, userId]
   );
 
   // Phase 5.1 (D-A2 / JARVIS-19) — handle clarification reply from JarvisClarification.
@@ -1101,8 +1098,8 @@ export function JarvisConsole({
         prev.map((t) =>
           t.id === turnId && t.kind === "assistant" && t.clarification
             ? { ...t, clarification: { ...t.clarification, answered: true } }
-            : t,
-        ),
+            : t
+        )
       );
       // Submit as next user turn with the [CLARIFICATION REPLY] prefix.
       void handleSubmit({
@@ -1112,9 +1109,10 @@ export function JarvisConsole({
         slashCommand: null,
         projectIds: [],
         hashtags: [],
+        people: [],
       });
     },
-    [handleSubmit],
+    [handleSubmit]
   );
 
   // Phase 6.1 Plan 02 — derive the HudStatusPill state from scrollback turn
@@ -1214,6 +1212,7 @@ export function JarvisConsole({
                 slashCommand: null,
                 projectIds: [],
                 hashtags: [],
+                people: [],
               });
             }
           }}
@@ -1250,8 +1249,7 @@ export function JarvisConsole({
           backgroundColor: "var(--glass-bg)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          borderTopColor:
-            "color-mix(in oklch, var(--edge-hud) 60%, transparent)",
+          borderTopColor: "color-mix(in oklch, var(--edge-hud) 60%, transparent)",
         }}
       >
         <JarvisInput
@@ -1259,6 +1257,7 @@ export function JarvisConsole({
           userTimezone={userTimezone}
           getProjects={() => initialProjects}
           getHashtags={() => initialHashtags}
+          getPeople={(query) => searchPeopleForCurrentUser(query)}
           onSubmit={handleSubmit}
           disabled={streaming}
           autoFocus
