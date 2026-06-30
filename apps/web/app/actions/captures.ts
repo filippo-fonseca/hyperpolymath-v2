@@ -1,5 +1,6 @@
 "use server";
 
+import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
 import { db } from "@/lib/db";
 import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
@@ -127,6 +128,12 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
     }
     await reconcilePersonReferencesForUser(userId, "capture", result, personIds);
   }
+
+  // Background auto-tagging: a Haiku call infers a minimal set of warranted
+  // hashtags, links them, and appends the #tokens to the text. Scheduled via
+  // after() inside the helper so it never delays this response; the captures +
+  // captures_hashtags Realtime subscriptions surface the result live.
+  scheduleAutoTagging(result, userId, parsed.data.content);
 
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
