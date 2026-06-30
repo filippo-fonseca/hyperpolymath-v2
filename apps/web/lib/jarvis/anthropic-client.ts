@@ -45,3 +45,7 @@ export function getAnthropicClient(apiKey: string): Anthropic {
 }
 
 export const JARVIS_MODEL = "claude-sonnet-4-6" as const;
+
+// Lightweight model for cheap background inference (e.g. capture auto-tagging).
+// Same id already used by the BYOK key-verification ping in api-keys.ts.
+export const HAIKU_MODEL = "claude-haiku-4-5-20251001" as const;
