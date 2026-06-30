@@ -2,20 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { CornerDownLeft } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
 import { capResults, SearchDropdown } from "@/components/search/SearchDropdown";
 import { flattenResults } from "@/components/search/SearchResults";
 import { useSearch } from "@/components/search/SearchProvider";
+import {
+  useQuickCreateActions,
+  type QuickCreateAction,
+} from "@/components/shell/useQuickCreateActions";
+import { cn } from "@/lib/utils";
 import type { SearchEntry } from "@/lib/search";
 
 /**
  * GlobalJarvisDialog — Cmd/Ctrl+K opens a lite JARVIS composer dialog from any
- * (app) route EXCEPT /today. Beyond sending to JARVIS (⌘⏎), typing now also
- * surfaces a non-blocking live search dropdown: pick a result to navigate, or
- * ignore it and send to JARVIS exactly as before. The Jarvis send path is
- * untouched — search is purely additive (see LiteJarvisComposer interceptor).
+ * (app) route EXCEPT /today. It is three things at once, all under one focus
+ * model: send to JARVIS (⌘⏎), run a quick-create ACTION (new page/task/capture/
+ * event), or open a live search RESULT. Actions render first, results below;
+ * Arrow keys walk the combined list and Enter runs whichever is focused. The
+ * JARVIS send path (⌘⏎) is untouched — actions + search are purely additive.
  */
 export function GlobalJarvisDialog() {
   const pathname = usePathname();
@@ -29,6 +36,27 @@ export function GlobalJarvisDialog() {
 
   const capped = useMemo(() => capResults(results), [results]);
   const flat = useMemo(() => flattenResults(capped, "all"), [capped]);
+
+  // No composer mode here, so the core "New capture" action navigates to
+  // /captures (the shared hook handles that when onCompose is omitted).
+  const { actions, captureText } = useQuickCreateActions();
+
+  // Which actions to surface: every core action when the field is empty (Cmd+K
+  // is then a full command palette), or keyword-filtered ones plus a contextual
+  // "Capture '<text>'" action once the user types.
+  const visibleActions = useMemo<QuickCreateAction[]>(() => {
+    const trimmed = term.trim();
+    if (!trimmed) return actions;
+    const needle = trimmed.toLowerCase();
+    const matched = actions.filter((a) => {
+      const haystack = `${a.label} ${a.keywords.join(" ")}`.toLowerCase();
+      return haystack.includes(needle);
+    });
+    const ct = captureText(trimmed);
+    return ct ? [...matched, ct] : matched;
+  }, [term, actions, captureText]);
+
+  const combinedLength = visibleActions.length + flat.length;
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -52,7 +80,7 @@ export function GlobalJarvisDialog() {
     }
   }, [open, clear]);
 
-  // Focus moves invalidate when the result set changes.
+  // Focus moves invalidate when the typed term changes.
   useEffect(() => {
     setFocusedIndex(-1);
   }, [term]);
@@ -70,6 +98,11 @@ export function GlobalJarvisDialog() {
     [router]
   );
 
+  const runAction = useCallback((action: QuickCreateAction) => {
+    setOpen(false);
+    void action.run();
+  }, []);
+
   const registerItemRef = useCallback((index: number, el: HTMLButtonElement | null) => {
     itemRefs.current.set(index, el);
   }, []);
@@ -85,32 +118,45 @@ export function GlobalJarvisDialog() {
   }
 
   // Pre-handler the composer consults before its own key logic. Returns true
-  // when we've claimed the event for the dropdown.
+  // when we've claimed the event for the actions/results list.
   const interceptor = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
-      const hasResults = flat.length > 0;
-      if (e.key === "ArrowDown" && hasResults) {
+      const hasItems = combinedLength > 0;
+      if (e.key === "ArrowDown" && hasItems) {
         e.preventDefault();
-        setFocusedIndex((i) => Math.min(i + 1, flat.length - 1));
+        setFocusedIndex((i) => Math.min(i + 1, combinedLength - 1));
         return true;
       }
-      if (e.key === "ArrowUp" && hasResults) {
+      if (e.key === "ArrowUp" && hasItems) {
         e.preventDefault();
         setFocusedIndex((i) => Math.max(i - 1, -1));
         return true;
       }
       if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
-        if (focusedIndex >= 0 && flat[focusedIndex]) {
-          e.preventDefault();
-          navigate(flat[focusedIndex]);
-          return true;
+        if (focusedIndex >= 0) {
+          // Indices 0..visibleActions.length-1 are actions; the rest map into flat.
+          if (focusedIndex < visibleActions.length) {
+            const action = visibleActions[focusedIndex];
+            if (action) {
+              e.preventDefault();
+              runAction(action);
+              return true;
+            }
+          } else {
+            const entry = flat[focusedIndex - visibleActions.length];
+            if (entry) {
+              e.preventDefault();
+              navigate(entry);
+              return true;
+            }
+          }
         }
         // No item focused → fall through (newline / no-op), JARVIS send is ⌘⏎.
         return false;
       }
       if (e.key === "Escape") {
-        // First Escape closes the dropdown; second closes the overlay.
-        if (hasResults || focusedIndex >= 0) {
+        // First Escape clears the list/term; second closes the overlay.
+        if (hasItems || focusedIndex >= 0) {
           e.preventDefault();
           clear();
           setFocusedIndex(-1);
@@ -120,13 +166,13 @@ export function GlobalJarvisDialog() {
       }
       return false;
     },
-    [flat, focusedIndex, navigate, clear]
+    [combinedLength, focusedIndex, visibleActions, flat, navigate, runAction, clear]
   );
 
   const composer = (
     <LiteJarvisComposer
       autoFocus
-      placeholder="Type a message or search…"
+      placeholder="Type a message, search, or run a command…"
       onSubmit={handleSubmit}
       onCancel={() => setOpen(false)}
       onValueChange={setQuery}
@@ -135,21 +181,39 @@ export function GlobalJarvisDialog() {
     />
   );
 
+  const panel = (
+    <>
+      {composer}
+      {(visibleActions.length > 0 || capped.total > 0) && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 flex flex-col gap-2">
+          {visibleActions.length > 0 && (
+            <ActionList
+              actions={visibleActions}
+              focusedIndex={focusedIndex}
+              onRun={runAction}
+              registerItemRef={registerItemRef}
+            />
+          )}
+          <SearchDropdown
+            results={capped}
+            query={term}
+            focusedIndex={focusedIndex}
+            onSelect={navigate}
+            registerItemRef={registerItemRef}
+            indexOffset={visibleActions.length}
+            inline
+          />
+        </div>
+      )}
+    </>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[640px] overflow-visible border-[var(--edge-hud)] bg-[var(--surface-raised)] p-0">
         <DialogTitle className="sr-only">JARVIS</DialogTitle>
         {prefersReducedMotion ? (
-          <div className="relative p-4">
-            {composer}
-            <SearchDropdown
-              results={capped}
-              query={term}
-              focusedIndex={focusedIndex}
-              onSelect={navigate}
-              registerItemRef={registerItemRef}
-            />
-          </div>
+          <div className="relative p-4">{panel}</div>
         ) : (
           <motion.div
             className="relative p-4"
@@ -157,18 +221,76 @@ export function GlobalJarvisDialog() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
           >
-            {composer}
-            <SearchDropdown
-              results={capped}
-              query={term}
-              focusedIndex={focusedIndex}
-              onSelect={navigate}
-              registerItemRef={registerItemRef}
-            />
+            {panel}
           </motion.div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface ActionListProps {
+  actions: QuickCreateAction[];
+  focusedIndex: number;
+  onRun: (action: QuickCreateAction) => void;
+  registerItemRef: (index: number, el: HTMLButtonElement | null) => void;
+}
+
+/**
+ * Compact list of quick-create action rows shown above the search results.
+ * Matches the dropdown's visual register (surface-raised card, focused row gets
+ * the surface fill + ⏎ hint), and shares the parent's focusedIndex so Arrow nav
+ * flows straight from actions into results.
+ */
+function ActionList({ actions, focusedIndex, onRun, registerItemRef }: ActionListProps) {
+  return (
+    <div className="overflow-hidden rounded-xl border-[0.5px] border-[var(--edge)] bg-[var(--surface-raised)] shadow-lg">
+      <div className="flex items-center gap-2 border-b border-[var(--edge)] px-3 pb-1.5 pt-2.5">
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+          Actions
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5 p-2" role="listbox" aria-label="Quick actions">
+        {actions.map((action, i) => {
+          const focused = i === focusedIndex;
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.id}
+              ref={(el) => registerItemRef(i, el)}
+              type="button"
+              role="option"
+              aria-selected={focused}
+              onClick={() => onRun(action)}
+              className={cn(
+                "group/action flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors duration-100",
+                focused
+                  ? "bg-[var(--surface)]"
+                  : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
+              )}
+            >
+              <Icon size={15} strokeWidth={1.5} className="shrink-0 text-[var(--ink-muted)]" />
+              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-[var(--ink)]">
+                {action.label}
+              </span>
+              {focused ? (
+                <CornerDownLeft
+                  size={12}
+                  strokeWidth={1.5}
+                  className="shrink-0 text-[var(--ink-muted)]"
+                />
+              ) : (
+                action.shortcut && (
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+                    {action.shortcut}
+                  </span>
+                )
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
