@@ -36,7 +36,7 @@ export interface PersonSource {
 }
 
 export function createPersonSuggestion(
-  getPeople: (query: string) => Promise<PersonSource[]> | PersonSource[],
+  getPeople: (query: string) => Promise<PersonSource[]> | PersonSource[]
 ): Omit<SuggestionOptions<JarvisPersonOption, JarvisPersonOption>, "editor"> {
   return {
     char: "@",
@@ -45,9 +45,7 @@ export function createPersonSuggestion(
 
     items: async ({ query }) => {
       const people = await getPeople(query);
-      return people
-        .slice(0, 8)
-        .map((p) => ({ id: p.id, label: p.name }));
+      return people.slice(0, 8).map((p) => ({ id: p.id, label: p.name }));
     },
 
     command: ({ editor, range, props }) => {
@@ -81,17 +79,14 @@ export function createPersonSuggestion(
         container.style.zIndex = "9999";
       }
 
-      function render(
-        items: JarvisPersonOption[],
-        command: (item: JarvisPersonOption) => void,
-      ) {
+      function render(items: JarvisPersonOption[], command: (item: JarvisPersonOption) => void) {
         if (!root) return;
         root.render(
           createElement(PersonSuggestionList, {
             ref: listRef,
             items,
             command,
-          }),
+          })
         );
       }
 
