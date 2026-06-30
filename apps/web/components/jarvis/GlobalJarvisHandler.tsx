@@ -87,8 +87,16 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
   // Bind the global handler everywhere else under (app).
   const isConsolePage = pathname === "/today";
 
+  // Issue #172: read isConsolePage through a ref inside the effect so the
+  // effect doesn't re-run (and therefore doesn't cleanup + abort the in-flight
+  // request) when the user navigates to /today mid-stream. The cmd+K dialog
+  // now hands off via sessionStorage + router.push('/today'), so we must
+  // survive that navigation without tearing down the SSE reader.
+  const isConsolePageRef = useRef(isConsolePage);
+  isConsolePageRef.current = isConsolePage;
+
   useEffect(() => {
-    if (isConsolePage) return;
+    if (isConsolePageRef.current) return;
 
     let abort: AbortController | null = null;
 
@@ -388,9 +396,11 @@ export function GlobalJarvisHandler({ userId }: { userId: string }) {
       window.removeEventListener("jarvis-voice-transcript", handleVoiceTranscript);
       window.removeEventListener("jarvis-cancel", handleCancel);
       window.removeEventListener("jarvis-tool-call", handleDesktopToolCall);
-      abort?.abort();
+      // Issue #172: deliberately do NOT abort?.abort() here. In-flight voice
+      // turns must survive navigation (e.g. cmd+K → router.push('/today')) so
+      // the user sees the streaming response continue in JarvisConsole.
     };
-  }, [isConsolePage, queryClient, userId]);
+  }, [queryClient, userId]);
 
   return null;
 }

@@ -436,6 +436,10 @@ export function JarvisInput({
         className={[
           "relative rounded-2xl transition-[box-shadow,border-color] duration-200 ease-out",
           disabled ? "opacity-60 pointer-events-none" : "",
+          // Phase 33 Plan 02 — the breathing focus ring was declared in CSS but
+          // never wired to a className. Apply it whenever the input is in
+          // focused-idle state (State 2) so the 2400ms ring breathe fires.
+          focusedIdle && !shouldReduce ? "hud-focus-breathe" : "",
           igniting && !shouldReduce ? "hud-submit-ignite-border" : "",
         ]
           .filter(Boolean)

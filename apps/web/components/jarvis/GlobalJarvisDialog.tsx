@@ -76,11 +76,12 @@ export function GlobalJarvisDialog() {
 
   function handleSubmit(text: string) {
     setOpen(false);
-    window.dispatchEvent(
-      new CustomEvent("jarvis-voice-transcript", {
-        detail: { transcript: text },
-      })
-    );
+    try {
+      sessionStorage.setItem("jarvis-prefill", text);
+    } catch {
+      // sessionStorage unavailable (private browsing)
+    }
+    router.push("/today");
   }
 
   // Pre-handler the composer consults before its own key logic. Returns true

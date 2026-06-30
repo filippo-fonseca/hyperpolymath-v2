@@ -180,17 +180,6 @@ export function TopTabBar({ userId }: { userId: string }) {
     >
       <NavArrows />
 
-      {todayPath && (
-        <TabPill
-          href={todayPath}
-          active={onToday && !splitOn}
-          accent={false}
-          label="Today"
-          icon={<CalendarDays size={13} strokeWidth={1.75} />}
-          kbd="⌃3"
-        />
-      )}
-
       <TabPill
         href={leftPath}
         active={!onJarvis && !onToday && !splitOn}
@@ -217,6 +206,17 @@ export function TopTabBar({ userId }: { userId: string }) {
         dataTour="top-tab-jarvis"
         badge={<JarvisUnreadBadge />}
       />
+
+      {todayPath && (
+        <TabPill
+          href={todayPath}
+          active={onToday && !splitOn}
+          accent={false}
+          label="Today"
+          icon={<CalendarDays size={13} strokeWidth={1.75} />}
+          kbd="⌃3"
+        />
+      )}
 
       <div className="ml-auto pl-2" data-tour="top-split-toggle">
         <SplitToggle on={splitOn} onClick={onSplitToggle} />
