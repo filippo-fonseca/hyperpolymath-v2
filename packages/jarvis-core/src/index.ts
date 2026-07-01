@@ -17,6 +17,7 @@ export {
 } from "./parsers";
 
 export {
+  COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
   TOOL_USE_RULES,
   VOICE_ADDENDUM,

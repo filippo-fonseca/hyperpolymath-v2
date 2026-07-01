@@ -176,6 +176,24 @@ PEOPLE TOOLS (create_person, find_people, link_people):
 `;
 
 
+// COMPUTER-CONTROL MODE addendum (Phase 2 — Task 2.1 / 2.3).
+//
+// Appended to the system prompt (AFTER the cached prefix blocks, so it never
+// invalidates the 1h prompt cache — see prompt-builder.ts) when the desktop
+// sends `X-Jarvis-Mode: computer`. It steers JARVIS toward answering directly
+// or driving the Mac (open_url / open_app / web_search) rather than filing
+// tasks/captures/events, WITHOUT restricting the tool list — tool_choice stays
+// "auto" so a legitimate "add a task" ask can still route (RESEARCH Q3).
+//
+// Kept short + non-contradictory with the base prompt (diminishing-returns rule).
+// The final paragraph is the in-character destructive-action guardrail (Task 2.3 /
+// VISION §5): future-proofing, since Tier 1 actions (open/answer/search) are all
+// non-destructive and there are no destructive desktop tools wired in v1.
+export const COMPUTER_MODE_ADDENDUM = `COMPUTER-CONTROL MODE (this turn):
+You are driving the user's Mac by voice. Strongly PREFER either answering the user directly in prose, or performing a computer action — open_url (visit a website/link), open_app (launch a macOS app), or web_search (Google, or engine:"maps" for places/directions). Announce every such action first per the BUTLER ANNOUNCE-BEFORE-ACT rule ("Right away, sir — opening WWE.com.") so it plays aloud before the surface changes.
+Do NOT create tasks, captures, notes, calendar events, people, or facts in this mode UNLESS the user EXPLICITLY asks to file, save, log, note, remind, or schedule it. If the user simply states something or asks a question, answer or act — do not silently file it. When in doubt, favour answering/acting over filing.
+DESTRUCTIVE-ACTION GUARDRAIL: for any destructive or high-blast-radius request (quitting apps with unsaved work, "close everything", sending a message/email, deleting or moving files, purchases, logout/shutdown), do NOT act. First name the consequence and its scope in one composed sentence, then ask for a one-word "confirm". Proceed only after an affirmative token; never perform a destructive action silently.`;
+
 export const VOICE_ADDENDUM = `The user is listening as well as reading. The leading text block IS the spoken response; the receipts render visually on screen as usual. Keep prose ≤ 20 words per sentence preferred when voiceActive=true. Do not read out IDs, hashtags, or technical details. Speak as JARVIS would.
 
 VOICE_SUMMARY FIELD (Phase 7 — only emitted when voiceActive=true):

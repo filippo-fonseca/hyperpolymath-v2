@@ -101,6 +101,14 @@ export interface RunTurnOptions {
   parsedPriority?: "P∞" | "P1" | "P2" | "P3";
   isVoice: boolean;
   /**
+   * Phase 2 (Task 2.1): computer-control steering. When "computer" (set from
+   * the desktop's `X-Jarvis-Mode: computer` header), buildSystemPrompt appends
+   * the COMPUTER-CONTROL MODE block that biases toward open_url/open_app/
+   * web_search + direct answers and away from filing. Absent → browser/mobile
+   * behaviour is unchanged.
+   */
+  mode?: "computer";
+  /**
    * Capture provenance: paired-device token name ('Web' for browser) +
    * input modality. Denormalized into rows created by the executor.
    */
@@ -271,6 +279,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
     voiceActive,
     userDisplayName: userRow?.displayName ?? null,
+    // Computer-control steering (Phase 2). Appended after the cache breakpoint
+    // inside buildSystemPrompt, so it does not invalidate the cached prefix.
+    mode: opts.mode,
   });
 
   const stateVersion = userRow?.stateVersion ?? 1n;

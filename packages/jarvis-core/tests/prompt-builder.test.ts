@@ -1,7 +1,7 @@
 // D-16 personality + buildSystemPrompt + voice-aware addendum tests.
 
 import { describe, expect, it } from "vitest";
-import { JARVIS_PERSONALITY } from "../src/personality";
+import { COMPUTER_MODE_ADDENDUM, JARVIS_PERSONALITY } from "../src/personality";
 import { buildSystemPrompt } from "../src/prompt-builder";
 
 describe("JARVIS_PERSONALITY", () => {
@@ -97,5 +97,46 @@ describe("buildSystemPrompt", () => {
     expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[1]?.text).toContain("JARVIS");
     expect(blocks[2]?.text).toContain("create_task");
+  });
+
+  // Phase 2 (Task 2.1 / 2.3) — computer-control mode steering.
+  describe("mode: 'computer'", () => {
+    it("omitting mode does NOT include the COMPUTER-CONTROL MODE addendum", () => {
+      const blocks = buildSystemPrompt({ projects: [] });
+      const joined = blocks.map((b) => b.text).join("\n");
+      expect(joined).not.toContain("COMPUTER-CONTROL MODE");
+      expect(blocks).toHaveLength(4);
+    });
+
+    it("mode='computer' appends the addendum as an extra trailing block", () => {
+      const base = buildSystemPrompt({ projects: [] });
+      const withMode = buildSystemPrompt({ projects: [], mode: "computer" });
+      expect(withMode).toHaveLength(base.length + 1);
+      expect(withMode[withMode.length - 1]?.text).toBe(COMPUTER_MODE_ADDENDUM);
+      expect(withMode[withMode.length - 1]?.text).toContain("COMPUTER-CONTROL MODE");
+    });
+
+    it("addendum steers toward computer actions and away from filing", () => {
+      expect(COMPUTER_MODE_ADDENDUM).toContain("open_url");
+      expect(COMPUTER_MODE_ADDENDUM).toContain("open_app");
+      expect(COMPUTER_MODE_ADDENDUM).toContain("web_search");
+      expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT create tasks|Do NOT create tasks/i);
+    });
+
+    it("addendum carries the destructive-action confirm guardrail (Task 2.3)", () => {
+      expect(COMPUTER_MODE_ADDENDUM).toMatch(/destructive/i);
+      expect(COMPUTER_MODE_ADDENDUM).toContain("confirm");
+    });
+
+    it("the addendum block is UNCACHED — the 1h cache breakpoint stays on the block before it", () => {
+      const blocks = buildSystemPrompt({ projects: [], mode: "computer" });
+      // Trailing (mode) block must NOT carry cache_control — appended after the
+      // breakpoint so it never invalidates the cached prefix (RESEARCH Q3).
+      const last = blocks[blocks.length - 1];
+      expect(last?.cache_control).toBeUndefined();
+      // The block immediately before it still owns the 1h ephemeral breakpoint.
+      const breakpoint = blocks[blocks.length - 2];
+      expect(breakpoint?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    });
   });
 });

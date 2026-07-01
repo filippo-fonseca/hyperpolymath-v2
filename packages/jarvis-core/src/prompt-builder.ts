@@ -30,6 +30,7 @@
 // snapshot at 5m. See apps/web/app/api/jarvis/route.ts.
 
 import {
+  COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
   TOOL_USE_RULES,
   VOICE_ADDENDUM,
@@ -100,6 +101,15 @@ export function buildSystemPrompt(opts: {
    * Pass null/undefined for users who haven't set a name yet.
    */
   userDisplayName?: string | null;
+  /**
+   * Phase 2 (Task 2.1): computer-control steering for desktop turns carrying
+   * `X-Jarvis-Mode: computer`. When "computer", a short COMPUTER-CONTROL MODE
+   * block is appended AFTER the cached prefix blocks (so it never invalidates
+   * the 1h prompt cache) to bias toward open_url/open_app/web_search + direct
+   * answers and away from filing. The full tool list + tool_choice:"auto" are
+   * unchanged. Omit (or any other value) for browser/mobile turns — no change.
+   */
+  mode?: "computer";
 }): SystemBlock[] {
   const blocks: SystemBlock[] = [];
   if (opts.voiceActive) {
@@ -126,6 +136,13 @@ export function buildSystemPrompt(opts: {
       text: buildFactsBlock(opts.facts!),
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     });
+  }
+
+  // Computer-control mode block (Phase 2): appended AFTER the cache breakpoint
+  // (no cache_control) so it never invalidates the cached prefix. Volatile-mode
+  // blocks belong after the breakpoint per RESEARCH Q3.
+  if (opts.mode === "computer") {
+    blocks.push({ type: "text", text: COMPUTER_MODE_ADDENDUM });
   }
 
   return blocks;
