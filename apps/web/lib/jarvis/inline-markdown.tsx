@@ -20,7 +20,32 @@ type Token =
   | { type: "text"; content: string }
   | { type: "em"; content: string }
   | { type: "strong"; content: string }
-  | { type: "code"; content: string };
+  | { type: "code"; content: string }
+  | { type: "hashtag"; content: string }
+  | { type: "project"; content: string };
+
+/** Word char = the hashtag/project label alphabet (Unicode letters/digits/_). */
+const isWordChar = (ch: string | undefined): boolean =>
+  !!ch && /[\p{L}\p{N}_]/u.test(ch);
+/** Project labels must start with a letter/underscore so "$5" stays a price. */
+const isLabelStart = (ch: string | undefined): boolean =>
+  !!ch && /[\p{L}_]/u.test(ch);
+
+function hashtagChip(label: string, key: string | number): ReactNode {
+  return (
+    <span key={key} className="hashtag-chip-inline" data-hashtag={label}>
+      #{label}
+    </span>
+  );
+}
+
+function projectChip(label: string, key: string | number): ReactNode {
+  return (
+    <span key={key} className="project-chip-inline" data-project={label}>
+      {`$${label}`}
+    </span>
+  );
+}
 
 function tokenize(s: string): Token[] {
   const tokens: Token[] = [];
@@ -86,6 +111,28 @@ function tokenize(s: string): Token[] {
       }
     }
 
+    // #hashtag chip — at a word boundary, ≥1 label char.
+    if (c === "#" && !isWordChar(s[i - 1])) {
+      let j = i + 1;
+      while (isWordChar(s[j])) j++;
+      if (j > i + 1) {
+        flush();
+        tokens.push({ type: "hashtag", content: s.slice(i + 1, j) });
+        i = j;
+        continue;
+      }
+    }
+
+    // $project chip — at a word boundary, label starts with a letter/_.
+    if (c === "$" && !isWordChar(s[i - 1]) && isLabelStart(s[i + 1])) {
+      let j = i + 1;
+      while (isWordChar(s[j])) j++;
+      flush();
+      tokens.push({ type: "project", content: s.slice(i + 1, j) });
+      i = j;
+      continue;
+    }
+
     textBuf += c;
     i++;
   }
@@ -114,6 +161,62 @@ export function renderInlineMarkdown(text: string): ReactNode[] {
             {tok.content}
           </code>
         );
+      case "hashtag":
+        return hashtagChip(tok.content, idx);
+      case "project":
+        return projectChip(tok.content, idx);
     }
   });
+}
+
+/**
+ * Render a raw USER message as React nodes, turning `#hashtag` / `$project`
+ * markers into inline chips but leaving everything else literal.
+ *
+ * Unlike `renderInlineMarkdown`, this does NOT apply bold/italic/code — a
+ * user's typed command is verbatim, and the only rich affordance they invoked
+ * is the mention chip. This keeps the sent transcript visually consistent with
+ * the composer (same `.hashtag-chip-inline` / `.project-chip-inline` tokens)
+ * without reformatting the user's own words.
+ */
+export function renderUserText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let buf = "";
+  let i = 0;
+  let key = 0;
+  const flush = () => {
+    if (buf) {
+      nodes.push(buf);
+      buf = "";
+    }
+  };
+
+  while (i < text.length) {
+    const c = text[i];
+
+    if (c === "#" && !isWordChar(text[i - 1])) {
+      let j = i + 1;
+      while (isWordChar(text[j])) j++;
+      if (j > i + 1) {
+        flush();
+        nodes.push(hashtagChip(text.slice(i + 1, j), `h${key++}`));
+        i = j;
+        continue;
+      }
+    }
+
+    if (c === "$" && !isWordChar(text[i - 1]) && isLabelStart(text[i + 1])) {
+      let j = i + 1;
+      while (isWordChar(text[j])) j++;
+      flush();
+      nodes.push(projectChip(text.slice(i + 1, j), `p${key++}`));
+      i = j;
+      continue;
+    }
+
+    buf += c;
+    i++;
+  }
+  flush();
+  return nodes;
 }
