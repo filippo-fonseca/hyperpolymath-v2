@@ -325,6 +325,8 @@ export function PagesListClient({
   }
 
   function comparePages(a: PageWithProjects, b: PageWithProjects): number {
+    // Pinned pages always float first, regardless of the chosen sort/direction.
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     const va = pageSortValue(a, sortKey);
     const vb = pageSortValue(b, sortKey);
     // Nulls always sort last regardless of direction.
@@ -337,9 +339,19 @@ export function PagesListClient({
     return sortDir === "asc" ? cmp : -cmp;
   }
 
+  // Sort the filtered pages once; the tree preserves input order, so this drives
+  // ordering inside every folder + the standalone group (list view). The grid
+  // view sorts with the same comparator.
+  const sortedVisiblePages = useMemo(
+    () => [...visiblePages].sort(comparePages),
+    // comparePages closes over sortKey/sortDir, the true inputs here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visiblePages, sortKey, sortDir],
+  );
+
   const pagesTree = useMemo(
-    () => buildPagesTree(folders, folderProjects, visiblePages),
-    [folders, folderProjects, visiblePages]
+    () => buildPagesTree(folders, folderProjects, sortedVisiblePages),
+    [folders, folderProjects, sortedVisiblePages]
   );
 
   // Export always works on the FULL tree (every page, never the title-filtered
@@ -872,9 +884,7 @@ export function PagesListClient({
           // Active title filter: search is global, so flatten every matching
           // page into a single gallery rather than constraining to one folder.
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-            {[...visiblePages]
-              .sort(comparePages)
-              .map((page) => (
+            {sortedVisiblePages.map((page) => (
                 <PageCard
                   key={page.id}
                   page={page}
