@@ -244,12 +244,14 @@ export function PagesListClient({
     initialData: initialDailyPages,
   });
   // Custom field (property) definitions for this user — drives the sort menu and
-  // the Properties manager modals.
+  // the Properties manager modals. No initialData: the global QueryClient runs
+  // refetchOnMount:false, so a seeded [] would stick forever (same footgun as
+  // the projects query above). Omitting it lets the query fetch on mount;
+  // handleFieldsChanged invalidates it after edits.
   const fieldDefsKey = ["page-field-definitions", userId] as const;
   const { data: fieldDefinitions = [] } = useQuery({
     queryKey: fieldDefsKey,
     queryFn: () => getFieldDefinitionsForCurrentUser(),
-    initialData: [],
   });
   const handleFieldsChanged = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: pagesKey });
