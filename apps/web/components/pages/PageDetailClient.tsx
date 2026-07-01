@@ -13,6 +13,7 @@ import {
   setPageNoExport,
   updatePage,
 } from "@/app/actions/pages";
+import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getPeopleForCurrentUser, reconcilePersonReferences } from "@/app/actions/people";
 import { createProject } from "@/app/actions/projects";
 import {
@@ -76,6 +77,7 @@ import { toast } from "sonner";
 import { FolderPicker } from "./FolderPicker";
 import { PageCoverImage } from "./PageCoverImage";
 import { PageProcessingRunsMenu } from "./PageProcessingRunsMenu";
+import { PageProperties } from "./PageProperties";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 import { UrlField } from "@/components/shared/UrlField";
@@ -124,6 +126,20 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     queryFn: () => getPagesForCurrentUser(),
     initialData: [initialPage],
   });
+
+  // Custom field definitions (issue #165) drive the "+ Add property" picker.
+  // No realtime table for the definition library; mutations invalidate this key
+  // (and the pages key, since a field value change also bumps pages.updated_at).
+  const fieldDefinitionsKey = ["page-field-definitions", userId] as const;
+  const { data: fieldDefinitions = [] } = useQuery({
+    queryKey: fieldDefinitionsKey,
+    queryFn: () => getFieldDefinitionsForCurrentUser(),
+    initialData: [],
+  });
+  const handleFieldsChanged = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+    queryClient.invalidateQueries({ queryKey: ["page-field-definitions", userId] });
+  }, [queryClient, userId]);
   // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
   // No initialData on purpose: the global QueryClient sets refetchOnMount:false
   // and nothing invalidates the ["sidebar-tree"] key (Realtime subs use
@@ -958,6 +974,14 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         </span>
         <UrlField value={url} onChange={handleUrlChange} />
       </div>
+
+      {/* Custom properties (issue #165) — Notion-style typed fields. */}
+      <PageProperties
+        pageId={initialPage.id}
+        fields={serverPage.fields}
+        definitions={fieldDefinitions}
+        onChanged={handleFieldsChanged}
+      />
 
       {/* Last edited */}
       <p className="text-[11px] font-mono text-[var(--ink-muted)]">
