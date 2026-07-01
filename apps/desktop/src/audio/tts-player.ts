@@ -11,6 +11,7 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
+import { getSharedAudioContext, resumeSharedAudioContext } from "@/audio/audio-context";
 
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George (warm British male)
 
@@ -34,10 +35,10 @@ export class TtsPlayer {
   private state: TtsPlayerState = "idle";
   private queue: QueuedSentence[] = [];
   private nextSeq = 0;
-  private audioCtx: AudioContext | null = null;
   private currentSource: AudioBufferSourceNode | null = null;
   private abortController: AbortController | null = null;
   private stateListeners = new Set<(state: TtsPlayerState) => void>();
+  private idleWaiters = new Set<() => void>();
 
   constructor(voiceId = DEFAULT_VOICE_ID, enabled = true) {
     this.voiceId = voiceId;
@@ -57,6 +58,37 @@ export class TtsPlayer {
     if (next === this.state) return;
     this.state = next;
     for (const fn of this.stateListeners) fn(next);
+    if (next === "idle") {
+      const waiters = [...this.idleWaiters];
+      this.idleWaiters.clear();
+      for (const resolve of waiters) resolve();
+    }
+  }
+
+  /** Current player state. */
+  getState(): TtsPlayerState {
+    return this.state;
+  }
+
+  /**
+   * Resolves immediately if idle, otherwise on the next transition back to
+   * idle (TTS fully drained). This is the sequencing primitive the
+   * conversation FSM uses to reopen the mic ONLY after speech finishes.
+   */
+  whenIdle(): Promise<void> {
+    if (this.state === "idle") return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.idleWaiters.add(resolve);
+    });
+  }
+
+  /**
+   * Eagerly create + resume the shared AudioContext so the first briefing is
+   * audible without a click. Called at boot and on the first user gesture.
+   */
+  unlock(): void {
+    getSharedAudioContext();
+    void resumeSharedAudioContext();
   }
 
   /** Update whether TTS is active. When disabled, all enqueues become no-ops. */
@@ -77,12 +109,6 @@ export class TtsPlayer {
    */
   enqueueSentence(text: string, seq: number): void {
     if (!this.enabled || !text.trim()) return;
-
-    // Lazy AudioContext init — must happen after first user gesture in
-    // WKWebView, but Tauri's webview policy is more permissive.
-    if (!this.audioCtx) {
-      this.audioCtx = new AudioContext({ sampleRate: 24000 });
-    }
 
     this.queue.push({ text, seq });
     this.queue.sort((a, b) => a.seq - b.seq);
@@ -173,16 +199,18 @@ export class TtsPlayer {
 
       const wavBuffer = pcmToWav(pcmBytes, 24000, 1);
 
-      if (!this.audioCtx) return; // stopped during fetch
+      // Resume the shared context at the last possible moment — a suspended
+      // WKWebView context won't play, and the mic capture that's active during
+      // a turn lifts WebKit's autoplay restriction so this succeeds hands-free.
+      await resumeSharedAudioContext();
+      const audioCtx = getSharedAudioContext();
 
-      const audioBuffer = await this.audioCtx.decodeAudioData(wavBuffer);
-
-      if (!this.audioCtx) return; // stopped during decode
+      const audioBuffer = await audioCtx.decodeAudioData(wavBuffer);
 
       await new Promise<void>((resolve) => {
-        const source = this.audioCtx!.createBufferSource();
+        const source = audioCtx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(this.audioCtx!.destination);
+        source.connect(audioCtx.destination);
         this.currentSource = source;
         source.onended = () => resolve();
         source.start();
