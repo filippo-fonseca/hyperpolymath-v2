@@ -59,6 +59,8 @@ export interface JarvisRequest {
   linkedProjectIds?: string[];
   /** M6: client-extracted hashtag names (lowercased) from #hashtag chips + permissive text scan. */
   linkedHashtags?: string[];
+  /** Client-validated people from @person Mention chips (context hint only). */
+  linkedPeople?: Array<{ id: string; name: string }>;
 }
 
 export interface JarvisActionEvent {

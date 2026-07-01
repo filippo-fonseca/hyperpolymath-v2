@@ -1,7 +1,7 @@
 "use client";
 
 import { createPage } from "@/app/actions/pages";
-import { focusJarvis } from "@/lib/jarvis/focus";
+import { closeJarvisDialog, focusJarvis } from "@/lib/jarvis/focus";
 import { readSplitScreen } from "@/lib/ui/useSplitScreen";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -55,6 +55,9 @@ export function GlobalHotkeys() {
         const action = create[e.code];
         if (action) {
           e.preventDefault();
+          // Dismiss the Cmd+K dialog if it's open, matching its Arrow+Enter
+          // path which closes before running. No-op when the dialog is closed.
+          closeJarvisDialog();
           if (typeof action === "string") router.push(action);
           else action();
           return;

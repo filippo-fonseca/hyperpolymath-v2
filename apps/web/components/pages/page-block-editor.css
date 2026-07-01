@@ -263,35 +263,48 @@
 /* =====================================================================
    In-document @JARVIS pill (Phase 32, JDOC-UX-02/03/04/06).
 
-   A neumorphic outlined inline pill in the mono font. It moves through
-   prompt -> loading -> receipt states via [data-status]; the receipt state
-   reads cyan (the JARVIS signature) and errors read red. The hide-receipts
-   nav toggle sets [data-hide-receipts] on the editor wrapper to collapse
-   receipt/error pills in-doc (export exclusion is handled separately).
+   A soft glassy inline bubble in the spirit of an iMessage message: a
+   translucent backdrop-blurred surface with gentle neumorphic depth (raised
+   highlight, soft drop, a whisper-thin edge) and a tasteful inset cyan breath
+   for the JARVIS signature. It moves through prompt -> loading -> receipt ->
+   error states via [data-status]; cyan reads as the signature accent and
+   errors swap that breath to red. Built ON the canonical glass tokens
+   (--glass-raise-sm/--glass-drop-sm/--glass-hi/--glass-lo/--glass-border and
+   --glass-glow-color), so dark mode inherits the quieter highlight for free.
+   The hide-receipts nav toggle sets [data-hide-receipts] on the editor wrapper
+   to collapse receipt/error pills in-doc (export exclusion handled separately).
    ===================================================================== */
 .bn-jarvis-pill {
+  /* Per-pill glow knob so each status can dial the inset cyan/red breath
+     without restating the shadow stack. */
+  --pill-glow-color: var(--glass-glow-color);
+  --pill-glow: 6%;
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.32em;
+  gap: 0.4em;
   margin: 0 1px;
-  padding: 0.08em 0.5em;
-  border-radius: 7px;
+  padding: 0.16em 0.62em;
+  border-radius: 999px;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.82em;
-  line-height: 1.4;
+  line-height: 1.45;
   white-space: nowrap;
   vertical-align: baseline;
   user-select: none;
   color: var(--ink);
-  /* Neumorphic outlined surface: translucent fill, soft inner highlight,
-     1px edge that tracks the glass border tokens. */
-  background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
+  /* Glassy bubble surface built on the canonical glass tokens: translucent
+     blurred fill, raised highlight + soft drop for depth, a whisper edge, and
+     a faint inset glow breath (cyan by default, red for errors). */
+  background: var(--glass-bg-button);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--glass-hi),
-    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
-  transition: background-color 140ms var(--ease-out-quart),
-    box-shadow 140ms var(--ease-out-quart), color 140ms var(--ease-out-quart);
+  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
+    -1px 0 var(--glass-lo), inset 0 0 16px
+    color-mix(in oklch, var(--pill-glow-color) var(--pill-glow), transparent);
+  transition: background-color 160ms var(--ease-out-quart), border-color 160ms var(--ease-out-quart),
+    box-shadow 160ms var(--ease-out-quart), color 160ms var(--ease-out-quart);
 }
 
 .bn-jarvis-pill-icon {
@@ -303,6 +316,7 @@
 
 .bn-jarvis-pill-label {
   min-width: 0;
+  letter-spacing: -0.005em;
 }
 
 /* The editable prompt input lives INSIDE the pill (status="prompt"). It is a
@@ -329,63 +343,63 @@
   opacity: 0.75;
 }
 
-/* Prompt: awaiting Cmd+Enter — quietly editable, cyan-accented edge so it
-   reads as the active input. */
+/* Prompt: awaiting Cmd+Enter — quietly editable, cyan-tinged edge + a touch
+   more breath so it reads as the active input field. */
 .bn-jarvis-pill[data-status="prompt"] {
+  --pill-glow: 7%;
   cursor: text;
-  border-color: color-mix(in oklch, var(--hud-cyan) 28%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 26%, var(--glass-border));
 }
 
-/* Loading: subtle cyan wash + spinning icon. */
+/* Loading: a gentle cyan breath swells while the spinner runs. */
 .bn-jarvis-pill[data-status="loading"] {
-  background: color-mix(in oklch, var(--hud-cyan) 12%, var(--surface-raised));
-  border-color: color-mix(in oklch, var(--hud-cyan) 36%, transparent);
+  --pill-glow: 11%;
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
 }
 
-/* Receipt: resolved, cyan-tinted, hoverable for the original prompt. */
+/* Receipt: resolved + settled, a soft cyan signature glow, hoverable for the
+   original prompt. */
 .bn-jarvis-pill[data-status="receipt"] {
+  --pill-glow: 9%;
   cursor: help;
-  background: color-mix(in oklch, var(--hud-cyan) 10%, var(--surface-raised));
-  border-color: color-mix(in oklch, var(--hud-cyan) 30%, transparent);
+  border-color: color-mix(in oklch, var(--hud-cyan) 24%, var(--glass-border));
 }
 
-/* Error: red-tinted, still hoverable for the prompt. */
+/* Error: the breath swaps to red; everything else stays in the glass family. */
 .bn-jarvis-pill[data-status="error"] {
+  --pill-glow-color: oklch(0.58 0.2 25);
+  --pill-glow: 9%;
   cursor: help;
   color: oklch(0.58 0.2 25);
-  background: color-mix(in oklch, oklch(0.58 0.2 25) 8%, var(--surface-raised));
-  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 32%, transparent);
+  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 26%, var(--glass-border));
 }
 .bn-jarvis-pill[data-status="error"] .bn-jarvis-pill-icon {
   color: oklch(0.58 0.2 25);
 }
 
 /* The 5s undo affordance on a resolved receipt (mirrors the JARVIS console's
-   universal undo). A small inline neumorphic button tucked at the pill's end;
-   it disappears once the window elapses or after a successful undo. */
+   universal undo). A small inline glass-button (the .glass-button class carries
+   the shared shadow/blur stack) tucked at the bubble's trailing edge with a
+   cyan accent; it disappears once the window elapses or after a successful
+   undo. A hairline divider sets it off from the summary text. */
 .bn-jarvis-pill-undo {
   display: inline-flex;
   align-items: center;
-  gap: 0.28em;
+  gap: 0.3em;
   flex-shrink: 0;
-  margin-left: 0.1em;
-  padding: 0.02em 0.42em;
-  border-radius: 6px;
+  margin-left: 0.45em;
+  padding: 0.06em 0.6em;
+  border-radius: 999px;
   font-family: inherit;
   font-size: 0.92em;
   line-height: 1.3;
   cursor: pointer;
   user-select: none;
   color: var(--hud-cyan);
-  background: color-mix(in oklch, var(--hud-cyan) 14%, var(--surface-raised));
-  border: 1px solid color-mix(in oklch, var(--hud-cyan) 34%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-hi);
-  transition: background-color 120ms var(--ease-out-quart),
-    border-color 120ms var(--ease-out-quart);
+  /* Surface (background, edge, depth) comes from the shared .glass-button. */
 }
 .bn-jarvis-pill-undo:hover {
-  background: color-mix(in oklch, var(--hud-cyan) 22%, var(--surface-raised));
-  border-color: color-mix(in oklch, var(--hud-cyan) 48%, transparent);
+  color: var(--hud-cyan-bright);
 }
 .bn-jarvis-pill-undo:focus-visible {
   outline: 2px solid color-mix(in oklch, var(--hud-cyan) 60%, transparent);
@@ -398,10 +412,22 @@
 /* The terminal "Undone" state once the user reverses the turn. */
 .bn-jarvis-pill-undone {
   flex-shrink: 0;
-  margin-left: 0.1em;
+  margin-left: 0.5em;
+  padding-left: 0.5em;
+  position: relative;
   font-size: 0.92em;
   font-style: italic;
   color: var(--ink-muted);
+}
+.bn-jarvis-pill-undone::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 0.92em;
+  width: 1px;
+  transform: translateY(-50%);
+  background: var(--glass-border);
 }
 
 @keyframes bn-jarvis-spin {
@@ -426,22 +452,24 @@
 .bn-jarvis-pill[data-prompt]:hover::after {
   content: attr(data-prompt);
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 7px);
   left: 0;
   z-index: 50;
   max-width: 22rem;
   width: max-content;
-  padding: 0.4em 0.6em;
-  border-radius: 8px;
+  padding: 0.5em 0.7em;
+  border-radius: 12px;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.78em;
   line-height: 1.4;
   white-space: normal;
   color: var(--ink);
-  background: var(--surface-raised);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 4px 14px color-mix(in oklch, var(--ink) 18%, transparent),
-    inset 0 1px 0 var(--glass-hi);
+  box-shadow: var(--glass-raise-sm), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px
+    0 var(--glass-lo), inset 0 0 18px color-mix(in oklch, var(--hud-cyan) 5%, transparent);
   pointer-events: none;
 }
 
@@ -464,8 +492,8 @@
   color: var(--ink);
   background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
   border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--glass-hi),
-    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
+    color-mix(in oklch, var(--ink) 10%, transparent);
 }
 
 .bn-person-pill-at {
@@ -500,8 +528,8 @@
   color: var(--ink);
   background: color-mix(in oklch, var(--hud-cyan) 9%, var(--surface-raised));
   border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--glass-border));
-  box-shadow: inset 0 1px 0 var(--glass-hi),
-    0 1px 2px color-mix(in oklch, var(--ink) 10%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
+    color-mix(in oklch, var(--ink) 10%, transparent);
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 

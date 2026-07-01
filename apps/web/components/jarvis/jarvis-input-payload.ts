@@ -31,6 +31,11 @@ import {
 } from "@hyperpolymath/jarvis-core";
 import type { SlashCommandKey } from "./SlashCommandPopover";
 
+export interface LinkedPerson {
+  id: string;
+  name: string;
+}
+
 export interface JarvisInputPayload {
   input: string;
   parsedDates: ParsedDate[];
@@ -38,6 +43,7 @@ export interface JarvisInputPayload {
   slashCommand: SlashCommandKey | null;
   hashtags: string[];
   projectIds: string[];
+  people: LinkedPerson[];
 }
 
 /**
@@ -89,14 +95,15 @@ function serializeEditorJson(json: unknown): string {
 }
 
 /**
- * Walk a TipTap-shaped JSON tree collecting hashtag labels and project IDs.
- * Mention nodes carry `attrs.label` (hashtag display name) or `attrs.id`
- * (project UUID).
+ * Walk a TipTap-shaped JSON tree collecting hashtag labels, project IDs, and
+ * person mentions. Mention nodes carry `attrs.label` (hashtag display name) or
+ * `attrs.id` (project / person UUID, with `attrs.label` the display name).
  */
 function collectMentions(
   json: unknown,
   hashtags: string[],
   projectIds: string[],
+  people: LinkedPerson[]
 ): void {
   if (!json || typeof json !== "object") return;
   const n = json as {
@@ -111,8 +118,14 @@ function collectMentions(
   if (n.type === "projectMention" && typeof n.attrs?.id === "string") {
     if (!projectIds.includes(n.attrs.id)) projectIds.push(n.attrs.id);
   }
+  if (n.type === "personMention" && typeof n.attrs?.id === "string") {
+    const id = n.attrs.id;
+    if (!people.some((p) => p.id === id)) {
+      people.push({ id, name: n.attrs.label ?? "" });
+    }
+  }
   if (Array.isArray(n.content)) {
-    for (const c of n.content) collectMentions(c, hashtags, projectIds);
+    for (const c of n.content) collectMentions(c, hashtags, projectIds, people);
   }
 }
 
@@ -137,7 +150,7 @@ export function buildJarvisInputPayload(
   rawText: string,
   editorJson: unknown | null,
   userTimezone: string,
-  slashCommandOverride: SlashCommandKey | null,
+  slashCommandOverride: SlashCommandKey | null
 ): JarvisInputPayload | null {
   // Prefer the JSON-reconstructed text so committed mention chips (`#tag`,
   // `$project`) survive — `rawText` comes from `doc.textContent`, which drops
@@ -169,10 +182,12 @@ export function buildJarvisInputPayload(
   const slashCommandForServer: SlashCommandKey | null =
     slashCommand === "help" ? null : slashCommand;
 
-  // 2. Mentions (hashtag chips + project chips) — from editor JSON if given.
+  // 2. Mentions (hashtag chips + project chips + person chips) — from editor
+  //    JSON if given.
   const hashtags: string[] = [];
   const projectIds: string[] = [];
-  if (editorJson !== null) collectMentions(editorJson, hashtags, projectIds);
+  const people: LinkedPerson[] = [];
+  if (editorJson !== null) collectMentions(editorJson, hashtags, projectIds, people);
 
   // 3. Permissive hashtag regex — catches `#tag` that the user typed but
   //    didn't pop the autocomplete for. De-duplicates against the chip set.
@@ -198,5 +213,6 @@ export function buildJarvisInputPayload(
     slashCommand: slashCommandForServer,
     hashtags,
     projectIds,
+    people,
   };
 }
