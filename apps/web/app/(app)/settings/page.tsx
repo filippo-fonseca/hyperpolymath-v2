@@ -166,7 +166,7 @@ export default async function SettingsPage() {
 
             <Card className={tile}>
               <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
-                Calendar
+                Google
               </h3>
               <GcalConnectionRow status={gcalStatus} />
               {gcalStatus === "connected" && calendars.length > 0 && (
