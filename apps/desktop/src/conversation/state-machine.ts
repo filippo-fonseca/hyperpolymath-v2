@@ -26,8 +26,8 @@ import {
   toggleCaptureTurn,
   type CaptureState,
 } from "@/audio/capture";
-import { ttsPlayer } from "@/jarvis-response";
-import { onJarvisResponseStart } from "@/physical-extender/sse-client";
+import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
+import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
 import { runBriefing } from "@/briefing/briefing";
 
 export type JarvisState = "idle" | "listening" | "thinking" | "speaking";
@@ -37,6 +37,14 @@ const CONV_TIMEOUT_MS = 9_000;
 // Small settle after TTS fully drains before reopening the mic, so the tail of
 // playback / room reverb can't self-trigger the fresh capture.
 const REOPEN_SETTLE_MS = 300;
+// Grace after a response fully ends before we conclude that NO TTS is coming
+// (audio blocked, TTS disabled, or a text/tool-only turn with no spoken
+// sentence). Sentences are fetched + decoded async, so the first `playing`
+// transition can lag the SSE `response-end` by a beat — wait this long before
+// advancing the turn ourselves so we don't cut off a reply that is about to
+// speak. If TTS has started by the time this fires, we defer entirely to the
+// happy path (onStateChange: playing→speaking→drain→continue).
+const THINKING_GRACE_MS = 600;
 // Spoken end-phrases that close the conversation immediately.
 const END_PHRASE = /\b(that'?s all|good ?bye|good ?night|thank you,? jarvis|that will be all)\b/i;
 
@@ -54,6 +62,11 @@ let briefedThisSession = false;
 // knows to open the FIRST capture rather than treating it as a follow-up.
 let awaitingBriefingMic = false;
 let convTimer: ReturnType<typeof setTimeout> | null = null;
+// Grace timer armed when a response fully ends while we're still "thinking".
+// If it fires and TTS still isn't playing, we advance the turn out of
+// "thinking" so a silent / text-only / audio-blocked reply never strands the
+// FSM. Cleared the moment TTS starts playing (happy path takes over).
+let thinkingGraceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Auto-show the HUD whenever JARVIS becomes active (any non-idle state) so the
@@ -106,6 +119,46 @@ function clearConvTimer(): void {
   }
 }
 
+function clearThinkingGrace(): void {
+  if (thinkingGraceTimer) {
+    clearTimeout(thinkingGraceTimer);
+    thinkingGraceTimer = null;
+  }
+}
+
+/**
+ * A response has fully ended (SSE `response-end` / response-complete). If TTS
+ * is (or is about to start) playing, do nothing — the happy path drives
+ * thinking→speaking→continue. Otherwise arm a short grace; if TTS still hasn't
+ * started when it fires and we're still stuck in "thinking", advance the turn
+ * so a silent / text-only / audio-blocked reply never strands the FSM.
+ */
+function onResponseEnded(): void {
+  if (!conversationActive) return;
+  // Only meaningful if we're waiting on a reply that may never speak.
+  if (state !== "thinking") return;
+  // Restart the grace on each end signal (response-complete may follow
+  // response-end); the newest wins.
+  clearThinkingGrace();
+  thinkingGraceTimer = setTimeout(() => {
+    thinkingGraceTimer = null;
+    // Happy path won the race — TTS is speaking (or already handed off).
+    if (ttsPlayer.getState() === "playing") return;
+    if (!conversationActive || state !== "thinking") return;
+    // eslint-disable-next-line no-console
+    console.log("[fsm] response ended with no TTS — advancing out of thinking");
+    // No audio is coming. Reopen the mic for a hands-free follow-up if the
+    // half-duplex gate allows; otherwise sign off gracefully. Guarded by
+    // canStartCapture()/conversationActive so we never double-open the mic.
+    if (canStartCapture()) {
+      void openMicIfPossible("thinking-grace");
+      armContinueTimeout();
+    } else {
+      endConversation();
+    }
+  }, THINKING_GRACE_MS);
+}
+
 /**
  * The single invocation entry point (⌘⌃J, tray click, manual button).
  *   - idle: begin a conversation — brief first, then open the mic.
@@ -146,6 +199,7 @@ export async function startConversation(): Promise<void> {
 async function openMicIfPossible(reason: string): Promise<void> {
   awaitingBriefingMic = false;
   clearConvTimer();
+  clearThinkingGrace();
   if (!canStartCapture()) {
     // eslint-disable-next-line no-console
     console.log(`[fsm] mic open blocked (${reason}) — state=${state}`);
@@ -158,6 +212,7 @@ async function openMicIfPossible(reason: string): Promise<void> {
 /** Speak a short sign-off (if TTS available) and return to idle. */
 function endConversation(): void {
   clearConvTimer();
+  clearThinkingGrace();
   conversationActive = false;
   briefedThisSession = false;
   awaitingBriefingMic = false;
@@ -222,10 +277,25 @@ export function startConversationMachine(): void {
     if (conversationActive) setState("thinking");
   });
 
+  // Resilience: the ONLY happy-path exit from "thinking" is TTS →"playing".
+  // If a response fully ends and no audio is coming (TTS disabled/blocked, or a
+  // text/tool-only turn with no spoken sentence), the FSM would otherwise hang
+  // in "thinking" forever. Subscribe to BOTH end signals — the raw SSE
+  // `response-end` and the buffered `response-complete` (fires after the tail
+  // sentence is flushed) — and arm a short grace that advances the turn if TTS
+  // still hasn't started. onResponseEnded is a no-op unless state === "thinking"
+  // and defers to the happy path whenever TTS is playing, so the normal
+  // TTS→speaking→drain→continue flow is untouched.
+  onJarvisResponseEnd(() => onResponseEnded());
+  onJarvisResponseComplete(() => onResponseEnded());
+
   // TTS state is the half-duplex signal.
   ttsPlayer.onStateChange((ts) => {
     if (!conversationActive) return;
     if (ts === "playing") {
+      // TTS is speaking — the happy path owns the turn now; cancel any grace
+      // timer armed by a response-end that raced ahead of the first sentence.
+      clearThinkingGrace();
       setState("speaking");
     } else if (ts === "idle") {
       // TTS drained. If this was the opening briefing, open the FIRST mic.
