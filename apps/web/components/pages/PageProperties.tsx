@@ -561,9 +561,9 @@ function AddPropertyControl({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="glass-button flex items-center gap-1.5 w-fit mt-1 ml-1 px-2.5 py-1 rounded-md text-[12px] font-mono text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
+          className="flex items-center gap-1.5 w-fit pl-2.5 pr-2 py-1 rounded-md text-[12px] font-mono text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] transition-all duration-150 cursor-pointer"
         >
-          <Plus size={12} strokeWidth={1.5} />
+          <Plus size={12} strokeWidth={1.5} className="shrink-0" />
           Add property
         </button>
       </PopoverTrigger>
