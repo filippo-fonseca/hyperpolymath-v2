@@ -11,17 +11,11 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  attachFieldToPage,
-  createFieldDefinition,
-  deleteFieldDefinition,
-  detachFieldFromPage,
+  setPageFieldHidden,
   setPageFieldValue,
   updateFieldDefinition,
 } from "@/app/actions/page-fields";
 import {
-  FIELD_TYPE_LABELS,
-  FIELD_TYPE_ORDER,
-  type PageFieldDefinition,
   type PageFieldSelectOption,
   type PageFieldType,
   type PageFieldValue,
@@ -37,12 +31,12 @@ import {
   Check,
   CheckSquare,
   ChevronRight,
+  Eye,
+  EyeOff,
   Hash,
   Plus,
   Tags,
-  Trash2,
   Type,
-  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -56,27 +50,34 @@ const TYPE_ICON: Record<PageFieldType, typeof Type> = {
 
 interface PagePropertiesProps {
   pageId: string;
-  /** Fields attached to this page (a value row exists), display-ordered. */
+  /** Applicable properties for this page (wiki + folder), with value + hidden. */
   fields: PageFieldWithValue[];
-  /** Every field definition the user has, for the add-property picker. */
-  definitions: PageFieldDefinition[];
-  /** Invalidate the pages + definitions queries after any mutation. */
+  /** Invalidate the pages query after any mutation. */
   onChanged: () => void;
 }
 
 /**
- * Issue #165 — Notion-style custom properties block for a wiki page. Renders the
- * page's attached fields with a per-type editor, plus an "+ Add property" picker
- * that attaches an existing reusable field or creates a new one. All persistence
- * flows through the page-fields server actions; onChanged re-syncs the queries.
+ * Issue #165 — the page's Properties block. Properties are defined wiki-wide or
+ * per top-level folder (managed elsewhere); this block only shows the applicable
+ * ones, lets you set values, and toggle each property's visibility on THIS page.
+ * There is no create/add here by design. Collapsed by default (Notion-style).
  */
-export function PageProperties({ pageId, fields, definitions, onChanged }: PagePropertiesProps) {
-  // Collapsed by default so the block never crowds the page (Notion tucks
-  // properties behind a toggle). The neumorphic panel only appears on expand.
+export function PageProperties({ pageId, fields, onChanged }: PagePropertiesProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
 
-  async function persistValue(fieldDefinitionId: string, value: PageFieldValue) {
+  // No applicable properties → render nothing (keeps bare pages clean).
+  if (fields.length === 0) return null;
+
+  const visible = fields.filter((f) => !f.hidden);
+  const hidden = fields.filter((f) => f.hidden);
+
+  async function saveValue(fieldDefinitionId: string, value: PageFieldValue) {
     await setPageFieldValue({ pageId, fieldDefinitionId, value });
+    onChanged();
+  }
+  async function setHidden(fieldDefinitionId: string, next: boolean) {
+    await setPageFieldHidden({ pageId, fieldDefinitionId, hidden: next });
     onChanged();
   }
 
@@ -93,175 +94,98 @@ export function PageProperties({ pageId, fields, definitions, onChanged }: PageP
           className={cn("transition-transform duration-200", expanded && "rotate-90")}
         />
         <span>Properties</span>
-        {fields.length > 0 && (
-          <span className="text-[10px] text-[var(--ink-muted)] opacity-80">{fields.length}</span>
-        )}
+        <span className="text-[10px] text-[var(--ink-muted)] opacity-80">{visible.length}</span>
       </button>
 
       {expanded && (
         <div className="glass-tile rounded-xl px-2 py-1.5 flex flex-col gap-0.5">
-          {fields.map((field) => (
+          {visible.map((field) => (
             <FieldRow
               key={field.id}
-              pageId={pageId}
               field={field}
-              onSave={(value) => persistValue(field.id, value)}
+              onSave={(value) => saveValue(field.id, value)}
+              onHide={() => setHidden(field.id, true)}
               onChanged={onChanged}
             />
           ))}
-          <AddPropertyControl
-            pageId={pageId}
-            attachedIds={new Set(fields.map((f) => f.id))}
-            definitions={definitions}
-            onChanged={onChanged}
-          />
+
+          {hidden.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className="flex items-center gap-1 w-fit mt-0.5 px-1.5 py-1 rounded-md text-[11px] font-mono text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+              >
+                <ChevronRight
+                  size={11}
+                  strokeWidth={1.5}
+                  className={cn("transition-transform duration-200", showHidden && "rotate-90")}
+                />
+                {hidden.length} hidden
+              </button>
+              {showHidden &&
+                hidden.map((field) => (
+                  <FieldRow
+                    key={field.id}
+                    field={field}
+                    dimmed
+                    onSave={(value) => saveValue(field.id, value)}
+                    onHide={() => setHidden(field.id, false)}
+                    onChanged={onChanged}
+                  />
+                ))}
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── A single attached field: label + type menu + value editor ────────────────
-
 function FieldRow({
-  pageId,
   field,
   onSave,
+  onHide,
   onChanged,
+  dimmed,
 }: {
-  pageId: string;
   field: PageFieldWithValue;
   onSave: (value: PageFieldValue) => Promise<void>;
+  onHide: () => void;
   onChanged: () => void;
+  dimmed?: boolean;
 }) {
   const Icon = TYPE_ICON[field.type];
   return (
-    <div className="group flex items-center gap-1.5 min-h-[34px] rounded-lg px-1 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] transition-colors duration-150">
-      <FieldLabelMenu pageId={pageId} field={field} onChanged={onChanged} icon={Icon} />
+    <div
+      className={cn(
+        "group flex items-center gap-1.5 min-h-[34px] rounded-lg px-1 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] transition-colors duration-150",
+        dimmed && "opacity-60",
+      )}
+    >
+      <div
+        className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 text-[12px] font-mono text-[var(--ink-muted)]"
+        title={field.name}
+      >
+        <Icon size={12} strokeWidth={1.5} className="shrink-0" />
+        <span className="truncate">{field.name}</span>
+      </div>
       <div className="flex-1 min-w-0 self-center">
         <FieldValueEditor field={field} onSave={onSave} onChanged={onChanged} />
       </div>
+      <button
+        type="button"
+        onClick={onHide}
+        title={field.hidden ? "Show on this page" : "Hide on this page"}
+        className="shrink-0 self-center p-1 rounded text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+      >
+        {field.hidden ? (
+          <Eye size={13} strokeWidth={1.5} />
+        ) : (
+          <EyeOff size={13} strokeWidth={1.5} />
+        )}
+      </button>
     </div>
-  );
-}
-
-function FieldLabelMenu({
-  pageId,
-  field,
-  onChanged,
-  icon: Icon,
-}: {
-  pageId: string;
-  field: PageFieldWithValue;
-  onChanged: () => void;
-  icon: typeof Type;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(field.name);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!open) setName(field.name);
-  }, [field.name, open]);
-
-  async function rename() {
-    const next = name.trim();
-    if (!next || next === field.name || busy) return;
-    setBusy(true);
-    try {
-      await updateFieldDefinition({ id: field.id, name: next });
-      onChanged();
-      setOpen(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function detach() {
-    setBusy(true);
-    try {
-      await detachFieldFromPage({ pageId, fieldDefinitionId: field.id });
-      onChanged();
-      setOpen(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove() {
-    setBusy(true);
-    try {
-      await deleteFieldDefinition(field.id);
-      onChanged();
-      setOpen(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 rounded-md text-left text-[12px] font-mono text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
-          title={FIELD_TYPE_LABELS[field.type]}
-        >
-          <Icon size={12} strokeWidth={1.5} className="shrink-0" />
-          <span className="truncate">{field.name}</span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-60 p-1.5 flex flex-col gap-1" align="start">
-        <div className="flex items-center gap-1 px-1 pb-1">
-          <input
-            // biome-ignore lint/a11y/noAutofocus: focus belongs in the just-opened rename input
-            autoFocus
-            type="text"
-            value={name}
-            disabled={busy}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") rename();
-              if (e.key === "Escape") setOpen(false);
-            }}
-            placeholder="Property name"
-            className="flex-1 min-w-0 px-2 py-1 text-[12px] font-mono bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={rename}
-            disabled={busy}
-            title="Rename"
-            className="shrink-0 flex items-center justify-center w-6 h-6 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <Check size={12} strokeWidth={1.5} />
-          </button>
-        </div>
-        <div className="px-2 pb-1 text-[10px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
-          {FIELD_TYPE_LABELS[field.type]}
-        </div>
-        <div className="h-px bg-[var(--edge)]" />
-        <button
-          type="button"
-          onClick={detach}
-          disabled={busy}
-          className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer disabled:opacity-50"
-        >
-          <X size={12} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          Remove from page
-        </button>
-        <button
-          type="button"
-          onClick={remove}
-          disabled={busy}
-          title="Deletes this field from every page"
-          className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] hover:text-[var(--ink-coral)] transition-colors duration-100 cursor-pointer disabled:opacity-50"
-        >
-          <Trash2 size={12} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          Delete field everywhere
-        </button>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -420,7 +344,6 @@ function SelectEditor({
         color: nextTagColor(options),
       };
       await updateFieldDefinition({ id: field.id, options: [...options, option] });
-      // Select the freshly created option (single-select replaces).
       const next = field.allowMultiple ? [...selected, option.id] : [option.id];
       await onSave(next);
       onChanged();
@@ -496,147 +419,4 @@ function TagChip({ option }: { option: PageFieldSelectOption }) {
       {option.label}
     </span>
   );
-}
-
-// ─── Add-property picker: attach an existing field or create a new one ─────────
-
-function AddPropertyControl({
-  pageId,
-  attachedIds,
-  definitions,
-  onChanged,
-}: {
-  pageId: string;
-  attachedIds: Set<string>;
-  definitions: PageFieldDefinition[];
-  onChanged: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const available = definitions.filter((d) => !attachedIds.has(d.id));
-  const filtered = available.filter((d) =>
-    d.name.toLowerCase().includes(name.trim().toLowerCase()),
-  );
-  const canCreate =
-    name.trim().length > 0 &&
-    !definitions.some((d) => d.name.toLowerCase() === name.trim().toLowerCase());
-
-  function reset() {
-    setName("");
-  }
-
-  async function attach(fieldDefinitionId: string) {
-    setBusy(true);
-    try {
-      await attachFieldToPage({ pageId, fieldDefinitionId });
-      onChanged();
-      setOpen(false);
-      reset();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 w-fit pl-2.5 pr-2 py-1 rounded-md text-[12px] font-mono text-[var(--ink-muted)] opacity-70 hover:opacity-100 hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] transition-all duration-150 cursor-pointer"
-        >
-          <Plus size={12} strokeWidth={1.5} className="shrink-0" />
-          Add property
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-0 overflow-hidden" align="start">
-        <Command shouldFilter={false} className="bg-transparent">
-          <CommandInput
-            // biome-ignore lint/a11y/noAutofocus: focus belongs in the just-opened picker
-            autoFocus
-            value={name}
-            onValueChange={setName}
-            placeholder="Find or create a property…"
-          />
-          <CommandList>
-            <CommandEmpty>
-              {available.length === 0 && name.trim() === ""
-                ? "Type a name to create a property."
-                : "That name already exists."}
-            </CommandEmpty>
-            {filtered.length > 0 && (
-              <CommandGroup heading="Existing">
-                {filtered.map((d) => {
-                  const Icon = TYPE_ICON[d.type];
-                  return (
-                    <CommandItem
-                      key={d.id}
-                      value={`def-${d.id}`}
-                      disabled={busy}
-                      onSelect={() => void attach(d.id)}
-                    >
-                      <Icon size={12} strokeWidth={1.5} className="shrink-0" />
-                      <span className="flex-1 truncate">{d.name}</span>
-                      <span className="text-[10px] font-mono text-[var(--ink-muted)]">
-                        {FIELD_TYPE_LABELS[d.type]}
-                      </span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            )}
-            {canCreate && (
-              <CommandGroup heading="New property — pick a type">
-                {FIELD_TYPE_ORDER.map((t) => {
-                  const Icon = TYPE_ICON[t];
-                  return (
-                    <CommandItem
-                      key={t}
-                      value={`new-${t}`}
-                      disabled={busy}
-                      onSelect={() => void createWithType(t)}
-                    >
-                      <Icon size={12} strokeWidth={1.5} className="shrink-0" />
-                      <span className="flex-1">{FIELD_TYPE_LABELS[t]}</span>
-                      <span className="text-[10px] font-mono text-[var(--ink-muted)]">
-                        Create “{name.trim()}”
-                      </span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-
-  async function createWithType(t: PageFieldType) {
-    const trimmed = name.trim();
-    if (!trimmed || busy) return;
-    setBusy(true);
-    try {
-      const created = await createFieldDefinition({
-        name: trimmed,
-        type: t,
-        ...(t === "select" ? { options: [] } : {}),
-      });
-      if (created.success) {
-        await attachFieldToPage({ pageId, fieldDefinitionId: created.data.id });
-      }
-      onChanged();
-      setOpen(false);
-      reset();
-    } finally {
-      setBusy(false);
-    }
-  }
 }

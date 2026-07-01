@@ -8,6 +8,10 @@ export type { PageFieldSelectOption };
 
 export type PageFieldType = "text" | "number" | "date" | "select" | "checkbox";
 
+/** A definition is wiki-wide (every page) or folder-scoped (cascades to a
+ * top-level folder's descendant pages). */
+export type PageFieldScope = "wiki" | "folder";
+
 export const FIELD_TYPE_ORDER: readonly PageFieldType[] = [
   "text",
   "number",
@@ -29,6 +33,9 @@ export interface PageFieldDefinition {
   id: string;
   name: string;
   type: PageFieldType;
+  scope: PageFieldScope;
+  /** Set only for scope = 'folder': the top-level folder this def belongs to. */
+  folderId: string | null;
   options: PageFieldSelectOption[] | null;
   allowMultiple: boolean;
   orderIndex: number;
@@ -44,9 +51,11 @@ export interface PageFieldDefinition {
  */
 export type PageFieldValue = string | number | boolean | string[] | null;
 
-/** A definition joined with a single page's value for it. */
+/** A definition joined with a single page's value + per-page hidden override. */
 export interface PageFieldWithValue extends PageFieldDefinition {
   value: PageFieldValue;
+  /** True = hidden on this page (per-page override). Default false (visible). */
+  hidden: boolean;
 }
 
 // ─── Select option colors ────────────────────────────────────────────────────
@@ -83,6 +92,28 @@ export function nextTagColor(existing: readonly PageFieldSelectOption[]): string
 /** Cross-runtime id (browser + Node 20). */
 export function newId(): string {
   return crypto.randomUUID();
+}
+
+/**
+ * Walk up parentById to the top-level folder (parentId === null). Folder-scoped
+ * field defs live only on top-level folders and cascade to descendants, so a
+ * page's folder props come from its root-ancestor folder. Cycle-safe; returns
+ * null when folderId is null.
+ */
+export function rootFolderId(
+  folderId: string | null,
+  parentById: Map<string, string | null>,
+): string | null {
+  if (!folderId) return null;
+  let current: string | null = folderId;
+  const seen = new Set<string>();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const parent: string | null = parentById.get(current) ?? null;
+    if (parent === null) return current;
+    current = parent;
+  }
+  return current;
 }
 
 /**

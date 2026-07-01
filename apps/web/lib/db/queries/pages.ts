@@ -7,11 +7,12 @@ import {
   pagesProjects,
   projects,
 } from "@/lib/db/schema";
-import type {
-  PageFieldDefinition,
-  PageFieldType,
-  PageFieldValue,
-  PageFieldWithValue,
+import {
+  type PageFieldDefinition,
+  type PageFieldType,
+  type PageFieldValue,
+  type PageFieldWithValue,
+  rootFolderId,
 } from "@/lib/pages/custom-fields";
 import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 
@@ -146,46 +147,91 @@ export async function getPagesForUser(
     projsByPage.set(p.pageId, list);
   }
 
-  // Custom field values (issue #165), joined to their definition so the UI has
-  // name/type/options in one payload. Ordered by the definition's order_index.
-  const fieldRows = await db
+  // Custom fields (issue #165). A page's applicable defs = every wiki-scoped def
+  // plus the folder-scoped defs of the page's ROOT-ANCESTOR folder (folder defs
+  // live on a top-level folder and cascade to descendants). Values + the
+  // per-page hidden override are merged in from page_field_values.
+  const defRows = await db
     .select({
-      pageId: pageFieldValues.pageId,
-      definitionId: pageFieldDefinitions.id,
+      id: pageFieldDefinitions.id,
       name: pageFieldDefinitions.name,
       type: pageFieldDefinitions.type,
+      scope: pageFieldDefinitions.scope,
+      folderId: pageFieldDefinitions.folderId,
       options: pageFieldDefinitions.options,
       allowMultiple: pageFieldDefinitions.allowMultiple,
       orderIndex: pageFieldDefinitions.orderIndex,
-      value: pageFieldValues.value,
     })
-    .from(pageFieldValues)
-    .innerJoin(
-      pageFieldDefinitions,
-      eq(pageFieldDefinitions.id, pageFieldValues.fieldDefinitionId),
-    )
-    .where(and(eq(pageFieldValues.userId, userId), inArray(pageFieldValues.pageId, pageIds)))
+    .from(pageFieldDefinitions)
+    .where(eq(pageFieldDefinitions.userId, userId))
     .orderBy(asc(pageFieldDefinitions.orderIndex), asc(pageFieldDefinitions.name));
 
-  const fieldsByPage = new Map<string, PageFieldWithValue[]>();
-  for (const f of fieldRows) {
-    const list = fieldsByPage.get(f.pageId) ?? [];
-    list.push({
-      id: f.definitionId,
-      name: f.name,
-      type: f.type as PageFieldType,
-      options: f.options ?? null,
-      allowMultiple: f.allowMultiple,
-      orderIndex: f.orderIndex,
-      value: (f.value ?? null) as PageFieldValue,
-    });
-    fieldsByPage.set(f.pageId, list);
+  const wikiDefs = defRows.filter((d) => d.scope === "wiki");
+  const folderDefsByFolder = new Map<string, typeof defRows>();
+  for (const d of defRows) {
+    if (d.scope === "folder" && d.folderId) {
+      const list = folderDefsByFolder.get(d.folderId) ?? [];
+      list.push(d);
+      folderDefsByFolder.set(d.folderId, list);
+    }
   }
+
+  // Folder parent map for root-ancestor resolution (only needed if any folder defs exist).
+  let parentById = new Map<string, string | null>();
+  if (folderDefsByFolder.size > 0) {
+    const folderRows = await db
+      .select({ id: pageFolders.id, parentId: pageFolders.parentId })
+      .from(pageFolders)
+      .where(eq(pageFolders.userId, userId));
+    parentById = new Map(folderRows.map((f) => [f.id, f.parentId]));
+  }
+
+  const valueRows = await db
+    .select({
+      pageId: pageFieldValues.pageId,
+      fieldDefinitionId: pageFieldValues.fieldDefinitionId,
+      value: pageFieldValues.value,
+      hidden: pageFieldValues.hidden,
+    })
+    .from(pageFieldValues)
+    .where(and(eq(pageFieldValues.userId, userId), inArray(pageFieldValues.pageId, pageIds)));
+
+  const valueByKey = new Map<string, { value: unknown; hidden: boolean }>();
+  for (const v of valueRows) {
+    valueByKey.set(`${v.pageId}:${v.fieldDefinitionId}`, { value: v.value, hidden: v.hidden });
+  }
+
+  const toField = (
+    d: (typeof defRows)[number],
+    pageId: string,
+  ): PageFieldWithValue => {
+    const stored = valueByKey.get(`${pageId}:${d.id}`);
+    return {
+      id: d.id,
+      name: d.name,
+      type: d.type as PageFieldType,
+      scope: d.scope,
+      folderId: d.folderId ?? null,
+      options: d.options ?? null,
+      allowMultiple: d.allowMultiple,
+      orderIndex: d.orderIndex,
+      value: (stored?.value ?? null) as PageFieldValue,
+      hidden: stored?.hidden ?? false,
+    };
+  };
+
+  const fieldsForPage = (pageId: string, folderId: string | null): PageFieldWithValue[] => {
+    const applicable = [...wikiDefs];
+    const root = rootFolderId(folderId, parentById);
+    if (root) applicable.push(...(folderDefsByFolder.get(root) ?? []));
+    applicable.sort((a, b) => a.orderIndex - b.orderIndex || a.name.localeCompare(b.name));
+    return applicable.map((d) => toField(d, pageId));
+  };
 
   return pageRows.map((p) => ({
     ...p,
     projects: projsByPage.get(p.id) ?? [],
-    fields: fieldsByPage.get(p.id) ?? [],
+    fields: fieldsForPage(p.id, p.folderId),
   }));
 }
 
@@ -202,6 +248,8 @@ export async function getFieldDefinitionsForUser(
       id: pageFieldDefinitions.id,
       name: pageFieldDefinitions.name,
       type: pageFieldDefinitions.type,
+      scope: pageFieldDefinitions.scope,
+      folderId: pageFieldDefinitions.folderId,
       options: pageFieldDefinitions.options,
       allowMultiple: pageFieldDefinitions.allowMultiple,
       orderIndex: pageFieldDefinitions.orderIndex,
@@ -213,6 +261,8 @@ export async function getFieldDefinitionsForUser(
     id: r.id,
     name: r.name,
     type: r.type as PageFieldType,
+    scope: r.scope,
+    folderId: r.folderId ?? null,
     options: r.options ?? null,
     allowMultiple: r.allowMultiple,
     orderIndex: r.orderIndex,
