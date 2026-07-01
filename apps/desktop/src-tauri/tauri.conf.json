@@ -22,11 +22,11 @@
         "center": true,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "visible": false,
-        "skipTaskbar": true
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true,
+        "skipTaskbar": false
       }
     ],
     "macOSPrivateApi": true,
