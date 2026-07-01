@@ -115,6 +115,17 @@ export class TtsPlayer {
     this.drain();
   }
 
+  /**
+   * Speak a single canned line immediately (e.g. the FSM sign-off "Standing by,
+   * sir."). Resets the seq counter so the line plays on its own without being
+   * blocked by a prior turn's ordering.
+   */
+  speakNow(text: string): void {
+    if (!this.enabled || !text.trim()) return;
+    this.nextSeq = 0;
+    this.enqueueSentence(text, 0);
+  }
+
   /** Stop all playback immediately and clear the queue. */
   stop(): void {
     if (this.abortController) {

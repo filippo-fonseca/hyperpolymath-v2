@@ -18,6 +18,7 @@ import {
   unregister as unregisterShortcut,
   isRegistered as isShortcutRegistered,
 } from "@tauri-apps/plugin-global-shortcut";
+import { listen } from "@tauri-apps/api/event";
 
 import { postClaim } from "@/api/client";
 import {
@@ -28,7 +29,6 @@ import {
   onTranscriptReceived,
   setManualMode,
   setVadSilenceMs,
-  toggleCaptureTurn,
   toggleExtended,
   type CaptureState,
 } from "@/audio/capture";
@@ -54,12 +54,12 @@ import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { handleAction, parseAction } from "@/actions/dispatcher";
 import {
-  onWakeState,
-  resumeWakeLoopIfIdle,
-  setWakeEnabled,
-  stopWakeLoop,
-} from "@/wake/wake-probe";
-import { onBriefingState } from "@/briefing/briefing";
+  onJarvisState,
+  startConversation,
+  startConversationMachine,
+  type JarvisState,
+} from "@/conversation/state-machine";
+import { primeAudioOnGesture, wireVisibilityRecovery } from "@/audio/audio-context";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -101,16 +101,9 @@ function paintCaptureState(state: CaptureState): void {
   _captureState = state;
   renderLivePanel();
   paintActionRow(state, _extended);
-  document.body.dataset.jarvisState = state;
-
-  // Hand the single cpal mic between the idle wake loop and a command turn.
-  // When a turn starts, stop the wake loop so it releases the mic; when the
-  // turn returns to idle, resume hands-free wake listening.
-  if (state === "idle") {
-    void resumeWakeLoopIfIdle();
-  } else {
-    void stopWakeLoop();
-  }
+  // NOTE: body[data-jarvis-state] is driven by the conversation FSM
+  // (idle/listening/thinking/speaking), NOT by raw capture state. See
+  // onJarvisState() wiring in boot().
 }
 
 function paintExtended(active: boolean): void {
@@ -226,8 +219,10 @@ function wireCancelButton(): void {
 function wireWakeButton(): void {
   const btn = document.getElementById("wake-btn");
   if (!btn) return;
+  // The manual "Talk to JARVIS" button is the guaranteed fallback invocation
+  // surface. It goes through the conversation FSM like the hotkey and tray.
   btn.addEventListener("click", () => {
-    void toggleCaptureTurn();
+    void startConversation();
   });
 }
 
@@ -365,10 +360,9 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
  * input surface, not a replacement.
  */
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
-  // Cmd+Ctrl+J is a single toggle: start a turn when idle, end-and-send when
-  // recording. Same chord stops in physical-extender mode too (the ESP32/SSE
-  // path starts the turn; this stops it).
-  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake/stop", () => void toggleCaptureTurn());
+  // Cmd+Ctrl+J is the primary invocation surface, routed through the FSM:
+  // idle → begin conversation (brief, then listen); listening → end the turn.
+  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "invoke", () => void startConversation());
   paintHotkeyStatus(peEnabled);
 }
 
@@ -387,6 +381,13 @@ async function wireExtendShortcut(): Promise<void> {
 }
 
 async function boot(): Promise<void> {
+  // 0. Audio: create + resume the shared AudioContext eagerly so JARVIS speaks
+  //    the very first briefing without a click. Belt-and-braces: also resume on
+  //    the first pointer/key gesture and recover on foreground.
+  ttsPlayer.unlock();
+  primeAudioOnGesture();
+  wireVisibilityRecovery();
+
   // 1. Load persisted settings and apply them before wiring anything.
   const settings = await loadSettings();
   ttsPlayer.setEnabled(settings.ttsEnabled && settings.ttsProvider !== "off");
@@ -521,23 +522,9 @@ async function boot(): Promise<void> {
     if (manualModeEl) manualModeEl.checked = active;
   });
 
-  // 3a-bis. Wire wake-phrase toggle (wake.enabled).
-  const wakeEnabledEl = document.getElementById("wake-enabled") as HTMLInputElement | null;
-  if (wakeEnabledEl) {
-    wakeEnabledEl.checked = settings.wakeEnabled;
-    wakeEnabledEl.addEventListener("change", () => {
-      const on = wakeEnabledEl.checked;
-      setWakeEnabled(on);
-      void saveSetting("wakeEnabled", on);
-    });
-  }
-
-  // Drive the kiwi orb state from capture state — idle → recording → uploading → idle.
-  // TTS playing is mapped to "speaking" via ttsPlayer.onStateChange below.
-  function setJarvisState(s: "idle" | "recording" | "uploading" | "speaking"): void {
-    document.body.dataset.jarvisState = s;
-  }
-  setJarvisState("idle");
+  // 3a-bis. The always-on wake loop was retired (invoke-to-talk only). The
+  // wake-enabled setting key remains readable for back-compat but no longer
+  // drives any live feature.
 
   // 3b. Wire VAD silence dropdown
   if (vadSilenceEl) {
@@ -570,14 +557,10 @@ async function boot(): Promise<void> {
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
 
-  // TTS state drives the Stop button visibility + the kiwi orb's "speaking" hue.
+  // TTS state drives the Stop button visibility. The orb's "speaking" state is
+  // owned by the conversation FSM (which reads the same ttsPlayer signal).
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
-    if (state === "playing" && _captureState === "idle") {
-      setJarvisState("speaking");
-    } else if (state === "idle" && _captureState === "idle") {
-      setJarvisState("idle");
-    }
   });
 
   onJarvisResponseStart(() => paintResponseStart());
@@ -613,25 +596,21 @@ async function boot(): Promise<void> {
 
   void startPhysicalExtenderListener();
 
-  // 5b. Wake phrase ("daddy's home") + proactive briefing HUD cues.
-  //     data-jarvis-state gets "wake" while the idle loop listens and
-  //     "briefing" while a proactive briefing is playing. These are additive
-  //     to the capture states (idle/recording/uploading/speaking) — capture
-  //     state transitions overwrite them, which is intended.
-  onWakeState((active) => {
-    if (active && _captureState === "idle") {
-      document.body.dataset.jarvisState = "wake";
-    } else if (!active && _captureState === "idle") {
-      document.body.dataset.jarvisState = "idle";
-    }
+  // 5b. Conversation FSM: single source of truth for body[data-jarvis-state]
+  //     (idle/listening/thinking/speaking). Wire it up and mirror its state
+  //     onto the body so the orb reacts.
+  onJarvisState((s: JarvisState) => {
+    document.body.dataset.jarvisState = s;
   });
-  onBriefingState((active) => {
-    if (active) document.body.dataset.jarvisState = "briefing";
-  });
+  startConversationMachine();
+  document.body.dataset.jarvisState = "idle";
 
-  // Start the always-on wake listener when enabled (default true). The manual
-  // ⌘⌃J trigger keeps working alongside it.
-  setWakeEnabled(settings.wakeEnabled);
+  // Tray left-click also invokes a turn (emitted from Rust as `tray-invoke`).
+  // "Show / Hide HUD" stays on the right-click menu so visibility toggling is
+  // not conflated with invocation.
+  void listen("tray-invoke", () => {
+    void startConversation();
+  });
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);

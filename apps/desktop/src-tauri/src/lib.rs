@@ -4,7 +4,7 @@ mod commands;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 
 /// Toggle the floating HUD window between shown+focused and hidden.
@@ -47,7 +47,9 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("JARVIS Desktop")
                 .menu(&menu)
-                // Left-click toggles the HUD; right-click opens the menu.
+                // Left-click INVOKES a turn (invoke-to-talk); the right-click
+                // menu owns Show/Hide HUD + Quit so visibility toggling is not
+                // conflated with invocation.
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "toggle-hud" => toggle_hud(app),
@@ -60,7 +62,11 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        toggle_hud(tray.app_handle());
+                        // Fire an invocation. The webview's `tray-invoke`
+                        // listener routes this through the conversation FSM.
+                        // Do NOT set_focus on the HUD here — let the mic open
+                        // without stealing focus from whatever the user is in.
+                        let _ = tray.app_handle().emit("tray-invoke", ());
                     }
                 })
                 .build(app)?;
