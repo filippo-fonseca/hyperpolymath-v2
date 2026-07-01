@@ -7,7 +7,7 @@ import { JarvisReceipt } from "./JarvisReceipt";
 import { JarvisClarification } from "./JarvisClarification";
 import { HudThinkingRing } from "@/components/shared/HudThinkingRing";
 import { stripSystemTags } from "@/lib/jarvis/strip-system-tags";
-import { renderInlineMarkdown } from "@/lib/jarvis/inline-markdown";
+import { renderInlineMarkdown, renderUserText } from "@/lib/jarvis/inline-markdown";
 import { isDailyPageProcessText } from "@/lib/jarvis/daily-page-process";
 import { CalendarDays } from "lucide-react";
 
@@ -385,7 +385,7 @@ export function JarvisScrollback({
                         </span>
                       ) : (
                         <p className="font-sans text-[15px] text-[var(--ink)] whitespace-pre-wrap break-words">
-                          {stripSystemTags(turn.text)}
+                          {renderUserText(stripSystemTags(turn.text))}
                         </p>
                       )}
                     </motion.div>
