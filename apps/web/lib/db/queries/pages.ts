@@ -1,5 +1,18 @@
 import { db } from "@/lib/db";
-import { pageFolders, pages, pagesProjects, projects } from "@/lib/db/schema";
+import {
+  pageFieldDefinitions,
+  pageFieldValues,
+  pageFolders,
+  pages,
+  pagesProjects,
+  projects,
+} from "@/lib/db/schema";
+import type {
+  PageFieldDefinition,
+  PageFieldType,
+  PageFieldValue,
+  PageFieldWithValue,
+} from "@/lib/pages/custom-fields";
 import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 
 /** A page's link to one project. Folder placement is now page-level, not per-link. */
@@ -35,6 +48,11 @@ export interface PageWithProjects {
   createdAt: Date;
   updatedAt: Date;
   projects: PageProjectLink[];
+  /**
+   * Issue #165 — Notion-style custom fields attached to this page (a
+   * page_field_values row joined to its definition), ordered for display.
+   */
+  fields: PageFieldWithValue[];
 }
 
 const PAGE_COLS = {
@@ -128,9 +146,76 @@ export async function getPagesForUser(
     projsByPage.set(p.pageId, list);
   }
 
+  // Custom field values (issue #165), joined to their definition so the UI has
+  // name/type/options in one payload. Ordered by the definition's order_index.
+  const fieldRows = await db
+    .select({
+      pageId: pageFieldValues.pageId,
+      definitionId: pageFieldDefinitions.id,
+      name: pageFieldDefinitions.name,
+      type: pageFieldDefinitions.type,
+      options: pageFieldDefinitions.options,
+      allowMultiple: pageFieldDefinitions.allowMultiple,
+      orderIndex: pageFieldDefinitions.orderIndex,
+      value: pageFieldValues.value,
+    })
+    .from(pageFieldValues)
+    .innerJoin(
+      pageFieldDefinitions,
+      eq(pageFieldDefinitions.id, pageFieldValues.fieldDefinitionId),
+    )
+    .where(and(eq(pageFieldValues.userId, userId), inArray(pageFieldValues.pageId, pageIds)))
+    .orderBy(asc(pageFieldDefinitions.orderIndex), asc(pageFieldDefinitions.name));
+
+  const fieldsByPage = new Map<string, PageFieldWithValue[]>();
+  for (const f of fieldRows) {
+    const list = fieldsByPage.get(f.pageId) ?? [];
+    list.push({
+      id: f.definitionId,
+      name: f.name,
+      type: f.type as PageFieldType,
+      options: f.options ?? null,
+      allowMultiple: f.allowMultiple,
+      orderIndex: f.orderIndex,
+      value: (f.value ?? null) as PageFieldValue,
+    });
+    fieldsByPage.set(f.pageId, list);
+  }
+
   return pageRows.map((p) => ({
     ...p,
     projects: projsByPage.get(p.id) ?? [],
+    fields: fieldsByPage.get(p.id) ?? [],
+  }));
+}
+
+/**
+ * All custom field definitions for a user (issue #165), ordered for display.
+ * Feeds the "+ Add property" picker so an existing field can be attached to a
+ * page, and the field-definition editor.
+ */
+export async function getFieldDefinitionsForUser(
+  userId: string,
+): Promise<PageFieldDefinition[]> {
+  const rows = await db
+    .select({
+      id: pageFieldDefinitions.id,
+      name: pageFieldDefinitions.name,
+      type: pageFieldDefinitions.type,
+      options: pageFieldDefinitions.options,
+      allowMultiple: pageFieldDefinitions.allowMultiple,
+      orderIndex: pageFieldDefinitions.orderIndex,
+    })
+    .from(pageFieldDefinitions)
+    .where(eq(pageFieldDefinitions.userId, userId))
+    .orderBy(asc(pageFieldDefinitions.orderIndex), asc(pageFieldDefinitions.name));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    type: r.type as PageFieldType,
+    options: r.options ?? null,
+    allowMultiple: r.allowMultiple,
+    orderIndex: r.orderIndex,
   }));
 }
 

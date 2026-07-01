@@ -317,6 +317,7 @@ export function PagesListClient({
           createdAt: now,
           updatedAt: now,
           projects: [],
+          fields: [],
         },
         ...old,
       ]);
