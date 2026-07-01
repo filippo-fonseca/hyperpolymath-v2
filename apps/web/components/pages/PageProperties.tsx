@@ -1,6 +1,14 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   attachFieldToPage,
@@ -36,7 +44,7 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const TYPE_ICON: Record<PageFieldType, typeof Type> = {
   text: Type,
@@ -383,6 +391,10 @@ function SelectEditor({
   const selectedOptions = selected
     .map((id) => options.find((o) => o.id === id))
     .filter((o): o is PageFieldSelectOption => Boolean(o));
+  const query = newLabel.trim().toLowerCase();
+  const filteredOptions = options.filter((o) => o.label.toLowerCase().includes(query));
+  const canCreateOption =
+    query.length > 0 && !options.some((o) => o.label.toLowerCase() === query);
 
   function toggle(optionId: string) {
     let next: string[];
@@ -433,62 +445,42 @@ function SelectEditor({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-60 p-1.5 flex flex-col gap-1" align="start">
-        <div className="flex items-center gap-1 px-1 pb-1">
-          <input
+      <PopoverContent className="w-60 p-0 overflow-hidden" align="start">
+        <Command shouldFilter={false} className="bg-transparent">
+          <CommandInput
             // biome-ignore lint/a11y/noAutofocus: focus belongs in the just-opened option input
             autoFocus
-            type="text"
             value={newLabel}
-            disabled={busy}
-            onChange={(e) => setNewLabel(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") createOption();
-              if (e.key === "Escape") setOpen(false);
-            }}
+            onValueChange={setNewLabel}
             placeholder="Search or create…"
-            className="flex-1 min-w-0 px-2 py-1 text-[12px] font-sans bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
           />
-        </div>
-        <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
-          {options
-            .filter((o) => o.label.toLowerCase().includes(newLabel.trim().toLowerCase()))
-            .map((o) => {
-              const isSelected = selected.includes(o.id);
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => toggle(o.id)}
-                  className="flex items-center gap-2 w-full text-left px-1.5 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer"
-                >
+          <CommandList>
+            <CommandEmpty>Type to create an option.</CommandEmpty>
+            <CommandGroup>
+              {filteredOptions.map((o) => (
+                <CommandItem key={o.id} value={`opt-${o.id}`} onSelect={() => toggle(o.id)}>
                   <span className="flex-1 min-w-0">
                     <TagChip option={o} />
                   </span>
-                  {isSelected && (
+                  {selected.includes(o.id) && (
                     <Check size={12} strokeWidth={2} className="text-[var(--ink)] shrink-0" />
                   )}
-                </button>
-              );
-            })}
-          {newLabel.trim() &&
-            !options.some((o) => o.label.toLowerCase() === newLabel.trim().toLowerCase()) && (
-              <button
-                type="button"
-                onClick={createOption}
-                disabled={busy}
-                className="flex items-center gap-2 w-full text-left px-1.5 py-1 rounded-sm text-[12px] font-serif text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer disabled:opacity-50"
-              >
-                <Plus size={12} strokeWidth={1.5} />
-                Create “{newLabel.trim()}”
-              </button>
-            )}
-          {options.length === 0 && !newLabel.trim() && (
-            <p className="px-2 py-1.5 text-[12px] font-serif italic text-[var(--ink-muted)]">
-              Type to create an option.
-            </p>
-          )}
-        </div>
+                </CommandItem>
+              ))}
+              {canCreateOption && (
+                <CommandItem
+                  value="__create_option__"
+                  disabled={busy}
+                  onSelect={() => void createOption()}
+                  className="text-[var(--ink-muted)]"
+                >
+                  <Plus size={12} strokeWidth={1.5} />
+                  Create “{newLabel.trim()}”
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
@@ -521,9 +513,7 @@ function AddPropertyControl({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [type, setType] = useState<PageFieldType>("text");
   const [busy, setBusy] = useState(false);
-  const nameRef = useRef<HTMLInputElement | null>(null);
 
   const available = definitions.filter((d) => !attachedIds.has(d.id));
   const filtered = available.filter((d) =>
@@ -535,7 +525,6 @@ function AddPropertyControl({
 
   function reset() {
     setName("");
-    setType("text");
   }
 
   async function attach(fieldDefinitionId: string) {
@@ -567,96 +556,65 @@ function AddPropertyControl({
           Add property
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-1.5 flex flex-col gap-1" align="start">
-        <input
-          // biome-ignore lint/a11y/noAutofocus: focus belongs in the just-opened picker
-          autoFocus
-          ref={nameRef}
-          type="text"
-          value={name}
-          disabled={busy}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && canCreate) void createWithType(type);
-            if (e.key === "Escape") setOpen(false);
-          }}
-          placeholder="Find or create a property…"
-          className="w-full px-2 py-1.5 text-[12px] font-mono bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] disabled:opacity-50"
-        />
-
-        {filtered.length > 0 && (
-          <>
-            <div className="px-2 pt-1 text-[10px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
-              Existing
-            </div>
-            <div className="flex flex-col gap-0.5 max-h-[160px] overflow-y-auto">
-              {filtered.map((d) => {
-                const Icon = TYPE_ICON[d.type];
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => attach(d.id)}
-                    disabled={busy}
-                    className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-serif text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer disabled:opacity-50"
-                  >
-                    <Icon size={12} strokeWidth={1.5} className="text-[var(--ink-muted)] shrink-0" />
-                    <span className="flex-1 truncate">{d.name}</span>
-                    <span className="text-[10px] font-mono text-[var(--ink-muted)]">
-                      {FIELD_TYPE_LABELS[d.type]}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {canCreate && (
-          <>
-            <div className="px-2 pt-1 text-[10px] font-mono uppercase tracking-wide text-[var(--ink-muted)]">
-              New property — pick a type
-            </div>
-            <div className="grid grid-cols-1 gap-0.5">
-              {FIELD_TYPE_ORDER.map((t) => {
-                const Icon = TYPE_ICON[t];
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setType(t);
-                      // Defer create so setType is applied via the passed value.
-                      void createWithType(t);
-                    }}
-                    disabled={busy}
-                    className={cn(
-                      "flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-sm text-[12px] font-serif transition-colors duration-100 cursor-pointer disabled:opacity-50",
-                      type === t
-                        ? "bg-[var(--surface)] text-[var(--ink)]"
-                        : "text-[var(--ink)] hover:bg-[var(--surface)]",
-                    )}
-                  >
-                    <Icon size={12} strokeWidth={1.5} className="text-[var(--ink-muted)] shrink-0" />
-                    <span className="flex-1">{FIELD_TYPE_LABELS[t]}</span>
-                    <span className="text-[10px] font-mono text-[var(--ink-muted)]">
-                      Create “{name.trim()}”
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {!canCreate && filtered.length === 0 && (
-          <p className="px-2 py-1.5 text-[12px] font-serif italic text-[var(--ink-muted)]">
-            {available.length === 0 && name.trim() === ""
-              ? "Type a name to create a property."
-              : "That name already exists."}
-          </p>
-        )}
+      <PopoverContent className="w-64 p-0 overflow-hidden" align="start">
+        <Command shouldFilter={false} className="bg-transparent">
+          <CommandInput
+            // biome-ignore lint/a11y/noAutofocus: focus belongs in the just-opened picker
+            autoFocus
+            value={name}
+            onValueChange={setName}
+            placeholder="Find or create a property…"
+          />
+          <CommandList>
+            <CommandEmpty>
+              {available.length === 0 && name.trim() === ""
+                ? "Type a name to create a property."
+                : "That name already exists."}
+            </CommandEmpty>
+            {filtered.length > 0 && (
+              <CommandGroup heading="Existing">
+                {filtered.map((d) => {
+                  const Icon = TYPE_ICON[d.type];
+                  return (
+                    <CommandItem
+                      key={d.id}
+                      value={`def-${d.id}`}
+                      disabled={busy}
+                      onSelect={() => void attach(d.id)}
+                    >
+                      <Icon size={12} strokeWidth={1.5} className="shrink-0" />
+                      <span className="flex-1 truncate">{d.name}</span>
+                      <span className="text-[10px] font-mono text-[var(--ink-muted)]">
+                        {FIELD_TYPE_LABELS[d.type]}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+            {canCreate && (
+              <CommandGroup heading="New property — pick a type">
+                {FIELD_TYPE_ORDER.map((t) => {
+                  const Icon = TYPE_ICON[t];
+                  return (
+                    <CommandItem
+                      key={t}
+                      value={`new-${t}`}
+                      disabled={busy}
+                      onSelect={() => void createWithType(t)}
+                    >
+                      <Icon size={12} strokeWidth={1.5} className="shrink-0" />
+                      <span className="flex-1">{FIELD_TYPE_LABELS[t]}</span>
+                      <span className="text-[10px] font-mono text-[var(--ink-muted)]">
+                        Create “{name.trim()}”
+                      </span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
