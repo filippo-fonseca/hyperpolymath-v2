@@ -19,7 +19,13 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
-import { priorityEnum, taskStatusEnum, semesterTermEnum, pageFieldTypeEnum } from "./enums";
+import {
+  priorityEnum,
+  taskStatusEnum,
+  semesterTermEnum,
+  pageFieldTypeEnum,
+  pageFieldScopeEnum,
+} from "./enums";
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
@@ -466,6 +472,12 @@ export const pageFieldDefinitions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: pageFieldTypeEnum("type").notNull(),
+    // 'wiki' = applies to every page; 'folder' = defined on a top-level folder
+    // (folder_id set) and cascades to that folder's descendant pages.
+    scope: pageFieldScopeEnum("scope").notNull().default("wiki"),
+    // Set only for scope = 'folder': the top-level folder this def belongs to.
+    // ON DELETE CASCADE removes the def when its folder is deleted.
+    folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "cascade" }),
     // Only meaningful for type = 'select': the choosable options. NULL otherwise.
     options: jsonb("options").$type<PageFieldSelectOption[]>(),
     // Only meaningful for type = 'select': off = single-select, on = tags.
@@ -475,7 +487,10 @@ export const pageFieldDefinitions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("page_field_definitions_user_idx").on(t.userId)],
+  (t) => [
+    index("page_field_definitions_user_idx").on(t.userId),
+    index("page_field_definitions_folder_idx").on(t.folderId),
+  ],
 );
 
 export const pageFieldValues = pgTable(
@@ -490,6 +505,9 @@ export const pageFieldValues = pgTable(
     userId: uuid("user_id").notNull(), // denormalized for RLS (D-03)
     // The typed value; NULL/empty until the user fills it in. See jsonb note above.
     value: jsonb("value"),
+    // Per-page override: when true, this (applicable) property is hidden on this
+    // page even though its definition applies. Default visible.
+    hidden: boolean("hidden").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

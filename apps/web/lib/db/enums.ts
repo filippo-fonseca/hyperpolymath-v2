@@ -24,3 +24,8 @@ export const pageFieldTypeEnum = pgEnum("page_field_type", [
   "select",
   "checkbox",
 ]);
+
+// Issue #165 — a field definition is either wiki-wide (applies to every page) or
+// folder-scoped (defined on a top-level folder; cascades to all its descendant
+// pages). Folder-scoped defs carry a folder_id.
+export const pageFieldScopeEnum = pgEnum("page_field_scope", ["wiki", "folder"]);
