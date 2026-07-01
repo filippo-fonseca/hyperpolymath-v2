@@ -28,6 +28,7 @@ import {
   Calendar,
   Check,
   CheckSquare,
+  ChevronRight,
   Hash,
   Plus,
   Tags,
@@ -62,28 +63,52 @@ interface PagePropertiesProps {
  * flows through the page-fields server actions; onChanged re-syncs the queries.
  */
 export function PageProperties({ pageId, fields, definitions, onChanged }: PagePropertiesProps) {
+  // Collapsed by default so the block never crowds the page (Notion tucks
+  // properties behind a toggle). The neumorphic panel only appears on expand.
+  const [expanded, setExpanded] = useState(false);
+
   async function persistValue(fieldDefinitionId: string, value: PageFieldValue) {
     await setPageFieldValue({ pageId, fieldDefinitionId, value });
     onChanged();
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      {fields.map((field) => (
-        <FieldRow
-          key={field.id}
-          pageId={pageId}
-          field={field}
-          onSave={(value) => persistValue(field.id, value)}
-          onChanged={onChanged}
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="group/pt flex items-center gap-1 w-fit px-1 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide text-[var(--ink-muted)] opacity-60 hover:opacity-100 hover:text-[var(--ink)] transition-all duration-150 cursor-pointer"
+      >
+        <ChevronRight
+          size={12}
+          strokeWidth={1.75}
+          className={cn("transition-transform duration-200", expanded && "rotate-90")}
         />
-      ))}
-      <AddPropertyControl
-        pageId={pageId}
-        attachedIds={new Set(fields.map((f) => f.id))}
-        definitions={definitions}
-        onChanged={onChanged}
-      />
+        <span>Properties</span>
+        {fields.length > 0 && (
+          <span className="text-[10px] text-[var(--ink-muted)] opacity-80">{fields.length}</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="glass-tile rounded-xl px-2 py-1.5 flex flex-col gap-0.5">
+          {fields.map((field) => (
+            <FieldRow
+              key={field.id}
+              pageId={pageId}
+              field={field}
+              onSave={(value) => persistValue(field.id, value)}
+              onChanged={onChanged}
+            />
+          ))}
+          <AddPropertyControl
+            pageId={pageId}
+            attachedIds={new Set(fields.map((f) => f.id))}
+            definitions={definitions}
+            onChanged={onChanged}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -103,9 +128,9 @@ function FieldRow({
 }) {
   const Icon = TYPE_ICON[field.type];
   return (
-    <div className="flex items-start gap-2">
+    <div className="group flex items-center gap-1.5 min-h-[34px] rounded-lg px-1 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] transition-colors duration-150">
       <FieldLabelMenu pageId={pageId} field={field} onChanged={onChanged} icon={Icon} />
-      <div className="flex-1 min-w-0 pt-0.5">
+      <div className="flex-1 min-w-0 self-center">
         <FieldValueEditor field={field} onSave={onSave} onChanged={onChanged} />
       </div>
     </div>
@@ -171,7 +196,7 @@ function FieldLabelMenu({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 shrink-0 w-[132px] px-1.5 py-1 rounded-sm text-left text-[12px] font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
+          className="flex items-center gap-1.5 shrink-0 self-center w-[128px] px-1.5 py-1 rounded-md text-left text-[12px] font-mono text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
           title={FIELD_TYPE_LABELS[field.type]}
         >
           <Icon size={12} strokeWidth={1.5} className="shrink-0" />
@@ -299,7 +324,7 @@ function TextEditor({
         }
       }}
       placeholder="Empty"
-      className="w-full bg-transparent px-1.5 py-1 text-[13px] font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-sm border border-transparent hover:border-[var(--edge)] focus:border-[var(--ink-muted)] focus:outline-none transition-colors duration-150"
+      className="w-full bg-transparent px-2 py-1 text-[13px] font-sans text-[var(--ink)] placeholder:text-[var(--ink-muted)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)]"
     />
   );
 }
@@ -317,7 +342,7 @@ function DateEditor({
       type="date"
       value={value}
       onChange={(e) => void onSave(e.target.value === "" ? null : e.target.value)}
-      className="bg-transparent px-1.5 py-1 text-[13px] font-mono text-[var(--ink)] rounded-sm border border-transparent hover:border-[var(--edge)] focus:border-[var(--ink-muted)] focus:outline-none transition-colors duration-150 [color-scheme:light_dark]"
+      className="bg-transparent px-2 py-1 text-[13px] font-mono text-[var(--ink)] rounded-md outline-none transition-all duration-150 hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)] focus:bg-[color-mix(in_oklch,var(--surface)_96%,var(--ink))] focus:shadow-[inset_1px_1px_3px_var(--glass-lo),inset_-1px_-1px_2px_var(--glass-hi)] [color-scheme:light_dark]"
     />
   );
 }
@@ -331,7 +356,7 @@ function CheckboxEditor({
 }) {
   const checked = field.value === true;
   return (
-    <div className="px-1.5 py-1">
+    <div className="px-2 py-1 flex items-center">
       <Checkbox
         checked={checked}
         onCheckedChange={(next) => void onSave(next === true)}
@@ -399,7 +424,7 @@ function SelectEditor({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex flex-wrap items-center gap-1 w-full min-h-[30px] px-1.5 py-1 text-left rounded-sm border border-transparent hover:border-[var(--edge)] transition-colors duration-150 cursor-pointer"
+          className="flex flex-wrap items-center gap-1 w-full min-h-[28px] px-2 py-1 text-left rounded-md transition-colors duration-150 cursor-pointer hover:bg-[color-mix(in_oklch,var(--surface-raised)_45%,transparent)]"
         >
           {selectedOptions.length === 0 ? (
             <span className="text-[13px] font-sans text-[var(--ink-muted)]">Empty</span>
@@ -536,7 +561,7 @@ function AddPropertyControl({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 w-fit px-1.5 py-1 rounded-sm text-[12px] font-mono text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer"
+          className="glass-button flex items-center gap-1.5 w-fit mt-1 ml-1 px-2.5 py-1 rounded-md text-[12px] font-mono text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer"
         >
           <Plus size={12} strokeWidth={1.5} />
           Add property
