@@ -17,9 +17,11 @@ import {
   openDailyPage,
   updatePage,
 } from "@/app/actions/pages";
+import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { ProjectPillRow } from "@/components/pages/ProjectPill";
+import { PropertiesManagerModal } from "./PropertiesManagerModal";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +30,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { asSelectIds, type PageFieldWithValue } from "@/lib/pages/custom-fields";
 import { WikiFolderMenu } from "@/components/pages/WikiFolderMenu";
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
 import { WikiPageMenu } from "@/components/pages/WikiPageMenu";
@@ -74,6 +86,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import {
+  ArrowUpDown,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -88,10 +101,11 @@ import {
   List,
   Loader2,
   Plus,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -115,6 +129,7 @@ interface TreeCtx {
   onAddSubfolder: (parentId: string, name: string) => void;
   onAddPage: (folderId: string) => void;
   onDeleteFolder: (id: string) => void;
+  onManageFolderProperties: (id: string, name: string) => void;
   folders: FolderRow[];
   pageFolderOf: Map<string, string | null>;
   onRenamePage: (id: string, title: string) => void;
@@ -174,6 +189,14 @@ export function PagesListClient({
   const [selectedDate, setSelectedDate] = useState<string>(() =>
     format(new Date(), "yyyy-MM-dd"),
   );
+  // Custom-fields UI state: property-manager modals + active sort.
+  const [wikiManagerOpen, setWikiManagerOpen] = useState(false);
+  const [folderManager, setFolderManager] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [sortKey, setSortKey] = useState<string>("updated");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Any pages change also refreshes the Daily Pages calendar (new/removed days).
   useTableSubscription("pages", userId, {
@@ -220,6 +243,20 @@ export function PagesListClient({
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
   });
+  // Custom field (property) definitions for this user — drives the sort menu and
+  // the Properties manager modals.
+  const fieldDefsKey = ["page-field-definitions", userId] as const;
+  const { data: fieldDefinitions = [] } = useQuery({
+    queryKey: fieldDefsKey,
+    queryFn: () => getFieldDefinitionsForCurrentUser(),
+    initialData: [],
+  });
+  const handleFieldsChanged = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: pagesKey });
+    queryClient.invalidateQueries({ queryKey: fieldDefsKey });
+    // pagesKey/fieldDefsKey derive from userId, so it's the true dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, userId]);
 
   // id -> display name lookups so pills render labels, not raw uuids.
   const projectNames = useMemo(
@@ -245,6 +282,58 @@ export function PagesListClient({
     () => (q ? allPages.filter((p) => p.title.toLowerCase().includes(q)) : allPages),
     [allPages, q]
   );
+
+  // Only wiki-scoped custom fields are sortable across the whole wiki.
+  const wikiDefs = useMemo(
+    () => fieldDefinitions.filter((d) => d.scope === "wiki"),
+    [fieldDefinitions],
+  );
+
+  // Resolve a comparable value for a page under the active sort key. Built-in
+  // keys (updated/created/title) plus "field:<defId>" for custom properties.
+  function pageSortValue(
+    page: PageWithProjects,
+    key: string,
+  ): string | number | null {
+    if (key === "updated") return new Date(page.updatedAt).getTime();
+    if (key === "created") return new Date(page.createdAt).getTime();
+    if (key === "title") return page.title.trim().toLowerCase();
+    if (key.startsWith("field:")) {
+      const defId = key.slice("field:".length);
+      const f = page.fields.find((x) => x.id === defId) as
+        | PageFieldWithValue
+        | undefined;
+      if (!f || f.value === null || f.value === undefined) return null;
+      switch (f.type) {
+        case "number":
+          return typeof f.value === "number" ? f.value : Number(f.value);
+        case "checkbox":
+          return f.value === true ? 1 : 0;
+        case "select": {
+          const ids = asSelectIds(f.value);
+          if (ids.length === 0) return null;
+          const opt = (f.options ?? []).find((o) => o.id === ids[0]);
+          return (opt?.label ?? "").toLowerCase();
+        }
+        default:
+          return String(f.value).toLowerCase();
+      }
+    }
+    return null;
+  }
+
+  function comparePages(a: PageWithProjects, b: PageWithProjects): number {
+    const va = pageSortValue(a, sortKey);
+    const vb = pageSortValue(b, sortKey);
+    // Nulls always sort last regardless of direction.
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    let cmp = 0;
+    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+    else cmp = String(va).localeCompare(String(vb));
+    return sortDir === "asc" ? cmp : -cmp;
+  }
 
   const pagesTree = useMemo(
     () => buildPagesTree(folders, folderProjects, visiblePages),
@@ -537,6 +626,7 @@ export function PagesListClient({
     onAddSubfolder: (parentId, name) => handleCreateFolder(name, parentId),
     onAddPage: (folderId) => void handleNewPage(folderId),
     onDeleteFolder: handleDeleteFolder,
+    onManageFolderProperties: (id, name) => setFolderManager({ id, name }),
     folders,
     pageFolderOf,
     onRenamePage: handleRenamePage,
@@ -593,6 +683,57 @@ export function PagesListClient({
           >
             <Download size={13} strokeWidth={1.5} />
             <span>Export all</span>
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="Sort pages"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
+              >
+                <ArrowUpDown size={13} strokeWidth={1.5} />
+                <span>Sort</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={sortKey} onValueChange={setSortKey}>
+                <DropdownMenuRadioItem value="updated">
+                  Last updated
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="created">
+                  Created
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
+                {wikiDefs.length > 0 && <DropdownMenuSeparator />}
+                {wikiDefs.map((d) => (
+                  <DropdownMenuRadioItem key={d.id} value={`field:${d.id}`}>
+                    {d.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={sortDir}
+                onValueChange={(v) => setSortDir(v as "asc" | "desc")}
+              >
+                <DropdownMenuRadioItem value="asc">
+                  Ascending
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="desc">
+                  Descending
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={() => setWikiManagerOpen(true)}
+            title="Manage wiki properties"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
+          >
+            <SlidersHorizontal size={13} strokeWidth={1.5} />
+            <span>Properties</span>
           </button>
           <button
             type="button"
@@ -730,11 +871,7 @@ export function PagesListClient({
           // page into a single gallery rather than constraining to one folder.
           <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
             {[...visiblePages]
-              .sort(
-                (a, b) =>
-                  new Date(b.updatedAt).getTime() -
-                  new Date(a.updatedAt).getTime(),
-              )
+              .sort(comparePages)
               .map((page) => (
                 <PageCard
                   key={page.id}
@@ -758,6 +895,7 @@ export function PagesListClient({
             projectNames={projectNames}
             onOpenPage={(id) => router.push(`/wiki/${id}`)}
             onAddPage={(folderId) => void handleNewPage(folderId)}
+            comparePages={comparePages}
           />
         )
       ) : (
@@ -821,6 +959,25 @@ export function PagesListClient({
         title="New folder"
         submitLabel="Create"
         onSubmit={(name) => handleCreateFolder(name, null)}
+      />
+
+      <PropertiesManagerModal
+        open={wikiManagerOpen}
+        onOpenChange={setWikiManagerOpen}
+        scope="wiki"
+        definitions={fieldDefinitions}
+        onChanged={handleFieldsChanged}
+      />
+      <PropertiesManagerModal
+        open={folderManager !== null}
+        onOpenChange={(o) => {
+          if (!o) setFolderManager(null);
+        }}
+        scope="folder"
+        folderId={folderManager?.id ?? null}
+        folderName={folderManager?.name}
+        definitions={fieldDefinitions}
+        onChanged={handleFieldsChanged}
       />
     </div>
   );
@@ -945,9 +1102,11 @@ function FolderNode({
               <WikiFolderMenu
                 folderId={folder.id}
                 folderName={folder.name}
+                isTopLevel={folder.parentId === null}
                 onRename={ctx.onRenameFolder}
                 onAddSubfolder={ctx.onAddSubfolder}
                 onExport={() => ctx.onExportFolder(folder.id, folder.name)}
+                onManageProperties={ctx.onManageFolderProperties}
                 onDelete={ctx.onDeleteFolder}
               />
             </span>
@@ -1250,6 +1409,7 @@ function GridDriveView({
   projectNames,
   onOpenPage,
   onAddPage,
+  comparePages,
 }: {
   gridFolderId: string | null;
   onNavigate: (folderId: string | null) => void;
@@ -1260,6 +1420,7 @@ function GridDriveView({
   projectNames: Map<string, string>;
   onOpenPage: (id: string) => void;
   onAddPage: (folderId: string) => void;
+  comparePages: (a: PageWithProjects, b: PageWithProjects) => number;
 }) {
   const subfolders = useMemo(
     () =>
@@ -1272,11 +1433,8 @@ function GridDriveView({
     () =>
       pages
         .filter((p) => (p.folderId ?? null) === gridFolderId)
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-        ),
-    [pages, gridFolderId],
+        .sort(comparePages),
+    [pages, gridFolderId, comparePages],
   );
 
   // Item counts per folder (subfolders + pages) for the folder-card subtitle.

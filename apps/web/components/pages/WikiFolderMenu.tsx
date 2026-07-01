@@ -17,7 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import { Download, FolderPlus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Download,
+  FolderPlus,
+  MoreHorizontal,
+  Pencil,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 /**
@@ -28,16 +35,20 @@ import { useState } from "react";
 export function WikiFolderMenu({
   folderId,
   folderName,
+  isTopLevel,
   onRename,
   onAddSubfolder,
   onExport,
+  onManageProperties,
   onDelete,
 }: {
   folderId: string;
   folderName: string;
+  isTopLevel: boolean;
   onRename: (id: string, name: string) => void;
   onAddSubfolder: (parentId: string, name: string) => void;
   onExport: () => void;
+  onManageProperties: (id: string, name: string) => void;
   onDelete: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -87,6 +98,17 @@ export function WikiFolderMenu({
             <Download size={13} strokeWidth={1.5} />
             <span>Export</span>
           </DropdownMenuItem>
+          {isTopLevel && (
+            <DropdownMenuItem
+              onSelect={() => {
+                setOpen(false);
+                onManageProperties(folderId, folderName);
+              }}
+            >
+              <SlidersHorizontal size={13} strokeWidth={1.5} />
+              <span>Folder properties</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
