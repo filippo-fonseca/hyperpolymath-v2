@@ -3,9 +3,9 @@
 // (commit 27125ac values). Pure function — no DOM, no AudioContext.
 //
 // Algorithm mirrors the browser's on-demand mic logic:
-//   - Grace period (1.5s): silence detection not armed yet, user starts speaking.
-//   - RMS poll: RMS < threshold for 1s continuous → end-of-speech.
-//   - Hard cap (8s): unconditional stop regardless of speech/silence.
+//   - Grace period (700ms): silence detection not armed yet, user starts speaking.
+//   - RMS poll: RMS < threshold for silenceEndMs (800ms) continuous → end-of-speech.
+//   - Hard cap (15s): unconditional stop regardless of speech/silence.
 //   - RMS threshold: 0.01 (matches PhysicalExtensionRecorder commit 27125ac default).
 
 export interface VadParams {
@@ -20,9 +20,12 @@ export interface VadParams {
 export const VAD_DEFAULTS: VadParams = {
   sampleRate: 16_000,
   pollIntervalMs: 80,
-  gracePeriodMs: 1_500,
-  silenceEndMs: 1_500,
-  hardCapMs: 8_000,
+  // Leading breath grace so the first word isn't clipped (RESEARCH Q2).
+  gracePeriodMs: 700,
+  // Snappy end-of-speech for conversational turns (was 1_500 — felt laggy).
+  silenceEndMs: 800,
+  // Per-utterance hard cap raised for longer conversational answers.
+  hardCapMs: 15_000,
   rmsThreshold: 0.01,
 };
 
