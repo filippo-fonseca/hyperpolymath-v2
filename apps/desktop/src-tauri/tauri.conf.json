@@ -48,10 +48,6 @@
       "signingIdentity": null,
       "providerShortName": null
     },
-    "infoPlist": {
-      "NSMicrophoneUsageDescription": "JARVIS listens for your voice commands so you do not have to grant Safari microphone access every session.",
-      "LSUIElement": true
-    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
