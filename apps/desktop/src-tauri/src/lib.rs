@@ -32,10 +32,42 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // macOS: run as an Accessory app — no Dock icon, no menu bar.
-            // The app lives entirely in the tray + floating HUD.
+            // macOS: run as a Regular app — Dock icon + standard app menu, so
+            // Cmd+Q quits and the window is a normal, closable, movable window.
+            // This supersedes the earlier Accessory (tray-only, frameless HUD)
+            // model for now: the app must be visible, movable, closable, and
+            // quittable while we stabilise it. The always-on-top frameless HUD
+            // can return later behind a setting.
             #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
+            // macOS hands-free audio (RESEARCH Q1): a GLOBAL hotkey / tray click
+            // is not an in-webview user gesture, so WebKit's autoplay gate keeps
+            // the TTS AudioContext suspended and JARVIS stays silent. Lift the
+            // gate at the WKWebView level by clearing
+            // `mediaTypesRequiringUserActionForPlayback` on the webview's
+            // configuration. wry's `with_autoplay(true)` is historically flaky on
+            // macOS, so we set the flag directly via the `with_webview` escape
+            // hatch. The JS-side eager `resume()` + gesture prime remain as
+            // belt-and-braces.
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.with_webview(|webview| {
+                    // SAFETY: `inner()` returns the live `WKWebView` pointer owned
+                    // by wry for this window's lifetime; we only read its
+                    // configuration and set a documented property.
+                    unsafe {
+                        use objc2_web_kit::{WKAudiovisualMediaTypes, WKWebView};
+                        let wk = webview.inner() as *mut WKWebView;
+                        if let Some(wk) = wk.as_ref() {
+                            let config = wk.configuration();
+                            config.setMediaTypesRequiringUserActionForPlayback(
+                                WKAudiovisualMediaTypes::None,
+                            );
+                        }
+                    }
+                });
+            }
 
             // Tray menu: Show/Hide HUD + Quit.
             let toggle_item =
