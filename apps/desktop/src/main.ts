@@ -26,6 +26,7 @@ import {
   onCaptureState,
   onExtendedChange,
   onManualModeChange,
+  onMicAmplitude,
   onTranscriptReceived,
   setManualMode,
   setVadSilenceMs,
@@ -55,12 +56,14 @@ import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { handleAction, parseAction } from "@/actions/dispatcher";
 import {
+  getJarvisState,
   onJarvisState,
   startConversation,
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
 import { primeAudioOnGesture, wireVisibilityRecovery } from "@/audio/audio-context";
+import { mountOrb } from "@/hud/orb";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -121,10 +124,19 @@ function paintTranscript(text: string): void {
   panel.classList.add("visible");
 }
 
+function setAckLine(text: string): void {
+  const ack = document.getElementById("ack-line");
+  if (!ack) return;
+  ack.textContent = text;
+  ack.classList.toggle("visible", text.trim().length > 0);
+}
+
 function paintResponseStart(): void {
   const panel = document.getElementById("response-panel");
   const textEl = document.getElementById("response-text");
   const toolCallsEl = document.getElementById("tool-calls");
+  // Clear the ack line for the new turn (it fades in as text streams).
+  setAckLine("");
   if (!panel || !textEl || !toolCallsEl) return;
   textEl.textContent = "";
   toolCallsEl.innerHTML = "";
@@ -134,8 +146,10 @@ function paintResponseStart(): void {
 
 function paintResponseChunk(delta: string): void {
   const textEl = document.getElementById("response-text");
-  if (!textEl) return;
-  textEl.textContent = (textEl.textContent ?? "") + delta;
+  const next = (textEl?.textContent ?? "") + delta;
+  if (textEl) textEl.textContent = next;
+  // Mirror the spoken acknowledgement as one glanceable HUD line (VISION §4).
+  setAckLine(next);
 }
 
 function paintToolCall(name: string, result: unknown): void {
@@ -185,16 +199,11 @@ function paintResponseComplete(response: JarvisResponseComplete): void {
 }
 
 function paintTtsState(playing: boolean): void {
-  const stopBtn = document.getElementById("stop-btn");
+  const stopBtn = document.getElementById("stop-btn") as HTMLElement | null;
   const idleLabel = document.getElementById("stop-btn-idle");
   if (!stopBtn || !idleLabel) return;
-  if (playing) {
-    stopBtn.classList.add("visible");
-    idleLabel.style.display = "none";
-  } else {
-    stopBtn.classList.remove("visible");
-    idleLabel.style.display = "";
-  }
+  stopBtn.style.display = playing ? "inline-flex" : "none";
+  idleLabel.style.display = playing ? "none" : "";
 }
 
 let _wakeRegistered = false;
@@ -610,11 +619,43 @@ async function boot(): Promise<void> {
   // 5b. Conversation FSM: single source of truth for body[data-jarvis-state]
   //     (idle/listening/thinking/speaking). Wire it up and mirror its state
   //     onto the body so the orb reacts.
+  const STATUS_LABEL: Record<JarvisState, string> = {
+    idle: "standing by",
+    listening: "listening",
+    thinking: "working",
+    speaking: "speaking",
+  };
   onJarvisState((s: JarvisState) => {
     document.body.dataset.jarvisState = s;
+    const statusEl = document.getElementById("status-line");
+    if (statusEl) statusEl.textContent = STATUS_LABEL[s];
+    // Fade the acknowledge line out once JARVIS returns to rest.
+    if (s === "idle") setAckLine("");
   });
   startConversationMachine();
   document.body.dataset.jarvisState = "idle";
+
+  // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
+  //     live amplitude: mic RMS while listening, TTS output while speaking.
+  let latestMicLevel = 0;
+  onMicAmplitude((level) => {
+    latestMicLevel = level;
+  });
+  const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement | null;
+  if (orbCanvas) {
+    mountOrb(orbCanvas, {
+      getState: () => getJarvisState(),
+      getMicLevel: () => latestMicLevel,
+      getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
+    });
+  }
+
+  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  const gearBtn = document.getElementById("gear-btn");
+  const settingsEl = document.getElementById("settings");
+  const settingsCloseBtn = document.getElementById("settings-close");
+  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
   // Tray left-click also invokes a turn (emitted from Rust as `tray-invoke`).
   // "Show / Hide HUD" stays on the right-click menu so visibility toggling is

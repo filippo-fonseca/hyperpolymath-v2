@@ -18,7 +18,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { postClaim, postTranscript } from "@/api/client";
 import { encodeWav } from "@/audio/encode-wav";
-import { VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
+import { computeRms, VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
 
 // ─── Invoke-to-talk capture model (VAD auto-ends the turn) ──────────────────
 // A turn opens on ⌘⌃J / tray / the FSM, and AUTO-ENDS on ~800ms of VAD silence
@@ -109,6 +109,25 @@ const stateListeners = new Set<StateListener>();
 const transcriptListeners = new Set<TranscriptListener>();
 const extendedListeners = new Set<ExtendedListener>();
 
+// Live mic amplitude (0..1), emitted per audio chunk while recording. The HUD
+// orb subscribes to drive the "listening" waveform. Derived from the same RMS
+// the VAD uses (computeRms), scaled so ordinary speech reads near full-scale.
+type AmplitudeListener = (level: number) => void;
+const amplitudeListeners = new Set<AmplitudeListener>();
+
+export function onMicAmplitude(fn: AmplitudeListener): () => void {
+  amplitudeListeners.add(fn);
+  return () => {
+    amplitudeListeners.delete(fn);
+  };
+}
+
+function emitMicAmplitude(rms: number): void {
+  // Speech RMS typically sits ~0.02–0.15; scale to a lively 0..1 for the orb.
+  const level = Math.min(1, rms * 8);
+  for (const fn of amplitudeListeners) fn(level);
+}
+
 let currentState: CaptureState = "idle";
 let activeUnlisten: UnlistenFn | null = null;
 let cancelled = false;
@@ -182,6 +201,8 @@ export async function startCaptureTurn(): Promise<void> {
   activeUnlisten = await listen<AudioChunkPayload>("audio-chunk", (event) => {
     if (activeTurnFinished || !activeVad) return;
     const chunk = new Float32Array(event.payload.samples);
+    // Feed the HUD orb's listening waveform with this chunk's amplitude.
+    emitMicAmplitude(computeRms(chunk));
     // Honor VAD end-of-speech: push() returns true on silence-end or hard cap.
     // In extend/manual mode we buffer only and ignore the end signal.
     const ended = activeVad.push(chunk);
@@ -332,5 +353,7 @@ export async function stopCaptureTurn(): Promise<void> {
     activeUnlisten();
     activeUnlisten = null;
   }
+  // Settle the orb's listening waveform back to rest when the mic closes.
+  emitMicAmplitude(0);
   await invoke("stop_capture");
 }

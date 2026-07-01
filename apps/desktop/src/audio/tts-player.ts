@@ -39,6 +39,10 @@ export class TtsPlayer {
   private abortController: AbortController | null = null;
   private stateListeners = new Set<(state: TtsPlayerState) => void>();
   private idleWaiters = new Set<() => void>();
+  // Amplitude tap for the HUD orb's "speaking" waveform. Lazily created on the
+  // shared AudioContext; the current source connects through it → destination.
+  private analyser: AnalyserNode | null = null;
+  private analyserData: Uint8Array<ArrayBuffer> | null = null;
 
   constructor(voiceId = DEFAULT_VOICE_ID, enabled = true) {
     this.voiceId = voiceId;
@@ -68,6 +72,38 @@ export class TtsPlayer {
   /** Current player state. */
   getState(): TtsPlayerState {
     return this.state;
+  }
+
+  /**
+   * Instantaneous output amplitude (0..1) for the HUD orb's "speaking"
+   * waveform. Reads the AnalyserNode's time-domain RMS. Returns 0 when idle or
+   * before the analyser exists. Best-effort — never throws.
+   */
+  getSpeakingLevel(): number {
+    if (this.state !== "playing" || !this.analyser || !this.analyserData) return 0;
+    try {
+      this.analyser.getByteTimeDomainData(this.analyserData);
+      let sumSquares = 0;
+      for (let i = 0; i < this.analyserData.length; i++) {
+        const v = ((this.analyserData[i] ?? 128) - 128) / 128; // centre at 0
+        sumSquares += v * v;
+      }
+      const rms = Math.sqrt(sumSquares / this.analyserData.length);
+      return Math.min(1, rms * 3); // scale to a lively 0..1
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Lazily create the analyser on the shared context (once). */
+  private ensureAnalyser(ctx: AudioContext): AnalyserNode {
+    if (!this.analyser) {
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.connect(ctx.destination);
+      this.analyserData = new Uint8Array(new ArrayBuffer(this.analyser.fftSize));
+    }
+    return this.analyser;
   }
 
   /**
@@ -221,7 +257,10 @@ export class TtsPlayer {
       await new Promise<void>((resolve) => {
         const source = audioCtx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
+        // Route through the analyser tap (→ destination) so the HUD orb can
+        // read live output amplitude for the "speaking" waveform.
+        const analyser = this.ensureAnalyser(audioCtx);
+        source.connect(analyser);
         this.currentSource = source;
         source.onended = () => resolve();
         source.start();
