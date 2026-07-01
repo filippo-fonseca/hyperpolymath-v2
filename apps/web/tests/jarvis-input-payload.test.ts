@@ -198,6 +198,54 @@ describe("buildJarvisInputPayload — mentions + hashtags", () => {
     expect(payload!.projectIds).toEqual([projectId]);
   });
 
+  it("reconstructs #hashtag into input even when rawText (doc.textContent) dropped the mention node", () => {
+    // Regression: `doc.textContent` omits Mention leaf nodes, so the committed
+    // `#idea` chip was vanishing from the sent message. The JSON still carries
+    // it, so `input` must be rebuilt to include `#idea`.
+    const json = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "random thought " },
+            { type: "mention", attrs: { id: "idea", label: "idea" } },
+          ],
+        },
+      ],
+    };
+    const payload = buildJarvisInputPayload(
+      "random thought ", // mention dropped by textContent
+      json,
+      TZ,
+      null,
+    );
+    expect(payload!.input).toBe("random thought #idea");
+    expect(payload!.hashtags).toEqual(["idea"]);
+  });
+
+  it("reconstructs $project chip into input from a projectMention node", () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const json = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "projectMention",
+              attrs: { id: projectId, label: "running" },
+            },
+            { type: "text", text: " deadline friday" },
+          ],
+        },
+      ],
+    };
+    const payload = buildJarvisInputPayload(" deadline friday", json, TZ, null);
+    expect(payload!.input).toBe("$running deadline friday");
+    expect(payload!.projectIds).toEqual([projectId]);
+  });
+
   it("permissive #hashtag regex catches typed-but-not-popped hashtags", () => {
     const payload = buildJarvisInputPayload(
       "random thought #journal",

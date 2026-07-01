@@ -53,6 +53,42 @@ const PRIORITY_TOKEN_RE = /\b(ptop|p0|p1|p2|p3)\b/i;
 const HASHTAG_RE = /(?<![\p{L}\p{N}_])#([\p{L}\p{N}_]+)/gu;
 
 /**
+ * Serialize a TipTap-shaped JSON doc back to the text the user sees, encoding
+ * mention nodes as their chip markers (`#label` / `$label` / `@label`).
+ *
+ * Why this exists: the composer's submit path reads the plain text via
+ * ProseMirror's `doc.textContent`, but TipTap wires a Mention's `renderText`
+ * into the schema's `toText` serializer — which `doc.textContent` does NOT
+ * consult (it only honours the native `leafText`). So a committed `#tag` chip
+ * contributes NOTHING to `doc.textContent` and silently vanishes from the sent
+ * message. Rebuilding the string from the JSON restores the marker, so the tag
+ * survives into the transcript (and the server input) instead of disappearing.
+ */
+function serializeEditorJson(json: unknown): string {
+  if (!json || typeof json !== "object") return "";
+  const n = json as {
+    type?: string;
+    text?: string;
+    attrs?: { id?: string; label?: string };
+    content?: unknown[];
+  };
+  if (n.type === "text") return typeof n.text === "string" ? n.text : "";
+  if (n.type === "mention") return `#${n.attrs?.label ?? n.attrs?.id ?? ""}`;
+  if (n.type === "projectMention")
+    return `$${n.attrs?.label ?? n.attrs?.id ?? ""}`;
+  if (n.type === "personMention")
+    return `@${n.attrs?.label ?? n.attrs?.id ?? ""}`;
+  if (n.type === "hardBreak") return "\n";
+  if (Array.isArray(n.content)) {
+    const parts = n.content.map(serializeEditorJson);
+    // Block-level nodes (paragraphs under the doc) are newline-separated;
+    // inline runs concatenate directly.
+    return parts.join(n.type === "doc" ? "\n" : "");
+  }
+  return "";
+}
+
+/**
  * Walk a TipTap-shaped JSON tree collecting hashtag labels and project IDs.
  * Mention nodes carry `attrs.label` (hashtag display name) or `attrs.id`
  * (project UUID).
@@ -103,7 +139,13 @@ export function buildJarvisInputPayload(
   userTimezone: string,
   slashCommandOverride: SlashCommandKey | null,
 ): JarvisInputPayload | null {
-  const trimmed = rawText.trim();
+  // Prefer the JSON-reconstructed text so committed mention chips (`#tag`,
+  // `$project`) survive — `rawText` comes from `doc.textContent`, which drops
+  // them (see serializeEditorJson). Tests pass `null` JSON and fall back to
+  // rawText + the permissive regex below.
+  const sourceText =
+    editorJson !== null ? serializeEditorJson(editorJson) : rawText;
+  const trimmed = sourceText.trim();
   if (trimmed.length === 0) return null;
 
   // 1. Slash command — either pinned override, or auto-detect via parser.
