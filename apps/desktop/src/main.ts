@@ -42,6 +42,7 @@ import {
   reconnectPhysicalExtenderListener,
   stopPhysicalExtenderListener,
   setPeEnabled,
+  setTriggerHandler,
   type SseStatus,
 } from "@/physical-extender/sse-client";
 import {
@@ -597,6 +598,12 @@ async function boot(): Promise<void> {
   wireStopButton();
   wireWakeButton();
   wireExtendButton();
+
+  // Route ESP32 `trigger` events through the conversation FSM so the physical
+  // button respects the half-duplex gate (no mic-open while TTS is playing),
+  // exactly like the hotkey and tray. Injected here to avoid a circular import
+  // (the FSM imports the SSE client for onJarvisResponseStart).
+  setTriggerHandler(() => void startConversation());
 
   void startPhysicalExtenderListener();
 
