@@ -42,6 +42,10 @@ import {
   CreatePersonInputSchema,
   FindPeopleInputSchema,
   LinkPeopleInputSchema,
+  // Computer-control tools
+  OpenUrlInputSchema,
+  OpenAppInputSchema,
+  WebSearchInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -141,6 +145,10 @@ function buildToolValidators(voiceActive: boolean) {
     create_person: CreatePersonInputSchema,
     find_people: FindPeopleInputSchema,
     link_people: LinkPeopleInputSchema,
+    // Computer-control tools
+    open_url: OpenUrlInputSchema,
+    open_app: OpenAppInputSchema,
+    web_search: WebSearchInputSchema,
   } as const;
 }
 
@@ -561,6 +569,21 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "link_people") {
               result = await executor.linkPeople(
                 parsed.data as Parameters<typeof executor.linkPeople>[0],
+                ctx,
+              );
+            } else if (toolName === "open_url") {
+              result = await executor.openUrl(
+                parsed.data as Parameters<typeof executor.openUrl>[0],
+                ctx,
+              );
+            } else if (toolName === "open_app") {
+              result = await executor.openApp(
+                parsed.data as Parameters<typeof executor.openApp>[0],
+                ctx,
+              );
+            } else if (toolName === "web_search") {
+              result = await executor.webSearch(
+                parsed.data as Parameters<typeof executor.webSearch>[0],
                 ctx,
               );
             } else {

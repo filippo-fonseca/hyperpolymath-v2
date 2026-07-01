@@ -77,10 +77,13 @@ import type {
   FindPeopleAction,
   FindTasksAction,
   LinkPeopleAction,
+  OpenAppAction,
+  OpenUrlAction,
   RememberFactAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
+  WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
 
@@ -813,6 +816,59 @@ export function createServerExecutor(): ActionExecutor {
         reference_count: person.referenceCount,
       }));
       return { ok: true, id: "find_people", receipt: { matches } };
+    },
+
+    // -------------------------------------------------------------------------
+    // Computer-control tools — open_url / open_app / web_search
+    //
+    // These tools CANNOT touch the Mac from the server. Each executor arm
+    // validates input and returns a structured { ok, action } result for the
+    // desktop client to execute. No DB writes, no gcal calls.
+    //
+    // Result contract (parallel agent builds desktop client against this):
+    //   open_url  → { ok: true, action: { kind: "open_url", url, label } }
+    //   open_app  → { ok: true, action: { kind: "open_app", app, label } }
+    //   web_search → { ok: true, action: { kind: "open_url", url, label } }
+    // -------------------------------------------------------------------------
+
+    async openUrl(input: OpenUrlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.url;
+      return {
+        ok: true,
+        id: `open_url:${input.url}`,
+        receipt: { url: input.url, label },
+        action: { kind: "open_url", url: input.url, label },
+      };
+    },
+
+    async openApp(input: OpenAppAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.app;
+      return {
+        ok: true,
+        id: `open_app:${input.app}`,
+        receipt: { app: input.app, label },
+        action: { kind: "open_app", app: input.app, label },
+      };
+    },
+
+    async webSearch(input: WebSearchAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const engine = input.engine ?? "google";
+      let url: string;
+      if (engine === "maps") {
+        url =
+          "https://www.google.com/maps/search/?api=1&query=" +
+          encodeURIComponent(input.query);
+      } else {
+        url =
+          "https://www.google.com/search?q=" + encodeURIComponent(input.query);
+      }
+      const label = engine === "maps" ? "Google Maps" : "the web";
+      return {
+        ok: true,
+        id: `web_search:${input.query}`,
+        receipt: { query: input.query, engine, url, label },
+        action: { kind: "open_url", url, label },
+      };
     },
 
     async linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult> {
