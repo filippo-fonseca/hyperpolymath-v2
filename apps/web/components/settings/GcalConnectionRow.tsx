@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * GcalConnectionRow — Settings page row for the Google Calendar connection.
+ * GcalConnectionRow — Settings page row for the Google account connection.
+ * One OAuth link powers both Calendar sync and Wiki-to-Drive backup, so the
+ * copy here is account-level, not calendar-specific.
  *
  * Phase 4 Plan 04-02 (SET-02, CAL-09).
  *
@@ -71,7 +73,7 @@ export function GcalConnectionRow({ status }: Props) {
     if (!flag) return;
 
     if (flag === "denied") {
-      toast.error("Google Calendar connection cancelled.");
+      toast.error("Google connection cancelled.");
     } else if (flag === "invalid_state") {
       toast.error("Connection failed: state mismatch. Try again.");
     } else if (flag === "no_refresh_token") {
@@ -92,7 +94,7 @@ export function GcalConnectionRow({ status }: Props) {
     startTransition(async () => {
       const res = await disconnectGcal();
       if (res.success) {
-        toast.success("Google Calendar disconnected.");
+        toast.success("Google disconnected.");
       } else {
         toast.error(res.error ?? "Failed to disconnect.");
       }
@@ -110,7 +112,10 @@ export function GcalConnectionRow({ status }: Props) {
   return (
     <div className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0">
       <div className="flex flex-col gap-1">
-        <div className="text-sm font-medium">Google Calendar</div>
+        <div className="text-sm font-medium">Google account</div>
+        <div className="text-xs text-muted-foreground">
+          Powers Calendar sync and Wiki backup to Drive.
+        </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span
             className={`h-2 w-2 rounded-full ${meta.dotClass}`}
@@ -140,11 +145,11 @@ export function GcalConnectionRow({ status }: Props) {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Disconnect Google Calendar?</AlertDialogTitle>
+              <AlertDialogTitle>Disconnect Google?</AlertDialogTitle>
               <AlertDialogDescription>
-                Your events stay in Google Calendar. The /calendar tab will
-                be unavailable until you reconnect. You can reconnect at any
-                time.
+                Your events stay in Google Calendar and your existing Drive
+                backups are untouched. Calendar sync and automatic Wiki backups
+                will stop until you reconnect. You can reconnect at any time.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
