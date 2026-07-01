@@ -13,3 +13,14 @@ export const taskStatusEnum = pgEnum("task_status", [
 ]);
 
 export const semesterTermEnum = pgEnum("semester_term", ["fall", "spring", "summer"]);
+
+// Issue #165 — Notion-style custom fields on wiki pages. A page_field_definition
+// carries one of these types; select supports single- or multi-value ("tags")
+// via the allow_multiple flag on the definition.
+export const pageFieldTypeEnum = pgEnum("page_field_type", [
+  "text",
+  "number",
+  "date",
+  "select",
+  "checkbox",
+]);
