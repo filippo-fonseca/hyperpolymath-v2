@@ -24,6 +24,9 @@ export interface DesktopSettings {
   /** When true, every capture turn starts in extend mode — VAD silence + hard cap
    *  are suppressed. Only the manual-mode toggle OR the ⌘⌃E shortcut can close the mic. */
   manualMode: boolean;
+  /** When true, an always-on idle mic loop listens for the "daddy's home" wake
+   *  phrase and fires a proactive briefing + command turn. Default true. */
+  wakeEnabled: boolean;
 }
 
 const DEFAULTS: DesktopSettings = {
@@ -33,6 +36,7 @@ const DEFAULTS: DesktopSettings = {
   physicalExtenderEnabled: true,
   vadSilenceMs: 1_500,
   manualMode: false,
+  wakeEnabled: true,
 };
 
 let _store: Store | null = null;
@@ -48,6 +52,7 @@ async function getStore(): Promise<Store> {
         "physicalExtender.enabled": DEFAULTS.physicalExtenderEnabled,
         "vad.silenceMs": DEFAULTS.vadSilenceMs,
         "capture.manualMode": DEFAULTS.manualMode,
+        "wake.enabled": DEFAULTS.wakeEnabled,
       },
     });
   }
@@ -64,6 +69,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const physicalExtenderEnabled = await store.get<boolean>("physicalExtender.enabled");
   const vadSilenceMs = await store.get<number>("vad.silenceMs");
   const manualMode = await store.get<boolean>("capture.manualMode");
+  const wakeEnabled = await store.get<boolean>("wake.enabled");
 
   return {
     ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
@@ -72,6 +78,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
     physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULTS.physicalExtenderEnabled,
     vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
     manualMode: manualMode ?? DEFAULTS.manualMode,
+    wakeEnabled: wakeEnabled ?? DEFAULTS.wakeEnabled,
   };
 }
 
@@ -88,6 +95,7 @@ export async function saveSetting<K extends keyof DesktopSettings>(
     : key === "ttsProvider" ? "tts.provider"
     : key === "physicalExtenderEnabled" ? "physicalExtender.enabled"
     : key === "vadSilenceMs" ? "vad.silenceMs"
-    : "capture.manualMode";
+    : key === "manualMode" ? "capture.manualMode"
+    : "wake.enabled";
   await store.set(storeKey, value);
 }

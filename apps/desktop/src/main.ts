@@ -53,6 +53,13 @@ import {
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { handleAction, parseAction } from "@/actions/dispatcher";
+import {
+  onWakeState,
+  resumeWakeLoopIfIdle,
+  setWakeEnabled,
+  stopWakeLoop,
+} from "@/wake/wake-probe";
+import { onBriefingState } from "@/briefing/briefing";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -95,6 +102,15 @@ function paintCaptureState(state: CaptureState): void {
   renderLivePanel();
   paintActionRow(state, _extended);
   document.body.dataset.jarvisState = state;
+
+  // Hand the single cpal mic between the idle wake loop and a command turn.
+  // When a turn starts, stop the wake loop so it releases the mic; when the
+  // turn returns to idle, resume hands-free wake listening.
+  if (state === "idle") {
+    void resumeWakeLoopIfIdle();
+  } else {
+    void stopWakeLoop();
+  }
 }
 
 function paintExtended(active: boolean): void {
@@ -505,6 +521,17 @@ async function boot(): Promise<void> {
     if (manualModeEl) manualModeEl.checked = active;
   });
 
+  // 3a-bis. Wire wake-phrase toggle (wake.enabled).
+  const wakeEnabledEl = document.getElementById("wake-enabled") as HTMLInputElement | null;
+  if (wakeEnabledEl) {
+    wakeEnabledEl.checked = settings.wakeEnabled;
+    wakeEnabledEl.addEventListener("change", () => {
+      const on = wakeEnabledEl.checked;
+      setWakeEnabled(on);
+      void saveSetting("wakeEnabled", on);
+    });
+  }
+
   // Drive the kiwi orb state from capture state — idle → recording → uploading → idle.
   // TTS playing is mapped to "speaking" via ttsPlayer.onStateChange below.
   function setJarvisState(s: "idle" | "recording" | "uploading" | "speaking"): void {
@@ -585,6 +612,26 @@ async function boot(): Promise<void> {
   wireExtendButton();
 
   void startPhysicalExtenderListener();
+
+  // 5b. Wake phrase ("daddy's home") + proactive briefing HUD cues.
+  //     data-jarvis-state gets "wake" while the idle loop listens and
+  //     "briefing" while a proactive briefing is playing. These are additive
+  //     to the capture states (idle/recording/uploading/speaking) — capture
+  //     state transitions overwrite them, which is intended.
+  onWakeState((active) => {
+    if (active && _captureState === "idle") {
+      document.body.dataset.jarvisState = "wake";
+    } else if (!active && _captureState === "idle") {
+      document.body.dataset.jarvisState = "idle";
+    }
+  });
+  onBriefingState((active) => {
+    if (active) document.body.dataset.jarvisState = "briefing";
+  });
+
+  // Start the always-on wake listener when enabled (default true). The manual
+  // ⌘⌃J trigger keeps working alongside it.
+  setWakeEnabled(settings.wakeEnabled);
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
