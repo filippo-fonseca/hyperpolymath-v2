@@ -42,6 +42,36 @@ export function setTriggerPhraseEnabled(enabled: boolean): void {
   triggerPhraseEnabled = enabled;
 }
 
+/**
+ * Shared rolling-tail probe. Encodes the last ~5s of a sample buffer as WAV and
+ * POSTs it to /voice/transcript with `x-jarvis-probe: 1` (side-effect-free STT).
+ * Both the in-turn "Done, JARVIS" stop-phrase probe and the idle wake-phrase
+ * probe use this so the probe POST lives in exactly one place.
+ *
+ * Returns the transcript text, or null if the buffer is too short / on any
+ * failure (probes are best-effort). Exported for the idle wake listener.
+ */
+export async function probeBufferTail(samples: Float32Array): Promise<string | null> {
+  if (samples.length < PROBE_MIN_SAMPLES) return null;
+  const tail =
+    samples.length > PROBE_TAIL_SAMPLES
+      ? samples.subarray(samples.length - PROBE_TAIL_SAMPLES)
+      : samples;
+  try {
+    const wav = encodeWav(tail, 16_000);
+    return await probeTranscript(wav);
+  } catch {
+    return null;
+  }
+}
+
+/** True while a command turn is active (recording/uploading). The idle wake
+ *  listener pauses its own mic loop whenever this is true so the two never
+ *  fight over the single cpal stream. */
+export function isCaptureActive(): boolean {
+  return currentState !== "idle";
+}
+
 let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 let probeTimer: ReturnType<typeof setInterval> | null = null;
 let probeInFlight = false;
@@ -232,13 +262,9 @@ async function runStopPhraseProbe(): Promise<void> {
     return;
   }
   const full = activeVad.flush();
-  if (full.length < PROBE_MIN_SAMPLES) return;
-  const tail =
-    full.length > PROBE_TAIL_SAMPLES ? full.subarray(full.length - PROBE_TAIL_SAMPLES) : full;
   probeInFlight = true;
   try {
-    const wav = encodeWav(tail, 16_000);
-    const text = await probeTranscript(wav);
+    const text = await probeBufferTail(full);
     if (text && STOP_PHRASE.test(text) && !activeTurnFinished && activeVad) {
       // eslint-disable-next-line no-console
       console.log("[capture] 'Done, JARVIS' detected — finishing turn");
