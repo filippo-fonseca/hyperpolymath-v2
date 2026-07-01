@@ -84,6 +84,33 @@ export async function postTts(args: {
 }
 
 /**
+ * POST /api/jarvis/voice/text
+ * Triggers a JARVIS turn from typed/synthetic text (mirrors the mobile app).
+ * The server runs the agent and streams the response back over the physicalBus
+ * SSE (jarvis-response-* events), which the desktop already renders + speaks.
+ *
+ * Used by the proactive briefing: on wake, we synthesize a "give me my
+ * briefing" turn without any microphone audio. Non-fatal on failure.
+ */
+export async function postText(text: string): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/text`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[voice/text] ${res.status}`);
+    return false;
+  }
+  return true;
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.

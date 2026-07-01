@@ -52,6 +52,14 @@ import {
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
+import { handleAction, parseAction } from "@/actions/dispatcher";
+import {
+  onWakeState,
+  resumeWakeLoopIfIdle,
+  setWakeEnabled,
+  stopWakeLoop,
+} from "@/wake/wake-probe";
+import { onBriefingState } from "@/briefing/briefing";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -94,6 +102,15 @@ function paintCaptureState(state: CaptureState): void {
   renderLivePanel();
   paintActionRow(state, _extended);
   document.body.dataset.jarvisState = state;
+
+  // Hand the single cpal mic between the idle wake loop and a command turn.
+  // When a turn starts, stop the wake loop so it releases the mic; when the
+  // turn returns to idle, resume hands-free wake listening.
+  if (state === "idle") {
+    void resumeWakeLoopIfIdle();
+  } else {
+    void stopWakeLoop();
+  }
 }
 
 function paintExtended(active: boolean): void {
@@ -146,6 +163,20 @@ function paintToolCall(name: string, result: unknown): void {
     }
   }
   item.textContent = summary;
+  toolCallsEl.appendChild(item);
+}
+
+/**
+ * Flash a brief "▸ opening {label}" receipt line on the HUD when a
+ * computer-control action is dispatched. Purely visual — the agent's streamed
+ * text already speaks the acknowledgement, so we do NOT trigger TTS here.
+ */
+function flashActionLine(label: string): void {
+  const toolCallsEl = document.getElementById("tool-calls");
+  if (!toolCallsEl) return;
+  const item = document.createElement("div");
+  item.className = "tool-call-item action-flash";
+  item.textContent = `▸ opening ${label || "…"}`;
   toolCallsEl.appendChild(item);
 }
 
@@ -490,6 +521,17 @@ async function boot(): Promise<void> {
     if (manualModeEl) manualModeEl.checked = active;
   });
 
+  // 3a-bis. Wire wake-phrase toggle (wake.enabled).
+  const wakeEnabledEl = document.getElementById("wake-enabled") as HTMLInputElement | null;
+  if (wakeEnabledEl) {
+    wakeEnabledEl.checked = settings.wakeEnabled;
+    wakeEnabledEl.addEventListener("change", () => {
+      const on = wakeEnabledEl.checked;
+      setWakeEnabled(on);
+      void saveSetting("wakeEnabled", on);
+    });
+  }
+
   // Drive the kiwi orb state from capture state — idle → recording → uploading → idle.
   // TTS playing is mapped to "speaking" via ttsPlayer.onStateChange below.
   function setJarvisState(s: "idle" | "recording" | "uploading" | "speaking"): void {
@@ -540,7 +582,19 @@ async function boot(): Promise<void> {
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => paintToolCall(name, result));
+  onJarvisToolCall(({ name, result }) => {
+    paintToolCall(name, result);
+    // Computer-control tool results carry an `action` on their result. Key
+    // strictly off result.action.kind (fixed contract with the backend agent):
+    // execute the action + flash a visual confirmation. TTS is NOT triggered —
+    // the streamed response text already speaks the acknowledgement.
+    const rawAction = (result as { action?: unknown })?.action;
+    const action = parseAction(rawAction);
+    if (action) {
+      flashActionLine(action.label);
+      void handleAction(action);
+    }
+  });
   onJarvisResponseEnd(() => {
     // Streaming indicator cleared when response-complete fires.
   });
@@ -558,6 +612,26 @@ async function boot(): Promise<void> {
   wireExtendButton();
 
   void startPhysicalExtenderListener();
+
+  // 5b. Wake phrase ("daddy's home") + proactive briefing HUD cues.
+  //     data-jarvis-state gets "wake" while the idle loop listens and
+  //     "briefing" while a proactive briefing is playing. These are additive
+  //     to the capture states (idle/recording/uploading/speaking) — capture
+  //     state transitions overwrite them, which is intended.
+  onWakeState((active) => {
+    if (active && _captureState === "idle") {
+      document.body.dataset.jarvisState = "wake";
+    } else if (!active && _captureState === "idle") {
+      document.body.dataset.jarvisState = "idle";
+    }
+  });
+  onBriefingState((active) => {
+    if (active) document.body.dataset.jarvisState = "briefing";
+  });
+
+  // Start the always-on wake listener when enabled (default true). The manual
+  // ⌘⌃J trigger keeps working alongside it.
+  setWakeEnabled(settings.wakeEnabled);
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);

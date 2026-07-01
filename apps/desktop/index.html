@@ -70,6 +70,11 @@
       body[data-jarvis-state="uploading"] .kiwi-orb .kiwi-glyph { color: var(--upload); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--upload) 80%, transparent)); }
       body[data-jarvis-state="speaking"] .kiwi-orb::before { animation-duration: 1.6s; }
       body[data-jarvis-state="speaking"] .kiwi-orb::after  { animation-duration: 2s; }
+      /* Wake: slow, calm ambient listen. Briefing: brisker accent pulse. */
+      body[data-jarvis-state="wake"] .kiwi-orb::before { animation-duration: 4.5s; opacity: 0.5; }
+      body[data-jarvis-state="wake"] .kiwi-orb::after  { animation-duration: 6s; }
+      body[data-jarvis-state="briefing"] .kiwi-orb::before { animation-duration: 1.8s; }
+      body[data-jarvis-state="briefing"] .kiwi-orb .kiwi-glyph { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 85%, transparent)); }
       .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
       .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
       .row:last-child { border-bottom: none; }
@@ -315,6 +320,17 @@
         </span>
       </div>
       <div class="row"><span class="label"></span><span class="value" id="manual-mode-help" style="color:var(--muted);font-size:11px;text-align:right;">VAD off — only ⌘⌃E or toggle ends turns</span></div>
+
+      <div class="row">
+        <span class="label">Wake phrase</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="wake-enabled" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </span>
+      </div>
+      <div class="row"><span class="label"></span><span class="value" id="wake-help" style="color:var(--muted);font-size:11px;text-align:right;">Listen for “daddy’s home” → briefing</span></div>
 
       <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
       <div class="row"><span class="label">SSE status</span><span class="value" id="sse-status">connecting…</span></div>
