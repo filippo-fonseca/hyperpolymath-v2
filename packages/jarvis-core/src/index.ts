@@ -78,6 +78,11 @@ export type {
   CreatePersonAction,
   FindPeopleAction,
   LinkPeopleAction,
+  // Computer-control action types + desktop result type
+  OpenUrlAction,
+  OpenAppAction,
+  WebSearchAction,
+  DesktopAction,
 } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel

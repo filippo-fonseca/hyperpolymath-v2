@@ -16,7 +16,8 @@ export type JarvisToolName =
   | "update_capture" | "delete_capture"
   | "update_event" | "delete_event"
   | "find_tasks" | "find_captures" | "find_events"
-  | "create_person" | "find_people" | "link_people";
+  | "create_person" | "find_people" | "link_people"
+  | "open_url" | "open_app" | "web_search";
 
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
@@ -184,6 +185,34 @@ export interface LinkPeopleAction {
   from_id: string;
 }
 
+// ---------------------------------------------------------------------------
+// Computer-control action input types (open_url / open_app / web_search).
+// The executor validates these server-side and returns a DesktopAction for
+// the desktop client to execute. No DB writes or gcal calls.
+// ---------------------------------------------------------------------------
+
+export interface OpenUrlAction {
+  url: string;
+  label?: string;
+}
+
+export interface OpenAppAction {
+  app: string;
+  label?: string;
+}
+
+export interface WebSearchAction {
+  query: string;
+  engine?: "google" | "maps";
+}
+
+/** Structured desktop action returned by the executor for computer-control
+ *  tools. The desktop client keys off `kind` to decide what to do. */
+export type DesktopAction =
+  | { kind: "open_url"; url: string; label: string }
+  | { kind: "open_app"; app: string; label: string };
+
+// ---------------------------------------------------------------------------
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn
 // for the in-turn scratchpad block (enables update/delete to reference items
 // created earlier in the same session without a separate find call).
