@@ -30,6 +30,10 @@
 // Phase D (people knowledge graph): 3 new NON-strict tools added
 // (create_person, find_people, link_people). Total: 17 tools.
 // cache_control moves from find_events to link_people (new LAST tool).
+//
+// Computer-control tools (open_url, open_app, web_search): 3 new NON-strict
+// tools added. Total: 20 tools.
+// cache_control moves from link_people to web_search (new LAST tool).
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -50,6 +54,9 @@ import { findEventsTool } from "./find-events";
 import { createPersonTool } from "./create-person";
 import { findPeopleTool } from "./find-people";
 import { linkPeopleTool } from "./link-people";
+import { openUrlTool } from "./open-url";
+import { openAppTool } from "./open-app";
+import { webSearchTool } from "./web-search";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -75,7 +82,10 @@ export interface JarvisToolDefinition {
     | "find_events"
     | "create_person"
     | "find_people"
-    | "link_people";
+    | "link_people"
+    | "open_url"
+    | "open_app"
+    | "web_search";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -162,11 +172,19 @@ export function buildToolDefinitions(
     // NON-strict (grammar budget): server-side Zod validation covers these.
     { ...createPersonTool, strict: false as const },
     { ...findPeopleTool, strict: false as const },
+    // link_people loses cache_control — computer-control tools follow it.
+    { ...linkPeopleTool, strict: false as const },
+    // Computer-control tools (open_url, open_app, web_search).
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    // The executor validates input and returns a structured action for the
+    // desktop client; no DB writes, no gcal calls.
+    { ...openUrlTool, strict: false as const },
+    { ...openAppTool, strict: false as const },
     {
-      ...linkPeopleTool,
+      ...webSearchTool,
       strict: false as const,
-      // Phase D / CACHE: cache_control moves here — link_people is now the
-      // LAST tool in the array. find_events loses the breakpoint. TTL "1h"
+      // Computer-control / CACHE: cache_control moves here — web_search is now
+      // the LAST tool in the array. link_people loses the breakpoint. TTL "1h"
       // amortizes the 2× write cost over a full hour of turns.
       // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
@@ -193,6 +211,10 @@ export { FindEventsInputSchema } from "./find-events";
 export { CreatePersonInputSchema } from "./create-person";
 export { FindPeopleInputSchema } from "./find-people";
 export { LinkPeopleInputSchema } from "./link-people";
+// Computer-control: re-export input schemas for run-turn.ts validation.
+export { OpenUrlInputSchema } from "./open-url";
+export { OpenAppInputSchema } from "./open-app";
+export { WebSearchInputSchema } from "./web-search";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;

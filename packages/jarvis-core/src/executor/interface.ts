@@ -13,15 +13,19 @@ import type {
   DeleteCaptureAction,
   DeleteEventAction,
   DeleteTaskAction,
+  DesktopAction,
   FindCapturesAction,
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
   LinkPeopleAction,
+  OpenAppAction,
+  OpenUrlAction,
   RememberFactAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
+  WebSearchAction,
 } from "../types";
 import type { AskClarificationAction } from "../tools/ask-clarification";
 
@@ -50,7 +54,14 @@ export interface ExecutionContext {
 }
 
 export type ExecutorResult =
-  | { ok: true; id: string; receipt: Record<string, unknown> }
+  | {
+      ok: true;
+      id: string;
+      receipt: Record<string, unknown>;
+      /** Present on computer-control tool results (open_url/open_app/web_search).
+       *  The desktop client reads this field to decide what to do on the Mac. */
+      action?: DesktopAction;
+    }
   | {
       ok: false;
       error: string;
@@ -102,4 +113,10 @@ export interface ActionExecutor {
   createPerson(input: CreatePersonAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   findPeople(input: FindPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Computer-control tools — validate input server-side, return a DesktopAction
+  // for the desktop client to execute on the Mac. No DB writes, no gcal calls.
+  openUrl(input: OpenUrlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  openApp(input: OpenAppAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  webSearch(input: WebSearchAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 }
