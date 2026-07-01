@@ -69,6 +69,11 @@ export function parseAction(value: unknown): DesktopAction | null {
  */
 export async function handleAction(action: DesktopAction): Promise<boolean> {
   try {
+    // FOCUS RULE (RESEARCH Q4, critical): opening a URL/app foregrounds the
+    // target app (macOS `open`/opener calls activate it). We deliberately do
+    // NOT call any window.set_focus() on the HUD here — the HUD is alwaysOnTop
+    // + Accessory, so it floats above visually without stealing key focus. Let
+    // the opened app own key focus. Do NOT reintroduce a focus call in this path.
     if (action.kind === "open_url") {
       await openUrl(action.url);
       // eslint-disable-next-line no-console
@@ -76,9 +81,15 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       return true;
     }
 
-    // open_app → `open -a <App> [<url|path>]`
-    const args = action.url ? ["-a", action.app, action.url] : ["-a", action.app];
-    const cmd = Command.create("open-app", args);
+    // open_app → `open -a <App> [<url|path>]`. Two distinct capability shapes
+    // are allowlisted (capabilities/default.json): `open-app` for the 2-arg
+    // launch-by-name case, `open-app-url` for the optional 3-arg deep-link
+    // case. Using the matching command name is what makes launching an app by
+    // name (e.g. "open Spotify") pass the scoped allowlist.
+    const [scopeName, args] = action.url
+      ? (["open-app-url", ["-a", action.app, action.url]] as const)
+      : (["open-app", ["-a", action.app]] as const);
+    const cmd = Command.create(scopeName, [...args]);
     const output = await cmd.execute();
     if (output.code !== 0) {
       // eslint-disable-next-line no-console

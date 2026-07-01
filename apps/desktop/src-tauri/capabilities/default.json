@@ -19,7 +19,12 @@
         {
           "name": "open-app",
           "cmd": "open",
-          "args": ["-a", { "validator": "\\S+" }, { "validator": ".+" }]
+          "args": ["-a", { "validator": ".+" }]
+        },
+        {
+          "name": "open-app-url",
+          "cmd": "open",
+          "args": ["-a", { "validator": ".+" }, { "validator": ".+" }]
         }
       ]
     },

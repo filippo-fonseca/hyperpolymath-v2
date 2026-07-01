@@ -575,6 +575,10 @@ async function boot(): Promise<void> {
     const action = parseAction(rawAction);
     if (action) {
       flashActionLine(action.label);
+      // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
+      // foregrounds the target. We do NOT set_focus() the HUD after an open —
+      // that would yank key focus back from the app the user wants to use. The
+      // alwaysOnTop + Accessory HUD floats above without stealing input.
       void handleAction(action);
     }
   });

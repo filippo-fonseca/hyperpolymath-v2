@@ -28,6 +28,12 @@ async function authHeaders(triggerSecret: string): Promise<Record<string, string
   return headers;
 }
 
+// Phase 2 (Task 2.1): the desktop always operates in computer-control mode.
+// Sent ONLY on the two turn entry points (postText / postTranscript) so the
+// backend appends the COMPUTER-CONTROL MODE steering block. Browser/mobile
+// turns never send this header and are unaffected. Not sent on claim/TTS.
+const JARVIS_MODE_HEADER: Record<string, string> = { "x-jarvis-mode": "computer" };
+
 /**
  * POST /api/jarvis/voice/source/claim
  * Registers a fresh voice-source claim on the Next.js server (TTL 30s).
@@ -98,6 +104,7 @@ export async function postText(text: string): Promise<boolean> {
     method: "POST",
     headers: {
       ...(await authHeaders(triggerSecret)),
+      ...JARVIS_MODE_HEADER,
       "content-type": "application/json",
     },
     body: JSON.stringify({ text }),
@@ -132,6 +139,7 @@ export async function postTranscript(args: {
     method: "POST",
     headers: {
       ...(await authHeaders(triggerSecret)),
+      ...JARVIS_MODE_HEADER,
       "content-type": "audio/wav",
       "x-jarvis-vad-end-at": String(args.vadEndAt),
     },
