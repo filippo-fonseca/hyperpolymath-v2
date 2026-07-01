@@ -52,6 +52,7 @@ import {
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
+import { handleAction, parseAction } from "@/actions/dispatcher";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -146,6 +147,20 @@ function paintToolCall(name: string, result: unknown): void {
     }
   }
   item.textContent = summary;
+  toolCallsEl.appendChild(item);
+}
+
+/**
+ * Flash a brief "▸ opening {label}" receipt line on the HUD when a
+ * computer-control action is dispatched. Purely visual — the agent's streamed
+ * text already speaks the acknowledgement, so we do NOT trigger TTS here.
+ */
+function flashActionLine(label: string): void {
+  const toolCallsEl = document.getElementById("tool-calls");
+  if (!toolCallsEl) return;
+  const item = document.createElement("div");
+  item.className = "tool-call-item action-flash";
+  item.textContent = `▸ opening ${label || "…"}`;
   toolCallsEl.appendChild(item);
 }
 
@@ -540,7 +555,19 @@ async function boot(): Promise<void> {
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => paintToolCall(name, result));
+  onJarvisToolCall(({ name, result }) => {
+    paintToolCall(name, result);
+    // Computer-control tool results carry an `action` on their result. Key
+    // strictly off result.action.kind (fixed contract with the backend agent):
+    // execute the action + flash a visual confirmation. TTS is NOT triggered —
+    // the streamed response text already speaks the acknowledgement.
+    const rawAction = (result as { action?: unknown })?.action;
+    const action = parseAction(rawAction);
+    if (action) {
+      flashActionLine(action.label);
+      void handleAction(action);
+    }
+  });
   onJarvisResponseEnd(() => {
     // Streaming indicator cleared when response-complete fires.
   });
