@@ -76,6 +76,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::start_capture,
             commands::stop_capture,
+            commands::show_hud,
+            commands::hide_hud,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

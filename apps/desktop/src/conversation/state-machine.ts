@@ -17,6 +17,8 @@
 // The FSM does not itself talk to Rust/cpal; it drives capture.ts
 // (startCaptureTurn / toggleCaptureTurn) and reads capture + TTS state.
 
+import { invoke } from "@tauri-apps/api/core";
+
 import {
   onCaptureState,
   onTranscriptReceived,
@@ -53,10 +55,26 @@ let briefedThisSession = false;
 let awaitingBriefingMic = false;
 let convTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Auto-show the HUD whenever JARVIS becomes active (any non-idle state) so the
+ * orb is visible for the turn — even if the user had hidden it via the tray.
+ * The Rust `show_hud` command deliberately does NOT focus the window, so the
+ * HUD floats above without stealing key focus (RESEARCH Q4). We do NOT auto-
+ * hide on idle: the user owns visibility at rest via the tray (Show/Hide HUD).
+ */
+function syncHudVisibility(next: JarvisState): void {
+  if (next !== "idle") {
+    void invoke("show_hud").catch(() => {
+      // Non-fatal — running outside Tauri (e.g. plain vite dev) has no command.
+    });
+  }
+}
+
 function setState(next: JarvisState): void {
   if (next === state) return;
   state = next;
   document.body.dataset.jarvisState = next;
+  syncHudVisibility(next);
   for (const fn of stateListeners) fn(next);
 }
 
