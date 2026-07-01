@@ -73,6 +73,7 @@ import { toast } from "sonner";
 import { FolderPicker } from "./FolderPicker";
 import { PageCoverImage } from "./PageCoverImage";
 import { PageProcessingRunsMenu } from "./PageProcessingRunsMenu";
+import { PageProperties } from "./PageProperties";
 import { PageSearchBar } from "./PageSearchBar";
 import { ProjectLinker } from "./ProjectLinker";
 import { UrlField } from "@/components/shared/UrlField";
@@ -121,6 +122,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     queryFn: () => getPagesForCurrentUser(),
     initialData: [initialPage],
   });
+
+  // Custom fields (issue #165): definitions are managed wiki-wide / per-folder,
+  // not on the page. A field value/hidden change bumps pages.updated_at, so
+  // invalidating the pages query re-syncs this page's applicable properties.
+  const handleFieldsChanged = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: tableKey("pages", userId) });
+  }, [queryClient, userId]);
   // Areas + projects (incl. archived) drive the Area-grouped ProjectLinker.
   // No initialData on purpose: the global QueryClient sets refetchOnMount:false
   // and nothing invalidates the ["sidebar-tree"] key (Realtime subs use
@@ -972,6 +980,13 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         </span>
         <UrlField value={url} onChange={handleUrlChange} />
       </div>
+
+      {/* Custom properties (issue #165) — wiki/folder-defined typed fields. */}
+      <PageProperties
+        pageId={initialPage.id}
+        fields={serverPage.fields}
+        onChanged={handleFieldsChanged}
+      />
 
       {/* Last edited */}
       <p className="text-[11px] font-mono text-[var(--ink-muted)]">

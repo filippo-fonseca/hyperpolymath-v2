@@ -13,3 +13,19 @@ export const taskStatusEnum = pgEnum("task_status", [
 ]);
 
 export const semesterTermEnum = pgEnum("semester_term", ["fall", "spring", "summer"]);
+
+// Issue #165 — Notion-style custom fields on wiki pages. A page_field_definition
+// carries one of these types; select supports single- or multi-value ("tags")
+// via the allow_multiple flag on the definition.
+export const pageFieldTypeEnum = pgEnum("page_field_type", [
+  "text",
+  "number",
+  "date",
+  "select",
+  "checkbox",
+]);
+
+// Issue #165 — a field definition is either wiki-wide (applies to every page) or
+// folder-scoped (defined on a top-level folder; cascades to all its descendant
+// pages). Folder-scoped defs carry a folder_id.
+export const pageFieldScopeEnum = pgEnum("page_field_scope", ["wiki", "folder"]);
