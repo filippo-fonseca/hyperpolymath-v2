@@ -70,6 +70,44 @@
       }
       #orb-canvas { width: 100%; height: 100%; display: block; }
 
+      /* 4 tick marks at 0/90/180/270° just outside the canvas ring (Stark
+         targeting feel) — a CSS-only overlay so hud/orb.ts stays untouched.
+         The canvas ring radius is 0.28 × the box; this overlay's circle sits
+         at 0.33 × so ticks ride just outside the stroke + glow.
+         Guarded confirm: while a send_message is held awaiting a spoken
+         confirmation (body[data-confirm-pending="true"], driven by
+         actions/confirm-gate.ts via main.ts), the ticks cross-fade cyan →
+         amber and a thin amber guard ring appears. That fade and the
+         acknowledge strip are the only new motion — nothing else animates. */
+      .orb-ticks {
+        position: absolute;
+        width: 66%; height: 66%;
+        left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 1px solid transparent;
+        transition: border-color 0.35s ease;
+        pointer-events: none;
+      }
+      body[data-confirm-pending="true"] .orb-ticks {
+        border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+      }
+      .orb-ticks::before,
+      .orb-ticks::after {
+        content: "";
+        position: absolute; inset: -1px; /* cover the border box so ticks sit on the guard ring */
+        background:
+          linear-gradient(currentColor, currentColor) center top    / 1.5px 7px no-repeat,
+          linear-gradient(currentColor, currentColor) center bottom / 1.5px 7px no-repeat,
+          linear-gradient(currentColor, currentColor) left   center / 7px 1.5px no-repeat,
+          linear-gradient(currentColor, currentColor) right  center / 7px 1.5px no-repeat;
+        transition: opacity 0.35s ease;
+      }
+      .orb-ticks::before { color: color-mix(in srgb, var(--accent) 50%, transparent); }
+      .orb-ticks::after  { color: color-mix(in srgb, var(--amber) 80%, transparent); opacity: 0; }
+      body[data-confirm-pending="true"] .orb-ticks::before { opacity: 0; }
+      body[data-confirm-pending="true"] .orb-ticks::after  { opacity: 1; }
+
       /* Status glyph — tiny mono line under the orb (font-mono-stats). */
       .status-line {
         font-family: var(--mono);
@@ -339,6 +377,7 @@
       <header class="hud-header">
         <div class="orb-wrap">
           <canvas id="orb-canvas" aria-hidden="true"></canvas>
+          <div class="orb-ticks" aria-hidden="true"></div>
         </div>
         <div class="status-line" id="status-line">
           <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>

@@ -58,12 +58,32 @@ let lastTranscript: { text: string; at: number } | null = null;
 let lastSent: { recipient: string; text: string; at: number } | null = null;
 let started = false;
 
+/** Presentational signal for the HUD: `true` while a send_message is held
+ *  awaiting spoken confirmation, `false` once it is sent, declined, replaced
+ *  or expired. Drives the amber guarded-confirm ring on the orb (main.ts
+ *  mirrors it onto body[data-confirm-pending]). No gate logic keys off it. */
+type ConfirmPendingListener = (isPending: boolean) => void;
+const pendingListeners = new Set<ConfirmPendingListener>();
+
+export function onConfirmPendingChange(fn: ConfirmPendingListener): () => void {
+  pendingListeners.add(fn);
+  return () => {
+    pendingListeners.delete(fn);
+  };
+}
+
+function emitPendingChange(isPending: boolean): void {
+  for (const fn of pendingListeners) fn(isPending);
+}
+
 function clearPendingState(): void {
+  const hadPending = pending !== null;
   pending = null;
   if (pendingTtlTimer) {
     clearTimeout(pendingTtlTimer);
     pendingTtlTimer = null;
   }
+  if (hadPending) emitPendingChange(false);
 }
 
 function discardPending(reason: string): void {
@@ -140,6 +160,7 @@ export function holdSendMessage(action: SendMessageAction): void {
   }
   clearPendingState();
   pending = { action, heldAt: now };
+  emitPendingChange(true);
   pendingTtlTimer = setTimeout(() => {
     pendingTtlTimer = null;
     discardPending(`TTL expired (${PENDING_TTL_MS}ms) with no spoken answer`);

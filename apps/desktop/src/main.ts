@@ -56,7 +56,7 @@ import {
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
-import { startConfirmGate } from "@/actions/confirm-gate";
+import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
 import {
   getJarvisState,
   onJarvisState,
@@ -738,6 +738,12 @@ async function boot(): Promise<void> {
   // spoken affirmative lands in the continue-listening window (transcript +
   // FSM-state subscriptions live inside the gate). Must start after the FSM
   // so its idle-expiry subscription sees real transitions.
+  // Guarded-confirm ring: while a send is held pending, the orb's tick
+  // overlay shifts amber (index.html keys off body[data-confirm-pending]).
+  // Subscribe before arming the gate so no transition is missed.
+  onConfirmPendingChange((confirmPending) => {
+    document.body.dataset.confirmPending = confirmPending ? "true" : "false";
+  });
   startConfirmGate();
 
   // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
