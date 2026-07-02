@@ -45,6 +45,14 @@ const REOPEN_SETTLE_MS = 300;
 // speak. If TTS has started by the time this fires, we defer entirely to the
 // happy path (onStateChange: playing→speaking→drain→continue).
 const THINKING_GRACE_MS = 600;
+// HARD SAFETY CAPS — the app must ALWAYS be talkable-to again. Even with Rust
+// events now driving TTS state, a dropped event / stalled backend / lost network
+// could in theory strand the FSM. These caps guarantee an escape: after the cap,
+// we force-advance out of "thinking"/"speaking" to the continue window (or idle).
+// Generous so they never clip a legitimately long reply — they are a backstop,
+// not the normal exit (the happy path exits far sooner via tts-idle / grace).
+const THINKING_CAP_MS = 20_000;
+const SPEAKING_CAP_MS = 45_000;
 // Spoken end-phrases that close the conversation immediately.
 const END_PHRASE = /\b(that'?s all|good ?bye|good ?night|thank you,? jarvis|that will be all)\b/i;
 
@@ -67,6 +75,10 @@ let convTimer: ReturnType<typeof setTimeout> | null = null;
 // "thinking" so a silent / text-only / audio-blocked reply never strands the
 // FSM. Cleared the moment TTS starts playing (happy path takes over).
 let thinkingGraceTimer: ReturnType<typeof setTimeout> | null = null;
+// Hard safety-cap timer. Armed on entry to "thinking"/"speaking", cleared on
+// any state change. If it ever fires, the FSM has been stuck too long — force it
+// forward so the user can always talk to JARVIS again.
+let stateCapTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Auto-show the HUD whenever JARVIS becomes active (any non-idle state) so the
@@ -88,7 +100,47 @@ function setState(next: JarvisState): void {
   state = next;
   document.body.dataset.jarvisState = next;
   syncHudVisibility(next);
+  armStateCap(next);
   for (const fn of stateListeners) fn(next);
+}
+
+function clearStateCap(): void {
+  if (stateCapTimer) {
+    clearTimeout(stateCapTimer);
+    stateCapTimer = null;
+  }
+}
+
+/**
+ * Arm the hard safety cap on entering "thinking"/"speaking"; disarm on any
+ * other state. If the cap fires, the FSM has been stuck past the allowed
+ * ceiling (a dropped tts-idle, a stalled backend, a lost stream) — force it
+ * forward so the app is ALWAYS talkable-to again. The complaint "stays on
+ * speaking and I can't ask it anything" must be impossible after this.
+ */
+function armStateCap(next: JarvisState): void {
+  clearStateCap();
+  if (next !== "thinking" && next !== "speaking") return;
+  const cap = next === "thinking" ? THINKING_CAP_MS : SPEAKING_CAP_MS;
+  const capturedState = next;
+  stateCapTimer = setTimeout(() => {
+    stateCapTimer = null;
+    // Only act if we're still stuck in the SAME state we armed for.
+    if (!conversationActive || state !== capturedState) return;
+    // eslint-disable-next-line no-console
+    console.warn(`[fsm] SAFETY CAP hit in "${capturedState}" — force-advancing`);
+    // Kill any audio that may be wedged so the sink can't keep us "speaking".
+    ttsPlayer.stop();
+    clearThinkingGrace();
+    // Reopen the mic for a hands-free follow-up if the gate now allows it;
+    // otherwise sign off cleanly. Either way the FSM leaves the stuck state.
+    if (canStartCapture()) {
+      void openMicIfPossible("safety-cap");
+      armContinueTimeout();
+    } else {
+      endConversation();
+    }
+  }, cap);
 }
 
 /** Subscribe to FSM state transitions (for the orb / HUD). */
@@ -213,6 +265,7 @@ async function openMicIfPossible(reason: string): Promise<void> {
 function endConversation(): void {
   clearConvTimer();
   clearThinkingGrace();
+  clearStateCap();
   conversationActive = false;
   briefedThisSession = false;
   awaitingBriefingMic = false;
