@@ -77,6 +77,8 @@ fn audio_thread_main(app: AppHandle, rx: mpsc::Receiver<AudioCommand>) {
                 let app_clone = app.clone();
                 let channels = input_channels;
                 let in_rate = input_sample_rate;
+                let mut cb: u32 = 0;
+                eprintln!("[audio] opening input stream: in_rate={in_rate} channels={channels}");
                 let stream_result = device.build_input_stream(
                     &config.clone().into(),
                     move |data: &[f32], _: &cpal::InputCallbackInfo| {
@@ -85,6 +87,13 @@ fn audio_thread_main(app: AppHandle, rx: mpsc::Receiver<AudioCommand>) {
                             .chunks(channels)
                             .map(|frame| frame.iter().sum::<f32>() / channels as f32)
                             .collect();
+                        cb = cb.wrapping_add(1);
+                        if cb % 25 == 0 && !mono.is_empty() {
+                            let rms = (mono.iter().map(|x| x * x).sum::<f32>()
+                                / mono.len() as f32)
+                                .sqrt();
+                            eprintln!("[audio] mic chunk#{cb} n={} rms={rms:.4}", mono.len());
+                        }
                         // 2. Linear-interpolation resample to TARGET_SAMPLE_RATE (16 kHz).
                         let resampled = resample_linear(&mono, in_rate, TARGET_SAMPLE_RATE);
                         let _ = app_clone.emit(
@@ -145,6 +154,7 @@ fn resample_linear(samples: &[f32], in_rate: u32, out_rate: u32) -> Vec<f32> {
 /// Send `Start` to the audio thread, opening the cpal stream.
 /// Called from the `start_capture` Tauri command.
 pub fn send_command_start(app: &AppHandle) -> Result<(), String> {
+    eprintln!("[audio] start_capture invoked");
     let cell = ensure_controller(app);
     let guard = cell.lock().map_err(|e| e.to_string())?;
     let ctrl = guard.as_ref().ok_or("audio controller not initialized")?;
@@ -156,6 +166,7 @@ pub fn send_command_start(app: &AppHandle) -> Result<(), String> {
 /// Send `Stop` to the audio thread, dropping the cpal stream + releasing mic.
 /// Called from the `stop_capture` Tauri command.
 pub fn send_command_stop(app: &AppHandle) -> Result<(), String> {
+    eprintln!("[audio] stop_capture invoked");
     let cell = ensure_controller(app);
     let guard = cell.lock().map_err(|e| e.to_string())?;
     let ctrl = guard.as_ref().ok_or("audio controller not initialized")?;
@@ -210,7 +221,10 @@ fn tts_thread_main(app: AppHandle, rx: mpsc::Receiver<TtsCommand>) {
     let stream = rodio::OutputStream::try_default();
     let (sink, _stream_keepalive) = match stream {
         Ok((os, handle)) => match rodio::Sink::try_new(&handle) {
-            Ok(sink) => (Some(sink), Some(os)),
+            Ok(sink) => {
+                eprintln!("[tts] rodio output device opened OK");
+                (Some(sink), Some(os))
+            }
             Err(e) => {
                 eprintln!("[tts] rodio Sink::try_new failed: {e}");
                 (None, Some(os))
@@ -286,6 +300,7 @@ fn pcm_le_to_i16(bytes: &[u8]) -> Vec<i16> {
 
 /// Append raw PCM to the TTS sink (FIFO). Called from `tts_play_pcm`.
 pub fn tts_send_play(app: &AppHandle, bytes: Vec<u8>) -> Result<(), String> {
+    eprintln!("[tts] play_pcm invoked ({} bytes)", bytes.len());
     let cell = ensure_tts_controller(app);
     let guard = cell.lock().map_err(|e| e.to_string())?;
     let ctrl = guard.as_ref().ok_or("tts controller not initialized")?;

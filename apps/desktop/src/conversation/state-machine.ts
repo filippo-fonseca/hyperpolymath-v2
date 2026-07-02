@@ -7,9 +7,7 @@
 //      playing (state === "speaking") or while a response is in flight
 //      (state === "thinking"). This is the zero-AEC anti-self-trigger measure —
 //      JARVIS never hears its own voice.
-//   2. Briefing-before-mic: on invocation the proactive briefing speaks FIRST;
-//      the mic only opens once the briefing TTS has drained (whenIdle()).
-//   3. Continue window: after JARVIS finishes speaking, the mic reopens for a
+//   2. Continue window: after JARVIS finishes speaking, the mic reopens for a
 //      short hands-free follow-up. The conversation ends on a silence timeout,
 //      a spoken end-phrase, or a second ⌘⌃J press — returning to idle with the
 //      mic released.
@@ -28,7 +26,6 @@ import {
 } from "@/audio/capture";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
-import { runBriefing } from "@/briefing/briefing";
 
 export type JarvisState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -64,11 +61,6 @@ const stateListeners = new Set<StateListener>();
 // True from the moment an invocation opens a conversation until it returns to
 // idle. Drives whether the continue window reopens the mic after speech.
 let conversationActive = false;
-// Once-per-invocation briefing guard; reset when the FSM returns to idle.
-let briefedThisSession = false;
-// Set while the briefing's TTS is draining, so the speaking→idle transition
-// knows to open the FIRST capture rather than treating it as a follow-up.
-let awaitingBriefingMic = false;
 let convTimer: ReturnType<typeof setTimeout> | null = null;
 // Grace timer armed when a response fully ends while we're still "thinking".
 // If it fires and TTS still isn't playing, we advance the turn out of
@@ -213,7 +205,7 @@ function onResponseEnded(): void {
 
 /**
  * The single invocation entry point (⌘⌃J, tray click, manual button).
- *   - idle: begin a conversation — brief first, then open the mic.
+ *   - idle: open the mic and start listening straight away.
  *   - listening: treat a second press as a manual end-of-turn (toggle stop).
  *   - thinking/speaking: ignore (can't invoke while JARVIS is working/talking).
  */
@@ -229,27 +221,11 @@ export async function startConversation(): Promise<void> {
   }
 
   conversationActive = true;
-
-  if (!briefedThisSession) {
-    // Brief first: speak, then open the mic once the briefing TTS drains.
-    briefedThisSession = true;
-    awaitingBriefingMic = true;
-    setState("speaking");
-    void runBriefing();
-    // If TTS never starts (briefing failed / disabled), fall back to opening
-    // the mic after a short beat so invocation is never a dead end.
-    void ttsPlayer.whenIdle().then(() => {
-      if (awaitingBriefingMic) void openMicIfPossible("briefing-drained");
-    });
-    return;
-  }
-
   await openMicIfPossible("invoke");
 }
 
 /** Open a capture turn if the half-duplex gate allows it. */
 async function openMicIfPossible(reason: string): Promise<void> {
-  awaitingBriefingMic = false;
   clearConvTimer();
   clearThinkingGrace();
   if (!canStartCapture()) {
@@ -267,8 +243,6 @@ function endConversation(): void {
   clearThinkingGrace();
   clearStateCap();
   conversationActive = false;
-  briefedThisSession = false;
-  awaitingBriefingMic = false;
   // A canned local sign-off keeps the beat composed without a round-trip.
   if (ttsPlayer.getState() !== "playing") {
     setState("speaking");
@@ -351,13 +325,8 @@ export function startConversationMachine(): void {
       clearThinkingGrace();
       setState("speaking");
     } else if (ts === "idle") {
-      // TTS drained. If this was the opening briefing, open the FIRST mic.
-      if (awaitingBriefingMic) {
-        void openMicIfPossible("briefing-drained");
-        return;
-      }
-      // Otherwise this was a response: open the continue window for a
-      // hands-free follow-up (after a short settle so we don't self-trigger).
+      // TTS drained: open the continue window for a hands-free follow-up
+      // (after a short settle so we don't self-trigger).
       if (conversationActive && state === "speaking") {
         setTimeout(() => {
           if (conversationActive && canStartCapture()) {

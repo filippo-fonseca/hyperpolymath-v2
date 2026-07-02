@@ -258,14 +258,14 @@ export class TtsPlayer {
     const ac = new AbortController();
     this.abortController = ac;
 
-    // Device bearer token is the canonical auth — the trigger secret is empty
-    // in production DMG builds, which made every TTS request 401.
-    const token = await getDeviceToken();
+    // Use the trigger-secret path for TTS so the backend takes the owner
+    // fallback to process.env.ELEVENLABS_API_KEY. The Bearer path requires a
+    // per-user ElevenLabs BYOK in the DB (local dev doesn't have one; every
+    // TTS request 402'd and nothing spoke).
     const headers: Record<string, string> = {
       "content-type": "application/json",
       "x-trigger-secret": triggerSecret,
     };
-    if (token) headers["authorization"] = `Bearer ${token}`;
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/jarvis/tts`, {
