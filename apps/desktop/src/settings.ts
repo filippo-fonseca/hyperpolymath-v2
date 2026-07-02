@@ -7,6 +7,8 @@
 //   tts.voiceId             string   — ElevenLabs voice ID (default George)
 //   tts.provider            string   — "elevenlabs" | "off" (default "elevenlabs")
 //   physicalExtender.enabled boolean — whether to respond to SSE trigger events (default true)
+//   wake.enabled            boolean  — idle wake-phrase listener (OPT-IN, default false)
+//   wake.enabledExplicit    boolean  — marker: wake.enabled was set by the user (see below)
 //   startup.briefingEnabled boolean  — spoken briefing on session-start (default true)
 //   startup.openOnStart     array    — apps/URLs opened on session-start (default [])
 //   startup.shortcuts       array    — macOS Shortcuts run on session-start (default [])
@@ -40,7 +42,10 @@ export interface DesktopSettings {
    *  are suppressed. Only the manual-mode toggle OR the ⌘⌃E shortcut can close the mic. */
   manualMode: boolean;
   /** When true, an always-on idle mic loop listens for the "daddy's home" wake
-   *  phrase and fires a proactive briefing + command turn. Default true. */
+   *  phrase and invokes JARVIS (wake/wake-probe.ts). OPT-IN: default false.
+   *  The mic stays closed at rest unless the user explicitly enables wake mode
+   *  in settings, because wake mode keeps the macOS green mic indicator on
+   *  continuously. */
   wakeEnabled: boolean;
 
   // ── Startup sequence (session-start) ──────────────────────────────────────
@@ -72,7 +77,7 @@ const DEFAULTS: DesktopSettings = {
   physicalExtenderEnabled: true,
   vadSilenceMs: 1_500,
   manualMode: false,
-  wakeEnabled: true,
+  wakeEnabled: false,
   startupBriefingEnabled: true,
   startupOpenOnStart: [],
   startupShortcuts: [],
@@ -91,6 +96,18 @@ const STORE_KEYS: Record<keyof DesktopSettings, string> = {
   startupOpenOnStart: "startup.openOnStart",
   startupShortcuts: "startup.shortcuts",
 };
+
+// `wake.enabled` is only trusted when this marker is present. The plugin-store
+// autoSave bakes the whole defaults map into the settings JSON on the first
+// write of ANY key, so an existing install can carry `wake.enabled: true`
+// (the OLD default) without the user ever having touched a toggle. That baked
+// value is indistinguishable from an explicit choice. Wake is now opt-in, so:
+// the marker is written whenever saveSetting("wakeEnabled", …) runs (i.e. the
+// user actually flipped the toggle); without the marker, loadSettings returns
+// the opt-in default (false) regardless of any persisted `wake.enabled`.
+// Net effect: untouched installs get wake OFF; choices made via the settings
+// toggle are persisted and respected from then on.
+const WAKE_EXPLICIT_KEY = "wake.enabledExplicit";
 
 let _store: Store | null = null;
 
@@ -149,6 +166,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const vadSilenceMs = await store.get<number>("vad.silenceMs");
   const manualMode = await store.get<boolean>("capture.manualMode");
   const wakeEnabled = await store.get<boolean>("wake.enabled");
+  const wakeExplicit = await store.get<boolean>(WAKE_EXPLICIT_KEY);
   const startupBriefingEnabled = await store.get<boolean>("startup.briefingEnabled");
   const startupOpenOnStart = await store.get<unknown>("startup.openOnStart");
   const startupShortcuts = await store.get<unknown>("startup.shortcuts");
@@ -160,7 +178,10 @@ export async function loadSettings(): Promise<DesktopSettings> {
     physicalExtenderEnabled: physicalExtenderEnabled ?? DEFAULTS.physicalExtenderEnabled,
     vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
     manualMode: manualMode ?? DEFAULTS.manualMode,
-    wakeEnabled: wakeEnabled ?? DEFAULTS.wakeEnabled,
+    // Opt-in: only honor a persisted wake.enabled that the user explicitly set
+    // (marker present). Anything else — unset, or baked by an old defaults
+    // map — resolves to the OFF default. See WAKE_EXPLICIT_KEY.
+    wakeEnabled: wakeExplicit === true ? (wakeEnabled ?? DEFAULTS.wakeEnabled) : DEFAULTS.wakeEnabled,
     startupBriefingEnabled: startupBriefingEnabled ?? DEFAULTS.startupBriefingEnabled,
     startupOpenOnStart: sanitizeOpenItems(startupOpenOnStart),
     startupShortcuts: sanitizeShortcuts(startupShortcuts),
@@ -174,4 +195,9 @@ export async function saveSetting<K extends keyof DesktopSettings>(
 ): Promise<void> {
   const store = await getStore();
   await store.set(STORE_KEYS[key], value);
+  if (key === "wakeEnabled") {
+    // The user actually flipped the wake toggle — mark the persisted value as
+    // explicit so loadSettings trusts it from now on (see WAKE_EXPLICIT_KEY).
+    await store.set(WAKE_EXPLICIT_KEY, true);
+  }
 }
