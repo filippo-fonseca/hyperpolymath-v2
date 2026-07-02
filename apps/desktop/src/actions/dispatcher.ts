@@ -14,6 +14,7 @@
 //   run_applescript → Rust `run_applescript` (osascript, 15s SIGKILL timeout)
 //   run_shortcut    → Rust `run_shortcut` (Shortcuts.app CLI)
 //   play_music      → AppleScript against Music/Spotify via run_applescript
+//   computer_use    → multi-step Computer Use loop (actions/computer-use.ts)
 //
 // The action shapes are a FIXED CONTRACT with the backend executor
 // (apps/web/lib/jarvis/executor.ts). We key strictly off `kind`.
@@ -24,6 +25,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Command } from "@tauri-apps/plugin-shell";
 
 import { buildPlayMusic, runAppleScript } from "@/actions/applescript";
+import { runComputerUseLoop, type ComputerUseAction } from "@/actions/computer-use";
 import { holdSendMessage } from "@/actions/confirm-gate";
 import { bytesToBase64, downscalePngWithInfo } from "@/actions/png";
 import { postScreenshotDescribe } from "@/api/client";
@@ -109,7 +111,8 @@ export type DesktopAction =
   | TakeScreenshotAction
   | RunApplescriptAction
   | RunShortcutAction
-  | PlayMusicAction;
+  | PlayMusicAction
+  | ComputerUseAction;
 
 /**
  * Narrow an untrusted SSE payload into a DesktopAction. Returns null when the
@@ -227,6 +230,18 @@ export function parseAction(value: unknown): DesktopAction | null {
     return { kind: "play_music", app, ...(query ? { query } : {}) };
   }
 
+  if (kind === "computer_use") {
+    const task = obj["task"];
+    const sessionId = obj["session_id"];
+    if (
+      typeof task === "string" && task.length > 0 &&
+      typeof sessionId === "string" && sessionId.length > 0
+    ) {
+      return { kind: "computer_use", task, session_id: sessionId };
+    }
+    return null;
+  }
+
   return null;
 }
 
@@ -255,6 +270,8 @@ export function describeAction(action: DesktopAction): string {
       return `shortcut "${action.name}"`;
     case "play_music":
       return action.query ? `playing ${action.query}` : "resuming music";
+    case "computer_use":
+      return `taking the controls: ${action.task}`;
   }
 }
 
@@ -396,6 +413,17 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       console.log(
         `[action] play_music ${action.app}${action.query ? ` "${action.query}"` : " (resume)"}`,
       );
+      return true;
+    }
+
+    if (action.kind === "computer_use") {
+      // Long-running (up to 15 model round-trips) — fire-and-forget so the
+      // SSE handler isn't blocked. runComputerUseLoop never throws; it logs
+      // everything and the SERVER narrates progress over SSE. Focus rule
+      // applies here too: the loop never set_focus()es the HUD.
+      void runComputerUseLoop(action);
+      // eslint-disable-next-line no-console
+      console.log(`[action] computer_use session ${action.session_id} started: "${action.task}"`);
       return true;
     }
 
