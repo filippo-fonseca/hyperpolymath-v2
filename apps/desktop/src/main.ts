@@ -62,7 +62,6 @@ import {
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
-import { primeAudioOnGesture, wireVisibilityRecovery } from "@/audio/audio-context";
 import { mountOrb } from "@/hud/orb";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
@@ -391,12 +390,10 @@ async function wireExtendShortcut(): Promise<void> {
 }
 
 async function boot(): Promise<void> {
-  // 0. Audio: create + resume the shared AudioContext eagerly so JARVIS speaks
-  //    the very first briefing without a click. Belt-and-braces: also resume on
-  //    the first pointer/key gesture and recover on foreground.
-  ttsPlayer.unlock();
-  primeAudioOnGesture();
-  wireVisibilityRecovery();
+  // 0. Audio: TTS now plays natively in Rust (rodio), so there is no webview
+  //    AudioContext to prime/resume/recover. `unlock()` is a no-op retained for
+  //    API compatibility. The Rust output thread is created lazily on the first
+  //    tts_play_pcm and lives for the app's lifetime.
 
   // 1. Load persisted settings and apply them before wiring anything.
   const settings = await loadSettings();

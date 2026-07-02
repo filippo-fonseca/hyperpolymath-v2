@@ -22,6 +22,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 cpal = "0.15"
 hound = "3"
+# TTS playback happens natively in Rust (NOT the WKWebView). A global hotkey
+# gives no in-webview user gesture, so WebKit keeps the AudioContext suspended
+# → no sound + `onended` never fires → the FSM hangs on "speaking". rodio owns
+# a real CoreAudio output stream on its own thread, sidestepping the webview.
+rodio = { version = "0.19", default-features = false }
 
 # macOS-only: WKWebView escape hatch to lift the autoplay/user-action gate so
 # TTS plays hands-free (RESEARCH Q1). Pinned to the minors already resolved

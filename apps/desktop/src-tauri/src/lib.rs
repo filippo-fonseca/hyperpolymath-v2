@@ -110,6 +110,9 @@ pub fn run() {
             commands::stop_capture,
             commands::show_hud,
             commands::hide_hud,
+            commands::tts_play_pcm,
+            commands::tts_stop,
+            commands::tts_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

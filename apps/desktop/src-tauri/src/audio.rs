@@ -1,11 +1,14 @@
 use std::sync::{mpsc, Mutex, OnceLock};
 use std::thread;
+use std::time::Duration;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 const TARGET_SAMPLE_RATE: u32 = 16_000;
+/// TTS playback sample rate — matches the server PCM output (pcm_24000, mono).
+const TTS_SAMPLE_RATE: u32 = 24_000;
 
 #[derive(Debug)]
 enum AudioCommand {
@@ -158,5 +161,145 @@ pub fn send_command_stop(app: &AppHandle) -> Result<(), String> {
     let ctrl = guard.as_ref().ok_or("audio controller not initialized")?;
     ctrl.sender
         .send(AudioCommand::Stop)
+        .map_err(|e| e.to_string())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TTS output (rodio) — the definitive fix for hands-free silence + the FSM
+// freeze. A GLOBAL hotkey gives no in-webview user gesture, so the WKWebView
+// AudioContext stays suspended: no sound, and `source.onended` never fires so
+// the per-sentence promise never resolves → the queue is stuck "playing" → the
+// FSM is stuck "speaking". Playing in Rust via rodio bypasses the webview
+// entirely; a poll loop emits `tts-playing` / `tts-idle` so the frontend drives
+// state from the REAL playback state (single source of truth).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TtsCommand {
+    /// Append 16-bit signed LE PCM bytes (24 kHz mono) to the sink queue.
+    Play(Vec<u8>),
+    /// Stop playback immediately and clear everything queued.
+    Stop,
+}
+
+struct TtsController {
+    sender: mpsc::Sender<TtsCommand>,
+}
+
+/// One-time global: the mpsc sender to the TTS output thread.
+static TTS_CONTROLLER: OnceLock<Mutex<Option<TtsController>>> = OnceLock::new();
+
+fn ensure_tts_controller(app: &AppHandle) -> &'static Mutex<Option<TtsController>> {
+    TTS_CONTROLLER.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<TtsCommand>();
+        let app = app.clone();
+        thread::spawn(move || tts_thread_main(app, rx));
+        Mutex::new(Some(TtsController { sender: tx }))
+    })
+}
+
+/// Long-lived TTS output thread. Owns the `rodio::OutputStream` + `Sink` for the
+/// app's lifetime. `OutputStream` is NOT `Send`, so it MUST live on this thread
+/// and never cross a thread boundary — that is exactly why we drive it via an
+/// mpsc channel rather than a shared handle. Dropping the stream would silence
+/// output, so it is held for as long as the thread runs.
+fn tts_thread_main(app: AppHandle, rx: mpsc::Receiver<TtsCommand>) {
+    // Try to open the default output device. If this fails (headless / no
+    // device), we still drain the channel so senders never block and the
+    // frontend still receives `tts-idle` for every play request (see below),
+    // guaranteeing the queue/FSM can never wedge.
+    let stream = rodio::OutputStream::try_default();
+    let (sink, _stream_keepalive) = match stream {
+        Ok((os, handle)) => match rodio::Sink::try_new(&handle) {
+            Ok(sink) => (Some(sink), Some(os)),
+            Err(e) => {
+                eprintln!("[tts] rodio Sink::try_new failed: {e}");
+                (None, Some(os))
+            }
+        },
+        Err(e) => {
+            eprintln!("[tts] no output device ({e}) — playback disabled, state still advances");
+            (None, None)
+        }
+    };
+
+    // `was_playing` tracks the last emitted state so we only emit on edges.
+    let mut was_playing = false;
+
+    loop {
+        // Poll the channel with a short timeout so we can also poll the sink's
+        // drain state and emit tts-playing / tts-idle edges.
+        match rx.recv_timeout(Duration::from_millis(60)) {
+            Ok(TtsCommand::Play(bytes)) => {
+                let samples = pcm_le_to_i16(&bytes);
+                if let Some(sink) = sink.as_ref() {
+                    if !samples.is_empty() {
+                        let buf =
+                            rodio::buffer::SamplesBuffer::new(1, TTS_SAMPLE_RATE, samples);
+                        // FIFO: sentences play in the order appended.
+                        sink.append(buf);
+                        if !was_playing {
+                            was_playing = true;
+                            let _ = app.emit("tts-playing", ());
+                        }
+                    }
+                } else {
+                    // No sink — nothing will ever go "playing", so make sure the
+                    // frontend still sees an idle tick and advances the queue.
+                    let _ = app.emit("tts-idle", ());
+                }
+            }
+            Ok(TtsCommand::Stop) => {
+                if let Some(sink) = sink.as_ref() {
+                    sink.stop(); // stop + clear the queue
+                }
+                if was_playing {
+                    was_playing = false;
+                    let _ = app.emit("tts-idle", ());
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // No command — reconcile emitted state with the real sink state.
+                if let Some(sink) = sink.as_ref() {
+                    let empty = sink.empty();
+                    if was_playing && empty {
+                        was_playing = false;
+                        let _ = app.emit("tts-idle", ());
+                    } else if !was_playing && !empty {
+                        was_playing = true;
+                        let _ = app.emit("tts-playing", ());
+                    }
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+}
+
+/// Convert 16-bit signed little-endian PCM bytes to `Vec<i16>`. A trailing odd
+/// byte (should never happen for well-formed PCM) is dropped.
+fn pcm_le_to_i16(bytes: &[u8]) -> Vec<i16> {
+    bytes
+        .chunks_exact(2)
+        .map(|c| i16::from_le_bytes([c[0], c[1]]))
+        .collect()
+}
+
+/// Append raw PCM to the TTS sink (FIFO). Called from `tts_play_pcm`.
+pub fn tts_send_play(app: &AppHandle, bytes: Vec<u8>) -> Result<(), String> {
+    let cell = ensure_tts_controller(app);
+    let guard = cell.lock().map_err(|e| e.to_string())?;
+    let ctrl = guard.as_ref().ok_or("tts controller not initialized")?;
+    ctrl.sender
+        .send(TtsCommand::Play(bytes))
+        .map_err(|e| e.to_string())
+}
+
+/// Stop + clear TTS playback. Called from `tts_stop` / `tts_clear`.
+pub fn tts_send_stop(app: &AppHandle) -> Result<(), String> {
+    let cell = ensure_tts_controller(app);
+    let guard = cell.lock().map_err(|e| e.to_string())?;
+    let ctrl = guard.as_ref().ok_or("tts controller not initialized")?;
+    ctrl.sender
+        .send(TtsCommand::Stop)
         .map_err(|e| e.to_string())
 }

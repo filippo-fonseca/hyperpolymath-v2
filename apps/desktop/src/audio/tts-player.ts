@@ -1,17 +1,28 @@
 // apps/desktop/src/audio/tts-player.ts
-// Desktop TTS playback: fetches raw PCM audio from /api/jarvis/tts via
-// Tauri plugin-http (bypasses WKWebView CORS) and plays it through
-// AudioContext. Sentence-level streaming: sentences are enqueued as they
-// arrive from the SSE stream; each plays in sequence (ordered by seq number).
+// Desktop TTS playback. Fetches raw PCM audio from /api/jarvis/tts via Tauri
+// plugin-http (bypasses WKWebView CORS), then plays it NATIVELY in Rust via
+// rodio (`invoke("tts_play_pcm", { bytes })`) — NOT through the WKWebView.
 //
-// Output format: raw 16-bit signed LE PCM @ 24kHz mono — same as the server
-// emits (output_format=pcm_24000). We decode with AudioContext.decodeAudioData
-// after wrapping in a minimal WAV header, or decode manually via DataView.
+// Why native playback: a global hotkey / tray invocation gives no in-webview
+// user gesture, so WebKit keeps the AudioContext suspended: nothing plays AND
+// `AudioBufferSourceNode.onended` never fires, so the old per-sentence promise
+// never resolved → the queue was stuck "playing" → the FSM was stuck
+// "speaking" and the app froze. Rust rodio owns a real CoreAudio output stream
+// and reports true playback state back via Tauri events.
+//
+// State (idle/playing) is driven SOLELY by the Rust `tts-playing` / `tts-idle`
+// events (single source of truth), never by a webview `onended`. There is no
+// code path that leaves the player "playing" forever: a fetch failure advances
+// the queue, and a `tts-idle` event always transitions to idle.
+//
+// Output format: raw 16-bit signed LE PCM @ 24 kHz mono (output_format=pcm_24000),
+// appended to the Rust sink in seq order so sentences play FIFO.
 
 import { fetch } from "@tauri-apps/plugin-http";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
-import { getSharedAudioContext, resumeSharedAudioContext } from "@/audio/audio-context";
 
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George (warm British male)
 
@@ -26,27 +37,62 @@ type TtsPlayerState = "idle" | "playing";
  * Single-flight ordered TTS queue.
  *
  * Sentences arrive out-of-order (sentence 2 might finish fetching before
- * sentence 1). We buffer by seq and drain in order. Only one AudioContext
- * source plays at a time.
+ * sentence 1). We buffer by seq and drain in order, fetching each sentence's
+ * PCM and appending it to the Rust rodio sink IN SEQ ORDER. The Rust sink plays
+ * appended buffers FIFO, so ordering is preserved.
+ *
+ * The player's "playing"/"idle" state mirrors the Rust sink via the
+ * `tts-playing` / `tts-idle` events. `whenIdle()` resolves when the sink has
+ * fully drained AND we have no more sentences to fetch — that is the sequencing
+ * primitive the FSM uses to reopen the mic only after speech finishes.
  */
 export class TtsPlayer {
   private voiceId: string;
   private enabled: boolean;
+  /** Local mirror of the Rust sink state, updated by tts-playing/tts-idle. */
+  private sinkState: TtsPlayerState = "idle";
+  /** Whether we're actively fetching/appending sentences for the current turn. */
+  private draining = false;
+  /** The public state we report to listeners (playing while draining OR sink busy). */
   private state: TtsPlayerState = "idle";
   private queue: QueuedSentence[] = [];
   private nextSeq = 0;
-  private currentSource: AudioBufferSourceNode | null = null;
   private abortController: AbortController | null = null;
   private stateListeners = new Set<(state: TtsPlayerState) => void>();
   private idleWaiters = new Set<() => void>();
-  // Amplitude tap for the HUD orb's "speaking" waveform. Lazily created on the
-  // shared AudioContext; the current source connects through it → destination.
-  private analyser: AnalyserNode | null = null;
-  private analyserData: Uint8Array<ArrayBuffer> | null = null;
+  private unlistenPlaying: UnlistenFn | null = null;
+  private unlistenIdle: UnlistenFn | null = null;
+  /** Coarse level for the HUD orb's "speaking" pulse (no webview analyser). */
+  private eventsWired = false;
 
   constructor(voiceId = DEFAULT_VOICE_ID, enabled = true) {
     this.voiceId = voiceId;
     this.enabled = enabled;
+    void this.wireRustEvents();
+  }
+
+  /**
+   * Subscribe to the Rust sink's real playback state. This is the SINGLE source
+   * of truth for whether audio is coming out of the speakers. Best-effort:
+   * outside Tauri (plain vite dev) the listeners simply never fire, and the
+   * fetch-side draining still drives state so nothing wedges.
+   */
+  private async wireRustEvents(): Promise<void> {
+    if (this.eventsWired) return;
+    this.eventsWired = true;
+    try {
+      this.unlistenPlaying = await listen("tts-playing", () => {
+        this.sinkState = "playing";
+        this.recomputeState();
+      });
+      this.unlistenIdle = await listen("tts-idle", () => {
+        this.sinkState = "idle";
+        this.recomputeState();
+      });
+    } catch {
+      // Not running under Tauri — events unavailable. Draining still drives state.
+      this.eventsWired = false;
+    }
   }
 
   /** Subscribe to state transitions (idle ↔ playing). */
@@ -58,7 +104,18 @@ export class TtsPlayer {
     };
   }
 
-  private setState(next: TtsPlayerState): void {
+  /**
+   * The player is "playing" if EITHER the Rust sink is non-empty OR we still
+   * have sentences to fetch/append this turn. It is "idle" only when both the
+   * sink has drained and we are done draining the queue. This guarantees the
+   * FSM never leaves "speaking" prematurely, and (paired with the always-firing
+   * tts-idle + the fetch-advances-on-failure logic) never gets stuck.
+   */
+  private recomputeState(): void {
+    const next: TtsPlayerState =
+      this.sinkState === "playing" || this.draining || this.queue.length > 0
+        ? "playing"
+        : "idle";
     if (next === this.state) return;
     this.state = next;
     for (const fn of this.stateListeners) fn(next);
@@ -75,41 +132,19 @@ export class TtsPlayer {
   }
 
   /**
-   * Instantaneous output amplitude (0..1) for the HUD orb's "speaking"
-   * waveform. Reads the AnalyserNode's time-domain RMS. Returns 0 when idle or
-   * before the analyser exists. Best-effort — never throws.
+   * Coarse output amplitude (0..1) for the HUD orb's "speaking" pulse. Native
+   * rodio playback gives us no per-sample tap in the webview, so we return a
+   * gentle non-zero value while speaking and 0 otherwise. The orb's own
+   * breathing/wobble makes this read as a living waveform.
    */
   getSpeakingLevel(): number {
-    if (this.state !== "playing" || !this.analyser || !this.analyserData) return 0;
-    try {
-      this.analyser.getByteTimeDomainData(this.analyserData);
-      let sumSquares = 0;
-      for (let i = 0; i < this.analyserData.length; i++) {
-        const v = ((this.analyserData[i] ?? 128) - 128) / 128; // centre at 0
-        sumSquares += v * v;
-      }
-      const rms = Math.sqrt(sumSquares / this.analyserData.length);
-      return Math.min(1, rms * 3); // scale to a lively 0..1
-    } catch {
-      return 0;
-    }
-  }
-
-  /** Lazily create the analyser on the shared context (once). */
-  private ensureAnalyser(ctx: AudioContext): AnalyserNode {
-    if (!this.analyser) {
-      this.analyser = ctx.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyser.connect(ctx.destination);
-      this.analyserData = new Uint8Array(new ArrayBuffer(this.analyser.fftSize));
-    }
-    return this.analyser;
+    return this.state === "playing" ? 0.55 : 0;
   }
 
   /**
    * Resolves immediately if idle, otherwise on the next transition back to
-   * idle (TTS fully drained). This is the sequencing primitive the
-   * conversation FSM uses to reopen the mic ONLY after speech finishes.
+   * idle (TTS fully drained). This is the sequencing primitive the FSM uses to
+   * reopen the mic ONLY after speech finishes.
    */
   whenIdle(): Promise<void> {
     if (this.state === "idle") return Promise.resolve();
@@ -119,12 +154,11 @@ export class TtsPlayer {
   }
 
   /**
-   * Eagerly create + resume the shared AudioContext so the first briefing is
-   * audible without a click. Called at boot and on the first user gesture.
+   * No-op retained for API compatibility. Native rodio playback needs no
+   * webview AudioContext unlock — there is nothing to prime.
    */
   unlock(): void {
-    getSharedAudioContext();
-    void resumeSharedAudioContext();
+    // Intentionally empty. Rust owns the output stream.
   }
 
   /** Update whether TTS is active. When disabled, all enqueues become no-ops. */
@@ -139,22 +173,22 @@ export class TtsPlayer {
   }
 
   /**
-   * Enqueue a sentence for playback. Sentences are played in seq order;
-   * gaps in seq (i.e. a later sentence arriving first) wait until the gap
-   * is filled before playing.
+   * Enqueue a sentence for playback. Sentences are played in seq order; gaps in
+   * seq (a later sentence arriving first) wait until the gap is filled before
+   * being fetched + appended.
    */
   enqueueSentence(text: string, seq: number): void {
     if (!this.enabled || !text.trim()) return;
 
     this.queue.push({ text, seq });
     this.queue.sort((a, b) => a.seq - b.seq);
+    this.recomputeState();
     this.drain();
   }
 
   /**
    * Speak a single canned line immediately (e.g. the FSM sign-off "Standing by,
-   * sir."). Resets the seq counter so the line plays on its own without being
-   * blocked by a prior turn's ordering.
+   * sir."). Resets the seq counter so the line plays on its own.
    */
   speakNow(text: string): void {
     if (!this.enabled || !text.trim()) return;
@@ -168,17 +202,16 @@ export class TtsPlayer {
       this.abortController.abort();
       this.abortController = null;
     }
-    if (this.currentSource) {
-      try {
-        this.currentSource.stop();
-      } catch {
-        // ignore if already stopped
-      }
-      this.currentSource = null;
-    }
     this.queue = [];
     this.nextSeq = 0;
-    this.setState("idle");
+    this.draining = false;
+    // Tell Rust to stop + clear its sink. `tts_stop` emits `tts-idle`, but we
+    // also optimistically set idle here so state is correct even outside Tauri.
+    void invoke("tts_stop").catch(() => {
+      // Not under Tauri (or command missing) — state still advances below.
+    });
+    this.sinkState = "idle";
+    this.recomputeState();
   }
 
   /** Reset between turns — clears the seq counter for the next turn. */
@@ -186,39 +219,47 @@ export class TtsPlayer {
     this.nextSeq = 0;
   }
 
+  /**
+   * Drain the ordered queue: fetch each ready sentence's PCM and append it to
+   * the Rust sink in seq order. Single-flight — only one drain loop runs at a
+   * time. Robustness: a fetch failure logs and advances to the next sentence,
+   * so a bad sentence can never wedge the queue.
+   */
   private drain(): void {
-    if (this.state === "playing") return;
-    this.playNextIfReady();
-  }
-
-  /** Always-callable: starts the next sentence if one is ready, otherwise
-   *  transitions to idle. Called from drain() AND from the .finally() of
-   *  the previous playSentence (the previous version's `drain()` returned
-   *  early there because `state` was still "playing" — sentences 2+ were
-   *  silently dropped). */
-  private playNextIfReady(): void {
-    const head = this.queue[0];
-    if (!head || head.seq !== this.nextSeq) {
-      if (this.queue.length === 0) this.setState("idle");
-      return;
-    }
-    this.queue.shift();
-    this.nextSeq++;
-    this.setState("playing");
-    void this.playSentence(head.text).finally(() => {
-      this.currentSource = null;
-      this.playNextIfReady();
+    if (this.draining) return;
+    this.draining = true;
+    this.recomputeState();
+    void this.drainLoop().finally(() => {
+      this.draining = false;
+      // Sink may still be playing queued buffers; recompute reflects that. When
+      // the sink later drains, `tts-idle` flips us to idle. Outside Tauri (no
+      // events) the sink is treated idle, so this immediately goes idle.
+      this.recomputeState();
     });
   }
 
+  private async drainLoop(): Promise<void> {
+    // Process sentences strictly in seq order. Stop when the head isn't the
+    // next expected seq (a gap — wait for the missing sentence to arrive; the
+    // enqueue that fills it will restart draining).
+    for (;;) {
+      const head = this.queue[0];
+      if (!head || head.seq !== this.nextSeq) return;
+      this.queue.shift();
+      this.nextSeq++;
+      // Fetch + append. On any failure we simply move on — never wedge.
+      await this.playSentence(head.text);
+    }
+  }
+
+  /** Fetch a sentence's PCM and append it to the Rust sink (FIFO order). */
   private async playSentence(text: string): Promise<void> {
     const { apiBaseUrl, triggerSecret } = getEnv();
     const ac = new AbortController();
     this.abortController = ac;
 
-    // Device bearer token is the canonical auth — the trigger secret is
-    // empty in production DMG builds (CI only injects VITE_API_BASE_URL),
-    // which made every TTS request 401 and the app silently never spoke.
+    // Device bearer token is the canonical auth — the trigger secret is empty
+    // in production DMG builds, which made every TTS request 401.
     const token = await getDeviceToken();
     const headers: Record<string, string> = {
       "content-type": "application/json",
@@ -239,32 +280,13 @@ export class TtsPlayer {
         return;
       }
 
-      // Response body: raw 16-bit signed LE PCM @ 24kHz mono.
-      // Wrap in a WAV container so AudioContext.decodeAudioData can handle it.
+      // Raw 16-bit signed LE PCM @ 24 kHz mono. Hand the bytes straight to Rust.
       const pcmBytes = new Uint8Array(await res.arrayBuffer());
       if (!pcmBytes.byteLength) return;
 
-      const wavBuffer = pcmToWav(pcmBytes, 24000, 1);
-
-      // Resume the shared context at the last possible moment — a suspended
-      // WKWebView context won't play, and the mic capture that's active during
-      // a turn lifts WebKit's autoplay restriction so this succeeds hands-free.
-      await resumeSharedAudioContext();
-      const audioCtx = getSharedAudioContext();
-
-      const audioBuffer = await audioCtx.decodeAudioData(wavBuffer);
-
-      await new Promise<void>((resolve) => {
-        const source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        // Route through the analyser tap (→ destination) so the HUD orb can
-        // read live output amplitude for the "speaking" waveform.
-        const analyser = this.ensureAnalyser(audioCtx);
-        source.connect(analyser);
-        this.currentSource = source;
-        source.onended = () => resolve();
-        source.start();
-      });
+      // `bytes` must be a plain number[] so Tauri's IPC serialises it as a
+      // Vec<u8>. Array.from on a typed array is exact and cheap enough here.
+      await invoke("tts_play_pcm", { bytes: Array.from(pcmBytes) });
     } catch (err) {
       const name = (err as { name?: string })?.name;
       if (name === "AbortError") return; // cancelled by stop()
@@ -272,50 +294,5 @@ export class TtsPlayer {
     } finally {
       this.abortController = null;
     }
-  }
-}
-
-/**
- * Wrap raw PCM bytes in a minimal RIFF WAV container so AudioContext can
- * decode them with decodeAudioData.
- *
- * Format: 16-bit signed LE PCM, mono, 24kHz.
- * Spec: http://soundfile.sapp.org/doc/WaveFormat/
- */
-function pcmToWav(pcm: Uint8Array, sampleRate: number, channels: number): ArrayBuffer {
-  const bitsPerSample = 16;
-  const byteRate = (sampleRate * channels * bitsPerSample) / 8;
-  const blockAlign = (channels * bitsPerSample) / 8;
-  const dataSize = pcm.byteLength;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  // RIFF header
-  writeStr(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(view, 8, "WAVE");
-
-  // fmt sub-chunk
-  writeStr(view, 12, "fmt ");
-  view.setUint32(16, 16, true); // sub-chunk size
-  view.setUint16(20, 1, true);  // PCM format
-  view.setUint16(22, channels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-
-  // data sub-chunk
-  writeStr(view, 36, "data");
-  view.setUint32(40, dataSize, true);
-
-  // PCM payload
-  new Uint8Array(buffer, 44).set(pcm);
-  return buffer;
-}
-
-function writeStr(view: DataView, offset: number, str: string): void {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
   }
 }
