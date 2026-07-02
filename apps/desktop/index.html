@@ -7,22 +7,32 @@
       :root {
         color-scheme: dark;
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        /* Near-black HUD canvas; cyan as accent glow (VISION §4). */
-        --bg: #07090c;
-        --fg: #e8f4f8;
-        --muted: #6f818c;
-        --rule: #1a2128;
-        --surface: #0d1218;
+        /* Locked HUD palette (p2 design spec). Near-black base, cyan as the
+           canonical Stark signature (#00d4ff — also hardcoded in hud/orb.ts
+           for the canvas orb; keep the two in sync), amber reserved for the
+           guarded-confirm state. */
+        --bg: #050608;
+        --surface: #0b1018;
+        --fg: #dce8ee;
+        --muted: #546878;
+        --rule: #16202b;
         --accent: #00d4ff;
+        --accent-hi: #3de4ff;
+        --amber: #f59e0b;
         --err: #c45a4a;
-        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+        /* Mono for UI chrome/labels; serif for transcript turn text. Both
+           stacks resolve from locally installed fonts only — no network
+           font loads (EB Garamond ships in the user's font library; absent
+           that, the serif fallbacks carry the register). */
+        --mono: "Berkeley Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --serif: "EB Garamond", Garamond, "Iowan Old Style", Palatino, Georgia, serif;
       }
       * { box-sizing: border-box; }
       html, body { height: 100%; }
       body {
         margin: 0;
         background:
-          radial-gradient(120% 90% at 50% 0%, #0b1016 0%, #07090c 60%, #050608 100%);
+          radial-gradient(120% 90% at 50% 0%, var(--surface) 0%, color-mix(in srgb, var(--surface) 45%, var(--bg)) 60%, var(--bg) 100%);
         color: var(--fg);
         overflow: hidden;
         user-select: none;
@@ -54,8 +64,8 @@
       }
       .orb-wrap {
         position: relative;
-        width: clamp(120px, 34vh, 200px);
-        height: clamp(120px, 34vh, 200px);
+        width: clamp(128px, 36vh, 220px);
+        height: clamp(128px, 36vh, 220px);
         display: grid; place-items: center;
       }
       #orb-canvas { width: 100%; height: 100%; display: block; }
@@ -140,6 +150,10 @@
       }
       .turn.user .who { color: color-mix(in srgb, var(--fg) 55%, var(--muted)); }
       .turn.jarvis .who { color: var(--accent); }
+      /* Turn text is the one serif surface — EB Garamond (journal register)
+         against the mono chrome everywhere else. Slightly larger than the
+         old sans size; Garamond runs small on the body. */
+      .turn .body { font-family: var(--serif); font-size: 15px; }
       .turn.user .body { color: color-mix(in srgb, var(--fg) 80%, var(--muted)); }
       .turn.jarvis .body { color: var(--fg); }
 
@@ -194,7 +208,7 @@
       .invoke-btn[data-recording="true"] {
         background: color-mix(in srgb, var(--accent) 22%, transparent);
         border-color: var(--accent);
-        color: var(--accent);
+        color: var(--accent-hi);
       }
       .invoke-btn .shortcut-label {
         font-family: var(--mono);
