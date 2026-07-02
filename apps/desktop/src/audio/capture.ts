@@ -16,7 +16,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
-import { postClaim, postTranscript } from "@/api/client";
+import { postClaim, postTranscript, probeTranscript } from "@/api/client";
 import { encodeWav } from "@/audio/encode-wav";
 import { computeRms, VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
 
@@ -34,6 +34,40 @@ import { computeRms, VAD_DEFAULTS, VadSilenceDetector } from "@/audio/vad";
 // mode) can't run away. Sits just above the VAD hardCapMs (15s) so in the
 // normal conversational path VAD always ends the turn first.
 const SAFETY_CAP_MS = 20_000;
+
+// Rolling-tail probe geometry (shared with the idle wake listener).
+const PROBE_TAIL_SAMPLES = 16_000 * 5; // transcribe only the last ~5s
+const PROBE_MIN_SAMPLES = 16_000; // need ~1s of audio before probing
+
+/**
+ * Shared rolling-tail probe. Encodes the last ~5s of a sample buffer as WAV and
+ * POSTs it to /voice/transcript with `x-jarvis-probe: 1` (side-effect-free STT:
+ * no fan-out, no persisted turn, no agent run). The idle wake-phrase listener
+ * (wake/wake-probe.ts) polls this against its rolling buffer.
+ *
+ * Returns the transcript text, or null if the buffer is too short / on any
+ * failure (probes are best-effort).
+ */
+export async function probeBufferTail(samples: Float32Array): Promise<string | null> {
+  if (samples.length < PROBE_MIN_SAMPLES) return null;
+  const tail =
+    samples.length > PROBE_TAIL_SAMPLES
+      ? samples.subarray(samples.length - PROBE_TAIL_SAMPLES)
+      : samples;
+  try {
+    const wav = encodeWav(tail, 16_000);
+    return await probeTranscript(wav);
+  } catch {
+    return null;
+  }
+}
+
+/** True while a command turn is active (recording/uploading). The idle wake
+ *  listener pauses its own mic loop whenever this is true so the two never
+ *  fight over the single cpal stream. */
+export function isCaptureActive(): boolean {
+  return currentState !== "idle";
+}
 
 let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 

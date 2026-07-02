@@ -27,6 +27,7 @@ import {
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
 import { maybeRunStartupSequence } from "@/startup/sequencer";
+import { resumeWakeLoopIfIdle, stopWakeLoop } from "@/wake/wake-probe";
 
 export type JarvisState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -88,12 +89,31 @@ function syncHudVisibility(next: JarvisState): void {
   }
 }
 
+// Settle before resuming the idle wake loop on a return to idle, so the tail
+// of TTS playback / room reverb can't feed the freshly opened wake mic.
+const WAKE_RESUME_SETTLE_MS = 500;
+
+/**
+ * Resume the opt-in idle wake listener (wake/wake-probe.ts) after the FSM
+ * returns to idle. Guarded twice: here after the settle (still idle, no
+ * conversation, no startup sequence in flight), and inside
+ * resumeWakeLoopIfIdle itself (enabled? capture idle?). No-op when the wake
+ * setting is off.
+ */
+function scheduleWakeResume(): void {
+  setTimeout(() => {
+    if (state !== "idle" || conversationActive || startupInFlight) return;
+    void resumeWakeLoopIfIdle();
+  }, WAKE_RESUME_SETTLE_MS);
+}
+
 function setState(next: JarvisState): void {
   if (next === state) return;
   state = next;
   document.body.dataset.jarvisState = next;
   syncHudVisibility(next);
   armStateCap(next);
+  if (next === "idle") scheduleWakeResume();
   for (const fn of stateListeners) fn(next);
 }
 
@@ -231,6 +251,13 @@ export async function startConversation(): Promise<void> {
   }
 
   conversationActive = true;
+
+  // Release the idle wake loop's cpal stream BEFORE anything else opens the
+  // mic or speaks. While idle the (opt-in) wake listener may own the mic; the
+  // briefing must not play over an open wake mic (half-duplex) and the capture
+  // turn must be the only audio-chunk consumer. Idempotent no-op when the wake
+  // loop isn't running. It resumes via scheduleWakeResume on return to idle.
+  await stopWakeLoop();
 
   // Session-start sequence (first invoke this session): resolves after the
   // briefing has FULLY drained and openOnStart/shortcuts have been fired.

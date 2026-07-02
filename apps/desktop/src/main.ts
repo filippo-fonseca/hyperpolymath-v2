@@ -65,6 +65,7 @@ import {
   type JarvisState,
 } from "@/conversation/state-machine";
 import { mountOrb } from "@/hud/orb";
+import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -623,9 +624,16 @@ async function boot(): Promise<void> {
     if (manualModeEl) manualModeEl.checked = active;
   });
 
-  // 3a-bis. The always-on wake loop was retired (invoke-to-talk only). The
-  // wake-enabled setting key remains readable for back-compat but no longer
-  // drives any live feature.
+  // 3a-bis. Idle wake-phrase listener ("daddy's home") — OPT-IN, default OFF.
+  // The trigger handler is injected (same pattern as setTriggerHandler below)
+  // so wake invokes funnel through startConversation(): the startup
+  // sequencer's once-per-session and no-briefing-overlap guarantees hold for
+  // wake exactly as for the hotkey/tray/button. setWakeEnabled() applies the
+  // persisted setting now and is also the LIVE toggle surface the settings
+  // pane (hud/startup-settings.ts) calls on every flip — start/stop without
+  // an app restart.
+  setWakeTriggerHandler(() => void startConversation());
+  setWakeEnabled(settings.wakeEnabled);
 
   // 3b. Wire VAD silence dropdown
   if (vadSilenceEl) {
