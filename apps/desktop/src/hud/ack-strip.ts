@@ -39,6 +39,44 @@ function extractFirstClause(buf: string): { text: string; locked: boolean } {
 
 let started = false;
 
+// Module-level handle to the strip element + its fade timer, so the imperative
+// flashAckStrip() can drive the SAME strip with the SAME opacity fade the SSE
+// path uses. `streaming` guards the flash from clobbering a live response.
+let stripEl: HTMLElement | null = null;
+let sharedFadeTimer: ReturnType<typeof setTimeout> | null = null;
+let streaming = false;
+
+function clearSharedFadeTimer(): void {
+  if (sharedFadeTimer) {
+    clearTimeout(sharedFadeTimer);
+    sharedFadeTimer = null;
+  }
+}
+
+/** How long a flashed message lingers before it fades out. */
+const FLASH_LINGER_MS = 4_000;
+
+/**
+ * Imperatively flash an arbitrary line through the acknowledge strip, reusing
+ * the strip's own opacity fade (the only motion in its budget). Used for
+ * feedback that has no SSE response behind it — e.g. an empty STT result
+ * ("Didn't catch that, sir"). No-op while a real response is mid-stream so a
+ * flash can never clobber a live utterance; empty-STT flashes only happen when
+ * nothing is streaming, so this guard is sufficient.
+ */
+export function flashAckStrip(text: string, lingerMs = FLASH_LINGER_MS): void {
+  if (streaming) return;
+  const el = stripEl ?? document.getElementById("ack-strip");
+  if (!el) return;
+  clearSharedFadeTimer();
+  el.textContent = text;
+  el.classList.add("visible");
+  sharedFadeTimer = setTimeout(() => {
+    sharedFadeTimer = null;
+    el.classList.remove("visible");
+  }, lingerMs);
+}
+
 /** Wire the strip to the SSE response stream. Called once from boot(). */
 export function startAckStrip(): void {
   if (started) return;
@@ -46,20 +84,14 @@ export function startAckStrip(): void {
 
   const el = document.getElementById("ack-strip");
   if (!el) return;
+  stripEl = el;
 
   let buf = "";
   let locked = false;
-  let fadeTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const clearFadeTimer = (): void => {
-    if (fadeTimer) {
-      clearTimeout(fadeTimer);
-      fadeTimer = null;
-    }
-  };
 
   onJarvisResponseStart(() => {
-    clearFadeTimer();
+    streaming = true;
+    clearSharedFadeTimer();
     buf = "";
     locked = false;
     el.textContent = "";
@@ -77,9 +109,10 @@ export function startAckStrip(): void {
   onJarvisResponseEnd(() => {
     // Whatever streamed is the clause (short replies may never hit a
     // boundary). Linger, then fade; a new response start cancels the fade.
-    clearFadeTimer();
-    fadeTimer = setTimeout(() => {
-      fadeTimer = null;
+    streaming = false;
+    clearSharedFadeTimer();
+    sharedFadeTimer = setTimeout(() => {
+      sharedFadeTimer = null;
       el.classList.remove("visible");
     }, FADE_OUT_DELAY_MS);
   });
