@@ -12,6 +12,8 @@ use std::process::{Command, Output, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use enigo::{Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
+
 /// Default hard timeout for shelled-out tools (osascript can hang forever on
 /// a blocked Automation permission prompt; never let it wedge a turn).
 const DEFAULT_TIMEOUT_MS: u64 = 15_000;
@@ -135,4 +137,184 @@ fn run_shortcut_inner(name: &str, input: Option<String>) -> Result<String, Strin
         eprintln!("[shortcut] '{name}' failed: {e}");
         e
     })
+}
+
+// ---------------------------------------------------------------------------
+// Accessibility gate (research gotcha #1: without the Accessibility TCC
+// permission, CGEvent injection SILENTLY does nothing — enigo returns Ok(())
+// and the user just sees JARVIS "do nothing". Gate every input command.)
+// ---------------------------------------------------------------------------
+
+#[cfg(target_os = "macos")]
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    fn AXIsProcessTrusted() -> bool;
+}
+
+#[cfg(target_os = "macos")]
+fn is_accessibility_trusted() -> bool {
+    unsafe { AXIsProcessTrusted() }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn is_accessibility_trusted() -> bool {
+    true
+}
+
+/// Frontend-visible check so the UI can prompt for the permission proactively.
+#[tauri::command]
+pub fn accessibility_trusted() -> bool {
+    is_accessibility_trusted()
+}
+
+fn ensure_accessibility() -> Result<(), String> {
+    if is_accessibility_trusted() {
+        Ok(())
+    } else {
+        eprintln!("[input] BLOCKED: Accessibility permission not granted");
+        Err(
+            "Accessibility permission not granted — enable JARVIS in System Settings → \
+             Privacy & Security → Accessibility"
+                .to_string(),
+        )
+    }
+}
+
+fn new_enigo() -> Result<Enigo, String> {
+    Enigo::new(&Settings::default()).map_err(|e| format!("[input] enigo init failed: {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard
+// ---------------------------------------------------------------------------
+
+/// Type a string as literal keystrokes into whatever has focus.
+#[tauri::command]
+pub fn type_text(text: String) -> Result<(), String> {
+    ensure_accessibility()?;
+    eprintln!("[keyboard] type_text ({} chars)", text.chars().count());
+    let mut enigo = new_enigo()?;
+    enigo
+        .text(&text)
+        .map_err(|e| format!("[keyboard] type_text failed: {e}"))
+}
+
+fn parse_modifier(s: &str) -> Result<Key, String> {
+    match s.to_ascii_lowercase().as_str() {
+        // Cmd is Key::Meta in enigo — NOT Key::Control (research gotcha).
+        "cmd" | "command" | "meta" | "super" => Ok(Key::Meta),
+        "ctrl" | "control" => Ok(Key::Control),
+        "alt" | "option" | "opt" => Ok(Key::Alt),
+        "shift" => Ok(Key::Shift),
+        other => Err(format!("unknown modifier: {other}")),
+    }
+}
+
+fn parse_key(s: &str) -> Result<Key, String> {
+    let lower = s.to_ascii_lowercase();
+    // Single characters (letters, digits, punctuation) go through Unicode,
+    // which enigo maps to the right virtual keycode on macOS.
+    let mut chars = lower.chars();
+    if let (Some(c), None) = (chars.next(), chars.next()) {
+        return Ok(Key::Unicode(c));
+    }
+    match lower.as_str() {
+        "enter" | "return" => Ok(Key::Return),
+        "tab" => Ok(Key::Tab),
+        "escape" | "esc" => Ok(Key::Escape),
+        "space" => Ok(Key::Space),
+        "backspace" | "delete" => Ok(Key::Backspace),
+        "up" | "arrowup" => Ok(Key::UpArrow),
+        "down" | "arrowdown" => Ok(Key::DownArrow),
+        "left" | "arrowleft" => Ok(Key::LeftArrow),
+        "right" | "arrowright" => Ok(Key::RightArrow),
+        "home" => Ok(Key::Home),
+        "end" => Ok(Key::End),
+        "pageup" => Ok(Key::PageUp),
+        "pagedown" => Ok(Key::PageDown),
+        "f1" => Ok(Key::F1),
+        "f2" => Ok(Key::F2),
+        "f3" => Ok(Key::F3),
+        "f4" => Ok(Key::F4),
+        "f5" => Ok(Key::F5),
+        "f6" => Ok(Key::F6),
+        "f7" => Ok(Key::F7),
+        "f8" => Ok(Key::F8),
+        "f9" => Ok(Key::F9),
+        "f10" => Ok(Key::F10),
+        "f11" => Ok(Key::F11),
+        "f12" => Ok(Key::F12),
+        other => Err(format!("unknown key: {other}")),
+    }
+}
+
+/// Press a key with optional modifiers, e.g. key="s", modifiers=["cmd"].
+/// Modifiers are held (Press), the key is clicked, then modifiers are
+/// released in reverse order — always released, even on failure, so keys
+/// never stick down.
+#[tauri::command]
+pub fn press_key(key: String, modifiers: Vec<String>) -> Result<(), String> {
+    ensure_accessibility()?;
+    let combo = if modifiers.is_empty() {
+        key.clone()
+    } else {
+        format!("{}+{}", modifiers.join("+"), key)
+    };
+    eprintln!("[keyboard] press_key {combo}");
+
+    let mods: Vec<Key> = modifiers
+        .iter()
+        .map(|m| parse_modifier(m))
+        .collect::<Result<_, _>>()?;
+    let main = parse_key(&key)?;
+
+    let mut enigo = new_enigo()?;
+    for m in &mods {
+        enigo
+            .key(*m, Direction::Press)
+            .map_err(|e| format!("[keyboard] modifier press failed: {e}"))?;
+    }
+    let result = enigo
+        .key(main, Direction::Click)
+        .map_err(|e| format!("[keyboard] key click failed: {e}"));
+    for m in mods.iter().rev() {
+        let _ = enigo.key(*m, Direction::Release);
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Mouse
+// ---------------------------------------------------------------------------
+
+/// Move to (x, y) in absolute screen coordinates (points, not retina pixels)
+/// and click the given button ("left" | "right" | "middle").
+#[tauri::command]
+pub fn mouse_click(x: f64, y: f64, button: String) -> Result<(), String> {
+    ensure_accessibility()?;
+    eprintln!("[mouse] click {x},{y} {button}");
+    let btn = match button.to_ascii_lowercase().as_str() {
+        "left" => Button::Left,
+        "right" => Button::Right,
+        "middle" => Button::Middle,
+        other => return Err(format!("unknown mouse button: {other}")),
+    };
+    let mut enigo = new_enigo()?;
+    enigo
+        .move_mouse(x as i32, y as i32, Coordinate::Abs)
+        .map_err(|e| format!("[mouse] move failed: {e}"))?;
+    enigo
+        .button(btn, Direction::Click)
+        .map_err(|e| format!("[mouse] click failed: {e}"))
+}
+
+/// Move the cursor to (x, y) in absolute screen coordinates without clicking.
+#[tauri::command]
+pub fn mouse_move(x: f64, y: f64) -> Result<(), String> {
+    ensure_accessibility()?;
+    eprintln!("[mouse] move {x},{y}");
+    let mut enigo = new_enigo()?;
+    enigo
+        .move_mouse(x as i32, y as i32, Coordinate::Abs)
+        .map_err(|e| format!("[mouse] move failed: {e}"))
 }

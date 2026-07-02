@@ -116,6 +116,11 @@ pub fn run() {
             commands::tts_clear,
             computer::run_applescript,
             computer::run_shortcut,
+            computer::type_text,
+            computer::press_key,
+            computer::mouse_click,
+            computer::mouse_move,
+            computer::accessibility_trusted,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -27,6 +27,10 @@ hound = "3"
 # → no sound + `onended` never fires → the FSM hangs on "speaking". rodio owns
 # a real CoreAudio output stream on its own thread, sidestepping the webview.
 rodio = { version = "0.19", default-features = false }
+# Keyboard/mouse injection via CGEvent (RESEARCH Q5). Requires the
+# Accessibility TCC permission — without it, calls return Ok(()) but do
+# NOTHING, so computer.rs gates every input command on AXIsProcessTrusted.
+enigo = "0.6"
 
 # macOS-only: WKWebView escape hatch to lift the autoplay/user-action gate so
 # TTS plays hands-free (RESEARCH Q1). Pinned to the minors already resolved
