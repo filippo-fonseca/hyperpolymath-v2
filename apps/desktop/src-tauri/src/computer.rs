@@ -318,3 +318,170 @@ pub fn mouse_move(x: f64, y: f64) -> Result<(), String> {
         .move_mouse(x as i32, y as i32, Coordinate::Abs)
         .map_err(|e| format!("[mouse] move failed: {e}"))
 }
+
+// ---------------------------------------------------------------------------
+// Screenshot
+// ---------------------------------------------------------------------------
+
+/// Capture the screen via `screencapture -x` (silent) to a temp PNG, return
+/// the bytes, and delete the file. `region` is "x,y,w,h" (passed straight to
+/// `-R`). RESEARCH Q8: screencapture cannot stream to stdout, so temp file +
+/// read is the supported path. A tiny/blank PNG usually means the Screen
+/// Recording TCC permission is missing — we warn but still return the bytes.
+#[tauri::command]
+pub fn take_screenshot(region: Option<String>) -> Result<Vec<u8>, String> {
+    let path = std::env::temp_dir().join(format!(
+        "jarvis-screenshot-{}-{}.png",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+
+    let mut cmd = Command::new("screencapture");
+    cmd.arg("-x"); // silent — no shutter sound
+    if let Some(r) = &region {
+        cmd.arg("-R").arg(r);
+    }
+    cmd.arg(&path);
+
+    if let Err(e) = run_with_timeout(
+        cmd,
+        None,
+        Duration::from_millis(DEFAULT_TIMEOUT_MS),
+        "screenshot",
+    )
+    .and_then(|o| output_to_result(o, "screenshot"))
+    {
+        let _ = std::fs::remove_file(&path);
+        eprintln!("[screenshot] failed: {e}");
+        return Err(e);
+    }
+
+    let bytes = std::fs::read(&path);
+    let _ = std::fs::remove_file(&path);
+    let bytes = bytes.map_err(|e| format!("[screenshot] read failed: {e}"))?;
+
+    eprintln!("[screenshot] captured ({} bytes)", bytes.len());
+    if bytes.len() < 20_000 {
+        eprintln!(
+            "[screenshot] WARNING: output is suspiciously small ({} bytes) — likely a blank \
+             capture; check Screen Recording permission (System Settings → Privacy & Security → \
+             Screen Recording)",
+            bytes.len()
+        );
+    }
+    Ok(bytes)
+}
+
+// ---------------------------------------------------------------------------
+// System control
+// ---------------------------------------------------------------------------
+
+/// The `brightness` CLI lives in Homebrew's prefix, which is NOT on the
+/// minimal PATH a GUI-launched .app gets. Check the known install locations
+/// first, then fall back to a PATH lookup (dev shells).
+fn find_brightness_cli() -> Option<std::path::PathBuf> {
+    for candidate in ["/opt/homebrew/bin/brightness", "/usr/local/bin/brightness"] {
+        let p = std::path::Path::new(candidate);
+        if p.exists() {
+            return Some(p.to_path_buf());
+        }
+    }
+    let on_path = Command::new("which")
+        .arg("brightness")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if on_path {
+        Some(std::path::PathBuf::from("brightness"))
+    } else {
+        None
+    }
+}
+
+/// Dispatch a system-level control action (RESEARCH Q4):
+/// - "volume":     value = 0-100 → `osascript -e 'set volume output volume N'`
+/// - "brightness": value = 0.0-1.0 (or 0-100) → `brightness` CLI (brew)
+/// - "sleep":      `pmset displaysleepnow`
+/// - "focus":      value = Shortcuts shortcut name (Focus toggling is only
+///                 reliable via Shortcuts.app)
+#[tauri::command]
+pub fn system_control(action: String, value: Option<String>) -> Result<String, String> {
+    eprintln!("[system] {} {}", action, value.as_deref().unwrap_or(""));
+    match action.as_str() {
+        "volume" => {
+            let raw = value
+                .as_deref()
+                .ok_or_else(|| "volume requires a value (0-100)".to_string())?;
+            let n = raw
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| format!("invalid volume value: {raw}"))?;
+            let n = n.clamp(0.0, 100.0).round() as i64;
+            let mut cmd = Command::new("osascript");
+            cmd.arg("-e")
+                .arg(format!("set volume output volume {n}"));
+            run_with_timeout(cmd, None, Duration::from_millis(DEFAULT_TIMEOUT_MS), "system")
+                .and_then(|o| output_to_result(o, "system"))
+                .map(|_| format!("volume set to {n}"))
+                .map_err(|e| {
+                    eprintln!("[system] volume failed: {e}");
+                    e
+                })
+        }
+        "brightness" => {
+            let raw = value
+                .as_deref()
+                .ok_or_else(|| "brightness requires a value (0.0-1.0 or 0-100)".to_string())?;
+            let n = raw
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| format!("invalid brightness value: {raw}"))?;
+            // Accept both 0.75 and 75 (percent) forms.
+            let n = (if n > 1.0 { n / 100.0 } else { n }).clamp(0.0, 1.0);
+            let Some(cli) = find_brightness_cli() else {
+                let msg =
+                    "brightness CLI not installed — brew install brightness".to_string();
+                eprintln!("[system] {msg}");
+                return Err(msg);
+            };
+            let mut cmd = Command::new(cli);
+            cmd.arg(format!("{n:.2}"));
+            run_with_timeout(cmd, None, Duration::from_millis(DEFAULT_TIMEOUT_MS), "system")
+                .and_then(|o| output_to_result(o, "system"))
+                .map(|_| format!("brightness set to {:.0}%", n * 100.0))
+                .map_err(|e| {
+                    eprintln!("[system] brightness failed: {e}");
+                    e
+                })
+        }
+        "sleep" => {
+            let mut cmd = Command::new("pmset");
+            cmd.arg("displaysleepnow");
+            run_with_timeout(cmd, None, Duration::from_millis(DEFAULT_TIMEOUT_MS), "system")
+                .and_then(|o| output_to_result(o, "system"))
+                .map(|_| "display sleeping".to_string())
+                .map_err(|e| {
+                    eprintln!("[system] sleep failed: {e}");
+                    e
+                })
+        }
+        "focus" => {
+            let name = value
+                .as_deref()
+                .ok_or_else(|| "focus requires a Shortcuts shortcut name as value".to_string())?;
+            run_shortcut_inner(name, None).map(|out| {
+                if out.is_empty() {
+                    format!("focus shortcut '{name}' ran")
+                } else {
+                    out
+                }
+            })
+        }
+        other => Err(format!(
+            "unknown system_control action: {other} (expected volume | brightness | sleep | focus)"
+        )),
+    }
+}

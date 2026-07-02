@@ -120,6 +120,8 @@ pub fn run() {
             computer::press_key,
             computer::mouse_click,
             computer::mouse_move,
+            computer::take_screenshot,
+            computer::system_control,
             computer::accessibility_trusted,
         ])
         .run(tauri::generate_context!())
