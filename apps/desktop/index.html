@@ -267,6 +267,26 @@
         font-size: 18px; cursor: pointer; line-height: 1;
       }
       .settings-close:hover { color: var(--fg); }
+      /* Section header inside the drawer — mono-caps, same register as .status-line. */
+      .section-title {
+        font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--muted); margin: 22px 0 2px;
+      }
+      /* Muted description line under a settings row. */
+      .note {
+        color: var(--muted); font-size: 11px; line-height: 1.55;
+        margin: 7px 0 3px; max-width: 460px;
+      }
+      /* Add/remove list editors (Open on start, Startup Shortcuts). */
+      .list-editor { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 10px; }
+      .list-editor .list-item { display: flex; align-items: center; gap: 6px; }
+      .list-editor input[type=text] {
+        flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; padding: 4px 8px;
+        border-radius: 5px; border: 1px solid var(--rule); background: var(--surface); color: var(--fg);
+      }
+      .list-editor input[type=text]:focus { border-color: var(--accent); outline: none; }
+      .list-editor .list-remove { padding: 4px 8px; font-size: 12px; }
+      .list-editor .list-empty { color: var(--muted); font-size: 11px; font-style: italic; }
       input[type=password] {
         font-family: var(--mono); font-size: 12px; width: 200px; padding: 4px 8px;
         border-radius: 5px; border: 1px solid var(--rule); background: var(--surface); color: var(--fg);
@@ -379,6 +399,43 @@
           </select>
         </span>
       </div>
+      <!-- ── Startup & Wake (wired in src/hud/startup-settings.ts) ── -->
+      <div class="section-title">Startup &amp; Wake</div>
+
+      <div class="row">
+        <span class="label">Wake word</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="wake-enabled" />
+            <span class="toggle-track"></span>
+          </label>
+        </span>
+      </div>
+      <p class="note">Wake word mode keeps your microphone open at all times so JARVIS can listen for your phrase — macOS will show the green mic indicator continuously while this is on. Your audio is processed entirely on this device and never sent anywhere.</p>
+
+      <div class="row">
+        <span class="label">Briefing</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="startup-briefing-enabled" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </span>
+      </div>
+      <p class="note">Spoken briefing on the first invoke of each session.</p>
+
+      <div class="row">
+        <span class="label">Open on start</span>
+        <span class="value"><button class="stop-btn" id="open-on-start-add" type="button">+ Add</button></span>
+      </div>
+      <div class="list-editor" id="open-on-start-list" aria-label="Open on start items"></div>
+
+      <div class="row">
+        <span class="label">Startup Shortcuts</span>
+        <span class="value"><button class="stop-btn" id="startup-shortcuts-add" type="button">+ Add</button></span>
+      </div>
+      <div class="list-editor" id="startup-shortcuts-list" aria-label="Startup Shortcuts"></div>
+
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
 
       <div class="row">

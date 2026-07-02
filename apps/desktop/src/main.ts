@@ -65,6 +65,7 @@ import {
   type JarvisState,
 } from "@/conversation/state-machine";
 import { mountOrb } from "@/hud/orb";
+import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
@@ -760,6 +761,11 @@ async function boot(): Promise<void> {
   const settingsCloseBtn = document.getElementById("settings-close");
   gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
+
+  // 5d-bis. "Startup & Wake" section of the drawer: wake toggle (live), the
+  // briefing toggle, and the openOnStart / Shortcuts list editors. All persist
+  // via saveSetting immediately on change.
+  wireStartupWakeSettings(settings);
 
   // Tray left-click also invokes a turn (emitted from Rust as `tray-invoke`).
   // "Show / Hide HUD" stays on the right-click menu so visibility toggling is
