@@ -111,8 +111,8 @@ describe("buildToolDefinitions — computer-control tools", () => {
     expect(names).toContain("web_search");
   });
 
-  it("returns twenty tools total (17 previous + 3 computer-control)", () => {
-    expect(buildToolDefinitions()).toHaveLength(20);
+  it("returns twenty-nine tools total (20 previous + 9 clicky-slice)", () => {
+    expect(buildToolDefinitions()).toHaveLength(29);
   });
 
   it("computer-control tools are ALL non-strict (grammar budget)", () => {
@@ -123,18 +123,41 @@ describe("buildToolDefinitions — computer-control tools", () => {
     }
   });
 
-  it("cache_control: ephemeral 1h TTL is now on web_search (new LAST tool)", () => {
+  it("cache_control: ephemeral 1h TTL is now on get_weather (new LAST tool)", () => {
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("web_search");
+    expect(cached[0]?.name).toBe("get_weather");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("link_people no longer carries cache_control (moved to web_search)", () => {
+  it("link_people no longer carries cache_control (moved to get_weather)", () => {
     const tools = buildToolDefinitions();
     const linkPeople = tools.find((t) => t.name === "link_people")!;
     expect(linkPeople.cache_control).toBeUndefined();
+  });
+
+  it("clicky-slice tools are registered non-strict, after web_search", () => {
+    const tools = buildToolDefinitions();
+    const names = tools.map((t) => t.name);
+    const webSearchIdx = names.indexOf("web_search");
+    for (const name of [
+      "send_message",
+      "system_control",
+      "type_text",
+      "press_key",
+      "take_screenshot",
+      "run_applescript",
+      "run_shortcut",
+      "play_music",
+      "get_weather",
+    ] as const) {
+      const t = tools.find((x) => x.name === name)!;
+      expect(t.strict, name).toBe(false);
+      expect(names.indexOf(name), name).toBeGreaterThan(webSearchIdx);
+    }
+    // get_weather is the very last tool (carries the cache breakpoint)
+    expect(names[names.length - 1]).toBe("get_weather");
   });
 
   it("open_url input_schema has required url property", () => {
@@ -190,7 +213,8 @@ describe("buildToolDefinitions — computer-control tools", () => {
     expect(openUrlIdx).toBeGreaterThan(linkIdx);
     expect(openAppIdx).toBeGreaterThan(linkIdx);
     expect(webSearchIdx).toBeGreaterThan(linkIdx);
-    // web_search is the very last tool
-    expect(webSearchIdx).toBe(names.length - 1);
+    // clicky slice: web_search is followed by the 9 new tools;
+    // get_weather is now the very last tool
+    expect(names[names.length - 1]).toBe("get_weather");
   });
 });

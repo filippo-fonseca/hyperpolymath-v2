@@ -18,10 +18,19 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetWeatherAction,
   LinkPeopleAction,
   OpenAppAction,
   OpenUrlAction,
+  PlayMusicAction,
+  PressKeyAction,
   RememberFactAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  SendMessageAction,
+  SystemControlAction,
+  TakeScreenshotAction,
+  TypeTextAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
@@ -119,4 +128,17 @@ export interface ActionExecutor {
   openUrl(input: OpenUrlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   openApp(input: OpenAppAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   webSearch(input: WebSearchAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Clicky slice — desktop action tools. Each validates input server-side and
+  // returns a DesktopAction for the desktop dispatcher; getWeather is the
+  // exception (fully server-side fetch, data in receipt, no DesktopAction).
+  sendMessage(input: SendMessageAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  systemControl(input: SystemControlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  typeText(input: TypeTextAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  pressKey(input: PressKeyAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  takeScreenshot(input: TakeScreenshotAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  runApplescript(input: RunApplescriptAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  runShortcut(input: RunShortcutAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  playMusic(input: PlayMusicAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  getWeather(input: GetWeatherAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 }

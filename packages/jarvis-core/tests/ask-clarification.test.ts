@@ -85,10 +85,10 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   });
 });
 
-describe("buildToolDefinitions — 20 tools after computer-control phase", () => {
-  it("returns 20 tools with the 5 originals first and ask_clarification 5th", () => {
+describe("buildToolDefinitions — 29 tools after clicky-slice phase", () => {
+  it("returns 29 tools with the 5 originals first and ask_clarification 5th", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(20);
+    expect(tools).toHaveLength(29);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");
@@ -96,14 +96,14 @@ describe("buildToolDefinitions — 20 tools after computer-control phase", () =>
     expect(tools[4]?.name).toBe("ask_clarification");
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on web_search (last tool since computer-control)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on get_weather (last tool since clicky slice)", () => {
     // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
     // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people;
-    // computer-control phase moved it to web_search (new last tool).
+    // computer-control phase moved it to web_search; clicky slice to get_weather.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("web_search");
+    expect(cached[0]?.name).toBe("get_weather");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     const askClarification = tools.find((t) => t.name === "ask_clarification");
     expect(askClarification?.cache_control).toBeUndefined();

@@ -34,6 +34,11 @@
 // Computer-control tools (open_url, open_app, web_search): 3 new NON-strict
 // tools added. Total: 20 tools.
 // cache_control moves from link_people to web_search (new LAST tool).
+//
+// Clicky slice: 9 new NON-strict tools added (send_message, system_control,
+// type_text, press_key, take_screenshot, run_applescript, run_shortcut,
+// play_music, get_weather). Total: 29 tools.
+// cache_control moves from web_search to get_weather (new LAST tool).
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -57,6 +62,15 @@ import { linkPeopleTool } from "./link-people";
 import { openUrlTool } from "./open-url";
 import { openAppTool } from "./open-app";
 import { webSearchTool } from "./web-search";
+import { sendMessageTool } from "./send-message";
+import { systemControlTool } from "./system-control";
+import { typeTextTool } from "./type-text";
+import { pressKeyTool } from "./press-key";
+import { takeScreenshotTool } from "./take-screenshot";
+import { runApplescriptTool } from "./run-applescript";
+import { runShortcutTool } from "./run-shortcut";
+import { playMusicTool } from "./play-music";
+import { getWeatherTool } from "./get-weather";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -85,7 +99,16 @@ export interface JarvisToolDefinition {
     | "link_people"
     | "open_url"
     | "open_app"
-    | "web_search";
+    | "web_search"
+    | "send_message"
+    | "system_control"
+    | "type_text"
+    | "press_key"
+    | "take_screenshot"
+    | "run_applescript"
+    | "run_shortcut"
+    | "play_music"
+    | "get_weather";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -180,11 +203,25 @@ export function buildToolDefinitions(
     // desktop client; no DB writes, no gcal calls.
     { ...openUrlTool, strict: false as const },
     { ...openAppTool, strict: false as const },
+    // web_search loses cache_control — clicky-slice tools follow it.
+    { ...webSearchTool, strict: false as const },
+    // Clicky slice — desktop action tools + server-side weather.
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    // All except get_weather return a DesktopAction for the desktop
+    // dispatcher; get_weather runs fully server-side (Open-Meteo fetch).
+    { ...sendMessageTool, strict: false as const },
+    { ...systemControlTool, strict: false as const },
+    { ...typeTextTool, strict: false as const },
+    { ...pressKeyTool, strict: false as const },
+    { ...takeScreenshotTool, strict: false as const },
+    { ...runApplescriptTool, strict: false as const },
+    { ...runShortcutTool, strict: false as const },
+    { ...playMusicTool, strict: false as const },
     {
-      ...webSearchTool,
+      ...getWeatherTool,
       strict: false as const,
-      // Computer-control / CACHE: cache_control moves here — web_search is now
-      // the LAST tool in the array. link_people loses the breakpoint. TTL "1h"
+      // Clicky slice / CACHE: cache_control moves here — get_weather is now
+      // the LAST tool in the array. web_search loses the breakpoint. TTL "1h"
       // amortizes the 2× write cost over a full hour of turns.
       // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
@@ -215,6 +252,16 @@ export { LinkPeopleInputSchema } from "./link-people";
 export { OpenUrlInputSchema } from "./open-url";
 export { OpenAppInputSchema } from "./open-app";
 export { WebSearchInputSchema } from "./web-search";
+// Clicky slice: re-export input schemas for run-turn.ts validation.
+export { SendMessageInputSchema } from "./send-message";
+export { SystemControlInputSchema } from "./system-control";
+export { TypeTextInputSchema } from "./type-text";
+export { PressKeyInputSchema } from "./press-key";
+export { TakeScreenshotInputSchema } from "./take-screenshot";
+export { RunApplescriptInputSchema } from "./run-applescript";
+export { RunShortcutInputSchema } from "./run-shortcut";
+export { PlayMusicInputSchema } from "./play-music";
+export { GetWeatherInputSchema } from "./get-weather";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;

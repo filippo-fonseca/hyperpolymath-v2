@@ -110,7 +110,7 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns twenty tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control", () => {
+  it("returns twenty-nine tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice", () => {
     const tools = buildToolDefinitions();
     expect(tools.map((t) => t.name)).toEqual([
       "create_task",
@@ -133,6 +133,15 @@ describe("buildToolDefinitions", () => {
       "open_url",
       "open_app",
       "web_search",
+      "send_message",
+      "system_control",
+      "type_text",
+      "press_key",
+      "take_screenshot",
+      "run_applescript",
+      "run_shortcut",
+      "play_music",
+      "get_weather",
     ]);
   });
 
@@ -144,14 +153,14 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (web_search since computer-control)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (get_weather since clicky slice)", () => {
     // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
     // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people;
-    // computer-control phase moved it to web_search (new last tool).
+    // computer-control phase moved it to web_search; clicky slice to get_weather.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("web_search");
+    expect(cached[0]?.name).toBe("get_weather");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     const askClarification = tools.find((t) => t.name === "ask_clarification");
     expect(askClarification?.cache_control).toBeUndefined();
