@@ -7,12 +7,27 @@
 //   tts.voiceId             string   — ElevenLabs voice ID (default George)
 //   tts.provider            string   — "elevenlabs" | "off" (default "elevenlabs")
 //   physicalExtender.enabled boolean — whether to respond to SSE trigger events (default true)
+//   startup.briefingEnabled boolean  — spoken briefing on session-start (default true)
+//   startup.openOnStart     array    — apps/URLs opened on session-start (default [])
+//   startup.shortcuts       array    — macOS Shortcuts run on session-start (default [])
 
 import { load, type Store } from "@tauri-apps/plugin-store";
 
 const STORE_FILE = "jarvis-desktop-settings.json";
 
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
+
+/**
+ * One item in the startup openOnStart list (step 2 of the session-start
+ * sequence). `{ type: "url", value: "https://mail.google.com" }` opens in the
+ * default browser; `{ type: "app", value: "Spotify" }` launches the app by
+ * name via `open -a`. Items are launched in parallel after the briefing
+ * drains.
+ */
+export interface StartupOpenItem {
+  type: "url" | "app";
+  value: string;
+}
 
 export interface DesktopSettings {
   ttsEnabled: boolean;
@@ -27,6 +42,27 @@ export interface DesktopSettings {
   /** When true, an always-on idle mic loop listens for the "daddy's home" wake
    *  phrase and fires a proactive briefing + command turn. Default true. */
   wakeEnabled: boolean;
+
+  // ── Startup sequence (session-start) ──────────────────────────────────────
+  // On the FIRST invoke of an app session (hotkey / tray / wake), the desktop
+  // runs the configurable startup sequence (startup/sequencer.ts):
+  //   1. spoken briefing (if startupBriefingEnabled) — TTS fully drains first
+  //   2. startupOpenOnStart items opened in PARALLEL
+  //   3. startupShortcuts run in PARALLEL (concurrent with step 2)
+  //   4. mic opens for the first utterance
+  // Later invokes in the same session skip 1-3 and go straight to the mic.
+  // Store keys: startup.briefingEnabled / startup.openOnStart /
+  // startup.shortcuts. Read via loadSettings(); write via
+  // saveSetting("startupBriefingEnabled" | "startupOpenOnStart" |
+  // "startupShortcuts", value). Malformed persisted entries are dropped on
+  // load, so consumers always see well-shaped values.
+
+  /** Speak the proactive briefing on session-start. Default true. */
+  startupBriefingEnabled: boolean;
+  /** Apps/URLs to open on session-start, launched in parallel. Default []. */
+  startupOpenOnStart: StartupOpenItem[];
+  /** macOS Shortcuts names to run on session-start, in parallel. Default []. */
+  startupShortcuts: string[];
 }
 
 const DEFAULTS: DesktopSettings = {
@@ -37,6 +73,23 @@ const DEFAULTS: DesktopSettings = {
   vadSilenceMs: 1_500,
   manualMode: false,
   wakeEnabled: true,
+  startupBriefingEnabled: true,
+  startupOpenOnStart: [],
+  startupShortcuts: [],
+};
+
+/** camelCase settings key → dot-notation plugin-store key. */
+const STORE_KEYS: Record<keyof DesktopSettings, string> = {
+  ttsEnabled: "tts.enabled",
+  ttsVoiceId: "tts.voiceId",
+  ttsProvider: "tts.provider",
+  physicalExtenderEnabled: "physicalExtender.enabled",
+  vadSilenceMs: "vad.silenceMs",
+  manualMode: "capture.manualMode",
+  wakeEnabled: "wake.enabled",
+  startupBriefingEnabled: "startup.briefingEnabled",
+  startupOpenOnStart: "startup.openOnStart",
+  startupShortcuts: "startup.shortcuts",
 };
 
 let _store: Store | null = null;
@@ -53,10 +106,36 @@ async function getStore(): Promise<Store> {
         "vad.silenceMs": DEFAULTS.vadSilenceMs,
         "capture.manualMode": DEFAULTS.manualMode,
         "wake.enabled": DEFAULTS.wakeEnabled,
+        "startup.briefingEnabled": DEFAULTS.startupBriefingEnabled,
+        "startup.openOnStart": DEFAULTS.startupOpenOnStart,
+        "startup.shortcuts": DEFAULTS.startupShortcuts,
       },
     });
   }
   return _store;
+}
+
+/** Narrow a persisted openOnStart value: drop malformed entries, trim values. */
+function sanitizeOpenItems(raw: unknown): StartupOpenItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: StartupOpenItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const type = (entry as Record<string, unknown>)["type"];
+    const value = (entry as Record<string, unknown>)["value"];
+    if ((type === "url" || type === "app") && typeof value === "string" && value.trim()) {
+      items.push({ type, value: value.trim() });
+    }
+  }
+  return items;
+}
+
+/** Narrow a persisted shortcuts value: keep non-empty strings only. */
+function sanitizeShortcuts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+    .map((name) => name.trim());
 }
 
 /** Load all settings from the persistent store. Returns defaults for unset keys. */
@@ -70,6 +149,9 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const vadSilenceMs = await store.get<number>("vad.silenceMs");
   const manualMode = await store.get<boolean>("capture.manualMode");
   const wakeEnabled = await store.get<boolean>("wake.enabled");
+  const startupBriefingEnabled = await store.get<boolean>("startup.briefingEnabled");
+  const startupOpenOnStart = await store.get<unknown>("startup.openOnStart");
+  const startupShortcuts = await store.get<unknown>("startup.shortcuts");
 
   return {
     ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
@@ -79,6 +161,9 @@ export async function loadSettings(): Promise<DesktopSettings> {
     vadSilenceMs: vadSilenceMs ?? DEFAULTS.vadSilenceMs,
     manualMode: manualMode ?? DEFAULTS.manualMode,
     wakeEnabled: wakeEnabled ?? DEFAULTS.wakeEnabled,
+    startupBriefingEnabled: startupBriefingEnabled ?? DEFAULTS.startupBriefingEnabled,
+    startupOpenOnStart: sanitizeOpenItems(startupOpenOnStart),
+    startupShortcuts: sanitizeShortcuts(startupShortcuts),
   };
 }
 
@@ -88,14 +173,5 @@ export async function saveSetting<K extends keyof DesktopSettings>(
   value: DesktopSettings[K],
 ): Promise<void> {
   const store = await getStore();
-  // Map camelCase keys to dot-notation store keys
-  const storeKey =
-    key === "ttsEnabled" ? "tts.enabled"
-    : key === "ttsVoiceId" ? "tts.voiceId"
-    : key === "ttsProvider" ? "tts.provider"
-    : key === "physicalExtenderEnabled" ? "physicalExtender.enabled"
-    : key === "vadSilenceMs" ? "vad.silenceMs"
-    : key === "manualMode" ? "capture.manualMode"
-    : "wake.enabled";
-  await store.set(storeKey, value);
+  await store.set(STORE_KEYS[key], value);
 }
