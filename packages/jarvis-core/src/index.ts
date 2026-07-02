@@ -94,6 +94,8 @@ export type {
   RunShortcutAction,
   PlayMusicAction,
   GetWeatherAction,
+  // Computer Use fallback — catch-all agentic desktop loop
+  ComputerUseAction,
 } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel

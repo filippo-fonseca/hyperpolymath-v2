@@ -21,7 +21,9 @@ export type JarvisToolName =
   // Clicky slice — desktop action tools + server-side weather
   | "send_message" | "system_control" | "type_text" | "press_key"
   | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
-  | "get_weather";
+  | "get_weather"
+  // Computer Use fallback — catch-all agentic desktop loop
+  | "computer_use";
 
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
@@ -259,6 +261,13 @@ export interface GetWeatherAction {
   location?: string;
 }
 
+/** Computer Use fallback — catch-all for desktop tasks no named tool covers.
+ *  The executor mints a session_id and returns a DesktopAction; the desktop
+ *  then drives the multi-step loop against /api/jarvis/computer-use/step. */
+export interface ComputerUseAction {
+  task: string;
+}
+
 /** Structured desktop action returned by the executor for computer-control
  *  tools. The desktop client keys off `kind` to decide what to do.
  *  CONTRACT (fixed — the desktop dispatcher keys off `kind`; do not rename). */
@@ -283,7 +292,14 @@ export type DesktopAction =
   | { kind: "take_screenshot"; describe: boolean }
   | { kind: "run_applescript"; label: string; script: string }
   | { kind: "run_shortcut"; name: string; input?: string }
-  | { kind: "play_music"; app: "music" | "spotify"; query?: string };
+  | { kind: "play_music"; app: "music" | "spotify"; query?: string }
+  | {
+      kind: "computer_use";
+      /** Plain-language task for the agentic Computer Use loop. */
+      task: string;
+      /** Server-minted UUID correlating every step of one loop. */
+      session_id: string;
+    };
 
 // ---------------------------------------------------------------------------
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn

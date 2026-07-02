@@ -39,6 +39,10 @@
 // type_text, press_key, take_screenshot, run_applescript, run_shortcut,
 // play_music, get_weather). Total: 29 tools.
 // cache_control moves from web_search to get_weather (new LAST tool).
+//
+// Computer Use fallback: 1 new NON-strict tool added (computer_use), the
+// catch-all for desktop tasks no named tool covers. Total: 30 tools.
+// cache_control moves from get_weather to computer_use (new LAST tool).
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -71,6 +75,7 @@ import { runApplescriptTool } from "./run-applescript";
 import { runShortcutTool } from "./run-shortcut";
 import { playMusicTool } from "./play-music";
 import { getWeatherTool } from "./get-weather";
+import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -108,7 +113,8 @@ export interface JarvisToolDefinition {
     | "run_applescript"
     | "run_shortcut"
     | "play_music"
-    | "get_weather";
+    | "get_weather"
+    | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -217,13 +223,17 @@ export function buildToolDefinitions(
     { ...runApplescriptTool, strict: false as const },
     { ...runShortcutTool, strict: false as const },
     { ...playMusicTool, strict: false as const },
+    // get_weather loses cache_control — computer_use follows it.
+    { ...getWeatherTool, strict: false as const },
     {
-      ...getWeatherTool,
+      // Computer Use fallback — the catch-all when no named tool fits.
+      // NON-strict (grammar budget): server-side Zod validation covers this.
+      ...computerUseTool,
       strict: false as const,
-      // Clicky slice / CACHE: cache_control moves here — get_weather is now
-      // the LAST tool in the array. web_search loses the breakpoint. TTL "1h"
-      // amortizes the 2× write cost over a full hour of turns.
-      // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
+      // CACHE: cache_control moves here — computer_use is now the LAST tool
+      // in the array. get_weather loses the breakpoint. TTL "1h" amortizes
+      // the 2× write cost over a full hour of turns. Requires the
+      // `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     },
   ];
@@ -262,6 +272,8 @@ export { RunApplescriptInputSchema } from "./run-applescript";
 export { RunShortcutInputSchema } from "./run-shortcut";
 export { PlayMusicInputSchema } from "./play-music";
 export { GetWeatherInputSchema } from "./get-weather";
+// Computer Use fallback: re-export input schema for run-turn.ts validation.
+export { ComputerUseInputSchema } from "./computer-use";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;

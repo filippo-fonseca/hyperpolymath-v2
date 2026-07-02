@@ -6,6 +6,7 @@
 // NEVER emits a userId; trusting one from the model is a vulnerability.
 
 import type {
+  ComputerUseAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -141,4 +142,9 @@ export interface ActionExecutor {
   runShortcut(input: RunShortcutAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   playMusic(input: PlayMusicAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   getWeather(input: GetWeatherAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Computer Use fallback — mints a session_id and returns the computer_use
+  // DesktopAction; the desktop drives the step loop against
+  // /api/jarvis/computer-use/step. No side effects server-side at dispatch.
+  computerUse(input: ComputerUseAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 }
