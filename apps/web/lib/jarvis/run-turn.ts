@@ -46,6 +46,16 @@ import {
   OpenUrlInputSchema,
   OpenAppInputSchema,
   WebSearchInputSchema,
+  // Clicky slice — desktop action tools + server-side weather
+  SendMessageInputSchema,
+  SystemControlInputSchema,
+  TypeTextInputSchema,
+  PressKeyInputSchema,
+  TakeScreenshotInputSchema,
+  RunApplescriptInputSchema,
+  RunShortcutInputSchema,
+  PlayMusicInputSchema,
+  GetWeatherInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -157,6 +167,16 @@ function buildToolValidators(voiceActive: boolean) {
     open_url: OpenUrlInputSchema,
     open_app: OpenAppInputSchema,
     web_search: WebSearchInputSchema,
+    // Clicky slice — desktop action tools + server-side weather
+    send_message: SendMessageInputSchema,
+    system_control: SystemControlInputSchema,
+    type_text: TypeTextInputSchema,
+    press_key: PressKeyInputSchema,
+    take_screenshot: TakeScreenshotInputSchema,
+    run_applescript: RunApplescriptInputSchema,
+    run_shortcut: RunShortcutInputSchema,
+    play_music: PlayMusicInputSchema,
+    get_weather: GetWeatherInputSchema,
   } as const;
 }
 
@@ -595,6 +615,51 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "web_search") {
               result = await executor.webSearch(
                 parsed.data as Parameters<typeof executor.webSearch>[0],
+                ctx,
+              );
+            } else if (toolName === "send_message") {
+              result = await executor.sendMessage(
+                parsed.data as Parameters<typeof executor.sendMessage>[0],
+                ctx,
+              );
+            } else if (toolName === "system_control") {
+              result = await executor.systemControl(
+                parsed.data as Parameters<typeof executor.systemControl>[0],
+                ctx,
+              );
+            } else if (toolName === "type_text") {
+              result = await executor.typeText(
+                parsed.data as Parameters<typeof executor.typeText>[0],
+                ctx,
+              );
+            } else if (toolName === "press_key") {
+              result = await executor.pressKey(
+                parsed.data as Parameters<typeof executor.pressKey>[0],
+                ctx,
+              );
+            } else if (toolName === "take_screenshot") {
+              result = await executor.takeScreenshot(
+                parsed.data as Parameters<typeof executor.takeScreenshot>[0],
+                ctx,
+              );
+            } else if (toolName === "run_applescript") {
+              result = await executor.runApplescript(
+                parsed.data as Parameters<typeof executor.runApplescript>[0],
+                ctx,
+              );
+            } else if (toolName === "run_shortcut") {
+              result = await executor.runShortcut(
+                parsed.data as Parameters<typeof executor.runShortcut>[0],
+                ctx,
+              );
+            } else if (toolName === "play_music") {
+              result = await executor.playMusic(
+                parsed.data as Parameters<typeof executor.playMusic>[0],
+                ctx,
+              );
+            } else if (toolName === "get_weather") {
+              result = await executor.getWeather(
+                parsed.data as Parameters<typeof executor.getWeather>[0],
                 ctx,
               );
             } else {
