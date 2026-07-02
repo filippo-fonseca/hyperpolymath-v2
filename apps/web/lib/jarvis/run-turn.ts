@@ -56,6 +56,8 @@ import {
   RunShortcutInputSchema,
   PlayMusicInputSchema,
   GetWeatherInputSchema,
+  // Computer Use fallback — catch-all agentic desktop loop
+  ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -177,6 +179,8 @@ function buildToolValidators(voiceActive: boolean) {
     run_shortcut: RunShortcutInputSchema,
     play_music: PlayMusicInputSchema,
     get_weather: GetWeatherInputSchema,
+    // Computer Use fallback — catch-all agentic desktop loop
+    computer_use: ComputerUseInputSchema,
   } as const;
 }
 
@@ -660,6 +664,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "get_weather") {
               result = await executor.getWeather(
                 parsed.data as Parameters<typeof executor.getWeather>[0],
+                ctx,
+              );
+            } else if (toolName === "computer_use") {
+              result = await executor.computerUse(
+                parsed.data as Parameters<typeof executor.computerUse>[0],
                 ctx,
               );
             } else {

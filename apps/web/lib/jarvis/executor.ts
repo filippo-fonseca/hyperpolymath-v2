@@ -63,6 +63,7 @@ import { GcalNotConnectedError, GcalTokenRevokedError, getValidGcalToken } from 
 import type {
   ActionExecutor,
   AskClarificationAction,
+  ComputerUseAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -1023,6 +1024,23 @@ export function createServerExecutor(): ActionExecutor {
         id: `play_music:${query ?? "resume"}`,
         receipt: { app, ...(query ? { query } : {}) },
         action: { kind: "play_music", app, ...(query ? { query } : {}) },
+      };
+    },
+
+    async computerUse(input: ComputerUseAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Computer Use fallback: mint a session_id and hand the task to the
+      // desktop, which drives the agentic loop against
+      // /api/jarvis/computer-use/step. Nothing executes server-side here.
+      const task = input.task.trim();
+      if (!task) {
+        return { ok: false, kind: "validation", error: "computer_use requires a task" };
+      }
+      const sessionId = randomUUID();
+      return {
+        ok: true,
+        id: `computer_use:${sessionId}`,
+        receipt: { task, session_id: sessionId },
+        action: { kind: "computer_use", task, session_id: sessionId },
       };
     },
 

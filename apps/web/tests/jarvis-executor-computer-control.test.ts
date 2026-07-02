@@ -217,3 +217,61 @@ describe("executor.webSearch", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// computer_use — Computer Use catch-all fallback
+// ---------------------------------------------------------------------------
+
+describe("executor.computerUse", () => {
+  it("returns ok:true with action kind:'computer_use', the task, and a minted session_id", async () => {
+    const executor = createServerExecutor();
+    const result = await executor.computerUse({ task: "close all my browser tabs" }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    const action = result.action as { kind: string; task: string; session_id: string };
+    expect(action.kind).toBe("computer_use");
+    expect(action.task).toBe("close all my browser tabs");
+    // session_id is a server-minted UUID (crypto.randomUUID)
+    expect(action.session_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(result.id).toBe(`computer_use:${action.session_id}`);
+  });
+
+  it("receipt carries task and the same session_id as the action", async () => {
+    const executor = createServerExecutor();
+    const result = await executor.computerUse({ task: "tidy up my desktop icons" }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    const action = result.action as { session_id: string };
+    expect(result.receipt).toEqual({
+      task: "tidy up my desktop icons",
+      session_id: action.session_id,
+    });
+  });
+
+  it("mints a DIFFERENT session_id per dispatch", async () => {
+    const executor = createServerExecutor();
+    const a = await executor.computerUse({ task: "task one" }, ctx);
+    const b = await executor.computerUse({ task: "task one" }, ctx);
+    if (!a.ok || !b.ok) throw new Error("expected ok");
+    const idA = (a.action as { session_id: string }).session_id;
+    const idB = (b.action as { session_id: string }).session_id;
+    expect(idA).not.toBe(idB);
+  });
+
+  it("trims the task and rejects a whitespace-only task as validation error", async () => {
+    const executor = createServerExecutor();
+    const trimmed = await executor.computerUse({ task: "  close the popups  " }, ctx);
+    expect(trimmed.ok).toBe(true);
+    if (!trimmed.ok) throw new Error("expected ok");
+    expect((trimmed.action as { task: string }).task).toBe("close the popups");
+
+    const empty = await executor.computerUse({ task: "   " }, ctx);
+    expect(empty.ok).toBe(false);
+    if (empty.ok) throw new Error("expected validation failure");
+    expect(empty.kind).toBe("validation");
+  });
+});
