@@ -64,6 +64,7 @@ import {
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
+import { startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
@@ -760,6 +761,11 @@ async function boot(): Promise<void> {
       getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
     });
   }
+
+  // 5c-bis. Acknowledge strip: auto-fading first-clause echo of each JARVIS
+  // utterance under the status line. Subscribes to the same SSE response
+  // events painted above; purely presentational.
+  startAckStrip();
 
   // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
   const gearBtn = document.getElementById("gear-btn");

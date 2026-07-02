@@ -131,6 +131,25 @@
       }
       body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
 
+      /* Acknowledge strip — auto-fading first-clause echo of each JARVIS
+         utterance (src/hud/ack-strip.ts). Fixed height so the fade never
+         shifts the grid; opacity is the only thing that moves. */
+      .ack-strip {
+        height: 15px;
+        max-width: min(420px, 86vw);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--accent);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+      .ack-strip.visible { opacity: 1; }
+
       /* ── Transcript: the scrollable middle region. Never overlaps anything.
          Auto-scrolls to the latest text; wraps; readable type. ── */
       .transcript {
@@ -382,6 +401,7 @@
         <div class="status-line" id="status-line">
           <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
         </div>
+        <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
       </header>
 
       <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
