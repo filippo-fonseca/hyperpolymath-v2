@@ -26,6 +26,7 @@ import {
 } from "@/audio/capture";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
+import { maybeRunStartupSequence } from "@/startup/sequencer";
 
 export type JarvisState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -203,9 +204,17 @@ function onResponseEnded(): void {
   }, THINKING_GRACE_MS);
 }
 
+// True while the session-start sequence (startup/sequencer.ts) is in flight.
+// The FSM can still be "idle" during the sequencer's early phase (briefing
+// POSTed, response not yet started), so re-invokes must be gated explicitly —
+// otherwise a second hotkey press could open the mic UNDER the briefing.
+let startupInFlight = false;
+
 /**
- * The single invocation entry point (⌘⌃J, tray click, manual button).
- *   - idle: open the mic and start listening straight away.
+ * The single invocation entry point (⌘⌃J, tray click, manual button, wake).
+ *   - idle: run the session-start sequence (first invoke only: briefing →
+ *     openOnStart + shortcuts → mic), then open the mic. On later invokes the
+ *     sequence resolves immediately and we go straight to the mic.
  *   - listening: treat a second press as a manual end-of-turn (toggle stop).
  *   - thinking/speaking: ignore (can't invoke while JARVIS is working/talking).
  */
@@ -215,12 +224,29 @@ export async function startConversation(): Promise<void> {
     await toggleCaptureTurn();
     return;
   }
-  if (state !== "idle") {
-    // Busy (thinking/speaking) — ignore re-invokes; half-duplex owns the mic.
+  if (state !== "idle" || startupInFlight) {
+    // Busy (thinking/speaking, or the startup sequence owns the turn) —
+    // ignore re-invokes; half-duplex owns the mic.
     return;
   }
 
   conversationActive = true;
+
+  // Session-start sequence (first invoke this session): resolves after the
+  // briefing has FULLY drained and openOnStart/shortcuts have been fired.
+  // While the briefing's response streams, this FSM's own listeners drive
+  // thinking → speaking → drain → continue window, which opens the mic
+  // (step 4). So afterwards we only open the mic here when the FSM is still
+  // idle: startup already ran, briefing disabled/failed, or a silent reply
+  // whose grace path also stayed idle. That check makes double-opening the
+  // mic impossible.
+  startupInFlight = true;
+  try {
+    await maybeRunStartupSequence();
+  } finally {
+    startupInFlight = false;
+  }
+  if (!conversationActive || state !== "idle") return;
   await openMicIfPossible("invoke");
 }
 
