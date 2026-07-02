@@ -28,37 +28,37 @@
         user-select: none;
       }
 
-      /* ── Stage: the orb is the whole interface ─────────────────────────── */
+      /* ── Stage: three fixed regions in a column grid ───────────────────────
+         [header/orb]  auto — never scrolls, never shrinks
+         [transcript]  1fr  — the ONLY scroll region; text can never overlap
+         [footer/btn]  auto — pinned to the bottom
+         The min-height:0 on the middle row is what lets it scroll instead of
+         pushing the footer off-screen (CSS grid overflow gotcha). Responsive to
+         window resize because every dimension is relative / clamped. */
       .stage {
         position: relative;
         height: 100vh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        row-gap: 12px;
+        padding: 16px 18px 18px;
+      }
+
+      /* ── Header: orb + status, centered, fixed height ── */
+      .hud-header {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 22px;
-        padding: 24px;
+        gap: 8px;
+        padding-top: 4px;
       }
       .orb-wrap {
         position: relative;
-        width: 240px; height: 240px;
+        width: clamp(120px, 34vh, 200px);
+        height: clamp(120px, 34vh, 200px);
         display: grid; place-items: center;
       }
-      #orb-canvas { width: 240px; height: 240px; display: block; }
-
-      /* Acknowledge line — fades in as JARVIS speaks, out after (VISION §4). */
-      .ack-line {
-        min-height: 20px;
-        max-width: 340px;
-        text-align: center;
-        font-size: 14px;
-        line-height: 1.5;
-        color: var(--fg);
-        opacity: 0;
-        transition: opacity 0.35s ease;
-        letter-spacing: 0.01em;
-      }
-      .ack-line.visible { opacity: 0.92; }
+      #orb-canvas { width: 100%; height: 100%; display: block; }
 
       /* Status glyph — tiny mono line under the orb (font-mono-stats). */
       .status-line {
@@ -71,6 +71,107 @@
       }
       body[data-jarvis-state="listening"] .status-line { color: var(--accent); }
       body[data-jarvis-state="speaking"] .status-line { color: var(--accent); }
+      body[data-jarvis-state="thinking"] .status-line { color: var(--accent); opacity: 0.8; }
+      /* Tiny connection dot next to the status word. */
+      .status-line .conn-dot {
+        display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+        margin-right: 7px; vertical-align: middle;
+        background: var(--muted); transition: background 0.3s, box-shadow 0.3s;
+      }
+      body[data-sse="connected"] .status-line .conn-dot {
+        background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+      }
+      body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
+
+      /* ── Transcript: the scrollable middle region. Never overlaps anything.
+         Auto-scrolls to the latest text; wraps; readable type. ── */
+      .transcript {
+        min-height: 0;              /* critical: allow the grid row to shrink */
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--rule);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--surface) 70%, transparent);
+        scroll-behavior: smooth;
+      }
+      /* Slim custom scrollbar (custom-scrollbar pattern). */
+      .transcript::-webkit-scrollbar { width: 7px; }
+      .transcript::-webkit-scrollbar-track { background: transparent; }
+      .transcript::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--accent) 22%, var(--rule));
+        border-radius: 999px;
+      }
+      .transcript::-webkit-scrollbar-thumb:hover {
+        background: color-mix(in srgb, var(--accent) 40%, var(--rule));
+      }
+
+      /* Empty-state hint, shown when there's no conversation yet. */
+      .transcript-empty {
+        margin: auto;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.6;
+        max-width: 260px;
+      }
+      .transcript.has-content .transcript-empty { display: none; }
+
+      /* A single turn bubble: the user line (right) or JARVIS line (left). */
+      .turn {
+        max-width: 100%;
+        font-size: 14px;
+        line-height: 1.55;
+        letter-spacing: 0.01em;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .turn .who {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 3px;
+      }
+      .turn.user .who { color: color-mix(in srgb, var(--fg) 55%, var(--muted)); }
+      .turn.jarvis .who { color: var(--accent); }
+      .turn.user .body { color: color-mix(in srgb, var(--fg) 80%, var(--muted)); }
+      .turn.jarvis .body { color: var(--fg); }
+
+      /* ── Footer: pinned invoke button + inline tool receipts ── */
+      .hud-footer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      /* Inline action receipts ("▸ opening Calendar"), most-recent-first, capped. */
+      .footer-receipts {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        max-height: 44px;
+        overflow: hidden;
+      }
+      .footer-receipts:empty { display: none; }
+      .footer-receipts .tool-call-item {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+      }
+      .footer-receipts .tool-call-item.action-flash { color: var(--accent); }
 
       /* Primary invoke button — restrained, glassy. Guaranteed fallback. */
       .invoke-btn {
@@ -177,20 +278,36 @@
   </head>
   <body data-jarvis-state="idle">
     <main class="stage">
-      <div class="orb-wrap">
-        <canvas id="orb-canvas" aria-hidden="true"></canvas>
-      </div>
+      <!-- Region 1: fixed orb header + status. Never scrolls. -->
+      <header class="hud-header">
+        <div class="orb-wrap">
+          <canvas id="orb-canvas" aria-hidden="true"></canvas>
+        </div>
+        <div class="status-line" id="status-line">
+          <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
+        </div>
+      </header>
 
-      <!-- Spoken acknowledgement, mirrored as one glanceable line. -->
-      <div class="ack-line" id="ack-line"></div>
+      <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
+           auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
+      <section class="transcript" id="transcript" aria-live="polite">
+        <div class="transcript-empty" id="transcript-empty">
+          Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
+          Your words and JARVIS's replies appear here.
+        </div>
+      </section>
 
-      <div class="status-line" id="status-line">standing by</div>
-
-      <button class="invoke-btn" id="wake-btn" type="button">
-        Talk to JARVIS
-        <span class="shortcut-label">⌘⌃J</span>
-      </button>
-      <button class="cancel-btn" id="cancel-btn">Cancel</button>
+      <!-- Region 3: pinned footer — invoke button + inline action receipts. -->
+      <footer class="hud-footer">
+        <div class="footer-receipts" id="tool-calls-footer" aria-live="polite"></div>
+        <div class="footer-actions">
+          <button class="invoke-btn" id="wake-btn" type="button">
+            Talk to JARVIS
+            <span class="shortcut-label">⌘⌃J</span>
+          </button>
+          <button class="cancel-btn" id="cancel-btn">Cancel</button>
+        </div>
+      </footer>
 
       <!-- Retained for capture-module wiring; visually hidden. -->
       <button id="extend-btn" type="button" aria-hidden="true"></button>

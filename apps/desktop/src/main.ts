@@ -67,12 +67,15 @@ import { mountOrb } from "@/hud/orb";
 const CLAIM_HEARTBEAT_MS = 10_000;
 
 function paintSseStatus(status: SseStatus): void {
+  // Drive the header connection dot (body[data-sse]) + the drawer text row.
+  document.body.dataset.sse = status;
   const el = document.getElementById("sse-status");
-  if (!el) return;
-  el.textContent =
-    status === "connected" ? "connected"
-    : status === "error" ? "reconnecting…"
-    : "connecting…";
+  if (el) {
+    el.textContent =
+      status === "connected" ? "connected"
+      : status === "error" ? "reconnecting…"
+      : "connecting…";
+  }
 }
 
 // Local cache so paintExtendedState can re-render the recording label
@@ -115,47 +118,125 @@ function paintExtended(active: boolean): void {
   paintActionRow(_captureState, active);
 }
 
-function paintTranscript(text: string): void {
-  const panel = document.getElementById("transcript-panel");
-  const out = document.getElementById("transcript-text");
-  if (!panel || !out) return;
-  out.textContent = text;
-  panel.classList.add("visible");
+// ── Transcript region: the scrollable conversation log ─────────────────────
+// A turn bubble is appended per user utterance and per JARVIS reply. The reply
+// bubble is created on response-start and its body grows as chunks stream. The
+// region auto-scrolls to the latest text (only when the user is already near
+// the bottom, so a manual scroll-up to re-read isn't yanked away).
+
+function transcriptEl(): HTMLElement | null {
+  return document.getElementById("transcript");
 }
 
-function setAckLine(text: string): void {
-  const ack = document.getElementById("ack-line");
-  if (!ack) return;
-  ack.textContent = text;
-  ack.classList.toggle("visible", text.trim().length > 0);
+/** True when the transcript is scrolled near its bottom (auto-follow zone). */
+function isNearBottom(el: HTMLElement): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+}
+
+function autoScroll(el: HTMLElement, wasNearBottom: boolean): void {
+  if (wasNearBottom) el.scrollTop = el.scrollHeight;
+}
+
+/** Append a completed user-utterance bubble. */
+function appendUserTurn(text: string): void {
+  const el = transcriptEl();
+  if (!el || !text.trim()) return;
+  const near = isNearBottom(el);
+  el.classList.add("has-content");
+  const turn = document.createElement("div");
+  turn.className = "turn user";
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "you";
+  const body = document.createElement("div");
+  body.className = "body";
+  body.textContent = text;
+  turn.append(who, body);
+  el.appendChild(turn);
+  autoScroll(el, near);
+}
+
+// The in-progress JARVIS reply bubble's body element (grows as chunks stream).
+let currentReplyBody: HTMLElement | null = null;
+
+/** Start a fresh JARVIS reply bubble for the streaming turn. */
+function startJarvisTurn(): void {
+  const el = transcriptEl();
+  if (!el) return;
+  el.classList.add("has-content");
+  const turn = document.createElement("div");
+  turn.className = "turn jarvis";
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "jarvis";
+  const body = document.createElement("div");
+  body.className = "body";
+  turn.append(who, body);
+  el.appendChild(turn);
+  currentReplyBody = body;
+  el.scrollTop = el.scrollHeight;
+}
+
+/** Append a streamed delta to the in-progress JARVIS reply bubble. */
+function appendJarvisDelta(delta: string): void {
+  const el = transcriptEl();
+  if (!el) return;
+  if (!currentReplyBody) startJarvisTurn();
+  const near = isNearBottom(el);
+  if (currentReplyBody) currentReplyBody.textContent += delta;
+  autoScroll(el, near);
+}
+
+function paintTranscript(text: string): void {
+  // Visible transcript log.
+  appendUserTurn(text);
+  // Keep the drawer QA row in sync.
+  const panel = document.getElementById("transcript-panel");
+  const out = document.getElementById("transcript-text");
+  if (panel && out) {
+    out.textContent = text;
+    panel.classList.add("visible");
+  }
 }
 
 function paintResponseStart(): void {
+  // Open a new JARVIS reply bubble in the visible transcript.
+  currentReplyBody = null;
+  startJarvisTurn();
+  // Drawer QA mirror.
   const panel = document.getElementById("response-panel");
   const textEl = document.getElementById("response-text");
   const toolCallsEl = document.getElementById("tool-calls");
-  // Clear the ack line for the new turn (it fades in as text streams).
-  setAckLine("");
-  if (!panel || !textEl || !toolCallsEl) return;
-  textEl.textContent = "";
-  toolCallsEl.innerHTML = "";
-  panel.classList.add("streaming");
-  panel.classList.add("visible");
+  if (textEl) textEl.textContent = "";
+  if (toolCallsEl) toolCallsEl.innerHTML = "";
+  if (panel) {
+    panel.classList.add("streaming");
+    panel.classList.add("visible");
+  }
 }
 
 function paintResponseChunk(delta: string): void {
+  appendJarvisDelta(delta);
+  // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
-  const next = (textEl?.textContent ?? "") + delta;
-  if (textEl) textEl.textContent = next;
-  // Mirror the spoken acknowledgement as one glanceable HUD line (VISION §4).
-  setAckLine(next);
+  if (textEl) textEl.textContent = (textEl.textContent ?? "") + delta;
+}
+
+// Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
+// and the drawer QA list. Keeps chrome out of the scrollable transcript.
+function pushFooterReceipt(text: string, extraClass = ""): void {
+  const footer = document.getElementById("tool-calls-footer");
+  if (footer) {
+    const item = document.createElement("div");
+    item.className = `tool-call-item${extraClass ? ` ${extraClass}` : ""}`;
+    item.textContent = text;
+    footer.appendChild(item);
+    // Cap to the last 2 lines so the footer never grows/overlaps.
+    while (footer.children.length > 2) footer.removeChild(footer.firstChild!);
+  }
 }
 
 function paintToolCall(name: string, result: unknown): void {
-  const toolCallsEl = document.getElementById("tool-calls");
-  if (!toolCallsEl) return;
-  const item = document.createElement("div");
-  item.className = "tool-call-item";
   const resultOk = (result as { ok?: boolean })?.ok === true;
   const receipt = (result as { receipt?: Record<string, unknown> })?.receipt;
   let summary = `→ ${name}`;
@@ -169,8 +250,15 @@ function paintToolCall(name: string, result: unknown): void {
       summary = `→ Event: ${String(receipt.title ?? "")}`;
     }
   }
-  item.textContent = summary;
-  toolCallsEl.appendChild(item);
+  pushFooterReceipt(summary);
+  // Drawer QA mirror.
+  const toolCallsEl = document.getElementById("tool-calls");
+  if (toolCallsEl) {
+    const item = document.createElement("div");
+    item.className = "tool-call-item";
+    item.textContent = summary;
+    toolCallsEl.appendChild(item);
+  }
 }
 
 /**
@@ -179,12 +267,15 @@ function paintToolCall(name: string, result: unknown): void {
  * text already speaks the acknowledgement, so we do NOT trigger TTS here.
  */
 function flashActionLine(label: string): void {
+  pushFooterReceipt(`▸ opening ${label || "…"}`, "action-flash");
+  // Drawer QA mirror.
   const toolCallsEl = document.getElementById("tool-calls");
-  if (!toolCallsEl) return;
-  const item = document.createElement("div");
-  item.className = "tool-call-item action-flash";
-  item.textContent = `▸ opening ${label || "…"}`;
-  toolCallsEl.appendChild(item);
+  if (toolCallsEl) {
+    const item = document.createElement("div");
+    item.className = "tool-call-item action-flash";
+    item.textContent = `▸ opening ${label || "…"}`;
+    toolCallsEl.appendChild(item);
+  }
 }
 
 function paintResponseComplete(response: JarvisResponseComplete): void {
@@ -624,10 +715,9 @@ async function boot(): Promise<void> {
   };
   onJarvisState((s: JarvisState) => {
     document.body.dataset.jarvisState = s;
-    const statusEl = document.getElementById("status-line");
-    if (statusEl) statusEl.textContent = STATUS_LABEL[s];
-    // Fade the acknowledge line out once JARVIS returns to rest.
-    if (s === "idle") setAckLine("");
+    // Update just the status word — the connection dot lives beside it.
+    const statusWord = document.getElementById("status-word");
+    if (statusWord) statusWord.textContent = STATUS_LABEL[s];
   });
   startConversationMachine();
   document.body.dataset.jarvisState = "idle";
