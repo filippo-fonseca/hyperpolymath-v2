@@ -135,12 +135,19 @@ interface AudioChunkPayload {
 }
 
 export type CaptureState = "idle" | "recording" | "uploading";
+// Why a turn produced no usable transcript: Groq returned an empty string
+// (quiet mic / no speech), or the STT request failed outright (server 5xx →
+// postTranscript resolves null). Both are distinguished so the UI can flash
+// the right butler line ("Didn't catch that" vs "transcription failed").
+export type NoSpeechReason = "empty" | "stt-failed";
 type StateListener = (state: CaptureState) => void;
 type TranscriptListener = (text: string) => void;
+type NoSpeechListener = (reason: NoSpeechReason) => void;
 type ExtendedListener = (active: boolean) => void;
 
 const stateListeners = new Set<StateListener>();
 const transcriptListeners = new Set<TranscriptListener>();
+const noSpeechListeners = new Set<NoSpeechListener>();
 const extendedListeners = new Set<ExtendedListener>();
 
 // Live mic amplitude (0..1), emitted per audio chunk while recording. The HUD
@@ -197,6 +204,25 @@ export function onTranscriptReceived(fn: TranscriptListener): () => void {
   return () => {
     transcriptListeners.delete(fn);
   };
+}
+
+/**
+ * Subscribe to the "turn produced no usable transcript" signal. Fires when the
+ * STT result was empty (quiet mic) or the request failed. Distinct from
+ * onTranscriptReceived so listeners (the FSM's fast escape out of "thinking",
+ * the HUD's feedback flash) don't have to sniff for empty strings — and, more
+ * importantly, so the transcript path never fires with "" and strands the FSM
+ * waiting on a response that will never arrive.
+ */
+export function onNoSpeechDetected(fn: NoSpeechListener): () => void {
+  noSpeechListeners.add(fn);
+  return () => {
+    noSpeechListeners.delete(fn);
+  };
+}
+
+function emitNoSpeech(reason: NoSpeechReason): void {
+  for (const fn of noSpeechListeners) fn(reason);
 }
 
 export function onExtendedChange(fn: ExtendedListener): () => void {
@@ -365,17 +391,37 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
   setState("uploading");
   const wav = encodeWav(samples, 16_000);
   const result = await postTranscript({ wav, vadEndAt });
-  if (result) {
+
+  // Classify the outcome. null → request failed (5xx); empty/whitespace →
+  // Groq heard nothing (quiet mic). Both mean NO agent response is coming, so
+  // we must NOT fire the transcript path (that would push the FSM into
+  // "thinking" to await a reply that never arrives, hanging until the 20s cap).
+  let noSpeech: NoSpeechReason | null = null;
+  if (result === null) {
+    // eslint-disable-next-line no-console
+    console.warn("[capture] transcript request failed — no speech signal");
+    noSpeech = "stt-failed";
+  } else if (result.transcript.trim().length === 0) {
+    // eslint-disable-next-line no-console
+    console.log("[capture] empty transcript — no speech detected");
+    noSpeech = "empty";
+  } else {
     // eslint-disable-next-line no-console
     console.log(
       `[capture] transcript received (sttDoneAt=${result.sttDoneAt}): ${result.transcript.slice(0, 80)}`,
     );
     for (const fn of transcriptListeners) fn(result.transcript);
   }
+
   activeVad = null;
   extended = false;
   emitExtended(false);
   setState("idle");
+
+  // Emit AFTER the turn is fully torn down and capture is idle again, so the
+  // FSM's fast escape can reopen the mic against a clean state (startCaptureTurn
+  // sees no active turn) rather than racing this turn's teardown.
+  if (noSpeech) emitNoSpeech(noSpeech);
 }
 
 /**
