@@ -25,6 +25,7 @@ import { Command } from "@tauri-apps/plugin-shell";
 
 import { buildPlayMusic, runAppleScript } from "@/actions/applescript";
 import { holdSendMessage } from "@/actions/confirm-gate";
+import { bytesToBase64, downscalePngWithInfo } from "@/actions/png";
 import { postScreenshotDescribe } from "@/api/client";
 
 export interface OpenUrlAction {
@@ -257,51 +258,24 @@ export function describeAction(action: DesktopAction): string {
   }
 }
 
-/** Chunked bytes→base64 (avoids call-stack limits on multi-MB screenshots). */
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(binary);
-}
-
 // The describe endpoint caps decoded PNGs at 8MB, and the vision model caps
 // images at ~5MB — a full-screen Retina capture routinely exceeds both. Scale
 // long-edge down to this before shipping; the description only needs to name
 // the foreground app + the salient thing, not read 4-pt text.
 const SCREENSHOT_MAX_DIM = 1920;
 
-/** Downscale a PNG in the webview (createImageBitmap + canvas). Best-effort:
- *  any failure returns the original bytes. */
+/** Downscale a PNG for the describe flow. Best-effort wrapper around the
+ *  shared helper in png.ts: any failure returns the original bytes. */
 async function downscalePng(png: Uint8Array, maxDim = SCREENSHOT_MAX_DIM): Promise<Uint8Array> {
   try {
-    const blob = new Blob([png as unknown as BlobPart], { type: "image/png" });
-    const bmp = await createImageBitmap(blob);
-    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    if (scale >= 1) {
-      bmp.close();
-      return png;
+    const down = await downscalePngWithInfo(png, maxDim);
+    if (down.bytes !== png) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[action] screenshot downscaled ${png.length} → ${down.bytes.length} bytes (${down.width}×${down.height})`,
+      );
     }
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bmp.width * scale);
-    canvas.height = Math.round(bmp.height * scale);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bmp.close();
-      return png;
-    }
-    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    bmp.close();
-    const out = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!out) return png;
-    const scaled = new Uint8Array(await out.arrayBuffer());
-    // eslint-disable-next-line no-console
-    console.log(
-      `[action] screenshot downscaled ${png.length} → ${scaled.length} bytes (${canvas.width}×${canvas.height})`,
-    );
-    return scaled;
+    return down.bytes;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn("[action] screenshot downscale failed — sending original", err);
