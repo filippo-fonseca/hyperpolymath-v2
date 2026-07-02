@@ -30,8 +30,11 @@ function emitBriefingState(active: boolean): void {
  * Fire the proactive briefing turn. Resolves once the POST has been dispatched
  * (the spoken response arrives asynchronously over SSE + TTS). Best-effort: a
  * failed POST is logged and swallowed so wake still proceeds to a command turn.
+ *
+ * Returns whether the POST was accepted — false means NO spoken response is
+ * coming, so callers (the startup sequencer) must not wait for a TTS drain.
  */
-export async function runBriefing(): Promise<void> {
+export async function runBriefing(): Promise<boolean> {
   emitBriefingState(true);
   try {
     const ok = await postText(BRIEFING_PROMPT);
@@ -39,9 +42,11 @@ export async function runBriefing(): Promise<void> {
       // eslint-disable-next-line no-console
       console.warn("[briefing] briefing POST failed — continuing to command turn");
     }
+    return ok;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn("[briefing] error firing briefing", err);
+    return false;
   } finally {
     // The spoken briefing drains over SSE/TTS independently; clear the cue so
     // the HUD returns to its capture-driven states for the command turn.
