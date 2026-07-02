@@ -90,6 +90,34 @@ export async function postTts(args: {
 }
 
 /**
+ * POST /api/jarvis/screenshot/describe
+ * Ships a captured screen PNG (base64) to the server, which runs a one-shot
+ * vision call and PUBLISHES the spoken description itself over the physical
+ * SSE bus (jarvis-response-start/chunk/end) — the desktop's normal TTS path
+ * picks it up, so callers fire-and-forget. Auth matches postTts
+ * (Bearer device token + legacy x-trigger-secret).
+ *
+ * Returns true when the server accepted the image, false otherwise.
+ */
+export async function postScreenshotDescribe(pngBase64: string): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/screenshot/describe`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ png_base64: pngBase64 }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[screenshot/describe] ${res.status}`);
+    return false;
+  }
+  return true;
+}
+
+/**
  * POST /api/jarvis/voice/text
  * Triggers a JARVIS turn from typed/synthetic text (mirrors the mobile app).
  * The server runs the agent and streams the response back over the physicalBus

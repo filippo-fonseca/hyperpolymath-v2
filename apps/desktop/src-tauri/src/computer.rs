@@ -375,6 +375,54 @@ pub fn take_screenshot(region: Option<String>) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// Capture the screen to a PERSISTENT temp PNG and return its path. This is
+/// the describe=false path of the take_screenshot action: the user asked for
+/// a screenshot artifact, not a description, so keep the file on disk (and
+/// skip the multi-MB bytes round-trip over IPC entirely). Same
+/// `screencapture -x` + `-R region` semantics as take_screenshot.
+#[tauri::command]
+pub fn take_screenshot_to_file(region: Option<String>) -> Result<String, String> {
+    let path = std::env::temp_dir().join(format!(
+        "jarvis-screenshot-{}-{}.png",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+
+    let mut cmd = Command::new("screencapture");
+    cmd.arg("-x"); // silent — no shutter sound
+    if let Some(r) = &region {
+        cmd.arg("-R").arg(r);
+    }
+    cmd.arg(&path);
+
+    run_with_timeout(
+        cmd,
+        None,
+        Duration::from_millis(DEFAULT_TIMEOUT_MS),
+        "screenshot",
+    )
+    .and_then(|o| output_to_result(o, "screenshot"))
+    .map_err(|e| {
+        let _ = std::fs::remove_file(&path);
+        eprintln!("[screenshot] to-file failed: {e}");
+        e
+    })?;
+
+    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    eprintln!("[screenshot] saved {} ({} bytes)", path.display(), size);
+    if size < 20_000 {
+        eprintln!(
+            "[screenshot] WARNING: output is suspiciously small ({size} bytes) — likely a blank \
+             capture; check Screen Recording permission (System Settings → Privacy & Security → \
+             Screen Recording)"
+        );
+    }
+    Ok(path.to_string_lossy().to_string())
+}
+
 // ---------------------------------------------------------------------------
 // System control
 // ---------------------------------------------------------------------------

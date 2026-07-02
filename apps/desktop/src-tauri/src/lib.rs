@@ -121,6 +121,7 @@ pub fn run() {
             computer::mouse_click,
             computer::mouse_move,
             computer::take_screenshot,
+            computer::take_screenshot_to_file,
             computer::system_control,
             computer::accessibility_trusted,
         ])
