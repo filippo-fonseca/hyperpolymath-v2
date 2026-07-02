@@ -19,6 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import {
   onCaptureState,
+  onNoSpeechDetected,
   onTranscriptReceived,
   startCaptureTurn,
   toggleCaptureTurn,
@@ -147,13 +148,23 @@ function armStateCap(next: JarvisState): void {
     clearThinkingGrace();
     // Reopen the mic for a hands-free follow-up if the gate now allows it;
     // otherwise sign off cleanly. Either way the FSM leaves the stuck state.
-    if (canStartCapture()) {
-      void openMicIfPossible("safety-cap");
-      armContinueTimeout();
-    } else {
-      endConversation();
-    }
+    reopenOrEndConversation("safety-cap");
   }, cap);
+}
+
+/**
+ * Leave a stalled/finished turn cleanly: reopen the mic for a hands-free
+ * follow-up if the half-duplex gate allows, otherwise sign off. Shared by the
+ * safety-cap force-advance, the thinking-grace path, and the empty-STT escape
+ * so they all land in the same place (continue window vs idle).
+ */
+function reopenOrEndConversation(reason: string): void {
+  if (canStartCapture()) {
+    void openMicIfPossible(reason);
+    armContinueTimeout();
+  } else {
+    endConversation();
+  }
 }
 
 /** Subscribe to FSM state transitions (for the orb / HUD). */
@@ -215,12 +226,7 @@ function onResponseEnded(): void {
     // No audio is coming. Reopen the mic for a hands-free follow-up if the
     // half-duplex gate allows; otherwise sign off gracefully. Guarded by
     // canStartCapture()/conversationActive so we never double-open the mic.
-    if (canStartCapture()) {
-      void openMicIfPossible("thinking-grace");
-      armContinueTimeout();
-    } else {
-      endConversation();
-    }
+    reopenOrEndConversation("thinking-grace");
   }, THINKING_GRACE_MS);
 }
 
@@ -341,6 +347,24 @@ export function startConversationMachine(): void {
       // an empty follow-up ends the conversation gracefully.
       if (state === "listening" && conversationActive) armContinueTimeout();
     }
+  });
+
+  // Empty / failed STT: the turn produced no transcript, so NO agent response
+  // is coming. Without this, capture's uploading→"thinking" transition would
+  // leave the FSM waiting on a response-start that never arrives, hanging in
+  // "working" until the 20s hard cap. Escape "thinking" IMMEDIATELY here —
+  // reopen the mic for a follow-up (continue window) if the conversation is
+  // still active, else sign off — reusing the same tail as the safety cap.
+  onNoSpeechDetected(() => {
+    if (!conversationActive) return;
+    // Only meaningful while we're stalled waiting on a reply. If TTS somehow
+    // started (it shouldn't for an empty turn) defer to the happy path.
+    if (state !== "thinking") return;
+    clearThinkingGrace();
+    clearStateCap();
+    // eslint-disable-next-line no-console
+    console.log("[fsm] no speech detected — escaping thinking without the cap");
+    reopenOrEndConversation("no-speech");
   });
 
   // A spoken end-phrase closes the conversation immediately.

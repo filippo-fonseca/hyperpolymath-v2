@@ -28,6 +28,7 @@ import {
   onExtendedChange,
   onManualModeChange,
   onMicAmplitude,
+  onNoSpeechDetected,
   onTranscriptReceived,
   setManualMode,
   setVadSilenceMs,
@@ -64,7 +65,7 @@ import {
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
-import { startAckStrip } from "@/hud/ack-strip";
+import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
@@ -667,6 +668,14 @@ async function boot(): Promise<void> {
   onCaptureState(paintCaptureState);
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
+  // Empty / failed STT → flash a butler line through the acknowledge strip so
+  // the user gets immediate feedback instead of a silent stall. The strip's
+  // own guard keeps this from clobbering a live streaming response.
+  onNoSpeechDetected((reason) => {
+    flashAckStrip(
+      reason === "stt-failed" ? "Sorry sir, transcription failed" : "Didn't catch that, sir",
+    );
+  });
 
   // TTS state drives the Stop button visibility. The orb's "speaking" state is
   // owned by the conversation FSM (which reads the same ttsPlayer signal).
