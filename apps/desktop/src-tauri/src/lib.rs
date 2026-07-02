@@ -1,5 +1,6 @@
 mod audio;
 mod commands;
+mod computer;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -113,6 +114,8 @@ pub fn run() {
             commands::tts_play_pcm,
             commands::tts_stop,
             commands::tts_clear,
+            computer::run_applescript,
+            computer::run_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
