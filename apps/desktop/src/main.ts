@@ -19,6 +19,7 @@ import {
   isRegistered as isShortcutRegistered,
 } from "@tauri-apps/plugin-global-shortcut";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 import { postClaim } from "@/api/client";
 import {
@@ -54,7 +55,8 @@ import {
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
-import { handleAction, parseAction } from "@/actions/dispatcher";
+import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
+import { startConfirmGate } from "@/actions/confirm-gate";
 import {
   getJarvisState,
   onJarvisState,
@@ -262,18 +264,19 @@ function paintToolCall(name: string, result: unknown): void {
 }
 
 /**
- * Flash a brief "▸ opening {label}" receipt line on the HUD when a
- * computer-control action is dispatched. Purely visual — the agent's streamed
- * text already speaks the acknowledgement, so we do NOT trigger TTS here.
+ * Flash a brief "▸ {summary}" receipt line on the HUD when a computer-control
+ * action is dispatched (summary comes from describeAction, e.g. "opening
+ * Spotify", "message to Emir — awaiting confirmation"). Purely visual — the
+ * agent's streamed text already speaks the acknowledgement, so no TTS here.
  */
-function flashActionLine(label: string): void {
-  pushFooterReceipt(`▸ opening ${label || "…"}`, "action-flash");
+function flashActionLine(summary: string): void {
+  pushFooterReceipt(`▸ ${summary || "…"}`, "action-flash");
   // Drawer QA mirror.
   const toolCallsEl = document.getElementById("tool-calls");
   if (toolCallsEl) {
     const item = document.createElement("div");
     item.className = "tool-call-item action-flash";
-    item.textContent = `▸ opening ${label || "…"}`;
+    item.textContent = `▸ ${summary || "…"}`;
     toolCallsEl.appendChild(item);
   }
 }
@@ -672,7 +675,7 @@ async function boot(): Promise<void> {
     const rawAction = (result as { action?: unknown })?.action;
     const action = parseAction(rawAction);
     if (action) {
-      flashActionLine(action.label);
+      flashActionLine(describeAction(action));
       // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
       // foregrounds the target. We do NOT set_focus() the HUD after an open —
       // that would yank key focus back from the app the user wants to use. The
@@ -722,6 +725,12 @@ async function boot(): Promise<void> {
   startConversationMachine();
   document.body.dataset.jarvisState = "idle";
 
+  // 5b-bis. send_message confirm gate: holds any send_message action until a
+  // spoken affirmative lands in the continue-listening window (transcript +
+  // FSM-state subscriptions live inside the gate). Must start after the FSM
+  // so its idle-expiry subscription sees real transitions.
+  startConfirmGate();
+
   // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
   //     live amplitude: mic RMS while listening, TTS output while speaking.
   let latestMicLevel = 0;
@@ -759,6 +768,30 @@ async function boot(): Promise<void> {
   setInterval(() => {
     void postClaim();
   }, CLAIM_HEARTBEAT_MS);
+
+  // 6b. Startup permission probe: without the Accessibility TCC grant, enigo
+  // input injection (type_text / press_key / mouse) is a SILENT no-op — the
+  // OS reports success and nothing happens. Warn loudly at boot so the
+  // failure mode is visible in the console instead of mystifying a demo.
+  void invoke<boolean>("accessibility_trusted")
+    .then((trusted) => {
+      if (trusted) {
+        // eslint-disable-next-line no-console
+        console.log("[perm] Accessibility: granted — keyboard/mouse injection available");
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[perm] Accessibility NOT granted — type_text/press_key/mouse actions will fail. " +
+            "Enable JARVIS in System Settings → Privacy & Security → Accessibility. " +
+            "(Screen Recording for take_screenshot is a separate TCC-panel grant.)",
+        );
+      }
+    })
+    .catch((err) => {
+      // Non-fatal — running outside Tauri (plain vite dev) has no command.
+      // eslint-disable-next-line no-console
+      console.warn("[perm] accessibility probe failed", err);
+    });
 
   // eslint-disable-next-line no-console
   console.log(

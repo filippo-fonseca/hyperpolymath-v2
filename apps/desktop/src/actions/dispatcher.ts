@@ -4,16 +4,28 @@
 // acknowledgement ("Right away, sir — opening {label}") as normal response
 // text; this module just carries out the side effect on the desktop:
 //
-//   open_url → open a URL in the user's default browser (opener plugin)
-//   open_app → launch a macOS app by name via `open -a <app>` (shell plugin),
-//              optionally with a URL/path argument
+//   open_url        → default browser (opener plugin)
+//   open_app        → `open -a <app>` (shell plugin), optional URL/path arg
+//   send_message    → HELD by the confirm gate; AppleScript send on spoken yes
+//   system_control  → Rust `system_control` (volume/brightness/sleep/focus)
+//   type_text       → Rust `type_text` (enigo keystrokes)
+//   press_key       → Rust `press_key` (enigo key + modifiers)
+//   take_screenshot → Rust `take_screenshot` (+ POST to /screenshot/describe)
+//   run_applescript → Rust `run_applescript` (osascript, 15s SIGKILL timeout)
+//   run_shortcut    → Rust `run_shortcut` (Shortcuts.app CLI)
+//   play_music      → AppleScript against Music/Spotify via run_applescript
 //
-// The action shape is a FIXED CONTRACT with the parallel backend agent:
-//   { kind: "open_url", url, label } | { kind: "open_app", app, label }
-// We key strictly off `kind`.
+// The action shapes are a FIXED CONTRACT with the backend executor
+// (apps/web/lib/jarvis/executor.ts). We key strictly off `kind`.
+// GOTCHA: Tauri v2 IPC camelCases snake_case Rust args (timeout_ms → timeoutMs).
 
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Command } from "@tauri-apps/plugin-shell";
+
+import { buildPlayMusic, runAppleScript } from "@/actions/applescript";
+import { holdSendMessage } from "@/actions/confirm-gate";
+import { postScreenshotDescribe } from "@/api/client";
 
 export interface OpenUrlAction {
   kind: "open_url";
@@ -29,7 +41,74 @@ export interface OpenAppAction {
   url?: string;
 }
 
-export type DesktopAction = OpenUrlAction | OpenAppAction;
+export interface SendMessageAction {
+  kind: "send_message";
+  /** Messaging channel — only "imessage" is emitted by the backend today. */
+  app: string;
+  recipient: string;
+  text: string;
+  /** Always true from the executor; the gate holds the send regardless. */
+  requires_confirm: boolean;
+}
+
+export interface SystemControlAction {
+  kind: "system_control";
+  /** "volume" | "brightness" | "sleep" | "focus" (validated Rust-side). */
+  action: string;
+  /** number (volume/brightness 0-100) or string (focus shortcut name). */
+  value?: string | number;
+}
+
+export interface TypeTextAction {
+  kind: "type_text";
+  text: string;
+}
+
+export interface PressKeyAction {
+  kind: "press_key";
+  key: string;
+  /** Lowercase modifier names: "cmd" | "shift" | "alt" | "ctrl" … */
+  modifiers: string[];
+}
+
+export interface TakeScreenshotAction {
+  kind: "take_screenshot";
+  /** true → POST the PNG to /api/jarvis/screenshot/describe (which speaks
+   *  the description over SSE); false → save to a temp file and log it. */
+  describe: boolean;
+  /** Optional "x,y,w,h" region (passed straight to `screencapture -R`). */
+  region?: string;
+}
+
+export interface RunApplescriptAction {
+  kind: "run_applescript";
+  label: string;
+  script: string;
+}
+
+export interface RunShortcutAction {
+  kind: "run_shortcut";
+  name: string;
+  input?: string;
+}
+
+export interface PlayMusicAction {
+  kind: "play_music";
+  app: "music" | "spotify";
+  query?: string;
+}
+
+export type DesktopAction =
+  | OpenUrlAction
+  | OpenAppAction
+  | SendMessageAction
+  | SystemControlAction
+  | TypeTextAction
+  | PressKeyAction
+  | TakeScreenshotAction
+  | RunApplescriptAction
+  | RunShortcutAction
+  | PlayMusicAction;
 
 /**
  * Narrow an untrusted SSE payload into a DesktopAction. Returns null when the
@@ -59,7 +138,207 @@ export function parseAction(value: unknown): DesktopAction | null {
     return null;
   }
 
+  if (kind === "send_message") {
+    const recipient = obj["recipient"];
+    const text = obj["text"];
+    if (
+      typeof recipient === "string" && recipient.length > 0 &&
+      typeof text === "string" && text.length > 0
+    ) {
+      const app = typeof obj["app"] === "string" ? (obj["app"] as string) : "imessage";
+      // Missing/false requires_confirm still goes through the gate — every
+      // send_message is destructive; the flag is carried for contract fidelity.
+      return {
+        kind: "send_message",
+        app,
+        recipient,
+        text,
+        requires_confirm: obj["requires_confirm"] !== false,
+      };
+    }
+    return null;
+  }
+
+  if (kind === "system_control") {
+    const sysAction = obj["action"];
+    if (typeof sysAction === "string" && sysAction.length > 0) {
+      const rawValue = obj["value"];
+      const value =
+        typeof rawValue === "string" || typeof rawValue === "number" ? rawValue : undefined;
+      return {
+        kind: "system_control",
+        action: sysAction,
+        ...(value !== undefined ? { value } : {}),
+      };
+    }
+    return null;
+  }
+
+  if (kind === "type_text") {
+    const text = obj["text"];
+    if (typeof text === "string" && text.length > 0) {
+      return { kind: "type_text", text };
+    }
+    return null;
+  }
+
+  if (kind === "press_key") {
+    const key = obj["key"];
+    if (typeof key === "string" && key.length > 0) {
+      const rawMods = obj["modifiers"];
+      const modifiers = Array.isArray(rawMods)
+        ? rawMods.filter((m): m is string => typeof m === "string").map((m) => m.toLowerCase())
+        : [];
+      return { kind: "press_key", key, modifiers };
+    }
+    return null;
+  }
+
+  if (kind === "take_screenshot") {
+    // describe defaults true (matches the executor's default).
+    const describe = obj["describe"] !== false;
+    const region = typeof obj["region"] === "string" ? (obj["region"] as string) : undefined;
+    return { kind: "take_screenshot", describe, ...(region ? { region } : {}) };
+  }
+
+  if (kind === "run_applescript") {
+    const script = obj["script"];
+    if (typeof script === "string" && script.length > 0) {
+      return { kind: "run_applescript", label: label || "applescript", script };
+    }
+    return null;
+  }
+
+  if (kind === "run_shortcut") {
+    const name = obj["name"];
+    if (typeof name === "string" && name.length > 0) {
+      const input = typeof obj["input"] === "string" ? (obj["input"] as string) : undefined;
+      return { kind: "run_shortcut", name, ...(input !== undefined ? { input } : {}) };
+    }
+    return null;
+  }
+
+  if (kind === "play_music") {
+    const app = obj["app"] === "spotify" ? "spotify" : "music";
+    const rawQuery = obj["query"];
+    const query =
+      typeof rawQuery === "string" && rawQuery.trim().length > 0 ? rawQuery.trim() : undefined;
+    return { kind: "play_music", app, ...(query ? { query } : {}) };
+  }
+
   return null;
+}
+
+/**
+ * One-line human-readable summary of an action, for the HUD receipt footer.
+ * open_url/open_app keep the historical "opening {label}" copy.
+ */
+export function describeAction(action: DesktopAction): string {
+  switch (action.kind) {
+    case "open_url":
+    case "open_app":
+      return `opening ${action.label || "…"}`;
+    case "send_message":
+      return `message to ${action.recipient} — awaiting confirmation`;
+    case "system_control":
+      return `system ${action.action}${action.value !== undefined ? ` → ${action.value}` : ""}`;
+    case "type_text":
+      return "typing text";
+    case "press_key":
+      return `pressing ${[...action.modifiers, action.key].join("+")}`;
+    case "take_screenshot":
+      return action.describe ? "describing your screen" : "taking a screenshot";
+    case "run_applescript":
+      return action.label;
+    case "run_shortcut":
+      return `shortcut "${action.name}"`;
+    case "play_music":
+      return action.query ? `playing ${action.query}` : "resuming music";
+  }
+}
+
+/** Chunked bytes→base64 (avoids call-stack limits on multi-MB screenshots). */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+// The describe endpoint caps decoded PNGs at 8MB, and the vision model caps
+// images at ~5MB — a full-screen Retina capture routinely exceeds both. Scale
+// long-edge down to this before shipping; the description only needs to name
+// the foreground app + the salient thing, not read 4-pt text.
+const SCREENSHOT_MAX_DIM = 1920;
+
+/** Downscale a PNG in the webview (createImageBitmap + canvas). Best-effort:
+ *  any failure returns the original bytes. */
+async function downscalePng(png: Uint8Array, maxDim = SCREENSHOT_MAX_DIM): Promise<Uint8Array> {
+  try {
+    const blob = new Blob([png as unknown as BlobPart], { type: "image/png" });
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    if (scale >= 1) {
+      bmp.close();
+      return png;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bmp.close();
+      return png;
+    }
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const out = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!out) return png;
+    const scaled = new Uint8Array(await out.arrayBuffer());
+    // eslint-disable-next-line no-console
+    console.log(
+      `[action] screenshot downscaled ${png.length} → ${scaled.length} bytes (${canvas.width}×${canvas.height})`,
+    );
+    return scaled;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[action] screenshot downscale failed — sending original", err);
+    return png;
+  }
+}
+
+/**
+ * take_screenshot flow. describe=true: capture → downscale → base64 → POST to
+ * /api/jarvis/screenshot/describe fire-and-forget (the endpoint speaks the
+ * description itself over the SSE bus — the desktop must NOT speak it too).
+ * describe=false: capture straight to a temp file and log the path.
+ */
+async function handleTakeScreenshot(action: TakeScreenshotAction): Promise<boolean> {
+  if (!action.describe) {
+    const path = await invoke<string>("take_screenshot_to_file", {
+      region: action.region ?? null,
+    });
+    // eslint-disable-next-line no-console
+    console.log(`[action] take_screenshot saved → ${path}`);
+    return true;
+  }
+
+  const bytes = await invoke<number[]>("take_screenshot", { region: action.region ?? null });
+  const png = await downscalePng(new Uint8Array(bytes));
+  const base64 = bytesToBase64(png);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[action] take_screenshot captured ${bytes.length} bytes — posting ${png.length} bytes for description`,
+  );
+  // Fire-and-forget with error logging — postScreenshotDescribe logs non-OK
+  // statuses; the spoken description arrives over the normal SSE→TTS path.
+  void postScreenshotDescribe(base64).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn("[action] screenshot describe POST failed", err);
+  });
+  return true;
 }
 
 /**
@@ -78,6 +357,71 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       await openUrl(action.url);
       // eslint-disable-next-line no-console
       console.log(`[action] open_url → ${action.url}`);
+      return true;
+    }
+
+    if (action.kind === "send_message") {
+      // SAFETY-CRITICAL: never send on arrival. The confirm gate holds the
+      // payload and releases it only on a spoken affirmative (or discards it
+      // on a negative / when the continue window closes). See confirm-gate.ts.
+      holdSendMessage(action);
+      // eslint-disable-next-line no-console
+      console.log(`[action] send_message to "${action.recipient}" routed to confirm gate`);
+      return true;
+    }
+
+    if (action.kind === "system_control") {
+      // Rust wants value: Option<String> — numbers (volume/brightness) are
+      // stringified; it parses them back.
+      const value = action.value !== undefined ? String(action.value) : null;
+      const out = await invoke<string>("system_control", { action: action.action, value });
+      // eslint-disable-next-line no-console
+      console.log(`[action] system_control ${action.action} → ${out}`);
+      return true;
+    }
+
+    if (action.kind === "type_text") {
+      await invoke("type_text", { text: action.text });
+      // eslint-disable-next-line no-console
+      console.log(`[action] type_text (${action.text.length} chars)`);
+      return true;
+    }
+
+    if (action.kind === "press_key") {
+      await invoke("press_key", { key: action.key, modifiers: action.modifiers });
+      // eslint-disable-next-line no-console
+      console.log(`[action] press_key ${[...action.modifiers, action.key].join("+")}`);
+      return true;
+    }
+
+    if (action.kind === "take_screenshot") {
+      return await handleTakeScreenshot(action);
+    }
+
+    if (action.kind === "run_applescript") {
+      const out = await runAppleScript(action.script, action.label);
+      // eslint-disable-next-line no-console
+      console.log(`[action] run_applescript "${action.label}" → ${out || "(no output)"}`);
+      return true;
+    }
+
+    if (action.kind === "run_shortcut") {
+      const out = await invoke<string>("run_shortcut", {
+        name: action.name,
+        input: action.input ?? null,
+      });
+      // eslint-disable-next-line no-console
+      console.log(`[action] run_shortcut "${action.name}" → ${out || "(no output)"}`);
+      return true;
+    }
+
+    if (action.kind === "play_music") {
+      const { script, label } = buildPlayMusic(action.app, action.query);
+      await runAppleScript(script, label);
+      // eslint-disable-next-line no-console
+      console.log(
+        `[action] play_music ${action.app}${action.query ? ` "${action.query}"` : " (resume)"}`,
+      );
       return true;
     }
 
