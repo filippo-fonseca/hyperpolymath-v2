@@ -27,6 +27,7 @@ import type {
   OpenUrlAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
   RunShortcutAction,
@@ -149,6 +150,9 @@ export interface ActionExecutor {
   // `receipt` for the model to narrate. No DesktopAction is emitted.
   readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  // WhatsApp read — fully server-side (queries synced whatsapp_messages);
+  // returns a grouped receipt for the agent to narrate. No DesktopAction.
+  readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Computer Use fallback — mints a session_id and returns the computer_use
   // DesktopAction; the desktop drives the step loop against

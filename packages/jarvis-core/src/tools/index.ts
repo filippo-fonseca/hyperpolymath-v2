@@ -46,9 +46,13 @@
 //
 // Server-side data tools: 2 NON-strict tools added — read_gmail (existing
 // Google OAuth client, gmail.readonly scope) and get_news (Guardian API,
-// BYOK-first with owner GUARDIAN_API_KEY env fallback). Total: 32 tools.
-// Inserted BEFORE computer_use so the cache_control breakpoint stays on
-// computer_use (still the LAST tool).
+// BYOK-first with owner GUARDIAN_API_KEY env fallback).
+//
+// WhatsApp integration: 1 new NON-strict server-side tool added
+// (read_whatsapp), fed by the local sync worker.
+//
+// All three inserted BEFORE computer_use so the cache_control breakpoint
+// stays on computer_use (still the LAST tool). Total: 33 tools.
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -83,6 +87,7 @@ import { playMusicTool } from "./play-music";
 import { getWeatherTool } from "./get-weather";
 import { readGmailTool } from "./read-gmail";
 import { getNewsTool } from "./get-news";
+import { readWhatsappTool } from "./read-whatsapp";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -124,6 +129,7 @@ export interface JarvisToolDefinition {
     | "get_weather"
     | "read_gmail"
     | "get_news"
+    | "read_whatsapp"
     | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
@@ -233,7 +239,6 @@ export function buildToolDefinitions(
     { ...runApplescriptTool, strict: false as const },
     { ...runShortcutTool, strict: false as const },
     { ...playMusicTool, strict: false as const },
-    // get_weather loses cache_control — computer_use follows it.
     { ...getWeatherTool, strict: false as const },
     // Server-side data tools — fetch and return data in the receipt for the
     // model to narrate; no DesktopAction. read_gmail uses the existing Google
@@ -241,6 +246,10 @@ export function buildToolDefinitions(
     // with BYOK + owner env fallback.
     { ...readGmailTool, strict: false as const },
     { ...getNewsTool, strict: false as const },
+    // WhatsApp — server-side read tool. Data comes from the local sync
+    // worker; the executor gracefully returns a friendly setup hint if the
+    // table is empty (bridge not running / worker not paired).
+    { ...readWhatsappTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -291,6 +300,8 @@ export { GetWeatherInputSchema } from "./get-weather";
 // Server-side data tools: re-export input schemas for run-turn.ts validation.
 export { ReadGmailInputSchema } from "./read-gmail";
 export { GetNewsInputSchema } from "./get-news";
+// WhatsApp: re-export input schema for run-turn.ts validation.
+export { ReadWhatsappInputSchema } from "./read-whatsapp";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
 

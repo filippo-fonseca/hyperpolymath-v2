@@ -24,10 +24,13 @@
 // Expiry: a pending confirm is discarded when the conversation returns to
 // idle (the continue window closed without an answer) or after a hard TTL.
 
+import { fetch } from "@tauri-apps/plugin-http";
+
 import { onTranscriptReceived } from "@/audio/capture";
 import { onJarvisState } from "@/conversation/state-machine";
 import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
 import type { SendMessageAction } from "@/actions/dispatcher";
+import { loadSettings } from "@/settings";
 
 /** Spoken affirmatives that release a pending send. */
 const AFFIRM_RE =
@@ -95,8 +98,55 @@ function discardPending(reason: string): void {
   clearPendingState();
 }
 
-/** Run the actual iMessage send through the Rust AppleScript command. */
+/** Send via WhatsApp: POST to the local lharries/whatsapp-mcp Go bridge's
+ *  /api/send endpoint (default localhost:8080). Body shape is fixed by the
+ *  bridge: { recipient, message }. `recipient` accepts an international-format
+ *  phone number OR a chat JID (…@s.whatsapp.net / …@g.us). Failure is logged
+ *  loudly — the send is user-visible so silence would be misleading. */
+async function executeWhatsappSend(action: SendMessageAction): Promise<void> {
+  let bridgeUrl = "http://localhost:8080";
+  try {
+    const s = await loadSettings();
+    if (s.whatsappBridgeUrl) bridgeUrl = s.whatsappBridgeUrl.replace(/\/$/, "");
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[confirm] whatsapp: failed to load bridge URL from settings, using default", err);
+  }
+  const target = `${bridgeUrl}/api/send`;
+  try {
+    const res = await fetch(target, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recipient: action.recipient, message: action.text }),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[confirm] whatsapp send to "${action.recipient}" failed — bridge returned ${res.status} at ${target}. Is the whatsapp-mcp Go bridge running? See tools/whatsapp-sync/README.md.`,
+      );
+      return;
+    }
+    lastSent = { recipient: action.recipient, text: action.text, at: Date.now() };
+    // eslint-disable-next-line no-console
+    console.log(
+      `[confirm] whatsapp send dispatched to "${action.recipient}" (${action.text.length} chars) via ${target}`,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[confirm] whatsapp send to "${action.recipient}" failed — could not reach bridge at ${target}. Is the whatsapp-mcp Go bridge running?`,
+      err,
+    );
+  }
+}
+
+/** Run the actual send. Routes to AppleScript (iMessage) or HTTP bridge
+ *  (WhatsApp) based on action.app. */
 async function executeSend(action: SendMessageAction): Promise<void> {
+  if (action.app === "whatsapp") {
+    await executeWhatsappSend(action);
+    return;
+  }
   const script = buildIMessageSend(action.recipient, action.text);
   try {
     await runAppleScript(script, `send-imessage:${action.recipient}`);

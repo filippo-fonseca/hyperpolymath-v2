@@ -25,6 +25,8 @@ export type JarvisToolName =
   // Server-side data tools (no DesktopAction)
   | "read_gmail"
   | "get_news"
+  // WhatsApp — server-side read of synced messages
+  | "read_whatsapp"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -220,7 +222,9 @@ export interface WebSearchAction {
 // (fully server-side, returns data in the receipt, no DesktopAction).
 
 export interface SendMessageAction {
-  app: "imessage";
+  /** Messaging channel — iMessage (AppleScript via Messages.app) or WhatsApp
+   *  (HTTP POST to the local lharries/whatsapp-mcp Go bridge). */
+  app: "imessage" | "whatsapp";
   recipient: string;
   text: string;
   label?: string;
@@ -286,6 +290,16 @@ export interface GetNewsAction {
   maxResults?: number;
 }
 
+// WhatsApp — server-side read. No DesktopAction; the executor queries the
+// synced whatsapp_messages table and returns a grouped receipt for the agent
+// to narrate. See tools/read-whatsapp.ts for schema.
+export interface ReadWhatsappAction {
+  chat?: string;
+  since_hours?: number;
+  maxResults?: number;
+  unrepliedOnly?: boolean;
+}
+
 
 /** Computer Use fallback — catch-all for desktop tasks no named tool covers.
  *  The executor mints a session_id and returns a DesktopAction; the desktop
@@ -302,7 +316,9 @@ export type DesktopAction =
   | { kind: "open_app"; app: string; label: string }
   | {
       kind: "send_message";
-      app: "imessage";
+      /** iMessage → AppleScript via Messages.app; whatsapp → HTTP POST to the
+       *  local lharries/whatsapp-mcp Go bridge (see apps/desktop dispatcher). */
+      app: "imessage" | "whatsapp";
       recipient: string;
       text: string;
       /** The desktop MUST hold the send until the user confirms aloud. */

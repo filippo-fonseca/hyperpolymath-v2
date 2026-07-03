@@ -97,6 +97,8 @@ export type {
   // Server-side data tools (Gmail read + Guardian news)
   ReadGmailAction,
   GetNewsAction,
+  // WhatsApp — server-side read of synced messages
+  ReadWhatsappAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
 } from "./types";

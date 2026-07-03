@@ -68,6 +68,12 @@ export interface DesktopSettings {
   startupOpenOnStart: StartupOpenItem[];
   /** macOS Shortcuts names to run on session-start, in parallel. Default []. */
   startupShortcuts: string[];
+
+  /** Base URL of the local lharries/whatsapp-mcp Go bridge — the desktop POSTs
+   *  to `<url>/api/send` when send_message action.app === 'whatsapp'. Default
+   *  http://localhost:8080 (the bridge's default). Change if you run the
+   *  bridge on a non-default port. */
+  whatsappBridgeUrl: string;
 }
 
 const DEFAULTS: DesktopSettings = {
@@ -81,6 +87,7 @@ const DEFAULTS: DesktopSettings = {
   startupBriefingEnabled: true,
   startupOpenOnStart: [],
   startupShortcuts: [],
+  whatsappBridgeUrl: "http://localhost:8080",
 };
 
 /** camelCase settings key → dot-notation plugin-store key. */
@@ -95,6 +102,7 @@ const STORE_KEYS: Record<keyof DesktopSettings, string> = {
   startupBriefingEnabled: "startup.briefingEnabled",
   startupOpenOnStart: "startup.openOnStart",
   startupShortcuts: "startup.shortcuts",
+  whatsappBridgeUrl: "whatsapp.bridgeUrl",
 };
 
 // `wake.enabled` is only trusted when this marker is present. The plugin-store
@@ -126,6 +134,7 @@ async function getStore(): Promise<Store> {
         "startup.briefingEnabled": DEFAULTS.startupBriefingEnabled,
         "startup.openOnStart": DEFAULTS.startupOpenOnStart,
         "startup.shortcuts": DEFAULTS.startupShortcuts,
+        "whatsapp.bridgeUrl": DEFAULTS.whatsappBridgeUrl,
       },
     });
   }
@@ -170,6 +179,7 @@ export async function loadSettings(): Promise<DesktopSettings> {
   const startupBriefingEnabled = await store.get<boolean>("startup.briefingEnabled");
   const startupOpenOnStart = await store.get<unknown>("startup.openOnStart");
   const startupShortcuts = await store.get<unknown>("startup.shortcuts");
+  const whatsappBridgeUrl = await store.get<string>("whatsapp.bridgeUrl");
 
   return {
     ttsEnabled: ttsEnabled ?? DEFAULTS.ttsEnabled,
@@ -185,6 +195,10 @@ export async function loadSettings(): Promise<DesktopSettings> {
     startupBriefingEnabled: startupBriefingEnabled ?? DEFAULTS.startupBriefingEnabled,
     startupOpenOnStart: sanitizeOpenItems(startupOpenOnStart),
     startupShortcuts: sanitizeShortcuts(startupShortcuts),
+    whatsappBridgeUrl:
+      typeof whatsappBridgeUrl === "string" && whatsappBridgeUrl.trim()
+        ? whatsappBridgeUrl.trim()
+        : DEFAULTS.whatsappBridgeUrl,
   };
 }
 

@@ -46,8 +46,9 @@ export interface OpenAppAction {
 
 export interface SendMessageAction {
   kind: "send_message";
-  /** Messaging channel — only "imessage" is emitted by the backend today. */
-  app: string;
+  /** Messaging channel: 'imessage' (Messages.app via AppleScript) or 'whatsapp'
+   *  (HTTP POST to the local lharries/whatsapp-mcp Go bridge). */
+  app: "imessage" | "whatsapp";
   recipient: string;
   text: string;
   /** Always true from the executor; the gate holds the send regardless. */
@@ -149,7 +150,10 @@ export function parseAction(value: unknown): DesktopAction | null {
       typeof recipient === "string" && recipient.length > 0 &&
       typeof text === "string" && text.length > 0
     ) {
-      const app = typeof obj["app"] === "string" ? (obj["app"] as string) : "imessage";
+      // Narrow app to the supported channels. Unknown values fall back to
+      // imessage so bad payloads never accidentally route to whatsapp.
+      const rawApp = typeof obj["app"] === "string" ? (obj["app"] as string) : "imessage";
+      const app: "imessage" | "whatsapp" = rawApp === "whatsapp" ? "whatsapp" : "imessage";
       // Missing/false requires_confirm still goes through the gate — every
       // send_message is destructive; the flag is carried for contract fidelity.
       return {
@@ -255,7 +259,7 @@ export function describeAction(action: DesktopAction): string {
     case "open_app":
       return `opening ${action.label || "…"}`;
     case "send_message":
-      return `message to ${action.recipient} — awaiting confirmation`;
+      return `${action.app === "whatsapp" ? "WhatsApp" : "iMessage"} to ${action.recipient} — awaiting confirmation`;
     case "system_control":
       return `system ${action.action}${action.value !== undefined ? ` → ${action.value}` : ""}`;
     case "type_text":
