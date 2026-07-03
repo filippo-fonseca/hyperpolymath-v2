@@ -143,6 +143,19 @@ function autoScroll(el: HTMLElement, wasNearBottom: boolean): void {
   if (wasNearBottom) el.scrollTop = el.scrollHeight;
 }
 
+// Transcript turn-pairing. The user bubble (from local STT) and the JARVIS
+// reply bubble (from the SSE `response-start`) can arrive in EITHER order: the
+// server often emits response-start before the desktop's own transcript
+// callback fires, which used to render the reply ABOVE the user's message.
+// This 3-state machine guarantees each user↔reply pair renders in order, and
+// always returns to "neutral" after a pair so consecutive turns can't leak
+// mis-ordering into each other.
+type TurnPairState = "neutral" | "user-opened" | "reply-opened";
+let turnPairState: TurnPairState = "neutral";
+// The reply bubble that opened before its user message — the next user bubble
+// is inserted BEFORE this so order is preserved.
+let jarvisTurnAwaitingUser: HTMLElement | null = null;
+
 /** Append a completed user-utterance bubble. */
 function appendUserTurn(text: string): void {
   const el = transcriptEl();
@@ -158,7 +171,15 @@ function appendUserTurn(text: string): void {
   body.className = "body";
   body.textContent = text;
   turn.append(who, body);
-  el.appendChild(turn);
+  if (turnPairState === "reply-opened" && jarvisTurnAwaitingUser) {
+    // The reply bubble beat us here — slot the user message in above it.
+    el.insertBefore(turn, jarvisTurnAwaitingUser);
+    turnPairState = "neutral";
+    jarvisTurnAwaitingUser = null;
+  } else {
+    el.appendChild(turn);
+    turnPairState = "user-opened";
+  }
   autoScroll(el, near);
 }
 
@@ -180,6 +201,16 @@ function startJarvisTurn(): void {
   turn.append(who, body);
   el.appendChild(turn);
   currentReplyBody = body;
+  if (turnPairState === "user-opened") {
+    // User message already rendered — this reply follows it naturally.
+    turnPairState = "neutral";
+    jarvisTurnAwaitingUser = null;
+  } else {
+    // Reply opened first (SSE beat local STT) — remember it so the next user
+    // bubble is inserted above.
+    turnPairState = "reply-opened";
+    jarvisTurnAwaitingUser = turn;
+  }
   el.scrollTop = el.scrollHeight;
 }
 
