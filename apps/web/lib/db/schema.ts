@@ -19,7 +19,13 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type SQL } from "drizzle-orm";
-import { priorityEnum, taskStatusEnum, semesterTermEnum } from "./enums";
+import {
+  priorityEnum,
+  taskStatusEnum,
+  semesterTermEnum,
+  pageFieldTypeEnum,
+  pageFieldScopeEnum,
+} from "./enums";
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
@@ -440,6 +446,77 @@ export const pagesProjects = pgTable("pages_projects", {
   index("pages_projects_project_idx").on(t.projectId),
   index("pages_projects_user_idx").on(t.userId),
 ]);
+
+// ─── PAGE CUSTOM FIELDS (issue #165) ─────────────────────────────────────────
+// Notion-style user-defined properties on wiki pages. A definition is created
+// once (globally, per user) and reused across pages; a page "has" a field when a
+// page_field_values row links them. The value column is jsonb so one column
+// holds every type: text→string, number→number, date→"yyyy-MM-dd" string,
+// checkbox→boolean, select→string[] of option ids (single-select is length ≤ 1,
+// enforced in the UI + action; allow_multiple distinguishes single vs tags).
+
+// A select option lives inline on the definition's options jsonb array.
+export interface PageFieldSelectOption {
+  id: string;
+  label: string;
+  // A palette key (see lib/pages/custom-fields.ts) for the tag chip color.
+  color?: string;
+}
+
+export const pageFieldDefinitions = pgTable(
+  "page_field_definitions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: pageFieldTypeEnum("type").notNull(),
+    // 'wiki' = applies to every page; 'folder' = defined on a top-level folder
+    // (folder_id set) and cascades to that folder's descendant pages.
+    scope: pageFieldScopeEnum("scope").notNull().default("wiki"),
+    // Set only for scope = 'folder': the top-level folder this def belongs to.
+    // ON DELETE CASCADE removes the def when its folder is deleted.
+    folderId: uuid("folder_id").references(() => pageFolders.id, { onDelete: "cascade" }),
+    // Only meaningful for type = 'select': the choosable options. NULL otherwise.
+    options: jsonb("options").$type<PageFieldSelectOption[]>(),
+    // Only meaningful for type = 'select': off = single-select, on = tags.
+    allowMultiple: boolean("allow_multiple").notNull().default(false),
+    // Stable display order in the properties block; lower sorts first.
+    orderIndex: integer("order_index").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("page_field_definitions_user_idx").on(t.userId),
+    index("page_field_definitions_folder_idx").on(t.folderId),
+  ],
+);
+
+export const pageFieldValues = pgTable(
+  "page_field_values",
+  {
+    pageId: uuid("page_id")
+      .notNull()
+      .references(() => pages.id, { onDelete: "cascade" }),
+    fieldDefinitionId: uuid("field_definition_id")
+      .notNull()
+      .references(() => pageFieldDefinitions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(), // denormalized for RLS (D-03)
+    // The typed value; NULL/empty until the user fills it in. See jsonb note above.
+    value: jsonb("value"),
+    // Per-page override: when true, this (applicable) property is hidden on this
+    // page even though its definition applies. Default visible.
+    hidden: boolean("hidden").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.fieldDefinitionId] }),
+    index("page_field_values_field_idx").on(t.fieldDefinitionId),
+    index("page_field_values_user_idx").on(t.userId),
+  ],
+);
 
 export const capturesHashtags = pgTable("captures_hashtags", {
   captureId: uuid("capture_id")

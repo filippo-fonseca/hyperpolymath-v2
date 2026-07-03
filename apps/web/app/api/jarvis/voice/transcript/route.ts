@@ -10,6 +10,7 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { buildRecentHistory } from "@/lib/jarvis/recent-history";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { constantTimeEqual } from "@/lib/auth/constant-time";
@@ -137,6 +138,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
 
+  // Conversation memory: load the recent-turn window BEFORE persisting the
+  // current user turn, so the current utterance is never double-counted in the
+  // history we thread in. Fail-open — a history-load error must never break the
+  // turn; we fall back to the old cold single-turn behavior.
+  let recentHistory: Awaited<ReturnType<typeof buildRecentHistory>> = [];
+  try {
+    recentHistory = await buildRecentHistory(userId);
+  } catch (err) {
+    console.error("[voice/transcript] buildRecentHistory failed; running without history", err);
+    recentHistory = [];
+  }
+
   // Persist the user turn immediately — visible on next browser load even if
   // the tab was closed before the response completes.
   void db
@@ -175,6 +188,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     userId,
     apiKey: anthropicKey,
     input: transcript,
+    // Thread the recent conversation window in front of the current turn so
+    // pronoun / entity references ("send him a message") resolve. The current
+    // user turn is appended last and is the only turn the model must act on.
+    messages: [...recentHistory, { role: "user", content: transcript }],
     // Provenance: paired-device token name; the headless ESP32 path has no
     // token identity, so it reads as the physical extender.
     source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },

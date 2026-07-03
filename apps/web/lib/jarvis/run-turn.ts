@@ -21,6 +21,7 @@ import {
   zRememberFactFor,
 } from "@hyperpolymath/jarvis-core";
 import { getJarvisFactsForUser } from "@/lib/db/queries/jarvis-facts";
+import { extractAndPersistFacts } from "@/lib/jarvis/extract-facts";
 import {
   buildSessionEntitiesBlock,
   reconstructSessionEntitiesFromHistory,
@@ -656,6 +657,20 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     }
 
     opts.onDone(totalUsage);
+
+    // Aggressive fact extraction — fire-and-forget so it never delays the SSE
+    // stream closing (onDone already fired). Mines the last few messages of
+    // this turn (user utterance + any clarification + the answer) for durable
+    // facts and upserts them into jarvis_facts for the next turn's context.
+    // Entirely fail-closed inside extractAndPersistFacts; never awaited.
+    void extractAndPersistFacts({
+      userId: opts.userId,
+      recentMessages: loopMessages.slice(-4).map((m) => ({
+        role: m.role,
+        content: m.content as unknown as string,
+      })),
+      apiKey: opts.apiKey,
+    });
 
     void logJarvisEvent({
       id: turnId,
