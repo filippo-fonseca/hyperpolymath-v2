@@ -1,15 +1,17 @@
 /**
- * extract-facts.ts — aggressive, cheap fact extraction after each JARVIS turn.
+ * extract-facts.ts — aggressive, cheap fact extraction AND reconciliation after
+ * each JARVIS turn.
  *
  * After a turn completes, we run one HAIKU call over the last few messages to
  * pull out DURABLE facts worth remembering: relationships, contact-channel
  * preferences (e.g. "Rohan is reached on WhatsApp"), standing instructions,
- * recurring preferences. Each extracted fact is upserted into `jarvis_facts`
- * (the existing long-term memory table) with source "jarvis_suggested", using
- * the same UNIQUE(user_id, type, key) last-write-wins path the `remember_fact`
- * executor uses. Because `buildFactsBlock` injects jarvis_facts into the cached
- * system prompt, anything saved here is automatically pre-loaded into context
- * on the NEXT turn — no new table, no migration, no read plumbing.
+ * recurring preferences. Each op is applied against `jarvis_facts` (the
+ * existing long-term memory table): `upsert` writes with source
+ * "jarvis_suggested" via the same UNIQUE(user_id, type, key) last-write-wins
+ * path the `remember_fact` executor uses; `delete` removes a retracted fact.
+ * Because `buildFactsBlock` injects jarvis_facts into the cached system prompt,
+ * anything saved here is automatically pre-loaded into context on the NEXT turn
+ * — no new table, no migration, no read plumbing.
  *
  * The key win over `remember_fact` (which only fires when the model explicitly
  * decides to save something) is that this captures facts LEARNED from the
@@ -17,6 +19,14 @@
  * "which app should I use to reach Rohan?" and the user replies "WhatsApp",
  * that preference gets persisted even though the user never said "remember
  * that Rohan uses WhatsApp".
+ *
+ * RECONCILIATION: we feed the user's CURRENT MEMORY (all their existing facts)
+ * into the Haiku prompt so it can (a) reuse the EXACT existing key when a new
+ * statement UPDATES a fact — so the upsert overwrites the right row rather than
+ * spawning a near-duplicate — and (b) emit a `delete` when a fact is retracted
+ * or contradicted with no replacement. This closes the "contradiction" gap:
+ * "actually message Rohan on iMessage" overwrites the WhatsApp value, and
+ * "forget that I prefer morning workouts" deletes the preference.
  *
  * Fire-and-forget from run-turn.ts (no await), and ENTIRELY fail-closed: any
  * error (Haiku, parse, or db) is swallowed with a console.warn. It must never
@@ -29,34 +39,53 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { jarvisFacts } from "@/lib/db/schema";
+import { getJarvisFactsForUser } from "@/lib/db/queries/jarvis-facts";
 import { HAIKU_MODEL, getAnthropicClient } from "@/lib/jarvis/anthropic-client";
 
 const FACT_TYPES = ["preference", "rule", "entity", "workflow"] as const;
 
-const extractedFactsSchema = z.object({
-  facts: z
+/** Guard against a runaway Haiku response nuking or bloating memory. */
+const MAX_OPERATIONS = 10;
+/** Cap the CURRENT MEMORY rendering so the prompt stays cheap and bounded. */
+const MAX_MEMORY_LINES = 60;
+const MAX_MEMORY_VALUE_LEN = 200;
+
+const reconcileMemorySchema = z.object({
+  operations: z
     .array(
-      z.object({
-        type: z.enum(FACT_TYPES),
-        key: z.string().min(1),
-        value: z.string().min(1),
-      }),
+      z
+        .object({
+          op: z.enum(["upsert", "delete"]),
+          type: z.enum(FACT_TYPES),
+          key: z.string().min(1),
+          value: z.string().optional(),
+        })
+        // value is REQUIRED (non-empty) for upsert; ignored for delete.
+        .refine((o) => o.op !== "upsert" || (typeof o.value === "string" && o.value.trim().length > 0), {
+          message: "upsert requires a non-empty value",
+        }),
     )
     .default([]),
 });
 
-const TOOL_NAME = "extract_facts";
+const TOOL_NAME = "reconcile_memory";
 
 const TOOL_INPUT_SCHEMA = {
   type: "object" as const,
   properties: {
-    facts: {
+    operations: {
       type: "array",
       description:
-        "Durable facts worth remembering about the user, learned from this exchange. Empty when nothing durable was said.",
+        "Memory operations reconciling this exchange against CURRENT MEMORY. Empty when nothing durable changed. `upsert` to add or overwrite a fact; `delete` to remove a retracted/contradicted one.",
       items: {
         type: "object",
         properties: {
+          op: {
+            type: "string",
+            enum: ["upsert", "delete"],
+            description:
+              "'upsert' creates or OVERWRITES the fact at (type,key); 'delete' removes an existing fact that has been retracted or contradicted with no replacement.",
+          },
           type: {
             type: "string",
             enum: [...FACT_TYPES],
@@ -66,24 +95,25 @@ const TOOL_INPUT_SCHEMA = {
           key: {
             type: "string",
             description:
-              "Short stable identifier for the fact, dot-scoped when about an entity (e.g. 'rohan.messaging_app', 'meetings.default_length'). Reuse the same key so later updates overwrite rather than duplicate.",
+              "Short stable identifier for the fact, dot-scoped when about an entity (e.g. 'rohan.messaging_app', 'meetings.default_length'). When UPDATING or DELETING a fact that appears in CURRENT MEMORY, use its EXACT existing key so the op targets the right row.",
           },
           value: {
             type: "string",
-            description: "The fact itself, in a short phrase (e.g. 'WhatsApp', '30 minutes').",
+            description:
+              "The fact itself, in a short phrase (e.g. 'WhatsApp', '30 minutes'). REQUIRED for op 'upsert'; omit for 'delete'.",
           },
         },
-        required: ["type", "key", "value"],
+        required: ["op", "type", "key"],
         additionalProperties: false,
       },
     },
   },
-  required: ["facts"],
+  required: ["operations"],
   additionalProperties: false,
 };
 
 const SYSTEM_PROMPT = [
-  "You extract DURABLE facts from a short exchange between a user and their personal-assistant agent (JARVIS), to save into long-term memory.",
+  "You maintain the DURABLE long-term memory of a personal-assistant agent (JARVIS) by reconciling a short user↔JARVIS exchange against the user's CURRENT MEMORY.",
   "",
   "GOAL: save as much genuinely durable information as possible — facts that will still be true and useful on a future, unrelated day. Be aggressive about capturing:",
   "- relationships and who people are (e.g. 'Rohan is the user's brother')",
@@ -93,18 +123,43 @@ const SYSTEM_PROMPT = [
   "",
   "IMPORTANT: capture preferences LEARNED from the exchange, not just verbatim statements. If the agent asked a clarifying question and the user answered, save the answer as a durable fact.",
   "",
+  "RECONCILE against CURRENT MEMORY:",
+  "- When the exchange UPDATES or CONTRADICTS a fact already in CURRENT MEMORY, emit an `upsert` on that fact's EXACT existing (type,key) with the NEW value. This overwrites the stale value in place — do NOT invent a new near-duplicate key.",
+  "- When the user RETRACTS a fact that is in CURRENT MEMORY and gives no replacement, emit a `delete` on its EXACT (type,key).",
+  "- Only `delete` facts that actually appear in CURRENT MEMORY. Never delete a key you have not seen there.",
+  "- For genuinely new durable facts, emit an `upsert` with a stable dot-scoped key.",
+  "",
   "DO NOT save: one-off task content, dates for a single event, transient chit-chat, or anything that is only true for this single request.",
   "",
   "Use a stable dot-scoped `key` per entity so a later update overwrites the same key instead of creating a duplicate (e.g. always 'rohan.messaging_app').",
   "",
   "EXAMPLES:",
-  'Exchange: user "text Rohan" → agent "which app should I use to reach Rohan?" → user "WhatsApp". Save: [{"type":"entity","key":"rohan.messaging_app","value":"WhatsApp"}].',
-  'Exchange: user "my brother Sam just moved to Boston". Save: [{"type":"entity","key":"sam.relationship","value":"brother"},{"type":"entity","key":"sam.location","value":"Boston"}].',
-  'Exchange: user "always default my meetings to 30 minutes". Save: [{"type":"preference","key":"meetings.default_length","value":"30 minutes"}].',
-  'Exchange: user "add milk to my shopping list" → agent "Added.". Save: [] (one-off task content, nothing durable).',
+  'Exchange: user "text Rohan" → JARVIS "which app should I use to reach Rohan?" → user "WhatsApp". CURRENT MEMORY: (none). Ops: [{"op":"upsert","type":"entity","key":"rohan.messaging_app","value":"WhatsApp"}].',
+  'Exchange: user "actually message Rohan on iMessage from now on". CURRENT MEMORY: entity/rohan.messaging_app = WhatsApp. This CONTRADICTS the stored value, so overwrite the same key. Ops: [{"op":"upsert","type":"entity","key":"rohan.messaging_app","value":"iMessage"}].',
+  'Exchange: user "forget that I prefer morning workouts". CURRENT MEMORY: preference/workout_time = morning. Retraction with no replacement, so delete it. Ops: [{"op":"delete","type":"preference","key":"workout_time"}].',
+  'Exchange: user "my brother Sam just moved to Boston". CURRENT MEMORY: (none). Ops: [{"op":"upsert","type":"entity","key":"sam.relationship","value":"brother"},{"op":"upsert","type":"entity","key":"sam.location","value":"Boston"}].',
+  'Exchange: user "add milk to my shopping list" → JARVIS "Added.". Ops: [] (one-off task content, nothing durable).',
   "",
-  "Always respond by calling the extract_facts tool exactly once. Return an empty facts array when nothing durable was said. Do not write prose.",
+  "Always respond by calling the reconcile_memory tool exactly once. Return an empty operations array when nothing durable changed. Do not write prose.",
 ].join("\n");
+
+/**
+ * Render the user's current facts as compact `type/key = value` lines, capped
+ * in count and length so the prompt stays bounded and cheap. This is the
+ * CURRENT MEMORY the model reconciles against.
+ */
+function renderCurrentMemory(
+  facts: Array<{ type: string; key: string; value: string }>,
+): string {
+  if (facts.length === 0) return "(none)";
+  const lines: string[] = [];
+  for (const f of facts.slice(0, MAX_MEMORY_LINES)) {
+    let value = f.value ?? "";
+    if (value.length > MAX_MEMORY_VALUE_LEN) value = `${value.slice(0, MAX_MEMORY_VALUE_LEN)}…`;
+    lines.push(`${f.type}/${f.key} = ${value}`);
+  }
+  return lines.join("\n");
+}
 
 /** One message worth of plain text, in the order the conversation happened. */
 export interface ExtractFactsMessage {
@@ -139,8 +194,9 @@ function messageToText(content: unknown): string {
 }
 
 /**
- * Extract durable facts from the recent exchange and upsert them into
- * jarvis_facts. Fire-and-forget; NEVER throws (fail-closed on any error).
+ * Extract durable facts from the recent exchange and reconcile them against the
+ * user's existing memory: upsert new/updated facts and delete retracted ones.
+ * Fire-and-forget; NEVER throws (fail-closed on any error).
  */
 export async function extractAndPersistFacts(args: ExtractAndPersistFactsArgs): Promise<void> {
   try {
@@ -160,6 +216,20 @@ export async function extractAndPersistFacts(args: ExtractAndPersistFactsArgs): 
       .map((m) => `${m.role === "assistant" ? "JARVIS" : "USER"}: ${m.content}`)
       .join("\n");
 
+    // Load the user's CURRENT MEMORY so Haiku can reconcile against it — reuse
+    // the exact key when updating, and only delete facts it can actually see.
+    // Guard: treat any read failure as empty memory; never throw.
+    let currentFacts: Array<{ type: string; key: string; value: string }> = [];
+    const knownKeys = new Set<string>();
+    try {
+      const rows = await getJarvisFactsForUser(userId);
+      currentFacts = rows.map((r) => ({ type: r.type, key: r.key, value: r.value }));
+      for (const f of currentFacts) knownKeys.add(`${f.type} ${f.key}`);
+    } catch (memErr) {
+      console.warn("[extract-facts] failed to load current memory; treating as empty", memErr);
+    }
+    const currentMemory = renderCurrentMemory(currentFacts);
+
     const client = getAnthropicClient(apiKey);
     const response = await client.messages.create({
       model: HAIKU_MODEL,
@@ -168,24 +238,54 @@ export async function extractAndPersistFacts(args: ExtractAndPersistFactsArgs): 
       tools: [
         {
           name: TOOL_NAME,
-          description: "Emit durable facts learned from this exchange. Always call this exactly once.",
+          description:
+            "Reconcile this exchange against CURRENT MEMORY, emitting upsert/delete operations. Always call this exactly once.",
           input_schema: TOOL_INPUT_SCHEMA,
         },
       ],
       tool_choice: { type: "tool", name: TOOL_NAME },
-      messages: [{ role: "user", content: `Exchange:\n${transcript}` }],
+      messages: [
+        { role: "user", content: `CURRENT MEMORY:\n${currentMemory}\n\nExchange:\n${transcript}` },
+      ],
     });
 
     const toolUse = response.content.find((block) => block.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") return;
 
-    const parsed = extractedFactsSchema.safeParse(toolUse.input);
+    const parsed = reconcileMemorySchema.safeParse(toolUse.input);
     if (!parsed.success) return;
 
-    for (const fact of parsed.data.facts) {
-      const key = fact.key.trim();
-      const value = fact.value.trim();
-      if (!key || !value) continue;
+    // Cap the op count so a runaway response can't nuke or bloat memory.
+    const operations = parsed.data.operations.slice(0, MAX_OPERATIONS);
+
+    for (const op of operations) {
+      const key = op.key.trim();
+      if (!key) continue;
+
+      if (op.op === "delete") {
+        // Only delete facts we actually fed the model (present in CURRENT
+        // MEMORY). The where-clause is also safe on its own, but this guards
+        // against Haiku inventing deletes for keys it never saw.
+        if (!knownKeys.has(`${op.type} ${key}`)) continue;
+        try {
+          await db
+            .delete(jarvisFacts)
+            .where(
+              and(
+                eq(jarvisFacts.userId, userId),
+                eq(jarvisFacts.type, op.type),
+                eq(jarvisFacts.key, key),
+              ),
+            );
+        } catch (dbErr) {
+          console.warn("[extract-facts] failed to delete one fact; skipping", dbErr);
+        }
+        continue;
+      }
+
+      // op === "upsert" — value is guaranteed non-empty by the schema refine.
+      const value = (op.value ?? "").trim();
+      if (!value) continue;
 
       // Dedupe cheaply: skip the write when an identical value already exists
       // for this (user, type, key) so we don't churn updatedAt on every turn.
@@ -196,7 +296,7 @@ export async function extractAndPersistFacts(args: ExtractAndPersistFactsArgs): 
           .where(
             and(
               eq(jarvisFacts.userId, userId),
-              eq(jarvisFacts.type, fact.type),
+              eq(jarvisFacts.type, op.type),
               eq(jarvisFacts.key, key),
             ),
           )
@@ -204,13 +304,15 @@ export async function extractAndPersistFacts(args: ExtractAndPersistFactsArgs): 
         if (existing[0]?.value === value) continue;
 
         // Same upsert path as executor.rememberFact: UNIQUE(user_id,type,key)
-        // last-write-wins. Source is "jarvis_suggested" (auto-learned).
+        // last-write-wins. Source is "jarvis_suggested" (auto-learned). When
+        // this key already exists (a contradiction/update), the conflict clause
+        // OVERWRITES the stale value in place.
         const now = new Date();
         await db
           .insert(jarvisFacts)
           .values({
             userId,
-            type: fact.type,
+            type: op.type,
             key,
             value,
             source: "jarvis_suggested",
