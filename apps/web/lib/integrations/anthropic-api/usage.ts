@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { anthropicApiUsage } from '@/lib/db/schema';
 import { err, ok, type Result } from '@/lib/integrations/result';
 import { getUserKeyOrNull } from '@/lib/byok/keys';
+import { isOwnerUser } from '@/lib/auth/owner';
 
 /**
  * Anthropic API (pay-as-you-go) usage data layer (260616-g0y, DEC-1).
@@ -227,12 +228,13 @@ export async function getAnthropicApiUsage(): Promise<Result<AnthropicDailyUsage
     return cache.data;
   }
 
-  // Per-user BYOK: read THIS user's own Anthropic Admin key (issue #150). There
-  // is deliberately no fallback to the owner's ANTHROPIC_ADMIN_KEY env var — a
-  // public user must never read cost data billed to the owner's account. If the
-  // user hasn't set an admin key, the panel stays dark for them (serve any warm
-  // table rows we already have, else a clear "not configured" error).
-  const adminKey = await getUserKeyOrNull(userId, 'anthropic_admin');
+  // Per-user BYOK: read THIS user's own Anthropic Admin key (issue #150). A
+  // public user must never read cost data billed to the owner's account, so the
+  // ANTHROPIC_ADMIN_KEY env fallback is gated to the owner only — for the owner
+  // it means the panel works with no key configured in-app.
+  const adminKey =
+    (await getUserKeyOrNull(userId, 'anthropic_admin')) ??
+    ((await isOwnerUser(userId)) ? process.env.ANTHROPIC_ADMIN_KEY ?? null : null);
 
   // No admin key configured for this user: serve whatever the table holds, else error.
   if (!adminKey) {
