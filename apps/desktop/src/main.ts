@@ -13,11 +13,6 @@
 //   9. Wire all settings toggles (TTS enabled, provider, PE mode, Stop button)
 //  10. Register global hotkey when PE mode is OFF (Piece 5 / Cmd+Shift+J)
 
-import {
-  register as registerShortcut,
-  unregister as unregisterShortcut,
-  isRegistered as isShortcutRegistered,
-} from "@tauri-apps/plugin-global-shortcut";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -69,6 +64,7 @@ import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
+import { safeRegister } from "@/hotkeys/register";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 
@@ -416,46 +412,6 @@ function prettyHotkey(accel: string): string {
     .replace(/Backslash/g, "\\")
     .replace(/Period/g, ".")
     .replace(/\+/g, "");
-}
-
-async function safeRegister(
-  hotkey: string,
-  label: string,
-  handler: () => void,
-): Promise<boolean> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) already registered`);
-      return true;
-    }
-    await registerShortcut(hotkey, (event) => {
-      if (event.state !== "Pressed") return;
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) pressed`);
-      handler();
-    });
-    // eslint-disable-next-line no-console
-    console.log(`[hotkey] ${label} (${hotkey}) registered`);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to register ${label} (${hotkey})`, err);
-    return false;
-  }
-}
-
-async function safeUnregister(hotkey: string, label: string): Promise<void> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      await unregisterShortcut(hotkey);
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) released`);
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to unregister ${label} (${hotkey})`, err);
-  }
 }
 
 /**
