@@ -27,7 +27,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { isCaptureActive, probeBufferTail } from "@/audio/capture";
 
-// "Daddy's home" — matches with or without the apostrophe.
+// Built-in "Daddy's home" — matches with or without the apostrophe. This stays
+// a special-cased BUILT-IN (→ startConversation, the session-start sequence),
+// NOT a stored routine: it must work with zero routines / server unreachable,
+// and it maps to opening a conversation, not to running a block list.
 const WAKE_PHRASE = /\bdaddy'?s\s+home\b/i;
 const WAKE_PROBE_INTERVAL_MS = 2_200;
 // Rolling buffer cap. probeBufferTail only transcribes the last ~5s, so keep
@@ -89,6 +92,39 @@ export function setWakeTriggerHandler(fn: () => void): void {
   triggerHandler = fn;
 }
 
+// Injected routine dispatch (main.ts wires the registry). The matcher scans
+// the routine phrase table (wake + utterance triggers) and returns a matched
+// routineId or null; the fire handler runs that routine's blocks. Kept as
+// injection seams so this module never imports the registry (which imports
+// this module for stopWakeLoop — avoids a cycle). hasPhrase lets the idle
+// loop run whenever phrase routines exist, even if the legacy wake toggle is
+// off (authoring a phrase routine is itself the opt-in to the green mic).
+let phraseMatcher: ((text: string) => string | null) | null = null;
+let routineFireHandler: ((routineId: string, type: "wake" | "utterance") => void) | null = null;
+let hasPhrase: (() => boolean) | null = null;
+
+/** Inject the routine phrase matcher (registry.matchPhrase). */
+export function setPhraseMatcher(fn: (text: string) => string | null): void {
+  phraseMatcher = fn;
+}
+
+/** Inject the routine fire handler (→ registry.fireRoutine). */
+export function setRoutineFireHandler(
+  fn: (routineId: string, type: "wake" | "utterance") => void,
+): void {
+  routineFireHandler = fn;
+}
+
+/** Inject the "any phrase routines exist?" predicate (registry.hasPhraseTriggers). */
+export function setHasPhraseTriggers(fn: () => boolean): void {
+  hasPhrase = fn;
+}
+
+/** True when the idle mic loop should run: legacy wake toggle OR phrase routines. */
+function shouldRunIdleLoop(): boolean {
+  return enabled || (hasPhrase?.() ?? false);
+}
+
 type WakeStateListener = (active: boolean) => void;
 const wakeStateListeners = new Set<WakeStateListener>();
 
@@ -127,11 +163,15 @@ export function setWakeEnabled(on: boolean): void {
         console.log("[wake] enabled — idle listener deferred (turn active); resumes on idle");
       }
     });
-  } else {
+  } else if (!(hasPhrase?.() ?? false)) {
+    // Only tear the mic down when NO phrase routine still needs the idle loop.
     void stopWakeLoop().then(() => {
       // eslint-disable-next-line no-console
       console.log("[wake] disabled — idle listener stopped");
     });
+  } else {
+    // eslint-disable-next-line no-console
+    console.log("[wake] toggle off but phrase routines active — idle loop kept");
   }
 }
 
@@ -145,7 +185,7 @@ export function isWakeEnabled(): boolean {
  * loop restarts later via resumeWakeLoopIfIdle().
  */
 export async function startWakeLoop(): Promise<void> {
-  if (!enabled || running || triggering) return;
+  if (!shouldRunIdleLoop() || running || triggering) return;
   if (isCaptureActive()) return;
 
   running = true;
@@ -173,7 +213,28 @@ async function runWakeProbe(): Promise<void> {
   probeInFlight = true;
   try {
     const text = await probeBufferTail(tail);
-    if (text && WAKE_PHRASE.test(text) && running && !triggering) {
+    if (!text || !running || triggering) return;
+
+    // Routine phrases (wake + utterance triggers) match FIRST; a routine
+    // phrase runs that routine's blocks. If none match, fall back to the
+    // built-in "Daddy's home" → startConversation. One idle probe, two targets.
+    const routineId = phraseMatcher?.(text) ?? null;
+    if (routineId && routineFireHandler) {
+      // eslint-disable-next-line no-console
+      console.log(`[wake] routine phrase matched — firing ${routineId}`);
+      triggering = true;
+      // Release the mic FIRST so the routine's spoken block results own the
+      // stream and can't feed back into the idle probe.
+      await stopWakeLoop();
+      try {
+        routineFireHandler(routineId, "wake");
+      } finally {
+        triggering = false;
+      }
+      return;
+    }
+
+    if (WAKE_PHRASE.test(text)) {
       // eslint-disable-next-line no-console
       console.log("[wake] 'daddy's home' detected — invoking JARVIS");
       triggering = true;
@@ -225,7 +286,19 @@ export async function stopWakeLoop(): Promise<void> {
  * wake resumes between conversations.
  */
 export async function resumeWakeLoopIfIdle(): Promise<void> {
-  if (!enabled || running || triggering) return;
+  if (!shouldRunIdleLoop() || running || triggering) return;
   if (isCaptureActive()) return;
   await startWakeLoop();
+}
+
+/**
+ * Re-evaluate whether the idle loop should be running after the routine phrase
+ * table changed (a phrase routine was added/removed). Starts the loop if phrase
+ * routines now exist and nothing else owns the mic; the legacy wake toggle and
+ * the FSM's own resume calls still govern the toggle-driven case. No-op when a
+ * turn is active (the FSM's return-to-idle resume picks it up).
+ */
+export async function refreshIdleLoopForPhrases(): Promise<void> {
+  if (running || triggering || isCaptureActive()) return;
+  if (shouldRunIdleLoop()) await startWakeLoop();
 }
