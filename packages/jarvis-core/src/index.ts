@@ -16,6 +16,11 @@ export {
   type SlashCommand,
 } from "./parsers";
 
+// Runtime list of all JARVIS tool names + membership guard. Consumed by the
+// routine block-engine (validating authored block tools) and the routine-model
+// editor (gating tool selection). Kept exhaustive against JarvisToolName.
+export { JARVIS_TOOL_NAMES, isJarvisToolName } from "./tool-names";
+
 export {
   COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
