@@ -1,0 +1,100 @@
+// Routine spec types — the data foundation for JARVIS natural-language
+// "routines + triggers". Every downstream unit (block-engine, desktop-triggers,
+// web editor) imports these contracts from `@hyperpolymath/jarvis-core/routines`.
+//
+// A Routine is: one-or-more triggers → an ordered sequence of agentic blocks.
+// The freeform payload (triggers[] + blocks[]) lives in a JSONB `spec` column;
+// scheduler-relevant fields are denormalized into first-class DB columns
+// (trigger_types, next_run_at) by the server actions on every write.
+
+import type { JarvisToolName } from "../types";
+
+/**
+ * Spec version — lets future migrations evolve the JSONB shape safely.
+ * Downstream readers branch on this. Any spec-shape change bumps it.
+ */
+export const ROUTINE_SPEC_VERSION = 1 as const;
+
+// --- Triggers (discriminated union over `type`) ---------------------------
+// v1 members: wake | utterance | time | hotkey. Smart/contextual +
+// event-detection triggers are DEFERRED (not built) but the open union + free
+// JSONB means new types are purely additive — no migration needed.
+
+export interface WakePhraseTrigger {
+  type: "wake";
+  /** e.g. "daddy's home". Case-insensitive match handled by desktop-triggers. */
+  phrase: string;
+}
+
+export interface UtteranceTrigger {
+  type: "utterance";
+  /** substring / phrase that, when heard mid-conversation, fires the routine. */
+  match: string;
+}
+
+export interface TimeTrigger {
+  type: "time";
+  /** 24h "HH:MM" local wall-clock. v1 = daily. */
+  at: string;
+  /** IANA tz; optional — desktop resolves to the device tz if absent. */
+  tz?: string;
+  // Forward-hook (deferred, do NOT build): days?: number[]; cron?: string;
+}
+
+export interface HotkeyTrigger {
+  type: "hotkey";
+  /** normalized accelerator, e.g. "Cmd+Shift+J". Desktop owns registration. */
+  accelerator: string;
+}
+
+export type RoutineTrigger =
+  | WakePhraseTrigger
+  | UtteranceTrigger
+  | TimeTrigger
+  | HotkeyTrigger;
+
+/** "wake" | "utterance" | "time" | "hotkey" */
+export type RoutineTriggerType = RoutineTrigger["type"];
+
+// --- Blocks ---------------------------------------------------------------
+
+export interface RoutineBlock {
+  /** Stable id for reorder/edit in the web editor (client-generated uuid). */
+  id: string;
+  /** Which JARVIS tool this block runs — one source of truth, types.ts. */
+  tool: JarvisToolName;
+  /**
+   * Tool params. Freeform per tool — validated by the tool's own Zod at
+   * execution time in the block-engine, NOT here. This stays open on purpose.
+   */
+  params: Record<string, unknown>;
+  /**
+   * Per-block natural-language directive injected into the scoped agent turn.
+   * This is what makes a block agentic. Optional — absent means a plain tool
+   * call.
+   */
+  nlDirective?: string;
+}
+
+// --- The spec (JSONB payload) --------------------------------------------
+
+export interface RoutineSpec {
+  version: typeof ROUTINE_SPEC_VERSION;
+  triggers: RoutineTrigger[];
+  /** Ordered — array order IS execution order. */
+  blocks: RoutineBlock[];
+}
+
+/** Full row shape returned by the server actions (first-class cols + spec). */
+export interface Routine {
+  id: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  spec: RoutineSpec;
+  triggerTypes: RoutineTriggerType[];
+  /** ISO 8601 UTC of the next time-trigger fire, or null when no time trigger. */
+  nextRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

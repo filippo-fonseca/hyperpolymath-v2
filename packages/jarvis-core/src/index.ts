@@ -105,3 +105,26 @@ export type {
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
 export type { AskClarificationAction } from "./tools/ask-clarification";
+
+// JARVIS routines — natural-language "routines + triggers" spec contracts.
+// Also available via the `@hyperpolymath/jarvis-core/routines` subpath.
+export {
+  ROUTINE_SPEC_VERSION,
+  zRoutineTrigger,
+  zRoutineBlock,
+  zRoutineSpec,
+  deriveTriggerTypes,
+  computeNextRunAt,
+} from "./routines";
+export type {
+  WakePhraseTrigger,
+  UtteranceTrigger,
+  TimeTrigger,
+  HotkeyTrigger,
+  RoutineTrigger,
+  RoutineTriggerType,
+  RoutineBlock,
+  RoutineSpec,
+  Routine,
+  RoutineSpecInput,
+} from "./routines";

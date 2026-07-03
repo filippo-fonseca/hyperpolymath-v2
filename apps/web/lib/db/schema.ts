@@ -31,6 +31,9 @@ import {
 import type { DevRunItem } from "./queries/dev-runs";
 // Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
+// JARVIS routines — spec shape single-sourced in jarvis-core; imported type-only
+// so the routines.spec jsonb column is typed without duplicating the contract.
+import type { RoutineSpec } from "@hyperpolymath/jarvis-core/routines";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -1416,5 +1419,37 @@ export const whatsappMessages = pgTable(
       t.externalId,
     ),
     index("whatsapp_messages_user_sent_at_idx").on(t.userId, t.sentAt.desc()),
+  ],
+);
+
+// routines — natural-language JARVIS routines (one row = triggers → ordered
+// agentic blocks). The freeform payload lives in the typed `spec` jsonb column;
+// scheduler-relevant fields are denormalized into first-class columns
+// (triggerTypes, nextRunAt), recomputed on every write from the validated spec.
+// Migration 0023 (RLS + indexes). See @hyperpolymath/jarvis-core/routines.
+export const routines = pgTable(
+  "routines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    enabled: boolean("enabled").notNull().default(true),
+    spec: jsonb("spec").$type<RoutineSpec>().notNull().default(sql`'{}'::jsonb`),
+    triggerTypes: text("trigger_types").array().notNull().default(sql`'{}'`),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("routines_user_updated_idx").on(t.userId, t.updatedAt.desc()),
+    index("routines_next_run_idx").on(t.enabled, t.nextRunAt),
+    index("routines_trigger_types_gin").using("gin", t.triggerTypes),
   ],
 );
