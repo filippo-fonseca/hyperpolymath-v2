@@ -23,3 +23,5 @@ export {
   deriveTriggerTypes,
   computeNextRunAt,
 } from "./schema";
+
+export { normalizePhrase, phraseMatches } from "./match";
