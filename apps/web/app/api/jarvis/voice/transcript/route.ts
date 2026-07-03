@@ -153,6 +153,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       ),
     );
     if (matched) {
+      console.log(
+        `[voice/transcript] utterance matched routine "${matched.name}" (${matched.id}) — firing ${matched.spec.blocks.length} block(s) instead of a normal turn`,
+      );
       // Show the user's spoken phrase, then stream the routine's spoken blocks.
       emitPhysicalTranscript({
         transcript,
