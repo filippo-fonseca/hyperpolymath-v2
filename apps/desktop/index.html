@@ -131,6 +131,29 @@
       }
       body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
 
+      /* Disconnect banner — an always-visible top strip whenever the JARVIS
+         server / device-token link is down, so the user never has to open
+         Settings to discover the HUD is offline. Hidden unless the SSE bus is
+         in the error state; tap it to jump straight to Settings. */
+      .disconnect-banner {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 60;
+        padding: 7px 30px 7px 12px;
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-align: center;
+        color: var(--err);
+        background: color-mix(in srgb, var(--err) 16%, var(--surface));
+        border: none;
+        border-bottom: 1px solid color-mix(in srgb, var(--err) 45%, transparent);
+        cursor: pointer;
+      }
+      body[data-sse="error"] .disconnect-banner { display: block; }
+
       /* Acknowledge strip — auto-fading first-clause echo of each JARVIS
          utterance (src/hud/ack-strip.ts). Fixed height so the fade never
          shifts the grid; opacity is the only thing that moves. */
@@ -391,6 +414,9 @@
     </style>
   </head>
   <body data-jarvis-state="idle">
+    <button class="disconnect-banner" id="disconnect-banner" type="button">
+      ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
+    </button>
     <main class="stage">
       <!-- Region 1: fixed orb header + status. Never scrolls. -->
       <header class="hud-header">

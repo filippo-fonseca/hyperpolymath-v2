@@ -783,6 +783,13 @@ async function boot(): Promise<void> {
   gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
+  // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
+  // into Settings, where the device token lives — so a dropped server / bad
+  // token is both obvious and one tap from being fixed.
+  document
+    .getElementById("disconnect-banner")
+    ?.addEventListener("click", () => settingsEl?.classList.add("open"));
+
   // 5d-bis. "Startup & Wake" section of the drawer: wake toggle (live), the
   // briefing toggle, and the openOnStart / Shortcuts list editors. All persist
   // via saveSetting immediately on change.
