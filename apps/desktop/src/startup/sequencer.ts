@@ -50,9 +50,27 @@ type DrainOutcome = "drained" | "no-audio" | "timeout" | "cancelled";
 // of truth for "the session-start sequence already ran".)
 let _startupRan = false;
 
+// Non-null while the briefing's drain-watch is in flight. Lets a barge-in
+// (⌘⌃J / trigger while the briefing speaks) cancel the drain without the
+// sequencer needing to know about the FSM.
+let activeBriefingDrain: { cancel: () => void } | null = null;
+
 /** True once the session-start sequence has begun/run this app session. */
 export function hasStartupSequenceRun(): boolean {
   return _startupRan;
+}
+
+/**
+ * Barge-in: stop the briefing's TTS and release the sequencer's drain-watch so
+ * session start stops gating on speech. Safe no-op if no briefing is in flight.
+ * Returns true if a briefing was actually skipped.
+ */
+export function skipStartupBriefing(): boolean {
+  if (!activeBriefingDrain) return false;
+  ttsPlayer.stop(); // silence + clear the sink/queue
+  activeBriefingDrain.cancel(); // resolve drain.done → "cancelled"
+  activeBriefingDrain = null;
+  return true;
 }
 
 /**
@@ -208,13 +226,16 @@ export async function maybeRunStartupSequence(): Promise<void> {
     console.log("[startup] step 1: briefing — firing");
     // Subscribe BEFORE the POST so no response/TTS signal can be missed.
     const drain = beginBriefingDrainWatch();
+    activeBriefingDrain = drain;
     const dispatched = await runBriefing();
     if (!dispatched) {
+      activeBriefingDrain = null;
       drain.cancel();
       // eslint-disable-next-line no-console
       console.warn("[startup] step 1: briefing POST failed — proceeding without it");
     } else {
       const how = await drain.done;
+      activeBriefingDrain = null;
       const elapsed = Date.now() - startedAt;
       if (how === "drained") {
         // eslint-disable-next-line no-console
