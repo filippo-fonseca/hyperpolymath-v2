@@ -63,6 +63,7 @@ import { GcalNotConnectedError, GcalTokenRevokedError, getValidGcalToken } from 
 import type {
   ActionExecutor,
   AskClarificationAction,
+  ComputerUseAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -76,11 +77,23 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetWeatherAction,
   LinkPeopleAction,
+  OpenAppAction,
+  OpenUrlAction,
+  PlayMusicAction,
+  PressKeyAction,
   RememberFactAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  SendMessageAction,
+  SystemControlAction,
+  TakeScreenshotAction,
+  TypeTextAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
+  WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
 
@@ -115,6 +128,22 @@ async function resolveProjectIds(
 function dateInUserTz(iso: string, tz: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(iso));
+}
+
+// Clicky slice — WMO weather interpretation codes → human phrase.
+// Open-Meteo `weather_code` follows the WMO 4677 table.
+function describeWeatherCode(code: number): string {
+  if (code === 0) return "clear skies";
+  if (code === 1) return "mainly clear";
+  if (code === 2) return "partly cloudy";
+  if (code === 3) return "overcast";
+  if (code === 45 || code === 48) return "foggy";
+  if (code >= 51 && code <= 57) return "drizzling";
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "raining";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snowing";
+  if (code === 95) return "thunderstorms";
+  if (code === 96 || code === 99) return "thunderstorms with hail";
+  return "unsettled";
 }
 
 export function createServerExecutor(): ActionExecutor {
@@ -813,6 +842,260 @@ export function createServerExecutor(): ActionExecutor {
         reference_count: person.referenceCount,
       }));
       return { ok: true, id: "find_people", receipt: { matches } };
+    },
+
+    // -------------------------------------------------------------------------
+    // Computer-control tools — open_url / open_app / web_search
+    //
+    // These tools CANNOT touch the Mac from the server. Each executor arm
+    // validates input and returns a structured { ok, action } result for the
+    // desktop client to execute. No DB writes, no gcal calls.
+    //
+    // Result contract (parallel agent builds desktop client against this):
+    //   open_url  → { ok: true, action: { kind: "open_url", url, label } }
+    //   open_app  → { ok: true, action: { kind: "open_app", app, label } }
+    //   web_search → { ok: true, action: { kind: "open_url", url, label } }
+    // -------------------------------------------------------------------------
+
+    async openUrl(input: OpenUrlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.url;
+      return {
+        ok: true,
+        id: `open_url:${input.url}`,
+        receipt: { url: input.url, label },
+        action: { kind: "open_url", url: input.url, label },
+      };
+    },
+
+    async openApp(input: OpenAppAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.app;
+      return {
+        ok: true,
+        id: `open_app:${input.app}`,
+        receipt: { app: input.app, label },
+        action: { kind: "open_app", app: input.app, label },
+      };
+    },
+
+    async webSearch(input: WebSearchAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const engine = input.engine ?? "google";
+      let url: string;
+      if (engine === "maps") {
+        url =
+          "https://www.google.com/maps/search/?api=1&query=" +
+          encodeURIComponent(input.query);
+      } else {
+        url =
+          "https://www.google.com/search?q=" + encodeURIComponent(input.query);
+      }
+      const label = engine === "maps" ? "Google Maps" : "the web";
+      return {
+        ok: true,
+        id: `web_search:${input.query}`,
+        receipt: { query: input.query, engine, url, label },
+        action: { kind: "open_url", url, label },
+      };
+    },
+
+    // -------------------------------------------------------------------------
+    // Clicky slice — desktop action tools.
+    //
+    // Same pattern as open_url/open_app: validate args server-side, return a
+    // structured { ok, receipt?, action } result. NOTHING here executes
+    // AppleScript or touches the Mac — the desktop dispatcher does that, keyed
+    // off action.kind. get_weather is the exception: it runs fully server-side
+    // (Open-Meteo fetch) and returns data in the receipt with no action.
+    // -------------------------------------------------------------------------
+
+    async sendMessage(input: SendMessageAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const recipient = input.recipient.trim();
+      const text = input.text.trim();
+      if (!recipient) {
+        return { ok: false, kind: "validation", error: "send_message requires a recipient" };
+      }
+      if (!text) {
+        return { ok: false, kind: "validation", error: "send_message requires message text" };
+      }
+      return {
+        ok: true,
+        id: `send_message:${recipient}`,
+        receipt: { app: input.app, recipient, text, requires_confirm: true },
+        // requires_confirm is load-bearing: the desktop holds the AppleScript
+        // send until the user confirms aloud (iMessage has no draft verb).
+        action: { kind: "send_message", app: input.app, recipient, text, requires_confirm: true },
+      };
+    },
+
+    async systemControl(input: SystemControlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      if ((input.action === "volume" || input.action === "brightness")) {
+        const v = typeof input.value === "string" ? Number(input.value) : input.value;
+        if (typeof v !== "number" || Number.isNaN(v) || v < 0 || v > 100) {
+          return {
+            ok: false,
+            kind: "validation",
+            error: `system_control ${input.action} requires a numeric value 0-100`,
+          };
+        }
+        return {
+          ok: true,
+          id: `system_control:${input.action}`,
+          receipt: { action: input.action, value: v },
+          action: { kind: "system_control", action: input.action, value: v },
+        };
+      }
+      // focus: optional string value (Focus-mode name; omit = off). sleep: no value.
+      return {
+        ok: true,
+        id: `system_control:${input.action}`,
+        receipt: { action: input.action, ...(input.value !== undefined ? { value: input.value } : {}) },
+        action: {
+          kind: "system_control",
+          action: input.action,
+          ...(input.value !== undefined ? { value: input.value } : {}),
+        },
+      };
+    },
+
+    async typeText(input: TypeTextAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      return {
+        ok: true,
+        id: "type_text",
+        receipt: { text: input.text },
+        action: { kind: "type_text", text: input.text },
+      };
+    },
+
+    async pressKey(input: PressKeyAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const modifiers = (input.modifiers ?? []).map((m) => m.trim().toLowerCase()).filter(Boolean);
+      return {
+        ok: true,
+        id: `press_key:${input.key}`,
+        receipt: { key: input.key, modifiers },
+        action: { kind: "press_key", key: input.key, modifiers },
+      };
+    },
+
+    async takeScreenshot(input: TakeScreenshotAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const describe = input.describe ?? true;
+      return {
+        ok: true,
+        id: "take_screenshot",
+        receipt: { describe },
+        action: { kind: "take_screenshot", describe },
+      };
+    },
+
+    async runApplescript(input: RunApplescriptAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label.trim();
+      const script = input.script.trim();
+      if (!label || !script) {
+        return { ok: false, kind: "validation", error: "run_applescript requires label and script" };
+      }
+      return {
+        ok: true,
+        id: `run_applescript:${label}`,
+        receipt: { label, script },
+        action: { kind: "run_applescript", label, script },
+      };
+    },
+
+    async runShortcut(input: RunShortcutAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const name = input.name.trim();
+      if (!name) {
+        return { ok: false, kind: "validation", error: "run_shortcut requires a shortcut name" };
+      }
+      return {
+        ok: true,
+        id: `run_shortcut:${name}`,
+        receipt: { name, ...(input.input !== undefined ? { input: input.input } : {}) },
+        action: {
+          kind: "run_shortcut",
+          name,
+          ...(input.input !== undefined ? { input: input.input } : {}),
+        },
+      };
+    },
+
+    async playMusic(input: PlayMusicAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const app = input.app ?? "music";
+      const query = input.query?.trim() || undefined;
+      return {
+        ok: true,
+        id: `play_music:${query ?? "resume"}`,
+        receipt: { app, ...(query ? { query } : {}) },
+        action: { kind: "play_music", app, ...(query ? { query } : {}) },
+      };
+    },
+
+    async computerUse(input: ComputerUseAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Computer Use fallback: mint a session_id and hand the task to the
+      // desktop, which drives the agentic loop against
+      // /api/jarvis/computer-use/step. Nothing executes server-side here.
+      const task = input.task.trim();
+      if (!task) {
+        return { ok: false, kind: "validation", error: "computer_use requires a task" };
+      }
+      const sessionId = randomUUID();
+      return {
+        ok: true,
+        id: `computer_use:${sessionId}`,
+        receipt: { task, session_id: sessionId },
+        action: { kind: "computer_use", task, session_id: sessionId },
+      };
+    },
+
+    async getWeather(input: GetWeatherAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: Open-Meteo geocoding + forecast (free, keyless).
+      const location =
+        input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
+      try {
+        const geoRes = await fetch(
+          "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
+            encodeURIComponent(location),
+        );
+        if (!geoRes.ok) {
+          return { ok: false, kind: "network", error: `Geocoding failed (${geoRes.status})` };
+        }
+        const geo = (await geoRes.json()) as {
+          results?: { latitude: number; longitude: number; name: string; admin1?: string; country?: string }[];
+        };
+        const place = geo.results?.[0];
+        if (!place) {
+          return { ok: false, kind: "not_found", error: `No location found matching "${location}"` };
+        }
+        const fcRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
+            "&current=temperature_2m,weather_code,wind_speed_10m",
+        );
+        if (!fcRes.ok) {
+          return { ok: false, kind: "network", error: `Forecast fetch failed (${fcRes.status})` };
+        }
+        const fc = (await fcRes.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number; wind_speed_10m?: number };
+        };
+        const current = fc.current;
+        if (!current || typeof current.temperature_2m !== "number") {
+          return { ok: false, kind: "network", error: "Forecast response missing current weather" };
+        }
+        const tempC = Math.round(current.temperature_2m * 10) / 10;
+        const tempF = Math.round((tempC * 9) / 5 + 32);
+        // Open-Meteo default wind_speed_10m unit is km/h.
+        const windKph = Math.round(current.wind_speed_10m ?? 0);
+        const weather = {
+          location: place.name,
+          tempC,
+          tempF,
+          condition: describeWeatherCode(current.weather_code ?? -1),
+          windKph,
+        };
+        return { ok: true, id: `get_weather:${place.name}`, receipt: { weather } };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
     },
 
     async linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult> {

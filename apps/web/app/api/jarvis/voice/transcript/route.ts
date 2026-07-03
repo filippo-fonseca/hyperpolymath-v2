@@ -27,8 +27,16 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, X-Trigger-Secret, X-Jarvis-Vad-End-At, X-Jarvis-Probe",
+    "Content-Type, Authorization, X-Trigger-Secret, X-Jarvis-Vad-End-At, X-Jarvis-Probe, X-Jarvis-Mode",
 };
+
+/**
+ * Normalize the `X-Jarvis-Mode` header (Phase 2). Only "computer" is honored;
+ * the headless ESP32 bridge sends no such header → undefined (unchanged).
+ */
+function readJarvisMode(req: NextRequest): "computer" | undefined {
+  return req.headers.get("x-jarvis-mode") === "computer" ? "computer" : undefined;
+}
 
 // "Done, JARVIS" — the desktop hands-free end-of-turn phrase. Stripped from the
 // tail of the transcript so the agent never sees the control phrase as content.
@@ -60,6 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const vadEndAtHeader = req.headers.get("x-jarvis-vad-end-at");
   const vadEndAt = vadEndAtHeader ? Number(vadEndAtHeader) : undefined;
+  const jarvisMode = readJarvisMode(req);
 
   const file = new File([audioBuffer], "audio.wav", { type: "audio/wav" });
 
@@ -196,6 +205,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // token identity, so it reads as the physical extender.
     source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
     isVoice: true,
+    mode: jarvisMode,
     sttDoneAt,
     vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
     onTextDelta: (delta) => {

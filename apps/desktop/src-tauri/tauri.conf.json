@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "JARVIS Desktop",
+  "productName": "JARVIS",
   "version": "0.1.3",
   "identifier": "io.hyperpolymath.jarvis-desktop",
   "build": {
@@ -13,18 +13,23 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "JARVIS Desktop",
-        "width": 480,
-        "height": 360,
+        "label": "main",
+        "title": "JARVIS",
+        "width": 420,
+        "height": 560,
         "minWidth": 360,
-        "minHeight": 240,
+        "minHeight": 420,
         "center": true,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "visible": true,
+        "skipTaskbar": false
       }
     ],
-    "macOSPrivateApi": false,
+    "macOSPrivateApi": true,
     "security": {
       "csp": null
     }

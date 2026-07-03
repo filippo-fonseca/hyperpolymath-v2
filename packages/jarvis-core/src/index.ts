@@ -17,6 +17,7 @@ export {
 } from "./parsers";
 
 export {
+  COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
   TOOL_USE_RULES,
   VOICE_ADDENDUM,
@@ -78,6 +79,23 @@ export type {
   CreatePersonAction,
   FindPeopleAction,
   LinkPeopleAction,
+  // Computer-control action types + desktop result type
+  OpenUrlAction,
+  OpenAppAction,
+  WebSearchAction,
+  DesktopAction,
+  // Clicky slice — desktop action tools + server-side weather
+  SendMessageAction,
+  SystemControlAction,
+  TypeTextAction,
+  PressKeyAction,
+  TakeScreenshotAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  PlayMusicAction,
+  GetWeatherAction,
+  // Computer Use fallback — catch-all agentic desktop loop
+  ComputerUseAction,
 } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel

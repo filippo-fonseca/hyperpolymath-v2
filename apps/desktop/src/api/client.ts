@@ -28,6 +28,12 @@ async function authHeaders(triggerSecret: string): Promise<Record<string, string
   return headers;
 }
 
+// Phase 2 (Task 2.1): the desktop always operates in computer-control mode.
+// Sent ONLY on the two turn entry points (postText / postTranscript) so the
+// backend appends the COMPUTER-CONTROL MODE steering block. Browser/mobile
+// turns never send this header and are unaffected. Not sent on claim/TTS.
+const JARVIS_MODE_HEADER: Record<string, string> = { "x-jarvis-mode": "computer" };
+
 /**
  * POST /api/jarvis/voice/source/claim
  * Registers a fresh voice-source claim on the Next.js server (TTL 30s).
@@ -84,6 +90,143 @@ export async function postTts(args: {
 }
 
 /**
+ * POST /api/jarvis/screenshot/describe
+ * Ships a captured screen PNG (base64) to the server, which runs a one-shot
+ * vision call and PUBLISHES the spoken description itself over the physical
+ * SSE bus (jarvis-response-start/chunk/end) — the desktop's normal TTS path
+ * picks it up, so callers fire-and-forget. Auth matches postTts
+ * (Bearer device token + legacy x-trigger-secret).
+ *
+ * Returns true when the server accepted the image, false otherwise.
+ */
+export async function postScreenshotDescribe(pngBase64: string): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/screenshot/describe`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ png_base64: pngBase64 }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[screenshot/describe] ${res.status}`);
+    return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Computer Use step loop — wire contract with
+// apps/web/app/api/jarvis/computer-use/step/route.ts (fixed shapes; the
+// desktop echoes `history` back verbatim and answers each returned action id
+// in the next step's `tool_results`).
+// ---------------------------------------------------------------------------
+
+/** Execution result for one previously returned action. */
+export interface ComputerUseToolResult {
+  tool_use_id: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** One next action to execute: raw computer_20251124 tool input + its id. */
+export interface ComputerUseStepAction {
+  id: string;
+  input: Record<string, unknown>;
+}
+
+export interface ComputerUseStepResponse {
+  ok: boolean;
+  session_id: string;
+  done: boolean;
+  actions: ComputerUseStepAction[];
+  /** Spoken narration — the SERVER already published it over the SSE bus. */
+  say?: string;
+  /** Opaque image-stripped conversation; echo back verbatim next step. */
+  history: unknown[];
+}
+
+/**
+ * POST /api/jarvis/computer-use/step
+ * One step of the Computer Use loop: ships the current (downscaled)
+ * screenshot + previous execution results, gets back the model's next
+ * actions. Auth matches postScreenshotDescribe (Bearer device token +
+ * legacy x-trigger-secret). Returns null on any transport/server failure —
+ * the caller stops the loop and stays silent (the server owns speech).
+ */
+export async function postComputerUseStep(args: {
+  sessionId: string;
+  task: string;
+  stepIndex: number;
+  screenshotBase64: string;
+  displayWidth: number;
+  displayHeight: number;
+  history: unknown[];
+  toolResults: ComputerUseToolResult[];
+}): Promise<ComputerUseStepResponse | null> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/computer-use/step`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: args.sessionId,
+      task: args.task,
+      step_index: args.stepIndex,
+      screenshot_base64: args.screenshotBase64,
+      display_width: args.displayWidth,
+      display_height: args.displayHeight,
+      history: args.history,
+      tool_results: args.toolResults,
+    }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[computer-use] step POST ${res.status}`);
+    return null;
+  }
+  const json = (await res.json()) as ComputerUseStepResponse;
+  if (json.ok !== true) {
+    // eslint-disable-next-line no-console
+    console.warn("[computer-use] step response not ok", json);
+    return null;
+  }
+  return json;
+}
+
+/**
+ * POST /api/jarvis/voice/text
+ * Triggers a JARVIS turn from typed/synthetic text (mirrors the mobile app).
+ * The server runs the agent and streams the response back over the physicalBus
+ * SSE (jarvis-response-* events), which the desktop already renders + speaks.
+ *
+ * Used by the proactive briefing: on wake, we synthesize a "give me my
+ * briefing" turn without any microphone audio. Non-fatal on failure.
+ */
+export async function postText(text: string): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/text`, {
+    method: "POST",
+    headers: {
+      ...(await authHeaders(triggerSecret)),
+      ...JARVIS_MODE_HEADER,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    // eslint-disable-next-line no-console
+    console.warn(`[voice/text] ${res.status}`);
+    return false;
+  }
+  return true;
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.
@@ -105,6 +248,7 @@ export async function postTranscript(args: {
     method: "POST",
     headers: {
       ...(await authHeaders(triggerSecret)),
+      ...JARVIS_MODE_HEADER,
       "content-type": "audio/wav",
       "x-jarvis-vad-end-at": String(args.vadEndAt),
     },

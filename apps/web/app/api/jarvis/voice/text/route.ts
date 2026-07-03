@@ -23,8 +23,16 @@ const MAX_TEXT_CHARS = 4000;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Jarvis-Mode",
 };
+
+/**
+ * Normalize the `X-Jarvis-Mode` header (Phase 2). Only "computer" is honored;
+ * anything else (or absent) → undefined, preserving browser/mobile behaviour.
+ */
+function readJarvisMode(req: NextRequest): "computer" | undefined {
+  return req.headers.get("x-jarvis-mode") === "computer" ? "computer" : undefined;
+}
 
 /**
  * POST /api/jarvis/voice/text
@@ -64,6 +72,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("Unauthorized", { status: 401, headers: CORS });
   }
   const userId = identity.userId;
+  const jarvisMode = readJarvisMode(req);
 
   // Owner-only while the physical bus is a single global emitter (see
   // lib/auth/owner.ts) — its events fan out to the shared SSE stream.
@@ -195,6 +204,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     messages,
     toolChoice,
     parsedPriority: body.parsedPriority,
+    mode: jarvisMode,
     source: { device: identity.deviceName, input: "text" },
     isVoice: false,
     sttDoneAt: null,

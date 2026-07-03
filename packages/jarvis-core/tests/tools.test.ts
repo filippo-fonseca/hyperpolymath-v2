@@ -110,7 +110,7 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns seventeen tools in order: 5 originals, update/delete/find (Phase 16), then people (Phase D)", () => {
+  it("returns thirty tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice, computer_use", () => {
     const tools = buildToolDefinitions();
     expect(tools.map((t) => t.name)).toEqual([
       "create_task",
@@ -130,10 +130,23 @@ describe("buildToolDefinitions", () => {
       "create_person",
       "find_people",
       "link_people",
+      "open_url",
+      "open_app",
+      "web_search",
+      "send_message",
+      "system_control",
+      "type_text",
+      "press_key",
+      "take_screenshot",
+      "run_applescript",
+      "run_shortcut",
+      "play_music",
+      "get_weather",
+      "computer_use",
     ]);
   });
 
-  it("strict split: creates/deletes/meta strict, update/find non-strict (grammar budget)", () => {
+  it("strict split: creates/deletes/meta strict, update/find/people/computer-control non-strict (grammar budget)", () => {
     const tools = buildToolDefinitions();
     const STRICT = ["create_task", "create_capture", "create_event", "remember_fact", "ask_clarification", "delete_task", "delete_capture", "delete_event"];
     for (const t of tools) {
@@ -141,13 +154,15 @@ describe("buildToolDefinitions", () => {
     }
   });
 
-  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (link_people since Phase D)", () => {
+  it("cache_control: ephemeral with 1h TTL is set ONLY on the last tool (computer_use since the Computer Use fallback)", () => {
     // Phase 11 / CACHE-01 (D-06 BREAKPOINT 1): 1h TTL on the LAST tool.
-    // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people (new last tool).
+    // Phase 16 moved the breakpoint to find_events; Phase D moved it to link_people;
+    // computer-control phase moved it to web_search; clicky slice to get_weather;
+    // the Computer Use fallback moves it to computer_use.
     const tools = buildToolDefinitions();
     const cached = tools.filter((t) => t.cache_control);
     expect(cached).toHaveLength(1);
-    expect(cached[0]?.name).toBe("link_people");
+    expect(cached[0]?.name).toBe("computer_use");
     expect(cached[0]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     const askClarification = tools.find((t) => t.name === "ask_clarification");
     expect(askClarification?.cache_control).toBeUndefined();

@@ -30,6 +30,19 @@
 // Phase D (people knowledge graph): 3 new NON-strict tools added
 // (create_person, find_people, link_people). Total: 17 tools.
 // cache_control moves from find_events to link_people (new LAST tool).
+//
+// Computer-control tools (open_url, open_app, web_search): 3 new NON-strict
+// tools added. Total: 20 tools.
+// cache_control moves from link_people to web_search (new LAST tool).
+//
+// Clicky slice: 9 new NON-strict tools added (send_message, system_control,
+// type_text, press_key, take_screenshot, run_applescript, run_shortcut,
+// play_music, get_weather). Total: 29 tools.
+// cache_control moves from web_search to get_weather (new LAST tool).
+//
+// Computer Use fallback: 1 new NON-strict tool added (computer_use), the
+// catch-all for desktop tasks no named tool covers. Total: 30 tools.
+// cache_control moves from get_weather to computer_use (new LAST tool).
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -50,6 +63,19 @@ import { findEventsTool } from "./find-events";
 import { createPersonTool } from "./create-person";
 import { findPeopleTool } from "./find-people";
 import { linkPeopleTool } from "./link-people";
+import { openUrlTool } from "./open-url";
+import { openAppTool } from "./open-app";
+import { webSearchTool } from "./web-search";
+import { sendMessageTool } from "./send-message";
+import { systemControlTool } from "./system-control";
+import { typeTextTool } from "./type-text";
+import { pressKeyTool } from "./press-key";
+import { takeScreenshotTool } from "./take-screenshot";
+import { runApplescriptTool } from "./run-applescript";
+import { runShortcutTool } from "./run-shortcut";
+import { playMusicTool } from "./play-music";
+import { getWeatherTool } from "./get-weather";
+import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -75,7 +101,20 @@ export interface JarvisToolDefinition {
     | "find_events"
     | "create_person"
     | "find_people"
-    | "link_people";
+    | "link_people"
+    | "open_url"
+    | "open_app"
+    | "web_search"
+    | "send_message"
+    | "system_control"
+    | "type_text"
+    | "press_key"
+    | "take_screenshot"
+    | "run_applescript"
+    | "run_shortcut"
+    | "play_music"
+    | "get_weather"
+    | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
   /** Per-tool strict mode (replaces deprecated beta header).
@@ -162,13 +201,39 @@ export function buildToolDefinitions(
     // NON-strict (grammar budget): server-side Zod validation covers these.
     { ...createPersonTool, strict: false as const },
     { ...findPeopleTool, strict: false as const },
+    // link_people loses cache_control — computer-control tools follow it.
+    { ...linkPeopleTool, strict: false as const },
+    // Computer-control tools (open_url, open_app, web_search).
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    // The executor validates input and returns a structured action for the
+    // desktop client; no DB writes, no gcal calls.
+    { ...openUrlTool, strict: false as const },
+    { ...openAppTool, strict: false as const },
+    // web_search loses cache_control — clicky-slice tools follow it.
+    { ...webSearchTool, strict: false as const },
+    // Clicky slice — desktop action tools + server-side weather.
+    // NON-strict (grammar budget): server-side Zod validation covers these.
+    // All except get_weather return a DesktopAction for the desktop
+    // dispatcher; get_weather runs fully server-side (Open-Meteo fetch).
+    { ...sendMessageTool, strict: false as const },
+    { ...systemControlTool, strict: false as const },
+    { ...typeTextTool, strict: false as const },
+    { ...pressKeyTool, strict: false as const },
+    { ...takeScreenshotTool, strict: false as const },
+    { ...runApplescriptTool, strict: false as const },
+    { ...runShortcutTool, strict: false as const },
+    { ...playMusicTool, strict: false as const },
+    // get_weather loses cache_control — computer_use follows it.
+    { ...getWeatherTool, strict: false as const },
     {
-      ...linkPeopleTool,
+      // Computer Use fallback — the catch-all when no named tool fits.
+      // NON-strict (grammar budget): server-side Zod validation covers this.
+      ...computerUseTool,
       strict: false as const,
-      // Phase D / CACHE: cache_control moves here — link_people is now the
-      // LAST tool in the array. find_events loses the breakpoint. TTL "1h"
-      // amortizes the 2× write cost over a full hour of turns.
-      // Requires the `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
+      // CACHE: cache_control moves here — computer_use is now the LAST tool
+      // in the array. get_weather loses the breakpoint. TTL "1h" amortizes
+      // the 2× write cost over a full hour of turns. Requires the
+      // `extended-cache-ttl-2025-04-11` beta header (Plan 11-04).
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     },
   ];
@@ -193,6 +258,22 @@ export { FindEventsInputSchema } from "./find-events";
 export { CreatePersonInputSchema } from "./create-person";
 export { FindPeopleInputSchema } from "./find-people";
 export { LinkPeopleInputSchema } from "./link-people";
+// Computer-control: re-export input schemas for run-turn.ts validation.
+export { OpenUrlInputSchema } from "./open-url";
+export { OpenAppInputSchema } from "./open-app";
+export { WebSearchInputSchema } from "./web-search";
+// Clicky slice: re-export input schemas for run-turn.ts validation.
+export { SendMessageInputSchema } from "./send-message";
+export { SystemControlInputSchema } from "./system-control";
+export { TypeTextInputSchema } from "./type-text";
+export { PressKeyInputSchema } from "./press-key";
+export { TakeScreenshotInputSchema } from "./take-screenshot";
+export { RunApplescriptInputSchema } from "./run-applescript";
+export { RunShortcutInputSchema } from "./run-shortcut";
+export { PlayMusicInputSchema } from "./play-music";
+export { GetWeatherInputSchema } from "./get-weather";
+// Computer Use fallback: re-export input schema for run-turn.ts validation.
+export { ComputerUseInputSchema } from "./computer-use";
 
 // Sanity touch: ensure the default `z*` exports remain wired through.
 void zCreateTask;

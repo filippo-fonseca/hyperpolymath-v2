@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -36,6 +37,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: { getClaims: getClaimsMock },
   })),
+}));
+
+// BYOK: keep the route off the real database — cookie-authed users resolve a
+// per-user ElevenLabs key, so return a stub key for the mocked "user-1".
+vi.mock("@/lib/byok/keys", () => ({
+  getUserKeyOrNull: vi.fn(async () => "test-elevenlabs-key"),
 }));
 
 // ---------------------------------------------------------------------------
@@ -66,7 +73,7 @@ describe("POST /api/jarvis/tts", () => {
   it("returns 200 + application/octet-stream using DEFAULT_VOICE_ID when voiceId omitted", async () => {
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "Task filed, sir." }),
         headers: { "Content-Type": "application/json" },
@@ -92,7 +99,7 @@ describe("POST /api/jarvis/tts", () => {
   it("uses explicit voiceId from body instead of default", async () => {
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "Noted.", voiceId: "custom-voice-xyz" }),
         headers: { "Content-Type": "application/json" },
@@ -111,7 +118,7 @@ describe("POST /api/jarvis/tts", () => {
 
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "hello" }),
         headers: { "Content-Type": "application/json" },
@@ -125,7 +132,7 @@ describe("POST /api/jarvis/tts", () => {
   it("returns 400 when text is empty", async () => {
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "   " }),
         headers: { "Content-Type": "application/json" },
@@ -141,7 +148,7 @@ describe("POST /api/jarvis/tts", () => {
   it("returns 413 when text.length > 5000 chars", async () => {
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "a".repeat(5001) }),
         headers: { "Content-Type": "application/json" },
@@ -157,7 +164,7 @@ describe("POST /api/jarvis/tts", () => {
 
     const { POST } = await import("@/app/api/jarvis/tts/route");
     const res = await POST(
-      new Request("http://localhost/api/jarvis/tts", {
+      new NextRequest("http://localhost/api/jarvis/tts", {
         method: "POST",
         body: JSON.stringify({ text: "Filed." }),
         headers: { "Content-Type": "application/json" },

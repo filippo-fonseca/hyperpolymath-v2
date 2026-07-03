@@ -43,6 +43,22 @@ import {
   CreatePersonInputSchema,
   FindPeopleInputSchema,
   LinkPeopleInputSchema,
+  // Computer-control tools
+  OpenUrlInputSchema,
+  OpenAppInputSchema,
+  WebSearchInputSchema,
+  // Clicky slice — desktop action tools + server-side weather
+  SendMessageInputSchema,
+  SystemControlInputSchema,
+  TypeTextInputSchema,
+  PressKeyInputSchema,
+  TakeScreenshotInputSchema,
+  RunApplescriptInputSchema,
+  RunShortcutInputSchema,
+  PlayMusicInputSchema,
+  GetWeatherInputSchema,
+  // Computer Use fallback — catch-all agentic desktop loop
+  ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 
 export interface RunTurnUsage {
@@ -98,6 +114,14 @@ export interface RunTurnOptions {
   parsedPriority?: "P∞" | "P1" | "P2" | "P3";
   isVoice: boolean;
   /**
+   * Phase 2 (Task 2.1): computer-control steering. When "computer" (set from
+   * the desktop's `X-Jarvis-Mode: computer` header), buildSystemPrompt appends
+   * the COMPUTER-CONTROL MODE block that biases toward open_url/open_app/
+   * web_search + direct answers and away from filing. Absent → browser/mobile
+   * behaviour is unchanged.
+   */
+  mode?: "computer";
+  /**
    * Capture provenance: paired-device token name ('Web' for browser) +
    * input modality. Denormalized into rows created by the executor.
    */
@@ -142,6 +166,22 @@ function buildToolValidators(voiceActive: boolean) {
     create_person: CreatePersonInputSchema,
     find_people: FindPeopleInputSchema,
     link_people: LinkPeopleInputSchema,
+    // Computer-control tools
+    open_url: OpenUrlInputSchema,
+    open_app: OpenAppInputSchema,
+    web_search: WebSearchInputSchema,
+    // Clicky slice — desktop action tools + server-side weather
+    send_message: SendMessageInputSchema,
+    system_control: SystemControlInputSchema,
+    type_text: TypeTextInputSchema,
+    press_key: PressKeyInputSchema,
+    take_screenshot: TakeScreenshotInputSchema,
+    run_applescript: RunApplescriptInputSchema,
+    run_shortcut: RunShortcutInputSchema,
+    play_music: PlayMusicInputSchema,
+    get_weather: GetWeatherInputSchema,
+    // Computer Use fallback — catch-all agentic desktop loop
+    computer_use: ComputerUseInputSchema,
   } as const;
 }
 
@@ -264,6 +304,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
     voiceActive,
     userDisplayName: userRow?.displayName ?? null,
+    // Computer-control steering (Phase 2). Appended after the cache breakpoint
+    // inside buildSystemPrompt, so it does not invalidate the cached prefix.
+    mode: opts.mode,
   });
 
   const stateVersion = userRow?.stateVersion ?? 1n;
@@ -562,6 +605,71 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "link_people") {
               result = await executor.linkPeople(
                 parsed.data as Parameters<typeof executor.linkPeople>[0],
+                ctx,
+              );
+            } else if (toolName === "open_url") {
+              result = await executor.openUrl(
+                parsed.data as Parameters<typeof executor.openUrl>[0],
+                ctx,
+              );
+            } else if (toolName === "open_app") {
+              result = await executor.openApp(
+                parsed.data as Parameters<typeof executor.openApp>[0],
+                ctx,
+              );
+            } else if (toolName === "web_search") {
+              result = await executor.webSearch(
+                parsed.data as Parameters<typeof executor.webSearch>[0],
+                ctx,
+              );
+            } else if (toolName === "send_message") {
+              result = await executor.sendMessage(
+                parsed.data as Parameters<typeof executor.sendMessage>[0],
+                ctx,
+              );
+            } else if (toolName === "system_control") {
+              result = await executor.systemControl(
+                parsed.data as Parameters<typeof executor.systemControl>[0],
+                ctx,
+              );
+            } else if (toolName === "type_text") {
+              result = await executor.typeText(
+                parsed.data as Parameters<typeof executor.typeText>[0],
+                ctx,
+              );
+            } else if (toolName === "press_key") {
+              result = await executor.pressKey(
+                parsed.data as Parameters<typeof executor.pressKey>[0],
+                ctx,
+              );
+            } else if (toolName === "take_screenshot") {
+              result = await executor.takeScreenshot(
+                parsed.data as Parameters<typeof executor.takeScreenshot>[0],
+                ctx,
+              );
+            } else if (toolName === "run_applescript") {
+              result = await executor.runApplescript(
+                parsed.data as Parameters<typeof executor.runApplescript>[0],
+                ctx,
+              );
+            } else if (toolName === "run_shortcut") {
+              result = await executor.runShortcut(
+                parsed.data as Parameters<typeof executor.runShortcut>[0],
+                ctx,
+              );
+            } else if (toolName === "play_music") {
+              result = await executor.playMusic(
+                parsed.data as Parameters<typeof executor.playMusic>[0],
+                ctx,
+              );
+            } else if (toolName === "get_weather") {
+              result = await executor.getWeather(
+                parsed.data as Parameters<typeof executor.getWeather>[0],
+                ctx,
+              );
+            } else if (toolName === "computer_use") {
+              result = await executor.computerUse(
+                parsed.data as Parameters<typeof executor.computerUse>[0],
                 ctx,
               );
             } else {

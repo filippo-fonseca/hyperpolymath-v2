@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { err, ok, type Result } from '@/lib/integrations/result';
 import { getUserKeyOrNull } from '@/lib/byok/keys';
+import { isOwnerUser } from '@/lib/auth/owner';
 
 /**
  * Anthropic API usage TRENDS data layer (issue #133).
@@ -143,7 +144,12 @@ function aggregate(
  * matching getAnthropicApiUsage()'s security model.
  */
 async function resolveAdminKey(userId: string): Promise<string | null> {
-  return getUserKeyOrNull(userId, 'anthropic_admin');
+  const userKey = await getUserKeyOrNull(userId, 'anthropic_admin');
+  if (userKey) return userKey;
+  // Owner-only env fallback: the owner sees request counts with no in-app key;
+  // a public user must never read usage billed to the owner's account.
+  if (await isOwnerUser(userId)) return process.env.ANTHROPIC_ADMIN_KEY ?? null;
+  return null;
 }
 
 export async function getAnthropicApiRequestTrends(): Promise<

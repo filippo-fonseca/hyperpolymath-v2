@@ -28,6 +28,7 @@
 import { ElevenLabsClient } from "elevenlabs";
 import { createClient } from "@/lib/supabase/server";
 import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
+import { isOwnerUser } from "@/lib/auth/owner";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
 import type { TtsRequest } from "@/lib/voice/types";
@@ -66,19 +67,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  // 1b. BYOK — resolve the TTS key. A real user (desktop/browser) must supply
-  //     their own ElevenLabs key; the keyless ESP32 trigger-secret path is
-  //     owner-only hardware and falls back to the owner's env key.
+  // 1b. BYOK — resolve the TTS key. Priority: the user's own ElevenLabs key,
+  //     else the owner's env key. The owner (desktop / voice-everywhere is
+  //     owner-only) always falls back to ELEVENLABS_API_KEY so a fresh install
+  //     works with no key configured in-app; the keyless ESP32 trigger-secret
+  //     path likewise uses env. A non-owner browser user with no key still
+  //     gets 402 — env keys bill the owner, never a public user.
   let elevenLabsKey: string | undefined;
   if (userId) {
-    const userKey = await getUserKeyOrNull(userId, "elevenlabs");
-    if (!userKey) {
+    elevenLabsKey =
+      (await getUserKeyOrNull(userId, "elevenlabs")) ??
+      ((await isOwnerUser(userId)) ? process.env.ELEVENLABS_API_KEY : undefined);
+    if (!elevenLabsKey) {
       return Response.json(
         { error: "key_missing", provider: "elevenlabs" },
         { status: 402 },
       );
     }
-    elevenLabsKey = userKey;
   } else {
     elevenLabsKey = process.env.ELEVENLABS_API_KEY;
   }

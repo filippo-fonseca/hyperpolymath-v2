@@ -16,7 +16,14 @@ export type JarvisToolName =
   | "update_capture" | "delete_capture"
   | "update_event" | "delete_event"
   | "find_tasks" | "find_captures" | "find_events"
-  | "create_person" | "find_people" | "link_people";
+  | "create_person" | "find_people" | "link_people"
+  | "open_url" | "open_app" | "web_search"
+  // Clicky slice — desktop action tools + server-side weather
+  | "send_message" | "system_control" | "type_text" | "press_key"
+  | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
+  | "get_weather"
+  // Computer Use fallback — catch-all agentic desktop loop
+  | "computer_use";
 
 export interface ParsedDate {
   /** Original phrase, e.g. "tomorrow 3am". */
@@ -184,6 +191,117 @@ export interface LinkPeopleAction {
   from_id: string;
 }
 
+// ---------------------------------------------------------------------------
+// Computer-control action input types (open_url / open_app / web_search).
+// The executor validates these server-side and returns a DesktopAction for
+// the desktop client to execute. No DB writes or gcal calls.
+// ---------------------------------------------------------------------------
+
+export interface OpenUrlAction {
+  url: string;
+  label?: string;
+}
+
+export interface OpenAppAction {
+  app: string;
+  label?: string;
+}
+
+export interface WebSearchAction {
+  query: string;
+  engine?: "google" | "maps";
+}
+
+// Clicky slice — new computer-control action input types. Executors validate
+// these server-side and return a DesktopAction; get_weather is the exception
+// (fully server-side, returns data in the receipt, no DesktopAction).
+
+export interface SendMessageAction {
+  app: "imessage";
+  recipient: string;
+  text: string;
+  label?: string;
+}
+
+export interface SystemControlAction {
+  action: "volume" | "brightness" | "focus" | "sleep";
+  value?: number | string;
+  label?: string;
+}
+
+export interface TypeTextAction {
+  text: string;
+}
+
+export interface PressKeyAction {
+  key: string;
+  modifiers?: string[];
+}
+
+export interface TakeScreenshotAction {
+  describe?: boolean;
+}
+
+export interface RunApplescriptAction {
+  label: string;
+  script: string;
+}
+
+export interface RunShortcutAction {
+  name: string;
+  input?: string;
+}
+
+export interface PlayMusicAction {
+  app?: "music" | "spotify";
+  query?: string;
+}
+
+export interface GetWeatherAction {
+  location?: string;
+}
+
+/** Computer Use fallback — catch-all for desktop tasks no named tool covers.
+ *  The executor mints a session_id and returns a DesktopAction; the desktop
+ *  then drives the multi-step loop against /api/jarvis/computer-use/step. */
+export interface ComputerUseAction {
+  task: string;
+}
+
+/** Structured desktop action returned by the executor for computer-control
+ *  tools. The desktop client keys off `kind` to decide what to do.
+ *  CONTRACT (fixed — the desktop dispatcher keys off `kind`; do not rename). */
+export type DesktopAction =
+  | { kind: "open_url"; url: string; label: string }
+  | { kind: "open_app"; app: string; label: string }
+  | {
+      kind: "send_message";
+      app: "imessage";
+      recipient: string;
+      text: string;
+      /** The desktop MUST hold the send until the user confirms aloud. */
+      requires_confirm: true;
+    }
+  | {
+      kind: "system_control";
+      action: "volume" | "brightness" | "focus" | "sleep";
+      value?: number | string;
+    }
+  | { kind: "type_text"; text: string }
+  | { kind: "press_key"; key: string; modifiers: string[] }
+  | { kind: "take_screenshot"; describe: boolean }
+  | { kind: "run_applescript"; label: string; script: string }
+  | { kind: "run_shortcut"; name: string; input?: string }
+  | { kind: "play_music"; app: "music" | "spotify"; query?: string }
+  | {
+      kind: "computer_use";
+      /** Plain-language task for the agentic Computer Use loop. */
+      task: string;
+      /** Server-minted UUID correlating every step of one loop. */
+      session_id: string;
+    };
+
+// ---------------------------------------------------------------------------
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn
 // for the in-turn scratchpad block (enables update/delete to reference items
 // created earlier in the same session without a separate find call).
