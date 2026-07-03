@@ -94,6 +94,8 @@ export type {
   RunShortcutAction,
   PlayMusicAction,
   GetWeatherAction,
+  // Server-side data tools (Gmail read)
+  ReadGmailAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
 } from "./types";

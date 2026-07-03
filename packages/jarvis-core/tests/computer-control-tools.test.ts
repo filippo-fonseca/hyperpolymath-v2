@@ -111,8 +111,8 @@ describe("buildToolDefinitions — computer-control tools", () => {
     expect(names).toContain("web_search");
   });
 
-  it("returns thirty tools total (20 previous + 9 clicky-slice + computer_use)", () => {
-    expect(buildToolDefinitions()).toHaveLength(30);
+  it("returns thirty-one tools total (20 previous + 9 clicky-slice + computer_use + read_gmail)", () => {
+    expect(buildToolDefinitions()).toHaveLength(31);
   });
 
   it("computer-control tools are ALL non-strict (grammar budget)", () => {
