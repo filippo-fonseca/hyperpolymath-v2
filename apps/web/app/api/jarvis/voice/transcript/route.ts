@@ -8,7 +8,9 @@ import {
   emitJarvisToolCall,
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
+import { phraseMatches } from "@hyperpolymath/jarvis-core/routines";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
+import { fireRoutineOverBus, getEnabledRoutines } from "@/lib/jarvis/routine-fire";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { buildRecentHistory } from "@/lib/jarvis/recent-history";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
@@ -133,6 +135,44 @@ export async function POST(req: NextRequest): Promise<Response> {
   // transcript never reaches the shared SSE stream.
   if (!(await isOwnerUser(userId))) {
     return new Response("Forbidden", { status: 403, headers: CORS });
+  }
+
+  // Utterance/wake routine interception. If this transcript matches an enabled
+  // phrase-triggered routine, run that routine's blocks over the SSE bus INSTEAD
+  // of a normal conversation turn. This makes an utterance trigger fire from ANY
+  // state — idle OR mid-conversation — which is what the editor promises (the
+  // desktop idle probe alone only caught the narrow idle window). Fail-open: any
+  // error here falls through to a normal turn.
+  try {
+    const enabledRoutines = await getEnabledRoutines(userId);
+    const matched = enabledRoutines.find((r) =>
+      r.spec.triggers.some(
+        (t) =>
+          (t.type === "utterance" && phraseMatches(transcript, t.match)) ||
+          (t.type === "wake" && phraseMatches(transcript, t.phrase)),
+      ),
+    );
+    if (matched) {
+      // Show the user's spoken phrase, then stream the routine's spoken blocks.
+      emitPhysicalTranscript({
+        transcript,
+        sttDoneAt,
+        vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+        at: sttDoneAt,
+      });
+      const routineKey =
+        (await getUserKeyOrNull(userId, "anthropic")) ?? process.env.ANTHROPIC_API_KEY ?? "";
+      const runId = fireRoutineOverBus(matched.spec.blocks, {
+        userId,
+        apiKey: routineKey,
+        isVoice: true,
+        mode: jarvisMode,
+        routineName: matched.name,
+      });
+      return Response.json({ transcript, sttDoneAt, routine: matched.id, runId }, { headers: CORS });
+    }
+  } catch (err) {
+    console.error("[voice/transcript] utterance routine check failed", err);
   }
 
   emitPhysicalTranscript({
