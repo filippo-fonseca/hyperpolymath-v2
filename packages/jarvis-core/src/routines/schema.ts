@@ -61,6 +61,10 @@ export const zRoutineSpec = z.object({
   version: z.literal(ROUTINE_SPEC_VERSION),
   triggers: z.array(zRoutineTrigger).min(1), // a routine needs ≥1 trigger
   blocks: z.array(zRoutineBlock).min(1), //     …and ≥1 block
+  // Briefing cohesion (Option C): gather blocks silently, then speak ONE
+  // synthesized butler brief. Optional + off by default — existing specs
+  // parse unchanged.
+  synthesize: z.boolean().optional(),
 });
 
 /** Loose input type (pre-defaults) accepted by `zRoutineSpec.parse`. */

@@ -260,3 +260,15 @@ DO NOT emit voice_summary when voiceActive=false. The Zod schema enforces this; 
  * name exported so existing importers (prompt-builder, tests) resolve.
  */
 export const VOICE_ADDENDUM = SPOKEN_OUTPUT_CONTRACT;
+
+/**
+ * NARRATOR CONTRACT (Option C — routine briefing synthesis).
+ *
+ * Prepended to the user message of the SINGLE synthesis turn that runs AFTER a
+ * "synthesize" routine has silently gathered every block's data. The labeled
+ * block receipts follow it. The turn runs with toolChoice:{type:"none"} (prose
+ * only) and isVoice=true, so the SPOKEN-OUTPUT CONTRACT is already in force —
+ * this only frames the synthesis task. One narrator sees everything once, so
+ * cross-block repetition is structurally impossible.
+ */
+export const NARRATOR_CONTRACT = `You have just gathered several data sources for the user's briefing. Below are the labeled results (WEATHER, NEWS, GMAIL, WHATSAPP, and so on). Deliver ONE cohesive spoken butler brief that weaves them together — not one paragraph per source. Lead with what matters or what needs the user; interpret, never recite; omit anything they would not act on. Keep the whole brief to about five sentences, each short. End with at most one actionable question, and only if action is genuinely needed. Mention any single fact once. Do not restate a source's name as a header; just speak.`;

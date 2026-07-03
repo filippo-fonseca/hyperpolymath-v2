@@ -18,6 +18,7 @@
 
 import {
   JARVIS_TOOL_NAMES,
+  NARRATOR_CONTRACT,
   isJarvisToolName,
   zCreateTaskFor,
   zCreateCaptureFor,
@@ -77,6 +78,14 @@ export interface RoutineRunContext {
   /** true when consumed by desktop TTS; false for web-text render. */
   isVoice: boolean;
   mode?: "computer";
+  /**
+   * Briefing cohesion (Option C). When true, blocks GATHER silently (their
+   * tools fire + receipts render, but per-block narration is NOT streamed to
+   * the bus), then ONE final butler synthesis turn speaks a single cohesive
+   * brief under one synthetic turnId. Off (default) = per-block narration as
+   * before, so action routines keep announce-before-act latency.
+   */
+  synthesize?: boolean;
   /** Human name of the routine — used for the synthesized block id prefix. */
   routineName: string;
   /** Stable id for this run — used to key per-block ids when a block has none. */
@@ -101,6 +110,18 @@ export interface RoutineRunHandlers {
   onBlockDone?(result: BlockRunResult): void;
   onRoutineDone(results: BlockRunResult[]): void;
   onError(blockId: string, message: string): void;
+
+  // --- Option C (synthesis mode) handlers ---------------------------------
+  // Emitted ONLY when ctx.synthesize is true. The synthesis turn streams under
+  // ONE synthetic turnId so the desktop speaks a single cohesive utterance.
+  /** Instant one-line opener spoken on routine start (while gathering). */
+  onOpener?(text: string): void;
+  /** The single synthesis utterance begins (its own turnId on the bus). */
+  onSynthesisStart?(turnId: string): void;
+  /** A delta of the synthesis brief (same turnId as onSynthesisStart). */
+  onSynthesisDelta?(turnId: string, delta: string): void;
+  /** The synthesis utterance is complete. */
+  onSynthesisDone?(turnId: string): void;
 }
 
 type ThreadMsg = { role: "assistant"; content: string };
@@ -253,12 +274,24 @@ export async function runRoutine(
   const runId = ctx.runId ?? (globalThis.crypto?.randomUUID?.() ?? `run-${Date.now()}`);
   const threaded: ThreadMsg[] = [];
   const results: BlockRunResult[] = [];
+  const synth = ctx.synthesize === true;
+
+  // Option C: an instant one-line opener so there is audio feedback the moment
+  // the routine fires, while the blocks gather silently behind it.
+  if (synth) {
+    handlers.onOpener?.("Welcome home, sir — one moment.");
+  }
+
+  // In synthesis mode the blocks GATHER: their tools fire and receipts render
+  // (onAction), but their per-block narration is NOT streamed to the bus, and
+  // we run them non-voice so no spoken shaping is wasted on data we'll re-narrate.
+  const gatherVoice = synth ? false : ctx.isVoice;
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
     const blockId = block.id && block.id.length > 0 ? block.id : `${runId}:b${i}`;
 
-    handlers.onBlockStart?.(blockId, i, blocks.length);
+    if (!synth) handlers.onBlockStart?.(blockId, i, blocks.length);
 
     // Defensive guard: unknown tool → skip block, surface error, keep going.
     // (routine-model validates authored blocks; this is defense in depth.)
@@ -273,12 +306,12 @@ export async function runRoutine(
         error: message,
       };
       results.push(skipped);
-      handlers.onBlockDone?.(skipped);
+      if (!synth) handlers.onBlockDone?.(skipped);
       threaded.push(summarizeBlockForThread(skipped));
       continue;
     }
 
-    const { messages, toolChoice, input } = blockToTurn(block, threaded, ctx.isVoice);
+    const { messages, toolChoice, input } = blockToTurn(block, threaded, gatherVoice);
 
     let blockText = "";
     const blockActions: BlockRunResult["actions"] = [];
@@ -298,17 +331,20 @@ export async function runRoutine(
         input,
         messages,
         toolChoice,
-        isVoice: ctx.isVoice,
+        isVoice: gatherVoice,
         mode: ctx.mode,
         source: ctx.source,
         sttDoneAt: null,
         vadEndAt: undefined,
         abortSignal: ctx.abortSignal,
         onTextDelta: (delta) => {
+          // Always capture the text (it feeds cross-block threading + the
+          // synthesis receipts); only STREAM it to the bus when NOT synthesizing.
           blockText += delta;
-          handlers.onTextDelta(blockId, delta);
+          if (!synth) handlers.onTextDelta(blockId, delta);
         },
         onAction: (toolUseId, name, result) => {
+          // Receipts render on screen in BOTH modes (onAction always fires).
           blockActions.push({ toolUseId, name, result });
           handlers.onAction(blockId, toolUseId, name, result);
         },
@@ -329,10 +365,103 @@ export async function runRoutine(
       ...(blockError ? { error: blockError } : {}),
     };
     results.push(result);
-    handlers.onBlockDone?.(result);
+    if (!synth) handlers.onBlockDone?.(result);
     threaded.push(summarizeBlockForThread(result));
+  }
+
+  // Option C: after silent gathering, run ONE butler synthesis turn over the
+  // labeled block receipts and stream it under a single synthetic turnId, so
+  // the desktop speaks exactly one cohesive brief.
+  if (synth) {
+    await runSynthesisTurn(runId, blocks, results, ctx, handlers);
   }
 
   handlers.onRoutineDone(results);
   return results;
+}
+
+/**
+ * Build the labeled block-receipts user message for the synthesis turn. Each
+ * block contributes its narration text (what the model already read from its
+ * tool) plus the action names it fired, under an UPPERCASE label derived from
+ * its tool. This is RAW DATA for the narrator's eyes — the SPOKEN-OUTPUT +
+ * NARRATOR contracts turn it into a single spoken brief.
+ */
+export function buildSynthesisReceipts(
+  blocks: RoutineBlock[],
+  results: BlockRunResult[],
+): string {
+  const labelFor = (tool: string): string =>
+    tool
+      .replace(/^(get|read|find)_/, "")
+      .replace(/_/g, " ")
+      .toUpperCase();
+  const lines: string[] = [];
+  for (const r of results) {
+    const label = labelFor(r.tool);
+    if (r.error) {
+      lines.push(`${label}: (unavailable — ${r.error})`);
+      continue;
+    }
+    const body = r.text.trim();
+    const actions =
+      r.actions.length > 0 ? ` [actions: ${r.actions.map((a) => a.name).join(", ")}]` : "";
+    lines.push(`${label}: ${body || "(no notable data)"}${actions}`);
+  }
+  return lines.join("\n\n");
+}
+
+/**
+ * Run the single synthesis turn. It streams under ONE synthetic turnId
+ * (`${runId}:brief`) with toolChoice:{type:"none"} (prose only) and the run's
+ * voice flag, so the desktop hears one cohesive utterance.
+ */
+async function runSynthesisTurn(
+  runId: string,
+  blocks: RoutineBlock[],
+  results: BlockRunResult[],
+  ctx: RoutineRunContext,
+  handlers: RoutineRunHandlers,
+): Promise<void> {
+  const synthTurnId = `${runId}:brief`;
+  const receipts = buildSynthesisReceipts(blocks, results);
+  const userMessage = `${NARRATOR_CONTRACT}\n\n${receipts}`;
+
+  handlers.onSynthesisStart?.(synthTurnId);
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    void runJarvisTurnStream({
+      userId: ctx.userId,
+      apiKey: ctx.apiKey,
+      turnId: synthTurnId,
+      input: "routine briefing synthesis",
+      messages: [{ role: "user", content: userMessage }],
+      // Prose only — the narrator must not fire tools; it just speaks the read.
+      toolChoice: { type: "none" },
+      isVoice: ctx.isVoice,
+      mode: ctx.mode,
+      source: ctx.source,
+      sttDoneAt: null,
+      vadEndAt: undefined,
+      abortSignal: ctx.abortSignal,
+      onTextDelta: (delta) => handlers.onSynthesisDelta?.(synthTurnId, delta),
+      onAction: () => {
+        // toolChoice:none — no tools should fire; ignore defensively.
+      },
+      onDone: () => settle(),
+      onError: (message) => {
+        handlers.onError(synthTurnId, message);
+        settle();
+      },
+    });
+  });
+
+  handlers.onSynthesisDone?.(synthTurnId);
 }

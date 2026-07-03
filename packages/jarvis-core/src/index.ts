@@ -27,6 +27,7 @@ export {
   TOOL_USE_RULES,
   VOICE_ADDENDUM,
   SPOKEN_OUTPUT_CONTRACT,
+  NARRATOR_CONTRACT,
 } from "./personality";
 
 export {

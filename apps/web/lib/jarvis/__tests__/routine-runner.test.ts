@@ -50,6 +50,7 @@ import {
   runRoutine,
   summarizeBlockForThread,
   validateBlockParams,
+  buildSynthesisReceipts,
   type RoutineRunContext,
   type RoutineRunHandlers,
   type BlockRunResult,
@@ -90,6 +91,11 @@ function makeHandlers(): RoutineRunHandlers & {
       errors.push({ blockId, message });
       events.push(`error:${blockId}`);
     },
+    // Option C (synthesis) handlers — tracked for the cohesion tests.
+    onOpener: (text: string) => events.push(`opener:${text}`),
+    onSynthesisStart: (turnId: string) => events.push(`synthstart:${turnId}`),
+    onSynthesisDelta: (turnId: string, delta: string) => events.push(`synthdelta:${turnId}:${delta}`),
+    onSynthesisDone: (turnId: string) => events.push(`synthdone:${turnId}`),
   };
   return h;
 }
@@ -282,6 +288,142 @@ describe("runRoutine — read+act contract (the crux)", () => {
     // Both surfaced through the handler too.
     expect(h.events).toContain("action:run-abc:b0:read_gmail");
     expect(h.events).toContain("action:run-abc:b0:create_task");
+  });
+});
+
+describe("runRoutine — synthesis mode (Option C cohesion)", () => {
+  it("suppresses per-block narration and emits EXACTLY ONE synthesis bus cycle for a 4-block briefing", async () => {
+    // Each gather block streams its own narration + fires its tool. In synthesis
+    // mode NONE of that narration reaches the bus; instead a single synthesis
+    // turn speaks one cohesive brief.
+    drivers = [
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Clear, 94F.");
+        (opts.onAction as (id: string, n: string, r: unknown) => void)("tu-w", "get_weather", { tempF: 94 });
+        (opts.onDone as (u: unknown) => void)({});
+      },
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Two headlines.");
+        (opts.onAction as (id: string, n: string, r: unknown) => void)("tu-n", "get_news", { articles: [] });
+        (opts.onDone as (u: unknown) => void)({});
+      },
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Just bots.");
+        (opts.onAction as (id: string, n: string, r: unknown) => void)("tu-g", "read_gmail", { emails: [] });
+        (opts.onDone as (u: unknown) => void)({});
+      },
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Tita, two messages.");
+        (opts.onAction as (id: string, n: string, r: unknown) => void)("tu-wa", "read_whatsapp", { messages: [] });
+        (opts.onDone as (u: unknown) => void)({});
+      },
+      // 5th call = the synthesis turn.
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Welcome home, sir. Clear ninety-four out. Tita left two messages — shall I reply?");
+        (opts.onDone as (u: unknown) => void)({});
+      },
+    ];
+
+    const h = makeHandlers();
+    await runRoutine(
+      [block("get_weather"), block("get_news"), block("read_gmail"), block("read_whatsapp")],
+      makeCtx({ synthesize: true }),
+      h,
+    );
+
+    // 4 gather turns + 1 synthesis turn.
+    expect(turnCalls).toHaveLength(5);
+
+    // Instant opener spoken on start.
+    expect(h.events.filter((e) => e.startsWith("opener:"))).toHaveLength(1);
+
+    // ZERO per-block narration reached the bus.
+    expect(h.events.some((e) => e.startsWith("delta:"))).toBe(false);
+    // No per-block start/done bus cycles either.
+    expect(h.events.some((e) => e.startsWith("start:"))).toBe(false);
+    expect(h.events.some((e) => e.startsWith("blockdone:"))).toBe(false);
+
+    // EXACTLY ONE synthesis cycle, all under the SAME synthetic turnId.
+    const starts = h.events.filter((e) => e.startsWith("synthstart:"));
+    const dones = h.events.filter((e) => e.startsWith("synthdone:"));
+    expect(starts).toHaveLength(1);
+    expect(dones).toHaveLength(1);
+    const synthTurnId = starts[0].slice("synthstart:".length);
+    expect(synthTurnId).toBe("run-abc:brief");
+    // Every synthesis delta carries that one turnId.
+    const deltas = h.events.filter((e) => e.startsWith("synthdelta:"));
+    expect(deltas.length).toBeGreaterThan(0);
+    for (const d of deltas) {
+      expect(d.startsWith(`synthdelta:${synthTurnId}:`)).toBe(true);
+    }
+
+    // Receipts still render on screen in BOTH modes — onAction fired per block.
+    expect(h.events.filter((e) => e.startsWith("action:"))).toHaveLength(4);
+  });
+
+  it("the synthesis turn is prose-only (toolChoice none) under one turnId, gather turns are non-voice", async () => {
+    drivers = [
+      (opts) => (opts.onDone as (u: unknown) => void)({}),
+      (opts) => (opts.onDone as (u: unknown) => void)({}),
+    ];
+    const h = makeHandlers();
+    await runRoutine([block("get_weather")], makeCtx({ synthesize: true }), h);
+
+    // turnCalls[0] = gather (non-voice), turnCalls[1] = synthesis turn.
+    expect(turnCalls).toHaveLength(2);
+    expect((turnCalls[0] as { isVoice: boolean }).isVoice).toBe(false);
+    const synth = turnCalls[1];
+    expect(synth.toolChoice).toEqual({ type: "none" });
+    expect(synth.turnId).toBe("run-abc:brief");
+    // Voice flag on the synthesis turn follows ctx.isVoice (true here).
+    expect((synth as { isVoice: boolean }).isVoice).toBe(true);
+    const msgs = synth.messages as Array<{ role: string; content: string }>;
+    expect(msgs[0].content).toContain("gathered several data sources");
+    expect(msgs[0].content).toContain("WEATHER:");
+  });
+
+  it("non-synthesis mode is unchanged: per-block narration streams, no synthesis cycle", async () => {
+    drivers = [
+      (opts) => {
+        (opts.onTextDelta as (d: string) => void)("Clear, 94F.");
+        (opts.onDone as (u: unknown) => void)({});
+      },
+    ];
+    const h = makeHandlers();
+    await runRoutine([block("get_weather")], makeCtx(), h);
+    expect(turnCalls).toHaveLength(1); // no extra synthesis turn
+    expect(h.events).toContain("delta:run-abc:b0:Clear, 94F.");
+    expect(h.events.some((e) => e.startsWith("synthstart:"))).toBe(false);
+    expect(h.events.some((e) => e.startsWith("opener:"))).toBe(false);
+  });
+});
+
+describe("buildSynthesisReceipts", () => {
+  it("labels each block by tool and includes narration + action names", () => {
+    const results: BlockRunResult[] = [
+      { blockId: "b0", tool: "get_weather", text: "Clear, 94F.", actions: [] },
+      {
+        blockId: "b1",
+        tool: "read_gmail",
+        text: "Just bots and marketing.",
+        actions: [{ toolUseId: "1", name: "read_gmail", result: {} }],
+      },
+    ];
+    const out = buildSynthesisReceipts(
+      [block("get_weather"), block("read_gmail")],
+      results,
+    );
+    expect(out).toContain("WEATHER: Clear, 94F.");
+    expect(out).toContain("GMAIL: Just bots and marketing.");
+    expect(out).toContain("[actions: read_gmail]");
+  });
+
+  it("marks an errored block as unavailable", () => {
+    const results: BlockRunResult[] = [
+      { blockId: "b0", tool: "read_gmail", text: "", actions: [], error: "auth failed" },
+    ];
+    const out = buildSynthesisReceipts([block("read_gmail")], results);
+    expect(out).toContain("GMAIL: (unavailable — auth failed)");
   });
 });
 

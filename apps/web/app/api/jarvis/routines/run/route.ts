@@ -24,9 +24,11 @@ interface RunRoutineBody {
   /** Load + run a persisted routine by id (routine-model persistence). */
   routineId?: unknown;
   /** OR run an inline spec — lets block-engine run without persistence. */
-  routine?: { name?: unknown; blocks?: unknown } | null;
+  routine?: { name?: unknown; blocks?: unknown; synthesize?: unknown } | null;
   /** default true — desktop TTS is the primary consumer. */
   isVoice?: unknown;
+  /** Option C: gather blocks silently + speak ONE synthesized brief. */
+  synthesize?: unknown;
 }
 
 /**
@@ -75,6 +77,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Resolve the routine — either inline or by loading a persisted one.
   let routineName: string;
   let blocks: RoutineBlock[];
+  // Synthesis flag: an explicit top-level body flag wins; otherwise inherit
+  // from the inline routine's / persisted spec's `synthesize` field.
+  let synthesize = body.synthesize === undefined ? undefined : Boolean(body.synthesize);
 
   if (body.routine && Array.isArray(body.routine.blocks)) {
     routineName =
@@ -82,6 +87,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         ? body.routine.name.trim()
         : "routine";
     blocks = body.routine.blocks as RoutineBlock[];
+    if (synthesize === undefined && body.routine.synthesize !== undefined) {
+      synthesize = Boolean(body.routine.synthesize);
+    }
   } else if (typeof body.routineId === "string" && body.routineId.length > 0) {
     const listed = await listRoutines();
     if (!listed.success) {
@@ -99,6 +107,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     routineName = found.name;
     blocks = found.spec.blocks;
+    if (synthesize === undefined) synthesize = found.spec.synthesize === true;
   } else {
     return Response.json(
       { error: "Provide either { routine: { blocks } } or { routineId }" },
@@ -126,6 +135,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     apiKey: anthropicKey,
     isVoice,
     mode: jarvisMode,
+    synthesize: synthesize === true,
     routineName,
     abortSignal: req.signal,
   });

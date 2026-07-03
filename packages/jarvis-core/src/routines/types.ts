@@ -83,6 +83,18 @@ export interface RoutineSpec {
   triggers: RoutineTrigger[];
   /** Ordered — array order IS execution order. */
   blocks: RoutineBlock[];
+  /**
+   * Briefing cohesion (Option C). When true, the runner GATHERS every block's
+   * data WITHOUT streaming per-block narration, then runs ONE final butler
+   * synthesis turn over all block receipts and speaks a single cohesive brief
+   * (spoken as one utterance under one turnId). Kills the disjoint-multi-message
+   * + cross-block-repetition defects for a "Daddy's Home"-style briefing.
+   *
+   * Leave false/omitted for action-only routines (e.g. "open Spotify + set
+   * focus") so they keep per-block announce-before-act latency. Optional +
+   * defaulting to off keeps every existing routine's behaviour unchanged.
+   */
+  synthesize?: boolean;
 }
 
 /** Full row shape returned by the server actions (first-class cols + spec). */

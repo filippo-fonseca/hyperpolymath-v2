@@ -51,6 +51,12 @@ export interface FireRoutineOpts {
   routineName: string;
   runId?: string;
   abortSignal?: AbortSignal;
+  /**
+   * Briefing cohesion (Option C). When true, blocks gather silently and ONE
+   * synthesized butler brief is spoken under a single turnId. Off/omitted =
+   * per-block narration (announce-before-act) as before.
+   */
+  synthesize?: boolean;
 }
 
 /**
@@ -70,6 +76,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       source: { device: "routine", input: opts.isVoice ? "voice" : "text" },
       isVoice: opts.isVoice,
       mode: opts.mode,
+      synthesize: opts.synthesize,
       routineName: opts.routineName,
       runId,
       abortSignal: opts.abortSignal,
@@ -95,7 +102,28 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
         });
       },
       onRoutineDone: () => {
-        // Completion observable from the last block's response-end (v1).
+        // Completion observable from the last block's (or the synthesis)
+        // response-end.
+      },
+      // --- Option C (synthesis) handlers -----------------------------------
+      // The opener is its OWN one-shot turnId so it speaks the instant the
+      // routine fires, while the blocks gather silently behind it.
+      onOpener: (text) => {
+        const openerId = `${runId}:opener`;
+        emitJarvisResponseStart({ turnId: openerId, at: Date.now() });
+        emitJarvisResponseChunk({ turnId: openerId, delta: text, at: Date.now() });
+        emitJarvisResponseEnd({ turnId: openerId, at: Date.now() });
+      },
+      // The synthesized brief streams under ONE turnId — the desktop segments +
+      // speaks it as a single cohesive utterance.
+      onSynthesisStart: (turnId) => {
+        emitJarvisResponseStart({ turnId, at: Date.now() });
+      },
+      onSynthesisDelta: (turnId, delta) => {
+        emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+      },
+      onSynthesisDone: (turnId) => {
+        emitJarvisResponseEnd({ turnId, at: Date.now() });
       },
     },
   ).catch((err: unknown) => {
