@@ -94,6 +94,8 @@ export type {
   RunShortcutAction,
   PlayMusicAction,
   GetWeatherAction,
+  // WhatsApp — server-side read of synced messages
+  ReadWhatsappAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
 } from "./types";
