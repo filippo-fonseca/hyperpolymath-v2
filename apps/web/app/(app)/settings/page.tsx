@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, KeyRound, Laptop, Network } from "lucide-react";
+import { Brain, KeyRound, Laptop, Network, Repeat } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
@@ -271,6 +271,27 @@ export default async function SettingsPage() {
                 className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
               >
                 View snapshot →
+              </Link>
+            </Card>
+
+            <Card className={tile}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--edge)] bg-[var(--canvas)] text-[var(--ink-amber)] shadow-[inset_1px_1px_2px_color-mix(in_oklch,var(--ink)_10%,transparent),inset_-1px_-1px_2px_color-mix(in_oklch,white_70%,transparent)]">
+                  <Repeat className="h-4 w-4" />
+                </span>
+                <h3 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+                  Routines
+                </h3>
+              </div>
+              <p className="font-serif text-base text-[var(--ink-muted)]">
+                Author repeatable JARVIS routines — a trigger and an ordered list
+                of smart blocks that run in sequence.
+              </p>
+              <Link
+                href="/settings/routines"
+                className="inline-flex items-center font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out cursor-pointer-always"
+              >
+                Manage routines →
               </Link>
             </Card>
           </section>
