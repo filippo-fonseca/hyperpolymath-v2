@@ -110,7 +110,7 @@ describe("zCreateEvent", () => {
 });
 
 describe("buildToolDefinitions", () => {
-  it("returns thirty-one tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice, read_gmail, computer_use", () => {
+  it("returns thirty-two tools in order: 5 originals, update/delete/find (Phase 16), people (Phase D), computer-control, clicky slice, read_gmail, get_news, computer_use", () => {
     const tools = buildToolDefinitions();
     expect(tools.map((t) => t.name)).toEqual([
       "create_task",
@@ -143,6 +143,7 @@ describe("buildToolDefinitions", () => {
       "play_music",
       "get_weather",
       "read_gmail",
+      "get_news",
       "computer_use",
     ]);
   });

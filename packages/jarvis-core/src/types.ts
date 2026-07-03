@@ -24,6 +24,7 @@ export type JarvisToolName =
   | "get_weather"
   // Server-side data tools (no DesktopAction)
   | "read_gmail"
+  | "get_news"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -271,6 +272,17 @@ export interface GetWeatherAction {
  */
 export interface ReadGmailAction {
   query?: string;
+  maxResults?: number;
+}
+
+/**
+ * get_news — fully server-side Guardian API fetch. BYOK-first (user key via
+ * `getUserKeyOrNull(userId, "guardian")`) with an owner env fallback of
+ * GUARDIAN_API_KEY. Results ride back in the tool receipt for the agent to
+ * narrate; no DesktopAction is emitted.
+ */
+export interface GetNewsAction {
+  topic?: string;
   maxResults?: number;
 }
 

@@ -19,6 +19,7 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetNewsAction,
   GetWeatherAction,
   LinkPeopleAction,
   ReadGmailAction,
@@ -147,6 +148,7 @@ export interface ActionExecutor {
   // Server-side data tools — fully server-side fetches; data rides back in
   // `receipt` for the model to narrate. No DesktopAction is emitted.
   readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Computer Use fallback — mints a session_id and returns the computer_use
   // DesktopAction; the desktop drives the step loop against

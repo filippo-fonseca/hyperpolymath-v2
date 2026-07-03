@@ -34,6 +34,7 @@
 import { randomUUID } from "node:crypto";
 import { google } from "googleapis";
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -83,6 +84,7 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetNewsAction,
   GetWeatherAction,
   LinkPeopleAction,
   ReadGmailAction,
@@ -1219,6 +1221,81 @@ export function createServerExecutor(): ActionExecutor {
           };
         }
         return { ok: false, kind: "network", error: message };
+      }
+    },
+
+    async getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: Guardian Open Platform Content API. BYOK-first
+      // (per-user "guardian" provider key) with an owner env fallback of
+      // GUARDIAN_API_KEY so the owner-flavoured devices don't need a saved key.
+      const requested = typeof input.maxResults === "number" ? input.maxResults : 8;
+      const maxResults = Math.min(Math.max(1, Math.floor(requested)), 15);
+      const topic = input.topic?.trim() || undefined;
+
+      const userKey = await getUserKeyOrNull(ctx.userId, "guardian");
+      const apiKey = userKey ?? process.env.GUARDIAN_API_KEY ?? null;
+      if (!apiKey) {
+        return {
+          ok: false,
+          kind: "not_connected",
+          error:
+            "No Guardian API key configured — add one in Settings (grab a free key at open-platform.theguardian.com).",
+        };
+      }
+
+      const params = new URLSearchParams({
+        "api-key": apiKey,
+        "show-fields": "trailText",
+        "page-size": String(maxResults),
+        "order-by": "newest",
+      });
+      if (topic) params.set("q", topic);
+
+      try {
+        const res = await fetch(
+          `https://content.guardianapis.com/search?${params.toString()}`,
+        );
+        if (!res.ok) {
+          return {
+            ok: false,
+            kind: "network",
+            error: `Guardian API request failed (${res.status})`,
+          };
+        }
+        const body = (await res.json()) as {
+          response?: {
+            results?: Array<{
+              webTitle?: string;
+              sectionName?: string;
+              webPublicationDate?: string;
+              webUrl?: string;
+              fields?: { trailText?: string };
+            }>;
+          };
+        };
+        const results = body.response?.results ?? [];
+        const articles = results.map((r) => ({
+          title: r.webTitle,
+          section: r.sectionName,
+          published: r.webPublicationDate,
+          trailText: r.fields?.trailText,
+          url: r.webUrl,
+        }));
+        return {
+          ok: true,
+          id: `get_news:${articles.length}`,
+          receipt: {
+            articles,
+            count: articles.length,
+            ...(topic ? { topic } : {}),
+          },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
       }
     },
 
