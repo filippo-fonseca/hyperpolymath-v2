@@ -227,6 +227,16 @@
         text-transform: uppercase;
         color: var(--muted);
         margin-bottom: 3px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .turn .who .when {
+        text-transform: none;
+        letter-spacing: 0.02em;
+        opacity: 0.55;
+        font-variant-numeric: tabular-nums;
       }
       .turn.user .who { color: color-mix(in srgb, var(--fg) 55%, var(--muted)); }
       .turn.jarvis .who { color: var(--accent); }

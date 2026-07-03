@@ -173,6 +173,23 @@ let turnPairState: TurnPairState = "neutral";
 // is inserted BEFORE this so order is preserved.
 let jarvisTurnAwaitingUser: HTMLElement | null = null;
 
+/** Local wall-clock stamp for a transcript turn, e.g. "5:42 PM". */
+function nowStamp(): string {
+  return new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Build the speaker header row ("you"/"jarvis" + right-aligned timestamp). */
+function whoRow(label: string): HTMLElement {
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = label;
+  const when = document.createElement("span");
+  when.className = "when";
+  when.textContent = nowStamp();
+  who.appendChild(when);
+  return who;
+}
+
 /** Append a completed user-utterance bubble. */
 function appendUserTurn(text: string): void {
   const el = transcriptEl();
@@ -181,9 +198,7 @@ function appendUserTurn(text: string): void {
   el.classList.add("has-content");
   const turn = document.createElement("div");
   turn.className = "turn user";
-  const who = document.createElement("div");
-  who.className = "who";
-  who.textContent = "you";
+  const who = whoRow("you");
   const body = document.createElement("div");
   body.className = "body";
   body.textContent = text;
@@ -210,9 +225,7 @@ function startJarvisTurn(): void {
   el.classList.add("has-content");
   const turn = document.createElement("div");
   turn.className = "turn jarvis";
-  const who = document.createElement("div");
-  who.className = "who";
-  who.textContent = "jarvis";
+  const who = whoRow("jarvis");
   const body = document.createElement("div");
   body.className = "body";
   turn.append(who, body);
