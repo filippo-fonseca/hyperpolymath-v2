@@ -416,6 +416,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const actionTypes: string[] = [];
   let anyTextEmitted = false;
+  // Accumulated text actually streamed to the bus this turn — used by the
+  // trailing-block dedupe (Unit 5) to drop a final-message ack the stream
+  // already spoke ("Noted, sir — I'll remember that.Duly updated, sir.").
+  let streamedText = "";
   let firstTokenAt: number | null = null;
   let firstTokenAt_d: Date | null = null;
   let lastTokenAt_d: Date | null = null;
@@ -766,7 +770,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
         }
         lastTokenAt_d = new Date();
         const s = String(delta);
-        if (s.trim().length > 0) anyTextEmitted = true;
+        if (s.trim().length > 0) {
+          anyTextEmitted = true;
+          streamedText += s;
+        }
         emitTextDelta(s);
       });
 
@@ -814,7 +821,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       type?: string;
       text?: string;
     }>;
-    const finalTextBlocks = Array.isArray(finalContent)
+    const rawFinalTextBlocks = Array.isArray(finalContent)
       ? finalContent
           .filter(
             (b) =>
@@ -824,6 +831,36 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           )
           .map((b) => b.text as string)
       : [];
+
+    // Unit 5 — anti-double-ack / near-identical dedupe. The trailing final
+    // message can re-emit an acknowledgement the stream already spoke (e.g.
+    // "Noted, sir — I'll remember that." then "Duly updated, sir."), or repeat
+    // itself across its own text blocks. Drop any block whose normalized text
+    // duplicates (or is a near-identical substring of) something already
+    // streamed this turn OR an earlier block in this same fallback.
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const isNearDuplicate = (candidate: string, prior: string): boolean => {
+      const a = normalize(candidate);
+      const b = normalize(prior);
+      if (!a) return true;
+      if (!b) return false;
+      // Exact, or the short ack is fully contained in prior text (or vice versa).
+      return a === b || (a.length <= 60 && b.includes(a)) || (b.length <= 60 && a.includes(b));
+    };
+    const streamedNorm = streamedText;
+    const finalTextBlocks: string[] = [];
+    for (const block of rawFinalTextBlocks) {
+      const dupOfStreamed = streamedNorm.trim().length > 0 && isNearDuplicate(block, streamedNorm);
+      const dupOfEarlier = finalTextBlocks.some((prev) => isNearDuplicate(block, prev));
+      if (dupOfStreamed || dupOfEarlier) continue;
+      finalTextBlocks.push(block);
+    }
+
     if (!anyTextEmitted && finalTextBlocks.length > 0) {
       // Join with a PARAGRAPH break (not a single newline) so the sentence
       // splitter always sees a terminator between fallback blocks and never
