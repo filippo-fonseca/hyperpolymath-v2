@@ -1380,3 +1380,41 @@ export const peopleReferences = pgTable(
     index("people_references_from_idx").on(t.fromType, t.fromId),
   ],
 );
+
+// whatsapp_messages — messages synced from the local lharries/whatsapp-mcp
+// Go bridge (which owns the whatsmeow session and its own SQLite mirror).
+// A small local sync worker (tools/whatsapp-sync/sync.mjs) reads new rows
+// out of that bridge and POSTs them to /api/whatsapp/ingest, which upserts
+// them here. The server-side `read_whatsapp` JARVIS tool then queries this
+// table so briefings + agent turns can see WhatsApp with zero mid-turn
+// desktop round-trip (desktop tool execution is fire-and-forget).
+//
+// externalId is the bridge's messages.id (whatsmeow-supplied). The unique
+// (userId, chatJid, externalId) key gives the ingest route a safe upsert
+// target — replays never duplicate.
+export const whatsappMessages = pgTable(
+  "whatsapp_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    chatJid: text("chat_jid").notNull(),
+    chatName: text("chat_name"),
+    sender: text("sender"),
+    senderName: text("sender_name"),
+    fromMe: boolean("from_me").notNull().default(false),
+    body: text("body"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("whatsapp_messages_user_chat_external_uniq").on(
+      t.userId,
+      t.chatJid,
+      t.externalId,
+    ),
+    index("whatsapp_messages_user_sent_at_idx").on(t.userId, t.sentAt.desc()),
+  ],
+);
