@@ -13,11 +13,6 @@
 //   9. Wire all settings toggles (TTS enabled, provider, PE mode, Stop button)
 //  10. Register global hotkey when PE mode is OFF (Piece 5 / Cmd+Shift+J)
 
-import {
-  register as registerShortcut,
-  unregister as unregisterShortcut,
-  isRegistered as isShortcutRegistered,
-} from "@tauri-apps/plugin-global-shortcut";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -68,9 +63,31 @@ import {
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
-import { setWakeEnabled, setWakeTriggerHandler } from "@/wake/wake-probe";
+import {
+  refreshIdleLoopForPhrases,
+  setHasPhraseTriggers,
+  setPhraseMatcher,
+  setRoutineFireHandler,
+  setWakeEnabled,
+  setWakeTriggerHandler,
+} from "@/wake/wake-probe";
+import { safeRegister } from "@/hotkeys/register";
+import {
+  fireRoutine,
+  hasPhraseTriggers,
+  matchPhrase,
+  refreshRoutines,
+  setHotkeySync,
+  setRoutineBusyCheck,
+  setSchedulerSync,
+} from "@/routines/registry";
+import { syncHotkeys } from "@/routines/hotkeys";
+import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
+// Re-fetch the owner's enabled routines on this cadence so the desktop's
+// trigger surface (phrase table, hotkeys, time next-runs) tracks web edits.
+const ROUTINE_SYNC_INTERVAL_MS = 5 * 60_000;
 
 function paintSseStatus(status: SseStatus): void {
   // Drive the header connection dot (body[data-sse]) + the drawer text row.
@@ -418,46 +435,6 @@ function prettyHotkey(accel: string): string {
     .replace(/\+/g, "");
 }
 
-async function safeRegister(
-  hotkey: string,
-  label: string,
-  handler: () => void,
-): Promise<boolean> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) already registered`);
-      return true;
-    }
-    await registerShortcut(hotkey, (event) => {
-      if (event.state !== "Pressed") return;
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) pressed`);
-      handler();
-    });
-    // eslint-disable-next-line no-console
-    console.log(`[hotkey] ${label} (${hotkey}) registered`);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to register ${label} (${hotkey})`, err);
-    return false;
-  }
-}
-
-async function safeUnregister(hotkey: string, label: string): Promise<void> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      await unregisterShortcut(hotkey);
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) released`);
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to unregister ${label} (${hotkey})`, err);
-  }
-}
-
 /**
  * Always register the wake hotkey. Previously this gated on PE mode, which
  * meant new users (default: PE ON) had no working hotkey — the only path
@@ -562,6 +539,9 @@ async function boot(): Promise<void> {
       paintTokenStatus(value);
       // Re-open the SSE stream so the new token authenticates it immediately.
       void reconnectPhysicalExtenderListener();
+      // Routines were unfetchable while unauthenticated — sync now that a
+      // valid bearer is in place so triggers register without an app restart.
+      void refreshRoutines();
       return true;
     };
 
@@ -636,6 +616,34 @@ async function boot(): Promise<void> {
   // pane (hud/startup-settings.ts) calls on every flip — start/stop without
   // an app restart.
   setWakeTriggerHandler(() => void startConversation());
+
+  // 3a-ter. Routine triggers. Wire the injection seams that connect the
+  // registry (dispatch + fireRoutine), the wake probe (phrase matching), the
+  // hotkey manager, and the time scheduler — all data-driven from the owner's
+  // enabled routines fetched over the bearer-authed GET route. Seams avoid
+  // module import cycles (same pattern as setWakeTriggerHandler above).
+  //   - registry ↔ wake probe: matcher + fire handler + phrase-exists gate
+  //   - registry → hotkey manager / scheduler: dispatch-table syncers
+  //   - registry ← FSM: half-duplex busy check so a time/hotkey fire defers
+  //     while JARVIS is thinking/speaking instead of talking over a turn.
+  setPhraseMatcher(matchPhrase);
+  setRoutineFireHandler((routineId, type) => void fireRoutine(routineId, type));
+  setHasPhraseTriggers(hasPhraseTriggers);
+  setHotkeySync((entries) => {
+    syncHotkeys(entries);
+    // A phrase routine may have just appeared/vanished — re-evaluate whether
+    // the idle mic loop should now be running even with the wake toggle off.
+    void refreshIdleLoopForPhrases();
+  });
+  setSchedulerSync(syncTimeRoutines);
+  setRoutineBusyCheck(() => {
+    const s = getJarvisState();
+    return s === "thinking" || s === "speaking";
+  });
+
+  // Enable the wake feature AFTER the phrase seams are wired, so the initial
+  // shouldRunIdleLoop() check sees any phrase routines. Routines are fetched
+  // below once the device token is confirmed present.
   setWakeEnabled(settings.wakeEnabled);
 
   // 3b. Wire VAD silence dropdown
@@ -810,6 +818,17 @@ async function boot(): Promise<void> {
   setInterval(() => {
     void postClaim();
   }, CLAIM_HEARTBEAT_MS);
+
+  // Routine triggers: start the time scheduler, do the initial sync (fetches
+  // the owner's enabled routines and rebuilds all dispatch tables), then poll
+  // so web-app edits propagate. The initial fetch no-ops gracefully (returns
+  // []) if no device token is present yet; the token-save handler above calls
+  // refreshRoutines() again the moment a valid bearer lands.
+  startScheduler();
+  void refreshRoutines();
+  setInterval(() => {
+    void refreshRoutines();
+  }, ROUTINE_SYNC_INTERVAL_MS);
 
   // 6b. Startup permission probe: without the Accessibility TCC grant, enigo
   // input injection (type_text / press_key / mouse) is a SILENT no-op — the
