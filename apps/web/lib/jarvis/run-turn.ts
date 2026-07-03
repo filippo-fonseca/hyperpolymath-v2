@@ -10,6 +10,7 @@ import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
 import { validateTurnReferences } from "@/lib/jarvis/validate-references";
+import { stripMarkdownForSpeech } from "@/lib/voice/strip-markdown-for-speech";
 import {
   buildSystemPrompt,
   buildToolDefinitions,
@@ -251,6 +252,36 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   //    server-driven voice turn or routine block.
   const voiceActive = false;
   const speakingTurn = opts.isVoice;
+
+  // Belt-and-braces spoken-text sanitizer (Unit 3). On spoken turns ONLY, run
+  // every text delta through stripMarkdownForSpeech before it reaches the bus,
+  // so no markdown token ever reaches TTS even if the prompt contract slips.
+  // A markdown token (**, `, a leading list marker) can straddle two deltas, so
+  // we hold back a short trailing carry that could be the start of such a token
+  // and only flush it once the boundary is unambiguous. On text-only turns this
+  // is a passthrough — the on-screen transcript stays rich.
+  let sanitizeCarry = "";
+  const emitTextDelta = (delta: string): void => {
+    if (!speakingTurn) {
+      opts.onTextDelta(delta);
+      return;
+    }
+    const combined = sanitizeCarry + delta;
+    // Hold back a tail that could be an incomplete markdown token: a run of
+    // markdown-significant chars (* _ ` # > [ ] ( )) OR a trailing newline that
+    // a line-start marker might follow. Keep it small and bounded.
+    const m = combined.match(/(\n[ \t]*[-*+#>\d.)]*|[*_`#>\[\]()]+)$/);
+    const holdLen = m ? m[0].length : 0;
+    const toEmit = holdLen > 0 ? combined.slice(0, combined.length - holdLen) : combined;
+    sanitizeCarry = holdLen > 0 ? combined.slice(combined.length - holdLen) : "";
+    if (toEmit) opts.onTextDelta(stripMarkdownForSpeech(toEmit));
+  };
+  const flushTextCarry = (): void => {
+    if (speakingTurn && sanitizeCarry) {
+      opts.onTextDelta(stripMarkdownForSpeech(sanitizeCarry));
+      sanitizeCarry = "";
+    }
+  };
 
   const [
     userProjects,
@@ -736,7 +767,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
         lastTokenAt_d = new Date();
         const s = String(delta);
         if (s.trim().length > 0) anyTextEmitted = true;
-        opts.onTextDelta(s);
+        emitTextDelta(s);
       });
 
       const final = await anthStream.finalMessage();
@@ -775,6 +806,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       });
     }
 
+    // Flush any held-back sanitizer carry so the last streamed fragment speaks.
+    flushTextCarry();
+
     // Emit a fallback text if the model produced neither text nor action
     const finalContent = (loopMessages[loopMessages.length - 1]?.content ?? []) as Array<{
       type?: string;
@@ -791,7 +825,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           .map((b) => b.text as string)
       : [];
     if (!anyTextEmitted && finalTextBlocks.length > 0) {
-      opts.onTextDelta(finalTextBlocks.join("\n"));
+      // Join with a PARAGRAPH break (not a single newline) so the sentence
+      // splitter always sees a terminator between fallback blocks and never
+      // glues two utterances into one run-on (defect 3a).
+      const fallbackText = finalTextBlocks.join("\n\n");
+      opts.onTextDelta(speakingTurn ? stripMarkdownForSpeech(fallbackText) : fallbackText);
       anyTextEmitted = true;
     }
 
