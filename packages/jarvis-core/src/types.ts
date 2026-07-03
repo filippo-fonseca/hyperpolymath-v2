@@ -22,6 +22,9 @@ export type JarvisToolName =
   | "send_message" | "system_control" | "type_text" | "press_key"
   | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
   | "get_weather"
+  // Server-side data tools (no DesktopAction)
+  | "read_gmail"
+  | "get_news"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -260,6 +263,29 @@ export interface PlayMusicAction {
 export interface GetWeatherAction {
   location?: string;
 }
+
+/**
+ * read_gmail — fully server-side Gmail inbox read (metadata + snippet only,
+ * never the full body). Uses the existing Google OAuth client extended with
+ * the `gmail.readonly` scope. Results ride back in the tool receipt for the
+ * agent to narrate aloud (briefings, "any email from X?", etc.).
+ */
+export interface ReadGmailAction {
+  query?: string;
+  maxResults?: number;
+}
+
+/**
+ * get_news — fully server-side Guardian API fetch. BYOK-first (user key via
+ * `getUserKeyOrNull(userId, "guardian")`) with an owner env fallback of
+ * GUARDIAN_API_KEY. Results ride back in the tool receipt for the agent to
+ * narrate; no DesktopAction is emitted.
+ */
+export interface GetNewsAction {
+  topic?: string;
+  maxResults?: number;
+}
+
 
 /** Computer Use fallback — catch-all for desktop tasks no named tool covers.
  *  The executor mints a session_id and returns a DesktopAction; the desktop

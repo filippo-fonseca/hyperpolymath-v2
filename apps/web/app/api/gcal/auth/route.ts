@@ -42,6 +42,11 @@ const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar"; // D-06
 // markdown ZIP into the user's Drive. drive.file scopes access to files the app
 // itself creates, so this does NOT grant read of the user's wider Drive.
 const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+// JARVIS-GMAIL-NEWS: read-only Gmail so JARVIS can brief on the inbox
+// (subject + from + date + snippet only — never the full body). Read scope,
+// no send / no modify. Users who consented before this scope was added must
+// re-run the Connect Google flow (prompt=consent forces re-consent).
+const GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 
 export async function GET(): Promise<Response> {
   // Step 1: ensure the user is signed in. Uses `getClaims()` internally
@@ -78,7 +83,7 @@ export async function GET(): Promise<Response> {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: [GCAL_SCOPE, DRIVE_FILE_SCOPE],
+    scope: [GCAL_SCOPE, DRIVE_FILE_SCOPE, GMAIL_READONLY_SCOPE],
     state,
     include_granted_scopes: true,
   });

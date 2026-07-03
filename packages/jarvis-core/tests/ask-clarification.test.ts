@@ -85,10 +85,10 @@ describe("zAskClarification — schema validation (D-A1 / JARVIS-19)", () => {
   });
 });
 
-describe("buildToolDefinitions — 30 tools after the Computer Use fallback", () => {
-  it("returns 30 tools with the 5 originals first and ask_clarification 5th", () => {
+describe("buildToolDefinitions — 32 tools after read_gmail + get_news", () => {
+  it("returns 32 tools with the 5 originals first and ask_clarification 5th", () => {
     const tools = buildToolDefinitions();
-    expect(tools).toHaveLength(30);
+    expect(tools).toHaveLength(32);
     expect(tools[0]?.name).toBe("create_task");
     expect(tools[1]?.name).toBe("create_capture");
     expect(tools[2]?.name).toBe("create_event");

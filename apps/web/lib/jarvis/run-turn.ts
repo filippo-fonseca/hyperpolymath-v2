@@ -57,6 +57,9 @@ import {
   RunShortcutInputSchema,
   PlayMusicInputSchema,
   GetWeatherInputSchema,
+  // Server-side data tools (Gmail read + Guardian news)
+  ReadGmailInputSchema,
+  GetNewsInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
@@ -180,6 +183,9 @@ function buildToolValidators(voiceActive: boolean) {
     run_shortcut: RunShortcutInputSchema,
     play_music: PlayMusicInputSchema,
     get_weather: GetWeatherInputSchema,
+    // Server-side data tools (Gmail read + Guardian news)
+    read_gmail: ReadGmailInputSchema,
+    get_news: GetNewsInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
   } as const;
@@ -665,6 +671,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "get_weather") {
               result = await executor.getWeather(
                 parsed.data as Parameters<typeof executor.getWeather>[0],
+                ctx,
+              );
+            } else if (toolName === "read_gmail") {
+              result = await executor.readGmail(
+                parsed.data as Parameters<typeof executor.readGmail>[0],
+                ctx,
+              );
+            } else if (toolName === "get_news") {
+              result = await executor.getNews(
+                parsed.data as Parameters<typeof executor.getNews>[0],
                 ctx,
               );
             } else if (toolName === "computer_use") {

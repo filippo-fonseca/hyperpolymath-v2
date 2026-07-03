@@ -32,7 +32,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { google } from "googleapis";
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -59,7 +61,12 @@ import {
   listEvents,
   patchEvent,
 } from "@/lib/gcal/events";
-import { GcalNotConnectedError, GcalTokenRevokedError, getValidGcalToken } from "@/lib/gcal/token";
+import {
+  GcalNotConnectedError,
+  GcalTokenRevokedError,
+  getAuthenticatedGoogleOAuthClient,
+  getValidGcalToken,
+} from "@/lib/gcal/token";
 import type {
   ActionExecutor,
   AskClarificationAction,
@@ -77,8 +84,10 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetNewsAction,
   GetWeatherAction,
   LinkPeopleAction,
+  ReadGmailAction,
   OpenAppAction,
   OpenUrlAction,
   PlayMusicAction,
@@ -1089,6 +1098,198 @@ export function createServerExecutor(): ActionExecutor {
           windKph,
         };
         return { ok: true, id: `get_weather:${place.name}`, receipt: { weather } };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: uses the existing Google OAuth client (same tokens
+      // Calendar + Drive already ride) extended with the gmail.readonly scope
+      // added in /api/gcal/auth. Metadata + snippet only — never the full body.
+      const requested = typeof input.maxResults === "number" ? input.maxResults : 10;
+      const maxResults = Math.min(Math.max(1, Math.floor(requested)), 25);
+      const query = input.query?.trim() || undefined;
+
+      let auth;
+      try {
+        auth = await getAuthenticatedGoogleOAuthClient(ctx.userId);
+      } catch (err) {
+        if (err instanceof GcalNotConnectedError) {
+          return {
+            ok: false,
+            kind: "not_connected",
+            error:
+              "Google account not connected — connect Google in Settings so JARVIS can read your inbox.",
+          };
+        }
+        if (err instanceof GcalTokenRevokedError) {
+          return {
+            ok: false,
+            kind: "revoked",
+            error:
+              "Google access was revoked — reconnect Google in Settings so JARVIS can read your inbox.",
+          };
+        }
+        return {
+          ok: false,
+          kind: "internal",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+
+      try {
+        const gmail = google.gmail({ version: "v1", auth });
+        const listRes = await gmail.users.messages.list({
+          userId: "me",
+          maxResults,
+          ...(query ? { q: query } : {}),
+        });
+        const ids = (listRes.data.messages ?? [])
+          .map((m) => m.id)
+          .filter((id): id is string => typeof id === "string");
+
+        if (ids.length === 0) {
+          return {
+            ok: true,
+            id: `read_gmail:empty`,
+            receipt: { messages: [], count: 0, ...(query ? { query } : {}) },
+          };
+        }
+
+        // Fetch metadata + snippet for each message in parallel. `format: "metadata"`
+        // with `metadataHeaders` is the compact, snippet-included shape (no body).
+        const details = await Promise.all(
+          ids.map((id) =>
+            gmail.users.messages
+              .get({
+                userId: "me",
+                id,
+                format: "metadata",
+                metadataHeaders: ["From", "Subject", "Date"],
+              })
+              .then((r) => r.data)
+              .catch(() => null),
+          ),
+        );
+
+        const messages = details
+          .filter((d): d is NonNullable<typeof d> => d !== null)
+          .map((d) => {
+            const headers = d.payload?.headers ?? [];
+            const getHeader = (name: string): string | undefined => {
+              const h = headers.find(
+                (x) => (x.name ?? "").toLowerCase() === name.toLowerCase(),
+              );
+              return h?.value ?? undefined;
+            };
+            return {
+              id: d.id ?? undefined,
+              from: getHeader("From"),
+              subject: getHeader("Subject"),
+              date: getHeader("Date"),
+              snippet: d.snippet ?? undefined,
+            };
+          });
+
+        return {
+          ok: true,
+          id: `read_gmail:${messages.length}`,
+          receipt: {
+            messages,
+            count: messages.length,
+            ...(query ? { query } : {}),
+          },
+        };
+      } catch (err) {
+        // A missing gmail.readonly scope shows up here (403 / insufficientPermissions).
+        const message = err instanceof Error ? err.message : String(err);
+        const looksLikeScope =
+          /insufficientPermissions|insufficient authentication scopes|Insufficient Permission/i.test(
+            message,
+          );
+        if (looksLikeScope) {
+          return {
+            ok: false,
+            kind: "revoked",
+            error:
+              "Google account is missing Gmail permission — reconnect Google in Settings to grant Gmail read access.",
+          };
+        }
+        return { ok: false, kind: "network", error: message };
+      }
+    },
+
+    async getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: Guardian Open Platform Content API. BYOK-first
+      // (per-user "guardian" provider key) with an owner env fallback of
+      // GUARDIAN_API_KEY so the owner-flavoured devices don't need a saved key.
+      const requested = typeof input.maxResults === "number" ? input.maxResults : 8;
+      const maxResults = Math.min(Math.max(1, Math.floor(requested)), 15);
+      const topic = input.topic?.trim() || undefined;
+
+      const userKey = await getUserKeyOrNull(ctx.userId, "guardian");
+      const apiKey = userKey ?? process.env.GUARDIAN_API_KEY ?? null;
+      if (!apiKey) {
+        return {
+          ok: false,
+          kind: "not_connected",
+          error:
+            "No Guardian API key configured — add one in Settings (grab a free key at open-platform.theguardian.com).",
+        };
+      }
+
+      const params = new URLSearchParams({
+        "api-key": apiKey,
+        "show-fields": "trailText",
+        "page-size": String(maxResults),
+        "order-by": "newest",
+      });
+      if (topic) params.set("q", topic);
+
+      try {
+        const res = await fetch(
+          `https://content.guardianapis.com/search?${params.toString()}`,
+        );
+        if (!res.ok) {
+          return {
+            ok: false,
+            kind: "network",
+            error: `Guardian API request failed (${res.status})`,
+          };
+        }
+        const body = (await res.json()) as {
+          response?: {
+            results?: Array<{
+              webTitle?: string;
+              sectionName?: string;
+              webPublicationDate?: string;
+              webUrl?: string;
+              fields?: { trailText?: string };
+            }>;
+          };
+        };
+        const results = body.response?.results ?? [];
+        const articles = results.map((r) => ({
+          title: r.webTitle,
+          section: r.sectionName,
+          published: r.webPublicationDate,
+          trailText: r.fields?.trailText,
+          url: r.webUrl,
+        }));
+        return {
+          ok: true,
+          id: `get_news:${articles.length}`,
+          receipt: {
+            articles,
+            count: articles.length,
+            ...(topic ? { topic } : {}),
+          },
+        };
       } catch (err) {
         return {
           ok: false,
