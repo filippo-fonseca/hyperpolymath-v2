@@ -95,14 +95,16 @@ describe("buildSystemPrompt with facts param", () => {
     expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("voiceActive=true + facts: returns 6 blocks [voice, personality, rules, user context, projects, facts] with 1h TTL", () => {
+  it("voiceActive=true + facts: returns 6 blocks [personality, spoken-contract, rules, user context, projects, facts] with 1h TTL", () => {
     const blocks = buildSystemPrompt({
       projects: [],
       voiceActive: true,
       facts: SAMPLE_FACTS,
     });
     expect(blocks).toHaveLength(6);
-    expect(blocks[0]?.text).toContain("listening as well as reading");
+    // Personality stays index 0; the SPOKEN-OUTPUT CONTRACT is injected right after it.
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
     expect(blocks[blocks.length - 1]?.text).toContain("JARVIS MEMORY");
     expect(blocks[blocks.length - 1]?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });

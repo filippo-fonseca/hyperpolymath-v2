@@ -26,6 +26,7 @@ export {
   JARVIS_PERSONALITY,
   TOOL_USE_RULES,
   VOICE_ADDENDUM,
+  SPOKEN_OUTPUT_CONTRACT,
 } from "./personality";
 
 export {

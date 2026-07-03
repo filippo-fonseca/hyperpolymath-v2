@@ -48,12 +48,30 @@ describe("buildSystemPrompt", () => {
     expect(blocks).toHaveLength(4);
   });
 
-  it("returns 5 blocks when voiceActive=true; voice addendum at index 0", () => {
+  it("returns 5 blocks when voiceActive=true; SPOKEN-OUTPUT CONTRACT at index 1 (right after personality)", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
     expect(blocks).toHaveLength(5);
-    // Phase 5.1: VOICE_ADDENDUM now describes leading text block behavior (not voice_summary fields)
-    expect(blocks[0]?.text).toContain("listening as well as reading");
-    expect(blocks[0]?.text).toContain("JARVIS would");
+    // The contract is now load-bearing: injected right AFTER the personality
+    // (index 1), not before it. Index 0 stays the personality.
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
+  });
+
+  it("voiceActive=true: SPOKEN-OUTPUT CONTRACT carries the no-markdown + interpret rules (Unit 1 regression gate)", () => {
+    const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
+    const contract = blocks[1]?.text ?? "";
+    // No-markdown hard rule.
+    expect(contract).toContain("PLAIN SPOKEN PROSE ONLY");
+    expect(contract).toContain("Never emit markdown");
+    // Interpret-don't-recite.
+    expect(contract).toContain("INTERPRET, DON'T RECITE");
+    // Length caps + one-question rule.
+    expect(contract).toContain("2-3 sentences per data source");
+    expect(contract).toContain("ONE QUESTION PER TURN");
+    expect(contract).toContain("Never restate");
+    // The contract must NOT be present when the turn is not spoken.
+    const textOnly = buildSystemPrompt({ projects: [], voiceActive: false });
+    expect(textOnly.some((b) => b.text.includes("SPOKEN-OUTPUT CONTRACT"))).toBe(false);
   });
 
   it("cache_control: ephemeral with 1h TTL set on the LAST block (project context)", () => {
@@ -90,12 +108,11 @@ describe("buildSystemPrompt", () => {
     expect(blocks[1]?.text).toContain("create_task");
   });
 
-  it("voiceActive=true: voice addendum precedes personality block", () => {
+  it("voiceActive=true: SPOKEN-OUTPUT CONTRACT sits between personality and tool rules", () => {
     const blocks = buildSystemPrompt({ projects: [], voiceActive: true });
-    // [0]=voice, [1]=personality, [2]=tool rules, [3]=projects
-    // Phase 5.1: VOICE_ADDENDUM describes leading text block behavior
-    expect(blocks[0]?.text).toContain("listening as well as reading");
-    expect(blocks[1]?.text).toContain("JARVIS");
+    // [0]=personality, [1]=SPOKEN-OUTPUT CONTRACT, [2]=tool rules, [3]=user ctx, [4]=projects
+    expect(blocks[0]?.text).toContain("JARVIS");
+    expect(blocks[1]?.text).toContain("SPOKEN-OUTPUT CONTRACT");
     expect(blocks[2]?.text).toContain("create_task");
   });
 

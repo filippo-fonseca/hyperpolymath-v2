@@ -32,8 +32,8 @@
 import {
   COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
+  SPOKEN_OUTPUT_CONTRACT,
   TOOL_USE_RULES,
-  VOICE_ADDENDUM,
 } from "./personality";
 import type { JarvisFact, ProjectSummary } from "./types";
 
@@ -112,10 +112,14 @@ export function buildSystemPrompt(opts: {
   mode?: "computer";
 }): SystemBlock[] {
   const blocks: SystemBlock[] = [];
-  if (opts.voiceActive) {
-    blocks.push({ type: "text", text: VOICE_ADDENDUM });
-  }
   blocks.push({ type: "text", text: JARVIS_PERSONALITY });
+  // SPOKEN-OUTPUT CONTRACT injected LOAD-BEARINGLY, right after the personality,
+  // whenever the turn is spoken. It is the single instruction that turns a
+  // screen-formatted data dump into a butler's brief (no markdown, interpret
+  // don't recite, ≤2-3 sentences/source, one closing question).
+  if (opts.voiceActive) {
+    blocks.push({ type: "text", text: SPOKEN_OUTPUT_CONTRACT });
+  }
   blocks.push({ type: "text", text: TOOL_USE_RULES });
   blocks.push({ type: "text", text: buildUserContextBlock(opts.userDisplayName) });
 

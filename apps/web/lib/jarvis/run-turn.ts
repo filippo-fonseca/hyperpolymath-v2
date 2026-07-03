@@ -239,10 +239,18 @@ function buildTemporalContextBlock(tz: string): string {
 export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const startTime = Date.now();
   const turnId = opts.turnId ?? crypto.randomUUID();
-  // Tool schema voiceActive is always false for the shared helper — voice_summary
-  // is a browser-TTS concern and server-side voice turns don't need it.
-  // opts.isVoice is used only for telemetry (logJarvisEvent.voiceActive).
+  // Two DISTINCT flags that used to be conflated:
+  //  - `voiceActive` is the TOOL-SCHEMA flag: it gates the browser-only
+  //    `voice_summary` field on create_* tools. It stays false for this shared
+  //    helper — the desktop/routine path speaks the leading text block, not a
+  //    voice_summary, so we must NOT require the field server-side.
+  //  - `speakingTurn` is the PROMPT flag: when the turn is spoken aloud, it
+  //    injects the load-bearing SPOKEN-OUTPUT CONTRACT (no markdown, interpret
+  //    don't recite, one closing question). Previously dead code — isVoice was
+  //    only ever used for telemetry, so the contract never fired on ANY
+  //    server-driven voice turn or routine block.
   const voiceActive = false;
+  const speakingTurn = opts.isVoice;
 
   const [
     userProjects,
@@ -312,7 +320,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   const system = buildSystemPrompt({
     projects: projectSummaries,
     facts: userFacts as import("@hyperpolymath/jarvis-core").JarvisFact[],
-    voiceActive,
+    // Prompt flag = speakingTurn (spoken turns get the SPOKEN-OUTPUT CONTRACT).
+    // Distinct from the tool-schema voiceActive above.
+    voiceActive: speakingTurn,
     userDisplayName: userRow?.displayName ?? null,
     // Computer-control steering (Phase 2). Appended after the cache breakpoint
     // inside buildSystemPrompt, so it does not invalidate the cached prefix.
