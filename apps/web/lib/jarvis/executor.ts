@@ -32,7 +32,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -43,6 +43,7 @@ import {
   peopleReferences,
   tasks,
   tasksProjects,
+  whatsappMessages,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
@@ -83,6 +84,7 @@ import type {
   OpenUrlAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
   RunShortcutAction,
@@ -916,13 +918,18 @@ export function createServerExecutor(): ActionExecutor {
       if (!text) {
         return { ok: false, kind: "validation", error: "send_message requires message text" };
       }
+      // Zod already narrows to "imessage"|"whatsapp", but defence-in-depth in
+      // case a downstream extension widens the schema without touching this arm.
+      const app: "imessage" | "whatsapp" = input.app === "whatsapp" ? "whatsapp" : "imessage";
       return {
         ok: true,
-        id: `send_message:${recipient}`,
-        receipt: { app: input.app, recipient, text, requires_confirm: true },
-        // requires_confirm is load-bearing: the desktop holds the AppleScript
-        // send until the user confirms aloud (iMessage has no draft verb).
-        action: { kind: "send_message", app: input.app, recipient, text, requires_confirm: true },
+        id: `send_message:${app}:${recipient}`,
+        receipt: { app, recipient, text, requires_confirm: true },
+        // requires_confirm is load-bearing: the desktop confirm-gate holds the
+        // send (AppleScript for iMessage / HTTP for WhatsApp) until the user
+        // confirms aloud. iMessage has no draft verb; WhatsApp is
+        // symmetrically treated as destructive to keep one UX for messaging.
+        action: { kind: "send_message", app, recipient, text, requires_confirm: true },
       };
     },
 
@@ -1093,6 +1100,105 @@ export function createServerExecutor(): ActionExecutor {
         return {
           ok: false,
           kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Server-side read from whatsapp_messages (populated by the local sync
+      // worker). Empty table → friendly hint receipt; the agent narrates it
+      // rather than guessing.
+      const windowHours = Math.min(input.since_hours ?? 24, 168);
+      const cap = Math.min(input.maxResults ?? 30, 100);
+      const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+      try {
+        const filters = [
+          eq(whatsappMessages.userId, ctx.userId),
+          gte(whatsappMessages.sentAt, since),
+        ];
+        if (input.chat && input.chat.trim()) {
+          const pattern = `%${input.chat.trim()}%`;
+          const chatFilter = or(
+            ilike(whatsappMessages.chatName, pattern),
+            ilike(whatsappMessages.senderName, pattern),
+          );
+          if (chatFilter) filters.push(chatFilter);
+        }
+
+        const rows = await db
+          .select({
+            chatJid: whatsappMessages.chatJid,
+            chatName: whatsappMessages.chatName,
+            senderName: whatsappMessages.senderName,
+            fromMe: whatsappMessages.fromMe,
+            body: whatsappMessages.body,
+            sentAt: whatsappMessages.sentAt,
+          })
+          .from(whatsappMessages)
+          .where(and(...filters))
+          .orderBy(desc(whatsappMessages.sentAt))
+          .limit(cap);
+
+        if (rows.length === 0) {
+          return {
+            ok: true,
+            id: "read_whatsapp:empty",
+            receipt: {
+              chats: [],
+              totalCount: 0,
+              windowHours,
+              note:
+                "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
+            },
+          };
+        }
+
+        // Group by chat, preserving newest-first order.
+        const chatMap = new Map<
+          string,
+          {
+            chatName: string;
+            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+          }
+        >();
+        for (const r of rows) {
+          const key = r.chatJid;
+          const bucket = chatMap.get(key);
+          const entry = {
+            senderName: r.senderName,
+            fromMe: r.fromMe,
+            body: r.body,
+            sentAt: r.sentAt instanceof Date ? r.sentAt.toISOString() : String(r.sentAt),
+          };
+          if (bucket) {
+            bucket.messages.push(entry);
+          } else {
+            chatMap.set(key, {
+              chatName: r.chatName ?? r.senderName ?? r.chatJid,
+              messages: [entry],
+            });
+          }
+        }
+
+        let chats = Array.from(chatMap.values());
+        if (input.unrepliedOnly === true) {
+          // "Unreplied" = the most recent message in the chat is NOT from the user.
+          // Rows are ordered newest-first, so the first message in each group is the latest.
+          chats = chats.filter((c) => c.messages.length > 0 && !c.messages[0]!.fromMe);
+        }
+
+        const totalCount = chats.reduce((n, c) => n + c.messages.length, 0);
+        return {
+          ok: true,
+          id: `read_whatsapp:${totalCount}`,
+          receipt: { chats, totalCount, windowHours },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "internal",
           error: err instanceof Error ? err.message : String(err),
         };
       }

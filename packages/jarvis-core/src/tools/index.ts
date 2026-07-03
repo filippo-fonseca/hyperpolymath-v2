@@ -43,6 +43,10 @@
 // Computer Use fallback: 1 new NON-strict tool added (computer_use), the
 // catch-all for desktop tasks no named tool covers. Total: 30 tools.
 // cache_control moves from get_weather to computer_use (new LAST tool).
+//
+// WhatsApp integration: 1 new NON-strict server-side tool added
+// (read_whatsapp), inserted just before computer_use. Total: 31 tools.
+// computer_use retains the cache breakpoint as the LAST tool.
 
 import { z } from "zod";
 import { toJsonSchema as _toJsonSchema } from "./_schema-utils";
@@ -75,6 +79,7 @@ import { runApplescriptTool } from "./run-applescript";
 import { runShortcutTool } from "./run-shortcut";
 import { playMusicTool } from "./play-music";
 import { getWeatherTool } from "./get-weather";
+import { readWhatsappTool } from "./read-whatsapp";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -114,6 +119,7 @@ export interface JarvisToolDefinition {
     | "run_shortcut"
     | "play_music"
     | "get_weather"
+    | "read_whatsapp"
     | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
@@ -223,8 +229,11 @@ export function buildToolDefinitions(
     { ...runApplescriptTool, strict: false as const },
     { ...runShortcutTool, strict: false as const },
     { ...playMusicTool, strict: false as const },
-    // get_weather loses cache_control — computer_use follows it.
     { ...getWeatherTool, strict: false as const },
+    // WhatsApp — server-side read tool. Data comes from the local sync
+    // worker; the executor gracefully returns a friendly setup hint if the
+    // table is empty (bridge not running / worker not paired).
+    { ...readWhatsappTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -272,6 +281,8 @@ export { RunApplescriptInputSchema } from "./run-applescript";
 export { RunShortcutInputSchema } from "./run-shortcut";
 export { PlayMusicInputSchema } from "./play-music";
 export { GetWeatherInputSchema } from "./get-weather";
+// WhatsApp: re-export input schema for run-turn.ts validation.
+export { ReadWhatsappInputSchema } from "./read-whatsapp";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
 
