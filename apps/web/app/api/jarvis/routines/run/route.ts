@@ -1,12 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import {
-  emitJarvisResponseChunk,
-  emitJarvisResponseEnd,
-  emitJarvisResponseStart,
-  emitJarvisToolCall,
-} from "@/lib/voice/physical-extension/bus";
-import { runRoutine } from "@/lib/jarvis/routine-runner";
+import { fireRoutineOverBus } from "@/lib/jarvis/routine-fire";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
@@ -124,55 +118,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     process.env.ANTHROPIC_API_KEY ??
     "";
 
-  const runId = crypto.randomUUID();
-
-  // Fire-and-forget: stream the whole run over the physical SSE bus. Each block
-  // maps to one turnId (= its blockId) so the desktop's per-turn listeners
-  // segment the run cleanly, speaking each block back-to-back.
-  void runRoutine(
-    blocks,
-    {
-      userId,
-      apiKey: anthropicKey,
-      source: { device: "routine", input: isVoice ? "voice" : "text" },
-      isVoice,
-      mode: jarvisMode,
-      routineName,
-      runId,
-      abortSignal: req.signal,
-    },
-    {
-      onBlockStart: (blockId) => {
-        emitJarvisResponseStart({ turnId: blockId, at: Date.now() });
-      },
-      onTextDelta: (blockId, delta) => {
-        emitJarvisResponseChunk({ turnId: blockId, delta, at: Date.now() });
-      },
-      onAction: (blockId, toolUseId, name, result) => {
-        emitJarvisToolCall({ turnId: blockId, toolUseId, name, result, at: Date.now() });
-      },
-      onBlockDone: (result) => {
-        // On an errored block, onError already surfaced the message; still emit
-        // exactly one response-end here (the single close for the block turnId).
-        emitJarvisResponseEnd({ turnId: result.blockId, at: Date.now() });
-      },
-      onError: (blockId, message) => {
-        // Surface the error into the block's spoken stream; the matching
-        // response-end is emitted once by onBlockDone (which always fires after
-        // the block settles), so we do NOT close here to avoid a double-end.
-        emitJarvisResponseChunk({
-          turnId: blockId,
-          delta: `(routine block error: ${message})`,
-          at: Date.now(),
-        });
-      },
-      onRoutineDone: () => {
-        // Completion is observable from the last block's response-end; no
-        // dedicated marker in v1 (see UNIT-PLAN §6.3 — deferred).
-      },
-    },
-  ).catch((err: unknown) => {
-    console.error("[routines/run] routine execution failed", err);
+  // Fire-and-forget: stream the whole run over the physical SSE bus (each block
+  // = one turnId, so the desktop segments + speaks a multi-block run with no
+  // protocol change). Shared with the voice-transcript utterance interception.
+  const runId = fireRoutineOverBus(blocks, {
+    userId,
+    apiKey: anthropicKey,
+    isVoice,
+    mode: jarvisMode,
+    routineName,
+    abortSignal: req.signal,
   });
 
   return Response.json({ ok: true, runId, blockCount: blocks.length }, { headers: CORS });
