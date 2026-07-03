@@ -7,6 +7,10 @@
 // from the WKWebView origin would be blocked.
 
 import { fetch } from "@tauri-apps/plugin-http";
+import type {
+  Routine,
+  RoutineTriggerType,
+} from "@hyperpolymath/jarvis-core/routines";
 
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
@@ -287,3 +291,83 @@ export async function probeTranscript(wav: Blob): Promise<string | null> {
   const json = (await res.json()) as { transcript?: string };
   return json.transcript ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// JARVIS Routines (natural-language "triggers → agentic blocks").
+// The desktop reads the owner's enabled routines to build its trigger
+// registry (wake/utterance phrases, per-routine hotkeys, time scheduler) and
+// fires them by POSTing the routine's blocks INLINE — see postRunRoutine.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/jarvis/routines
+ * Fetches the owner's ENABLED routines (bearer + owner gated). Fail-safe:
+ * returns [] on any non-ok/parse failure so a transient server hiccup leaves
+ * the desktop with no triggers rather than crashing the boot path.
+ */
+export async function getRoutines(): Promise<Routine[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/routines`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[routines] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as { routines?: unknown };
+    return Array.isArray(json.routines) ? (json.routines as Routine[]) : [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[routines] GET failed", err);
+    return [];
+  }
+}
+
+/**
+ * POST /api/jarvis/routines/run
+ * Fires a routine. Sends the routine's blocks INLINE ({ routine: { name,
+ * blocks } }) — NOT { routineId } — because the server's routineId load path
+ * calls listRoutines() (cookie/getClaims-authed) which fails under the desktop
+ * bearer, whereas the inline path is bearer + owner gated like /voice/text.
+ * The desktop already holds the full routine object from getRoutines(), so it
+ * passes its blocks directly.
+ *
+ * Fire-and-forget: the server streams each block's result over the physical
+ * SSE bus (jarvis-response-start/chunk/end per block), which the desktop
+ * already renders + speaks. Returns true on the ack, false otherwise.
+ */
+export async function postRunRoutine(routine: Routine): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/routines/run`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        ...JARVIS_MODE_HEADER,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        routine: { name: routine.name, blocks: routine.spec.blocks },
+        isVoice: true,
+      }),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[routines] run POST ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[routines] run POST failed", err);
+    return false;
+  }
+}
+
+// Re-export the trigger-type alias so registry/dispatch code can import it
+// alongside the client without a second jarvis-core import site.
+export type { RoutineTriggerType };
+
