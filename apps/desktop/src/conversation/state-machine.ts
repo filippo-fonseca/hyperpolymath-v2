@@ -27,13 +27,15 @@ import {
 } from "@/audio/capture";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd, onJarvisResponseStart } from "@/physical-extender/sse-client";
-import { maybeRunStartupSequence } from "@/startup/sequencer";
+import { maybeRunStartupSequence, skipStartupBriefing } from "@/startup/sequencer";
 import { resumeWakeLoopIfIdle, stopWakeLoop } from "@/wake/wake-probe";
 
 export type JarvisState = "idle" | "listening" | "thinking" | "speaking";
 
 // Silence-with-no-speech window in the continue phase before JARVIS signs off.
-const CONV_TIMEOUT_MS = 9_000;
+// ~5s hands-free: after JARVIS finishes speaking the mic reopens for this long
+// so the user can answer without a hotkey; silence within it ends the turn.
+const CONV_TIMEOUT_MS = 5_000;
 // Small settle after TTS fully drains before reopening the mic, so the tail of
 // playback / room reverb can't self-trigger the fresh capture.
 const REOPEN_SETTLE_MS = 300;
@@ -250,9 +252,33 @@ export async function startConversation(): Promise<void> {
     await toggleCaptureTurn();
     return;
   }
-  if (state !== "idle" || startupInFlight) {
-    // Busy (thinking/speaking, or the startup sequence owns the turn) —
-    // ignore re-invokes; half-duplex owns the mic.
+
+  // Barge-in: a press while JARVIS is SPEAKING (or while the startup briefing
+  // owns the turn) means "shut up and listen to me now". Silence the TTS —
+  // leaving whatever text is already on screen — cancel the briefing drain,
+  // clear the FSM's in-flight timers, and open the mic immediately. Without
+  // this the press was swallowed (early-return below), so a stranded/long
+  // reply left the app un-talkable-to. NOTE: we deliberately do NOT barge in
+  // during "thinking" — the server turn is mid-flight and its TTS is about to
+  // start, so opening the mic there would violate half-duplex (JARVIS would
+  // hear itself). Thinking is brief; speaking is where the user gets stuck.
+  if (state === "speaking" || startupInFlight) {
+    skipStartupBriefing(); // no-op if no briefing drain is in flight
+    ttsPlayer.stop(); // stop audio + clear the queue (text stays on screen)
+    clearThinkingGrace();
+    clearStateCap();
+    clearConvTimer();
+    conversationActive = true;
+    await stopWakeLoop();
+    // We just silenced TTS, so bypass canStartCapture()'s speaking guard and
+    // go straight to a fresh capture turn.
+    setState("listening");
+    await startCaptureTurn();
+    return;
+  }
+
+  if (state !== "idle") {
+    // Busy (thinking) — ignore re-invokes; half-duplex owns the mic.
     return;
   }
 
