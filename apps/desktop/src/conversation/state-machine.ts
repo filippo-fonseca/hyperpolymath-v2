@@ -296,16 +296,16 @@ async function openMicIfPossible(reason: string): Promise<void> {
   await startCaptureTurn();
 }
 
-/** Speak a short sign-off (if TTS available) and return to idle. */
+/** End the conversation and return to idle silently. */
 function endConversation(): void {
   clearConvTimer();
   clearThinkingGrace();
   clearStateCap();
   conversationActive = false;
-  // A canned local sign-off keeps the beat composed without a round-trip.
-  if (ttsPlayer.getState() !== "playing") {
-    setState("speaking");
-    ttsPlayer.speakNow("Standing by, sir.");
+  // Return to idle without an unprompted spoken sign-off — a canned "Standing
+  // by, sir" a beat after the user stops talking reads as the app talking to
+  // itself. If TTS is mid-reply, let it finish, then fall to idle.
+  if (ttsPlayer.getState() === "playing") {
     void ttsPlayer.whenIdle().then(() => {
       if (!conversationActive) setState("idle");
     });
