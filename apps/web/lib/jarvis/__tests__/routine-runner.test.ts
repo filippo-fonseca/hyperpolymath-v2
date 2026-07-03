@@ -109,7 +109,7 @@ describe("runRoutine — sequencing", () => {
   it("runs blocks in order, starting block N+1 only after block N settles", async () => {
     const order: string[] = [];
     // Block 0 resolves on a deferred tick; assert block 1 hasn't started yet.
-    let releaseBlock0: (() => void) | null = null;
+    let releaseBlock0: () => void = () => {};
     drivers = [
       (opts) => {
         order.push("b0-start");
@@ -139,7 +139,7 @@ describe("runRoutine — sequencing", () => {
     expect(order).toEqual(["b0-start"]); // block 1 not yet started
     expect(turnCalls).toHaveLength(1);
 
-    releaseBlock0?.();
+    releaseBlock0();
     await p;
 
     expect(order).toEqual(["b0-start", "b1-start"]);
