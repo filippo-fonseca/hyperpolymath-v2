@@ -73,6 +73,10 @@ export const zRoutineSpec = z.object({
   // bounded pool. Optional + off by default — existing specs parse unchanged;
   // only honored when synthesize is true.
   parallel: z.boolean().optional(),
+  // Routine-level loading instruction: interpreted into a fresh spoken opener
+  // line that REPLACES the default hardcoded opener when set. Optional + off by
+  // default — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 /** Loose input type (pre-defaults) accepted by `zRoutineSpec.parse`. */

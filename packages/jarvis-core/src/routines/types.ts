@@ -114,6 +114,16 @@ export interface RoutineSpec {
    * always keep strict announce-before-act ordering.
    */
   parallel?: boolean;
+  /**
+   * Optional ROUTINE-LEVEL loading instruction. When set, its INTERPRETED (not
+   * verbatim) filler line REPLACES the hardcoded "Welcome home, sir" opener that
+   * plays once at routine start — spoken up front while the whole routine runs.
+   * The runner passes this through the same prose-only Anthropic call the
+   * per-block fillers use, so the spoken opener is non-deterministic every run.
+   * Distinct from and additive to per-block `loadingInstruction`s. When unset or
+   * empty, the default hardcoded opener is used unchanged.
+   */
+  loadingInstruction?: string;
 }
 
 /** Full row shape returned by the server actions (first-class cols + spec). */
