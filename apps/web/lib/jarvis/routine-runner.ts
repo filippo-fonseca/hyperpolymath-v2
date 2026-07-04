@@ -62,6 +62,7 @@ import {
 import type { ZodType } from "zod";
 
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { generateBlockFillerLine } from "@/lib/jarvis/routine-filler";
 
 // --- Public contract -------------------------------------------------------
 
@@ -96,10 +97,31 @@ export interface RoutineRunContext {
   parallel?: boolean;
   /** Human name of the routine — used for the synthesized block id prefix. */
   routineName: string;
+  /**
+   * Optional ROUTINE-LEVEL loading instruction. When a non-empty string, the
+   * runner interprets it (via the same prose-only Anthropic call the per-block
+   * fillers use) into a fresh spoken opener line that REPLACES the default
+   * hardcoded "Welcome home, sir" opener. Empty/undefined = default opener.
+   */
+  loadingInstruction?: string;
   /** Stable id for this run — used to key per-block ids when a block has none. */
   runId?: string;
   abortSignal?: AbortSignal;
 }
+
+/**
+ * Async callback for per-block loading-chatter. When present AND the block has a
+ * non-empty `loadingInstruction`, the runner awaits this before the block's real
+ * turn kicks so the spoken filler plays first. The handler is expected to
+ * SPEAK the line (bus emit + queue serialization if multiple blocks gather in
+ * parallel); a resolved Promise is the "ok to proceed to the real work" signal.
+ */
+export type OnBlockFiller = (
+  blockId: string,
+  text: string,
+  index: number,
+  total: number,
+) => void | Promise<void>;
 
 export interface BlockRunResult {
   blockId: string;
@@ -143,6 +165,17 @@ export interface RoutineRunHandlers {
   onGatherBlockStart?(blockId: string, index: number, total: number, tool: JarvisToolName): void;
   /** A gather block settled (result.error set if it failed). */
   onGatherBlockDone?(result: BlockRunResult, index: number, total: number): void;
+
+  // --- Per-block loading chatter (independent spoken turn) ------------------
+  // Fired ONLY when the block has a non-empty `loadingInstruction` and the
+  // runner has synthesized a fresh filler line for it. Emitted BEFORE the
+  // block's real turn kicks — the caller SPEAKS the line (its own turnId
+  // `${blockId}:filler`) via the same response-start/chunk/end trio the opener
+  // uses, so it bypasses the synthesize-mode narration suppression exactly the
+  // way the opener does. The runner AWAITS the callback (Promise-aware), so a
+  // caller may sequence multiple parallel-gather fillers into a queue rather
+  // than letting them talk over each other.
+  onBlockFiller?: OnBlockFiller;
 }
 
 type ThreadMsg = { role: "assistant"; content: string };
@@ -324,6 +357,29 @@ async function runBlock(
   // turn — including for the unknown-tool skip below (the progress UI needs it).
   if (synth) handlers.onGatherBlockStart?.(blockId, index, total, block.tool as JarvisToolName);
 
+  // Per-block loading chatter. If the block author wrote a `loadingInstruction`,
+  // synthesize a fresh spoken filler line and hand it to the bus BEFORE the
+  // real turn kicks. Independent of synth mode — the filler is an independent
+  // spoken emission on its own turnId (see routine-fire), so it plays even
+  // when the block itself gathers silently. Errors are swallowed: a missing
+  // filler must never break the routine.
+  if (handlers.onBlockFiller && block.loadingInstruction && block.loadingInstruction.trim().length > 0) {
+    try {
+      const line = await generateBlockFillerLine({
+        apiKey: ctx.apiKey,
+        loadingInstruction: block.loadingInstruction,
+        tool: String(block.tool),
+        routineName: ctx.routineName,
+        abortSignal: ctx.abortSignal,
+      });
+      if (line) {
+        await handlers.onBlockFiller(blockId, line, index, total);
+      }
+    } catch (err) {
+      console.error("[routine-runner] filler emit failed", err);
+    }
+  }
+
   // Defensive guard: unknown tool → skip block, surface error, keep going.
   // (routine-model validates authored blocks; this is defense in depth.)
   if (!isJarvisToolName(block.tool)) {
@@ -424,9 +480,39 @@ export async function runRoutine(
   const synth = ctx.synthesize === true;
 
   // Option C: an instant one-line opener so there is audio feedback the moment
-  // the routine fires, while the blocks gather silently behind it.
+  // the routine fires, while the blocks gather silently behind it. When the
+  // routine author wrote a routine-level `loadingInstruction`, INTERPRET it into
+  // a fresh (non-deterministic) opener line that REPLACES the default; otherwise
+  // keep the hardcoded default opener. Failure-isolated: any throw/null from the
+  // filler generation falls back to the default so the opener is never skipped.
+  //
+  // CRITICAL: the opener must NOT block the gather. We kick it off as a
+  // concurrent promise (the interpreted-line LLM round-trip runs in parallel)
+  // and DO NOT await it here, so block fetching starts immediately. We await it
+  // later — just before the synthesis brief — so the opener is always spoken
+  // before the brief, without delaying data collection.
+  let openerPromise: Promise<void> | undefined;
   if (synth) {
-    handlers.onOpener?.("Welcome home, sir — one moment.");
+    openerPromise = (async () => {
+      const DEFAULT_OPENER = "Welcome home, sir — one moment.";
+      let opener = DEFAULT_OPENER;
+      const instruction = ctx.loadingInstruction?.trim();
+      if (instruction) {
+        try {
+          const line = await generateBlockFillerLine({
+            apiKey: ctx.apiKey,
+            loadingInstruction: instruction,
+            tool: "routine",
+            routineName: ctx.routineName,
+            abortSignal: ctx.abortSignal,
+          });
+          if (line) opener = line;
+        } catch (err) {
+          console.error("[routine-runner] opener filler failed, using default", err);
+        }
+      }
+      handlers.onOpener?.(opener);
+    })();
   }
 
   // In synthesis mode the blocks GATHER: their tools fire and receipts render
@@ -485,7 +571,16 @@ export async function runRoutine(
 
   // Option C: after silent gathering, run ONE butler synthesis turn over the
   // labeled block receipts and stream it under a single synthetic turnId, so
-  // the desktop speaks exactly one cohesive brief.
+  // the desktop speaks exactly one cohesive brief. First settle the concurrent
+  // opener so its audio is always emitted before the brief (best-effort — a
+  // failed opener never blocks the brief).
+  if (openerPromise) {
+    try {
+      await openerPromise;
+    } catch {
+      /* opener is best-effort; never block the brief on it */
+    }
+  }
   if (synth) {
     await runSynthesisTurn(runId, blocks, results, ctx, handlers);
   }

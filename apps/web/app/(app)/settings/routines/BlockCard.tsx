@@ -9,7 +9,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { GripVertical, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import type { RoutineBlock } from "@hyperpolymath/jarvis-core";
 import { catalogEntry } from "./block-catalog";
 
@@ -58,9 +58,20 @@ export function BlockCard({ block, index, onEdit, onRemove }: Props) {
       </span>
 
       <div className="min-w-0 flex-1">
-        <p className="font-serif text-[15px] text-[var(--ink)]">
-          {entry?.label ?? block.tool}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-serif text-[15px] text-[var(--ink)]">
+            {entry?.label ?? block.tool}
+          </p>
+          {block.loadingInstruction?.trim() ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--edge)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              title="Speaks while loading"
+            >
+              <MessageSquare size={10} />
+              chatter
+            </span>
+          ) : null}
+        </div>
         <p className="truncate font-serif text-[13px] text-[var(--ink-muted)]">
           {block.nlDirective?.trim()
             ? block.nlDirective

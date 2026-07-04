@@ -53,6 +53,10 @@ export const zRoutineBlock = z.object({
   tool: z.string().min(1),
   params: z.record(z.string(), z.unknown()).default({}),
   nlDirective: z.string().max(2000).optional(),
+  // Free-text INSTRUCTIONS for the spoken "loading" filler line played while
+  // this block gathers. Interpreted by the runner (small prose-only Anthropic
+  // call), not spoken verbatim. Optional — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 // --- Spec schema ----------------------------------------------------------
@@ -69,6 +73,10 @@ export const zRoutineSpec = z.object({
   // bounded pool. Optional + off by default — existing specs parse unchanged;
   // only honored when synthesize is true.
   parallel: z.boolean().optional(),
+  // Routine-level loading instruction: interpreted into a fresh spoken opener
+  // line that REPLACES the default hardcoded opener when set. Optional + off by
+  // default — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 /** Loose input type (pre-defaults) accepted by `zRoutineSpec.parse`. */

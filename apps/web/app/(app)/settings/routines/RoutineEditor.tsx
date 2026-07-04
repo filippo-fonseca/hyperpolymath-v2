@@ -46,6 +46,18 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
     draft.spec.triggers,
   );
   const [blocks, setBlocks] = useState<RoutineBlock[]>(draft.spec.blocks);
+  // Routine-level loading chatter: a spoken opener line JARVIS says the moment
+  // the routine fires — interpreted (not echoed verbatim) by the runner into a
+  // fresh non-deterministic line every run. Optional; off by default.
+  const [openerChatterEnabled, setOpenerChatterEnabled] = useState<boolean>(
+    Boolean(
+      draft.spec.loadingInstruction &&
+        draft.spec.loadingInstruction.length > 0,
+    ),
+  );
+  const [openerLoadingInstruction, setOpenerLoadingInstruction] = useState(
+    draft.spec.loadingInstruction ?? "",
+  );
 
   const createMut = useCreateRoutine(userId);
   const updateMut = useUpdateRoutine(userId);
@@ -58,10 +70,15 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
       return;
     }
 
+    const trimmedOpenerInstruction = openerLoadingInstruction.trim();
     const spec: RoutineSpec = {
       version: ROUTINE_SPEC_VERSION,
       triggers,
       blocks,
+      loadingInstruction:
+        openerChatterEnabled && trimmedOpenerInstruction
+          ? trimmedOpenerInstruction
+          : undefined,
     };
 
     const parsed = zRoutineSpec.safeParse(spec);
@@ -149,6 +166,37 @@ export function RoutineEditor({ userId, draft, onClose }: Props) {
             maxLength={500}
             className={`mt-2 ${inputClass}`}
           />
+        </div>
+      </div>
+
+      <div className="glass-tile rounded-xl p-6">
+        <div>
+          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+            <input
+              type="checkbox"
+              checked={openerChatterEnabled}
+              onChange={(e) => setOpenerChatterEnabled(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[var(--hud-cyan)]"
+            />
+            Opening line while routine runs
+          </label>
+          {openerChatterEnabled ? (
+            <>
+              <textarea
+                value={openerLoadingInstruction}
+                onChange={(e) => setOpenerLoadingInstruction(e.target.value)}
+                placeholder="what jarvis says the moment the routine fires — e.g. 'greet sir and let him know you're assembling his morning brief'"
+                rows={2}
+                maxLength={2000}
+                className="mt-2 w-full resize-y rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-serif text-[15px] leading-[1.5] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)] transition-colors duration-100"
+              />
+              <p className="mt-1.5 font-serif text-[12px] leading-[1.5] text-[var(--ink-muted)]">
+                Instructions, not a script. JARVIS interprets these into a fresh
+                spoken opener every run — played once up front, before any block
+                result. Replaces the default opener when set.
+              </p>
+            </>
+          ) : null}
         </div>
       </div>
 

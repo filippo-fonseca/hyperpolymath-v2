@@ -64,6 +64,12 @@ export interface FireRoutineOpts {
    * blocks run concurrently in a bounded pool. Ignored when synthesize is false.
    */
   parallel?: boolean;
+  /**
+   * Routine-level loading instruction. When set (non-empty), the runner
+   * interprets it into a fresh spoken opener line that REPLACES the default
+   * "Welcome home, sir" opener. Empty/undefined = the default opener.
+   */
+  loadingInstruction?: string;
 }
 
 /**
@@ -75,6 +81,16 @@ export interface FireRoutineOpts {
  */
 export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts): string {
   const runId = opts.runId ?? crypto.randomUUID();
+
+  // Per-block loading-chatter serialization. In parallel-gather mode multiple
+  // blocks can produce a filler line at once — speaking them concurrently would
+  // let JARVIS talk over himself. Chain each filler emit onto the previous one
+  // so the desktop hears them one after the other, in whatever wall-clock order
+  // the runner produced them. The runner AWAITS `onBlockFiller`, so a caller
+  // awaiting this same tail also delays that block's real turn behind the
+  // in-flight filler — which is what we want (the block's own filler must be
+  // heard before the block's result is).
+  let fillerTail: Promise<void> = Promise.resolve();
 
   // Real-time routine-progress lifecycle (synthesize mode only). The gather /
   // synthesis handlers below only fire in synth mode (runner-gated), but the
@@ -113,6 +129,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       synthesize: opts.synthesize,
       parallel: opts.parallel,
       routineName: opts.routineName,
+      loadingInstruction: opts.loadingInstruction,
       runId,
       abortSignal: opts.abortSignal,
     },
@@ -148,6 +165,23 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
         emitJarvisResponseStart({ turnId: openerId, at: Date.now() });
         emitJarvisResponseChunk({ turnId: openerId, delta: text, at: Date.now() });
         emitJarvisResponseEnd({ turnId: openerId, at: Date.now() });
+      },
+      // Per-block loading filler — its OWN one-shot turnId `${blockId}:filler`
+      // so it speaks BEFORE the block's real result and bypasses synth-mode
+      // gather suppression (mirrors the opener). Serialized through fillerTail
+      // so multiple parallel-gather blocks queue instead of talking over each
+      // other. Returning the tail Promise makes the runner await it, so a
+      // block's own gather waits until its own filler has been emitted.
+      onBlockFiller: (blockId, text) => {
+        const fillerId = `${blockId}:filler`;
+        const emitOne = () => {
+          emitJarvisResponseStart({ turnId: fillerId, at: Date.now() });
+          emitJarvisResponseChunk({ turnId: fillerId, delta: text, at: Date.now() });
+          emitJarvisResponseEnd({ turnId: fillerId, at: Date.now() });
+        };
+        // Chain onto the previous filler (or Promise.resolve on the first).
+        fillerTail = fillerTail.then(emitOne, emitOne);
+        return fillerTail;
       },
       // The synthesized brief streams under ONE turnId — the desktop segments +
       // speaks it as a single cohesive utterance.

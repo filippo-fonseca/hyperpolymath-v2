@@ -24,7 +24,13 @@ interface RunRoutineBody {
   /** Load + run a persisted routine by id (routine-model persistence). */
   routineId?: unknown;
   /** OR run an inline spec — lets block-engine run without persistence. */
-  routine?: { name?: unknown; blocks?: unknown; synthesize?: unknown; parallel?: unknown } | null;
+  routine?: {
+    name?: unknown;
+    blocks?: unknown;
+    synthesize?: unknown;
+    parallel?: unknown;
+    loadingInstruction?: unknown;
+  } | null;
   /** default true — desktop TTS is the primary consumer. */
   isVoice?: unknown;
   /** Option C: gather blocks silently + speak ONE synthesized brief. */
@@ -85,6 +91,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Parallel-gather flag: same resolution precedence as synthesize (explicit
   // top-level wins → inline routine.parallel → persisted spec.parallel).
   let parallel = body.parallel === undefined ? undefined : Boolean(body.parallel);
+  // Routine-level loading instruction: interpreted into a fresh opener line that
+  // REPLACES the default. Sourced from the inline routine / persisted spec.
+  let loadingInstruction: string | undefined;
 
   if (body.routine && Array.isArray(body.routine.blocks)) {
     routineName =
@@ -97,6 +106,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     if (parallel === undefined && body.routine.parallel !== undefined) {
       parallel = Boolean(body.routine.parallel);
+    }
+    if (typeof body.routine.loadingInstruction === "string") {
+      const t = body.routine.loadingInstruction.trim();
+      if (t) loadingInstruction = t;
     }
   } else if (typeof body.routineId === "string" && body.routineId.length > 0) {
     const listed = await listRoutines();
@@ -117,6 +130,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     blocks = found.spec.blocks;
     if (synthesize === undefined) synthesize = found.spec.synthesize === true;
     if (parallel === undefined) parallel = found.spec.parallel === true;
+    if (loadingInstruction === undefined) {
+      const t = found.spec.loadingInstruction?.trim();
+      if (t) loadingInstruction = t;
+    }
   } else {
     return Response.json(
       { error: "Provide either { routine: { blocks } } or { routineId }" },
@@ -147,6 +164,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     synthesize: synthesize === true,
     parallel: parallel === true,
     routineName,
+    loadingInstruction,
     abortSignal: req.signal,
   });
 
