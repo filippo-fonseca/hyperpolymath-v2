@@ -130,6 +130,7 @@ pub fn run() {
             computer::take_screenshot_to_file,
             computer::system_control,
             computer::accessibility_trusted,
+            whatsapp::whatsapp_reconnect,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
