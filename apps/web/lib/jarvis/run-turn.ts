@@ -47,6 +47,7 @@ import {
   // Computer-control tools
   OpenUrlInputSchema,
   OpenAppInputSchema,
+  OpenWorkspaceInputSchema,
   WebSearchInputSchema,
   // Clicky slice — desktop action tools + server-side weather
   SendMessageInputSchema,
@@ -177,6 +178,7 @@ function buildToolValidators(voiceActive: boolean) {
     // Computer-control tools
     open_url: OpenUrlInputSchema,
     open_app: OpenAppInputSchema,
+    open_workspace: OpenWorkspaceInputSchema,
     web_search: WebSearchInputSchema,
     // Clicky slice — desktop action tools + server-side weather
     send_message: SendMessageInputSchema,
@@ -674,6 +676,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "open_app") {
               result = await executor.openApp(
                 parsed.data as Parameters<typeof executor.openApp>[0],
+                ctx,
+              );
+            } else if (toolName === "open_workspace") {
+              result = await executor.openWorkspace(
+                parsed.data as Parameters<typeof executor.openWorkspace>[0],
                 ctx,
               );
             } else if (toolName === "web_search") {
