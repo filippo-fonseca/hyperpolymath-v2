@@ -481,25 +481,34 @@ export async function runRoutine(
   // a fresh (non-deterministic) opener line that REPLACES the default; otherwise
   // keep the hardcoded default opener. Failure-isolated: any throw/null from the
   // filler generation falls back to the default so the opener is never skipped.
+  //
+  // CRITICAL: the opener must NOT block the gather. We kick it off as a
+  // concurrent promise (the interpreted-line LLM round-trip runs in parallel)
+  // and DO NOT await it here, so block fetching starts immediately. We await it
+  // later — just before the synthesis brief — so the opener is always spoken
+  // before the brief, without delaying data collection.
+  let openerPromise: Promise<void> | undefined;
   if (synth) {
-    const DEFAULT_OPENER = "Welcome home, sir — one moment.";
-    let opener = DEFAULT_OPENER;
-    const instruction = ctx.loadingInstruction?.trim();
-    if (instruction) {
-      try {
-        const line = await generateBlockFillerLine({
-          apiKey: ctx.apiKey,
-          loadingInstruction: instruction,
-          tool: "routine",
-          routineName: ctx.routineName,
-          abortSignal: ctx.abortSignal,
-        });
-        if (line) opener = line;
-      } catch (err) {
-        console.error("[routine-runner] opener filler failed, using default", err);
+    openerPromise = (async () => {
+      const DEFAULT_OPENER = "Welcome home, sir — one moment.";
+      let opener = DEFAULT_OPENER;
+      const instruction = ctx.loadingInstruction?.trim();
+      if (instruction) {
+        try {
+          const line = await generateBlockFillerLine({
+            apiKey: ctx.apiKey,
+            loadingInstruction: instruction,
+            tool: "routine",
+            routineName: ctx.routineName,
+            abortSignal: ctx.abortSignal,
+          });
+          if (line) opener = line;
+        } catch (err) {
+          console.error("[routine-runner] opener filler failed, using default", err);
+        }
       }
-    }
-    handlers.onOpener?.(opener);
+      handlers.onOpener?.(opener);
+    })();
   }
 
   // In synthesis mode the blocks GATHER: their tools fire and receipts render
@@ -558,7 +567,16 @@ export async function runRoutine(
 
   // Option C: after silent gathering, run ONE butler synthesis turn over the
   // labeled block receipts and stream it under a single synthetic turnId, so
-  // the desktop speaks exactly one cohesive brief.
+  // the desktop speaks exactly one cohesive brief. First settle the concurrent
+  // opener so its audio is always emitted before the brief (best-effort — a
+  // failed opener never blocks the brief).
+  if (openerPromise) {
+    try {
+      await openerPromise;
+    } catch {
+      /* opener is best-effort; never block the brief on it */
+    }
+  }
   if (synth) {
     await runSynthesisTurn(runId, blocks, results, ctx, handlers);
   }
