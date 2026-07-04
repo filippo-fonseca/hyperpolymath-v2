@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:bridge": "cd ../../tools/whatsapp-bridge && GOOS=darwin GOARCH=arm64 go build -o ../../apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin .",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit"
   },
