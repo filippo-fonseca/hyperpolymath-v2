@@ -24,11 +24,13 @@ interface RunRoutineBody {
   /** Load + run a persisted routine by id (routine-model persistence). */
   routineId?: unknown;
   /** OR run an inline spec — lets block-engine run without persistence. */
-  routine?: { name?: unknown; blocks?: unknown; synthesize?: unknown } | null;
+  routine?: { name?: unknown; blocks?: unknown; synthesize?: unknown; parallel?: unknown } | null;
   /** default true — desktop TTS is the primary consumer. */
   isVoice?: unknown;
   /** Option C: gather blocks silently + speak ONE synthesized brief. */
   synthesize?: unknown;
+  /** Parallel gather (synthesize-only): run gather blocks concurrently. */
+  parallel?: unknown;
 }
 
 /**
@@ -80,6 +82,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Synthesis flag: an explicit top-level body flag wins; otherwise inherit
   // from the inline routine's / persisted spec's `synthesize` field.
   let synthesize = body.synthesize === undefined ? undefined : Boolean(body.synthesize);
+  // Parallel-gather flag: same resolution precedence as synthesize (explicit
+  // top-level wins → inline routine.parallel → persisted spec.parallel).
+  let parallel = body.parallel === undefined ? undefined : Boolean(body.parallel);
 
   if (body.routine && Array.isArray(body.routine.blocks)) {
     routineName =
@@ -89,6 +94,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     blocks = body.routine.blocks as RoutineBlock[];
     if (synthesize === undefined && body.routine.synthesize !== undefined) {
       synthesize = Boolean(body.routine.synthesize);
+    }
+    if (parallel === undefined && body.routine.parallel !== undefined) {
+      parallel = Boolean(body.routine.parallel);
     }
   } else if (typeof body.routineId === "string" && body.routineId.length > 0) {
     const listed = await listRoutines();
@@ -108,6 +116,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     routineName = found.name;
     blocks = found.spec.blocks;
     if (synthesize === undefined) synthesize = found.spec.synthesize === true;
+    if (parallel === undefined) parallel = found.spec.parallel === true;
   } else {
     return Response.json(
       { error: "Provide either { routine: { blocks } } or { routineId }" },
@@ -136,6 +145,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     isVoice,
     mode: jarvisMode,
     synthesize: synthesize === true,
+    parallel: parallel === true,
     routineName,
     abortSignal: req.signal,
   });

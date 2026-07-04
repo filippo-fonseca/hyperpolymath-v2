@@ -86,6 +86,12 @@ export interface RoutineRunContext {
    * before, so action routines keep announce-before-act latency.
    */
   synthesize?: boolean;
+  /**
+   * Run gather blocks concurrently (bounded pool). Only honored when
+   * `synthesize` is true — action routines always keep strict announce-before-act
+   * ordering. Off/omitted = the sequential path, bit-for-bit unchanged.
+   */
+  parallel?: boolean;
   /** Human name of the routine — used for the synthesized block id prefix. */
   routineName: string;
   /** Stable id for this run — used to key per-block ids when a block has none. */
@@ -122,6 +128,19 @@ export interface RoutineRunHandlers {
   onSynthesisDelta?(turnId: string, delta: string): void;
   /** The synthesis utterance is complete. */
   onSynthesisDone?(turnId: string): void;
+
+  // --- Gather progress (synthesize mode only) ------------------------------
+  // Fired for EVERY gather block in synthesize mode, on BOTH the sequential and
+  // parallel paths (including unknown-tool skips and errored blocks), in
+  // wall-clock order — parallel blocks interleave. Distinct from onBlockStart/
+  // onBlockDone (which map 1:1 to bus response cycles and stay suppressed in
+  // synth mode). The progress-bus unit maps these to jarvis-routine-progress
+  // events; the hud-loader renders them. Start events arrive in index order
+  // (the pool grabs indices in order); done events arrive in completion order.
+  /** A gather block began executing. */
+  onGatherBlockStart?(blockId: string, index: number, total: number, tool: JarvisToolName): void;
+  /** A gather block settled (result.error set if it failed). */
+  onGatherBlockDone?(result: BlockRunResult, index: number, total: number): void;
 }
 
 type ThreadMsg = { role: "assistant"; content: string };
@@ -253,6 +272,120 @@ export function summarizeBlockForThread(result: BlockRunResult): ThreadMsg {
 // --- Runner ----------------------------------------------------------------
 
 /**
+ * Max concurrent gather turns in parallel synthesize mode. Bounds Anthropic
+ * concurrent-stream pressure and executor fan-out (gmail/whatsapp bridges).
+ * Exported so tests and a future per-routine knob can reference it.
+ */
+export const GATHER_CONCURRENCY = 4;
+
+/**
+ * Run ONE routine block as a single scoped agent turn. Behavior-neutral extract
+ * of the runRoutine loop body: shared by the sequential loop and the parallel
+ * gather pool. NEVER throws — a turn error lands in `result.error` via the
+ * onError → settle path, so it can never reject a Promise.all / starve a worker.
+ *
+ * Handler emission:
+ *  - non-synth: onBlockStart/onBlockDone/onTextDelta fire (bus per-block cycle).
+ *  - synth: those are suppressed; onGatherBlockStart/onGatherBlockDone fire
+ *    instead (progress signals, no bus response cycle). onAction always fires.
+ *
+ * The caller owns pushing the result into `results` and (sequential path only)
+ * threading its summary forward — `runBlock` does neither.
+ */
+async function runBlock(
+  block: RoutineBlock,
+  index: number,
+  total: number,
+  threaded: ThreadMsg[],
+  runId: string,
+  synth: boolean,
+  gatherVoice: boolean,
+  ctx: RoutineRunContext,
+  handlers: RoutineRunHandlers,
+): Promise<BlockRunResult> {
+  const blockId = block.id && block.id.length > 0 ? block.id : `${runId}:b${index}`;
+
+  if (!synth) handlers.onBlockStart?.(blockId, index, total);
+  // Gather-progress start (synthesize mode only, both paths). Fired before the
+  // turn — including for the unknown-tool skip below (the progress UI needs it).
+  if (synth) handlers.onGatherBlockStart?.(blockId, index, total, block.tool as JarvisToolName);
+
+  // Defensive guard: unknown tool → skip block, surface error, keep going.
+  // (routine-model validates authored blocks; this is defense in depth.)
+  if (!isJarvisToolName(block.tool)) {
+    const message = `unknown tool: ${String(block.tool)} (allowed: ${JARVIS_TOOL_NAMES.length} tools)`;
+    handlers.onError(blockId, message);
+    const skipped: BlockRunResult = {
+      blockId,
+      tool: block.tool,
+      text: "",
+      actions: [],
+      error: message,
+    };
+    if (!synth) handlers.onBlockDone?.(skipped);
+    if (synth) handlers.onGatherBlockDone?.(skipped, index, total);
+    return skipped;
+  }
+
+  const { messages, toolChoice, input } = blockToTurn(block, threaded, gatherVoice);
+
+  let blockText = "";
+  const blockActions: BlockRunResult["actions"] = [];
+  let blockError: string | undefined;
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    void runJarvisTurnStream({
+      userId: ctx.userId,
+      apiKey: ctx.apiKey,
+      input,
+      messages,
+      toolChoice,
+      isVoice: gatherVoice,
+      mode: ctx.mode,
+      source: ctx.source,
+      sttDoneAt: null,
+      vadEndAt: undefined,
+      abortSignal: ctx.abortSignal,
+      onTextDelta: (delta) => {
+        // Always capture the text (it feeds cross-block threading + the
+        // synthesis receipts); only STREAM it to the bus when NOT synthesizing.
+        blockText += delta;
+        if (!synth) handlers.onTextDelta(blockId, delta);
+      },
+      onAction: (toolUseId, name, result) => {
+        // Receipts render on screen in BOTH modes (onAction always fires).
+        blockActions.push({ toolUseId, name, result });
+        handlers.onAction(blockId, toolUseId, name, result);
+      },
+      onDone: () => settle(),
+      onError: (message) => {
+        blockError = message;
+        handlers.onError(blockId, message);
+        settle();
+      },
+    });
+  });
+
+  const result: BlockRunResult = {
+    blockId,
+    tool: block.tool,
+    text: blockText,
+    actions: blockActions,
+    ...(blockError ? { error: blockError } : {}),
+  };
+  if (!synth) handlers.onBlockDone?.(result);
+  if (synth) handlers.onGatherBlockDone?.(result, index, total);
+  return result;
+}
+
+/**
  * Execute a routine's blocks sequentially over `runJarvisTurnStream`.
  *
  * - Blocks run strictly in array order; block N+1 does not start until block N's
@@ -287,86 +420,53 @@ export async function runRoutine(
   // we run them non-voice so no spoken shaping is wasted on data we'll re-narrate.
   const gatherVoice = synth ? false : ctx.isVoice;
 
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    const blockId = block.id && block.id.length > 0 ? block.id : `${runId}:b${i}`;
+  const parallelGather = synth && ctx.parallel === true && blocks.length > 1;
 
-    if (!synth) handlers.onBlockStart?.(blockId, i, blocks.length);
-
-    // Defensive guard: unknown tool → skip block, surface error, keep going.
-    // (routine-model validates authored blocks; this is defense in depth.)
-    if (!isJarvisToolName(block.tool)) {
-      const message = `unknown tool: ${String(block.tool)} (allowed: ${JARVIS_TOOL_NAMES.length} tools)`;
-      handlers.onError(blockId, message);
-      const skipped: BlockRunResult = {
-        blockId,
-        tool: block.tool,
-        text: "",
-        actions: [],
-        error: message,
-      };
-      results.push(skipped);
-      if (!synth) handlers.onBlockDone?.(skipped);
-      threaded.push(summarizeBlockForThread(skipped));
-      continue;
-    }
-
-    const { messages, toolChoice, input } = blockToTurn(block, threaded, gatherVoice);
-
-    let blockText = "";
-    const blockActions: BlockRunResult["actions"] = [];
-    let blockError: string | undefined;
-
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const settle = () => {
-        if (!settled) {
-          settled = true;
-          resolve();
-        }
-      };
-      void runJarvisTurnStream({
-        userId: ctx.userId,
-        apiKey: ctx.apiKey,
-        input,
-        messages,
-        toolChoice,
-        isVoice: gatherVoice,
-        mode: ctx.mode,
-        source: ctx.source,
-        sttDoneAt: null,
-        vadEndAt: undefined,
-        abortSignal: ctx.abortSignal,
-        onTextDelta: (delta) => {
-          // Always capture the text (it feeds cross-block threading + the
-          // synthesis receipts); only STREAM it to the bus when NOT synthesizing.
-          blockText += delta;
-          if (!synth) handlers.onTextDelta(blockId, delta);
-        },
-        onAction: (toolUseId, name, result) => {
-          // Receipts render on screen in BOTH modes (onAction always fires).
-          blockActions.push({ toolUseId, name, result });
-          handlers.onAction(blockId, toolUseId, name, result);
-        },
-        onDone: () => settle(),
-        onError: (message) => {
-          blockError = message;
-          handlers.onError(blockId, message);
-          settle();
-        },
-      });
-    });
-
-    const result: BlockRunResult = {
-      blockId,
-      tool: block.tool,
-      text: blockText,
-      actions: blockActions,
-      ...(blockError ? { error: blockError } : {}),
+  if (parallelGather) {
+    // Independent gathers: EMPTY thread per block (no cross-block threading —
+    // that reasoning moves to the synthesis turn), a bounded work-stealing
+    // worker pool, and results pinned to `slots[i]` so receipts keep authored
+    // block order even when block 3 settles before block 0.
+    const total = blocks.length;
+    const slots: BlockRunResult[] = new Array(total);
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      while (true) {
+        const i = next++;
+        if (i >= total) return;
+        // `next++` in single-threaded JS is atomic work-stealing; no lock needed.
+        slots[i] = await runBlock(
+          blocks[i],
+          i,
+          total,
+          [], // empty thread — parallel gathers do not see siblings
+          runId,
+          synth,
+          gatherVoice,
+          ctx,
+          handlers,
+        );
+      }
     };
-    results.push(result);
-    if (!synth) handlers.onBlockDone?.(result);
-    threaded.push(summarizeBlockForThread(result));
+    const width = Math.min(GATHER_CONCURRENCY, total);
+    await Promise.all(Array.from({ length: width }, () => worker()));
+    results.push(...slots);
+  } else {
+    for (let i = 0; i < blocks.length; i++) {
+      const result = await runBlock(
+        blocks[i],
+        i,
+        blocks.length,
+        threaded,
+        runId,
+        synth,
+        gatherVoice,
+        ctx,
+        handlers,
+      );
+      results.push(result);
+      threaded.push(summarizeBlockForThread(result));
+    }
   }
 
   // Option C: after silent gathering, run ONE butler synthesis turn over the

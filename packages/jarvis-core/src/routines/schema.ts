@@ -65,6 +65,10 @@ export const zRoutineSpec = z.object({
   // synthesized butler brief. Optional + off by default — existing specs
   // parse unchanged.
   synthesize: z.boolean().optional(),
+  // Parallel gather (synthesize-only): run gather blocks concurrently in a
+  // bounded pool. Optional + off by default — existing specs parse unchanged;
+  // only honored when synthesize is true.
+  parallel: z.boolean().optional(),
 });
 
 /** Loose input type (pre-defaults) accepted by `zRoutineSpec.parse`. */

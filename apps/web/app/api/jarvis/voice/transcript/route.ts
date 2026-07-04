@@ -171,6 +171,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         isVoice: true,
         mode: jarvisMode,
         synthesize: matched.spec.synthesize === true,
+        parallel: matched.spec.parallel === true,
         routineName: matched.name,
       });
       return Response.json({ transcript, sttDoneAt, routine: matched.id, runId }, { headers: CORS });

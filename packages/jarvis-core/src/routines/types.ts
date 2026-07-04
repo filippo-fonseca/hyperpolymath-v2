@@ -95,6 +95,15 @@ export interface RoutineSpec {
    * defaulting to off keeps every existing routine's behaviour unchanged.
    */
   synthesize?: boolean;
+  /**
+   * Parallel gather (synthesize-only). When true AND synthesize is true, the
+   * runner executes gather blocks CONCURRENTLY (bounded pool) instead of
+   * sequentially, since gathers are independent (no narration streams, no
+   * cross-block threading). The single synthesis turn still runs last over all
+   * receipts in block order. Ignored when synthesize is false — action routines
+   * always keep strict announce-before-act ordering.
+   */
+  parallel?: boolean;
 }
 
 /** Full row shape returned by the server actions (first-class cols + spec). */
