@@ -1,9 +1,8 @@
 # whatsapp-sync
 
-Local sync worker that mirrors WhatsApp messages from the
-[lharries/whatsapp-mcp](https://github.com/lharries/whatsapp-mcp) Go bridge
-into the Hyperpolymath Postgres so the JARVIS `read_whatsapp` tool + daily
-briefings can query them without a mid-turn desktop round-trip.
+Local sync worker that mirrors WhatsApp messages from the desktop app's
+embedded Go bridge into Hyperpolymath Postgres so the JARVIS `read_whatsapp`
+tool + daily briefings can query them without a mid-turn desktop round-trip.
 
 ## Architecture
 
@@ -12,15 +11,17 @@ briefings can query them without a mid-turn desktop round-trip.
         │
    (linked device, whatsmeow protocol)
         │
-  whatsapp-bridge (Go, local)
-   ├── mirrors messages into SQLite at
-   │   ~/whatsapp-mcp/whatsapp-bridge/store/messages.db
+  whatsapp-bridge  (Go, tools/whatsapp-bridge/main.go)
+   ├── embedded as a Tauri sidecar in the desktop app
+   ├── captures every incoming/outgoing message into SQLite at
+   │   ~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db
+   │   (`messages` + `chats` tables written by captureSchema)
    └── exposes POST http://localhost:8080/api/send
                                     ▲
                                     │  (SEND path — desktop dispatcher)
                                     │
   sync.mjs (Node, local, launchd)
-   ├── reads new rows from SQLite (cursor-persisted)
+   ├── reads new rows from that SQLite file (cursor-persisted)
    └── POSTs to <APP_URL>/api/whatsapp/ingest with Bearer <device token>
                     │
                     ▼
@@ -34,23 +35,28 @@ The SEND path (agent → WhatsApp) uses the same bridge's `POST /api/send` and
 runs through the desktop app's `send_message` confirm-gate. The READ path is
 this worker.
 
+> **The standalone `lharries/whatsapp-mcp` bridge is retired.** The desktop
+> app's embedded bridge is now canonical — it captures messages into its own
+> whatsmeow session DB, so there's only one process to keep alive. If you're
+> still on the old lharries setup, point `WHATSAPP_DB_PATH` at
+> `~/whatsapp-mcp/whatsapp-bridge/store/messages.db` to keep running it, but
+> the schema this worker expects is what `tools/whatsapp-bridge/main.go`
+> writes.
+
 ## One-time setup
 
-### 1. Install and pair the bridge
+### 1. Pair the desktop bridge
 
-```bash
-git clone https://github.com/lharries/whatsapp-mcp.git ~/whatsapp-mcp
-cd ~/whatsapp-mcp/whatsapp-bridge
-go run main.go
-```
+Launch the Hyperpolymath desktop app. On first run the embedded bridge emits
+a QR code (surfaced in the desktop UI); scan it under WhatsApp → Settings →
+Linked Devices. After that the bridge auto-reconnects on relaunch. WhatsApp
+forces re-auth roughly every 20 days — hit the app's WhatsApp settings to
+kick a re-pair (POST `/api/logout` on the bridge clears the session).
 
-The first run prints a QR code — scan it with your WhatsApp phone under
-Settings → Linked Devices. After that, the bridge auto-reconnects on
-restart. Note WhatsApp forces re-auth roughly every 20 days.
-
-Leave the bridge running; it writes messages to
-`~/whatsapp-mcp/whatsapp-bridge/store/messages.db` and listens on port 8080
-for sends.
+The desktop app writes the SQLite store at
+`~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db`
+— sync.mjs defaults to that path, so no configuration is needed once the
+bridge has captured its first message.
 
 ### 2. Mint a device token
 
@@ -77,50 +83,36 @@ You should see a line like
 
 ### 5. Run under launchd
 
-Save this as `~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist`
-(edit the paths + env vars for your setup):
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.hyperpolymath.whatsapp-sync</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/local/bin/node</string>
-    <string>/Users/YOU/Developer/Projects/hyperpolymath-v2/tools/whatsapp-sync/sync.mjs</string>
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>JARVIS_APP_URL</key><string>https://YOUR-APP.vercel.app</string>
-    <key>JARVIS_DEVICE_TOKEN</key><string>hpd_YOUR_TOKEN</string>
-  </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/whatsapp-sync.out.log</string>
-  <key>StandardErrorPath</key><string>/tmp/whatsapp-sync.err.log</string>
-</dict>
-</plist>
-```
-
-Also keep the bridge alive under launchd (equivalent plist, `ProgramArguments`
-pointing at `/usr/local/bin/go` + `run` + `main.go` inside
-`~/whatsapp-mcp/whatsapp-bridge`, or `go build` the bridge once and point at
-the compiled binary — simpler).
-
-Load both:
+A ready-to-install plist ships in this directory as
+`com.hyperpolymath.whatsapp-sync.plist`. Copy it into `~/Library/LaunchAgents/`
+and edit the two placeholders inside (absolute path to `sync.mjs` in your
+checkout, and `JARVIS_DEVICE_TOKEN`; also flip `JARVIS_APP_URL` to your
+Vercel URL if you're not pointing at local dev):
 
 ```bash
+cp tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist \
+   ~/Library/LaunchAgents/
+# edit ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
 launchctl load ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
-launchctl load ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-bridge.plist
-```
-
-Tail the logs to confirm:
-
-```bash
 tail -f /tmp/whatsapp-sync.out.log
 ```
+
+`RunAtLoad` + `KeepAlive` mean the daemon boots at login and gets
+relaunched by launchd if it exits. `ThrottleInterval` (15s) prevents relaunch
+storms while transient network / SQLite locks clear.
+
+The desktop app itself keeps the bridge alive, so there's no separate
+"whatsapp-bridge" launchd agent to install anymore — just start the desktop
+app on login (System Settings → General → Login Items) and this worker on
+top of it.
+
+### 6. Or run it inline with the dev stack
+
+For local development, `tools/hyperpolymath/hyperpolymath.mjs` now registers
+`wa-sync` as a service, so `pnpm hyperpolymath` brings it up alongside the
+web + desktop stack. It preflights out cleanly when `JARVIS_DEVICE_TOKEN`
+isn't set or the capture DB doesn't exist yet, so first-run isn't blocked.
+Pass `--no-wa-sync` to skip it.
 
 ## Environment variables
 
@@ -128,32 +120,34 @@ tail -f /tmp/whatsapp-sync.out.log
 |---|---|---|
 | `JARVIS_APP_URL` | yes | — |
 | `JARVIS_DEVICE_TOKEN` | yes | — |
-| `WHATSAPP_DB_PATH` | no | `~/whatsapp-mcp/whatsapp-bridge/store/messages.db` |
+| `WHATSAPP_DB_PATH` | no | `~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db` |
 | `WHATSAPP_SYNC_CURSOR` | no | `~/.jarvis-whatsapp-sync.json` |
 | `WHATSAPP_SYNC_INTERVAL_MS` | no | `15000` |
 | `WHATSAPP_SYNC_BATCH` | no | `200` (server caps at 500) |
 
 ## Risk / caveats
 
-* `lharries/whatsapp-mcp` is an unofficial community bridge using the
-  reverse-engineered `whatsmeow` library. It is not endorsed by Meta and,
-  strictly, running it on your account is against WhatsApp ToS. Meta has
-  historically banned accounts for high-volume automated use of the linked-
-  device API. **Keep send volume low, personal, and human-paced.** This is a
-  personal life-OS integration — do not use it to blast marketing or
-  automation.
+* The `whatsmeow` library is a community reverse-engineering of WhatsApp's
+  linked-device protocol. It is not endorsed by Meta and, strictly, running
+  it on your account is against WhatsApp ToS. Meta has historically banned
+  accounts for high-volume automated use of the linked-device API. **Keep
+  send volume low, personal, and human-paced.** This is a personal life-OS
+  integration — do not use it to blast marketing or automation.
 * Roughly every 20 days you'll need to re-pair the bridge (WhatsApp expires
-  linked-device sessions). Re-run `go run main.go` and re-scan the QR.
-* If your SQLite mirror gets out of sync with the phone, `rm messages.db
-  whatsapp.db` inside the bridge's store dir and re-pair.
-* The bridge listens on `0.0.0.0:8080` by default — bind it to `127.0.0.1`
-  or firewall port 8080 if you're on a shared network.
+  linked-device sessions). Trigger `POST /api/logout` on the bridge (or use
+  the desktop app's WhatsApp settings pane) and re-scan the QR.
+* If the SQLite mirror ever drifts from the phone, quit the desktop app,
+  `rm ~/Library/Application\ Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db`
+  and re-pair. Option A "fresh from now" — there's no historical backfill,
+  so the cursor picks up whatever's captured next.
+* The bridge listens on `127.0.0.1:8080` by default (same-machine only); the
+  desktop app spawns it that way and doesn't expose it externally.
 
 ## Uninstall
 
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
-launchctl unload ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-bridge.plist
+rm ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
 rm ~/.jarvis-whatsapp-sync.json
 # Optional: nuke ingested rows
 psql "$DATABASE_URL" -c "TRUNCATE whatsapp_messages;"
