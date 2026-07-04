@@ -261,6 +261,9 @@ export function holdSendMessage(action: SendMessageAction): void {
       `[confirm] send_message pre-confirmed by preceding affirmative ("${lastTranscript.text}") — sending`,
     );
     lastTranscript = null;
+    // Fire-and-forget: same load-bearing invariant as resolvePendingWithTranscript.
+    // Awaiting here would let a slow/timing-out send freeze the transcript pipeline
+    // — the exact wedge the WhatsApp 8s timeout was added to end.
     void dispatchAndReport(action);
     return;
   }
