@@ -339,7 +339,9 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 		return types.ParseJID(recipient)
 	}
 	if looksLikePhoneNumber(recipient) {
-		number := strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(recipient, " ", ""), "-", ""), "+")
+		// Preserve the original phone-number branch verbatim: only "+" is
+		// stripped. Separator normalization is out of scope for this unit.
+		number := strings.TrimPrefix(recipient, "+")
 		return types.NewJID(number, types.DefaultUserServer), nil
 	}
 	// Name path — query whatsmeow_contacts. Case-insensitive match against
