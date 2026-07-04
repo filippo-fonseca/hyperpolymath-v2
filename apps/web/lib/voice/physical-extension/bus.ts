@@ -6,6 +6,7 @@ import type {
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
+  PhysicalJarvisRoutineProgress,
   PhysicalJarvisToolCall,
   PhysicalTranscript,
   PhysicalTrigger,
@@ -28,6 +29,7 @@ const PHYSICAL_EVENTS = [
   "jarvis-response-chunk",
   "jarvis-tool-call",
   "jarvis-response-end",
+  "jarvis-routine-progress",
 ] as const;
 
 type PhysicalEventName = (typeof PHYSICAL_EVENTS)[number];
@@ -122,4 +124,8 @@ export function emitJarvisToolCall(payload: PhysicalJarvisToolCall): void {
 
 export function emitJarvisResponseEnd(payload: PhysicalJarvisResponseEnd): void {
   emitEverywhere("jarvis-response-end", payload);
+}
+
+export function emitJarvisRoutineProgress(payload: PhysicalJarvisRoutineProgress): void {
+  emitEverywhere("jarvis-routine-progress", payload);
 }
