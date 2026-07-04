@@ -813,6 +813,19 @@
       </div>
       <div class="list-editor" id="startup-shortcuts-list" aria-label="Startup Shortcuts"></div>
 
+      <!-- ── WhatsApp (wired in src/hud/whatsapp-settings.ts) ── -->
+      <div class="section-title">WhatsApp</div>
+
+      <div class="row">
+        <span class="label">Status</span>
+        <span class="value" id="wa-status" style="color:var(--muted);font-size:12px;">checking…</span>
+      </div>
+      <div class="row">
+        <span class="label">Connection</span>
+        <span class="value"><button class="stop-btn" id="wa-reconnect" type="button">Reconnect</button></span>
+      </div>
+      <p class="note">Re-pairs WhatsApp: logs out the linked device and shows a fresh QR to scan (WhatsApp → Linked Devices).</p>
+
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
 
       <div class="row">
