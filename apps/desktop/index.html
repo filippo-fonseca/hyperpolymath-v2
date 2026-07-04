@@ -421,12 +421,52 @@
       /* Screen-reader-only wrappers for the hidden capture-control elements the
          main.ts wiring still reads (stop-btn-idle, live-text, etc.). */
       .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+      /* WhatsApp pairing overlay — glassy dark card over a dimmed HUD. */
+      .wa-qr-overlay {
+        position: fixed; inset: 0; z-index: 50;
+        display: flex; align-items: center; justify-content: center;
+        background: color-mix(in srgb, var(--bg) 78%, transparent);
+        backdrop-filter: blur(8px) saturate(120%);
+        -webkit-backdrop-filter: blur(8px) saturate(120%);
+      }
+      .wa-qr-overlay[hidden] { display: none; }
+      .wa-qr-card {
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+        padding: 22px 24px 20px;
+        border-radius: 14px;
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--rule));
+        background: color-mix(in srgb, var(--surface) 82%, transparent);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55),
+                    0 0 20px color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+      .wa-qr-title {
+        font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--accent);
+      }
+      .wa-qr-canvas {
+        width: 240px; height: 240px; border-radius: 8px;
+        background: #fff; padding: 10px; box-sizing: border-box;
+      }
+      .wa-qr-caption {
+        font-family: var(--serif); font-size: 14px; line-height: 1.4;
+        max-width: 240px; text-align: center; color: var(--fg);
+      }
     </style>
   </head>
   <body data-jarvis-state="idle">
     <button class="disconnect-banner" id="disconnect-banner" type="button">
       ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
     </button>
+    <!-- WhatsApp first-run pairing overlay. Hidden until the bridge sidecar
+         emits a QR (whatsapp-qr); dismissed on whatsapp-ready. -->
+    <div class="wa-qr-overlay" id="wa-qr-overlay" hidden>
+      <div class="wa-qr-card">
+        <div class="wa-qr-title">Link WhatsApp</div>
+        <canvas class="wa-qr-canvas" id="wa-qr-canvas" width="240" height="240" aria-label="WhatsApp linking QR code"></canvas>
+        <div class="wa-qr-caption">Scan with WhatsApp → Linked Devices to connect JARVIS</div>
+      </div>
+    </div>
     <main class="stage">
       <!-- Region 1: fixed orb header + status. Never scrolls. -->
       <header class="hud-header">

@@ -53,6 +53,7 @@ import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
 import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
 import {
   getJarvisState,
   onJarvisState,
@@ -853,6 +854,10 @@ async function boot(): Promise<void> {
   void listen("tray-invoke", () => {
     void startConversation();
   });
+
+  // WhatsApp pairing overlay: render the QR the bundled bridge sidecar emits on
+  // first run / re-auth, and dismiss it once the phone links the device.
+  void startWhatsappQrOverlay();
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
