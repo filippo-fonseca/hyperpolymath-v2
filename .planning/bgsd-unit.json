@@ -1,18 +1,18 @@
 {
-  "unit_id": "wa-bridge-capture",
-  "title": "Re-enable WhatsApp message capture + /api/logout in the Go bridge, rebundle sidecar",
-  "scope": "The desktop-embedded whatsapp-bridge (Go, tools/whatsapp-bridge/main.go) deliberately does 'send + QR + health only. No message reading/mirroring.' (main.go:14). Handlers registered at main.go:232-235 are only /api/send, /api/health, /api/qr. This unit makes the desktop bridge CANONICAL (Option A, user-approved): add live message capture so reads stay fresh, plus a logout endpoint for re-auth.\n\nDO:\n1. Add a whatsmeow message-capture event handler: client.AddEventHandler for *events.Message, writing captured messages into a `messages` table (and a `chats` table for chat names) IN THE SAME sqlite store (modernc sqlite DSN at main.go:183, store = app_data_dir/whatsapp/whatsapp.db). CRITICAL: the schema MUST match what tools/whatsapp-sync/sync.mjs reads (sync.mjs:79-91) so the sync SQL needs zero changes — columns: messages(id, chat_jid, sender, content, timestamp, is_from_me, ...), chats(jid, name). Use lharries/whatsapp-mcp main.go as the reference implementation for the exact table DDL + insert + the events.Message->row mapping (id, chat jid, sender, text content, timestamp, is_from_me).\n2. Add POST /api/logout that calls client.Logout(ctx) so the store's device ID is cleared and whatsmeow re-enters the QR pairing flow (QR fires on logged-out store per main.go:199). Keep it consistent with the existing handler registration block (main.go:232-235).\n3. Keep /api/send, /api/qr, /api/health working unchanged. Keep the QR stdout events ({\"event\":\"qr\"}/{\"event\":\"ready\"}, main.go:52-76,208-223) intact.\n4. Recompile the Go bridge for aarch64-apple-darwin and RE-BUNDLE the sidecar binary into apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin (the repo already cross-compiles this sidecar; find the build script/command). go.mod already has whatsmeow (go.mod:6).\n\nDO NOT change the store path/DSN, the port (8080), or the send/QR behavior. 'Start fresh from now' was chosen: no historical backfill needed.",
+  "unit_id": "wa-sync-launchd",
+  "title": "Point the WhatsApp sync worker at the desktop store + run it under persistent launchd",
+  "scope": "This branch is based on wa-bridge-capture, where the desktop bridge now captures messages into app_data_dir/whatsapp/whatsapp.db in a `messages`/`chats` table matching the lharries schema. Make the sync worker run persistently and read the RIGHT database.\n\nDO:\n1. tools/whatsapp-sync/sync.mjs: change default WHATSAPP_DB_PATH (currently ~/whatsapp-mcp/whatsapp-bridge/store/messages.db at ~sync.mjs:41-43) to ~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db. Keep env-overridable. Verify the SELECT (~sync.mjs:79-91: messages.content, is_from_me, timestamp; join chats.name) matches the capture schema the bridge now writes (read tools/whatsapp-bridge/main.go in this branch to confirm the exact table/column names); adjust the query only if needed.\n2. Add a launchd plist tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist (RunAtLoad + KeepAlive, JARVIS_APP_URL + JARVIS_DEVICE_TOKEN env vars), per the README template. For local dev JARVIS_APP_URL is http://localhost:3000. Document loading it in the README.\n3. Register the sync worker in tools/hyperpolymath/hyperpolymath.mjs SERVICES array so it comes up with the stack (follow the existing service entry pattern).\n4. Update tools/whatsapp-sync/README.md: desktop store canonical; the standalone lharries bridge is RETIRED (Option A, fresh-from-now, no backfill).\n\nDo NOT change the ingest route or whatsapp_messages schema.",
   "criteria": [
-    "The bridge captures incoming (and outgoing) WhatsApp messages live into a `messages` table (+ `chats`) in app_data_dir/whatsapp/whatsapp.db, with columns matching what tools/whatsapp-sync/sync.mjs SELECTs (id, chat_jid, sender, content, timestamp, is_from_me; chats.name) so sync.mjs runs unchanged.",
-    "POST /api/logout logs the whatsmeow client out (clears Store.ID) and the existing QR stdout/event flow re-fires for re-pairing.",
-    "/api/send, /api/qr, /api/health keep working exactly as before; QR + ready stdout events unchanged.",
-    "The Go bridge compiles (`go build`) cleanly, and the aarch64-apple-darwin sidecar binary in apps/desktop/src-tauri/binaries/ is rebuilt from the new source.",
-    "No change to the store path, port, or send/QR semantics."
+    "sync.mjs defaults to the desktop bridge store path, still env-overridable, and its SELECT matches the capture schema written by tools/whatsapp-bridge/main.go on this branch.",
+    "A launchd plist (RunAtLoad + KeepAlive) exists so the worker runs persistently; README documents loading it.",
+    "The sync worker is registered in tools/hyperpolymath/hyperpolymath.mjs SERVICES so it starts with the stack.",
+    "README updated: desktop store canonical, lharries retired.",
+    "No change to /api/whatsapp/ingest or whatsapp_messages."
   ],
   "touched": [
-    "tools/whatsapp-bridge/main.go",
-    "tools/whatsapp-bridge/go.mod",
-    "tools/whatsapp-bridge/go.sum",
-    "apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin"
+    "tools/whatsapp-sync/sync.mjs",
+    "tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist",
+    "tools/whatsapp-sync/README.md",
+    "tools/hyperpolymath/hyperpolymath.mjs"
   ]
 }
