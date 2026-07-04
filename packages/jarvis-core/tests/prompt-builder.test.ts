@@ -191,9 +191,12 @@ describe("buildSystemPrompt", () => {
         );
       });
 
-      it("routes non-imessage remembered channels via computer_use and keeps the send confirm guardrail", () => {
-        expect(COMPUTER_MODE_ADDENDUM).toMatch(/not supported by send_message/i);
-        expect(COMPUTER_MODE_ADDENDUM).toContain("computer_use");
+      it("routes WhatsApp AND iMessage through send_message (never screen-driving) and keeps the send confirm guardrail", () => {
+        // WhatsApp is fully supported by send_message — the model must NOT be
+        // told to screen-drive it via computer_use (that was a false claim).
+        expect(COMPUTER_MODE_ADDENDUM).not.toMatch(/not supported by send_message/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/both are fully supported by send_message/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/NEVER screen-drive a messaging app/i);
         expect(COMPUTER_MODE_ADDENDUM).toMatch(
           /readback-and-confirm guardrail applies to EVERY outgoing message/i,
         );
