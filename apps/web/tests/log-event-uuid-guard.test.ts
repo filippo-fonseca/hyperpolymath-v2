@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { insertValuesSpy } = vi.hoisted(() => ({
-  insertValuesSpy: vi.fn(async () => undefined),
+  insertValuesSpy: vi.fn(async (_values: unknown) => undefined),
 }));
 
 vi.mock("@/lib/db", () => ({
