@@ -68,6 +68,41 @@ interface JarvisResponseEndPayload {
   at: number;
 }
 
+// --- Routine progress (produced by the web progress-bus; consumed by the HUD
+// loader). Desktop-local mirror of PhysicalJarvisRoutineProgress — the desktop
+// app does not import web/server code, so every payload is mirrored here. The
+// hud-loader unit imports these EXPORTED types + onJarvisRoutineProgress. ---
+
+/** One gather source in a synthesize routine, as shown on the HUD checklist. */
+export interface RoutineProgressSourcePayload {
+  blockId: string;
+  index: number;
+  tool: string;
+  label: string;
+}
+
+export type JarvisRoutineProgressPhase =
+  | "start"
+  | "gather-start"
+  | "gather-done"
+  | "synthesizing"
+  | "done";
+
+export interface JarvisRoutineProgressPayload {
+  runId: string;
+  routineName: string;
+  phase: JarvisRoutineProgressPhase;
+  total: number;
+  sources?: RoutineProgressSourcePayload[];
+  blockId?: string;
+  index?: number;
+  tool?: string;
+  label?: string;
+  ok?: boolean;
+  error?: string;
+  at: number;
+}
+
 export type SseStatus = "connecting" | "connected" | "error";
 type StatusListener = (status: SseStatus) => void;
 const statusListeners = new Set<StatusListener>();
@@ -76,11 +111,13 @@ type ResponseStartListener = (payload: JarvisResponseStartPayload) => void;
 type ResponseChunkListener = (payload: JarvisResponseChunkPayload) => void;
 type ToolCallListener = (payload: JarvisToolCallPayload) => void;
 type ResponseEndListener = (payload: JarvisResponseEndPayload) => void;
+type RoutineProgressListener = (payload: JarvisRoutineProgressPayload) => void;
 
 const responseStartListeners = new Set<ResponseStartListener>();
 const responseChunkListeners = new Set<ResponseChunkListener>();
 const toolCallListeners = new Set<ToolCallListener>();
 const responseEndListeners = new Set<ResponseEndListener>();
+const routineProgressListeners = new Set<RoutineProgressListener>();
 
 export function onSseStatusChange(fn: StatusListener): () => void {
   statusListeners.add(fn);
@@ -105,6 +142,11 @@ export function onJarvisToolCall(fn: ToolCallListener): () => void {
 export function onJarvisResponseEnd(fn: ResponseEndListener): () => void {
   responseEndListeners.add(fn);
   return () => responseEndListeners.delete(fn);
+}
+
+export function onJarvisRoutineProgress(fn: RoutineProgressListener): () => void {
+  routineProgressListeners.add(fn);
+  return () => routineProgressListeners.delete(fn);
 }
 
 function emitStatus(status: SseStatus): void {
@@ -200,6 +242,15 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`[jarvis] response-end turnId=${payload.turnId}`);
     for (const fn of responseEndListeners) fn(payload);
+  });
+
+  source.addEventListener("jarvis-routine-progress", (e) => {
+    const messageEvent = e as MessageEvent<string>;
+    const payload = parseJson<JarvisRoutineProgressPayload>(messageEvent.data);
+    if (!payload) return;
+    // eslint-disable-next-line no-console
+    console.log(`[jarvis] routine-progress phase=${payload.phase} runId=${payload.runId}`);
+    for (const fn of routineProgressListeners) fn(payload);
   });
 
   source.onerror = () => {
