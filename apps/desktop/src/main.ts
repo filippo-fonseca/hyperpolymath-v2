@@ -63,6 +63,7 @@ import {
 } from "@/conversation/state-machine";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
+import { startRoutineLoader } from "@/hud/routine-loader";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
@@ -828,6 +829,12 @@ async function boot(): Promise<void> {
   // utterance under the status line. Subscribes to the same SSE response
   // events painted above; purely presentational.
   startAckStrip();
+
+  // 5c-ter. Routine HUD loader: on a synthesize(+parallel) voice routine ("I'm
+  // back home"), render the live progress ring around the orb + a ticking source
+  // checklist, driven by the jarvis-routine-progress SSE stream. Coexists with
+  // the spoken brief (a normal response cycle) without overlapping the transcript.
+  startRoutineLoader();
 
   // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
   const gearBtn = document.getElementById("gear-btn");
