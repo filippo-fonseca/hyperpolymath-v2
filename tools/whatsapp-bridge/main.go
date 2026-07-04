@@ -11,12 +11,17 @@
 // which the Rust supervisor forwards to the HUD; when paired it emits
 // {"event":"ready"}.
 //
-// Scope: send + QR + health only. No message reading/mirroring.
+// Scope: send + QR + health + /api/logout, plus live message capture (incoming
+// and outgoing) mirrored into `messages` + `chats` tables in the same SQLite
+// file whatsmeow uses for its session store. The schema is compatible with
+// lharries/whatsapp-mcp so tools/whatsapp-sync/sync.mjs reads it unchanged.
 package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -31,6 +36,7 @@ import (
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
 
@@ -39,13 +45,161 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// bridge holds the connected client and the latest QR string (for /api/qr).
+// bridge holds the connected client, the latest QR string (for /api/qr), and
+// a second sqlite handle onto the same whatsapp.db file used by whatsmeow's
+// session store — for the messages/chats capture tables.
 type bridge struct {
 	client *whatsmeow.Client
 
 	mu    sync.RWMutex
 	qr    string // most recent unscanned QR code, "" once paired
 	ready bool
+
+	msgDB *sql.DB
+
+	// Cached group names so we make at most one GetGroupInfo call per group
+	// per process lifetime. Miss on rename is acceptable; the LEFT JOIN in
+	// sync.mjs tolerates NULL/stale names.
+	groupMu    sync.Mutex
+	groupNames map[types.JID]string
+}
+
+// extractContent pulls a text body out of a whatsmeow message, or classifies
+// which media field is present. Returns (content, mediaType). Both empty means
+// the row is not worth persisting (receipts, reactions, protocol messages).
+func extractContent(m *waE2E.Message) (string, string) {
+	if m == nil {
+		return "", ""
+	}
+	if c := m.GetConversation(); c != "" {
+		return c, ""
+	}
+	if ext := m.GetExtendedTextMessage(); ext != nil {
+		if t := ext.GetText(); t != "" {
+			return t, ""
+		}
+	}
+	switch {
+	case m.GetImageMessage() != nil:
+		return "", "image"
+	case m.GetVideoMessage() != nil:
+		return "", "video"
+	case m.GetAudioMessage() != nil:
+		return "", "audio"
+	case m.GetDocumentMessage() != nil:
+		return "", "document"
+	case m.GetStickerMessage() != nil:
+		return "", "sticker"
+	}
+	return "", ""
+}
+
+// chatDisplayName resolves the best-effort display name for a chat JID. For
+// groups it calls whatsmeow.GetGroupInfo once per process (cached); for DMs it
+// prefers the message's PushName. Failure returns "" — the caller upserts with
+// COALESCE so blanks never clobber existing names.
+func (b *bridge) chatDisplayName(ctx context.Context, chat types.JID, pushName string) string {
+	if chat.Server == types.GroupServer {
+		b.groupMu.Lock()
+		if name, ok := b.groupNames[chat]; ok {
+			b.groupMu.Unlock()
+			return name
+		}
+		b.groupMu.Unlock()
+
+		info, err := b.client.GetGroupInfo(ctx, chat)
+		name := ""
+		if err == nil && info != nil {
+			name = info.Name
+		}
+		b.groupMu.Lock()
+		b.groupNames[chat] = name
+		b.groupMu.Unlock()
+		return name
+	}
+	return pushName
+}
+
+// handleEvent is the whatsmeow event bus callback. We only care about
+// *events.Message; *events.HistorySync is intentionally not handled ("start
+// fresh from now" per the unit brief).
+func (b *bridge) handleEvent(evt any) {
+	msg, ok := evt.(*events.Message)
+	if !ok || msg == nil {
+		return
+	}
+	content, mediaType := extractContent(msg.Message)
+	if content == "" && mediaType == "" {
+		return
+	}
+	chatJID := msg.Info.Chat.String()
+	name := b.chatDisplayName(context.Background(), msg.Info.Chat, msg.Info.PushName)
+	if err := b.upsertChat(chatJID, name, msg.Info.Timestamp); err != nil {
+		log.Printf("capture: upsertChat %s: %v", chatJID, err)
+		return
+	}
+	if err := b.storeMessage(
+		msg.Info.ID, chatJID, msg.Info.Sender.User,
+		content, mediaType, msg.Info.Timestamp, msg.Info.IsFromMe,
+	); err != nil {
+		log.Printf("capture: storeMessage %s/%s: %v", chatJID, msg.Info.ID, err)
+	}
+}
+
+const captureSchema = `
+CREATE TABLE IF NOT EXISTS chats (
+	jid TEXT PRIMARY KEY,
+	name TEXT,
+	last_message_time TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS messages (
+	id TEXT,
+	chat_jid TEXT,
+	sender TEXT,
+	content TEXT,
+	timestamp TIMESTAMP,
+	is_from_me BOOLEAN,
+	media_type TEXT,
+	PRIMARY KEY (id, chat_jid),
+	FOREIGN KEY (chat_jid) REFERENCES chats(jid)
+);
+`
+
+// upsertChat inserts or updates a chats row. A blank incoming name never
+// clobbers an existing good name (COALESCE(NULLIF(...))). last_message_time is
+// stored as UTC RFC3339 text so it sorts lexicographically.
+func (b *bridge) upsertChat(jid, name string, ts time.Time) error {
+	if b.msgDB == nil {
+		return nil
+	}
+	_, err := b.msgDB.Exec(
+		`INSERT INTO chats(jid, name, last_message_time) VALUES (?, ?, ?)
+		 ON CONFLICT(jid) DO UPDATE SET
+			name = COALESCE(NULLIF(excluded.name, ''), chats.name),
+			last_message_time = excluded.last_message_time`,
+		jid, name, ts.UTC().Format(time.RFC3339),
+	)
+	return err
+}
+
+// storeMessage inserts a row into the messages capture table. INSERT OR REPLACE
+// keeps capture idempotent when whatsmeow redelivers. Timestamp is formatted
+// exactly here (UTC RFC3339 text) so sync.mjs's string-comparison cursor
+// (`m.timestamp > '<bound>'`) sorts chronologically.
+func (b *bridge) storeMessage(id, chatJID, sender, content, mediaType string, ts time.Time, fromMe bool) error {
+	if b.msgDB == nil {
+		return nil
+	}
+	fromMeInt := 0
+	if fromMe {
+		fromMeInt = 1
+	}
+	_, err := b.msgDB.Exec(
+		`INSERT OR REPLACE INTO messages(id, chat_jid, sender, content, timestamp, is_from_me, media_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, chatJID, sender, content, ts.UTC().Format(time.RFC3339), fromMeInt, mediaType,
+	)
+	return err
 }
 
 // emitEvent writes a structured stdout line the Rust supervisor parses.
@@ -132,13 +286,31 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	_, err = b.client.SendMessage(ctx, jid, &waE2E.Message{
+	resp, err := b.client.SendMessage(ctx, jid, &waE2E.Message{
 		Conversation: proto.String(req.Message),
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("send failed: %v", err)})
 		return
 	}
+	// Mirror the outgoing message into the capture store. SendMessage does not
+	// fire events.Message on the sending client, so we insert here. Failure
+	// must not fail the send response — log only.
+	go func(chat types.JID, resp whatsmeow.SendResponse, body string) {
+		senderUser := ""
+		if id := b.client.Store.ID; id != nil {
+			senderUser = id.User
+		}
+		name := b.chatDisplayName(context.Background(), chat, "")
+		chatJID := chat.String()
+		if err := b.upsertChat(chatJID, name, resp.Timestamp); err != nil {
+			log.Printf("capture(send): upsertChat %s: %v", chatJID, err)
+			return
+		}
+		if err := b.storeMessage(resp.ID, chatJID, senderUser, body, "", resp.Timestamp, true); err != nil {
+			log.Printf("capture(send): storeMessage %s/%s: %v", chatJID, resp.ID, err)
+		}
+	}(jid, resp, req.Message)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -147,6 +319,36 @@ func (b *bridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"connected": b.client.IsConnected(),
 		"loggedIn":  b.client.IsLoggedIn(),
 	})
+}
+
+// handleLogout clears the paired device from the whatsmeow store and exits the
+// process. The Rust supervisor (apps/desktop/src-tauri/src/whatsapp.rs) respawns
+// the sidecar on Terminated with capped linear backoff; the fresh process sees
+// Store.ID == nil and re-enters the QR pairing flow (main.go:client.Store.ID ==
+// nil branch), which re-fires the existing {"event":"qr"} stdout events.
+func (b *bridge) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "method not allowed"})
+		return
+	}
+	if b.client.Store.ID == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "note": "already logged out"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	if err := b.client.Logout(ctx); err != nil && !errors.Is(err, whatsmeow.ErrNotLoggedIn) {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("logout failed: %v", err)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	// Let the response flush, then exit so the supervisor restarts us into the
+	// QR branch on a fresh (device-less) store.
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		log.Printf("logout complete; exiting for supervisor respawn")
+		os.Exit(0)
+	}()
 }
 
 func (b *bridge) handleQR(w http.ResponseWriter, _ *http.Request) {
@@ -188,13 +390,35 @@ func main() {
 		log.Fatalf("failed to open store: %v", err)
 	}
 
+	// Second handle onto the SAME whatsapp.db file: we own the messages/chats
+	// capture tables, whatsmeow owns its own tables. busy_timeout(5000) in the
+	// DSN handles cross-connection SQLite locking.
+	msgDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		log.Fatalf("failed to open capture db: %v", err)
+	}
+	if err := msgDB.PingContext(ctx); err != nil {
+		log.Fatalf("failed to ping capture db: %v", err)
+	}
+	if _, err := msgDB.ExecContext(ctx, captureSchema); err != nil {
+		log.Fatalf("failed to init capture schema: %v", err)
+	}
+
 	deviceStore, err := container.GetFirstDevice(ctx)
 	if err != nil {
 		log.Fatalf("failed to get device: %v", err)
 	}
 
 	client := whatsmeow.NewClient(deviceStore, waLog.Stdout("client", "WARN", true))
-	b := &bridge{client: client}
+	b := &bridge{
+		client:     client,
+		msgDB:      msgDB,
+		groupNames: make(map[types.JID]string),
+	}
+
+	// Register the capture handler BEFORE either connect branch so no messages
+	// are missed on the already-paired path.
+	client.AddEventHandler(b.handleEvent)
 
 	if client.Store.ID == nil {
 		// Not paired: pull the QR channel BEFORE connecting.
@@ -233,6 +457,7 @@ func main() {
 	mux.HandleFunc("/api/send", b.handleSend)
 	mux.HandleFunc("/api/health", b.handleHealth)
 	mux.HandleFunc("/api/qr", b.handleQR)
+	mux.HandleFunc("/api/logout", b.handleLogout)
 
 	addr := ":" + port
 	log.Printf("whatsapp-bridge listening on %s (store: %s)", addr, dbPath)

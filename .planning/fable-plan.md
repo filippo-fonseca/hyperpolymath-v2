@@ -1,429 +1,120 @@
-# Fable plan — unit "progress-bus" (run sesh-1783128035668)
+# Fable Plan — wa-bridge-capture
 
-Emit real-time `jarvis-routine-progress` events over the existing physical SSE bus as a
-synthesize(+parallel) routine gathers its sources, so the sibling "hud-loader" desktop unit
-can render a live loader + progress ring + ticking source checklist. This unit PRODUCES the
-events end-to-end (runner hooks → bus → SSE route → desktop sse-client listener export); it
-does NOT build any HUD UI.
+- **Unit:** `wa-bridge-capture` — Re-enable WhatsApp message capture + `/api/logout` in the Go bridge, rebundle sidecar
+- **Run:** `sesh-1783185088662`
+- **Worktree:** `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-bgsd-wa-bridge-capture`
 
----
+## Goal & scope
 
-## 1. Verified ground truth (path:line, current worktree)
+Make the desktop-embedded Go bridge (`tools/whatsapp-bridge/main.go`) the canonical WhatsApp mirror (Option A). Today it is send + QR + health only (main.go:14, handlers at main.go:232-235). This unit adds:
 
-| What | Where | Verified |
-|---|---|---|
-| Gather hooks on the runner handler contract | `apps/web/lib/jarvis/routine-runner.ts:141-143` — `onGatherBlockStart?(blockId, index, total, tool)` / `onGatherBlockDone?(result, index, total)` | ✅ fire in synth mode only, both sequential and parallel paths (`routine-runner.ts:311`, `:326`, `:384`) |
-| Synthesis lifecycle hooks | `onSynthesisStart` fired at `routine-runner.ts:530`, `onSynthesisDone` at `:566`; both called from `runSynthesisTurn` which runs after all gathers (`:475-477`) | ✅ |
-| Block-id defaulting | `routine-runner.ts:306` — `block.id && block.id.length > 0 ? block.id : \`${runId}:b${index}\`` | ✅ must be mirrored for the skeleton event (see §4.3 — export a helper) |
-| `fireRoutineOverBus(blocks, opts)` | `apps/web/lib/jarvis/routine-fire.ts:74` — HAS the `blocks: RoutineBlock[]` array up front ✅ and computes `runId` at `:75` before calling `runRoutine`. `opts.synthesize` at `:59`, `opts.routineName` at `:51`. Handlers already wire `onOpener`/`onSynthesisStart`/`onSynthesisDelta`/`onSynthesisDone` (`:117-133`) but NOT the gather hooks — those are unconsumed today. |
-| Physical bus | `apps/web/lib/voice/physical-extension/bus.ts` — `PHYSICAL_EVENTS` allowlist at `:24-31` (gates the cross-instance Realtime relay at `:66`), `emitEverywhere` at `:87`, emitter exports at `:103-125` | ✅ new event MUST be added to `PHYSICAL_EVENTS` or it silently drops cross-instance on Vercel |
-| Payload types | `apps/web/lib/voice/physical-extension/types.ts` (no imports today; keep it dependency-free — use `string` for tool, not `JarvisToolName`) | ✅ |
-| SSE fan-out route | `apps/web/app/api/jarvis/physical/events/route.ts:145-157` (handler registration), `:167-180` (cleanup) — each bus event needs a `send` handler + `on` + `off` | ✅ |
-| Desktop consumer | `apps/desktop/src/physical-extender/sse-client.ts` — per-event payload interfaces (`:47-69`), listener Sets + `onJarvisX` exports (`:75-108`), `addEventListener` blocks (`:171-203`) | ✅ pattern to clone |
-| Existing UPPERCASE label derivation (synthesis receipts only) | `routine-runner.ts:494-498` `labelFor` — strips `get_|read_|find_` prefix, underscores→spaces, uppercase | reference for the new human-label map |
-| jarvis-core routines subpath | `packages/jarvis-core/src/routines/{index,types,schema,match}.ts`, exported via `"./routines": "./src/routines/index.ts"` in `packages/jarvis-core/package.json` | ✅ home for the shared label map |
-| Runner test harness (mock pattern to reuse) | `apps/web/lib/jarvis/__tests__/routine-runner.test.ts:39-47` — mocks `@/lib/jarvis/run-turn` at module boundary, driver queue, `deferredDriver` helper at `:114` | ✅ |
+1. Live message capture (incoming AND outgoing) into `messages` + `chats` tables in the SAME sqlite file the whatsmeow session store uses (`<store>/whatsapp.db`, DSN built at main.go:183), with a schema that satisfies the exact SELECT in `tools/whatsapp-sync/sync.mjs:79-91` with zero SQL changes there.
+2. `POST /api/logout` that clears the paired device so the QR pairing flow re-fires.
+3. Rebuild + rebundle the aarch64-apple-darwin sidecar binary.
 
-Non-synthesize routines: `runBlock` only fires the gather hooks when `synth === true`
-(`routine-runner.ts:311`, `:384`), and `runSynthesisTurn` is gated on `synth`
-(`:475`). So gating ALL progress emission on `opts.synthesize === true` inside
-`fireRoutineOverBus` (for the routine-level `start` event) plus relying on the runner's
-own gating (for gather/synth events) gives exactly the required "none emitted for a
-non-synthesize routine" behavior.
+Success criteria (from the brief):
 
----
+- Live capture into `messages(id, chat_jid, sender, content, timestamp, is_from_me, …)` + `chats(jid, name, …)` in `app_data_dir/whatsapp/whatsapp.db`; sync.mjs runs unchanged.
+- `POST /api/logout` clears `Store.ID` and the QR stdout/event flow re-fires for re-pairing.
+- `/api/send`, `/api/qr`, `/api/health` unchanged; `{"event":"qr"}` / `{"event":"ready"}` stdout events unchanged.
+- `go build` clean; `apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin` rebuilt from new source.
+- No change to store path, port (8080), or send/QR semantics.
 
-## 2. FROZEN CONTRACT (hud-loader builds against this — do not drift)
+## Ground truth read
 
-### 2.1 SSE / bus event name
+- `tools/whatsapp-bridge/main.go` (245 lines): single-file bridge. `bridge` struct holds `client` + QR state. QR channel is pulled before `Connect()` only when `client.Store.ID == nil` (main.go:199-223); otherwise it just connects and emits `ready`. Handlers registered at main.go:232-235. Pure-Go `modernc.org/sqlite` driver (registered as `"sqlite"`), so cross-compile stays CGO-free.
+- `tools/whatsapp-sync/sync.mjs:77-103`: shells out to `/usr/bin/sqlite3 -json` and runs:
+  `SELECT m.id, m.chat_jid, c.name AS chat_name, m.sender, m.content, m.timestamp, m.is_from_me FROM messages m LEFT JOIN chats c ON c.jid = m.chat_jid WHERE m.timestamp > '<cursor>' ORDER BY m.timestamp ASC LIMIT N`.
+  Note the cursor comparison is **string comparison on `timestamp`**, and `toIso()` (sync.mjs:105-112) expects `new Date(ts)` to parse it. So `timestamp` must be stored as a lexicographically-sortable, `Date()`-parsable string → **UTC RFC3339 text** (`2026-07-04T18:05:00Z`).
+- `apps/desktop/src-tauri/src/whatsapp.rs`: supervisor spawns the sidecar with `--store <app_data>/whatsapp --port 8080`, forwards `qr`/`ready` stdout events, and **respawns the child on `Terminated`** with capped linear backoff (whatsapp.rs:113-134, `MAX_RESTARTS = 8`, counter reset on healthy spawn at whatsapp.rs:92). This gives us a clean logout path: exit the process after logout and the supervisor restarts it; the fresh process sees `Store.ID == nil` and enters the QR branch.
+- `apps/desktop/package.json:9`: `"build:bridge": "cd ../../tools/whatsapp-bridge && GOOS=darwin GOARCH=arm64 go build -o ../../apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin ."` — the rebundle command already exists.
+- `tools/whatsapp-bridge/go.mod`: whatsmeow `v0.0.0-20260630180629-b572e5bcb92b`, protobuf, modernc sqlite already present. **No new module deps needed** (`events` and `database/sql` come from existing modules / stdlib), so `go.sum` should not change.
 
-```
-jarvis-routine-progress
-```
+## Design decisions
 
-One event name for the whole lifecycle; the payload's `phase` discriminates. This matches
-the existing bus style (one name per semantic stream, e.g. `jarvis-response-chunk`) and
-keeps the `PHYSICAL_EVENTS` allowlist, the SSE route, and the desktop client each a
-one-entry addition.
-
-### 2.2 Payload TypeScript type
-
-Added to `apps/web/lib/voice/physical-extension/types.ts` (server side) and mirrored as a
-local interface in `apps/desktop/src/physical-extender/sse-client.ts` (desktop side — the
-desktop app does not import from `apps/web`; every existing payload is mirrored the same
-way, see `sse-client.ts:47-69`).
-
-```ts
-/** One gather source in the routine, as shown on the HUD checklist. */
-export interface PhysicalRoutineProgressSource {
-  /** Runner-resolved block id — matches blockId on gather-start/gather-done. */
-  blockId: string;
-  /** Authored block order (0-based) — checklist render order. */
-  index: number;
-  /** Raw tool name, e.g. "read_gmail" (string, not JarvisToolName — types.ts stays dependency-free). */
-  tool: string;
-  /** Human label, e.g. "Email". Derived server-side; desktop renders it verbatim. */
-  label: string;
-}
-
-export type PhysicalJarvisRoutineProgressPhase =
-  | "start"          // instant: routine fired; carries the full source skeleton
-  | "gather-start"   // source began executing
-  | "gather-done"    // source settled (ok=false when it errored/was skipped)
-  | "synthesizing"   // all gathered; the single brief turn is composing
-  | "done";          // brief finished streaming; progress lifecycle over
-
-export interface PhysicalJarvisRoutineProgress {
-  /** The fireRoutineOverBus runId — correlates all events of one run. */
-  runId: string;
-  /** Human routine name, e.g. "Morning Brief" — HUD header copy. */
-  routineName: string;
-  phase: PhysicalJarvisRoutineProgressPhase;
-  /** Total gather sources. Present on EVERY phase (lets the HUD ring size itself from any event). */
-  total: number;
-  /** phase "start" only: the full checklist skeleton, in authored order. */
-  sources?: PhysicalRoutineProgressSource[];
-  /** phases "gather-start" | "gather-done": which source. */
-  blockId?: string;
-  index?: number;
-  tool?: string;
-  label?: string;
-  /** phase "gather-done" only: false when the block errored or was skipped (unknown tool). */
-  ok?: boolean;
-  /** phase "gather-done" only, when ok === false: short error message. */
-  error?: string;
-  /** Wall-clock ms epoch, same convention as every other bus payload. */
-  at: number;
-}
-```
-
-### 2.3 Emission sequence guarantees (what hud-loader may assume)
-
-For a synthesize routine with N blocks fired through `fireRoutineOverBus`:
-
-1. Exactly one `phase:"start"` with `sources.length === N === total`, emitted
-   synchronously before any gather begins (drives the instant "one moment, sir" opener +
-   skeleton checklist).
-2. Exactly N `gather-start` and N `gather-done` events. `gather-start` events arrive in
-   index order (the pool grabs indices in order — `routine-runner.ts:437`); `gather-done`
-   events arrive in COMPLETION order and interleave arbitrarily with later `gather-start`s
-   when `parallel` is on. Each carries `blockId`/`index`/`tool`/`label`; `gather-done`
-   additionally carries `ok` (+ `error` when `ok:false`). Errored and unknown-tool-skipped
-   blocks STILL emit both events (`routine-runner.ts:311`, `:326`) — the checklist ticks
-   every row, possibly with an error state.
-3. Exactly one `synthesizing` after the last `gather-done` and before the brief's
-   `jarvis-response-start` (`onSynthesisStart` fires before the synthesis turn streams,
-   `routine-runner.ts:530`; the ordering of the progress emit vs. the response-start emit
-   inside the same handler tick is progress-first — see §4.4).
-4. Exactly one `done` after the brief's `jarvis-response-end` cycle completes
-   (`onSynthesisDone`, `routine-runner.ts:566`).
-5. For a NON-synthesize routine: zero `jarvis-routine-progress` events, ever.
-6. All events of one run share the same `runId` (which is also the return value of
-   `fireRoutineOverBus` and the `${runId}:brief` / `${runId}:opener` turnId prefix, so the
-   HUD can correlate progress with the opener/brief response streams if it wants to).
-
-### 2.4 Desktop listener export (hud-loader's subscribe point)
-
-```ts
-// apps/desktop/src/physical-extender/sse-client.ts
-export function onJarvisRoutineProgress(
-  fn: (payload: JarvisRoutineProgressPayload) => void,
-): () => void; // returns unsubscribe, same as every sibling onJarvisX export
-```
-
-`JarvisRoutineProgressPayload` is the desktop-local mirror of
-`PhysicalJarvisRoutineProgress` (identical shape, exported from sse-client.ts so
-hud-loader can import the type).
-
-### 2.5 Shared label map (recommendation: BOTH map-in-core AND label-in-event)
-
-**Recommendation: put the canonical map in jarvis-core, but ALSO carry the resolved
-`label` inside every event.** Rationale:
-
-- The desktop app deliberately mirrors payload types instead of importing web/server code
-  (see every interface at `sse-client.ts:47-69`); making the HUD depend on
-  `@hyperpolymath/jarvis-core` just for labels would be its first such dependency and is
-  unnecessary coupling for the hud-loader unit. Label-in-event means the HUD renders
-  verbatim, zero imports, and label copy changes ship server-side without a desktop build.
-- The map still belongs in jarvis-core (not buried in routine-fire) because the web
-  routine EDITOR and future surfaces (mobile, web HUD) want the same human names, and
-  jarvis-core is where the tool-name source of truth lives (`src/tool-names.ts`).
-
-New file `packages/jarvis-core/src/routines/labels.ts`, exported from
-`packages/jarvis-core/src/routines/index.ts`:
-
-```ts
-import type { JarvisToolName } from "../types";
-
-/** Human source labels for routine progress/HUD surfaces. Explicit entries for
- * the gather-ish tools; everything else falls back to a prefix-stripped
- * Title Case derivation (same stripping as the synthesis receipt labels). */
-const SOURCE_LABELS: Partial<Record<JarvisToolName, string>> = {
-  get_weather: "Weather",
-  read_gmail: "Email",
-  get_news: "News",
-  read_whatsapp: "WhatsApp",
-  find_tasks: "Tasks",
-  find_events: "Calendar",
-  find_captures: "Captures",
-  find_people: "People",
-  web_search: "Web",
-  play_music: "Music",
-  take_screenshot: "Screen",
-  computer_use: "Computer",
-};
-
-/** "get_weather" → "Weather"; unknown/unmapped tools → e.g. "some_tool" → "Some Tool".
- * Accepts string (not JarvisToolName) so skipped unknown-tool blocks still label. */
-export function sourceLabelForTool(tool: string): string {
-  const known = SOURCE_LABELS[tool as JarvisToolName];
-  if (known) return known;
-  return tool
-    .replace(/^(get|read|find)_/, "")
-    .split("_")
-    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
-}
-```
-
-(Fallback dovetails with `labelFor` in `routine-runner.ts:494-498`, but Title Case
-instead of UPPERCASE — HUD copy, not model receipts. Do NOT change
-`buildSynthesisReceipts`; its uppercase labels are part of the narrator prompt.)
-
----
-
-## 3. Files to change (ordered)
-
-1. **`packages/jarvis-core/src/routines/labels.ts`** (NEW) — `sourceLabelForTool` + map, as §2.5.
-2. **`packages/jarvis-core/src/routines/index.ts`** — add `export * from "./labels";` (or named export, matching existing style in that index).
-3. **`apps/web/lib/voice/physical-extension/types.ts`** — append `PhysicalRoutineProgressSource`, `PhysicalJarvisRoutineProgressPhase`, `PhysicalJarvisRoutineProgress` (§2.2). No imports added.
-4. **`apps/web/lib/voice/physical-extension/bus.ts`**
-   - `:24-31` add `"jarvis-routine-progress"` to `PHYSICAL_EVENTS` (REQUIRED for the cross-instance Realtime relay — the allowlist check at `:66` drops unknown events).
-   - after `:125` add:
-     ```ts
-     export function emitJarvisRoutineProgress(payload: PhysicalJarvisRoutineProgress): void {
-       emitEverywhere("jarvis-routine-progress", payload);
-     }
-     ```
-   - extend the type import at `:5-12`.
-5. **`apps/web/lib/jarvis/routine-runner.ts`** — export the block-id defaulting as a tiny pure helper so routine-fire's skeleton uses IDENTICAL ids to the runner's gather events:
-   ```ts
-   /** The runner's block-id defaulting — shared with routine-fire's progress skeleton. */
-   export function resolveBlockId(block: RoutineBlock, runId: string, index: number): string {
-     return block.id && block.id.length > 0 ? block.id : `${runId}:b${index}`;
-   }
+1. **Second `*sql.DB` handle into the same `whatsapp.db`, not reuse of the sqlstore container.** `sqlstore.Container` hides its DB behind dbutil; reaching in is version-fragile. Open our own `sql.Open("sqlite", dsn)` with the same DSN string built at main.go:183 (path unchanged → the "no change to store path/DSN" criterion holds; we merely open a second connection to it). `busy_timeout(5000)` is already in the DSN and handles cross-connection locking.
+   - *Rejected:* separate `messages.db` file (the lharries layout). The brief explicitly says same store file; sync.mjs takes the path via `WHATSAPP_DB_PATH` anyway.
+   - *Optional (flag for Opus):* add `&_pragma=journal_mode(WAL)` on the capture connection so sync.mjs's external `sqlite3` CLI reads never block writers. WAL is a persistent per-file property and is safe with whatsmeow, but it is a behavior change to the shared store file. Default: **skip it**; busy_timeout suffices. Adopt only if lock contention shows up in verification.
+2. **Schema mirrors lharries/whatsapp-mcp so sync.mjs needs zero changes:**
+   ```sql
+   CREATE TABLE IF NOT EXISTS chats (
+     jid TEXT PRIMARY KEY,
+     name TEXT,
+     last_message_time TIMESTAMP
+   );
+   CREATE TABLE IF NOT EXISTS messages (
+     id TEXT,
+     chat_jid TEXT,
+     sender TEXT,
+     content TEXT,
+     timestamp TIMESTAMP,
+     is_from_me BOOLEAN,
+     media_type TEXT,
+     PRIMARY KEY (id, chat_jid),
+     FOREIGN KEY (chat_jid) REFERENCES chats(jid)
+   );
    ```
-   and replace the inline expression at `:306` with `resolveBlockId(block, runId, index)`. Behavior-neutral.
-6. **`apps/web/lib/jarvis/routine-fire.ts`** — wire it (see §4).
-7. **`apps/web/app/api/jarvis/physical/events/route.ts`** — forward the event:
-   - import `PhysicalJarvisRoutineProgress` type (`:5-12`);
-   - `const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) => send("jarvis-routine-progress", data);` next to `:150`;
-   - `physicalBus.on("jarvis-routine-progress", routineProgressHandler);` next to `:157`;
-   - matching `physicalBus.off(...)` in `cleanup()` next to `:173`.
-8. **`apps/desktop/src/physical-extender/sse-client.ts`** — clone the sibling pattern:
-   - `JarvisRoutineProgressPayload` (+ `RoutineProgressSourcePayload`, `JarvisRoutineProgressPhase`) interfaces mirroring §2.2, EXPORTED (hud-loader imports the type), placed after `:69`;
-   - `const routineProgressListeners = new Set<RoutineProgressListener>();` + `export function onJarvisRoutineProgress(fn) { ... }` after `:108`;
-   - `source.addEventListener("jarvis-routine-progress", (e) => { parse → console.log phase/runId → fan out })` after the `jarvis-response-end` block (`:196-203`).
-9. **`apps/web/lib/jarvis/__tests__/routine-fire.test.ts`** (NEW) — see §5.
-10. **`packages/jarvis-core/src/routines/labels.test.ts`** (NEW, colocated like `extract-facts.test.ts` in web; jarvis-core runs vitest per its package.json) — see §5.
+   FK enforcement is ON (DSN pragma `foreign_keys(1)`), so **always upsert the chat row before inserting the message**. Use `INSERT OR REPLACE` for messages (whatsmeow can redeliver; PK makes capture idempotent).
+3. **`timestamp` stored as explicit UTC RFC3339 string** via `msg.Info.Timestamp.UTC().Format(time.RFC3339)`. Do NOT pass a raw `time.Time` and trust driver serialization; sync.mjs's string-comparison cursor (`m.timestamp > '<bound>'`) requires a stable, lexicographically sortable text format that `new Date()` parses.
+4. **Event handler registered right after `whatsmeow.NewClient` (main.go:196), before either `Connect()` branch**, so no messages are missed in the already-paired path. Handle only `*events.Message`; explicitly do NOT handle `*events.HistorySync` ("start fresh from now" — no backfill, and HistorySync would flood).
+5. **Row mapping from `*events.Message`** (lharries/whatsapp-mcp main.go is the reference):
+   - `id` = `msg.Info.ID`
+   - `chat_jid` = `msg.Info.Chat.String()`
+   - `sender` = `msg.Info.Sender.User` (bare user part; sync.mjs treats it as opaque)
+   - `content` = first non-empty of `msg.Message.GetConversation()`, `msg.Message.GetExtendedTextMessage().GetText()`; for media-only messages set `content` empty and `media_type` to `"image"|"video"|"audio"|"document"` per which media field is non-nil. Skip rows where both content and media_type are empty (protocol/receipt/reaction noise).
+   - `timestamp` = RFC3339 UTC per decision 3
+   - `is_from_me` = `msg.Info.IsFromMe` stored as 1/0 (sync.mjs:144 accepts `1` or `true`)
+6. **Chat name:** on each captured message, upsert `chats` with `last_message_time` and a best-effort name: for group JIDs (server `g.us`), `client.GetGroupInfo(chat)` `.Name` behind a small in-memory `map[types.JID]string` cache (one network hit per group per process lifetime, tolerate failure → NULL name); for DMs, `msg.Info.PushName` when incoming. Upsert with `ON CONFLICT(jid) DO UPDATE SET name = COALESCE(NULLIF(excluded.name, ''), chats.name), last_message_time = excluded.last_message_time` so a blank name never clobbers a good one. sync.mjs only LEFT JOINs the name, so NULL early on is acceptable.
+7. **Outgoing sends via `/api/send` recorded directly in `handleSend`.** `client.SendMessage` does NOT fire `events.Message` on the sending client, so after a successful send (main.go:135-142) insert a row using the returned `whatsmeow.SendResponse` (`resp.ID`, `resp.Timestamp`), `is_from_me = 1`, `sender` = `client.Store.ID.User`, `chat_jid` = resolved JID `.String()`. Recording failure must NOT fail the send response (log only). Messages Filippo sends from his phone arrive as `events.Message` with `IsFromMe = true`, covered by decision 5.
+8. **`/api/logout` = logout, respond, exit; the supervisor restarts into the QR flow.** Handler: POST-only (405 otherwise, matching `handleSend` style); if `client.Store.ID == nil` reply `{"ok":true,"note":"already logged out"}` and do nothing else; otherwise call `client.Logout(ctx)` (clears the device row → `Store.ID`), reply `{"ok":true}`, then in a goroutine `time.Sleep(300 * time.Millisecond)` (let the response flush) and `os.Exit(0)`. whatsapp.rs respawns on `Terminated` (~2s backoff); the fresh process hits the `client.Store.ID == nil` branch at main.go:199 and re-fires the exact existing `{"event":"qr"}` stdout flow. Tolerate `whatsmeow.ErrNotLoggedIn` from `Logout` (treat as success) — don't 500 on a race.
+   - *Rejected:* in-process re-pair (new device store + new client + new QR channel after logout). whatsmeow requires a fresh client on a fresh device row post-logout; rebuilding client/handler/QR-goroutine in place is strictly more code and more failure modes than the restart path the supervisor already implements and tests.
+   - *Note:* exit(0) consumes one restart tick, but the counter resets on each healthy respawn (whatsapp.rs:92), so logouts never exhaust the budget in practice.
 
-No changes to `routine-runner.ts` handler semantics, `runRoutine` control flow, the
-mobile app, or any migration. Zero DB surface.
+## Task breakdown (ordered, atomically committable)
 
----
+1. **Capture store: schema + writer helpers** — `tools/whatsapp-bridge/main.go`
+   - Add `msgDB *sql.DB` to the `bridge` struct (or a small `messageStore` type). In `main()`, after the sqlstore opens (main.go:186-189), `sql.Open("sqlite", dsn)` against the same DSN, `Ping`, and execute the decision-2 DDL; `log.Fatalf` on failure (matching existing style).
+   - Add `(b *bridge) upsertChat(jid, name string, ts time.Time)` and `(b *bridge) storeMessage(id, chatJID, sender, content, mediaType string, ts time.Time, fromMe bool)` implementing decisions 2, 3, 6 (chat upsert always before message insert, timestamps formatted once here).
+   - New imports: `database/sql` (stdlib). Update the stale package doc comment at main.go:14 ("No message reading/mirroring" is no longer true).
+   - Commit: `feat(whatsapp-bridge): add messages/chats capture store in whatsapp.db`
+2. **Live capture event handler** — `tools/whatsapp-bridge/main.go`
+   - After `b := &bridge{client: client}` (main.go:197), register `client.AddEventHandler(b.handleEvent)` BEFORE either connect branch. `handleEvent(evt interface{})` switches on `*events.Message`, applies the decision-5 mapping (+ decision-6 chat name), and calls the step-1 helpers; log (never fatal) on insert errors. Import `go.mau.fi/whatsmeow/types/events`.
+   - Commit: `feat(whatsapp-bridge): capture live incoming/outgoing messages via events.Message`
+3. **Mirror outgoing `/api/send` messages** — `tools/whatsapp-bridge/main.go`
+   - In `handleSend`, capture `resp, err := b.client.SendMessage(...)` (currently the response is discarded at main.go:135) and on success best-effort `upsertChat` + `storeMessage` per decision 7. No change to request/response shapes or status codes.
+   - Commit: `feat(whatsapp-bridge): mirror /api/send messages into the capture store`
+4. **`POST /api/logout`** — `tools/whatsapp-bridge/main.go`
+   - `handleLogout` per decision 8; register `mux.HandleFunc("/api/logout", b.handleLogout)` in the existing block (main.go:232-235). Import `os` (already imported).
+   - Commit: `feat(whatsapp-bridge): add POST /api/logout (exit-and-respawn re-pairing)`
+5. **Build + rebundle the sidecar**
+   - `cd tools/whatsapp-bridge && go build ./...` (sanity; also `go vet ./...`). Then from `apps/desktop`: `pnpm run build:bridge` (the package.json:9 script). Confirm `file apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin` reports arm64 Mach-O with a fresh mtime. `go.sum` should be untouched; only commit it if `go mod tidy` actually changed it.
+   - Commit: `build(desktop): rebundle whatsapp-bridge sidecar with capture + logout`
 
-## 4. Wiring detail — `routine-fire.ts`
+## Sequencing & dependencies
 
-### 4.1 Imports
+Strictly 1 → 2 → 3 → 4 → 5. Steps 2 and 3 depend on step 1's helpers; step 4 is logically independent but touches the same handler-registration block, so land it after 3 to avoid churn; step 5 must be last (the bundled binary must embody all source changes).
 
-```ts
-import { sourceLabelForTool } from "@hyperpolymath/jarvis-core/routines";
-import { emitJarvisRoutineProgress, /* existing four */ } from "@/lib/voice/physical-extension/bus";
-import { resolveBlockId, runRoutine } from "@/lib/jarvis/routine-runner";
-```
+## Risks & edge cases
 
-### 4.2 Gate
+- **SQLite locking, three actors** (whatsmeow sqlstore conn, capture conn, external `sqlite3` CLI from sync.mjs): `busy_timeout(5000)` is in the DSN for both Go connections. If verification shows contention, the WAL option (decision 1) removes reader/writer blocking; do not enable it preemptively.
+- **Timestamp cursor correctness**: RFC3339 UTC text sorts lexicographically == chronologically. Any drift into local-zone or driver-default formats silently breaks sync.mjs's string `>` cursor. Step 1's `storeMessage` is the single formatting choke point — format there and nowhere else.
+- **FK violations**: `foreign_keys(1)` is enforced; the chat upsert MUST precede the message insert in both the event handler and `handleSend`.
+- **Duplicate deliveries**: `PRIMARY KEY (id, chat_jid)` + `INSERT OR REPLACE` makes capture idempotent.
+- **HistorySync flood**: intentionally unhandled (start-fresh). Do not add an `*events.HistorySync` case.
+- **Logout races**: already-logged-out → ok-without-exit; `ErrNotLoggedIn` from `Logout` → treat as success. Response must flush before `os.Exit(0)` (the 300ms goroutine delay).
+- **GetGroupInfo network call**: only on first message per group (in-memory cache); tolerate failure, name stays NULL, sync's LEFT JOIN is fine.
+- **QR/ready semantics**: untouched — the capture handler is additive; `GetQRChannel` continues to be pulled before `Connect` in the unpaired branch; `AddEventHandler` does not interfere with the QR channel.
 
-All progress emission is wrapped in `const progress = opts.synthesize === true;`. The
-gather/synthesis handlers only fire in synth mode anyway (runner-gated), but the
-routine-level `start` emit lives in routine-fire and needs its own gate; using one local
-flag keeps intent obvious and satisfies the "none for non-synthesize" test cheaply.
+## Verification hooks (per criterion)
 
-### 4.3 The `start` skeleton (emitted synchronously in `fireRoutineOverBus`, after `runId` is computed at `:75`, before `void runRoutine(...)`)
+1. **Live capture, sync-compatible schema**: run the built binary (`./whatsapp-bridge --store /tmp/wa-test --port 8091`); tables are created at startup even unpaired, so at minimum run sync.mjs's exact SELECT via `sqlite3 -json /tmp/wa-test/whatsapp.db "SELECT m.id, m.chat_jid, c.name AS chat_name, m.sender, m.content, m.timestamp, m.is_from_me FROM messages m LEFT JOIN chats c ON c.jid = m.chat_jid ORDER BY m.timestamp ASC LIMIT 5;"` — must execute with no missing-column errors. If a paired session is available (real app-data store, desktop app closed), send a message from the phone and confirm a row lands with a `Date()`-parsable timestamp. If only the schema-level check is possible in the build environment, SAY SO in the report — don't claim live capture was observed.
+2. **Logout**: `curl -X POST localhost:8091/api/logout` → `{"ok":true}` and the process exits 0; restarting the binary by hand shows `{"event":"qr","code":…}` on stdout (the supervisor-respawn leg needs the desktop app; process-exit + QR-on-restart is the provable core).
+3. **Unchanged endpoints**: `curl localhost:8091/api/health` → `{connected, loggedIn}`; `/api/qr` → 204 or the code; diff review confirms `handleSend`'s request/response shapes and all `emitEvent` call sites are untouched.
+4. **Build + bundle**: `go build ./...` exits 0; `pnpm run build:bridge` succeeds; `file` shows arm64 Mach-O; `git status` shows the binary modified.
+5. **No semantic drift**: diff shows the DSN construction (main.go:183), `--store`/`--port` flags, port default `8080`, and the QR/ready emit paths byte-identical.
 
-```ts
-const total = blocks.length;
-const sources = blocks.map((b, i) => ({
-  blockId: resolveBlockId(b, runId, i),
-  index: i,
-  tool: b.tool as string,
-  label: sourceLabelForTool(b.tool as string),
-}));
-if (progress) {
-  emitJarvisRoutineProgress({
-    runId, routineName: opts.routineName, phase: "start", total, sources, at: Date.now(),
-  });
-}
-```
+## Open questions (flagged, not guessed)
 
-Emitting BEFORE `runRoutine` guarantees `start` precedes the opener and every gather
-event (runRoutine's first awaitless work — `onOpener` — happens inside the `void`ed
-async call, i.e. after the current synchronous frame).
-
-Compute `sources` once and close over it: the gather handlers reuse
-`sources[index].label` instead of re-deriving.
-
-### 4.4 New handlers in the `runRoutine` handlers object (after `onSynthesisDone`, `:133`)
-
-```ts
-onGatherBlockStart: (blockId, index, totalBlocks, tool) => {
-  emitJarvisRoutineProgress({
-    runId, routineName: opts.routineName, phase: "gather-start",
-    total: totalBlocks, blockId, index, tool, label: sourceLabelForTool(tool),
-    at: Date.now(),
-  });
-},
-onGatherBlockDone: (result, index, totalBlocks) => {
-  emitJarvisRoutineProgress({
-    runId, routineName: opts.routineName, phase: "gather-done",
-    total: totalBlocks, blockId: result.blockId, index, tool: result.tool,
-    label: sourceLabelForTool(result.tool),
-    ok: !result.error, ...(result.error ? { error: result.error } : {}),
-    at: Date.now(),
-  });
-},
-```
-
-(No `progress` gate needed here — runner only calls these in synth mode — but adding
-`if (!progress) return;` costs nothing and is belt-and-braces; either is fine.)
-
-### 4.5 `synthesizing` and `done` — extend the EXISTING synthesis handlers
-
-`onSynthesisStart` (`:125-127`) becomes: emit progress `synthesizing` FIRST, then the
-existing `emitJarvisResponseStart` — so the HUD flips to "composing" before/with the
-brief's first token stream. `onSynthesisDone` (`:131-133`) becomes: existing
-`emitJarvisResponseEnd` first, then progress `done` — so `done` is truly terminal (the
-HUD can key dismissal off it after the brief ends).
-
-```ts
-onSynthesisStart: (turnId) => {
-  if (progress) emitJarvisRoutineProgress({ runId, routineName: opts.routineName, phase: "synthesizing", total, at: Date.now() });
-  emitJarvisResponseStart({ turnId, at: Date.now() });
-},
-onSynthesisDone: (turnId) => {
-  emitJarvisResponseEnd({ turnId, at: Date.now() });
-  if (progress) emitJarvisRoutineProgress({ runId, routineName: opts.routineName, phase: "done", total, at: Date.now() });
-},
-```
-
-Note: if the synthesis TURN itself errors, `runSynthesisTurn` still calls
-`onSynthesisDone` after settle (`routine-runner.ts:559-566` — onError → settle → fall
-through to `handlers.onSynthesisDone`), so `done` is guaranteed even on synthesis
-failure. No extra error path needed.
-
----
-
-## 5. Vitest plan
-
-### 5.1 `apps/web/lib/jarvis/__tests__/routine-fire.test.ts` (NEW — the core assertion)
-
-Mock strategy (both at module boundary, matching house style):
-
-```ts
-vi.mock("@/lib/jarvis/run-turn", () => ({ runJarvisTurnStream: ... }));   // reuse the
-// driver-queue + deferredDriver harness from routine-runner.test.ts:29-125 (copy the
-// ~40 lines; do NOT import across test files).
-vi.mock("@/lib/voice/physical-extension/bus", () => ({
-  emitJarvisResponseStart: vi.fn(), emitJarvisResponseChunk: vi.fn(),
-  emitJarvisResponseEnd: vi.fn(), emitJarvisToolCall: vi.fn(),
-  emitJarvisRoutineProgress: vi.fn((p) => progressEvents.push(p)),
-}));
-```
-
-`db`/drizzle are NOT touched by `fireRoutineOverBus` itself (only `getEnabledRoutines`
-uses db), so no db mock is needed — but `routine-fire.ts` imports `@/lib/db` at module
-top for the other exports, so add `vi.mock("@/lib/db", () => ({ db: {} }))` and
-`vi.mock("@/lib/db/schema", () => ({ routines: {} }))` to keep the import graph inert
-under vitest (check whether the existing web vitest setup already aliases these; if
-`extract-facts.test.ts`-style tests run without it, keep the mocks anyway — cheap).
-
-`fireRoutineOverBus` is fire-and-forget (returns runId synchronously) — tests await
-completion with `await vi.waitFor(() => expect(phases()).toContain("done"))`.
-
-Tests:
-
-1. **Full ordered lifecycle (parallel synthesize, 3 blocks: get_weather, read_gmail, get_news).**
-   Queue 3 deferred gather drivers + 1 synthesis driver. Assert:
-   - `progressEvents[0]` is `phase:"start"` with `total:3` and `sources` =
-     `[{index:0,tool:"get_weather",label:"Weather",blockId:...}, ...]` in authored order,
-     and that it was emitted BEFORE any `runJarvisTurnStream` call (compare against the
-     turn-call log length captured inside the first driver's onStart).
-   - Release gathers out of order (2, 0, 1): exactly 3 `gather-start` (index order 0,1,2)
-     and 3 `gather-done` in release order (2,0,1), each with matching
-     blockId/tool/label, `ok:true`.
-   - Then exactly one `synthesizing`, then one `done`; `synthesizing` emitted before the
-     brief's `emitJarvisResponseStart` mock call (assert via mock invocationCallOrder),
-     `done` after `emitJarvisResponseEnd`.
-   - Total event count = 1 + 3 + 3 + 1 + 1 = 9, all sharing `runId` = the function's
-     return value and `routineName` = opts.routineName.
-2. **blockId skeleton/gather agreement.** Blocks authored with empty `id:""` — assert the
-   `start` skeleton's blockIds equal the blockIds later seen on gather-start/done
-   (`${runId}:b0` etc., via `resolveBlockId` parity).
-3. **Errored gather.** One driver calls `opts.onError("boom")` — its `gather-done` has
-   `ok:false, error:"boom"`; lifecycle still reaches `synthesizing` + `done`.
-4. **Non-synthesize routine emits NOTHING.** Same 3 blocks, `synthesize` undefined (and a
-   second case: `synthesize:false`), default drivers. Await the last block's
-   `emitJarvisResponseEnd`, then assert `emitJarvisRoutineProgress` was never called.
-5. **Sequential synthesize (parallel:false) still emits the full sequence** — start,
-   strictly alternating gather-start/gather-done pairs in index order, synthesizing, done.
-
-### 5.2 `packages/jarvis-core/src/routines/labels.test.ts` (NEW)
-
-- Explicit map hits: `get_weather→"Weather"`, `read_gmail→"Email"`, `get_news→"News"`,
-  `read_whatsapp→"WhatsApp"`, `find_events→"Calendar"`.
-- Fallback derivation: `run_applescript→"Run Applescript"`, `find_tasks` (mapped) vs. a
-  hypothetical `read_foo_bar→"Foo Bar"`, unknown junk `"totally_fake"→"Totally Fake"`.
-
-### 5.3 Existing tests
-
-`routine-runner.test.ts` — no assertions change (the runner contract is untouched; the
-`resolveBlockId` extraction is behavior-neutral). Run it to prove that.
-
----
-
-## 6. Atomic commit task list (order = dependency order)
-
-1. `feat(jarvis-core): sourceLabelForTool human labels for routine progress` — files 1, 2 (+ labels.test.ts may ride here or in commit 6; prefer here, test-with-unit).
-2. `feat(web): jarvis-routine-progress payload type + bus emitter` — files 3, 4.
-3. `refactor(web): extract resolveBlockId from runBlock (no behavior change)` — file 5.
-4. `feat(web): emit routine progress lifecycle from fireRoutineOverBus` — file 6.
-5. `feat(web): forward jarvis-routine-progress on the physical SSE route` — file 7.
-6. `feat(desktop): jarvis-routine-progress SSE event + onJarvisRoutineProgress listener` — file 8.
-7. `test(web): routine-fire progress emission ordering` — file 9.
-
-Stage with explicit pathspecs per commit (house rule).
-
-## 7. Verification
-
-- `pnpm --filter @hyperpolymath/jarvis-core test` and `... typecheck` (labels).
-- `pnpm --filter web test` (new routine-fire suite + untouched routine-runner suite green).
-- `pnpm --filter web build` from repo root (Next build catches the route + bus type plumbing).
-- Desktop typecheck: `pnpm --filter desktop typecheck` (or the desktop package's script name — verify in `apps/desktop/package.json` before running).
-- Manual (optional, if a dev stack is running): fire a synthesize+parallel routine via
-  `/api/jarvis/routines/run`, `curl -N .../api/jarvis/physical/events?token=hpd_...` and
-  watch the `jarvis-routine-progress` frames tick.
-
-## 8. Out of scope / notes for hud-loader (sibling unit)
-
-- No HUD/UI. hud-loader subscribes via `onJarvisRoutineProgress` and renders: `start` →
-  show loader + skeleton checklist from `sources` (ring denominator = `total`);
-  `gather-done` → tick row `index` (error style when `ok:false`), ring numerator++;
-  `synthesizing` → "composing your brief" state; `done` → dismiss.
-- The opener speech ("Welcome home, sir — one moment.") still arrives as a normal
-  response cycle under `${runId}:opener` — progress events are additive, not a
-  replacement; the HUD can correlate via `runId` prefix if needed.
-- `trigger`-only ESP32 hardware path and the web `use-physical-extension.ts` consumer are
-  untouched; unknown SSE event types are ignored by EventSource consumers by default, so
-  shipping the producer before the HUD is safe.
-- Owner-gating and auth on the SSE route are unchanged (progress events flow through the
-  same authenticated stream).
+1. **WAL journal mode** (decision 1): recommended default is to skip; adopt only if verification hits `database is locked` despite busy_timeout. Whoever enables it should note it persists in the file.
+2. **sync.mjs deployment env**: sync.mjs's default `WHATSAPP_DB_PATH` still points at the old `~/whatsapp-mcp/whatsapp-bridge/store/messages.db` (sync.mjs:41-43). Flipping it to the desktop app-data `whatsapp/whatsapp.db` is launchd/env config, outside this unit's `touched[]`, and sync.mjs itself must NOT be edited (criterion: runs unchanged). The Opus agent should note the required env flip in its final report.
+3. **Exact whatsmeow API surfaces at `v0.0.0-20260630180629…`**: verify field/method names in the module cache before writing code — `SendResponse.ID` / `.Timestamp`, `events.Message.Info.{ID,Chat,Sender,IsFromMe,PushName,Timestamp}`, `client.Logout(ctx)` signature, and `types.JID.Server == types.GroupServer` for the group check. These are stable in recent whatsmeow but 30 seconds in `$GOMODCACHE/go.mau.fi/whatsmeow@…` removes the guess.
