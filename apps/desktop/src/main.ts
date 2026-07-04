@@ -54,6 +54,7 @@ import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
 import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
+import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
   getJarvisState,
   onJarvisState,
@@ -865,6 +866,11 @@ async function boot(): Promise<void> {
   // WhatsApp pairing overlay: render the QR the bundled bridge sidecar emits on
   // first run / re-auth, and dismiss it once the phone links the device.
   void startWhatsappQrOverlay();
+
+  // WhatsApp settings section: Reconnect button + status pill. Reuses the
+  // whatsapp-qr / whatsapp-ready events for its pill and invokes the
+  // whatsapp_reconnect Tauri command to trigger re-pairing.
+  void wireWhatsappSettings(settings);
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
