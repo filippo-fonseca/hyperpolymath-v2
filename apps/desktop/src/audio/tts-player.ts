@@ -244,14 +244,23 @@ export class TtsPlayer {
     this.recomputeState();
   }
 
+  /** Monotonic counter for speakNow turnIds — avoids Date.now() collisions. */
+  private speakNowCounter = 0;
+
   /**
    * Speak a single canned line immediately (e.g. the FSM sign-off "Standing by,
    * sir.", or the confirm-gate failure line). Synthesizes a one-shot turnId so
    * the line plays on its own, ordered after any already-queued turns.
+   *
+   * Trade-off: if a live head turn is orphaned (never got response-end, e.g.
+   * SSE mid-turn drop), speakNow will wait behind it until the FSM safety cap
+   * calls stop(). That's acceptable — the alternative (priority-jumping the
+   * head turn) risks cutting off legitimate in-flight speech. Callers who need
+   * hard preemption should call stop() themselves first.
    */
   speakNow(text: string): void {
     if (!this.enabled || !text.trim()) return;
-    const turnId = `now-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const turnId = `now-${Date.now()}-${this.speakNowCounter++}`;
     this.enqueueSentence(turnId, text, 0);
     this.endTurn(turnId);
   }

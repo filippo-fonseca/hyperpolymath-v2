@@ -53,6 +53,13 @@ export function startJarvisResponseListener(): void {
     // Do NOT reset any global TTS state here: turns can overlap (routine
     // opener + brief-gather, per-block fillers). The player is turn-aware and
     // owns per-turn seq bookkeeping via the turnId we pass on enqueue/endTurn.
+    //
+    // First-seen wins on duplicate response-start (e.g. reconnect/retry): the
+    // TtsPlayer's turnOrder already treats first-seen as canonical, and the
+    // buffer's ttsSeq must stay in lockstep with the player's per-turn nextSeq,
+    // so re-seeding would enqueue seq 0,1,2 against a nextSeq that has moved
+    // past them and permanently wedge the turn.
+    if (turnBuffers.has(turnId)) return;
     turnBuffers.set(turnId, { text: "", toolCalls: [], ttsBuffer: "", ttsSeq: 0 });
   });
 
