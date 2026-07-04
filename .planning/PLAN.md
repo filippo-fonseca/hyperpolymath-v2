@@ -1,75 +1,57 @@
-# PLAN — wa-sync-launchd
+# Plan — imessage-send-harden
 
-Point the WhatsApp sync worker at the desktop bridge's SQLite store and run it
-persistently under launchd + in the local dev stack orchestrator.
+## Goal
+Harden `buildIMessageSend` in `apps/desktop/src/actions/applescript.ts` with:
+1. SMS-service fallback so green-bubble contacts still receive the message.
+2. Group / chat-id targeting when the recipient string looks like a chat id.
 
-The brief in `.planning/bgsd-unit.json` is fully self-contained; this plan is
-the small execution checklist for it. Difficulty 0.35, four touched files,
-one hard dependency: the bridge-side schema landed on the parent unit
-`wa-bridge-capture` (verified `messages(id, chat_jid, sender, content,
-timestamp, is_from_me, media_type)` + `chats(jid, name, last_message_time)`
-in `tools/whatsapp-bridge/main.go` `captureSchema`).
+Do not change `SendMessageAction`, the dispatcher, or the confirm-gate flow. Normal
+single-recipient iMessage sends must be byte-identical in behavior.
 
-## Tasks (atomic commits, one per unit of work)
+## Design
 
-### T1 — sync.mjs: default to the desktop bridge store
-- Change `WHATSAPP_DB_PATH` default from
-  `~/whatsapp-mcp/whatsapp-bridge/store/messages.db` to
-  `~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db`.
-- Keep `WHATSAPP_DB_PATH` env override.
-- Refresh header docstring + schema comment on `readNewRows` to point at
-  `tools/whatsapp-bridge/main.go captureSchema` (not lharries).
-- Verify SELECT (`id, chat_jid, sender, content, timestamp, is_from_me` +
-  `chats.name`) matches capture schema. **It does — no query change needed.**
+### Recipient shape detection (in TS, before script build)
+Detect chat-id shape with a simple, conservative regex — everything else stays on
+the participant path so the common case cannot regress.
 
-### T2 — Add launchd plist
-- Path: `tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist`.
-- `RunAtLoad` + `KeepAlive` both true.
-- `EnvironmentVariables`: `JARVIS_APP_URL` (dev default `http://localhost:3000`),
-  `JARVIS_DEVICE_TOKEN` (placeholder `hpd_YOUR_TOKEN`).
-- `ProgramArguments`: `/usr/local/bin/node` + absolute path to sync.mjs (with
-  a `YOU` placeholder for the home-dir portion; README explains editing it).
-- Standard out/err → `/tmp/whatsapp-sync.{out,err}.log` to match the existing
-  README template.
-- README documents `launchctl load ~/Library/LaunchAgents/…` step.
+- Chat id heuristic: `/^(iMessage|SMS);[+-];chat/i` or a bare `/^chat[0-9A-F-]{6,}$/i`
+  (the two forms `Messages.app` exposes for `text chat id`).
+- Anything not matching → treat as a single participant (phone / email / handle).
 
-### T3 — Register in hyperpolymath.mjs SERVICES
-- Add a `whatsapp-sync` entry following the existing shape:
-  `{ name, color, preflight?, start, keepAlive: true, ready }`.
-- **Preflight**: skip cleanly if `JARVIS_DEVICE_TOKEN` unset (warn, return
-  `{ skip: true }` — same shape used by `bridge`/`desktop` today). Also skip
-  if the desktop store DB doesn't exist yet (first-run scenario — the bridge
-  hasn't captured anything).
-- **Start**: `spawn("node", ["tools/whatsapp-sync/sync.mjs"], { cwd: REPO_ROOT })`,
-  passing `JARVIS_APP_URL` default (`http://localhost:3000`) if unset.
-- **Ready**: `waitForLog(proc, /\[whatsapp-sync\] starting/, 15_000)` — the
-  worker's first log line comes out synchronously at boot.
-- Add `--no-whatsapp-sync` docs + `printUsage` line.
+### AppleScript branches
 
-### T4 — README update
-- Header: swap "lharries/whatsapp-mcp" callouts for "desktop app's embedded
-  whatsapp-bridge (canonical)".
-- Add a "Retired" note pointing anyone still on lharries at `WHATSAPP_DB_PATH`
-  override for backwards use.
-- Update Architecture diagram: bridge = desktop-embedded Go sidecar.
-- Update env-var table default for `WHATSAPP_DB_PATH`.
-- Update setup steps: remove "clone lharries" / QR pair via CLI; note pairing
-  now happens through the desktop app.
-- Reference the checked-in `com.hyperpolymath.whatsapp-sync.plist` rather
-  than the inline template.
+**Chat-id branch (group or 1:1 chat by id)** — no SMS fallback needed; the chat id
+already encodes the service:
 
-## Verification (Loop-1 verify + T5 code-review will do the rigorous pass)
+```applescript
+tell application "Messages"
+  set targetChat to text chat id "<recipient>"
+  send "<text>" to targetChat
+end tell
+```
 
-- `node tools/whatsapp-sync/sync.mjs --once` runs against the desktop DB and
-  either ingests rows or exits cleanly on empty. (Runtime verification is a
-  Loop-1 concern — this unit is code-only.)
-- `pnpm --filter web tsc --noEmit` — but sync.mjs is JS w/ no import graph
-  into web, and hyperpolymath.mjs is standalone: no type-check needed.
-- `node tools/hyperpolymath/hyperpolymath.mjs --only=whatsapp-sync` should
-  skip cleanly when no token is set (proves preflight gate).
+**Participant branch (default)** — try iMessage first, fall back to SMS on error:
 
-## Out of scope
-- `/api/whatsapp/ingest` route and `whatsapp_messages` schema — untouched.
-- Backfill — Option A (fresh from now).
-- Making the standalone lharries bridge continue to work; env override left
-  as escape hatch but not exercised.
+```applescript
+tell application "Messages"
+  try
+    set targetService to 1st service whose service type = iMessage
+    send "<text>" to participant "<recipient>" of targetService
+  on error
+    set smsService to 1st service whose service type = SMS
+    send "<text>" to participant "<recipient>" of smsService
+  end try
+end tell
+```
+
+Both interpolated values continue to flow through `escapeAppleScript`.
+
+## Verification
+- `pnpm --filter desktop typecheck` must be green.
+- Manual reasoning: for a plain phone/email recipient the produced script is the
+  original one wrapped in `try … on error …`, so the healthy-path behavior is
+  unchanged when the iMessage send succeeds.
+
+## Non-goals
+- No changes to `SendMessageAction`, `dispatcher.ts`, or `confirm-gate.ts`.
+- No new tool schema, no new UI, no per-recipient service detection cache.

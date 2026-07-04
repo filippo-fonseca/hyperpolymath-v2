@@ -1,16 +1,14 @@
 {
-  "unit_id": "wa-send-timeout",
-  "title": "Fail-fast timeout + clean error on WhatsApp send so a dead bridge never wedges the UI",
-  "scope": "When the user confirms a WhatsApp send ('yes send it') and the bridge is down/hung, the send currently hangs with no timeout, freezing the desktop confirm-gate in 'awaiting confirmation'/'sending' and blocking ALL further JARVIS input (observed: user could not talk to JARVIS at all until a restart). Make the send path fail FAST and cleanly.\n\nDO:\n1. In apps/desktop/src/actions/confirm-gate.ts, executeWhatsappSend (~lines 117-154) POSTs to http://localhost:8080/api/send (bridge; overridable via settings.whatsappBridgeUrl). Add an AbortController with a sensible timeout (~8s). On timeout, network error, or a non-2xx (the bridge returns 502 'not logged in' when unpaired, main.go:124), DO NOT hang: resolve the confirm-gate into a terminal FAILED state, surface a clean spoken + UI error (e.g. 'I could not reach WhatsApp, sir — the bridge may be disconnected.'), and ensure the conversation/input is unblocked so the user can talk to JARVIS again immediately.\n2. Audit apps/web/lib/jarvis/send-message.ts (the tool) for any server-side path that could hang the agent turn; ensure the tool call always terminates with a clear success or failure result (never an open-ended await).\n3. Make the failure state visibly clear the '▸ WhatsApp to X — awaiting confirmation' pending UI so it doesn't stick after a failed/aborted send.\n\nKeep a SUCCESSFUL send behaving exactly as today. This is about robustness on the failure path only.",
+  "unit_id": "imessage-send-harden",
+  "title": "Harden iMessage send: SMS-service fallback + group-chat targeting in the AppleScript path",
+  "scope": "JARVIS already SENDS iMessages: the send_message tool (packages/jarvis-core/src/tools/send-message.ts) supports app:'imessage', and apps/desktop/src/actions/confirm-gate.ts routes it through buildIMessageSend + runAppleScript (apps/desktop/src/actions/applescript.ts). The current script (applescript.ts ~:42-52) resolves `participant \"<recipient>\" of (1st service whose service type = iMessage)`, which works for existing iMessage conversations but has two gaps the scout flagged: (a) NO SMS fallback — a green-bubble / iMessage-unreachable contact silently fails; (b) NO group-chat support — it only targets a single participant.\n\nDO (keep it small + safe, do NOT regress the working iMessage path):\n1. In applescript.ts buildIMessageSend: if the iMessage participant send fails/isn't reachable, fall back to sending via the SMS service (`1st service whose service type = SMS`) when available, so US SMS contacts still get the message. Structure it as a try iMessage then fall back, within the AppleScript (or by detecting reachability). Keep behavior identical for normal iMessage contacts.\n2. Add group-chat targeting: if the recipient looks like a chat/group identifier (or an explicit group flag), target `chat id \"<...>\"` / `text chat` instead of a single participant. If detecting groups is unreliable, at minimum do not break single-recipient sends and leave a clear TODO — do not half-break the common path.\n3. Do not change the send_message tool schema or the confirm-gate flow.\n\nThis is a desktop-only, small hardening. Commit atomically. Verify: desktop typecheck green (pnpm --filter desktop typecheck). AppleScript can't be unit-tested here, so keep the change minimal and clearly correct; a healthy single-recipient iMessage send must still work.",
   "criteria": [
-    "With the bridge down/unreachable, a confirmed WhatsApp send fails cleanly within ~8s (AbortController timeout), never hangs.",
-    "After a failed/aborted send, the desktop confirm-gate + conversation are NOT left stuck — the user can immediately send another message to JARVIS (no restart needed).",
-    "JARVIS surfaces a clear, spoken failure message on send failure; the pending 'awaiting confirmation' UI is cleared.",
-    "A successful send (bridge healthy + paired) works exactly as before — no regression.",
-    "The send_message tool call always terminates (success or clean failure); no open-ended awaits."
+    "buildIMessageSend attempts iMessage first and falls back to the SMS service for contacts not reachable via iMessage, so US SMS recipients still receive the message.",
+    "Group/chat targeting is supported (target a chat id) OR, if unreliable to detect, single-recipient sends are provably unaffected and a clear TODO is left — never a half-broken common path.",
+    "No change to the send_message tool schema or the confirm-gate spoken-confirmation flow; normal single iMessage sends behave exactly as before.",
+    "pnpm --filter desktop typecheck is green."
   ],
   "touched": [
-    "apps/desktop/src/actions/confirm-gate.ts",
-    "apps/web/lib/jarvis/send-message.ts"
+    "apps/desktop/src/actions/applescript.ts"
   ]
 }
