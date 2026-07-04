@@ -2,9 +2,14 @@
 // tools/whatsapp-sync/sync.mjs
 //
 // Standalone Node script (NO npm deps) that reads new WhatsApp messages out
-// of the local lharries/whatsapp-mcp SQLite mirror and POSTs them in batches
-// to /api/whatsapp/ingest. Persists a cursor so restarts pick up where they
-// left off.
+// of the JARVIS Desktop bridge's SQLite store (app_data_dir/whatsapp/whatsapp.db)
+// and POSTs them in batches to /api/whatsapp/ingest. Persists a cursor so
+// restarts pick up where they left off.
+//
+// The desktop bridge (tools/whatsapp-bridge/main.go) writes captured messages
+// into `messages` + `chats` tables in the same file whatsmeow uses for its
+// session store. The lharries/whatsapp-mcp standalone bridge is retired —
+// point WHATSAPP_DB_PATH at it only if you're still running that setup.
 //
 // SQLite is read via `sqlite3 -json` (shells out to the sqlite3 CLI that
 // ships with macOS). No native modules, no build step.
@@ -18,7 +23,7 @@
 //
 // Optional:
 //   WHATSAPP_DB_PATH       Path to the bridge's messages SQLite file.
-//                          Default: ~/whatsapp-mcp/whatsapp-bridge/store/messages.db
+//                          Default: ~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db
 //   WHATSAPP_SYNC_CURSOR   Path to the persisted cursor file.
 //                          Default: ~/.jarvis-whatsapp-sync.json
 //   WHATSAPP_SYNC_INTERVAL_MS   Poll interval in loop mode (default 15000)
@@ -40,7 +45,10 @@ const APP_URL = process.env.JARVIS_APP_URL?.replace(/\/$/, "");
 const TOKEN = process.env.JARVIS_DEVICE_TOKEN;
 const DB_PATH =
   process.env.WHATSAPP_DB_PATH ??
-  path.join(os.homedir(), "whatsapp-mcp/whatsapp-bridge/store/messages.db");
+  path.join(
+    os.homedir(),
+    "Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db",
+  );
 const CURSOR_PATH =
   process.env.WHATSAPP_SYNC_CURSOR ?? path.join(os.homedir(), ".jarvis-whatsapp-sync.json");
 const INTERVAL_MS = Number(process.env.WHATSAPP_SYNC_INTERVAL_MS ?? 15_000);
@@ -71,9 +79,11 @@ async function saveCursor(lastTimestamp) {
 
 // Query the bridge's SQLite mirror for messages strictly newer than the cursor.
 // Joins in chat_name so the ingest payload includes it directly.
-// Schema (from whatsapp-bridge/main.go):
-//   messages(id, chat_jid, sender, content, timestamp, is_from_me, media_type, ...)
+// Schema (from tools/whatsapp-bridge/main.go `captureSchema`):
+//   messages(id, chat_jid, sender, content, timestamp, is_from_me, media_type)
 //   chats(jid, name, last_message_time)
+// Timestamps are stored as UTC RFC3339 text, so the string-comparison cursor
+// (`m.timestamp > '<bound>'`) sorts chronologically.
 async function readNewRows(sinceIso) {
   const bound = sinceIso ?? "1970-01-01T00:00:00Z";
   const sql = `

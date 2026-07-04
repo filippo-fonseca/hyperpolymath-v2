@@ -40,14 +40,14 @@
   "mode": "yolo",
   "granularity": "coarse",
   "bgsd_unit_posture": {
-    "unit_id": "wa-bridge-capture",
+    "unit_id": "wa-sync-launchd",
     "model": "opus",
     "effort": "xhigh",
-    "difficulty": 0.8,
-    "fablePlan": true
+    "difficulty": 0.35,
+    "fablePlan": false
   },
   "bgsd_phase_config": {
-    "unit_id": "wa-bridge-capture",
+    "unit_id": "wa-sync-launchd",
     "research": true,
     "plan_check": true,
     "code_review": true,

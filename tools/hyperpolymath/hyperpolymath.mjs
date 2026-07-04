@@ -6,12 +6,15 @@
 //   2. web        Next.js dev server on :3000
 //   3. desktop    Tauri desktop app (global hotkey + composer; no hardware)
 //   4. bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
+//   5. wa-sync    WhatsApp SQLite → Postgres mirror worker (personal-use)
 //
 // Flags:
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
 //   --no-web                skip Next.js dev server
 //   --no-desktop            skip Tauri desktop app (default input layer)
+//   --no-mobile             skip Expo Metro dev server
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
+//   --no-wa-sync            skip WhatsApp sync worker
 //   --only=name[,name...]   start only listed services
 //   --help                  print usage and exit
 //
@@ -22,7 +25,8 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { spawn, execSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import os from "node:os";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +35,11 @@ const WEB_DIR = resolve(REPO_ROOT, "apps/web");
 const DESKTOP_DIR = resolve(REPO_ROOT, "apps/desktop");
 const BRIDGE_DIR = resolve(REPO_ROOT, "tools/jarvis-physical/bridge");
 const MOBILE_DIR = resolve(REPO_ROOT, "apps/mobile");
+const WA_SYNC_SCRIPT = resolve(REPO_ROOT, "tools/whatsapp-sync/sync.mjs");
+const WA_SYNC_DEFAULT_DB = resolve(
+  os.homedir(),
+  "Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db",
+);
 
 const FLAGS = parseFlags(process.argv.slice(2));
 
@@ -195,6 +204,36 @@ const SERVICES = [
       }),
     keepAlive: true,
     ready: (proc) => waitForLog(proc, /\[bridge\] listening on/, 30_000),
+  },
+
+  {
+    // WhatsApp sync worker: tails the desktop bridge's SQLite capture store
+    // and mirrors new messages into Postgres via /api/whatsapp/ingest so the
+    // read_whatsapp tool + daily briefings can query them server-side.
+    name: "wa-sync",
+    color: "cyan",
+    async preflight() {
+      if (!process.env.JARVIS_DEVICE_TOKEN) {
+        warn("wa-sync", "JARVIS_DEVICE_TOKEN not set — skipping (mint one at /settings/desktop)");
+        return { skip: true };
+      }
+      const dbPath = process.env.WHATSAPP_DB_PATH ?? WA_SYNC_DEFAULT_DB;
+      if (!existsSync(dbPath)) {
+        warn("wa-sync", `no capture store yet at ${dbPath} — pair the desktop bridge first`);
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("node", [WA_SYNC_SCRIPT], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          JARVIS_APP_URL: process.env.JARVIS_APP_URL ?? "http://localhost:3000",
+        },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /\[whatsapp-sync\] starting/, 15_000),
   },
 ];
 
@@ -580,13 +619,17 @@ ${C.bold("Services")}
   supabase   local Supabase (Docker)
   web        Next.js dev server on :3000
   desktop    Tauri desktop app (global hotkey + composer; no hardware)
+  mobile     Expo Metro dev server for apps/mobile on :8081
   bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
+  wa-sync    WhatsApp SQLite → Postgres mirror worker
 
 ${C.bold("Flags")}
   --no-supabase           skip Supabase
   --no-web                skip web dev server
   --no-desktop            skip Tauri desktop app
+  --no-mobile             skip Expo Metro dev server
   --no-bridge             skip serial bridge
+  --no-wa-sync            skip WhatsApp sync worker
   --only=name[,name...]   start only listed services
   --help                  show this message
 
