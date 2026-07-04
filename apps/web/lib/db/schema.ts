@@ -1422,6 +1422,45 @@ export const whatsappMessages = pgTable(
   ],
 );
 
+// imessage_messages — messages synced from the local macOS Messages chat.db
+// by a small local sync worker (separate unit `imessage-sync`) that reads
+// new rows out of ~/Library/Messages/chat.db and POSTs them to
+// /api/imessage/ingest, which upserts them here. The server-side
+// `read_imessage` JARVIS tool then queries this table so briefings + agent
+// turns can see iMessage with zero mid-turn desktop round-trip.
+//
+// externalId is the Messages row's stable id (guid). chatJid is the chat
+// guid; sender is the raw handle (phone/email); senderName is the resolved
+// contact display name (the sync worker resolves it via Contacts). The
+// unique (userId, chatJid, externalId) key gives the ingest route a safe
+// upsert target — replays never duplicate.
+export const imessageMessages = pgTable(
+  "imessage_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    chatJid: text("chat_jid").notNull(),
+    chatName: text("chat_name"),
+    sender: text("sender"),
+    senderName: text("sender_name"),
+    fromMe: boolean("from_me").notNull().default(false),
+    body: text("body"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("imessage_messages_user_chat_external_uniq").on(
+      t.userId,
+      t.chatJid,
+      t.externalId,
+    ),
+    index("imessage_messages_user_sent_at_idx").on(t.userId, t.sentAt.desc()),
+  ],
+);
+
 // routines — natural-language JARVIS routines (one row = triggers → ordered
 // agentic blocks). The freeform payload lives in the typed `spec` jsonb column;
 // scheduler-relevant fields are denormalized into first-class columns

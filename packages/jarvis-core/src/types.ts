@@ -27,6 +27,8 @@ export type JarvisToolName =
   | "get_news"
   // WhatsApp — server-side read of synced messages
   | "read_whatsapp"
+  // iMessage — server-side read of synced messages
+  | "read_imessage"
   // Computer Use fallback — catch-all agentic desktop loop
   | "computer_use";
 
@@ -294,6 +296,16 @@ export interface GetNewsAction {
 // synced whatsapp_messages table and returns a grouped receipt for the agent
 // to narrate. See tools/read-whatsapp.ts for schema.
 export interface ReadWhatsappAction {
+  chat?: string;
+  since_hours?: number;
+  maxResults?: number;
+  unrepliedOnly?: boolean;
+}
+
+// iMessage — server-side read. No DesktopAction; the executor queries the
+// synced imessage_messages table and returns a grouped receipt for the agent
+// to narrate. See tools/read-imessage.ts for schema.
+export interface ReadImessageAction {
   chat?: string;
   since_hours?: number;
   maxResults?: number;

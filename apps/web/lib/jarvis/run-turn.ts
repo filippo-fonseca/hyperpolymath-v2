@@ -63,6 +63,8 @@ import {
   GetNewsInputSchema,
   // WhatsApp — server-side read of synced messages
   ReadWhatsappInputSchema,
+  // iMessage — server-side read of synced messages
+  ReadImessageInputSchema,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
@@ -191,6 +193,8 @@ function buildToolValidators(voiceActive: boolean) {
     get_news: GetNewsInputSchema,
     // WhatsApp — server-side read of synced messages
     read_whatsapp: ReadWhatsappInputSchema,
+    // iMessage — server-side read of synced messages
+    read_imessage: ReadImessageInputSchema,
     // Computer Use fallback — catch-all agentic desktop loop
     computer_use: ComputerUseInputSchema,
   } as const;
@@ -735,6 +739,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "read_whatsapp") {
               result = await executor.readWhatsapp(
                 parsed.data as Parameters<typeof executor.readWhatsapp>[0],
+                ctx,
+              );
+            } else if (toolName === "read_imessage") {
+              result = await executor.readImessage(
+                parsed.data as Parameters<typeof executor.readImessage>[0],
                 ctx,
               );
             } else if (toolName === "computer_use") {

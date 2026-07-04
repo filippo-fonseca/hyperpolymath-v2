@@ -106,6 +106,8 @@ export type {
   GetNewsAction,
   // WhatsApp — server-side read of synced messages
   ReadWhatsappAction,
+  // iMessage — server-side read of synced messages
+  ReadImessageAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
 } from "./types";

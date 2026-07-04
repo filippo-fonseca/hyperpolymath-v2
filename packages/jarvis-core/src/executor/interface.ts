@@ -27,6 +27,7 @@ import type {
   OpenUrlAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadImessageAction,
   ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
@@ -153,6 +154,9 @@ export interface ActionExecutor {
   // WhatsApp read — fully server-side (queries synced whatsapp_messages);
   // returns a grouped receipt for the agent to narrate. No DesktopAction.
   readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  // iMessage read — fully server-side (queries synced imessage_messages);
+  // returns a grouped receipt for the agent to narrate. No DesktopAction.
+  readImessage(input: ReadImessageAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Computer Use fallback — mints a session_id and returns the computer_use
   // DesktopAction; the desktop drives the step loop against

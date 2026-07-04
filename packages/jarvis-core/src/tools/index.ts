@@ -88,6 +88,7 @@ import { getWeatherTool } from "./get-weather";
 import { readGmailTool } from "./read-gmail";
 import { getNewsTool } from "./get-news";
 import { readWhatsappTool } from "./read-whatsapp";
+import { readImessageTool } from "./read-imessage";
 import { computerUseTool } from "./computer-use";
 
 export { zCreateTask } from "./create-task";
@@ -130,6 +131,7 @@ export interface JarvisToolDefinition {
     | "read_gmail"
     | "get_news"
     | "read_whatsapp"
+    | "read_imessage"
     | "computer_use";
   description: string;
   input_schema: Record<string, unknown>;
@@ -250,6 +252,10 @@ export function buildToolDefinitions(
     // worker; the executor gracefully returns a friendly setup hint if the
     // table is empty (bridge not running / worker not paired).
     { ...readWhatsappTool, strict: false as const },
+    // iMessage — server-side read tool. Data comes from the local chat.db
+    // sync worker; the executor gracefully returns a friendly setup hint if
+    // the table is empty (worker not running / not yet synced).
+    { ...readImessageTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -302,6 +308,8 @@ export { ReadGmailInputSchema } from "./read-gmail";
 export { GetNewsInputSchema } from "./get-news";
 // WhatsApp: re-export input schema for run-turn.ts validation.
 export { ReadWhatsappInputSchema } from "./read-whatsapp";
+// iMessage: re-export input schema for run-turn.ts validation.
+export { ReadImessageInputSchema } from "./read-imessage";
 // Computer Use fallback: re-export input schema for run-turn.ts validation.
 export { ComputerUseInputSchema } from "./computer-use";
 

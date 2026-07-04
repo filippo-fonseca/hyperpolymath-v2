@@ -43,6 +43,7 @@ export const JARVIS_TOOL_NAMES = [
   "read_gmail",
   "get_news",
   "read_whatsapp",
+  "read_imessage",
   "computer_use",
 ] as const satisfies readonly JarvisToolName[];
 
