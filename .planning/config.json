@@ -38,14 +38,13 @@
   "mode": "yolo",
   "granularity": "coarse",
   "bgsd_unit_posture": {
-    "unit_id": "wa-send-timeout",
+    "unit_id": "imessage-send-harden",
     "model": "opus",
     "effort": "xhigh",
-    "difficulty": 0.35,
-    "fablePlan": false
+    "difficulty": 0.35
   },
   "bgsd_phase_config": {
-    "unit_id": "wa-send-timeout",
+    "unit_id": "imessage-send-harden",
     "research": true,
     "plan_check": true,
     "code_review": true,
