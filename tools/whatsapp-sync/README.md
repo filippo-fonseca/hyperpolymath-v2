@@ -85,13 +85,16 @@ You should see a line like
 
 A ready-to-install plist ships in this directory as
 `com.hyperpolymath.whatsapp-sync.plist`. Copy it into `~/Library/LaunchAgents/`
-and edit the two placeholders inside (absolute path to `sync.mjs` in your
-checkout, and `JARVIS_DEVICE_TOKEN`; also flip `JARVIS_APP_URL` to your
-Vercel URL if you're not pointing at local dev):
+and edit the four placeholders inside — your `node` binary path (Apple
+Silicon Homebrew is `/opt/homebrew/bin/node`, Intel Homebrew is
+`/usr/local/bin/node`, nvm is under `~/.nvm/versions/…`; check with
+`which node`), the absolute path to `sync.mjs`, `JARVIS_APP_URL`, and
+`JARVIS_DEVICE_TOKEN`:
 
 ```bash
 cp tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist \
    ~/Library/LaunchAgents/
+which node   # grab this path for ProgramArguments[0]
 # edit ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
 launchctl load ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
 tail -f /tmp/whatsapp-sync.out.log

@@ -9,10 +9,13 @@
 
   Install:
     1. cp this file to ~/Library/LaunchAgents/
-    2. Edit the two REPLACE-ME placeholders below:
+    2. Edit these values below (run `which node` first to grab the right path
+       for your machine — Apple Silicon Homebrew is /opt/homebrew/bin/node,
+       Intel is /usr/local/bin/node, nvm is under ~/.nvm):
+         - ProgramArguments[0]: absolute path to your `node` binary
          - ProgramArguments[1]: absolute path to sync.mjs in your checkout
+         - EnvironmentVariables.JARVIS_APP_URL: your Vercel URL if not local
          - EnvironmentVariables.JARVIS_DEVICE_TOKEN: your hpd_… token
-       (and JARVIS_APP_URL if you point at deployed vs. local)
     3. launchctl load ~/Library/LaunchAgents/com.hyperpolymath.whatsapp-sync.plist
     4. tail -f /tmp/whatsapp-sync.out.log
 
@@ -27,7 +30,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/local/bin/node</string>
+    <string>/REPLACE_WITH_YOUR_NODE_PATH</string>
     <string>/Users/YOU/Developer/Projects/hyperpolymath-v2/tools/whatsapp-sync/sync.mjs</string>
   </array>
 

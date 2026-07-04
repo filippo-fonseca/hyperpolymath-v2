@@ -12,6 +12,7 @@
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
 //   --no-web                skip Next.js dev server
 //   --no-desktop            skip Tauri desktop app (default input layer)
+//   --no-mobile             skip Expo Metro dev server
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
 //   --no-wa-sync            skip WhatsApp sync worker
 //   --only=name[,name...]   start only listed services
@@ -210,7 +211,7 @@ const SERVICES = [
     // and mirrors new messages into Postgres via /api/whatsapp/ingest so the
     // read_whatsapp tool + daily briefings can query them server-side.
     name: "wa-sync",
-    color: "magenta",
+    color: "cyan",
     async preflight() {
       if (!process.env.JARVIS_DEVICE_TOKEN) {
         warn("wa-sync", "JARVIS_DEVICE_TOKEN not set — skipping (mint one at /settings/desktop)");
@@ -618,6 +619,7 @@ ${C.bold("Services")}
   supabase   local Supabase (Docker)
   web        Next.js dev server on :3000
   desktop    Tauri desktop app (global hotkey + composer; no hardware)
+  mobile     Expo Metro dev server for apps/mobile on :8081
   bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
   wa-sync    WhatsApp SQLite → Postgres mirror worker
 
@@ -625,6 +627,7 @@ ${C.bold("Flags")}
   --no-supabase           skip Supabase
   --no-web                skip web dev server
   --no-desktop            skip Tauri desktop app
+  --no-mobile             skip Expo Metro dev server
   --no-bridge             skip serial bridge
   --no-wa-sync            skip WhatsApp sync worker
   --only=name[,name...]   start only listed services
