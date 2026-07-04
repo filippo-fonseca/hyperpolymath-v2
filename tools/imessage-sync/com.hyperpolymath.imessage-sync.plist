@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.hyperpolymath.imessage-sync
+
+  launchd agent that keeps tools/imessage-sync/sync.mjs running under the
+  user login session, mirroring new iMessage rows from ~/Library/Messages/chat.db
+  into Postgres via /api/imessage/ingest.
+
+  Install:
+    1. cp this file to ~/Library/LaunchAgents/
+    2. Edit these values below (run `which node` first to grab the right path
+       for your machine — Apple Silicon Homebrew is /opt/homebrew/bin/node,
+       Intel is /usr/local/bin/node, nvm is under ~/.nvm):
+         - ProgramArguments[0]: absolute path to your `node` binary
+         - ProgramArguments[1]: absolute path to sync.mjs in your checkout
+         - EnvironmentVariables.JARVIS_APP_URL: your Vercel URL if not local
+         - EnvironmentVariables.JARVIS_DEVICE_TOKEN: your hpd_… token
+         - EnvironmentVariables.IMESSAGE_DB_PATH: usually leave as-is
+    3. **Grant Full Disk Access to that `node` binary** in
+       System Settings → Privacy & Security → Full Disk Access. chat.db is
+       TCC-protected; without FDA every read fails "authorization denied"
+       and the worker will sit in an error loop.
+    4. launchctl load ~/Library/LaunchAgents/com.hyperpolymath.imessage-sync.plist
+    5. tail -f /tmp/imessage-sync.out.log
+
+  KeepAlive + RunAtLoad mean the daemon starts on login and is relaunched
+  by launchd if it exits for any reason. The sync loop itself swallows
+  per-tick errors so transient network / SQLite locks don't kill it.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hyperpolymath.imessage-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/REPLACE_WITH_YOUR_NODE_PATH</string>
+    <string>/Users/YOU/Developer/Projects/hyperpolymath-v2/tools/imessage-sync/sync.mjs</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>JARVIS_APP_URL</key>
+    <string>http://localhost:3000</string>
+    <key>JARVIS_DEVICE_TOKEN</key>
+    <string>hpd_REPLACE_ME</string>
+    <key>IMESSAGE_DB_PATH</key>
+    <string>/Users/YOU/Library/Messages/chat.db</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/imessage-sync.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/imessage-sync.err.log</string>
+</dict>
+</plist>
