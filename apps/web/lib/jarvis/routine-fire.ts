@@ -57,6 +57,11 @@ export interface FireRoutineOpts {
    * per-block narration (announce-before-act) as before.
    */
   synthesize?: boolean;
+  /**
+   * Parallel gather (synthesize-only). When true AND synthesize is true, gather
+   * blocks run concurrently in a bounded pool. Ignored when synthesize is false.
+   */
+  parallel?: boolean;
 }
 
 /**
@@ -77,6 +82,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       isVoice: opts.isVoice,
       mode: opts.mode,
       synthesize: opts.synthesize,
+      parallel: opts.parallel,
       routineName: opts.routineName,
       runId,
       abortSignal: opts.abortSignal,
