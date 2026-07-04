@@ -235,9 +235,102 @@ func (b *bridge) currentQR() string {
 	return b.qr
 }
 
-// resolveJID turns a recipient (intl phone number like "15551234567", or a raw
-// JID containing "@") into a WhatsApp JID.
-func resolveJID(recipient string) (types.JID, error) {
+// looksLikePhoneNumber reports whether a recipient string is a bare phone
+// number (digits, optional leading '+', and dashes/spaces as visual separators)
+// vs. a contact name. A recipient with no '@' is a phone number when every
+// non-space rune is a digit / '+' / '-' AND at least one digit is present.
+// Everything else (letters, apostrophes, dots, emoji) is treated as a name and
+// routed through the whatsmeow_contacts lookup.
+func looksLikePhoneNumber(s string) bool {
+	hasDigit := false
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		case r == '+' || r == '-' || r == ' ':
+			// separator / prefix
+		default:
+			return false
+		}
+	}
+	return hasDigit
+}
+
+// resolvedContact carries one candidate row from whatsmeow_contacts. Kept small
+// so ambiguity errors can include a human-readable disambiguation list.
+type resolvedContact struct {
+	jid           string
+	fullName      string
+	firstName     string
+	pushName      string
+	businessName  string
+	redactedPhone string
+	// exactNameMatch is true when full_name or first_name matched the query
+	// exactly (case-insensitive); push_name / business_name matches don't
+	// count. Used as the tiebreaker per the unit brief.
+	exactNameMatch bool
+}
+
+func (c resolvedContact) displayLabel() string {
+	name := c.fullName
+	if name == "" {
+		name = c.firstName
+	}
+	if name == "" {
+		name = c.pushName
+	}
+	if name == "" {
+		name = c.businessName
+	}
+	if name == "" {
+		name = "(unnamed)"
+	}
+	if c.redactedPhone != "" {
+		return fmt.Sprintf("%s (%s)", name, c.redactedPhone)
+	}
+	return name
+}
+
+// errContactNotFound / errContactAmbiguous are sentinel-ish errors that
+// resolveRecipientToJID returns so handleSend can map them to 400s with the
+// exact error text the JARVIS confirm-gate surfaces to the user. They carry
+// the query and (for ambiguous) the candidate list.
+type errContactNotFound struct{ query string }
+
+func (e *errContactNotFound) Error() string {
+	return fmt.Sprintf("no WhatsApp contact matches %q", e.query)
+}
+
+type errContactAmbiguous struct {
+	query      string
+	candidates []resolvedContact
+}
+
+func (e *errContactAmbiguous) Error() string {
+	// Cap the candidate list so the error body stays small even if a
+	// name matches dozens of rows. Six is enough for a human to skim.
+	const cap = 6
+	labels := make([]string, 0, len(e.candidates))
+	for i, c := range e.candidates {
+		if i == cap {
+			labels = append(labels, fmt.Sprintf("… and %d more", len(e.candidates)-cap))
+			break
+		}
+		labels = append(labels, c.displayLabel())
+	}
+	return fmt.Sprintf("ambiguous WhatsApp contact %q — matched: %s", e.query, strings.Join(labels, "; "))
+}
+
+// resolveRecipientToJID is the send-path recipient resolver. It preserves the
+// two existing recipient forms (raw '@'-JID, bare intl phone number) and adds
+// a name → JID lookup against whatsmeow_contacts. Ambiguity: an exact
+// (case-insensitive) full_name or first_name match wins over push_name /
+// business_name matches; only when that tiebreaker still leaves multiple
+// distinct their_jids do we return errContactAmbiguous. Zero matches returns
+// errContactNotFound. The bridge's msgDB handle points at the same SQLite
+// file whatsmeow uses for its session store, so the contacts table lives
+// alongside our capture tables — no second connection needed.
+func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (types.JID, error) {
 	recipient = strings.TrimSpace(recipient)
 	if recipient == "" {
 		return types.JID{}, fmt.Errorf("empty recipient")
@@ -245,9 +338,85 @@ func resolveJID(recipient string) (types.JID, error) {
 	if strings.Contains(recipient, "@") {
 		return types.ParseJID(recipient)
 	}
-	// Bare phone number → personal chat on the default user server.
-	number := strings.TrimPrefix(recipient, "+")
-	return types.NewJID(number, types.DefaultUserServer), nil
+	if looksLikePhoneNumber(recipient) {
+		// Preserve the original phone-number branch verbatim: only "+" is
+		// stripped. Separator normalization is out of scope for this unit.
+		number := strings.TrimPrefix(recipient, "+")
+		return types.NewJID(number, types.DefaultUserServer), nil
+	}
+	// Name path — query whatsmeow_contacts. Case-insensitive match against
+	// the four name-bearing columns. If msgDB is nil (defensive; shouldn't
+	// happen in bundled use) surface a clear error.
+	if b.msgDB == nil {
+		return types.JID{}, fmt.Errorf("contact lookup unavailable: no contacts database")
+	}
+	lowered := strings.ToLower(recipient)
+	rows, err := b.msgDB.QueryContext(ctx, `
+		SELECT their_jid,
+		       COALESCE(full_name, ''),
+		       COALESCE(first_name, ''),
+		       COALESCE(push_name, ''),
+		       COALESCE(business_name, ''),
+		       COALESCE(redacted_phone, '')
+		FROM whatsmeow_contacts
+		WHERE LOWER(COALESCE(full_name, '')) = ?
+		   OR LOWER(COALESCE(first_name, '')) = ?
+		   OR LOWER(COALESCE(push_name, '')) = ?
+		   OR LOWER(COALESCE(business_name, '')) = ?
+	`, lowered, lowered, lowered, lowered)
+	if err != nil {
+		return types.JID{}, fmt.Errorf("contact lookup failed: %w", err)
+	}
+	defer rows.Close()
+
+	seen := map[string]resolvedContact{}
+	for rows.Next() {
+		var c resolvedContact
+		if err := rows.Scan(&c.jid, &c.fullName, &c.firstName, &c.pushName, &c.businessName, &c.redactedPhone); err != nil {
+			return types.JID{}, fmt.Errorf("contact scan failed: %w", err)
+		}
+		c.exactNameMatch = strings.EqualFold(c.fullName, recipient) || strings.EqualFold(c.firstName, recipient)
+		// One entry per distinct their_jid; keep the exact-name-match row
+		// if we see one so the tiebreaker below has the right signal.
+		if existing, ok := seen[c.jid]; ok {
+			if c.exactNameMatch && !existing.exactNameMatch {
+				seen[c.jid] = c
+			}
+			continue
+		}
+		seen[c.jid] = c
+	}
+	if err := rows.Err(); err != nil {
+		return types.JID{}, fmt.Errorf("contact lookup iteration failed: %w", err)
+	}
+	if len(seen) == 0 {
+		return types.JID{}, &errContactNotFound{query: recipient}
+	}
+	if len(seen) == 1 {
+		for jidStr := range seen {
+			return types.ParseJID(jidStr)
+		}
+	}
+	// Multiple distinct their_jids: apply the exact full_name/first_name
+	// tiebreaker.
+	exact := make([]resolvedContact, 0)
+	all := make([]resolvedContact, 0, len(seen))
+	for _, c := range seen {
+		all = append(all, c)
+		if c.exactNameMatch {
+			exact = append(exact, c)
+		}
+	}
+	if len(exact) == 1 {
+		return types.ParseJID(exact[0].jid)
+	}
+	// Still ambiguous — surface candidates. Prefer the narrowed exact list
+	// if we have one (more useful for the user), else the full match set.
+	pool := exact
+	if len(pool) == 0 {
+		pool = all
+	}
+	return types.JID{}, &errContactAmbiguous{query: recipient, candidates: pool}
 }
 
 type sendRequest struct {
@@ -279,8 +448,17 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": "not logged in — scan the QR to pair WhatsApp"})
 		return
 	}
-	jid, err := resolveJID(req.Recipient)
+	jid, err := b.resolveRecipientToJID(r.Context(), req.Recipient)
 	if err != nil {
+		// Not-found and ambiguous are user-actionable — surface their
+		// error text verbatim so the desktop confirm-gate / JARVIS can
+		// tell the user what went wrong instead of a false success.
+		var notFound *errContactNotFound
+		var ambiguous *errContactAmbiguous
+		if errors.As(err, &notFound) || errors.As(err, &ambiguous) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": fmt.Sprintf("invalid recipient: %v", err)})
 		return
 	}
