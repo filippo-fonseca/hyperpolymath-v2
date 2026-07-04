@@ -31,6 +31,14 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
     initialEntry,
   );
   const [directive, setDirective] = useState(initial?.nlDirective ?? "");
+  // Per-block loading chatter: a spoken filler line the runner interprets while
+  // the block gathers. Optional and off by default; toggle reveals the textarea.
+  const [chatterEnabled, setChatterEnabled] = useState<boolean>(
+    Boolean(initial?.loadingInstruction && initial.loadingInstruction.length > 0),
+  );
+  const [loadingInstruction, setLoadingInstruction] = useState(
+    initial?.loadingInstruction ?? "",
+  );
 
   function choose(entry: BlockCatalogEntry) {
     setSelected(entry);
@@ -40,11 +48,13 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
 
   function confirm() {
     if (!selected) return;
+    const trimmedChatter = loadingInstruction.trim();
     onConfirm({
       id: initial?.id ?? crypto.randomUUID(),
       tool: selected.tool as JarvisToolName,
       params: initial?.params ?? {},
       nlDirective: directive.trim() ? directive.trim() : undefined,
+      loadingInstruction: chatterEnabled && trimmedChatter ? trimmedChatter : undefined,
     });
   }
 
@@ -92,6 +102,34 @@ export function BlockEditor({ initial, onConfirm, onCancel }: Props) {
             Plain English. This is what makes the block yours — be specific about
             what to include, filter, and hand back.
           </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+            <input
+              type="checkbox"
+              checked={chatterEnabled}
+              onChange={(e) => setChatterEnabled(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[var(--hud-cyan)]"
+            />
+            Speak while loading
+          </label>
+          {chatterEnabled ? (
+            <>
+              <textarea
+                value={loadingInstruction}
+                onChange={(e) => setLoadingInstruction(e.target.value)}
+                placeholder="what jarvis says while this block fetches — e.g. 'let sir know you're checking the inbox for anything urgent'"
+                rows={2}
+                maxLength={2000}
+                className="mt-2 w-full resize-y rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-serif text-[15px] leading-[1.5] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)] transition-colors duration-100"
+              />
+              <p className="mt-1.5 font-serif text-[12px] leading-[1.5] text-[var(--ink-muted)]">
+                Instructions, not a script. JARVIS interprets these into a fresh
+                spoken line every run so it never sounds canned.
+              </p>
+            </>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-2">
