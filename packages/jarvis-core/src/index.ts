@@ -89,6 +89,8 @@ export type {
   // Computer-control action types + desktop result type
   OpenUrlAction,
   OpenAppAction,
+  OpenWorkspaceAction,
+  OpenWorkspaceItem,
   WebSearchAction,
   DesktopAction,
   // Clicky slice — desktop action tools + server-side weather

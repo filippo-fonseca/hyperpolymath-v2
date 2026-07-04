@@ -75,6 +75,7 @@ import { findPeopleTool } from "./find-people";
 import { linkPeopleTool } from "./link-people";
 import { openUrlTool } from "./open-url";
 import { openAppTool } from "./open-app";
+import { openWorkspaceTool } from "./open-workspace";
 import { webSearchTool } from "./web-search";
 import { sendMessageTool } from "./send-message";
 import { systemControlTool } from "./system-control";
@@ -118,6 +119,7 @@ export interface JarvisToolDefinition {
     | "link_people"
     | "open_url"
     | "open_app"
+    | "open_workspace"
     | "web_search"
     | "send_message"
     | "system_control"
@@ -227,6 +229,10 @@ export function buildToolDefinitions(
     // desktop client; no DB writes, no gcal calls.
     { ...openUrlTool, strict: false as const },
     { ...openAppTool, strict: false as const },
+    // Workspace-launch: list-taking sibling of open_app / open_url. One tool
+    // call opens N apps + URLs in parallel on the desktop with an optional
+    // fullscreen toggle per item.
+    { ...openWorkspaceTool, strict: false as const },
     // web_search loses cache_control — clicky-slice tools follow it.
     { ...webSearchTool, strict: false as const },
     // Clicky slice — desktop action tools + server-side weather.
@@ -292,6 +298,7 @@ export { LinkPeopleInputSchema } from "./link-people";
 // Computer-control: re-export input schemas for run-turn.ts validation.
 export { OpenUrlInputSchema } from "./open-url";
 export { OpenAppInputSchema } from "./open-app";
+export { OpenWorkspaceInputSchema, OpenWorkspaceItemSchema } from "./open-workspace";
 export { WebSearchInputSchema } from "./web-search";
 // Clicky slice: re-export input schemas for run-turn.ts validation.
 export { SendMessageInputSchema } from "./send-message";

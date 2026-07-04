@@ -17,7 +17,7 @@ export type JarvisToolName =
   | "update_event" | "delete_event"
   | "find_tasks" | "find_captures" | "find_events"
   | "create_person" | "find_people" | "link_people"
-  | "open_url" | "open_app" | "web_search"
+  | "open_url" | "open_app" | "open_workspace" | "web_search"
   // Clicky slice — desktop action tools + server-side weather
   | "send_message" | "system_control" | "type_text" | "press_key"
   | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
@@ -214,6 +214,17 @@ export interface OpenAppAction {
   label?: string;
 }
 
+export interface OpenWorkspaceItem {
+  type: "url" | "app";
+  value: string;
+  label?: string;
+  fullscreen?: boolean;
+}
+
+export interface OpenWorkspaceAction {
+  items: OpenWorkspaceItem[];
+}
+
 export interface WebSearchAction {
   query: string;
   engine?: "google" | "maps";
@@ -326,6 +337,7 @@ export interface ComputerUseAction {
 export type DesktopAction =
   | { kind: "open_url"; url: string; label: string }
   | { kind: "open_app"; app: string; label: string }
+  | { kind: "open_workspace"; items: OpenWorkspaceItem[] }
   | {
       kind: "send_message";
       /** iMessage → AppleScript via Messages.app; whatsapp → HTTP POST to the
