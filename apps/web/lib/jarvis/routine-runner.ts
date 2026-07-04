@@ -60,6 +60,7 @@ import {
 import type { ZodType } from "zod";
 
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { generateBlockFillerLine } from "@/lib/jarvis/routine-filler";
 
 // --- Public contract -------------------------------------------------------
 
@@ -98,6 +99,20 @@ export interface RoutineRunContext {
   runId?: string;
   abortSignal?: AbortSignal;
 }
+
+/**
+ * Async callback for per-block loading-chatter. When present AND the block has a
+ * non-empty `loadingInstruction`, the runner awaits this before the block's real
+ * turn kicks so the spoken filler plays first. The handler is expected to
+ * SPEAK the line (bus emit + queue serialization if multiple blocks gather in
+ * parallel); a resolved Promise is the "ok to proceed to the real work" signal.
+ */
+export type OnBlockFiller = (
+  blockId: string,
+  text: string,
+  index: number,
+  total: number,
+) => void | Promise<void>;
 
 export interface BlockRunResult {
   blockId: string;
@@ -141,6 +156,17 @@ export interface RoutineRunHandlers {
   onGatherBlockStart?(blockId: string, index: number, total: number, tool: JarvisToolName): void;
   /** A gather block settled (result.error set if it failed). */
   onGatherBlockDone?(result: BlockRunResult, index: number, total: number): void;
+
+  // --- Per-block loading chatter (independent spoken turn) ------------------
+  // Fired ONLY when the block has a non-empty `loadingInstruction` and the
+  // runner has synthesized a fresh filler line for it. Emitted BEFORE the
+  // block's real turn kicks — the caller SPEAKS the line (its own turnId
+  // `${blockId}:filler`) via the same response-start/chunk/end trio the opener
+  // uses, so it bypasses the synthesize-mode narration suppression exactly the
+  // way the opener does. The runner AWAITS the callback (Promise-aware), so a
+  // caller may sequence multiple parallel-gather fillers into a queue rather
+  // than letting them talk over each other.
+  onBlockFiller?: OnBlockFiller;
 }
 
 type ThreadMsg = { role: "assistant"; content: string };
@@ -319,6 +345,29 @@ async function runBlock(
   // Gather-progress start (synthesize mode only, both paths). Fired before the
   // turn — including for the unknown-tool skip below (the progress UI needs it).
   if (synth) handlers.onGatherBlockStart?.(blockId, index, total, block.tool as JarvisToolName);
+
+  // Per-block loading chatter. If the block author wrote a `loadingInstruction`,
+  // synthesize a fresh spoken filler line and hand it to the bus BEFORE the
+  // real turn kicks. Independent of synth mode — the filler is an independent
+  // spoken emission on its own turnId (see routine-fire), so it plays even
+  // when the block itself gathers silently. Errors are swallowed: a missing
+  // filler must never break the routine.
+  if (handlers.onBlockFiller && block.loadingInstruction && block.loadingInstruction.trim().length > 0) {
+    try {
+      const line = await generateBlockFillerLine({
+        apiKey: ctx.apiKey,
+        loadingInstruction: block.loadingInstruction,
+        tool: String(block.tool),
+        routineName: ctx.routineName,
+        abortSignal: ctx.abortSignal,
+      });
+      if (line) {
+        await handlers.onBlockFiller(blockId, line, index, total);
+      }
+    } catch (err) {
+      console.error("[routine-runner] filler emit failed", err);
+    }
+  }
 
   // Defensive guard: unknown tool → skip block, surface error, keep going.
   // (routine-model validates authored blocks; this is defense in depth.)
