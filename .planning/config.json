@@ -36,5 +36,20 @@
   },
   "agent_skills": {},
   "mode": "yolo",
-  "granularity": "coarse"
+  "granularity": "coarse",
+  "bgsd_unit_posture": {
+    "unit_id": "wa-send-timeout",
+    "model": "opus",
+    "effort": "xhigh",
+    "difficulty": 0.35,
+    "fablePlan": false
+  },
+  "bgsd_phase_config": {
+    "unit_id": "wa-send-timeout",
+    "research": true,
+    "plan_check": true,
+    "code_review": true,
+    "ai_integration_phase": false,
+    "ui_phase": false
+  }
 }

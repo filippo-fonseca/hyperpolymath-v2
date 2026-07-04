@@ -1,0 +1,16 @@
+{
+  "unit_id": "wa-send-timeout",
+  "title": "Fail-fast timeout + clean error on WhatsApp send so a dead bridge never wedges the UI",
+  "scope": "When the user confirms a WhatsApp send ('yes send it') and the bridge is down/hung, the send currently hangs with no timeout, freezing the desktop confirm-gate in 'awaiting confirmation'/'sending' and blocking ALL further JARVIS input (observed: user could not talk to JARVIS at all until a restart). Make the send path fail FAST and cleanly.\n\nDO:\n1. In apps/desktop/src/actions/confirm-gate.ts, executeWhatsappSend (~lines 117-154) POSTs to http://localhost:8080/api/send (bridge; overridable via settings.whatsappBridgeUrl). Add an AbortController with a sensible timeout (~8s). On timeout, network error, or a non-2xx (the bridge returns 502 'not logged in' when unpaired, main.go:124), DO NOT hang: resolve the confirm-gate into a terminal FAILED state, surface a clean spoken + UI error (e.g. 'I could not reach WhatsApp, sir — the bridge may be disconnected.'), and ensure the conversation/input is unblocked so the user can talk to JARVIS again immediately.\n2. Audit apps/web/lib/jarvis/send-message.ts (the tool) for any server-side path that could hang the agent turn; ensure the tool call always terminates with a clear success or failure result (never an open-ended await).\n3. Make the failure state visibly clear the '▸ WhatsApp to X — awaiting confirmation' pending UI so it doesn't stick after a failed/aborted send.\n\nKeep a SUCCESSFUL send behaving exactly as today. This is about robustness on the failure path only.",
+  "criteria": [
+    "With the bridge down/unreachable, a confirmed WhatsApp send fails cleanly within ~8s (AbortController timeout), never hangs.",
+    "After a failed/aborted send, the desktop confirm-gate + conversation are NOT left stuck — the user can immediately send another message to JARVIS (no restart needed).",
+    "JARVIS surfaces a clear, spoken failure message on send failure; the pending 'awaiting confirmation' UI is cleared.",
+    "A successful send (bridge healthy + paired) works exactly as before — no regression.",
+    "The send_message tool call always terminates (success or clean failure); no open-ended awaits."
+  ],
+  "touched": [
+    "apps/desktop/src/actions/confirm-gate.ts",
+    "apps/web/lib/jarvis/send-message.ts"
+  ]
+}
