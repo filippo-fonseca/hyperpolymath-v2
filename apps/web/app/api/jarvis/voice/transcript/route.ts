@@ -173,6 +173,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         synthesize: matched.spec.synthesize === true,
         parallel: matched.spec.parallel === true,
         routineName: matched.name,
+        loadingInstruction: matched.spec.loadingInstruction?.trim() || undefined,
       });
       return Response.json({ transcript, sttDoneAt, routine: matched.id, runId }, { headers: CORS });
     }
