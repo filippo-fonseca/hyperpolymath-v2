@@ -7,6 +7,7 @@
 //   3. desktop    Tauri desktop app (global hotkey + composer; no hardware)
 //   4. bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
 //   5. wa-sync    WhatsApp SQLite → Postgres mirror worker (personal-use)
+//   6. im-sync    iMessage chat.db → Postgres mirror worker (personal-use)
 //
 // Flags:
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
@@ -15,6 +16,7 @@
 //   --no-mobile             skip Expo Metro dev server
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
 //   --no-wa-sync            skip WhatsApp sync worker
+//   --no-im-sync            skip iMessage sync worker
 //   --only=name[,name...]   start only listed services
 //   --help                  print usage and exit
 //
@@ -40,6 +42,8 @@ const WA_SYNC_DEFAULT_DB = resolve(
   os.homedir(),
   "Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db",
 );
+const IM_SYNC_SCRIPT = resolve(REPO_ROOT, "tools/imessage-sync/sync.mjs");
+const IM_SYNC_DEFAULT_DB = resolve(os.homedir(), "Library/Messages/chat.db");
 
 const FLAGS = parseFlags(process.argv.slice(2));
 
@@ -234,6 +238,37 @@ const SERVICES = [
       }),
     keepAlive: true,
     ready: (proc) => waitForLog(proc, /\[whatsapp-sync\] starting/, 15_000),
+  },
+
+  {
+    // iMessage sync worker: tails ~/Library/Messages/chat.db and mirrors new
+    // messages into Postgres via /api/imessage/ingest so the read_imessage
+    // tool + daily briefings can query them server-side. Requires Full Disk
+    // Access on the `node` binary — see tools/imessage-sync/README.md.
+    name: "im-sync",
+    color: "magenta",
+    async preflight() {
+      if (!process.env.JARVIS_DEVICE_TOKEN) {
+        warn("im-sync", "JARVIS_DEVICE_TOKEN not set — skipping (mint one at /settings/desktop)");
+        return { skip: true };
+      }
+      const dbPath = process.env.IMESSAGE_DB_PATH ?? IM_SYNC_DEFAULT_DB;
+      if (!existsSync(dbPath)) {
+        warn("im-sync", `no chat.db at ${dbPath} — is this a Mac with Messages set up?`);
+        return { skip: true };
+      }
+    },
+    start: () =>
+      spawn("node", [IM_SYNC_SCRIPT], {
+        cwd: REPO_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          JARVIS_APP_URL: process.env.JARVIS_APP_URL ?? "http://localhost:3000",
+        },
+      }),
+    keepAlive: true,
+    ready: (proc) => waitForLog(proc, /\[imessage-sync\] starting/, 15_000),
   },
 ];
 
@@ -622,6 +657,7 @@ ${C.bold("Services")}
   mobile     Expo Metro dev server for apps/mobile on :8081
   bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
   wa-sync    WhatsApp SQLite → Postgres mirror worker
+  im-sync    iMessage chat.db → Postgres mirror worker
 
 ${C.bold("Flags")}
   --no-supabase           skip Supabase
@@ -630,6 +666,7 @@ ${C.bold("Flags")}
   --no-mobile             skip Expo Metro dev server
   --no-bridge             skip serial bridge
   --no-wa-sync            skip WhatsApp sync worker
+  --no-im-sync            skip iMessage sync worker
   --only=name[,name...]   start only listed services
   --help                  show this message
 
