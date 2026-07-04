@@ -11,6 +11,7 @@
 //   - holds the child handle in managed state so the app can kill it on exit
 //     (the WhatsApp session persists on disk, so a plain kill is fine).
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -25,10 +26,18 @@ const BRIDGE_PORT: &str = "8080";
 /// (e.g. a permanently broken store). Reset only on a fresh app launch.
 const MAX_RESTARTS: u32 = 8;
 
-/// Managed handle to the running sidecar child, so we can kill it on app exit.
+/// Managed handle to the running sidecar child, so we can kill it on app exit
+/// and hand a user-initiated reconnect a way to force respawn from scratch.
 #[derive(Default)]
 pub struct WhatsappBridge {
     child: Arc<Mutex<Option<CommandChild>>>,
+    /// Store directory captured at `start()` — needed so `whatsapp_reconnect`
+    /// can call `spawn_bridge` directly when the supervisor pump has already
+    /// given up (restart budget exceeded).
+    store_dir: Mutex<Option<PathBuf>>,
+    /// Shared restart budget used by the supervisor pump. Reset to 0 on a
+    /// user-initiated reconnect so a fresh attempt gets the full budget.
+    restarts: Arc<AtomicU32>,
 }
 
 impl WhatsappBridge {
@@ -57,11 +66,15 @@ pub fn start(app: &AppHandle) {
         return;
     }
 
-    let state: WhatsappBridge = WhatsappBridge::default();
+    let restarts = Arc::new(AtomicU32::new(0));
+    let state = WhatsappBridge {
+        child: Arc::new(Mutex::new(None)),
+        store_dir: Mutex::new(Some(store_dir.clone())),
+        restarts: restarts.clone(),
+    };
     let child_slot = state.child.clone();
     app.manage(state);
 
-    let restarts = Arc::new(AtomicU32::new(0));
     spawn_bridge(app.clone(), store_dir, child_slot, restarts);
 }
 
@@ -137,6 +150,98 @@ fn spawn_bridge(
             }
         }
     });
+}
+
+/// User-initiated WhatsApp re-pairing. Wired to the "Reconnect" button in the
+/// desktop Settings drawer. Primary path is `POST <bridge>/api/logout`: the Go
+/// bridge clears its whatsmeow Store.ID and `os.Exit(0)`s after 300ms; the
+/// supervisor pump's Terminated arm respawns the sidecar into the QR branch,
+/// and the existing stdout → `whatsapp-qr` event → HUD overlay pipeline
+/// lights up on its own. Zero new event plumbing.
+///
+/// Fallbacks (in order) for when the bridge is unreachable / already dead:
+///   1. If a child handle is present, `kill()` it → pump's Terminated arm
+///      respawns after backoff.
+///   2. Otherwise (the pump previously gave up after MAX_RESTARTS crashes, or
+///      never started), respawn directly from the stored `store_dir`.
+/// In every path the restart budget is reset first so a user gesture gets a
+/// fresh chance; a broken store can no longer permanently poison the pump.
+#[tauri::command]
+pub async fn whatsapp_reconnect(
+    app: AppHandle,
+    bridge_url: Option<String>,
+) -> Result<String, String> {
+    let base = bridge_url
+        .as_deref()
+        .map(|s| s.trim_end_matches('/'))
+        .unwrap_or("http://localhost:8080")
+        .to_string();
+    let logout_url = format!("{base}/api/logout");
+
+    // A user gesture — give the pump the full restart budget again.
+    if let Some(bridge) = app.try_state::<WhatsappBridge>() {
+        bridge.restarts.store(0, Ordering::SeqCst);
+    }
+
+    // Primary path: ask the bridge to log out. It replies then exits itself.
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+    {
+        Ok(c) => c,
+        Err(err) => return Err(format!("reqwest client build failed: {err}")),
+    };
+    match client.post(&logout_url).send().await {
+        Ok(res) if res.status().is_success() => {
+            Ok("logout ok — re-pairing, QR incoming".to_string())
+        }
+        Ok(res) => {
+            // Bridge answered but with a non-2xx. Fall through to the
+            // kill/respawn fallback rather than surface a raw HTTP code.
+            eprintln!(
+                "[whatsapp] /api/logout returned HTTP {} — falling back to kill+respawn",
+                res.status()
+            );
+            fallback_respawn(&app)
+        }
+        Err(err) => {
+            // Bridge unreachable — fall back to kill/respawn.
+            eprintln!("[whatsapp] /api/logout unreachable ({err}) — falling back to kill+respawn");
+            fallback_respawn(&app)
+        }
+    }
+}
+
+/// Restart the sidecar when the bridge won't answer HTTP. Either kills the
+/// existing child (the pump's Terminated arm will respawn after backoff) or,
+/// if no child is present, spawns a fresh one directly from the stored dir.
+fn fallback_respawn(app: &AppHandle) -> Result<String, String> {
+    let bridge = app
+        .try_state::<WhatsappBridge>()
+        .ok_or_else(|| "whatsapp bridge state unavailable".to_string())?;
+
+    // Try to kill the running child. If we killed one, the supervisor pump's
+    // Terminated arm handles the respawn — no direct spawn needed.
+    let killed = {
+        match bridge.child.lock() {
+            Ok(mut guard) => guard.take().map(|c| c.kill().ok()).is_some(),
+            Err(_) => false,
+        }
+    };
+    if killed {
+        return Ok("bridge killed — respawning; scan the QR once it appears".to_string());
+    }
+
+    // No child — the pump either gave up or never started. Respawn directly.
+    let store_dir = match bridge.store_dir.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => None,
+    };
+    let Some(dir) = store_dir else {
+        return Err("no stored WhatsApp dir — restart the app to recover".to_string());
+    };
+    spawn_bridge(app.clone(), dir, bridge.child.clone(), bridge.restarts.clone());
+    Ok("bridge restarted — scan the QR once it appears".to_string())
 }
 
 /// Parse one stdout line and forward the structured event to the HUD.
