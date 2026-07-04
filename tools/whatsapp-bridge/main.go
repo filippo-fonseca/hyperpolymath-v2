@@ -235,21 +235,6 @@ func (b *bridge) currentQR() string {
 	return b.qr
 }
 
-// resolveJID turns a recipient (intl phone number like "15551234567", or a raw
-// JID containing "@") into a WhatsApp JID.
-func resolveJID(recipient string) (types.JID, error) {
-	recipient = strings.TrimSpace(recipient)
-	if recipient == "" {
-		return types.JID{}, fmt.Errorf("empty recipient")
-	}
-	if strings.Contains(recipient, "@") {
-		return types.ParseJID(recipient)
-	}
-	// Bare phone number → personal chat on the default user server.
-	number := strings.TrimPrefix(recipient, "+")
-	return types.NewJID(number, types.DefaultUserServer), nil
-}
-
 // looksLikePhoneNumber reports whether a recipient string is a bare phone
 // number (digits, optional leading '+', and dashes/spaces as visual separators)
 // vs. a contact name. A recipient with no '@' is a phone number when every
@@ -461,8 +446,17 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": "not logged in — scan the QR to pair WhatsApp"})
 		return
 	}
-	jid, err := resolveJID(req.Recipient)
+	jid, err := b.resolveRecipientToJID(r.Context(), req.Recipient)
 	if err != nil {
+		// Not-found and ambiguous are user-actionable — surface their
+		// error text verbatim so the desktop confirm-gate / JARVIS can
+		// tell the user what went wrong instead of a false success.
+		var notFound *errContactNotFound
+		var ambiguous *errContactAmbiguous
+		if errors.As(err, &notFound) || errors.As(err, &ambiguous) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": fmt.Sprintf("invalid recipient: %v", err)})
 		return
 	}
