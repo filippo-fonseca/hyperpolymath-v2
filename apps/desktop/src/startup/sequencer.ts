@@ -25,7 +25,7 @@
 // startup.openOnStart / startup.shortcuts — read via loadSettings(), written
 // via saveSetting() (that's the surface the settings UI builds on).
 
-import { handleAction, type DesktopAction } from "@/actions/dispatcher";
+import { fireOpenItems, handleAction } from "@/actions/dispatcher";
 import { runBriefing } from "@/briefing/briefing";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd } from "@/physical-extender/sse-client";
@@ -156,7 +156,9 @@ function beginBriefingDrainWatch(): { done: Promise<DrainOutcome>; cancel: () =>
   return { done, cancel: () => settle("cancelled") };
 }
 
-/** Step 2: open configured apps/URLs — all fired in parallel, never awaited. */
+/** Step 2: open configured apps/URLs — all fired in parallel, never awaited.
+ *  Delegates to the shared `fireOpenItems` helper in dispatcher.ts so the
+ *  open_workspace action follows the exact same code path. */
 function fireOpenOnStart(items: StartupOpenItem[]): void {
   if (items.length === 0) {
     // eslint-disable-next-line no-console
@@ -165,18 +167,7 @@ function fireOpenOnStart(items: StartupOpenItem[]): void {
   }
   // eslint-disable-next-line no-console
   console.log(`[startup] step 2: opening ${items.length} item(s) in parallel`);
-  for (const item of items) {
-    const action: DesktopAction =
-      item.type === "url"
-        ? { kind: "open_url", url: item.value, label: item.value }
-        : { kind: "open_app", app: item.value, label: item.value };
-    void handleAction(action).then((ok) => {
-      if (!ok) {
-        // eslint-disable-next-line no-console
-        console.warn(`[startup] step 2: failed to open ${item.type} "${item.value}"`);
-      }
-    });
-  }
+  fireOpenItems(items);
 }
 
 /** Step 3: run configured macOS Shortcuts — all fired in parallel, never awaited. */

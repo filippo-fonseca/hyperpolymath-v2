@@ -26,6 +26,7 @@ import {
   Music,
   Send,
   Brain,
+  AppWindow,
 } from "lucide-react";
 import type { JarvisToolName } from "@hyperpolymath/jarvis-core";
 
@@ -144,6 +145,17 @@ export const BLOCK_CATALOG: BlockCatalogEntry[] = [
     icon: Send,
     description: "Send a message on your behalf",
     directivePlaceholder: "text mom 'heading out now'",
+    group: "action",
+  },
+  {
+    // Workspace launcher — the block's params list carries the apps/URLs, so
+    // there is no NL directive. The BlockEditor hides the directive textarea
+    // for this tool and renders a rows editor instead.
+    tool: "open_workspace",
+    label: "Launch workspace",
+    icon: AppWindow,
+    description: "Open a set of apps and sites on run",
+    directivePlaceholder: "",
     group: "action",
   },
 ];

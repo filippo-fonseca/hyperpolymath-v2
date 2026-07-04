@@ -25,6 +25,7 @@ import type {
   ReadGmailAction,
   OpenAppAction,
   OpenUrlAction,
+  OpenWorkspaceAction,
   PlayMusicAction,
   PressKeyAction,
   ReadImessageAction,
@@ -132,6 +133,7 @@ export interface ActionExecutor {
   // for the desktop client to execute on the Mac. No DB writes, no gcal calls.
   openUrl(input: OpenUrlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   openApp(input: OpenAppAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  openWorkspace(input: OpenWorkspaceAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   webSearch(input: WebSearchAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Clicky slice — desktop action tools. Each validates input server-side and

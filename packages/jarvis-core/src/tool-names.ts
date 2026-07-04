@@ -30,6 +30,7 @@ export const JARVIS_TOOL_NAMES = [
   "link_people",
   "open_url",
   "open_app",
+  "open_workspace",
   "web_search",
   "send_message",
   "system_control",

@@ -92,6 +92,7 @@ import type {
   ReadGmailAction,
   OpenAppAction,
   OpenUrlAction,
+  OpenWorkspaceAction,
   PlayMusicAction,
   PressKeyAction,
   ReadImessageAction,
@@ -887,6 +888,21 @@ export function createServerExecutor(): ActionExecutor {
         id: `open_app:${input.app}`,
         receipt: { app: input.app, label },
         action: { kind: "open_app", app: input.app, label },
+      };
+    },
+
+    async openWorkspace(
+      input: OpenWorkspaceAction,
+      _ctx: ExecutionContext,
+    ): Promise<ExecutorResult> {
+      // Pure echo — server-side Zod validation ran in run-turn.ts. The
+      // desktop dispatcher fans the list out into parallel opens and the
+      // best-effort fullscreen chain.
+      return {
+        ok: true,
+        id: `open_workspace:${input.items.length}`,
+        receipt: { items: input.items, count: input.items.length },
+        action: { kind: "open_workspace", items: input.items },
       };
     },
 
