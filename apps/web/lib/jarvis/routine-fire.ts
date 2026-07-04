@@ -64,6 +64,12 @@ export interface FireRoutineOpts {
    * blocks run concurrently in a bounded pool. Ignored when synthesize is false.
    */
   parallel?: boolean;
+  /**
+   * Routine-level loading instruction. When set (non-empty), the runner
+   * interprets it into a fresh spoken opener line that REPLACES the default
+   * "Welcome home, sir" opener. Empty/undefined = the default opener.
+   */
+  loadingInstruction?: string;
 }
 
 /**
@@ -123,6 +129,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       synthesize: opts.synthesize,
       parallel: opts.parallel,
       routineName: opts.routineName,
+      loadingInstruction: opts.loadingInstruction,
       runId,
       abortSignal: opts.abortSignal,
     },

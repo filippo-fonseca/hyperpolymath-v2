@@ -95,6 +95,13 @@ export interface RoutineRunContext {
   parallel?: boolean;
   /** Human name of the routine — used for the synthesized block id prefix. */
   routineName: string;
+  /**
+   * Optional ROUTINE-LEVEL loading instruction. When a non-empty string, the
+   * runner interprets it (via the same prose-only Anthropic call the per-block
+   * fillers use) into a fresh spoken opener line that REPLACES the default
+   * hardcoded "Welcome home, sir" opener. Empty/undefined = default opener.
+   */
+  loadingInstruction?: string;
   /** Stable id for this run — used to key per-block ids when a block has none. */
   runId?: string;
   abortSignal?: AbortSignal;
@@ -469,9 +476,30 @@ export async function runRoutine(
   const synth = ctx.synthesize === true;
 
   // Option C: an instant one-line opener so there is audio feedback the moment
-  // the routine fires, while the blocks gather silently behind it.
+  // the routine fires, while the blocks gather silently behind it. When the
+  // routine author wrote a routine-level `loadingInstruction`, INTERPRET it into
+  // a fresh (non-deterministic) opener line that REPLACES the default; otherwise
+  // keep the hardcoded default opener. Failure-isolated: any throw/null from the
+  // filler generation falls back to the default so the opener is never skipped.
   if (synth) {
-    handlers.onOpener?.("Welcome home, sir — one moment.");
+    const DEFAULT_OPENER = "Welcome home, sir — one moment.";
+    let opener = DEFAULT_OPENER;
+    const instruction = ctx.loadingInstruction?.trim();
+    if (instruction) {
+      try {
+        const line = await generateBlockFillerLine({
+          apiKey: ctx.apiKey,
+          loadingInstruction: instruction,
+          tool: "routine",
+          routineName: ctx.routineName,
+          abortSignal: ctx.abortSignal,
+        });
+        if (line) opener = line;
+      } catch (err) {
+        console.error("[routine-runner] opener filler failed, using default", err);
+      }
+    }
+    handlers.onOpener?.(opener);
   }
 
   // In synthesis mode the blocks GATHER: their tools fire and receipts render
