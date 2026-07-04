@@ -5,16 +5,18 @@ import type {
   RoutineSpec,
   RoutineTriggerType,
 } from "@hyperpolymath/jarvis-core/routines";
+import { sourceLabelForTool } from "@hyperpolymath/jarvis-core/routines";
 
 import {
   emitJarvisResponseChunk,
   emitJarvisResponseEnd,
   emitJarvisResponseStart,
+  emitJarvisRoutineProgress,
   emitJarvisToolCall,
 } from "@/lib/voice/physical-extension/bus";
 import { db } from "@/lib/db";
 import { routines } from "@/lib/db/schema";
-import { runRoutine } from "@/lib/jarvis/routine-runner";
+import { resolveBlockId, runRoutine } from "@/lib/jarvis/routine-runner";
 
 type RoutineRow = typeof routines.$inferSelect;
 
@@ -73,6 +75,33 @@ export interface FireRoutineOpts {
  */
 export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts): string {
   const runId = opts.runId ?? crypto.randomUUID();
+
+  // Real-time routine-progress lifecycle (synthesize mode only). The gather /
+  // synthesis handlers below only fire in synth mode (runner-gated), but the
+  // routine-level `start` emit lives here and needs its own gate; one local
+  // flag keeps the "nothing emitted for a non-synthesize routine" contract
+  // obvious. Compute the source skeleton once and close over it.
+  const progress = opts.synthesize === true;
+  const total = blocks.length;
+  const sources = blocks.map((b, i) => ({
+    blockId: resolveBlockId(b, runId, i),
+    index: i,
+    tool: b.tool as string,
+    label: sourceLabelForTool(b.tool as string),
+  }));
+  if (progress) {
+    // Emitted SYNCHRONOUSLY before runRoutine's first (awaited) work, so `start`
+    // precedes the opener and every gather event.
+    emitJarvisRoutineProgress({
+      runId,
+      routineName: opts.routineName,
+      phase: "start",
+      total,
+      sources,
+      at: Date.now(),
+    });
+  }
+
   void runRoutine(
     blocks,
     {
@@ -123,13 +152,63 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       // The synthesized brief streams under ONE turnId — the desktop segments +
       // speaks it as a single cohesive utterance.
       onSynthesisStart: (turnId) => {
+        // Progress FIRST so the HUD flips to "composing" before/with the brief's
+        // first token.
+        if (progress) {
+          emitJarvisRoutineProgress({
+            runId,
+            routineName: opts.routineName,
+            phase: "synthesizing",
+            total,
+            at: Date.now(),
+          });
+        }
         emitJarvisResponseStart({ turnId, at: Date.now() });
       },
       onSynthesisDelta: (turnId, delta) => {
         emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
       },
       onSynthesisDone: (turnId) => {
+        // Response end FIRST so `done` is truly terminal for the HUD.
         emitJarvisResponseEnd({ turnId, at: Date.now() });
+        if (progress) {
+          emitJarvisRoutineProgress({
+            runId,
+            routineName: opts.routineName,
+            phase: "done",
+            total,
+            at: Date.now(),
+          });
+        }
+      },
+      // --- Gather progress (synthesize mode only; runner-gated) ------------
+      onGatherBlockStart: (blockId, index, totalBlocks, tool) => {
+        emitJarvisRoutineProgress({
+          runId,
+          routineName: opts.routineName,
+          phase: "gather-start",
+          total: totalBlocks,
+          blockId,
+          index,
+          tool,
+          label: sourceLabelForTool(tool),
+          at: Date.now(),
+        });
+      },
+      onGatherBlockDone: (result, index, totalBlocks) => {
+        emitJarvisRoutineProgress({
+          runId,
+          routineName: opts.routineName,
+          phase: "gather-done",
+          total: totalBlocks,
+          blockId: result.blockId,
+          index,
+          tool: result.tool,
+          label: sourceLabelForTool(result.tool),
+          ok: !result.error,
+          ...(result.error ? { error: result.error } : {}),
+          at: Date.now(),
+        });
       },
     },
   ).catch((err: unknown) => {
