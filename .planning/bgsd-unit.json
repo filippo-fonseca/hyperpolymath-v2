@@ -1,18 +1,16 @@
 {
-  "unit_id": "wa-sync-launchd",
-  "title": "Point the WhatsApp sync worker at the desktop store + run it under persistent launchd",
-  "scope": "This branch is based on wa-bridge-capture, where the desktop bridge now captures messages into app_data_dir/whatsapp/whatsapp.db in a `messages`/`chats` table matching the lharries schema. Make the sync worker run persistently and read the RIGHT database.\n\nDO:\n1. tools/whatsapp-sync/sync.mjs: change default WHATSAPP_DB_PATH (currently ~/whatsapp-mcp/whatsapp-bridge/store/messages.db at ~sync.mjs:41-43) to ~/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp/whatsapp.db. Keep env-overridable. Verify the SELECT (~sync.mjs:79-91: messages.content, is_from_me, timestamp; join chats.name) matches the capture schema the bridge now writes (read tools/whatsapp-bridge/main.go in this branch to confirm the exact table/column names); adjust the query only if needed.\n2. Add a launchd plist tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist (RunAtLoad + KeepAlive, JARVIS_APP_URL + JARVIS_DEVICE_TOKEN env vars), per the README template. For local dev JARVIS_APP_URL is http://localhost:3000. Document loading it in the README.\n3. Register the sync worker in tools/hyperpolymath/hyperpolymath.mjs SERVICES array so it comes up with the stack (follow the existing service entry pattern).\n4. Update tools/whatsapp-sync/README.md: desktop store canonical; the standalone lharries bridge is RETIRED (Option A, fresh-from-now, no backfill).\n\nDo NOT change the ingest route or whatsapp_messages schema.",
+  "unit_id": "wa-send-timeout",
+  "title": "Fail-fast timeout + clean error on WhatsApp send so a dead bridge never wedges the UI",
+  "scope": "When the user confirms a WhatsApp send ('yes send it') and the bridge is down/hung, the send currently hangs with no timeout, freezing the desktop confirm-gate in 'awaiting confirmation'/'sending' and blocking ALL further JARVIS input (observed: user could not talk to JARVIS at all until a restart). Make the send path fail FAST and cleanly.\n\nDO:\n1. In apps/desktop/src/actions/confirm-gate.ts, executeWhatsappSend (~lines 117-154) POSTs to http://localhost:8080/api/send (bridge; overridable via settings.whatsappBridgeUrl). Add an AbortController with a sensible timeout (~8s). On timeout, network error, or a non-2xx (the bridge returns 502 'not logged in' when unpaired, main.go:124), DO NOT hang: resolve the confirm-gate into a terminal FAILED state, surface a clean spoken + UI error (e.g. 'I could not reach WhatsApp, sir — the bridge may be disconnected.'), and ensure the conversation/input is unblocked so the user can talk to JARVIS again immediately.\n2. Audit apps/web/lib/jarvis/send-message.ts (the tool) for any server-side path that could hang the agent turn; ensure the tool call always terminates with a clear success or failure result (never an open-ended await).\n3. Make the failure state visibly clear the '▸ WhatsApp to X — awaiting confirmation' pending UI so it doesn't stick after a failed/aborted send.\n\nKeep a SUCCESSFUL send behaving exactly as today. This is about robustness on the failure path only.",
   "criteria": [
-    "sync.mjs defaults to the desktop bridge store path, still env-overridable, and its SELECT matches the capture schema written by tools/whatsapp-bridge/main.go on this branch.",
-    "A launchd plist (RunAtLoad + KeepAlive) exists so the worker runs persistently; README documents loading it.",
-    "The sync worker is registered in tools/hyperpolymath/hyperpolymath.mjs SERVICES so it starts with the stack.",
-    "README updated: desktop store canonical, lharries retired.",
-    "No change to /api/whatsapp/ingest or whatsapp_messages."
+    "With the bridge down/unreachable, a confirmed WhatsApp send fails cleanly within ~8s (AbortController timeout), never hangs.",
+    "After a failed/aborted send, the desktop confirm-gate + conversation are NOT left stuck — the user can immediately send another message to JARVIS (no restart needed).",
+    "JARVIS surfaces a clear, spoken failure message on send failure; the pending 'awaiting confirmation' UI is cleared.",
+    "A successful send (bridge healthy + paired) works exactly as before — no regression.",
+    "The send_message tool call always terminates (success or clean failure); no open-ended awaits."
   ],
   "touched": [
-    "tools/whatsapp-sync/sync.mjs",
-    "tools/whatsapp-sync/com.hyperpolymath.whatsapp-sync.plist",
-    "tools/whatsapp-sync/README.md",
-    "tools/hyperpolymath/hyperpolymath.mjs"
+    "apps/desktop/src/actions/confirm-gate.ts",
+    "apps/web/lib/jarvis/send-message.ts"
   ]
 }

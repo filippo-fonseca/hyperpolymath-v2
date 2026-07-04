@@ -59,6 +59,14 @@ const DEDUPE_WINDOW_MS = 30_000;
 /** Hard backstop: a pending confirm never outlives this, even if the
  *  conversation somehow stays active. */
 const PENDING_TTL_MS = 120_000;
+/** Fail-fast timeout on the POST to the WhatsApp bridge. Without this, a dead
+ *  or wedged bridge (process crashed, unpaired mid-QR, tunnel down) would leave
+ *  the send `fetch` hanging indefinitely — the failure line never speaks, the
+ *  conversation FSM never sees a terminal signal, and the whole thing feels
+ *  locked up. Eight seconds is the smallest budget that comfortably covers a
+ *  healthy bridge on a laptop that just woke from sleep. Anything longer than
+ *  this and the user reasonably assumes we broke. */
+const WHATSAPP_SEND_TIMEOUT_MS = 8_000;
 
 interface PendingSend {
   action: SendMessageAction;
@@ -124,11 +132,19 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     console.warn("[confirm] whatsapp: failed to load bridge URL from settings, using default", err);
   }
   const target = `${bridgeUrl}/api/send`;
+  // Bound the request so a dead/hung bridge can never wedge the UI. The
+  // AbortController fires at WHATSAPP_SEND_TIMEOUT_MS; on abort the fetch
+  // rejects with an AbortError we tag as `reason: "timeout"` so the caller can
+  // speak a distinct "may be disconnected" line for it (versus the plain
+  // unreachable/HTTP-error cases).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WHATSAPP_SEND_TIMEOUT_MS);
   try {
     const res = await fetch(target, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ recipient: action.recipient, message: action.text }),
+      signal: ctrl.signal,
     });
     if (!res.ok) {
       // eslint-disable-next-line no-console
@@ -144,12 +160,22 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     );
     return { ok: true };
   } catch (err) {
+    const aborted = ctrl.signal.aborted || (err as { name?: string })?.name === "AbortError";
+    if (aborted) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[confirm] whatsapp send to "${action.recipient}" timed out after ${WHATSAPP_SEND_TIMEOUT_MS}ms at ${target}. Bridge is likely wedged or unpaired. See tools/whatsapp-sync/README.md.`,
+      );
+      return { ok: false, reason: "timeout" };
+    }
     // eslint-disable-next-line no-console
     console.warn(
       `[confirm] whatsapp send to "${action.recipient}" failed — could not reach bridge at ${target}. Is the whatsapp bridge running? See tools/whatsapp-sync/README.md.`,
       err,
     );
     return { ok: false, reason: "unreachable" };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -182,10 +208,20 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
 async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   const result = await executeSend(action);
   if (result.ok) return;
-  const failureLine =
-    action.app === "whatsapp"
-      ? "I couldn't reach WhatsApp, sir."
-      : "I couldn't send that, sir.";
+  // A timeout is qualitatively different from "unreachable": the bridge process
+  // is up enough to accept a TCP connection but is not answering — almost
+  // always a wedged bridge or an unpaired WhatsApp session. Speak a slightly
+  // more specific line so the user knows to check pairing/logs rather than
+  // assume the bridge is off entirely.
+  let failureLine: string;
+  if (action.app === "whatsapp") {
+    failureLine =
+      result.reason === "timeout"
+        ? "I couldn't reach WhatsApp, sir. The bridge may be disconnected."
+        : "I couldn't reach WhatsApp, sir.";
+  } else {
+    failureLine = "I couldn't send that, sir.";
+  }
   ttsPlayer.enqueueSentence(failureLine, Date.now());
 }
 
@@ -225,6 +261,9 @@ export function holdSendMessage(action: SendMessageAction): void {
       `[confirm] send_message pre-confirmed by preceding affirmative ("${lastTranscript.text}") — sending`,
     );
     lastTranscript = null;
+    // Fire-and-forget: same load-bearing invariant as resolvePendingWithTranscript.
+    // Awaiting here would let a slow/timing-out send freeze the transcript pipeline
+    // — the exact wedge the WhatsApp 8s timeout was added to end.
     void dispatchAndReport(action);
     return;
   }
@@ -266,6 +305,11 @@ function resolvePendingWithTranscript(text: string): boolean {
     clearPendingState();
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
+    // Load-bearing fire-and-forget: `clearPendingState()` has already dropped
+    // the amber HUD ring and released the pending listeners, so the transcript
+    // pipeline is unblocked the moment we return `true`. Never `await` the
+    // dispatch here — a slow/timing-out send would freeze input again, which
+    // is the exact wedge this unit was created to fix.
     void dispatchAndReport(action);
     return true;
   }
