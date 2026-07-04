@@ -55,6 +55,7 @@ import {
   ReadGmailInputSchema,
   GetNewsInputSchema,
   ReadWhatsappInputSchema,
+  ReadImessageInputSchema,
   ComputerUseInputSchema,
 } from "@hyperpolymath/jarvis-core/tools";
 import type { ZodType } from "zod";
@@ -187,6 +188,7 @@ function buildParamValidators(voiceActive: boolean): Record<JarvisToolName, ZodT
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
     read_whatsapp: ReadWhatsappInputSchema,
+    read_imessage: ReadImessageInputSchema,
     computer_use: ComputerUseInputSchema,
   };
 }

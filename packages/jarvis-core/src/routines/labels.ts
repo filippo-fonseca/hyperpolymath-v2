@@ -13,6 +13,7 @@ const SOURCE_LABELS: Partial<Record<JarvisToolName, string>> = {
   read_gmail: "Email",
   get_news: "News",
   read_whatsapp: "WhatsApp",
+  read_imessage: "iMessage",
   find_tasks: "Tasks",
   find_events: "Calendar",
   find_captures: "Captures",

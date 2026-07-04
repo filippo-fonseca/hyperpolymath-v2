@@ -46,6 +46,7 @@ import {
   tasks,
   tasksProjects,
   whatsappMessages,
+  imessageMessages,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
@@ -93,6 +94,7 @@ import type {
   OpenUrlAction,
   PlayMusicAction,
   PressKeyAction,
+  ReadImessageAction,
   ReadWhatsappAction,
   RememberFactAction,
   RunApplescriptAction,
@@ -1401,6 +1403,105 @@ export function createServerExecutor(): ActionExecutor {
         return {
           ok: true,
           id: `read_whatsapp:${totalCount}`,
+          receipt: { chats, totalCount, windowHours },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "internal",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readImessage(input: ReadImessageAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Server-side read from imessage_messages (populated by the local chat.db
+      // sync worker). Empty table → friendly hint receipt; the agent narrates
+      // it rather than guessing.
+      const windowHours = Math.min(input.since_hours ?? 24, 168);
+      const cap = Math.min(input.maxResults ?? 30, 100);
+      const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+      try {
+        const filters = [
+          eq(imessageMessages.userId, ctx.userId),
+          gte(imessageMessages.sentAt, since),
+        ];
+        if (input.chat && input.chat.trim()) {
+          const pattern = `%${input.chat.trim()}%`;
+          const chatFilter = or(
+            ilike(imessageMessages.chatName, pattern),
+            ilike(imessageMessages.senderName, pattern),
+          );
+          if (chatFilter) filters.push(chatFilter);
+        }
+
+        const rows = await db
+          .select({
+            chatJid: imessageMessages.chatJid,
+            chatName: imessageMessages.chatName,
+            senderName: imessageMessages.senderName,
+            fromMe: imessageMessages.fromMe,
+            body: imessageMessages.body,
+            sentAt: imessageMessages.sentAt,
+          })
+          .from(imessageMessages)
+          .where(and(...filters))
+          .orderBy(desc(imessageMessages.sentAt))
+          .limit(cap);
+
+        if (rows.length === 0) {
+          return {
+            ok: true,
+            id: "read_imessage:empty",
+            receipt: {
+              chats: [],
+              totalCount: 0,
+              windowHours,
+              note:
+                "No synced iMessages yet — is the local iMessage sync worker running? (It syncs Messages' chat.db into Postgres; see tools/ for the sync workers.)",
+            },
+          };
+        }
+
+        // Group by chat, preserving newest-first order.
+        const chatMap = new Map<
+          string,
+          {
+            chatName: string;
+            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+          }
+        >();
+        for (const r of rows) {
+          const key = r.chatJid;
+          const bucket = chatMap.get(key);
+          const entry = {
+            senderName: r.senderName,
+            fromMe: r.fromMe,
+            body: r.body,
+            sentAt: r.sentAt instanceof Date ? r.sentAt.toISOString() : String(r.sentAt),
+          };
+          if (bucket) {
+            bucket.messages.push(entry);
+          } else {
+            chatMap.set(key, {
+              chatName: r.chatName ?? r.senderName ?? r.chatJid,
+              messages: [entry],
+            });
+          }
+        }
+
+        let chats = Array.from(chatMap.values());
+        if (input.unrepliedOnly === true) {
+          // "Unreplied" = the most recent message in the chat is NOT from the user.
+          // Rows are ordered newest-first, so the first message in each group is the latest.
+          chats = chats.filter((c) => c.messages.length > 0 && !c.messages[0]!.fromMe);
+        }
+
+        const totalCount = chats.reduce((n, c) => n + c.messages.length, 0);
+        return {
+          ok: true,
+          id: `read_imessage:${totalCount}`,
           receipt: { chats, totalCount, windowHours },
         };
       } catch (err) {
