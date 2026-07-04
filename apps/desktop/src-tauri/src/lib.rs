@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod computer;
+mod whatsapp;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -104,6 +105,11 @@ pub fn run() {
                 })
                 .build(app)?;
 
+            // Spawn + supervise the bundled WhatsApp bridge sidecar so the
+            // send path (POST localhost:8080/api/send) works with no manual
+            // `go run`. Forwards QR/ready events to the HUD; restarts on crash.
+            whatsapp::start(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -125,6 +131,15 @@ pub fn run() {
             computer::system_control,
             computer::accessibility_trusted,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Kill the WhatsApp bridge sidecar when the app is quitting so it
+            // does not outlive the HUD (the session persists on disk).
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                if let Some(bridge) = app.try_state::<whatsapp::WhatsappBridge>() {
+                    bridge.kill();
+                }
+            }
+        });
 }
