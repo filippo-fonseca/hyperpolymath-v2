@@ -37,6 +37,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
+    "externalBin": ["binaries/whatsapp-bridge"],
     "category": "Utility",
     "shortDescription": "JARVIS microphone middleman",
     "longDescription": "Owns the microphone for JARVIS voice commands so the browser does not have to prompt per session.",
