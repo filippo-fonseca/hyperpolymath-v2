@@ -74,6 +74,16 @@ export interface RoutineBlock {
    * call.
    */
   nlDirective?: string;
+  /**
+   * Optional INSTRUCTIONS (not a verbatim script) for what JARVIS should SAY
+   * while this block is fetching, spoken WHILE the block gathers and BEFORE
+   * its real result. The runner interprets this through a small prose-only
+   * Anthropic call so the actual filler line is non-deterministic (semantically
+   * the same, phrased differently every run). Emitted as an independent spoken
+   * turn (`${blockId}:filler`) that mirrors the routine opener and bypasses the
+   * synthesize-mode suppression that silences ordinary gather narration.
+   */
+  loadingInstruction?: string;
 }
 
 // --- The spec (JSONB payload) --------------------------------------------

@@ -53,6 +53,10 @@ export const zRoutineBlock = z.object({
   tool: z.string().min(1),
   params: z.record(z.string(), z.unknown()).default({}),
   nlDirective: z.string().max(2000).optional(),
+  // Free-text INSTRUCTIONS for the spoken "loading" filler line played while
+  // this block gathers. Interpreted by the runner (small prose-only Anthropic
+  // call), not spoken verbatim. Optional — existing specs parse unchanged.
+  loadingInstruction: z.string().max(2000).optional(),
 });
 
 // --- Spec schema ----------------------------------------------------------
