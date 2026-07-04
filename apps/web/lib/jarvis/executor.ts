@@ -918,6 +918,13 @@ export function createServerExecutor(): ActionExecutor {
     // (Open-Meteo fetch) and returns data in the receipt with no action.
     // -------------------------------------------------------------------------
 
+    // INVARIANT: this executor is intentionally synchronous — no network I/O,
+    // no awaits, no long-running work. The actual send (AppleScript for
+    // iMessage, HTTP POST to the local bridge for WhatsApp) happens on the
+    // desktop side inside the confirm gate (apps/desktop/src/actions/confirm-gate.ts).
+    // Do NOT reach out to an external service from here, or the agent turn can
+    // hang on a wedged transport and the "send_message tool call always
+    // terminates" guarantee breaks silently.
     async sendMessage(input: SendMessageAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       const recipient = input.recipient.trim();
       const text = input.text.trim();
