@@ -29,6 +29,15 @@
       ]
     },
     {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/whatsapp-bridge",
+          "sidecar": true
+        }
+      ]
+    },
+    {
       "identifier": "http:default",
       "allow": [
         { "url": "http://localhost:3000/*" },
