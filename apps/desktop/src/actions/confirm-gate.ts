@@ -186,7 +186,11 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
     action.app === "whatsapp"
       ? "I couldn't reach WhatsApp, sir."
       : "I couldn't send that, sir.";
-  ttsPlayer.enqueueSentence(failureLine, Date.now());
+  // speakNow synthesizes a one-shot turnId and ends it immediately, so the
+  // line is guaranteed to play (previously we passed Date.now() as a "seq"
+  // against a global counter that started at 0 — the sentence never matched
+  // the expected seq and silently wedged the queue).
+  ttsPlayer.speakNow(failureLine);
 }
 
 /**
