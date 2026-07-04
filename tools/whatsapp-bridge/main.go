@@ -285,13 +285,31 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	_, err = b.client.SendMessage(ctx, jid, &waE2E.Message{
+	resp, err := b.client.SendMessage(ctx, jid, &waE2E.Message{
 		Conversation: proto.String(req.Message),
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("send failed: %v", err)})
 		return
 	}
+	// Mirror the outgoing message into the capture store. SendMessage does not
+	// fire events.Message on the sending client, so we insert here. Failure
+	// must not fail the send response — log only.
+	go func(chat types.JID, resp whatsmeow.SendResponse, body string) {
+		senderUser := ""
+		if id := b.client.Store.ID; id != nil {
+			senderUser = id.User
+		}
+		name := b.chatDisplayName(context.Background(), chat, "")
+		chatJID := chat.String()
+		if err := b.upsertChat(chatJID, name, resp.Timestamp); err != nil {
+			log.Printf("capture(send): upsertChat %s: %v", chatJID, err)
+			return
+		}
+		if err := b.storeMessage(resp.ID, chatJID, senderUser, body, "", resp.Timestamp, true); err != nil {
+			log.Printf("capture(send): storeMessage %s/%s: %v", chatJID, resp.ID, err)
+		}
+	}(jid, resp, req.Message)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
