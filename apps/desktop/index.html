@@ -173,6 +173,190 @@
       }
       .ack-strip.visible { opacity: 1; }
 
+      /* ── Routine progress ring — a conic-gradient arc that fills around the
+         orb as a synthesize routine's sources settle (src/hud/routine-loader.ts).
+         Sits just outside the canvas ring / tick overlay (orb ring = 0.28 of the
+         box, ticks = 0.33; this ring rides at ~0.40 so it frames both). The fill
+         is driven by a single CSS custom property, --progress (an angle 0→360deg),
+         so advancing a source is one cheap GPU transition — no rAF loop (the orb
+         already owns one). The track is a faint full circle; the arc is the cyan
+         conic gradient masked to a thin annulus. ── */
+      .routine-ring {
+        position: absolute;
+        left: 50%; top: 50%;
+        width: 80%; height: 80%;
+        transform: translate(-50%, -50%) scale(0.86);
+        border-radius: 50%;
+        display: grid; place-items: center;
+        opacity: 0;
+        /* Cyan arc for 0→--progress, transparent for the remainder, over a faint
+           track laid underneath via the second (radial) layer's border. */
+        --progress: 0deg;
+        background:
+          conic-gradient(
+            from -90deg,
+            var(--accent-hi) 0deg,
+            var(--accent) var(--progress),
+            transparent var(--progress) 360deg
+          );
+        /* Mask the disc to a thin ring so only the annulus shows. */
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+                mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+        transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                    background 0.5s ease;
+        pointer-events: none;
+      }
+      /* Faint always-there track behind the fill (a separate element would need
+         markup; a box-shadow inset ring reads the same at this scale). */
+      .routine-ring::before {
+        content: "";
+        position: absolute; inset: 0; border-radius: 50%;
+        border: 3px solid color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+      body[data-routine="active"] .routine-ring {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      /* The label is unmasked (it lives above the masked ring background). */
+      .routine-ring-label {
+        position: absolute; left: 50%; bottom: -18px;
+        transform: translateX(-50%);
+        font-family: var(--mono);
+        font-size: 10px; letter-spacing: 0.1em;
+        color: color-mix(in srgb, var(--accent) 75%, var(--fg));
+        -webkit-mask: none; mask: none;
+        white-space: nowrap;
+      }
+
+      /* ── Routine loader card — top-left rail, clear of the transcript. Glassy
+         near-black panel echoing the WhatsApp card register. Fades + rises in on
+         `start`, out on `done`. Fixed max-width so it never crowds the orb. ── */
+      .routine-loader {
+        position: fixed;
+        left: 14px; top: 46px;
+        z-index: 40;
+        width: 208px; max-width: 44vw;
+        padding: 12px 13px 11px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--rule));
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
+        backdrop-filter: blur(9px) saturate(120%);
+        -webkit-backdrop-filter: blur(9px) saturate(120%);
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5),
+                    0 0 18px color-mix(in srgb, var(--accent) 16%, transparent);
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        pointer-events: none;
+      }
+      .routine-loader.visible { opacity: 1; transform: translateY(0); }
+
+      .routine-loader-head {
+        display: flex; align-items: center; gap: 8px;
+        margin-bottom: 9px;
+      }
+      .routine-loader-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+        flex: none;
+        animation: routine-dot-pulse 1.6s ease-in-out infinite;
+      }
+      /* On the composing beat the dot settles to a steady warm glow. */
+      .routine-loader[data-phase="composing"] .routine-loader-dot,
+      .routine-loader[data-phase="done"] .routine-loader-dot { animation: none; }
+      @keyframes routine-dot-pulse {
+        0%, 100% { opacity: 0.4; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+      .routine-loader-title {
+        font-family: var(--mono);
+        font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--accent);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+
+      .routine-loader-list {
+        list-style: none; margin: 0; padding: 0;
+        display: flex; flex-direction: column; gap: 5px;
+      }
+      .routine-row {
+        display: flex; align-items: center; gap: 8px;
+        font-family: var(--serif);
+        font-size: 13.5px; line-height: 1.3;
+        color: var(--muted);
+        transition: color 0.3s ease, opacity 0.3s ease;
+      }
+      .routine-row-mark {
+        flex: none;
+        width: 14px; height: 14px; border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, var(--muted) 60%, transparent);
+        position: relative;
+        transition: border-color 0.3s ease, background 0.3s ease;
+      }
+      /* Active: a thin cyan indeterminate spinner ring (only spinning motion in
+         the card; calm, single revolution ~1s). */
+      .routine-row[data-status="active"] { color: var(--fg); }
+      .routine-row[data-status="active"] .routine-row-mark {
+        border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+        border-top-color: var(--accent);
+        animation: routine-spin 0.9s linear infinite;
+      }
+      @keyframes routine-spin { to { transform: rotate(360deg); } }
+      /* Done: filled cyan disc with a check drawn via ::after. */
+      .routine-row[data-status="done"] { color: var(--fg); }
+      .routine-row[data-status="done"] .routine-row-mark {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+      .routine-row[data-status="done"] .routine-row-mark::after {
+        content: "";
+        position: absolute; left: 4px; top: 1px;
+        width: 3.5px; height: 7px;
+        border: solid var(--accent-hi);
+        border-width: 0 1.6px 1.6px 0;
+        transform: rotate(45deg);
+      }
+      /* Error: muted amber-red ring with a small ✕; the row copy dims, not shouts
+         (a failed source is informational, not alarming). */
+      .routine-row[data-status="error"] { color: color-mix(in srgb, var(--fg) 55%, var(--muted)); }
+      .routine-row[data-status="error"] .routine-row-mark {
+        border-color: color-mix(in srgb, var(--err) 70%, transparent);
+      }
+      .routine-row[data-status="error"] .routine-row-mark::after {
+        content: "✕";
+        position: absolute; inset: 0;
+        display: grid; place-items: center;
+        font-size: 8px; line-height: 1; color: var(--err);
+      }
+
+      .routine-loader-phase {
+        margin-top: 10px; padding-top: 8px;
+        border-top: 1px solid var(--rule);
+        font-family: var(--mono);
+        font-size: 10px; letter-spacing: 0.06em;
+        color: var(--muted);
+        transition: color 0.3s ease;
+      }
+      .routine-loader[data-phase="composing"] .routine-loader-phase { color: var(--accent); }
+      .routine-loader[data-phase="done"] .routine-loader-phase {
+        color: color-mix(in srgb, var(--accent) 80%, var(--fg));
+      }
+
+      /* Reduced-motion: keep the affordances, drop the animation. The ring still
+         fills (as an instant step) and rows still tick, but nothing spins,
+         pulses, or eases. */
+      @media (prefers-reduced-motion: reduce) {
+        .routine-ring,
+        .routine-loader { transition: opacity 0.001s linear; }
+        .routine-ring { transition-property: opacity, background; }
+        .routine-loader-dot,
+        .routine-row[data-status="active"] .routine-row-mark { animation: none; }
+        .routine-row,
+        .routine-row-mark,
+        .routine-loader-phase { transition: none; }
+      }
+
       /* ── Transcript: the scrollable middle region. Never overlaps anything.
          Auto-scrolls to the latest text; wraps; readable type. ── */
       .transcript {
@@ -473,12 +657,33 @@
         <div class="orb-wrap">
           <canvas id="orb-canvas" aria-hidden="true"></canvas>
           <div class="orb-ticks" aria-hidden="true"></div>
+          <!-- Routine progress ring (src/hud/routine-loader.ts). A conic-gradient
+               arc that fills around the orb as a synthesize routine's sources
+               settle. Hidden until the loader is visible; the center label reads
+               "3/5" then "✓". CSS-only fill via the --progress angle var. -->
+          <div class="routine-ring" id="routine-ring" aria-hidden="true">
+            <span class="routine-ring-label" id="routine-ring-label"></span>
+          </div>
         </div>
         <div class="status-line" id="status-line">
           <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
         </div>
         <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
       </header>
+
+      <!-- Routine loader card (src/hud/routine-loader.ts). A fixed glassy panel
+           on the top-left rail, clear of the transcript scroll region, that
+           lists every source of a synthesize routine and ticks each as it
+           settles. Visible only while a routine is in flight; the ring around
+           the orb is its sibling. Never overlaps the transcript. -->
+      <aside class="routine-loader" id="routine-loader" aria-live="polite">
+        <div class="routine-loader-head">
+          <span class="routine-loader-dot" aria-hidden="true"></span>
+          <span class="routine-loader-title" id="routine-loader-title">Routine</span>
+        </div>
+        <ul class="routine-loader-list" id="routine-loader-list"></ul>
+        <div class="routine-loader-phase" id="routine-loader-phase">One moment…</div>
+      </aside>
 
       <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
            auto-scrolls to the latest. Wraps; readable type; never overlaps. -->

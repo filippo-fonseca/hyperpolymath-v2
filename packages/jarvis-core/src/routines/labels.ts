@@ -35,6 +35,6 @@ export function sourceLabelForTool(tool: string): string {
   return tool
     .replace(/^(get|read|find)_/, "")
     .split("_")
-    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .map((w) => (w.length > 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
     .join(" ");
 }
