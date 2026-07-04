@@ -35,6 +35,7 @@ import (
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
 
@@ -60,6 +61,88 @@ type bridge struct {
 	// sync.mjs tolerates NULL/stale names.
 	groupMu    sync.Mutex
 	groupNames map[types.JID]string
+}
+
+// extractContent pulls a text body out of a whatsmeow message, or classifies
+// which media field is present. Returns (content, mediaType). Both empty means
+// the row is not worth persisting (receipts, reactions, protocol messages).
+func extractContent(m *waE2E.Message) (string, string) {
+	if m == nil {
+		return "", ""
+	}
+	if c := m.GetConversation(); c != "" {
+		return c, ""
+	}
+	if ext := m.GetExtendedTextMessage(); ext != nil {
+		if t := ext.GetText(); t != "" {
+			return t, ""
+		}
+	}
+	switch {
+	case m.GetImageMessage() != nil:
+		return "", "image"
+	case m.GetVideoMessage() != nil:
+		return "", "video"
+	case m.GetAudioMessage() != nil:
+		return "", "audio"
+	case m.GetDocumentMessage() != nil:
+		return "", "document"
+	case m.GetStickerMessage() != nil:
+		return "", "sticker"
+	}
+	return "", ""
+}
+
+// chatDisplayName resolves the best-effort display name for a chat JID. For
+// groups it calls whatsmeow.GetGroupInfo once per process (cached); for DMs it
+// prefers the message's PushName. Failure returns "" — the caller upserts with
+// COALESCE so blanks never clobber existing names.
+func (b *bridge) chatDisplayName(ctx context.Context, chat types.JID, pushName string) string {
+	if chat.Server == types.GroupServer {
+		b.groupMu.Lock()
+		if name, ok := b.groupNames[chat]; ok {
+			b.groupMu.Unlock()
+			return name
+		}
+		b.groupMu.Unlock()
+
+		info, err := b.client.GetGroupInfo(ctx, chat)
+		name := ""
+		if err == nil && info != nil {
+			name = info.Name
+		}
+		b.groupMu.Lock()
+		b.groupNames[chat] = name
+		b.groupMu.Unlock()
+		return name
+	}
+	return pushName
+}
+
+// handleEvent is the whatsmeow event bus callback. We only care about
+// *events.Message; *events.HistorySync is intentionally not handled ("start
+// fresh from now" per the unit brief).
+func (b *bridge) handleEvent(evt any) {
+	msg, ok := evt.(*events.Message)
+	if !ok || msg == nil {
+		return
+	}
+	content, mediaType := extractContent(msg.Message)
+	if content == "" && mediaType == "" {
+		return
+	}
+	chatJID := msg.Info.Chat.String()
+	name := b.chatDisplayName(context.Background(), msg.Info.Chat, msg.Info.PushName)
+	if err := b.upsertChat(chatJID, name, msg.Info.Timestamp); err != nil {
+		log.Printf("capture: upsertChat %s: %v", chatJID, err)
+		return
+	}
+	if err := b.storeMessage(
+		msg.Info.ID, chatJID, msg.Info.Sender.User,
+		content, mediaType, msg.Info.Timestamp, msg.Info.IsFromMe,
+	); err != nil {
+		log.Printf("capture: storeMessage %s/%s: %v", chatJID, msg.Info.ID, err)
+	}
 }
 
 const captureSchema = `
@@ -283,6 +366,10 @@ func main() {
 		msgDB:      msgDB,
 		groupNames: make(map[types.JID]string),
 	}
+
+	// Register the capture handler BEFORE either connect branch so no messages
+	// are missed on the already-paired path.
+	client.AddEventHandler(b.handleEvent)
 
 	if client.Store.ID == nil {
 		// Not paired: pull the QR channel BEFORE connecting.
