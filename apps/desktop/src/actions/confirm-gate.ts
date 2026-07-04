@@ -30,7 +30,17 @@ import { onTranscriptReceived } from "@/audio/capture";
 import { onJarvisState } from "@/conversation/state-machine";
 import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
 import type { SendMessageAction } from "@/actions/dispatcher";
+import { ttsPlayer } from "@/jarvis-response";
 import { loadSettings } from "@/settings";
+
+/** Outcome of an actual send. `ok:true` only when the transport confirmed
+ *  delivery (a 2xx from the WhatsApp bridge, or AppleScript running clean).
+ *  On failure, `reason` is a short machine-ish tag ("unreachable" | `http <n>`)
+ *  for logging — the SPOKEN failure line is composed separately, user-friendly. */
+interface SendResult {
+  ok: boolean;
+  reason?: string;
+}
 
 /** Spoken affirmatives that release a pending send. */
 const AFFIRM_RE =
@@ -98,12 +108,13 @@ function discardPending(reason: string): void {
   clearPendingState();
 }
 
-/** Send via WhatsApp: POST to the local lharries/whatsapp-mcp Go bridge's
- *  /api/send endpoint (default localhost:8080). Body shape is fixed by the
- *  bridge: { recipient, message }. `recipient` accepts an international-format
- *  phone number OR a chat JID (…@s.whatsapp.net / …@g.us). Failure is logged
- *  loudly — the send is user-visible so silence would be misleading. */
-async function executeWhatsappSend(action: SendMessageAction): Promise<void> {
+/** Send via WhatsApp: POST to the local whatsapp bridge's /api/send endpoint
+ *  (default localhost:8080). Body shape is fixed by the bridge:
+ *  { recipient, message }. `recipient` accepts an international-format phone
+ *  number OR a chat JID (…@s.whatsapp.net / …@g.us). Returns the true outcome
+ *  so the caller can speak an honest terminal line — the send is user-visible,
+ *  so silently swallowing a failure would be misleading. */
+async function executeWhatsappSend(action: SendMessageAction): Promise<SendResult> {
   let bridgeUrl = "http://localhost:8080";
   try {
     const s = await loadSettings();
@@ -122,30 +133,31 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<void> {
     if (!res.ok) {
       // eslint-disable-next-line no-console
       console.warn(
-        `[confirm] whatsapp send to "${action.recipient}" failed — bridge returned ${res.status} at ${target}. Is the whatsapp-mcp Go bridge running? See tools/whatsapp-sync/README.md.`,
+        `[confirm] whatsapp send to "${action.recipient}" failed — bridge returned ${res.status} at ${target}. Is the whatsapp bridge running? See tools/whatsapp-sync/README.md.`,
       );
-      return;
+      return { ok: false, reason: `http ${res.status}` };
     }
     lastSent = { recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
       `[confirm] whatsapp send dispatched to "${action.recipient}" (${action.text.length} chars) via ${target}`,
     );
+    return { ok: true };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[confirm] whatsapp send to "${action.recipient}" failed — could not reach bridge at ${target}. Is the whatsapp-mcp Go bridge running?`,
+      `[confirm] whatsapp send to "${action.recipient}" failed — could not reach bridge at ${target}. Is the whatsapp bridge running? See tools/whatsapp-sync/README.md.`,
       err,
     );
+    return { ok: false, reason: "unreachable" };
   }
 }
 
 /** Run the actual send. Routes to AppleScript (iMessage) or HTTP bridge
- *  (WhatsApp) based on action.app. */
-async function executeSend(action: SendMessageAction): Promise<void> {
+ *  (WhatsApp) based on action.app. Returns the true send outcome. */
+async function executeSend(action: SendMessageAction): Promise<SendResult> {
   if (action.app === "whatsapp") {
-    await executeWhatsappSend(action);
-    return;
+    return executeWhatsappSend(action);
   }
   const script = buildIMessageSend(action.recipient, action.text);
   try {
@@ -155,10 +167,26 @@ async function executeSend(action: SendMessageAction): Promise<void> {
     console.log(
       `[confirm] send_message dispatched to "${action.recipient}" (${action.text.length} chars)`,
     );
+    return { ok: true };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[confirm] send_message to "${action.recipient}" failed`, err);
+    return { ok: false, reason: "unreachable" };
   }
+}
+
+/** Dispatch a confirmed send and speak the TRUE terminal outcome. On success,
+ *  stay silent — the model already spoke the readback/hand-off. On failure,
+ *  speak a short, user-appropriate correction (never a dev hint) so the user is
+ *  never left believing a false success. */
+async function dispatchAndReport(action: SendMessageAction): Promise<void> {
+  const result = await executeSend(action);
+  if (result.ok) return;
+  const failureLine =
+    action.app === "whatsapp"
+      ? "I couldn't reach WhatsApp, sir."
+      : "I couldn't send that, sir.";
+  ttsPlayer.enqueueSentence(failureLine, Date.now());
 }
 
 /**
@@ -197,7 +225,7 @@ export function holdSendMessage(action: SendMessageAction): void {
       `[confirm] send_message pre-confirmed by preceding affirmative ("${lastTranscript.text}") — sending`,
     );
     lastTranscript = null;
-    void executeSend(action);
+    void dispatchAndReport(action);
     return;
   }
 
@@ -238,7 +266,7 @@ function resolvePendingWithTranscript(text: string): boolean {
     clearPendingState();
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
-    void executeSend(action);
+    void dispatchAndReport(action);
     return true;
   }
   return false;
