@@ -258,14 +258,20 @@ export class TtsPlayer {
     const ac = new AbortController();
     this.abortController = ac;
 
-    // Use the trigger-secret path for TTS so the backend takes the owner
-    // fallback to process.env.ELEVENLABS_API_KEY. The Bearer path requires a
-    // per-user ElevenLabs BYOK in the DB (local dev doesn't have one; every
-    // TTS request 402'd and nothing spoke).
+    // Auth, in priority order (the server checks Bearer first):
+    //   1. Bearer device token → resolves the user's own BYOK ElevenLabs key.
+    //   2. x-trigger-secret → owner env fallback (process.env.ELEVENLABS_API_KEY).
+    // The Bearer path is canonical: it's how every other desktop→server call
+    // authenticates, and it works whenever a device token is paired (which it
+    // must be for capture/SSE anyway). The trigger secret is only a fallback and
+    // is empty unless VITE_PHYSICAL_TRIGGER_SECRET is set — so relying on it
+    // alone made every TTS request 401 and nothing spoke.
     const headers: Record<string, string> = {
       "content-type": "application/json",
       "x-trigger-secret": triggerSecret,
     };
+    const token = await getDeviceToken();
+    if (token) headers["authorization"] = `Bearer ${token}`;
 
     try {
       const res = await fetch(`${apiBaseUrl}/api/jarvis/tts`, {
