@@ -33,6 +33,8 @@
       "allow": [
         { "url": "http://localhost:3000/*" },
         { "url": "http://127.0.0.1:3000/*" },
+        { "url": "http://localhost:8080/*" },
+        { "url": "http://127.0.0.1:8080/*" },
         { "url": "https://hyperpolymath.com/*" }
       ]
     }
