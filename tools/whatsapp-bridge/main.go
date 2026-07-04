@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -320,6 +321,36 @@ func (b *bridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+// handleLogout clears the paired device from the whatsmeow store and exits the
+// process. The Rust supervisor (apps/desktop/src-tauri/src/whatsapp.rs) respawns
+// the sidecar on Terminated with capped linear backoff; the fresh process sees
+// Store.ID == nil and re-enters the QR pairing flow (main.go:client.Store.ID ==
+// nil branch), which re-fires the existing {"event":"qr"} stdout events.
+func (b *bridge) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "method not allowed"})
+		return
+	}
+	if b.client.Store.ID == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "note": "already logged out"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	if err := b.client.Logout(ctx); err != nil && !errors.Is(err, whatsmeow.ErrNotLoggedIn) {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("logout failed: %v", err)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	// Let the response flush, then exit so the supervisor restarts us into the
+	// QR branch on a fresh (device-less) store.
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		log.Printf("logout complete; exiting for supervisor respawn")
+		os.Exit(0)
+	}()
+}
+
 func (b *bridge) handleQR(w http.ResponseWriter, _ *http.Request) {
 	qr := b.currentQR()
 	if qr == "" {
@@ -426,6 +457,7 @@ func main() {
 	mux.HandleFunc("/api/send", b.handleSend)
 	mux.HandleFunc("/api/health", b.handleHealth)
 	mux.HandleFunc("/api/qr", b.handleQR)
+	mux.HandleFunc("/api/logout", b.handleLogout)
 
 	addr := ":" + port
 	log.Printf("whatsapp-bridge listening on %s (store: %s)", addr, dbPath)
