@@ -6,6 +6,7 @@ import type {
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
+  PhysicalJarvisRoutineProgress,
   PhysicalJarvisToolCall,
   PhysicalTranscript,
   PhysicalTrigger,
@@ -148,6 +149,7 @@ export async function GET(req: Request): Promise<Response> {
       const responseChunkHandler = (data: PhysicalJarvisResponseChunk) => send("jarvis-response-chunk", data);
       const toolCallHandler = (data: PhysicalJarvisToolCall) => send("jarvis-tool-call", data);
       const responseEndHandler = (data: PhysicalJarvisResponseEnd) => send("jarvis-response-end", data);
+      const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) => send("jarvis-routine-progress", data);
 
       physicalBus.on("trigger", triggerHandler);
       physicalBus.on("transcript", transcriptHandler);
@@ -155,6 +157,7 @@ export async function GET(req: Request): Promise<Response> {
       physicalBus.on("jarvis-response-chunk", responseChunkHandler);
       physicalBus.on("jarvis-tool-call", toolCallHandler);
       physicalBus.on("jarvis-response-end", responseEndHandler);
+      physicalBus.on("jarvis-routine-progress", routineProgressHandler);
 
       const heartbeat = setInterval(() => {
         try {
@@ -171,6 +174,7 @@ export async function GET(req: Request): Promise<Response> {
         physicalBus.off("jarvis-response-chunk", responseChunkHandler);
         physicalBus.off("jarvis-tool-call", toolCallHandler);
         physicalBus.off("jarvis-response-end", responseEndHandler);
+        physicalBus.off("jarvis-routine-progress", routineProgressHandler);
         clearInterval(heartbeat);
         try {
           controller.close();

@@ -292,6 +292,16 @@ export const GATHER_CONCURRENCY = 4;
  * The caller owns pushing the result into `results` and (sequential path only)
  * threading its summary forward — `runBlock` does neither.
  */
+/**
+ * The runner's block-id defaulting — an authored id when present, otherwise a
+ * deterministic `${runId}:b${index}`. Exported so `fireRoutineOverBus`'s
+ * progress skeleton computes IDENTICAL ids to the gather events the runner
+ * emits for the same blocks.
+ */
+export function resolveBlockId(block: RoutineBlock, runId: string, index: number): string {
+  return block.id && block.id.length > 0 ? block.id : `${runId}:b${index}`;
+}
+
 async function runBlock(
   block: RoutineBlock,
   index: number,
@@ -303,7 +313,7 @@ async function runBlock(
   ctx: RoutineRunContext,
   handlers: RoutineRunHandlers,
 ): Promise<BlockRunResult> {
-  const blockId = block.id && block.id.length > 0 ? block.id : `${runId}:b${index}`;
+  const blockId = resolveBlockId(block, runId, index);
 
   if (!synth) handlers.onBlockStart?.(blockId, index, total);
   // Gather-progress start (synthesize mode only, both paths). Fired before the
