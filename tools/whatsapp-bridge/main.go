@@ -11,11 +11,15 @@
 // which the Rust supervisor forwards to the HUD; when paired it emits
 // {"event":"ready"}.
 //
-// Scope: send + QR + health only. No message reading/mirroring.
+// Scope: send + QR + health + /api/logout, plus live message capture (incoming
+// and outgoing) mirrored into `messages` + `chats` tables in the same SQLite
+// file whatsmeow uses for its session store. The schema is compatible with
+// lharries/whatsapp-mcp so tools/whatsapp-sync/sync.mjs reads it unchanged.
 package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -39,13 +43,79 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// bridge holds the connected client and the latest QR string (for /api/qr).
+// bridge holds the connected client, the latest QR string (for /api/qr), and
+// a second sqlite handle onto the same whatsapp.db file used by whatsmeow's
+// session store — for the messages/chats capture tables.
 type bridge struct {
 	client *whatsmeow.Client
 
 	mu    sync.RWMutex
 	qr    string // most recent unscanned QR code, "" once paired
 	ready bool
+
+	msgDB *sql.DB
+
+	// Cached group names so we make at most one GetGroupInfo call per group
+	// per process lifetime. Miss on rename is acceptable; the LEFT JOIN in
+	// sync.mjs tolerates NULL/stale names.
+	groupMu    sync.Mutex
+	groupNames map[types.JID]string
+}
+
+const captureSchema = `
+CREATE TABLE IF NOT EXISTS chats (
+	jid TEXT PRIMARY KEY,
+	name TEXT,
+	last_message_time TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS messages (
+	id TEXT,
+	chat_jid TEXT,
+	sender TEXT,
+	content TEXT,
+	timestamp TIMESTAMP,
+	is_from_me BOOLEAN,
+	media_type TEXT,
+	PRIMARY KEY (id, chat_jid),
+	FOREIGN KEY (chat_jid) REFERENCES chats(jid)
+);
+`
+
+// upsertChat inserts or updates a chats row. A blank incoming name never
+// clobbers an existing good name (COALESCE(NULLIF(...))). last_message_time is
+// stored as UTC RFC3339 text so it sorts lexicographically.
+func (b *bridge) upsertChat(jid, name string, ts time.Time) error {
+	if b.msgDB == nil {
+		return nil
+	}
+	_, err := b.msgDB.Exec(
+		`INSERT INTO chats(jid, name, last_message_time) VALUES (?, ?, ?)
+		 ON CONFLICT(jid) DO UPDATE SET
+			name = COALESCE(NULLIF(excluded.name, ''), chats.name),
+			last_message_time = excluded.last_message_time`,
+		jid, name, ts.UTC().Format(time.RFC3339),
+	)
+	return err
+}
+
+// storeMessage inserts a row into the messages capture table. INSERT OR REPLACE
+// keeps capture idempotent when whatsmeow redelivers. Timestamp is formatted
+// exactly here (UTC RFC3339 text) so sync.mjs's string-comparison cursor
+// (`m.timestamp > '<bound>'`) sorts chronologically.
+func (b *bridge) storeMessage(id, chatJID, sender, content, mediaType string, ts time.Time, fromMe bool) error {
+	if b.msgDB == nil {
+		return nil
+	}
+	fromMeInt := 0
+	if fromMe {
+		fromMeInt = 1
+	}
+	_, err := b.msgDB.Exec(
+		`INSERT OR REPLACE INTO messages(id, chat_jid, sender, content, timestamp, is_from_me, media_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, chatJID, sender, content, ts.UTC().Format(time.RFC3339), fromMeInt, mediaType,
+	)
+	return err
 }
 
 // emitEvent writes a structured stdout line the Rust supervisor parses.
@@ -188,13 +258,31 @@ func main() {
 		log.Fatalf("failed to open store: %v", err)
 	}
 
+	// Second handle onto the SAME whatsapp.db file: we own the messages/chats
+	// capture tables, whatsmeow owns its own tables. busy_timeout(5000) in the
+	// DSN handles cross-connection SQLite locking.
+	msgDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		log.Fatalf("failed to open capture db: %v", err)
+	}
+	if err := msgDB.PingContext(ctx); err != nil {
+		log.Fatalf("failed to ping capture db: %v", err)
+	}
+	if _, err := msgDB.ExecContext(ctx, captureSchema); err != nil {
+		log.Fatalf("failed to init capture schema: %v", err)
+	}
+
 	deviceStore, err := container.GetFirstDevice(ctx)
 	if err != nil {
 		log.Fatalf("failed to get device: %v", err)
 	}
 
 	client := whatsmeow.NewClient(deviceStore, waLog.Stdout("client", "WARN", true))
-	b := &bridge{client: client}
+	b := &bridge{
+		client:     client,
+		msgDB:      msgDB,
+		groupNames: make(map[types.JID]string),
+	}
 
 	if client.Store.ID == nil {
 		// Not paired: pull the QR channel BEFORE connecting.
