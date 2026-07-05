@@ -29,6 +29,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { onTranscriptReceived } from "@/audio/capture";
 import { onJarvisState } from "@/conversation/state-machine";
 import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
+import { resolveImessageRecipient } from "@/actions/imessage-contacts";
 import type { SendMessageAction } from "@/actions/dispatcher";
 import { ttsPlayer } from "@/jarvis-response";
 import { loadSettings } from "@/settings";
@@ -41,6 +42,11 @@ import { startTask, resolveTask } from "@/hud/background-tasks";
 interface SendResult {
   ok: boolean;
   reason?: string;
+  /** True when the failure line has ALREADY been spoken by executeSend itself
+   *  (e.g. the iMessage recipient couldn't be resolved to a real contact, so a
+   *  specific "I couldn't find Rohan, sir" line was said). dispatchAndReport
+   *  then skips its generic "I couldn't send that" line to avoid double-speak. */
+  spoken?: boolean;
 }
 
 /** Spoken affirmatives that release a pending send. */
@@ -206,9 +212,61 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
   if (action.app === "whatsapp") {
     return executeWhatsappSend(action);
   }
-  const script = buildIMessageSend(action.recipient, action.text);
+  // Resolve the recipient to a CONCRETE handle before building the AppleScript.
+  // Messages.app `send … to participant "<recipient>"` takes the string
+  // literally: a bare NAME ("Rohan") gets silently mapped to some arbitrary
+  // buddy — the exact bug where a text went to a random contact. We resolve the
+  // name via macOS Contacts (authoritative) with recent-thread handles as the
+  // tie-breaker/fallback. If we can't land on exactly one confident handle we
+  // ABORT and speak an honest line rather than sending to a guess. This runs
+  // at SEND time, AFTER spoken confirmation — the confirm gate is untouched.
+  let sendHandle = action.recipient;
+  const resolution = await resolveImessageRecipient(action.recipient);
+  switch (resolution.kind) {
+    case "passthrough":
+      sendHandle = resolution.handle;
+      break;
+    case "resolved":
+      sendHandle = resolution.handle;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[confirm] resolved iMessage recipient "${action.recipient}" → "${resolution.handle}"`,
+      );
+      break;
+    case "ambiguous": {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[confirm] ambiguous iMessage recipient "${resolution.name}" (${resolution.candidates.length} candidates) — aborting send`,
+      );
+      ttsPlayer.speakNow(
+        `I found more than one ${resolution.name}, sir. Which number should I use?`,
+      );
+      return { ok: false, reason: "ambiguous", spoken: true };
+    }
+    case "no_contacts_permission": {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[confirm] Contacts access not granted — cannot resolve "${resolution.name}"; aborting send`,
+      );
+      ttsPlayer.speakNow(
+        `I can't check your contacts, sir. Grant Contacts access so I can find ${resolution.name}.`,
+      );
+      return { ok: false, reason: "no_contacts_permission", spoken: true };
+    }
+    case "not_found": {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[confirm] iMessage recipient "${resolution.name}" not found in contacts or recent threads — aborting send`,
+      );
+      ttsPlayer.speakNow(
+        `I couldn't find ${resolution.name} in your contacts, sir.`,
+      );
+      return { ok: false, reason: "not_found", spoken: true };
+    }
+  }
+  const script = buildIMessageSend(sendHandle, action.text);
   try {
-    await runAppleScript(script, `send-imessage:${action.recipient}`);
+    await runAppleScript(script, `send-imessage:${sendHandle}`);
     lastSent = { recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
@@ -238,6 +296,9 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   const result = await executeSend(action);
   resolveTask(taskId, result.ok ? "done" : "failed");
   if (result.ok) return;
+  // executeSend already spoke a specific line (e.g. couldn't resolve the
+  // recipient to a real contact) — don't stack a generic failure on top.
+  if (result.spoken) return;
   // A timeout is qualitatively different from "unreachable": the bridge process
   // is up enough to accept a TCP connection but is not answering — almost
   // always a wedged bridge or an unpaired WhatsApp session. Speak a slightly
