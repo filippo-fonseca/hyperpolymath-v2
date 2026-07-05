@@ -16,6 +16,7 @@ import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import {
   BarChart2,
   BookOpen,
+  Bot,
   Calendar,
   CheckSquare,
   Dumbbell,
@@ -102,6 +103,7 @@ const items = [
   },
   { href: "/calendar", label: "Calendar", icon: Calendar, disabled: false, tooltip: undefined },
   { href: "/graph", label: "Graph", icon: Waypoints, disabled: false, tooltip: undefined },
+  { href: "/jarvis", label: "JARVIS", icon: Bot, disabled: false, tooltip: undefined },
   // /areas is NOT here — the sidebar AREAS section header below acts as
   // the link + active state, with the area tree nested under it as proper
   // children. Putting it in both spots was duplicate plumbing.
