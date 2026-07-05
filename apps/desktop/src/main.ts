@@ -238,8 +238,16 @@ function beginOptimisticUserTurn(): void {
   body.className = "body";
   body.textContent = "recognising…";
   turn.append(who, body);
-  el.appendChild(turn);
-  turnPairState = "user-opened";
+  if (turnPairState === "reply-opened" && jarvisTurnAwaitingUser) {
+    // Rare: a jarvis reply from a prior turn is still parked. Slot the
+    // optimistic bubble above it, same as appendUserTurn would.
+    el.insertBefore(turn, jarvisTurnAwaitingUser);
+    turnPairState = "neutral";
+    jarvisTurnAwaitingUser = null;
+  } else {
+    el.appendChild(turn);
+    turnPairState = "user-opened";
+  }
   optimisticUserTurn = turn;
   optimisticUserBody = body;
   autoScroll(el, near);
