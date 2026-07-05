@@ -49,24 +49,24 @@ const AFFIRM_RE =
 /** Spoken negatives that discard a pending send. */
 const NEGATE_RE =
   /^\s*(?:no|nope|nah|cancel|stop|don'?t|do not|never ?mind|nevermind|negative|hold (?:off|on)|scratch that)\b/i;
+/** Any negator token anywhere in an utterance. Used by both `hasUnnegatedSendVerb`
+ *  and the broadened decline check so the two can never drift apart.
+ *  Covers: don't / dont / do not / does not / doesn't / never / not / n't-suffixed contractions.
+ *  Leading conversational "no"/"nope"/"nah" are intentionally NOT included here —
+ *  those are sentence-initial correction markers (see `hasUnnegatedSendVerb`). */
+const NEGATOR_RE = /\b(?:don'?t|do(?:es)?\s+not|doesn'?t|never|not|\w+n't)\b/i;
 
 /** True when the utterance contains an explicit SEND verb ("send it" / "send
- *  that" / "send the message" / "go ahead") that is NOT negated by a preceding
- *  "don't" / "do not" / "never" within a short character window. Lets
+ *  that" / "send the message" / "go ahead") that is NOT negated by any negator
+ *  token appearing ANYWHERE before it in the utterance. Lets
  *  "no, change it to X and send it" (correction-then-affirm) confirm the
- *  corrected draft, while "no, don't send it" stays a decline. */
+ *  corrected draft (the leading "no" is a correction marker, not a negator token),
+ *  while "no, don't send it" / "do not send" / "never send it" stay declines. */
 function hasUnnegatedSendVerb(text: string): boolean {
   const sendVerb = /\b(?:send\b|go ahead\b)/gi;
-  const negator = /\b(?:don'?t|do not|never)\b/gi;
-  const sends = [...text.matchAll(sendVerb)];
-  if (sends.length === 0) return false;
-  const negators = [...text.matchAll(negator)];
-  for (const s of sends) {
-    const at = s.index ?? 0;
-    const negatedBefore = negators.some(
-      (n) => (n.index ?? 0) < at && at - (n.index ?? 0) <= 15,
-    );
-    if (!negatedBefore) return true;
+  for (const m of text.matchAll(sendVerb)) {
+    const before = text.slice(0, m.index ?? 0);
+    if (!NEGATOR_RE.test(before)) return true;
   }
   return false;
 }
@@ -352,7 +352,12 @@ function resolvePendingWithTranscript(text: string): boolean {
     void dispatchAndReport(action);
     return true;
   }
-  if (NEGATE_RE.test(text)) {
+  // Broaden the decline check: NEGATE_RE catches the common sentence-initial
+  // negatives ("no", "cancel", "stop", etc.); NEGATOR_RE catches mid-sentence
+  // constructions ("never send it", "please don't send it to him") that slip
+  // past NEGATE_RE. The confirm branch already returned above for any genuine
+  // send, so a remaining negator token unambiguously means decline.
+  if (NEGATE_RE.test(text) || NEGATOR_RE.test(text)) {
     discardPending(`user declined ("${text}")`);
     return true;
   }
