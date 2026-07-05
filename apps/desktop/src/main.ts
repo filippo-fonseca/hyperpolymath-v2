@@ -65,6 +65,7 @@ import {
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { startRoutineLoader } from "@/hud/routine-loader";
+import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
@@ -894,6 +895,15 @@ async function boot(): Promise<void> {
   // checklist, driven by the jarvis-routine-progress SSE stream. Coexists with
   // the spoken brief (a normal response cycle) without overlapping the transcript.
   startRoutineLoader();
+
+  // 5c-quater. Background-task loader chips: any dispatched action that runs
+  // detached async work (a WhatsApp/iMessage send, a screenshot describe, a
+  // long AppleScript, a computer-use post) registers a task that renders as a
+  // running loader chip (top-right, stacked), resolving to done/failed on its
+  // own. Lets you keep talking to JARVIS while sends go out in the background,
+  // even several at once. Additive + presentational — the dispatch path stays
+  // fire-and-forget.
+  startBackgroundTasksMonitor();
 
   // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
   const gearBtn = document.getElementById("gear-btn");
