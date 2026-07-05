@@ -4,10 +4,31 @@ mod computer;
 mod whatsapp;
 
 use tauri::{
-    menu::{Menu, MenuItem},
+    image::Image,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
+use tauri_plugin_opener::OpenerExt;
+
+/// Fire an invoke-to-talk turn. Shared by the tray's left-click and the
+/// explicit "Talk to JARVIS" menu item so both paths behave identically: the
+/// webview's `tray-invoke` listener routes this through the conversation FSM.
+/// Deliberately does NOT focus/show the HUD — the mic opens without stealing
+/// focus from whatever the user is currently in.
+fn invoke_talk(app: &tauri::AppHandle) {
+    let _ = app.emit("tray-invoke", ());
+}
+
+/// Resolve the web app base URL for the "Open JARVIS Settings" item. Mirrors
+/// the JS side (`src/env.ts`), which reads `VITE_API_BASE_URL` and defaults to
+/// localhost:3000. On the Rust side we read it from the process environment
+/// (exported alongside `tauri dev`) and fall back to the same default.
+fn jarvis_settings_url() -> String {
+    let base = std::env::var("VITE_API_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    format!("{}/jarvis", base.trim_end_matches('/'))
+}
 
 /// Toggle the floating HUD window between shown+focused and hidden.
 /// Called from the tray's left-click and the "Show/Hide HUD" menu item.
@@ -71,22 +92,61 @@ pub fn run() {
                 });
             }
 
-            // Tray menu: Show/Hide HUD + Quit.
+            // Tray menu: a real menu-bar app feel — Talk, Show/Hide HUD, open
+            // web Settings, then a separator and Quit.
+            let talk_item =
+                MenuItem::with_id(app, "talk", "Talk to JARVIS", true, None::<&str>)?;
             let toggle_item =
                 MenuItem::with_id(app, "toggle-hud", "Show / Hide HUD", true, None::<&str>)?;
+            let settings_item = MenuItem::with_id(
+                app,
+                "open-settings",
+                "Open JARVIS Settings",
+                true,
+                None::<&str>,
+            )?;
+            let separator = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit JARVIS", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle_item, &quit_item])?;
+            let menu = Menu::with_items(
+                app,
+                &[
+                    &talk_item,
+                    &toggle_item,
+                    &settings_item,
+                    &separator,
+                    &quit_item,
+                ],
+            )?;
+
+            // macOS menu-bar icon: a monochrome TEMPLATE glyph (black shape on
+            // transparent alpha) so macOS auto-tints it for light/dark bars and
+            // the highlighted state — not the shrunk full-colour app icon.
+            // `include_image!` decodes the PNG at compile time into raw RGBA,
+            // so this works identically in `tauri dev` and packaged builds with
+            // no runtime path/resource resolution.
+            let tray_icon: Image<'static> =
+                tauri::include_image!("./icons/tray-icon-template.png");
 
             let _tray = TrayIconBuilder::with_id("jarvis-tray")
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tray_icon)
+                // macOS: treat the icon as a template so it renders as a tinted
+                // menu-bar glyph rather than a literal bitmap.
+                .icon_as_template(true)
                 .tooltip("JARVIS Desktop")
                 .menu(&menu)
                 // Left-click INVOKES a turn (invoke-to-talk); the right-click
-                // menu owns Show/Hide HUD + Quit so visibility toggling is not
-                // conflated with invocation.
+                // menu owns Talk / Show-Hide HUD / Settings / Quit so
+                // visibility toggling is not conflated with invocation.
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "talk" => invoke_talk(app),
                     "toggle-hud" => toggle_hud(app),
+                    "open-settings" => {
+                        let url = jarvis_settings_url();
+                        if let Err(err) = app.opener().open_url(url, None::<&str>) {
+                            eprintln!("[tray] failed to open JARVIS Settings: {err}");
+                        }
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -100,7 +160,7 @@ pub fn run() {
                         // listener routes this through the conversation FSM.
                         // Do NOT set_focus on the HUD here — let the mic open
                         // without stealing focus from whatever the user is in.
-                        let _ = tray.app_handle().emit("tray-invoke", ());
+                        invoke_talk(tray.app_handle());
                     }
                 })
                 .build(app)?;
