@@ -2,7 +2,18 @@
 // OPT-IN wake-phrase listener. While the app is IDLE (no conversation active)
 // and the user has enabled wake mode in settings, it keeps a low-key mic loop
 // running and periodically probes a rolling ~5s tail for the wake phrase
-// "daddy's home". On a match it:
+// "daddy's home".
+//
+// STANDBY MIC POLICY (audio-quality fix): this idle loop is the ONLY thing that
+// holds the mic open at rest. An open input stream forces macOS into a
+// voice-processing/comms audio profile that degrades the quality of audio
+// PLAYING on the machine (music/video output). So by DEFAULT the standby mic is
+// fully RELEASED — this loop runs ONLY when the wake toggle is explicitly ON
+// (shouldRunIdleLoop === enabled). With wake off (the default), nothing listens
+// at rest; the user invokes via the push-to-talk hotkey, which opens the mic
+// per turn and closes it again when the turn ends, keeping system audio at full
+// quality. Turning wake on trades that playback quality for hands-free
+// always-listening. On a match it:
 //   1. stops the wake loop (releases the cpal mic),
 //   2. fires the injected trigger handler, which routes into the conversation
 //      FSM's startConversation() — the SAME invoke path as the hotkey / tray /
@@ -133,9 +144,29 @@ export function setHasPhraseTriggers(fn: () => boolean): void {
   hasPhrase = fn;
 }
 
-/** True when the idle mic loop should run: legacy wake toggle OR phrase routines. */
+/**
+ * True only when the idle standby mic loop should run: the wake toggle is
+ * explicitly ON.
+ *
+ * AUDIO-QUALITY FIX: holding the cpal input stream open in standby forces
+ * macOS into its voice-processing/comms audio profile, which audibly degrades
+ * the quality of whatever is PLAYING on the machine (music/video output). So
+ * the standby mic is now released by DEFAULT — the idle loop runs ONLY when the
+ * user has deliberately opted into always-on wake in settings. In that (default)
+ * released mode the mic opens only on the push-to-talk hotkey, per turn, and
+ * closes again when the turn ends, which is what restores full playback quality.
+ *
+ * Tradeoff: with wake OFF the "daddy's home" wake phrase AND phrase-trigger
+ * routines are INACTIVE at rest — nothing is listening — because there is no
+ * open mic to hear them. That is intentional: the user invokes via the hotkey.
+ * Previously `hasPhrase()` alone could keep the standby mic open even with the
+ * wake toggle off; that silent always-on mic was the audio-quality regression,
+ * so phrase routines no longer force the idle loop on. Authoring a phrase
+ * routine AND turning wake on is the explicit opt-in to the always-listening
+ * (lower-playback-quality) mode.
+ */
 function shouldRunIdleLoop(): boolean {
-  return enabled || (hasPhrase?.() ?? false);
+  return enabled;
 }
 
 type WakeStateListener = (active: boolean) => void;
@@ -176,15 +207,17 @@ export function setWakeEnabled(on: boolean): void {
         console.log("[wake] enabled — idle listener deferred (turn active); resumes on idle");
       }
     });
-  } else if (!(hasPhrase?.() ?? false)) {
-    // Only tear the mic down when NO phrase routine still needs the idle loop.
+  } else {
+    // AUDIO-QUALITY FIX: wake off ALWAYS releases the standby mic, even if
+    // phrase-trigger routines exist. An open standby mic degrades system audio
+    // playback (macOS comms profile), so the default released mode wins over
+    // keeping the idle loop alive for phrase routines. Phrase routines are
+    // inactive at rest until wake is turned back on. stopWakeLoop → stop_capture
+    // drops the cpal stream and clears the macOS green-mic indicator.
     void stopWakeLoop().then(() => {
       // eslint-disable-next-line no-console
-      console.log("[wake] disabled — idle listener stopped");
+      console.log("[wake] disabled — idle listener stopped, standby mic released");
     });
-  } else {
-    // eslint-disable-next-line no-console
-    console.log("[wake] toggle off but phrase routines active — idle loop kept");
   }
 }
 
@@ -314,10 +347,14 @@ export async function resumeWakeLoopIfIdle(): Promise<void> {
 
 /**
  * Re-evaluate whether the idle loop should be running after the routine phrase
- * table changed (a phrase routine was added/removed). Starts the loop if phrase
- * routines now exist and nothing else owns the mic; the legacy wake toggle and
- * the FSM's own resume calls still govern the toggle-driven case. No-op when a
- * turn is active (the FSM's return-to-idle resume picks it up).
+ * table changed (a phrase routine was added/removed).
+ *
+ * AUDIO-QUALITY FIX: this no longer opens the standby mic just because a phrase
+ * routine exists — `shouldRunIdleLoop()` now gates strictly on the wake toggle,
+ * so an authored phrase routine does NOT force the always-on (playback-degrading)
+ * mic. The idle loop runs only when wake is explicitly enabled; this hook is kept
+ * so that when wake IS on, a phrase-table change still reconciles the loop.
+ * No-op when a turn is active (the FSM's return-to-idle resume picks it up).
  */
 export async function refreshIdleLoopForPhrases(): Promise<void> {
   if (running || triggering || isCaptureActive()) return;
