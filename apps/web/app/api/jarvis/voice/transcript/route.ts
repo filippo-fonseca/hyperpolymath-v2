@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 
 import {
   emitJarvisResponseChunk,
@@ -239,90 +239,96 @@ export async function POST(req: NextRequest): Promise<Response> {
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
 
-  void runJarvisTurnStream({
-    userId,
-    apiKey: anthropicKey,
-    input: transcript,
-    // Thread the recent conversation window in front of the current turn so
-    // pronoun / entity references ("send him a message") resolve. The current
-    // user turn is appended last and is the only turn the model must act on.
-    messages: [...recentHistory, { role: "user", content: transcript }],
-    // Provenance: paired-device token name; the headless ESP32 path has no
-    // token identity, so it reads as the physical extender.
-    source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
-    isVoice: true,
-    mode: jarvisMode,
-    sttDoneAt,
-    vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
-    onTextDelta: (delta) => {
-      assistantText += delta;
-      emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
-    },
-    onAction: (toolUseId, name, result) => {
-      assistantActions.push({ toolUseId, name, result });
-      emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
-    },
-    onDone: () => {
-      emitJarvisResponseEnd({ turnId, at: Date.now() });
-      // Persist the completed assistant turn so browser chat history shows
-      // desktop-originated turns on next page load.
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText,
-          actions: assistantActions,
-          clarification: null,
-          status: "done",
-          errorMessage: null,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
+  // Schedule the agent turn to run AFTER the response is flushed to the client
+  // so the POST returns in ~1s (STT + setup time) rather than blocking for the
+  // entire 30-90s turn. The turn communicates entirely over the separate SSE
+  // stream and persists to the DB — it does NOT need the POST response open.
+  after(() => {
+    void runJarvisTurnStream({
+      userId,
+      apiKey: anthropicKey,
+      input: transcript,
+      // Thread the recent conversation window in front of the current turn so
+      // pronoun / entity references ("send him a message") resolve. The current
+      // user turn is appended last and is the only turn the model must act on.
+      messages: [...recentHistory, { role: "user", content: transcript }],
+      // Provenance: paired-device token name; the headless ESP32 path has no
+      // token identity, so it reads as the physical extender.
+      source: { device: desktopIdentity?.deviceName ?? "Physical extender", input: "voice" },
+      isVoice: true,
+      mode: jarvisMode,
+      sttDoneAt,
+      vadEndAt: Number.isFinite(vadEndAt) ? (vadEndAt as number) : undefined,
+      onTextDelta: (delta) => {
+        assistantText += delta;
+        emitJarvisResponseChunk({ turnId, delta, at: Date.now() });
+      },
+      onAction: (toolUseId, name, result) => {
+        assistantActions.push({ toolUseId, name, result });
+        emitJarvisToolCall({ turnId, toolUseId, name, result, at: Date.now() });
+      },
+      onDone: () => {
+        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        // Persist the completed assistant turn so browser chat history shows
+        // desktop-originated turns on next page load.
+        void db
+          .insert(jarvisTurns)
+          .values({
+            id: turnId,
+            userId,
+            kind: "assistant",
+            text: null,
             textDelta: assistantText,
             actions: assistantActions,
+            clarification: null,
             status: "done",
             errorMessage: null,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/transcript] failed to persist assistant turn", err);
-        });
-    },
-    onError: (message) => {
-      emitJarvisResponseEnd({ turnId, at: Date.now() });
-      // Persist the error turn so the browser shows failed turns on reload.
-      void db
-        .insert(jarvisTurns)
-        .values({
-          id: turnId,
-          userId,
-          kind: "assistant",
-          text: null,
-          textDelta: assistantText || null,
-          actions: assistantActions,
-          clarification: null,
-          status: "error",
-          errorMessage: message,
-          createdAt: assistantTurnCreatedAt,
-        })
-        .onConflictDoUpdate({
-          target: jarvisTurns.id,
-          set: {
+            createdAt: assistantTurnCreatedAt,
+          })
+          .onConflictDoUpdate({
+            target: jarvisTurns.id,
+            set: {
+              textDelta: assistantText,
+              actions: assistantActions,
+              status: "done",
+              errorMessage: null,
+            },
+          })
+          .catch((err: unknown) => {
+            console.error("[voice/transcript] failed to persist assistant turn", err);
+          });
+      },
+      onError: (message) => {
+        emitJarvisResponseEnd({ turnId, at: Date.now() });
+        // Persist the error turn so the browser shows failed turns on reload.
+        void db
+          .insert(jarvisTurns)
+          .values({
+            id: turnId,
+            userId,
+            kind: "assistant",
+            text: null,
             textDelta: assistantText || null,
             actions: assistantActions,
+            clarification: null,
             status: "error",
             errorMessage: message,
-          },
-        })
-        .catch((err: unknown) => {
-          console.error("[voice/transcript] failed to persist error turn", err);
-        });
-    },
+            createdAt: assistantTurnCreatedAt,
+          })
+          .onConflictDoUpdate({
+            target: jarvisTurns.id,
+            set: {
+              textDelta: assistantText || null,
+              actions: assistantActions,
+              status: "error",
+              errorMessage: message,
+            },
+          })
+          .catch((err: unknown) => {
+            console.error("[voice/transcript] failed to persist error turn", err);
+          });
+      },
+    });
   });
 
   return Response.json({ transcript, turnId }, { headers: CORS });
