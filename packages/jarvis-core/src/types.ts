@@ -368,6 +368,62 @@ export type DesktopAction =
     };
 
 // ---------------------------------------------------------------------------
+// JARVIS management — per-user PERSONALITY config that tunes the spoken voice.
+//
+// Persisted in Postgres (jarvis_personality_config, one row per user) and
+// injected into the cached system prefix via buildPersonalityTuningBlock. The
+// DEFAULT_PERSONALITY_CONFIG below reproduces today's canon voice EXACTLY —
+// an absent or all-default config emits no tuning block, so nothing regresses.
+// Shared across web (server actions + API routes), the prompt builder, and the
+// desktop (config sync).
+
+export type PersonalityPreset = "canon" | "minimal" | "storyteller";
+export type PersonalityFormality = "formal" | "balanced" | "casual";
+export type PersonalityVerbosity = "concise" | "balanced" | "expansive";
+export type PersonalityWit = "dry" | "moderate" | "playful";
+
+export interface PersonalityConfig {
+  preset: PersonalityPreset;
+  formality: PersonalityFormality;
+  verbosity: PersonalityVerbosity;
+  wit: PersonalityWit;
+  /** Freeform user directives layered on top of the dials. Null/empty = none. */
+  customInstructions: string | null;
+}
+
+/**
+ * The canonical default. MUST equal today's behavior so an unconfigured user
+ * sees no change. `isDefaultPersonalityConfig` treats a config equal to this
+ * (with empty/whitespace custom instructions) as a no-op → no tuning block.
+ */
+export const DEFAULT_PERSONALITY_CONFIG: PersonalityConfig = {
+  preset: "canon",
+  formality: "formal",
+  verbosity: "concise",
+  wit: "dry",
+  customInstructions: null,
+};
+
+// ---------------------------------------------------------------------------
+// JARVIS management — per-user STARTUP config, mirroring the desktop startup
+// shape (apps/desktop/src/settings.ts). Persisted in jarvis_startup_config and
+// read by the desktop via the bearer-auth GET route. Web is the source of truth.
+
+export type StartupOpenTarget = { type: "url" | "app"; value: string };
+
+export interface StartupConfig {
+  briefingEnabled: boolean;
+  openOnStart: StartupOpenTarget[];
+  startupShortcuts: string[];
+}
+
+export const DEFAULT_STARTUP_CONFIG: StartupConfig = {
+  briefingEnabled: true,
+  openOnStart: [],
+  startupShortcuts: [],
+};
+
+// ---------------------------------------------------------------------------
 // Phase 16 — SessionEntity: tracks entities touched during this JARVIS turn
 // for the in-turn scratchpad block (enables update/delete to reference items
 // created earlier in the same session without a separate find call).

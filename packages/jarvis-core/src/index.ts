@@ -112,7 +112,18 @@ export type {
   ReadImessageAction,
   // Computer Use fallback — catch-all agentic desktop loop
   ComputerUseAction,
+  // JARVIS management — per-user personality + startup config contracts
+  PersonalityConfig,
+  PersonalityPreset,
+  PersonalityFormality,
+  PersonalityVerbosity,
+  PersonalityWit,
+  StartupConfig,
+  StartupOpenTarget,
 } from "./types";
+
+// JARVIS management — default configs (value exports; reproduce today's behavior)
+export { DEFAULT_PERSONALITY_CONFIG, DEFAULT_STARTUP_CONFIG } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
 export type { AskClarificationAction } from "./tools/ask-clarification";
