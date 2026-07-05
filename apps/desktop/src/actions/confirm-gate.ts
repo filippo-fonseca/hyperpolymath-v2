@@ -63,7 +63,7 @@ const NEGATOR_RE = /\b(?:don'?t|do(?:es)?\s+not|doesn'?t|never|not|\w+n't)\b/i;
  *  corrected draft (the leading "no" is a correction marker, not a negator token),
  *  while "no, don't send it" / "do not send" / "never send it" stay declines. */
 function hasUnnegatedSendVerb(text: string): boolean {
-  const sendVerb = /\b(?:send\b|go ahead\b)/gi;
+  const sendVerb = /\bsend (?:it|that|this|them|the message|the text)\b|\bgo ahead\b|\bsend\b\s*$/gi;
   for (const m of text.matchAll(sendVerb)) {
     const before = text.slice(0, m.index ?? 0);
     if (!NEGATOR_RE.test(before)) return true;
