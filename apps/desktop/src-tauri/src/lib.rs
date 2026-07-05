@@ -121,6 +121,7 @@ pub fn run() {
             commands::tts_stop,
             commands::tts_clear,
             computer::run_applescript,
+            computer::run_jxa,
             computer::run_shortcut,
             computer::type_text,
             computer::press_key,

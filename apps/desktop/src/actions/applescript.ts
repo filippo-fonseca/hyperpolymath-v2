@@ -34,6 +34,27 @@ export async function runAppleScript(
 }
 
 /**
+ * Run a JXA (JavaScript for Automation) script via the Rust `run_jxa` command
+ * (osascript -l JavaScript with the same hard SIGKILL timeout as
+ * run_applescript). JXA is required for Contacts.app queries: it launches
+ * Contacts in the background and works when it isn't open, unlike AppleScript
+ * `tell application "Contacts"` which returns -600 "Application isn't running".
+ * GOTCHA: Tauri v2 IPC camelCases snake_case Rust args, so `timeout_ms` must be
+ * invoked as `timeoutMs`.
+ */
+export async function runJxa(
+  script: string,
+  label: string,
+  timeoutMs?: number,
+): Promise<string> {
+  return invoke<string>("run_jxa", {
+    script,
+    label,
+    timeoutMs: timeoutMs ?? null,
+  });
+}
+
+/**
  * Detect whether the recipient string is a Messages.app chat id (a group chat or
  * a chat referenced by GUID) rather than a single participant handle. Two shapes
  * are recognized, both exposed by Messages.app for `text chat id`:
