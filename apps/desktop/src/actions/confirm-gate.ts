@@ -45,10 +45,30 @@ interface SendResult {
 /** Spoken affirmatives that release a pending send. */
 const AFFIRM_RE =
   /^\s*(?:yes|yeah|yep|yup|sure|ok(?:ay)?|confirm|affirmative|do it|go ahead|send(?: it| that| the message)?|please do|please send(?: it)?)\b/i;
-/** Spoken negatives that discard a pending send. Checked BEFORE affirmatives
- *  so "no, don't send it" never matches the `send it` affirmative. */
+/** Spoken negatives that discard a pending send. */
 const NEGATE_RE =
   /^\s*(?:no|nope|nah|cancel|stop|don'?t|do not|never ?mind|nevermind|negative|hold (?:off|on)|scratch that)\b/i;
+
+/** True when the utterance contains an explicit SEND verb ("send it" / "send
+ *  that" / "send the message" / "go ahead") that is NOT negated by a preceding
+ *  "don't" / "do not" / "never" within a short character window. Lets
+ *  "no, change it to X and send it" (correction-then-affirm) confirm the
+ *  corrected draft, while "no, don't send it" stays a decline. */
+function hasUnnegatedSendVerb(text: string): boolean {
+  const sendVerb = /\b(?:send\b|go ahead\b)/gi;
+  const negator = /\b(?:don'?t|do not|never)\b/gi;
+  const sends = [...text.matchAll(sendVerb)];
+  if (sends.length === 0) return false;
+  const negators = [...text.matchAll(negator)];
+  for (const s of sends) {
+    const at = s.index ?? 0;
+    const negatedBefore = negators.some(
+      (n) => (n.index ?? 0) < at && at - (n.index ?? 0) <= 15,
+    );
+    if (!negatedBefore) return true;
+  }
+  return false;
+}
 
 /** How fresh a preceding affirmative transcript must be to pre-confirm an
  *  arriving send_message action (two-turn flow). */
@@ -255,8 +275,7 @@ export function holdSendMessage(action: SendMessageAction): void {
   if (
     lastTranscript &&
     now - lastTranscript.at < PRECONFIRM_WINDOW_MS &&
-    !NEGATE_RE.test(lastTranscript.text) &&
-    AFFIRM_RE.test(lastTranscript.text)
+    (AFFIRM_RE.test(lastTranscript.text) || hasUnnegatedSendVerb(lastTranscript.text))
   ) {
     // Two-turn flow: the transcript that triggered this turn was the spoken
     // confirmation. Consume it so it can't confirm anything else.
@@ -305,11 +324,10 @@ export function holdSendMessage(action: SendMessageAction): void {
  */
 function resolvePendingWithTranscript(text: string): boolean {
   if (!pending) return false;
-  if (NEGATE_RE.test(text)) {
-    discardPending(`user declined ("${text}")`);
-    return true;
-  }
-  if (AFFIRM_RE.test(text)) {
+  // Confirm check runs FIRST so a trailing un-negated send verb in a
+  // correction-then-affirm ("no, change it and send it") wins over the leading
+  // "no" that refers only to the message wording, not to the send decision.
+  if (AFFIRM_RE.test(text) || hasUnnegatedSendVerb(text)) {
     const action = pending.action;
     clearPendingState();
     // eslint-disable-next-line no-console
@@ -322,6 +340,10 @@ function resolvePendingWithTranscript(text: string): boolean {
     // dispatch here — a slow/timing-out send would freeze input again, which
     // is the exact wedge this unit was created to fix.
     void dispatchAndReport(action);
+    return true;
+  }
+  if (NEGATE_RE.test(text)) {
+    discardPending(`user declined ("${text}")`);
     return true;
   }
   return false;
