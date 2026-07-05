@@ -411,6 +411,99 @@ export async function postRunRoutine(routine: Routine): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
+// Startup config (web = source of truth; local Tauri store = offline fallback).
+// The desktop reads the owner's canonical STARTUP config from the web on boot
+// so editing it on the web JARVIS tab changes what the desktop does at session
+// start (briefing toggle, apps/URLs to open, macOS Shortcuts to run). The local
+// settings store is mirrored from this and used verbatim when the fetch fails.
+// ---------------------------------------------------------------------------
+
+/** One item the desktop opens on session-start. Mirrors StartupOpenItem in
+ *  settings.ts and the web's StartupOpenTarget. */
+export interface StartupConfigOpenItem {
+  type: "url" | "app";
+  value: string;
+}
+
+/** The web's canonical startup config, as returned by GET
+ *  /api/jarvis/config/startup. Shapes match jarvis_startup_config. */
+export interface StartupConfig {
+  briefingEnabled: boolean;
+  openOnStart: StartupConfigOpenItem[];
+  startupShortcuts: string[];
+}
+
+/** Bound the boot-time fetch so a slow/dead server can never wedge session
+ *  start — on timeout we abort and fall back to the local store. */
+const STARTUP_CONFIG_TIMEOUT_MS = 4_000;
+
+/** Narrow a raw openOnStart value from the wire: drop malformed entries. */
+function coerceOpenItems(raw: unknown): StartupConfigOpenItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: StartupConfigOpenItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const type = (entry as Record<string, unknown>)["type"];
+    const value = (entry as Record<string, unknown>)["value"];
+    if ((type === "url" || type === "app") && typeof value === "string" && value.trim()) {
+      items.push({ type, value: value.trim() });
+    }
+  }
+  return items;
+}
+
+/** Narrow a raw shortcuts value from the wire: keep non-empty strings only. */
+function coerceShortcuts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+    .map((name) => name.trim());
+}
+
+/**
+ * GET /api/jarvis/config/startup
+ * Reads the owner's canonical startup config (bearer + owner gated). Web is the
+ * source of truth. Returns null on ANY failure — non-ok status, parse error,
+ * transport failure, or the {@link STARTUP_CONFIG_TIMEOUT_MS} timeout — so the
+ * caller can fall back to the local Tauri store and session start never blocks
+ * on the network. The returned shapes are sanitized (malformed entries dropped)
+ * so consumers always see well-formed values.
+ */
+export async function fetchStartupConfig(): Promise<StartupConfig | null> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), STARTUP_CONFIG_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/config/startup`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[config/startup] GET ${res.status}`);
+      return null;
+    }
+    const json = (await res.json()) as {
+      briefingEnabled?: unknown;
+      openOnStart?: unknown;
+      startupShortcuts?: unknown;
+    };
+    return {
+      briefingEnabled: typeof json.briefingEnabled === "boolean" ? json.briefingEnabled : true,
+      openOnStart: coerceOpenItems(json.openOnStart),
+      startupShortcuts: coerceShortcuts(json.startupShortcuts),
+    };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[config/startup] GET failed", err);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // iMessage recipient resolution (tie-breaker / fallback for the send gate).
 // macOS Contacts is the desktop's authoritative source; this cross-references a
 // NAME against handles the owner has actually messaged (ingested chat.db →
