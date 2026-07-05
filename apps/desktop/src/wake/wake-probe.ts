@@ -92,6 +92,19 @@ export function setWakeTriggerHandler(fn: () => void): void {
   triggerHandler = fn;
 }
 
+// Injected cache pre-warm (main.ts wires api/client.postWarmup). Fired the
+// instant ANY wake phrase is detected — built-in "daddy's home" OR a routine
+// phrase — so the Anthropic 1h prompt cache is created while the mic-release +
+// FSM handoff is still in flight. Fire-and-forget: the wake path never awaits
+// it, so a warmup miss can't delay the turn. Injection seam (not a direct
+// api/client import) keeps this module dependency-free like the handlers above.
+let warmupHandler: (() => void) | null = null;
+
+/** Inject the on-wake cache pre-warm (main.ts wires postWarmup). */
+export function setWakeWarmupHandler(fn: () => void): void {
+  warmupHandler = fn;
+}
+
 // Injected routine dispatch (main.ts wires the registry). The matcher scans
 // the routine phrase table (wake + utterance triggers) and returns a matched
 // routineId or null; the fire handler runs that routine's blocks. Kept as
@@ -222,6 +235,10 @@ async function runWakeProbe(): Promise<void> {
     if (routineId && routineFireHandler) {
       // eslint-disable-next-line no-console
       console.log(`[wake] routine phrase matched — firing ${routineId}`);
+      // Pre-warm the Anthropic prompt cache the instant a wake phrase lands, in
+      // parallel with the mic-release + routine handoff, so the routine's first
+      // agent block reads a warm cache instead of paying ~45s to create it.
+      warmupHandler?.();
       triggering = true;
       // Release the mic FIRST so the routine's spoken block results own the
       // stream and can't feed back into the idle probe.
@@ -237,6 +254,10 @@ async function runWakeProbe(): Promise<void> {
     if (WAKE_PHRASE.test(text)) {
       // eslint-disable-next-line no-console
       console.log("[wake] 'daddy's home' detected — invoking JARVIS");
+      // Pre-warm the Anthropic prompt cache in parallel with the mic-release +
+      // startConversation handoff, so the user's first spoken command reads a
+      // warm cache instead of paying ~45s to create it.
+      warmupHandler?.();
       triggering = true;
       // Release the mic FIRST so the FSM's capture turn owns the cpal stream,
       // then hand off through the shared invoke path (startConversation).

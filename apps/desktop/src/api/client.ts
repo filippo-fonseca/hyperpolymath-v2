@@ -63,6 +63,49 @@ export async function postClaim(): Promise<void> {
 }
 
 /**
+ * POST /api/jarvis/voice/warmup
+ *
+ * Fire-and-forget cache pre-warm. The FIRST real voice turn of a session pays
+ * ~45s to create the Anthropic 1h prompt cache; every turn after reads it in
+ * ~600ms. Hitting this ahead of the user's first spoken command (at boot and
+ * on every wake) moves that one-time creation off the critical path so turn 1
+ * reads a warm cache. Side-effect-free on the server (no turn persisted, no
+ * SSE, no TTS). Non-fatal: a failed warmup just means the first turn pays the
+ * old cost.
+ */
+export async function postWarmup(): Promise<void> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/warmup`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        ...JARVIS_MODE_HEADER,
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[warmup] ${res.status}`);
+      return;
+    }
+    const json = (await res.json()) as {
+      cacheRead?: number;
+      cacheCreated?: number;
+      ms?: number;
+    };
+    // eslint-disable-next-line no-console
+    console.log(
+      `[warmup] cache read/create ${json.cacheRead ?? "?"}/${json.cacheCreated ?? "?"} in ${json.ms ?? "?"}ms`,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[warmup] failed", err);
+  }
+}
+
+/**
  * POST /api/jarvis/tts
  * Fetches raw PCM audio (16-bit signed LE @ 24kHz mono) from ElevenLabs
  * via the server proxy. The desktop auth path sends X-Trigger-Secret

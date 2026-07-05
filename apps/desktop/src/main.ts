@@ -16,7 +16,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
-import { postClaim } from "@/api/client";
+import { postClaim, postWarmup } from "@/api/client";
 import {
   cancelCaptureTurn,
   onCaptureState,
@@ -74,6 +74,7 @@ import {
   setRoutineFireHandler,
   setWakeEnabled,
   setWakeTriggerHandler,
+  setWakeWarmupHandler,
 } from "@/wake/wake-probe";
 import { safeRegister } from "@/hotkeys/register";
 import {
@@ -718,6 +719,13 @@ async function boot(): Promise<void> {
   // an app restart.
   setWakeTriggerHandler(() => void startConversation());
 
+  // 3a-quater. On-wake cache pre-warm. The wake probe fires this the instant a
+  // wake phrase is detected (built-in "daddy's home" or a routine phrase), in
+  // parallel with the mic-release + FSM handoff, so the first agent turn of the
+  // wake→command sequence reads a warm Anthropic 1h prompt cache instead of
+  // paying ~45s to create it. Fire-and-forget; never blocks the voice loop.
+  setWakeWarmupHandler(() => void postWarmup());
+
   // 3a-ter. Routine triggers. Wire the injection seams that connect the
   // registry (dispatch + fireRoutine), the wake probe (phrase matching), the
   // hotkey manager, and the time scheduler — all data-driven from the owner's
@@ -948,6 +956,13 @@ async function boot(): Promise<void> {
   setInterval(() => {
     void postClaim();
   }, CLAIM_HEARTBEAT_MS);
+
+  // Boot-time cache pre-warm. Fire the Anthropic 1h prompt-cache creation now,
+  // once, so the user's FIRST spoken command of the session reads a warm cache
+  // (~600ms) instead of paying the ~45s one-time creation on turn 1. Also warms
+  // the web's Postgres pool + compiles the voice route. Fire-and-forget — never
+  // blocks boot; a warmup miss just means turn 1 pays the old cost.
+  void postWarmup();
 
   // Routine triggers: start the time scheduler, do the initial sync (fetches
   // the owner's enabled routines and rebuilds all dispatch tables), then poll
