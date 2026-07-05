@@ -51,7 +51,7 @@ interface SendResult {
 
 /** Spoken affirmatives that release a pending send. */
 const AFFIRM_RE =
-  /^\s*(?:yes|yeah|yep|yup|sure|ok(?:ay)?|confirm|affirmative|do it|go ahead|send(?: it| that| the message)?|please do|please send(?: it)?)\b/i;
+  /^\s*(?:yes|yeah|yep|yup|sure|ok(?:ay)?|confirm|affirmative|do it|go ahead|send (?:it|that|the message)|please do|please send(?: it)?)\b/i;
 /** Spoken negatives that discard a pending send. */
 const NEGATE_RE =
   /^\s*(?:no|nope|nah|cancel|stop|don'?t|do not|never ?mind|nevermind|negative|hold (?:off|on)|scratch that)\b/i;
@@ -61,6 +61,35 @@ const NEGATE_RE =
  *  Leading conversational "no"/"nope"/"nah" are intentionally NOT included here —
  *  those are sentence-initial correction markers (see `hasUnnegatedSendVerb`). */
 const NEGATOR_RE = /\b(?:don'?t|do(?:es)?\s+not|doesn'?t|never|not|\w+n't)\b/i;
+
+/** A transcript shaped like a message-COMPOSITION REQUEST ("send a message to
+ *  Rohan that …", "text Rohan saying …"). Such a phrase describes the send we
+ *  are about to hold — it must NEVER count as the spoken confirmation for that
+ *  very send (that self-confirmation was the iMessage double-send bug). Genuine
+ *  confirmations ("yes", "send it", "go ahead") don't match this shape. */
+const REQUEST_RE =
+  /\bsend (?:a|an|another) (?:message|text)\b|\b(?:text|message)\s+\w+\s+(?:that|saying|:)/i;
+
+/** Normalize a message body for dedupe: drop a trailing "(via Jarvis)" /
+ *  "(sent via Jarvis)" signature the model sometimes improvises, collapse
+ *  whitespace, lowercase. Two emissions of the same logical send that differ
+ *  only by that suffix (or by casing/spacing) then compare equal. */
+function normalize(t: string): string {
+  return t
+    .replace(/\s*\((?:sent )?via jarvis\.?\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/** True when two normalized message bodies are the "same" send: equal, or one a
+ *  prefix of the other (covers suffix-only variants like a re-emit that appended
+ *  or dropped a signature). */
+function sameNormalizedText(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  return shorter.length > 0 && longer.startsWith(shorter);
+}
 
 /** True when the utterance contains an explicit SEND verb ("send it" / "send
  *  that" / "send the message" / "go ahead") that is NOT negated by any negator
@@ -83,6 +112,13 @@ const PRECONFIRM_WINDOW_MS = 20_000;
 /** Suppress an identical recipient+text send arriving within this window
  *  (the model re-emitting the tool call for a send we already executed). */
 const DEDUPE_WINDOW_MS = 30_000;
+/** Text-independent backstop against the double-send: once a send to a given
+ *  (app, recipient) has actually been dispatched, any further send_message for
+ *  the SAME target arriving within this window is HELD (normal pending flow),
+ *  never pre-confirmed — so a model re-emit riding a stale affirmative can't
+ *  fire without a fresh explicit "yes". A legitimately different second message
+ *  to the same person still works: the user just confirms it again. */
+const DISPATCH_LATCH_MS = 15_000;
 /** Hard backstop: a pending confirm never outlives this, even if the
  *  conversation somehow stays active. */
 const PENDING_TTL_MS = 120_000;
@@ -103,7 +139,12 @@ interface PendingSend {
 let pending: PendingSend | null = null;
 let pendingTtlTimer: ReturnType<typeof setTimeout> | null = null;
 let lastTranscript: { text: string; at: number } | null = null;
-let lastSent: { recipient: string; text: string; at: number } | null = null;
+let lastSent: { app: SendMessageAction["app"]; recipient: string; text: string; at: number } | null =
+  null;
+/** Text-independent dispatch latch (see DISPATCH_LATCH_MS). Records the last
+ *  target we actually dispatched to, regardless of message text, so a re-emit
+ *  for the same (app, recipient) can be forced back through the hold flow. */
+let lastDispatch: { app: SendMessageAction["app"]; recipient: string; at: number } | null = null;
 let started = false;
 
 /** Presentational signal for the HUD: `true` while a send_message is held
@@ -180,7 +221,7 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
       );
       return { ok: false, reason: `http ${res.status}` };
     }
-    lastSent = { recipient: action.recipient, text: action.text, at: Date.now() };
+    lastSent = { app: action.app, recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
       `[confirm] whatsapp send dispatched to "${action.recipient}" (${action.text.length} chars) via ${target}`,
@@ -267,7 +308,7 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
   const script = buildIMessageSend(sendHandle, action.text);
   try {
     await runAppleScript(script, `send-imessage:${sendHandle}`);
-    lastSent = { recipient: action.recipient, text: action.text, at: Date.now() };
+    lastSent = { app: action.app, recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
       `[confirm] send_message dispatched to "${action.recipient}" (${action.text.length} chars)`,
@@ -285,6 +326,16 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
  *  speak a short, user-appropriate correction (never a dev hint) so the user is
  *  never left believing a false success. */
 async function dispatchAndReport(action: SendMessageAction): Promise<void> {
+  // Arm the text-independent dispatch latch the instant we commit to sending.
+  // Set here (not at the call sites) so EVERY path that dispatches — the
+  // pre-confirm branch and resolvePendingWithTranscript both funnel through
+  // here — records the target, and a same-target re-emit within
+  // DISPATCH_LATCH_MS is forced back through the hold flow (see holdSendMessage).
+  lastDispatch = {
+    app: action.app,
+    recipient: action.recipient.toLowerCase(),
+    at: Date.now(),
+  };
   // Register a HUD loader chip for this in-flight send so the user can see it
   // going out (and keep talking) while it settles. Purely presentational — the
   // chip lives entirely inside this already-detached promise, so it adds no
@@ -330,10 +381,17 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
 export function holdSendMessage(action: SendMessageAction): void {
   const now = Date.now();
 
+  // Normalized dedupe: same channel + recipient (case-insensitive) + "same"
+  // body within the window. `normalize` strips a trailing "(via Jarvis)"
+  // signature and casing/spacing, and `sameNormalizedText` also treats a
+  // prefix match as a dup — so a re-emit that only appended/dropped that suffix
+  // is still caught (the exact-match dedupe used to miss it, which is how the
+  // second iMessage got out).
   if (
     lastSent &&
-    lastSent.recipient === action.recipient &&
-    lastSent.text === action.text &&
+    lastSent.app === action.app &&
+    lastSent.recipient.toLowerCase() === action.recipient.toLowerCase() &&
+    sameNormalizedText(normalize(lastSent.text), normalize(action.text)) &&
     now - lastSent.at < DEDUPE_WINDOW_MS
   ) {
     // eslint-disable-next-line no-console
@@ -343,9 +401,33 @@ export function holdSendMessage(action: SendMessageAction): void {
     return;
   }
 
+  // Dispatch latch (text-independent backstop): if we ALREADY dispatched to
+  // this same (app, recipient) moments ago, a fresh send_message for the same
+  // target is almost certainly the model re-emitting the tool call after the
+  // user's "yes" (the documented flow-1 hazard). Force it back through the hold
+  // flow — never let it pre-confirm off a stale affirmative — so it takes a new
+  // explicit "yes". A genuinely different second message to the same person
+  // still works: it just holds and the user confirms again.
+  const latched =
+    lastDispatch !== null &&
+    lastDispatch.app === action.app &&
+    lastDispatch.recipient === action.recipient.toLowerCase() &&
+    now - lastDispatch.at < DISPATCH_LATCH_MS;
+  if (latched) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[confirm] dispatch latch active for "${action.recipient}" (${now - (lastDispatch?.at ?? now)}ms ago) — holding re-emit for a fresh confirmation`,
+    );
+  }
+
   if (
+    !latched &&
     lastTranscript &&
     now - lastTranscript.at < PRECONFIRM_WINDOW_MS &&
+    // A composition REQUEST ("send a message to X that …") describes THIS send;
+    // it must never count as the confirmation for it. Only genuine
+    // affirmatives/send-verbs pre-confirm.
+    !REQUEST_RE.test(lastTranscript.text) &&
     (AFFIRM_RE.test(lastTranscript.text) || hasUnnegatedSendVerb(lastTranscript.text))
   ) {
     // Two-turn flow: the transcript that triggered this turn was the spoken
