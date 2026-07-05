@@ -429,6 +429,9 @@
          old sans size; Garamond runs small on the body. */
       .turn .body { font-family: var(--serif); font-size: 15px; }
       .turn.user .body { color: color-mix(in srgb, var(--fg) 80%, var(--muted)); }
+      /* Optimistic placeholder while STT is still resolving — reads as
+         "recognising", never as the user's final message. */
+      .turn.user.pending .body { font-style: italic; opacity: 0.55; }
       .turn.jarvis .body { color: var(--fg); }
 
       /* ── Footer: pinned invoke button + inline tool receipts ── */

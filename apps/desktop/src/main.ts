@@ -218,6 +218,41 @@ function appendUserTurn(text: string): void {
   autoScroll(el, near);
 }
 
+// Optimistic user bubble: painted the instant the mic finishes (capture state
+// → "uploading") so the user sees their message echoed before STT resolves.
+// paintTranscript reconciles it in place when the real text arrives; a
+// no-speech outcome clears it so no "recognising…" ghost is stranded.
+let optimisticUserTurn: HTMLElement | null = null;
+let optimisticUserBody: HTMLElement | null = null;
+
+function beginOptimisticUserTurn(): void {
+  if (optimisticUserTurn) return;
+  const el = transcriptEl();
+  if (!el) return;
+  const near = isNearBottom(el);
+  el.classList.add("has-content");
+  const turn = document.createElement("div");
+  turn.className = "turn user pending";
+  const who = whoRow("you");
+  const body = document.createElement("div");
+  body.className = "body";
+  body.textContent = "recognising…";
+  turn.append(who, body);
+  el.appendChild(turn);
+  turnPairState = "user-opened";
+  optimisticUserTurn = turn;
+  optimisticUserBody = body;
+  autoScroll(el, near);
+}
+
+function clearOptimisticUserTurn(): void {
+  if (!optimisticUserTurn) return;
+  optimisticUserTurn.remove();
+  optimisticUserTurn = null;
+  optimisticUserBody = null;
+  if (turnPairState === "user-opened") turnPairState = "neutral";
+}
+
 // The in-progress JARVIS reply bubble's body element (grows as chunks stream).
 let currentReplyBody: HTMLElement | null = null;
 
@@ -258,8 +293,18 @@ function appendJarvisDelta(delta: string): void {
 }
 
 function paintTranscript(text: string): void {
-  // Visible transcript log.
-  appendUserTurn(text);
+  // If an optimistic bubble is up, reconcile it in place instead of appending
+  // a second bubble — the user sees their placeholder resolve into real text.
+  if (optimisticUserBody && optimisticUserTurn && text.trim()) {
+    optimisticUserBody.textContent = text;
+    optimisticUserTurn.classList.remove("pending");
+    optimisticUserTurn = null;
+    optimisticUserBody = null;
+    const el = transcriptEl();
+    if (el) autoScroll(el, true);
+  } else {
+    appendUserTurn(text);
+  }
   // Keep the drawer QA row in sync.
   const panel = document.getElementById("transcript-panel");
   const out = document.getElementById("transcript-text");
@@ -721,12 +766,18 @@ async function boot(): Promise<void> {
   // 5. Register SSE + capture listeners
   onSseStatusChange(paintSseStatus);
   onCaptureState(paintCaptureState);
+  // Optimistic user bubble the instant the mic ends — reconciled in place
+  // by paintTranscript when STT resolves, cleared on no-speech.
+  onCaptureState((state) => {
+    if (state === "uploading") beginOptimisticUserTurn();
+  });
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
   // Empty / failed STT → flash a butler line through the acknowledge strip so
   // the user gets immediate feedback instead of a silent stall. The strip's
   // own guard keeps this from clobbering a live streaming response.
   onNoSpeechDetected((reason) => {
+    clearOptimisticUserTurn();
     flashAckStrip(
       reason === "stt-failed" ? "Sorry sir, transcription failed" : "Didn't catch that, sir",
     );
