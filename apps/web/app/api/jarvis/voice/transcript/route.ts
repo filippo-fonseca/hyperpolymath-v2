@@ -86,6 +86,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   let transcript: string;
   let sttDoneAt: number;
 
+  const sttStartedAt = Date.now();
   try {
     const transcription = await groq.audio.transcriptions.create({
       file,
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       language: "en",
     });
     sttDoneAt = Date.now();
+    console.log(`[voice-timing] stt ${sttDoneAt - sttStartedAt}ms`);
     transcript = transcription.text;
   } catch (err) {
     console.error("[voice/transcript] Groq failed", err);
@@ -239,12 +241,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
 
-  // Schedule the agent turn to run AFTER the response is flushed to the client
-  // so the POST returns in ~1s (STT + setup time) rather than blocking for the
-  // entire 30-90s turn. The turn communicates entirely over the separate SSE
-  // stream and persists to the DB — it does NOT need the POST response open.
-  after(() => {
-    void runJarvisTurnStream({
+  // Start the agent turn NOW (before the return), then hand the promise to
+  // `after` purely for the Vercel keep-alive property. Starting it before the
+  // response makes first-SSE-chunk time independent of dev's flush behavior:
+  // `after()` defers scheduling, and `next dev` does not reliably detach the
+  // response from the request's pending work, which previously delayed both the
+  // echo and the turn start until the whole turn finished. The turn communicates
+  // entirely over the separate SSE stream and persists to the DB — it does NOT
+  // need the POST response open.
+  console.log(`[voice-timing] setup ${Date.now() - sttDoneAt}ms (stt-done → turn start)`);
+  const turnPromise = runJarvisTurnStream({
       userId,
       apiKey: anthropicKey,
       input: transcript,
@@ -329,7 +335,10 @@ export async function POST(req: NextRequest): Promise<Response> {
           });
       },
     });
-  });
+
+  // Keep the serverless function alive until the turn completes (Vercel drains
+  // pending work registered via `after`); does not gate the response.
+  after(() => turnPromise);
 
   return Response.json({ transcript, turnId }, { headers: CORS });
 }
