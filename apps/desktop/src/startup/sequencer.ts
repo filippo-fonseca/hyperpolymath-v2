@@ -25,11 +25,12 @@
 // startup.openOnStart / startup.shortcuts — read via loadSettings(), written
 // via saveSetting() (that's the surface the settings UI builds on).
 
+import { fetchStartupConfig } from "@/api/client";
 import { fireOpenItems, handleAction } from "@/actions/dispatcher";
 import { runBriefing } from "@/briefing/briefing";
 import { onJarvisResponseComplete, ttsPlayer } from "@/jarvis-response";
 import { onJarvisResponseEnd } from "@/physical-extender/sse-client";
-import { loadSettings, type StartupOpenItem } from "@/settings";
+import { loadSettings, saveSetting, type StartupOpenItem } from "@/settings";
 
 // After the briefing's response ends, the first TTS sentence fetch may still
 // lag the first `playing` transition. Wait this long for audio to begin
@@ -189,6 +190,57 @@ function fireShortcuts(names: string[]): void {
   }
 }
 
+/** The three startup fields the sequence consumes, resolved from whichever
+ *  source won (web when reachable, else the local Tauri store). */
+interface ResolvedStartupConfig {
+  startupBriefingEnabled: boolean;
+  startupOpenOnStart: StartupOpenItem[];
+  startupShortcuts: string[];
+}
+
+/**
+ * Resolve the startup config the sequence should execute. WEB IS THE SOURCE OF
+ * TRUTH when reachable: fetch the owner's canonical config from
+ * /api/jarvis/config/startup (bearer-authed, bounded by its own ~4s timeout so
+ * this never blocks session start). On success we mirror it into the local
+ * Tauri store — best-effort, non-blocking — so the offline fallback and the
+ * local settings UI stay in sync, then run the sequence from the web values.
+ * On ANY failure (offline / no token / timeout) we fall back to the existing
+ * local `loadSettings()` values so a session start still runs the last-known
+ * config.
+ */
+async function resolveStartupConfig(): Promise<ResolvedStartupConfig> {
+  const web = await fetchStartupConfig();
+  if (web) {
+    // eslint-disable-next-line no-console
+    console.log("[startup] config source: web (source of truth) — mirroring to local store");
+    // Mirror into the local store so offline still works and the local UI
+    // reflects the canonical config. Best-effort: a store write failure must
+    // not affect the sequence we're about to run from the web values.
+    void Promise.all([
+      saveSetting("startupBriefingEnabled", web.briefingEnabled),
+      saveSetting("startupOpenOnStart", web.openOnStart),
+      saveSetting("startupShortcuts", web.startupShortcuts),
+    ]).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[startup] mirror to local store failed", err);
+    });
+    return {
+      startupBriefingEnabled: web.briefingEnabled,
+      startupOpenOnStart: web.openOnStart,
+      startupShortcuts: web.startupShortcuts,
+    };
+  }
+  // eslint-disable-next-line no-console
+  console.log("[startup] config source: local store (web unreachable — offline fallback)");
+  const local = await loadSettings();
+  return {
+    startupBriefingEnabled: local.startupBriefingEnabled,
+    startupOpenOnStart: local.startupOpenOnStart,
+    startupShortcuts: local.startupShortcuts,
+  };
+}
+
 /**
  * Run the session-start sequence exactly once per app session. Resolves after
  * the briefing has fully drained and steps 2/3 have been FIRED (not finished);
@@ -206,7 +258,7 @@ export async function maybeRunStartupSequence(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log("[startup] session-start sequence — first invoke this session");
 
-  const settings = await loadSettings();
+  const settings = await resolveStartupConfig();
 
   // ── Step 1: briefing — fully drain before anything may open the mic ──────
   if (!settings.startupBriefingEnabled) {
