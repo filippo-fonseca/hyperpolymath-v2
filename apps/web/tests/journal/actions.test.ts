@@ -80,7 +80,7 @@ describe("Phase 20 journaling — upsert idempotency (JOURNAL-SERVICE-01)", () =
     expect(row.notes_section).toBe("A follow-up note");
   }, 15_000);
 
-  it("noExport defaults to false on a fresh entry", async () => {
+  it("noExport defaults to true on a fresh entry (opt-in MCP export, issue #191)", async () => {
     const freshDate = "2026-06-21";
 
     const { error } = await user.client
@@ -103,7 +103,7 @@ describe("Phase 20 journaling — upsert idempotency (JOURNAL-SERVICE-01)", () =
 
     expect(selErr).toBeNull();
     expect(rows).toHaveLength(1);
-    expect(rows![0].no_export).toBe(false);
+    expect(rows![0].no_export).toBe(true);
   }, 15_000);
 
   it("getJournalEntries returns entries ordered most-recent-first", async () => {
