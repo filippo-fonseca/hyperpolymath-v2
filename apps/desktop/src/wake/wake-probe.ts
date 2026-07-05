@@ -32,7 +32,7 @@ import { isCaptureActive, probeBufferTail } from "@/audio/capture";
 // NOT a stored routine: it must work with zero routines / server unreachable,
 // and it maps to opening a conversation, not to running a block list.
 const WAKE_PHRASE = /\bdaddy'?s\s+home\b/i;
-const WAKE_PROBE_INTERVAL_MS = 2_200;
+const WAKE_PROBE_INTERVAL_MS = 3_000;
 // Rolling buffer cap. probeBufferTail only transcribes the last ~5s, so keep
 // ~6s and drop older chunks — the idle loop can run for hours and must not
 // accumulate audio unboundedly (the retired 2026-06 version leaked here).

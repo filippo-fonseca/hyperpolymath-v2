@@ -54,6 +54,14 @@ export async function probeBufferTail(samples: Float32Array): Promise<string | n
     samples.length > PROBE_TAIL_SAMPLES
       ? samples.subarray(samples.length - PROBE_TAIL_SAMPLES)
       : samples;
+  // Energy gate: skip the STT request entirely when the tail is basically
+  // silence. This wake PROBE ran every ~2.2s with no gate, transcribing pure
+  // silence ~1,600×/hr and draining the daily Groq quota in ~1h — which is
+  // what caused the 429/retry-after latency. Returning null matches the
+  // "no speech" contract (the wake path is fail-open on null). Only the wake
+  // probe flows through here; real command capture (finishTurn) POSTs directly
+  // and is unaffected, so real utterances are never dropped.
+  if (computeRms(tail) < VAD_DEFAULTS.rmsThreshold) return null;
   try {
     const wav = encodeWav(tail, 16_000);
     return await probeTranscript(wav);
