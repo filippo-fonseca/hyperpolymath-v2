@@ -26,7 +26,10 @@ interface Props {
  * Fields:
  *   - mainResponse: large EB Garamond serif body, answers the fixed PROMPT.
  *   - notesSection: smaller textarea for miscellaneous notes.
- *   - noExport: checkbox to exclude entry from AI context graph export.
+ *   - noExport: privacy gate for the MCP export. The UI presents this as an
+ *     opt-IN toggle labeled "Include in AI export (MCP)"; checked ⇒ !noExport.
+ *     Defaults to unchecked (no_export=true) so journal entries stay private
+ *     unless the user actively opts in (issue #191).
  *
  * Autosave: debounced at 800ms. Skips write if both text fields are empty
  * (avoids creating empty rows on first visit). Save indicator cycles:
@@ -35,7 +38,9 @@ interface Props {
 export function JournalEntryEditor({ date, entry }: Props) {
   const [mainResponse, setMainResponse] = useState(entry?.mainResponse ?? "");
   const [notesSection, setNotesSection] = useState(entry?.notesSection ?? "");
-  const [noExport, setNoExport] = useState(entry?.noExport ?? false);
+  // Default opts OUT of export (no_export=true) so journal entries are private
+  // by default — matches the DB column default set in migration 0045.
+  const [noExport, setNoExport] = useState(entry?.noExport ?? true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   // When the query resolves and brings in a real entry (id appears for the
@@ -46,7 +51,7 @@ export function JournalEntryEditor({ date, entry }: Props) {
     if (entry) {
       setMainResponse(entry.mainResponse ?? "");
       setNotesSection(entry.notesSection ?? "");
-      setNoExport(entry.noExport ?? false);
+      setNoExport(entry.noExport ?? true);
       setSaveState("idle");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,20 +185,22 @@ export function JournalEntryEditor({ date, entry }: Props) {
       {/* Divider */}
       <div className="border-t border-[var(--edge)]" />
 
-      {/* no_export toggle */}
+      {/* Opt-in AI/MCP export toggle. UI is the inverse of the underlying
+          no_export column: checked ⇒ include in export ⇒ noExport=false.
+          Default off (private) per issue #191. */}
       <div className="flex items-center gap-2.5">
         <Checkbox
-          id={`no-export-${date}`}
-          checked={noExport}
+          id={`include-in-export-${date}`}
+          checked={!noExport}
           onCheckedChange={(checked) =>
-            handleNoExportChange(checked === true)
+            handleNoExportChange(checked !== true)
           }
         />
         <label
-          htmlFor={`no-export-${date}`}
+          htmlFor={`include-in-export-${date}`}
           className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] cursor-pointer select-none"
         >
-          Exclude from AI export
+          Include in AI export (MCP)
         </label>
       </div>
     </div>
