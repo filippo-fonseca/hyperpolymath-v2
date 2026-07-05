@@ -43,14 +43,20 @@ describe("CACHE-01 — system last carries cache_control with ttl: \"1h\"", () =
     { id: "proj-bbb", name: "Beta", icon: null },
   ];
 
-  it("with facts: last block (facts) carries { type: 'ephemeral', ttl: '1h' }", () => {
+  it("with facts: project-list block (second-to-last) carries { type: 'ephemeral', ttl: '1h' }; facts uncached", () => {
+    // Post-latency-fix (2026-07-04): the breakpoint permanently lives on
+    // project-list (last block of the stable prefix). Facts rides uncached
+    // after it so volatile fact mutations don't bust the ~9K prefix cache.
     const blocks = buildSystemPrompt({
       projects: projectsFixture,
       facts: [{ id: "f1", type: "preference", key: "tone", value: "concise" }] as never,
     });
     const last = blocks[blocks.length - 1] as SystemBlock;
+    const projectsBlock = blocks[blocks.length - 2] as SystemBlock;
     expect(last.text).toContain("JARVIS MEMORY");
-    expect(last.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(last.cache_control).toBeUndefined();
+    expect(projectsBlock.text).toContain("USER PROJECTS");
+    expect(projectsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
   it("without facts: last block (project-list) carries { type: 'ephemeral', ttl: '1h' }", () => {
@@ -63,11 +69,17 @@ describe("CACHE-01 — system last carries cache_control with ttl: \"1h\"", () =
     expect(last.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  it("NO non-last block carries cache_control (single breakpoint invariant)", () => {
-    const blocks = buildSystemPrompt({ projects: projectsFixture, facts: [] });
-    const head = blocks.slice(0, -1);
-    const withCacheControl = head.filter((b) => b.cache_control !== undefined);
-    expect(withCacheControl).toHaveLength(0);
+  it("single breakpoint invariant: exactly ONE system block carries cache_control (project-list), with or without facts", () => {
+    const withoutFacts = buildSystemPrompt({ projects: projectsFixture, facts: [] });
+    const withFacts = buildSystemPrompt({
+      projects: projectsFixture,
+      facts: [{ id: "f1", type: "preference", key: "tone", value: "concise" }] as never,
+    });
+    for (const blocks of [withoutFacts, withFacts]) {
+      const withCC = blocks.filter((b) => (b as SystemBlock).cache_control !== undefined);
+      expect(withCC).toHaveLength(1);
+      expect((withCC[0] as SystemBlock).text).toContain("USER PROJECTS");
+    }
   });
 
   it("buildSystemPrompt is deterministic (Phase 5/5.1 invariant)", () => {

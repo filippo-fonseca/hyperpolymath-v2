@@ -6,27 +6,33 @@
 // System-prompt builder for the JARVIS Anthropic call.
 //
 // Returns an array of text blocks compatible with Anthropic's `system` field
-// (array shape, with cache_control breakpoints). The LAST block ALWAYS
-// carries `cache_control: { type: "ephemeral" }` to mark the cache
-// boundary — Anthropic caches everything before the breakpoint within the
-// system section (research §1.3).
+// (array shape, with cache_control breakpoints). The STABLE PREFIX ending at
+// the project-list block ALWAYS carries the 1h `cache_control` breakpoint;
+// any volatile blocks (facts, mode addendum) ride UNCACHED after it —
+// Anthropic caches everything before the breakpoint within the system
+// section (research §1.3).
 //
-// `voiceActive` is Phase 7 forward-compat: when true, a fourth block is
-// prepended ahead of the personality with voice-aware addendum copy. Plan
-// 05-01 always passes false (or omits); Phase 7 flips it on.
+// Volatile-after-breakpoint rule: prompt caching is prefix-based, so any
+// block that changes turn-to-turn must sit AFTER every cache_control marker
+// or it invalidates the whole cached prefix. The JARVIS MEMORY (facts) block
+// mutates on nearly every turn (extractAndPersistFacts is fire-and-forget in
+// run-turn.ts) — so it MUST NOT sit inside a cached prefix. Same for the
+// COMPUTER_MODE_ADDENDUM, which varies per-turn with `mode`.
 //
-// Phase 5.1 (D-M4 / JARVIS-18): `facts` param added. When non-empty, a new
-// JARVIS MEMORY block is appended as the LAST system block with
-// cache_control: { type: "ephemeral" }. The project-list block then loses
-// cache_control (it's no longer the last block). When facts is empty or
-// omitted, cache_control stays on the project-list block — backward-
-// compatible, no behavioral change.
+// `voiceActive` is Phase 7 forward-compat: when true, a spoken-output-contract
+// block is inserted right after the personality. Plan 05-01 always passes
+// false (or omits); Phase 7 flips it on.
 //
-// Phase 11 (CACHE-01 / D-06): the LAST block's cache_control upgrades to
+// Phase 5.1 (D-M4 / JARVIS-18): `facts` param added. When non-empty, a
+// JARVIS MEMORY block is appended AFTER the project-list block. Post-latency-
+// fix (2026-07-04): facts is UNCACHED — cache_control stays on project-list
+// so the stable prefix caches across turns even when facts mutate.
+//
+// Phase 11 (CACHE-01 / D-06): the project-list block carries
 // { type: "ephemeral", ttl: "1h" } so tier 2 (frozen system) caches for
 // 1 hour instead of the 5-min default. The new snapshot block (tier 3)
 // is appended at the route boundary (NOT here) and uses default 5-min.
-// Three breakpoints total: tools (last) + system (this block) at 1h,
+// Three breakpoints total: tools (last) + system (project-list) at 1h,
 // snapshot at 5m. See apps/web/app/api/jarvis/route.ts.
 
 import {
@@ -125,20 +131,27 @@ export function buildSystemPrompt(opts: {
 
   const hasFacts = opts.facts && opts.facts.length > 0;
 
-  // Project-list block: carries cache_control ONLY when there's no facts block
-  // following it (backward-compatible: if facts is empty/omitted, this stays LAST).
+  // Project-list block: ALWAYS carries the 1h cache breakpoint. This block
+  // caps the STABLE PREFIX (personality + spoken-contract + tool-rules +
+  // user-context + project-list) — the ~9K-token slab that is identical
+  // across turns within the same session. Everything after this block
+  // (facts, mode addendum) is volatile and rides uncached.
   blocks.push({
     type: "text",
     text: buildProjectListContext(opts.projects),
-    ...(hasFacts ? {} : { cache_control: { type: "ephemeral" as const, ttl: "1h" as const } }),
+    cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
   });
 
-  // Facts block (D-M4): appended LAST when present, carrying the cache breakpoint.
+  // Facts block (D-M4): appended AFTER the 1h breakpoint, UNCACHED.
+  // extractAndPersistFacts mutates jarvis_facts on almost every turn, so
+  // the facts text is turn-volatile — keeping it inside the cached prefix
+  // would invalidate the whole ~9K prefix each turn (root cause of the
+  // 40-50s per-turn latency fixed here). Content is preserved; only the
+  // cache placement moves.
   if (hasFacts) {
     blocks.push({
       type: "text",
       text: buildFactsBlock(opts.facts!),
-      cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     });
   }
 
