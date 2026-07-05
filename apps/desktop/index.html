@@ -357,6 +357,90 @@
         .routine-loader-phase { transition: none; }
       }
 
+      /* ── Background-task loader chips — top-right rail, clear of the routine
+         loader (top-left) and the transcript. One chip per in-flight dispatched
+         action (a send, a screenshot describe, a long script), stacked and
+         resolving independently. Same glassy near-black / cyan / mono register
+         as the routine loader so they read as one system. ── */
+      #background-tasks {
+        position: fixed;
+        right: 14px; top: 46px;
+        z-index: 40;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        max-width: 46vw;
+        pointer-events: none;
+      }
+      #background-tasks:empty { display: none; }
+
+      .task-chip {
+        display: flex; align-items: center; gap: 8px;
+        max-width: 100%;
+        padding: 7px 11px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--rule));
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
+        backdrop-filter: blur(9px) saturate(120%);
+        -webkit-backdrop-filter: blur(9px) saturate(120%);
+        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5),
+                    0 0 14px color-mix(in srgb, var(--accent) 14%, transparent);
+        animation: task-fade-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: opacity 0.35s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+      .task-label {
+        font-family: var(--mono);
+        font-size: 10.5px; letter-spacing: 0.04em;
+        color: var(--fg);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .task-dot {
+        flex: none;
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+        position: relative;
+      }
+      /* Running: the dot pulses (reuses the routine loader's cadence). */
+      .task-chip[data-status="running"] .task-dot {
+        animation: routine-dot-pulse 1.6s ease-in-out infinite;
+      }
+      /* Done: steady cyan dot with a small check drawn beside it via ::after. */
+      .task-chip[data-status="done"] .task-dot {
+        animation: none;
+        background: var(--accent);
+      }
+      .task-chip[data-status="done"] .task-dot::after {
+        content: "";
+        position: absolute; left: 8px; top: -1px;
+        width: 3px; height: 6px;
+        border: solid var(--accent-hi);
+        border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+      /* Failed: the dot + copy shift to the error token; a small ✕ marks it. */
+      .task-chip[data-status="failed"] {
+        border-color: color-mix(in srgb, var(--err) 45%, var(--rule));
+      }
+      .task-chip[data-status="failed"] .task-dot {
+        animation: none;
+        background: var(--err);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--err) 70%, transparent);
+      }
+      .task-chip[data-status="failed"] .task-label {
+        color: color-mix(in srgb, var(--fg) 60%, var(--err));
+      }
+      @keyframes task-fade-in {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .task-chip { animation: none; transition: opacity 0.001s linear; }
+        .task-chip[data-status="running"] .task-dot { animation: none; }
+      }
+
       /* ── Transcript: the scrollable middle region. Never overlaps anything.
          Auto-scrolls to the latest text; wraps; readable type. ── */
       .transcript {
