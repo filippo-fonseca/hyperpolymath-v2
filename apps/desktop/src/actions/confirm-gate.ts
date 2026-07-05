@@ -265,6 +265,11 @@ export function holdSendMessage(action: SendMessageAction): void {
       `[confirm] send_message pre-confirmed by preceding affirmative ("${lastTranscript.text}") — sending`,
     );
     lastTranscript = null;
+    // Instant client-side ack — the "Sending it now, sir" line used to come
+    // from a second model turn ~1min later. The confirm-gate owns the true
+    // terminal outcome (success/failure), so speaking the ack here doesn't
+    // risk lying to the user.
+    ttsPlayer.speakNow("Sending it now, sir.");
     // Fire-and-forget: same load-bearing invariant as resolvePendingWithTranscript.
     // Awaiting here would let a slow/timing-out send freeze the transcript pipeline
     // — the exact wedge the WhatsApp 8s timeout was added to end.
@@ -309,6 +314,8 @@ function resolvePendingWithTranscript(text: string): boolean {
     clearPendingState();
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
+    // Instant client-side ack — see the pre-confirm branch above.
+    ttsPlayer.speakNow("Sending it now, sir.");
     // Load-bearing fire-and-forget: `clearPendingState()` has already dropped
     // the amber HUD ring and released the pending listeners, so the transcript
     // pipeline is unblocked the moment we return `true`. Never `await` the
