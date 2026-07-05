@@ -12,19 +12,25 @@
 // send to a guess.
 //
 // Resolution priority:
-//   1. macOS Contacts (authoritative) — queried via osascript against the
-//      Contacts app. Requires the TCC "Contacts" permission; a permission
-//      denial is detected and surfaced (never a blind send).
+//   1. macOS Contacts (authoritative) — queried via osascript running JXA
+//      (JavaScript for Automation) against the Contacts app. JXA is required
+//      here: AppleScript `tell application "Contacts"` returns -600
+//      "Application isn't running" when Contacts isn't already open, whereas
+//      the JXA `Application("Contacts").people.whose(...)` form launches it in
+//      the background and resolves reliably. Requires the TCC "Contacts"
+//      permission; a permission denial is detected and surfaced (never a blind
+//      send).
 //   2. Recent iMessage threads (tie-breaker / fallback) — the ingested
 //      imessage_messages table already carries `senderName` (resolved by the
 //      sync worker) alongside the raw `sender` handle. When Contacts returns
 //      several candidates we prefer the one the user has actually messaged; when
 //      Contacts is unavailable (no permission / no match) we fall back to it.
 //
-// Injection safety: the name flows into AppleScript ONLY through
-// escapeAppleScript. The recent-threads lookup is a parameterized server query.
+// Injection safety: the name flows into the JXA script ONLY through
+// JSON.stringify (a proper JS string literal — no interpolation into code). The
+// recent-threads lookup is a parameterized server query.
 
-import { escapeAppleScript, runAppleScript } from "@/actions/applescript";
+import { runJxa } from "@/actions/applescript";
 import { resolveRecentImessageHandles } from "@/api/client";
 
 /** Outcome of resolving a recipient to a concrete iMessage handle.
@@ -66,38 +72,50 @@ export function isConcreteHandle(recipient: string): boolean {
  * list of phone numbers + emails for every person whose name matches, or a
  * discriminated failure when the Contacts permission is missing.
  *
- * The AppleScript matches the query against each person's `name` (full name)
- * case-insensitively via `contains`, then emits every phone `value` and email
- * `value` for the matched people, one handle per line. A permission denial
- * raises an osascript error whose text mentions "Not authorized"/"1743"
- * (the TCC-denied signature) — we translate that into a typed permission
+ * Runs a JXA (JavaScript for Automation) script via `run_jxa` rather than
+ * AppleScript: `tell application "Contacts"` returns -600 "Application isn't
+ * running" when Contacts isn't open, but the JXA `people.whose({name:...})`
+ * form launches Contacts in the background and resolves reliably. The script
+ * matches the query against each person's full `name` case-insensitively
+ * (`_contains`), then emits every phone `value` and email `value` for the
+ * matched people, one handle per line.
+ *
+ * Injection safety: the name is embedded via JSON.stringify — a proper JS
+ * string literal — so it is data, never code.
+ *
+ * A JXA permission denial raises an osascript error whose text differs from
+ * AppleScript's: it mentions "Not authorized", a privacy phrase, "-1743", or
+ * "doesn't have permission". We translate any of those into a typed permission
  * result so the caller can tell the user to grant access instead of guessing.
  */
 async function queryContacts(
   name: string,
 ): Promise<{ ok: true; handles: string[] } | { ok: false; reason: "denied" | "error" }> {
-  const n = escapeAppleScript(name);
-  const script = [
-    'tell application "Contacts"',
-    `  set matchedPeople to (every person whose name contains "${n}")`,
-    "  set outLines to {}",
-    "  repeat with p in matchedPeople",
-    "    repeat with ph in phones of p",
-    "      set end of outLines to (value of ph)",
-    "    end repeat",
-    "    repeat with em in emails of p",
-    "      set end of outLines to (value of em)",
-    "    end repeat",
-    "  end repeat",
-    '  set AppleScript\'s text item delimiters to linefeed',
-    "  set outText to outLines as text",
-    '  set AppleScript\'s text item delimiters to ""',
-    "  return outText",
-    "end tell",
-  ].join("\n");
+  // JSON.stringify yields a safe double-quoted JS string literal for the name;
+  // it is the ONLY interpolation, so the query text can never break out into
+  // executable JXA code.
+  const nameLiteral = JSON.stringify(name);
+  const script = `
+const Contacts = Application("Contacts");
+const matched = Contacts.people.whose({ name: { _contains: ${nameLiteral} } })();
+const out = [];
+for (const p of matched) {
+  const phones = p.phones();
+  for (const ph of phones) {
+    const v = ph.value();
+    if (v) out.push(v);
+  }
+  const emails = p.emails();
+  for (const em of emails) {
+    const v = em.value();
+    if (v) out.push(v);
+  }
+}
+out.join("\\n");
+`.trim();
 
   try {
-    const raw = await runAppleScript(script, `contacts-resolve:${name}`, 8_000);
+    const raw = await runJxa(script, `contacts-resolve:${name}`, 8_000);
     const handles = raw
       .split(/\r?\n/)
       .map((h) => h.trim())
@@ -105,10 +123,10 @@ async function queryContacts(
     return { ok: true, handles };
   } catch (err) {
     const msg = String((err as { message?: string })?.message ?? err ?? "");
-    // TCC denial signatures: osascript surfaces the Contacts privacy error as
-    // "Not authorized to send Apple events" / error number -1743, or an
-    // explicit permission phrase. Treat any of these as "denied" so the user
-    // is told to grant access rather than us silently guessing a handle.
+    // JXA TCC denial signatures: osascript surfaces the Contacts privacy error
+    // as "Not authorized to send Apple events" / "doesn't have permission" /
+    // error number -1743, or an explicit privacy phrase. Treat any of these as
+    // "denied" so the user is told to grant access rather than us guessing.
     if (
       /not authorized/i.test(msg) ||
       /-?1743/.test(msg) ||
