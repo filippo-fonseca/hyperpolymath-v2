@@ -57,6 +57,12 @@ export {
 // Phase 5.1 (D-M4): buildFactsBlock for system-prompt injection
 export { buildFactsBlock } from "./prompt-builder";
 
+// JARVIS management: personality-tuning block builder + all-default guard
+export {
+  buildPersonalityTuningBlock,
+  isDefaultPersonalityConfig,
+} from "./prompt-builder";
+
 export type {
   ActionType,
   CreateCaptureAction,

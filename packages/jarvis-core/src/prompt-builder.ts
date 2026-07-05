@@ -41,7 +41,12 @@ import {
   SPOKEN_OUTPUT_CONTRACT,
   TOOL_USE_RULES,
 } from "./personality";
-import type { JarvisFact, ProjectSummary } from "./types";
+import {
+  DEFAULT_PERSONALITY_CONFIG,
+  type JarvisFact,
+  type PersonalityConfig,
+  type ProjectSummary,
+} from "./types";
 
 export interface SystemBlock {
   type: "text";
@@ -95,6 +100,93 @@ export function buildFactsBlock(facts: JarvisFact[]): string {
   return `JARVIS MEMORY (persistent facts about the user — honour these in every turn):\n${lines.join("\n")}`;
 }
 
+/**
+ * True when a personality config equals today's canon baseline: preset "canon",
+ * formality "formal", verbosity "concise", wit "dry", and no meaningful custom
+ * instructions. Such a config is a NO-OP — buildPersonalityTuningBlock returns
+ * null for it so nothing is injected and the default persona is unchanged.
+ */
+export function isDefaultPersonalityConfig(config: PersonalityConfig): boolean {
+  const custom = config.customInstructions?.trim();
+  return (
+    config.preset === DEFAULT_PERSONALITY_CONFIG.preset &&
+    config.formality === DEFAULT_PERSONALITY_CONFIG.formality &&
+    config.verbosity === DEFAULT_PERSONALITY_CONFIG.verbosity &&
+    config.wit === DEFAULT_PERSONALITY_CONFIG.wit &&
+    (!custom || custom.length === 0)
+  );
+}
+
+// Directive fragments per dial, keyed by the NON-DEFAULT values only. The
+// default value for each dial maps to an empty string (no directive) so it
+// layers cleanly on top of JARVIS_PERSONALITY without contradicting it.
+const PRESET_DIRECTIVES: Record<PersonalityConfig["preset"], string> = {
+  // canon = baseline persona; no override.
+  canon: "",
+  minimal:
+    "Persona lean — MINIMAL: strip flourish. State the useful fact and any needed question, nothing more. Suppress observational wit unless a one-word aside is genuinely apt. Favour the shortest correct acknowledgement.",
+  storyteller:
+    "Persona lean — STORYTELLER: allow a touch more narrative texture and connective framing when it aids clarity, while staying in JARVIS register. Never pad; the extra colour must earn its place.",
+};
+
+const FORMALITY_DIRECTIVES: Record<PersonalityConfig["formality"], string> = {
+  formal: "",
+  balanced:
+    "Formality — BALANCED: keep the British register but relax the starch slightly; contractions and a warmer tone are fine. Still never sycophantic.",
+  casual:
+    "Formality — CASUAL: loosen the register noticeably — conversational and easy, contractions throughout. Keep it JARVIS, not a hype-man; no exclamation-mark enthusiasm.",
+};
+
+const VERBOSITY_DIRECTIVES: Record<PersonalityConfig["verbosity"], string> = {
+  concise: "",
+  balanced:
+    "Verbosity — BALANCED: a sentence or two more room than the concise baseline when it genuinely helps, but do not ramble.",
+  expansive:
+    "Verbosity — EXPANSIVE: fuller answers are welcome when the request invites them; explain and contextualise more freely. Concision still wins for simple filing turns.",
+};
+
+const WIT_DIRECTIVES: Record<PersonalityConfig["wit"], string> = {
+  dry: "",
+  moderate:
+    "Wit — MODERATE: lean into the dry observational humour a little more often, still specific to what was just filed and never forced.",
+  playful:
+    "Wit — PLAYFUL: wit dial up — more frequent, more overt teasing when apt, still grounded in the specific request. Never generic AI jokiness.",
+};
+
+/**
+ * Translate a PersonalityConfig into a SHORT (~40-120 token) system directive
+ * that tunes JARVIS's SPOKEN VOICE on top of the base persona. Returns null for
+ * an all-default (canon) config so nothing is injected and today's voice is
+ * unchanged. Only non-default dials contribute a line; custom instructions are
+ * always appended verbatim when present.
+ *
+ * This LAYERS on the persona/spoken-output/tool-use contracts — it never
+ * replaces them. It must sit INSIDE the cached prefix (a personality change is
+ * rare, so busting the cache then is acceptable).
+ */
+export function buildPersonalityTuningBlock(config: PersonalityConfig): string | null {
+  if (isDefaultPersonalityConfig(config)) return null;
+
+  const lines: string[] = [];
+  const preset = PRESET_DIRECTIVES[config.preset];
+  const formality = FORMALITY_DIRECTIVES[config.formality];
+  const verbosity = VERBOSITY_DIRECTIVES[config.verbosity];
+  const wit = WIT_DIRECTIVES[config.wit];
+  if (preset) lines.push(`- ${preset}`);
+  if (formality) lines.push(`- ${formality}`);
+  if (verbosity) lines.push(`- ${verbosity}`);
+  if (wit) lines.push(`- ${wit}`);
+
+  const custom = config.customInstructions?.trim();
+  if (custom) lines.push(`- Custom directive from the user: ${custom}`);
+
+  // Defensive: if somehow no line accrued (shouldn't happen given the
+  // isDefault guard above), emit nothing rather than an empty header.
+  if (lines.length === 0) return null;
+
+  return `VOICE TUNING (user-configured — layer these ON TOP of the persona and spoken-output rules above; they refine tone only and never override the safety/voice contract or concision discipline):\n${lines.join("\n")}`;
+}
+
 export function buildSystemPrompt(opts: {
   projects: ProjectSummary[];
   voiceActive?: boolean;
@@ -116,6 +208,15 @@ export function buildSystemPrompt(opts: {
    * unchanged. Omit (or any other value) for browser/mobile turns — no change.
    */
   mode?: "computer";
+  /**
+   * JARVIS management (per-user voice tuning). When present AND not all-default,
+   * a short VOICE TUNING block is injected INSIDE the cached prefix (mirroring
+   * the user-context block) via buildPersonalityTuningBlock. An all-default
+   * (canon) config — or an absent one — emits no block, so today's voice is
+   * unchanged. A personality change busts the 1h cache once, which is fine
+   * (changes are rare). run-turn.ts loads this fail-open (load error → omit).
+   */
+  personalityConfig?: PersonalityConfig;
 }): SystemBlock[] {
   const blocks: SystemBlock[] = [];
   blocks.push({ type: "text", text: JARVIS_PERSONALITY });
@@ -128,6 +229,15 @@ export function buildSystemPrompt(opts: {
   }
   blocks.push({ type: "text", text: TOOL_USE_RULES });
   blocks.push({ type: "text", text: buildUserContextBlock(opts.userDisplayName) });
+
+  // VOICE TUNING block (JARVIS management): layers user-configured tone on top
+  // of the persona. Sits inside the cached prefix (before the project-list 1h
+  // breakpoint) so it caches across turns for a given config. Null (all-default
+  // / absent) → nothing injected → today's persona unchanged.
+  if (opts.personalityConfig) {
+    const tuning = buildPersonalityTuningBlock(opts.personalityConfig);
+    if (tuning) blocks.push({ type: "text", text: tuning });
+  }
 
   const hasFacts = opts.facts && opts.facts.length > 0;
 

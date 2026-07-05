@@ -1,6 +1,13 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { areas, captures, projects, tasks, users } from "@/lib/db/schema";
+import {
+  areas,
+  captures,
+  jarvisPersonalityConfig,
+  projects,
+  tasks,
+  users,
+} from "@/lib/db/schema";
 import {
   getAnthropicClient,
   JARVIS_MODEL,
@@ -14,6 +21,7 @@ import { stripMarkdownForSpeech } from "@/lib/voice/strip-markdown-for-speech";
 import {
   buildSystemPrompt,
   buildToolDefinitions,
+  type PersonalityConfig,
   type ProjectSummary,
   zAskClarificationFor,
   zCreateCaptureFor,
@@ -296,6 +304,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     areasRows,
     recentCapturesRows,
     activeTasksRows,
+    personalityRows,
   ] = await Promise.all([
     db
       .select({
@@ -344,9 +353,42 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       .where(and(eq(tasks.userId, opts.userId), ne(tasks.status, "lesno")))
       .orderBy(asc(tasks.dueDate))
       .limit(10),
+    // JARVIS management — per-user voice tuning. Fail-open: a load error →
+    // empty array → undefined personalityConfig → today's default voice.
+    db
+      .select({
+        preset: jarvisPersonalityConfig.preset,
+        formality: jarvisPersonalityConfig.formality,
+        verbosity: jarvisPersonalityConfig.verbosity,
+        wit: jarvisPersonalityConfig.wit,
+        customInstructions: jarvisPersonalityConfig.customInstructions,
+      })
+      .from(jarvisPersonalityConfig)
+      .where(eq(jarvisPersonalityConfig.userId, opts.userId))
+      .limit(1)
+      .catch(() => [] as Array<{
+        preset: string;
+        formality: string;
+        verbosity: string;
+        wit: string;
+        customInstructions: string | null;
+      }>),
   ]);
 
   const userRow = userRows[0];
+
+  // Map the loaded row into the jarvis-core PersonalityConfig contract, or
+  // leave undefined when no row exists (buildSystemPrompt → today's voice).
+  const personalityRow = personalityRows[0];
+  const personalityConfig: PersonalityConfig | undefined = personalityRow
+    ? {
+        preset: personalityRow.preset as PersonalityConfig["preset"],
+        formality: personalityRow.formality as PersonalityConfig["formality"],
+        verbosity: personalityRow.verbosity as PersonalityConfig["verbosity"],
+        wit: personalityRow.wit as PersonalityConfig["wit"],
+        customInstructions: personalityRow.customInstructions ?? null,
+      }
+    : undefined;
 
   const projectSummaries: ProjectSummary[] = userProjects.map((p) => ({
     id: p.id,
@@ -361,6 +403,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     // Distinct from the tool-schema voiceActive above.
     voiceActive: speakingTurn,
     userDisplayName: userRow?.displayName ?? null,
+    // JARVIS management — per-user voice tuning. Injected INSIDE the cached
+    // prefix; an all-default (or absent) config emits no block, so today's
+    // voice is unchanged.
+    personalityConfig,
     // Computer-control steering (Phase 2). Appended after the cache breakpoint
     // inside buildSystemPrompt, so it does not invalidate the cached prefix.
     mode: opts.mode,
