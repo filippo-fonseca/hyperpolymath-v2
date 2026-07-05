@@ -1492,3 +1492,72 @@ export const routines = pgTable(
     index("routines_trigger_types_gin").using("gin", t.triggerTypes),
   ],
 );
+
+// jarvis_personality_config — one row per user (UNIQUE user_id). Tunes JARVIS's
+// SPOKEN VOICE (persona preset + formality/verbosity/wit dials + freeform custom
+// instructions) via a short directive block injected into the cached system
+// prefix (see @hyperpolymath/jarvis-core buildPersonalityTuningBlock). Migration
+// 0025 (RLS + unique index). CRITICAL: the column DEFAULTS reproduce TODAY's
+// canon voice exactly (canon/formal/concise/dry, no custom text), so an absent
+// or all-default row changes nothing about how JARVIS sounds.
+export const jarvisPersonalityConfig = pgTable(
+  "jarvis_personality_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // canon | minimal | storyteller
+    preset: text("preset").notNull().default("canon"),
+    // formal | balanced | casual
+    formality: text("formality").notNull().default("formal"),
+    // concise | balanced | expansive
+    verbosity: text("verbosity").notNull().default("concise"),
+    // dry | moderate | playful
+    wit: text("wit").notNull().default("dry"),
+    customInstructions: text("custom_instructions"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("jarvis_personality_config_user_idx").on(t.userId)],
+);
+
+// jarvis_startup_config — one row per user (UNIQUE user_id). Mirrors the desktop
+// startup config shape (apps/desktop/src/settings.ts): whether the morning
+// briefing runs on launch, plus the URLs/apps to open and Shortcuts to run at
+// startup. Web is the source of truth; the desktop reads this via the bearer-auth
+// GET route. Migration 0025 (RLS + unique index). DEFAULTS (briefing on, empty
+// lists) reproduce today's behavior.
+export const jarvisStartupConfig = pgTable(
+  "jarvis_startup_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    briefingEnabled: boolean("briefing_enabled").notNull().default(true),
+    // Array<{ type: "url" | "app"; value: string }>
+    openOnStart: jsonb("open_on_start")
+      .$type<Array<{ type: "url" | "app"; value: string }>>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // string[] — macOS Shortcuts to run at startup.
+    startupShortcuts: jsonb("startup_shortcuts")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("jarvis_startup_config_user_idx").on(t.userId)],
+);
