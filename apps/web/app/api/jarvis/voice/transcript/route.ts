@@ -81,26 +81,45 @@ export async function POST(req: NextRequest): Promise<Response> {
   const groqKey =
     (groqUserId ? await getUserKeyOrNull(groqUserId, "groq") : null) ??
     process.env.GROQ_API_KEY;
-  const groq = new Groq({ apiKey: groqKey });
+  // maxRetries: 0 kills the SDK's silent retry-after backoff (a 429 with
+  // `retry-after: 44` otherwise makes it sleep 44s and retry invisibly, which
+  // is the source of the 44–89s voice-turn hangs). timeout caps a genuinely
+  // slow inference call. In-provider model fallback (below) handles the 429.
+  const groq = new Groq({ apiKey: groqKey, maxRetries: 0, timeout: 15_000 });
+
+  // Try turbo first, then fall back to whisper-large-v3 on ANY error (429 /
+  // timeout / 5xx). Empirically the two models sit on SEPARATE daily quota
+  // buckets, so when turbo is exhausted (or slow) v3 still serves in ~0.5s.
+  // distil-whisper-large-v3-en is decommissioned on Groq — do not add it.
+  const STT_MODELS = ["whisper-large-v3-turbo", "whisper-large-v3"] as const;
 
   let transcript: string;
   let sttDoneAt: number;
 
   const sttStartedAt = Date.now();
-  try {
-    const transcription = await groq.audio.transcriptions.create({
-      file,
-      model: "whisper-large-v3-turbo",
-      response_format: "json",
-      language: "en",
-    });
-    sttDoneAt = Date.now();
-    console.log(`[voice-timing] stt ${sttDoneAt - sttStartedAt}ms`);
-    transcript = transcription.text;
-  } catch (err) {
-    console.error("[voice/transcript] Groq failed", err);
+  let transcription: Awaited<ReturnType<typeof groq.audio.transcriptions.create>> | undefined;
+  let lastErr: unknown;
+  for (const model of STT_MODELS) {
+    try {
+      transcription = await groq.audio.transcriptions.create({
+        file,
+        model,
+        response_format: "json",
+        language: "en",
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[voice-timing] stt ${model} failed status=${(err as { status?: number })?.status}`);
+    }
+  }
+  if (!transcription) {
+    console.error("[voice/transcript] Groq failed", lastErr);
     return Response.json({ error: "STT failed" }, { status: 500, headers: CORS });
   }
+  sttDoneAt = Date.now();
+  console.log(`[voice-timing] stt ${sttDoneAt - sttStartedAt}ms`);
+  transcript = (transcription as { text: string }).text;
 
   // Probe mode: the desktop polls a rolling audio tail to detect the
   // "Done, JARVIS" stop phrase. Return the raw transcript ONLY — no SSE
