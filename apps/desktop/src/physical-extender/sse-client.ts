@@ -44,6 +44,13 @@ interface PhysicalTriggerPayload {
   desktopClaimed?: boolean;
 }
 
+interface PhysicalTranscriptPayload {
+  transcript: string;
+  sttDoneAt: number;
+  vadEndAt?: number;
+  at: number;
+}
+
 interface JarvisResponseStartPayload {
   turnId: string;
   at: number;
@@ -107,12 +114,14 @@ export type SseStatus = "connecting" | "connected" | "error";
 type StatusListener = (status: SseStatus) => void;
 const statusListeners = new Set<StatusListener>();
 
+type PhysicalTranscriptListener = (payload: PhysicalTranscriptPayload) => void;
 type ResponseStartListener = (payload: JarvisResponseStartPayload) => void;
 type ResponseChunkListener = (payload: JarvisResponseChunkPayload) => void;
 type ToolCallListener = (payload: JarvisToolCallPayload) => void;
 type ResponseEndListener = (payload: JarvisResponseEndPayload) => void;
 type RoutineProgressListener = (payload: JarvisRoutineProgressPayload) => void;
 
+const physicalTranscriptListeners = new Set<PhysicalTranscriptListener>();
 const responseStartListeners = new Set<ResponseStartListener>();
 const responseChunkListeners = new Set<ResponseChunkListener>();
 const toolCallListeners = new Set<ToolCallListener>();
@@ -122,6 +131,18 @@ const routineProgressListeners = new Set<RoutineProgressListener>();
 export function onSseStatusChange(fn: StatusListener): () => void {
   statusListeners.add(fn);
   return () => statusListeners.delete(fn);
+}
+
+/**
+ * Subscribe to the server's early `transcript` SSE event, emitted at STT time
+ * (emitPhysicalTranscript in the voice/transcript POST). This paints the user's
+ * echo at ~1s on every turn, independent of when the POST response flushes. The
+ * capture-POST-driven paint (onTranscriptReceived) remains as a fallback; the
+ * consumer dedupes so the same utterance never double-paints.
+ */
+export function onPhysicalTranscript(fn: PhysicalTranscriptListener): () => void {
+  physicalTranscriptListeners.add(fn);
+  return () => physicalTranscriptListeners.delete(fn);
 }
 
 export function onJarvisResponseStart(fn: ResponseStartListener): () => void {
@@ -208,6 +229,15 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     // Route through the FSM (via the injected handler) so the trigger honors
     // the half-duplex gate — never opens the mic while JARVIS is speaking.
     _triggerHandler();
+  });
+
+  source.addEventListener("transcript", (e) => {
+    const messageEvent = e as MessageEvent<string>;
+    const payload = parseJson<PhysicalTranscriptPayload>(messageEvent.data);
+    if (!payload) return;
+    // eslint-disable-next-line no-console
+    console.log(`[jarvis] transcript sttDoneAt=${payload.sttDoneAt}`);
+    for (const fn of physicalTranscriptListeners) fn(payload);
   });
 
   source.addEventListener("jarvis-response-start", (e) => {

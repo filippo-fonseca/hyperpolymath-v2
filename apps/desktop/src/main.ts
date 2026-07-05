@@ -36,6 +36,7 @@ import {
   onJarvisResponseEnd,
   onJarvisResponseStart,
   onJarvisToolCall,
+  onPhysicalTranscript,
   startPhysicalExtenderListener,
   reconnectPhysicalExtenderListener,
   stopPhysicalExtenderListener,
@@ -300,6 +301,41 @@ function appendJarvisDelta(delta: string): void {
   const near = isNearBottom(el);
   if (currentReplyBody) currentReplyBody.textContent += delta;
   autoScroll(el, near);
+}
+
+// Dedupe the user-echo paint across its two sources: the early `transcript`
+// SSE event (paints at ~STT time, the common/fast path) and the capture-POST
+// resolution (onTranscriptReceived, now a fallback). Whichever fires first
+// paints the bubble; the later one for the same utterance is a no-op so we
+// never append a duplicate bubble. Keyed on the normalized transcript text
+// within a short recency window (a genuine repeat utterance after the window
+// paints again as expected).
+const ECHO_DEDUPE_WINDOW_MS = 15_000;
+let lastPaintedEcho: { text: string; at: number } | null = null;
+
+function normalizeEcho(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Deduped entry point for the user-echo paint. Both the SSE `transcript` event
+ * and the POST-driven onTranscriptReceived call route through here; the second
+ * caller for the same utterance (within the window) is dropped.
+ */
+function paintTranscriptDeduped(text: string): void {
+  const norm = normalizeEcho(text);
+  const now = Date.now();
+  if (
+    norm &&
+    lastPaintedEcho &&
+    lastPaintedEcho.text === norm &&
+    now - lastPaintedEcho.at < ECHO_DEDUPE_WINDOW_MS
+  ) {
+    // Same utterance already painted by the other source — no-op.
+    return;
+  }
+  lastPaintedEcho = { text: norm, at: now };
+  paintTranscript(text);
 }
 
 function paintTranscript(text: string): void {
@@ -788,7 +824,13 @@ async function boot(): Promise<void> {
   // real transcript paints via onTranscriptReceived below (~1s) instead.
   void beginOptimisticUserTurn;
   onExtendedChange(paintExtended);
-  onTranscriptReceived(paintTranscript);
+  // Primary echo paint: the server emits the transcript over SSE at STT time
+  // (~1s), so the user's bubble appears immediately on every turn regardless of
+  // when the POST response flushes. The POST-driven onTranscriptReceived below
+  // stays as a fallback; paintTranscriptDeduped drops whichever fires second so
+  // the same utterance never double-paints.
+  onPhysicalTranscript((p) => paintTranscriptDeduped(p.transcript));
+  onTranscriptReceived(paintTranscriptDeduped);
   // Empty / failed STT → flash a butler line through the acknowledge strip so
   // the user gets immediate feedback instead of a silent stall. The strip's
   // own guard keeps this from clobbering a live streaming response.
