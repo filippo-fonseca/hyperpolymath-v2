@@ -29,6 +29,7 @@ import { runComputerUseLoop, type ComputerUseAction } from "@/actions/computer-u
 import { holdSendMessage } from "@/actions/confirm-gate";
 import { bytesToBase64, downscalePngWithInfo } from "@/actions/png";
 import { postScreenshotDescribe } from "@/api/client";
+import { startTask, resolveTask } from "@/hud/background-tasks";
 
 export interface OpenUrlAction {
   kind: "open_url";
@@ -371,11 +372,18 @@ async function handleTakeScreenshot(action: TakeScreenshotAction): Promise<boole
     `[action] take_screenshot captured ${bytes.length} bytes — posting ${png.length} bytes for description`,
   );
   // Fire-and-forget with error logging — postScreenshotDescribe logs non-OK
-  // statuses; the spoken description arrives over the normal SSE→TTS path.
-  void postScreenshotDescribe(base64).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.warn("[action] screenshot describe POST failed", err);
-  });
+  // statuses; the spoken description arrives over the normal SSE→TTS path. A
+  // HUD chip tracks the round-trip (the describe endpoint can take a few
+  // seconds) and resolves inside this already-detached promise, so it never
+  // makes the caller wait.
+  const taskId = startTask({ kind: "take_screenshot", label: describeAction(action) });
+  void postScreenshotDescribe(base64)
+    .then(() => resolveTask(taskId, "done"))
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[action] screenshot describe POST failed", err);
+      resolveTask(taskId, "failed");
+    });
   return true;
 }
 
@@ -493,7 +501,13 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       const fs = action.items.filter((i) => i.fullscreen === true);
       fireOpenItems(plain);
       if (fs.length > 0) {
-        void openFullscreenItems(fs);
+        // The fullscreen chain is a slow detached sequence (per-item settle +
+        // keystroke). Surface it as a HUD chip; it resolves inside the detached
+        // promise, so nothing awaits it here. openFullscreenItems never throws.
+        const wsTaskId = startTask({ kind: "open_workspace", label: describeAction(action) });
+        void openFullscreenItems(fs)
+          .then(() => resolveTask(wsTaskId, "done"))
+          .catch(() => resolveTask(wsTaskId, "failed"));
       }
       // eslint-disable-next-line no-console
       console.log(
@@ -571,8 +585,13 @@ export async function handleAction(action: DesktopAction): Promise<boolean> {
       // Long-running (up to 15 model round-trips) — fire-and-forget so the
       // SSE handler isn't blocked. runComputerUseLoop never throws; it logs
       // everything and the SERVER narrates progress over SSE. Focus rule
-      // applies here too: the loop never set_focus()es the HUD.
-      void runComputerUseLoop(action);
+      // applies here too: the loop never set_focus()es the HUD. A HUD chip
+      // tracks the loop for its duration and resolves inside this detached
+      // promise, so nothing awaits it here.
+      const cuTaskId = startTask({ kind: "computer_use", label: describeAction(action) });
+      void runComputerUseLoop(action)
+        .then(() => resolveTask(cuTaskId, "done"))
+        .catch(() => resolveTask(cuTaskId, "failed"));
       // eslint-disable-next-line no-console
       console.log(`[action] computer_use session ${action.session_id} started: "${action.task}"`);
       return true;

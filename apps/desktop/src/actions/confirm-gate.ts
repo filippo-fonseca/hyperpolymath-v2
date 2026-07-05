@@ -32,6 +32,7 @@ import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
 import type { SendMessageAction } from "@/actions/dispatcher";
 import { ttsPlayer } from "@/jarvis-response";
 import { loadSettings } from "@/settings";
+import { startTask, resolveTask } from "@/hud/background-tasks";
 
 /** Outcome of an actual send. `ok:true` only when the transport confirmed
  *  delivery (a 2xx from the WhatsApp bridge, or AppleScript running clean).
@@ -226,7 +227,16 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
  *  speak a short, user-appropriate correction (never a dev hint) so the user is
  *  never left believing a false success. */
 async function dispatchAndReport(action: SendMessageAction): Promise<void> {
+  // Register a HUD loader chip for this in-flight send so the user can see it
+  // going out (and keep talking) while it settles. Purely presentational — the
+  // chip lives entirely inside this already-detached promise, so it adds no
+  // await to the transcript/capture path. Resolves to done/failed below.
+  const taskId = startTask({
+    kind: "send_message",
+    label: `${action.app === "whatsapp" ? "WhatsApp" : "Message"} to ${action.recipient}`,
+  });
   const result = await executeSend(action);
+  resolveTask(taskId, result.ok ? "done" : "failed");
   if (result.ok) return;
   // A timeout is qualitatively different from "unreachable": the bridge process
   // is up enough to accept a TCP connection but is not answering — almost
