@@ -208,9 +208,11 @@ describe("buildSystemPrompt", () => {
       });
     });
 
-    it("facts + mode='computer': JARVIS MEMORY precedes the addendum; breakpoint stays on facts", () => {
+    it("facts + mode='computer': JARVIS MEMORY precedes the addendum; breakpoint on project-list; both facts and addendum uncached", () => {
       // Recall path (cross-session): remembered preferences must be IN context
-      // on computer-mode turns — facts block (cached, 1h) then addendum (uncached).
+      // on computer-mode turns. Post-latency-fix (2026-07-04): facts is
+      // volatile so it rides UNCACHED between the 1h breakpoint (on
+      // project-list) and the mode addendum.
       const blocks = buildSystemPrompt({
         projects: [],
         facts: [{ type: "preference", key: "music app", value: "spotify" }],
@@ -218,10 +220,13 @@ describe("buildSystemPrompt", () => {
       });
       const last = blocks[blocks.length - 1]!;
       const factsBlock = blocks[blocks.length - 2]!;
+      const projectsBlock = blocks[blocks.length - 3]!;
       expect(last.text).toContain("COMPUTER-CONTROL MODE");
       expect(last.cache_control).toBeUndefined();
       expect(factsBlock.text).toContain("[PREFERENCE] music app: spotify");
-      expect(factsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+      expect(factsBlock.cache_control).toBeUndefined();
+      expect(projectsBlock.text).toContain("USER PROJECTS");
+      expect(projectsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     });
   });
 });
