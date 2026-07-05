@@ -437,11 +437,12 @@ export function holdSendMessage(action: SendMessageAction): void {
       `[confirm] send_message pre-confirmed by preceding affirmative ("${lastTranscript.text}") — sending`,
     );
     lastTranscript = null;
-    // Instant client-side ack — the "Sending it now, sir" line used to come
-    // from a second model turn ~1min later. The confirm-gate owns the true
-    // terminal outcome (success/failure), so speaking the ack here doesn't
-    // risk lying to the user.
-    ttsPlayer.speakNow("Sending it now, sir.");
+    // No client-side ack here: the model's tight readback/confirm line IS the
+    // single spoken confirmation and it renders in the transcript. An extra
+    // ttsPlayer.speakNow ack (a latency band-aid from when the model's reply
+    // came ~1min late) played as untranscribed audio that collided with the
+    // model's own line — the "weird background voice". Latency is fixed now.
+    // The confirm-gate still owns the true terminal FAILURE line below.
     // Fire-and-forget: same load-bearing invariant as resolvePendingWithTranscript.
     // Awaiting here would let a slow/timing-out send freeze the transcript pipeline
     // — the exact wedge the WhatsApp 8s timeout was added to end.
@@ -485,8 +486,9 @@ function resolvePendingWithTranscript(text: string): boolean {
     clearPendingState();
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
-    // Instant client-side ack — see the pre-confirm branch above.
-    ttsPlayer.speakNow("Sending it now, sir.");
+    // No client-side ack here — see the pre-confirm branch above. The model's
+    // own confirmation line is the single spoken confirmation; an extra
+    // untranscribed ack is the "weird background voice" collision.
     // Load-bearing fire-and-forget: `clearPendingState()` has already dropped
     // the amber HUD ring and released the pending listeners, so the transcript
     // pipeline is unblocked the moment we return `true`. Never `await` the
