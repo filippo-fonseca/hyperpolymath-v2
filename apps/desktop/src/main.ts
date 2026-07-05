@@ -774,11 +774,10 @@ async function boot(): Promise<void> {
   // 5. Register SSE + capture listeners
   onSseStatusChange(paintSseStatus);
   onCaptureState(paintCaptureState);
-  // Optimistic user bubble the instant the mic ends — reconciled in place
-  // by paintTranscript when STT resolves, cleared on no-speech.
-  onCaptureState((state) => {
-    if (state === "uploading") beginOptimisticUserTurn();
-  });
+  // NOTE: optimistic "recognising…" bubble disabled — it could strand when the
+  // reply/SSE beat the transcript reconcile, leaving a stuck placeholder. The
+  // real transcript paints via onTranscriptReceived below (~1s) instead.
+  void beginOptimisticUserTurn;
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
   // Empty / failed STT → flash a butler line through the acknowledge strip so
