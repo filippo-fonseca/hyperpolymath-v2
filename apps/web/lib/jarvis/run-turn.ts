@@ -803,6 +803,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       totalUsage.cache_read_input_tokens += (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0;
       totalUsage.cache_creation_input_tokens += (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0;
 
+      // Per-pass cache-usage log. Verifies the 1h prefix cache is landing:
+      // on the 2nd turn within TTL, cache_read should be ~9K (the stable
+      // prefix) and cache_creation ~0. If cache_read stays near 0 the
+      // prefix has been busted upstream (see prompt-builder.ts header).
+      console.log(
+        `[jarvis] cache read/create pass=${passCount}`,
+        (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0,
+        (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0,
+      );
+
       // Append newly-touched entities to session-entities scratchpad
       for (const r of toolResultsThisPass) {
         const entity = entityFromToolResult(
