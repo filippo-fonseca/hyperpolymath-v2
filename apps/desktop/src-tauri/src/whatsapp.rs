@@ -78,12 +78,84 @@ pub fn start(app: &AppHandle) {
     spawn_bridge(app.clone(), store_dir, child_slot, restarts);
 }
 
+/// Free the fixed bridge port before spawning.
+///
+/// When the desktop is restarted or force-killed, the sidecar child it was
+/// supervising can be orphaned and keep running, squatting :8080. The next
+/// supervised bridge then fails to bind (`listen tcp :8080: bind: address
+/// already in use`) and crash-loops. This reaps any such squatter so the new
+/// child binds cleanly.
+///
+/// Safety: we only ever kill a process we've positively identified as the
+/// `whatsapp-bridge` binary. We ask `lsof` for the PIDs *listening* on tcp:8080,
+/// then for each PID confirm via `ps -o comm=` that its executable basename
+/// starts with `whatsapp-bridge` before sending SIGKILL. (Tauri runs the sidecar
+/// as bare `whatsapp-bridge` in dev but `whatsapp-bridge-<target-triple>` when
+/// bundled, so we prefix-match to cover both.) A random unrelated process that
+/// happens to hold :8080 is left untouched. When :8080 is free (the normal
+/// single-instance happy path) `lsof` returns nothing and this is a no-op.
+fn reap_stale_bridge() {
+    // PIDs currently LISTENING on tcp:8080. `-t` gives bare PIDs, one per line.
+    let output = match std::process::Command::new("lsof")
+        .args(["-ti", "tcp:8080", "-sTCP:LISTEN"])
+        .output()
+    {
+        Ok(o) => o,
+        // lsof missing / unusable — can't reap, but the spawn below still tries.
+        Err(_) => return,
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut reaped_any = false;
+    for pid in stdout.split_whitespace().filter_map(|s| s.trim().parse::<u32>().ok()) {
+        // Verify the PID is actually our bridge before killing it. `ps -o comm=`
+        // prints the executable's command name; we require its basename to be
+        // `whatsapp-bridge` so we never kill an unrelated :8080 holder.
+        let comm = match std::process::Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "comm="])
+            .output()
+        {
+            Ok(o) => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+            Err(_) => continue,
+        };
+        let basename = comm.rsplit('/').next().unwrap_or(&comm);
+        if !basename.starts_with("whatsapp-bridge") {
+            eprintln!(
+                "[whatsapp] :8080 held by non-bridge process pid {pid} ({basename}); not reaping"
+            );
+            continue;
+        }
+
+        match std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .status()
+        {
+            Ok(_) => {
+                eprintln!("[whatsapp] reaped stale bridge pid {pid} on :8080 before spawn");
+                reaped_any = true;
+            }
+            Err(err) => eprintln!("[whatsapp] failed to kill stale bridge pid {pid}: {err}"),
+        }
+    }
+
+    // Give the socket a beat to be released before the next bind attempt, so the
+    // immediately-following spawn doesn't race the kernel freeing the port.
+    if reaped_any {
+        std::thread::sleep(std::time::Duration::from_millis(400));
+    }
+}
+
 fn spawn_bridge(
     app: AppHandle,
     store_dir: std::path::PathBuf,
     child_slot: Arc<Mutex<Option<CommandChild>>>,
     restarts: Arc<AtomicU32>,
 ) {
+    // Clear any orphaned bridge squatting :8080 before we try to bind. Runs on
+    // first spawn, on every supervisor respawn (this fn is the respawn target),
+    // and on the reconnect fallback's direct spawn.
+    reap_stale_bridge();
+
     let store_str = store_dir.to_string_lossy().to_string();
     let sidecar = match app.shell().sidecar("whatsapp-bridge") {
         Ok(cmd) => cmd.args(["--store", &store_str, "--port", BRIDGE_PORT]),
