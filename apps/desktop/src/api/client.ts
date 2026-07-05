@@ -367,6 +367,45 @@ export async function postRunRoutine(routine: Routine): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// iMessage recipient resolution (tie-breaker / fallback for the send gate).
+// macOS Contacts is the desktop's authoritative source; this cross-references a
+// NAME against handles the owner has actually messaged (ingested chat.db →
+// imessage_messages) so a send never lands on a guessed/random handle.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/imessage/resolve?name=<person>
+ * Returns the distinct raw iMessage handles (phone/email) the owner has
+ * recently messaged whose resolved contact name matches `name`, most-recent
+ * first. Bearer + owner gated. Fail-safe: returns [] on any non-ok/parse/
+ * transport failure so the caller can fall back to Contacts or an honest
+ * "couldn't find them" line rather than crashing the send path.
+ */
+export async function resolveRecentImessageHandles(name: string): Promise<string[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const url = `${apiBaseUrl}/api/imessage/resolve?name=${encodeURIComponent(name)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[imessage/resolve] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as { handles?: unknown };
+    return Array.isArray(json.handles)
+      ? (json.handles.filter((h) => typeof h === "string") as string[])
+      : [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imessage/resolve] GET failed", err);
+    return [];
+  }
+}
+
 // Re-export the trigger-type alias so registry/dispatch code can import it
 // alongside the client without a second jarvis-core import site.
 export type { RoutineTriggerType };
