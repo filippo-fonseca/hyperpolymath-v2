@@ -1,6 +1,6 @@
 "use client";
 
-import { updateArea } from "@/app/actions/areas";
+import { deleteArea, updateArea } from "@/app/actions/areas";
 import { ProjectCreateDialog } from "@/components/projects/ProjectCreateDialog";
 import { Spinner } from "@/components/shared/Spinner";
 import { usePendingAction } from "@/components/shared/use-pending-action";
@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -37,11 +38,15 @@ interface Props {
 export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount }: Props) {
   const router = useRouter();
   const { run, pending: isSaving } = usePendingAction();
+  const { run: runDelete, pending: isDeleting } = usePendingAction();
 
   // Edit area dialog
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState(area.name);
   const [emoji, setEmoji] = useState(area.emoji ?? "");
+
+  // Delete area dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // New project dialog
   const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -53,6 +58,17 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
       success: "Area updated.",
       onSuccess: () => {
         setEditOpen(false);
+        router.refresh();
+      },
+    });
+  }
+
+  async function handleDelete() {
+    await runDelete(() => deleteArea(area.id), {
+      success: "Area deleted.",
+      onSuccess: () => {
+        setDeleteOpen(false);
+        router.push("/areas");
         router.refresh();
       },
     });
@@ -96,6 +112,15 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
             >
               <Plus className="h-3.5 w-3.5" />
               New project
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+              className="font-mono text-[11px] uppercase tracking-[0.08em] h-8 px-3 gap-1.5 text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </Button>
           </div>
         </div>
@@ -148,6 +173,34 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
                 </>
               ) : (
                 "Save changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this area?</DialogTitle>
+            <DialogDescription>
+              Any projects under it will be moved to the <strong>No Area</strong> bucket. Tasks and
+              captures stay intact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
+              Never mind
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Spinner size={14} label="Deleting area" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete area"
               )}
             </Button>
           </DialogFooter>
