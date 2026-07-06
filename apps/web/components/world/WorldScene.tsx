@@ -20,6 +20,7 @@ import { JarvisRing } from "./jarvis/JarvisRing";
 import { JarvisChoreographer } from "./jarvis/useJarvisChoreography";
 import { Litany } from "./boot/Litany";
 import { Chimes } from "./audio/Chimes";
+import { PerfGovernor } from "./perf/PerfGovernor";
 
 /**
  * WorldScene — the composition root of The Studiolo (U-02 scaffold).
@@ -70,6 +71,7 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <TodayPanel /> {/* [U-12] uikit holographic panel — complete-from-world */}
       <JarvisChoreographer /> {/* [U-16] routing choreography — resolve→assist→thread+fly */}
       <Litany /> {/* [U-17] boot litany — shutter + greeting, then zero draw calls */}
+      <PerfGovernor /> {/* [U-20] adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
       <JarvisRing /> {/* [U-13] the familiar — portaled into the camera; MUST stay just before PostFX */}
       <PostFX /> {/* [U-08] the ONLY EffectComposer — MUST stay last */}
 
@@ -80,8 +82,9 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
                   <TodayPanel/> [U-12] · <JarvisRing/> [U-13]
           Wave 4 (mounted): <JarvisChoreographer/> [U-16] · <Litany/> [U-17]
                   <Chimes/> [U-18]
-          Remaining (pending): Wave 5 — <PerfGovernor/> [U-20 perf-hardening] +
-                  U-21 docs · U-19 reduced-motion (cross-cutting sweep, no new mount)
+          Wave 5 (mounted): <PerfGovernor/> [U-20 perf-hardening]
+          Remaining (pending): U-21 docs · U-19 reduced-motion (cross-cutting
+                  sweep, no new mount)
 
           NOTE: <PostFX/> must remain the LAST child of the provider — the
           EffectComposer wraps all preceding scene content — and <JarvisRing/>
