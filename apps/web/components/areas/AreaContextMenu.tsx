@@ -218,8 +218,8 @@ export function AreaActionsMenu({
           <DialogHeader>
             <DialogTitle>Delete this area?</DialogTitle>
             <DialogDescription>
-              This will permanently remove the area. Projects inside it will block deletion —
-              archive or move them first.
+              Any projects under it will be moved to the <strong>No Area</strong> bucket. Tasks and
+              captures stay intact.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
