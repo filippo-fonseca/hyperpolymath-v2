@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@hyperpolymath/jarvis-core",
     "@hyperpolymath/personal-context-mcp",
+    // The Studiolo 3D world (U-01): Next must transpile three's ESM so R3F/drei
+    // resolve cleanly under Turbopack. Confined to the /world island.
+    "three",
   ],
 
   // Phase 8 (LAND-ROADMAP-FS / D-09):
