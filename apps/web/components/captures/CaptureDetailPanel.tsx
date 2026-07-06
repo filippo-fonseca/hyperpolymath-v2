@@ -404,11 +404,22 @@ export function CaptureDetailPanel({
 
     let cancelled = false;
     const captureId = capture.id;
+    const baseline = capture.urls ?? [];
     void ensureCaptureUrls(captureId).then((r) => {
       if (cancelled || !r.success || !r.data.changed) return;
       const nextUrls = r.data.urls;
-      setForm((prev) => ({ ...prev, urls: nextUrls }));
-      setInitialForm((prev) => ({ ...prev, urls: nextUrls }));
+      // Don't clobber an in-flight manual edit: only fold the server-derived set
+      // in if the user hasn't touched the list since the panel opened.
+      setForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
+      setInitialForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
       onOptimisticUpdate?.(captureId, { url: r.data.url, urls: nextUrls });
     });
     return () => {
