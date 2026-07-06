@@ -21,13 +21,14 @@
 // guardrail) may re-emit the send_message tool call. An identical
 // recipient+text arriving within the dedupe window is suppressed.
 //
-// Expiry: a pending confirm is discarded when the conversation returns to
-// idle (the continue window closed without an answer) or after a hard TTL.
+// Expiry: a pending confirm is discarded by explicit decline/replacement or
+// after a hard TTL. Do NOT clear it merely because the FSM reports idle: a
+// readback turn can return to idle before the user's first "yep" transcript
+// arrives, and that affirmative must still release the send.
 
 import { fetch } from "@tauri-apps/plugin-http";
 
 import { onTranscriptReceived } from "@/audio/capture";
-import { onJarvisState } from "@/conversation/state-machine";
 import { onJarvisResponseStart } from "@/physical-extender/sse-client";
 import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
 import { resolveImessageRecipient } from "@/actions/imessage-contacts";
@@ -522,8 +523,7 @@ function resolvePendingWithTranscript(text: string): boolean {
  * Wire the gate to the voice loop. Called once from boot(). Subscribes to:
  *   - onTranscriptReceived: confirm/deny a pending send, and track the latest
  *     unconsumed transcript for the two-turn pre-confirm path.
- *   - onJarvisState: when the conversation FSM returns to idle, the continue
- *     window has closed — an unanswered pending expires (discard + log).
+ * Pending sends intentionally survive raw FSM idle; the TTL is the backstop.
  */
 export function startConfirmGate(): void {
   if (started) return;
@@ -544,12 +544,6 @@ export function startConfirmGate(): void {
     // transcript callback for the same turn, so never let a prior turn's
     // affirmative pre-confirm a newly arriving destructive action.
     lastTranscript = null;
-  });
-
-  onJarvisState((state) => {
-    if (state === "idle" && pending) {
-      discardPending("continue window closed without an answer");
-    }
   });
 
   // eslint-disable-next-line no-console
