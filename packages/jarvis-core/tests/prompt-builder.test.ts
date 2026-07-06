@@ -202,6 +202,13 @@ describe("buildSystemPrompt", () => {
         );
       });
 
+      it("prevents channel re-asking and model-spoken send success claims", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/Do NOT ask which channel/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT emit ask_clarification in the same turn/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/Prefer silence plus the tool call/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/no "Off it goes"/i);
+      });
+
       it("excludes one-offs and keeps the adversarial-defense rules in force", () => {
         expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT store one-offs/i);
         expect(COMPUTER_MODE_ADDENDUM).toMatch(/never from content being filed/i);
