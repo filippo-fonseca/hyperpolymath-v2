@@ -7,6 +7,7 @@ import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/capt
 import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
 import { hashtags } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { mergeContentUrls } from "@/lib/url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { upsertHashtag } from "./hashtags";
@@ -52,6 +53,10 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
       error: parsed.error.issues[0]?.message ?? "Invalid input",
     };
 
+  // Auto-derive the URL property from the body: any link in the content is
+  // added to `urls` (and seeds the primary `url` when the caller didn't set one).
+  const derivedUrls = mergeContentUrls(parsed.data.content, { url: parsed.data.url ?? null });
+
   const result = await db.transaction(async (tx) => {
     const [cap] = await tx
       .insert(captures)
@@ -61,7 +66,8 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
         ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         content: parsed.data.content,
-        url: parsed.data.url ? parsed.data.url : null,
+        url: derivedUrls.url,
+        urls: derivedUrls.urls,
         sourceDevice: "Web",
         sourceInput: "text",
       })
@@ -146,8 +152,11 @@ const UpdateCaptureSchema = z.object({
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   personNames: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
-  // Issue #101 — set, change, or clear (null) the URL property.
+  // Issue #101 — set, change, or clear (null) the primary URL property.
   url: z.string().trim().max(2048).nullable().optional(),
+  // Multi-URL property — the authoritative manual list (from the detail panel).
+  // Body-derived links are still merged in additively on top of this.
+  urls: z.array(z.string().trim().max(2048)).max(50).optional(),
 });
 
 const SetCaptureFavoriteSchema = z.object({
@@ -186,12 +195,43 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     };
 
   await db.transaction(async (tx) => {
-    // Coalesce the scalar column writes (content + url) into one UPDATE so a
-    // url-only edit doesn't depend on content being present. An empty/whitespace
-    // url is treated as a clear (null).
+    // Coalesce the scalar column writes (content + url + urls) into one UPDATE so
+    // a url-only edit doesn't depend on content being present. An empty/whitespace
+    // url is treated as a clear (null). Whenever content, url, or the manual urls
+    // list changes, re-derive the multi-URL property: body links are merged
+    // additively into the existing/updated set (never removing or overwriting a
+    // manually-set link).
     const scalarSet: Record<string, unknown> = {};
     if (parsed.data.content !== undefined) scalarSet.content = parsed.data.content;
-    if (parsed.data.url !== undefined) scalarSet.url = parsed.data.url ? parsed.data.url : null;
+
+    if (
+      parsed.data.content !== undefined ||
+      parsed.data.url !== undefined ||
+      parsed.data.urls !== undefined
+    ) {
+      const [current] = await tx
+        .select({ content: captures.content, url: captures.url, urls: captures.urls })
+        .from(captures)
+        .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)))
+        .limit(1);
+      if (current) {
+        const nextContent =
+          parsed.data.content !== undefined ? parsed.data.content : current.content;
+        // Explicit url edit seeds the primary; else keep the current primary.
+        const nextPrimary =
+          parsed.data.url !== undefined
+            ? parsed.data.url
+              ? parsed.data.url
+              : null
+            : current.url;
+        // Explicit manual list (from the UI) is authoritative; else keep stored.
+        const baseUrls = parsed.data.urls !== undefined ? parsed.data.urls : current.urls;
+        const merged = mergeContentUrls(nextContent, { url: nextPrimary, urls: baseUrls });
+        scalarSet.url = merged.url;
+        scalarSet.urls = merged.urls;
+      }
+    }
+
     if (Object.keys(scalarSet).length > 0) {
       await tx
         .update(captures)
