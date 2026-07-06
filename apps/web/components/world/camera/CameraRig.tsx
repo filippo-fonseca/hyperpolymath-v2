@@ -63,6 +63,7 @@
  */
 
 import { useEffect, useRef, type ReactElement, type RefObject } from "react";
+import { Vector3 } from "three";
 import { useThree } from "@react-three/fiber";
 // `CameraControlsImpl` is drei's public re-export of its transitive `camera-controls`
 // dep (drei/core/CameraControls) — imported from drei so bundler resolution finds
@@ -96,6 +97,33 @@ const BOOT_FAILSAFE_MS = 8000; // litany is 6s; wake the world if the event is l
 let controlsInstance: CameraControlsImpl | null = null;
 let invalidateWorld: () => void = () => {};
 let flightSeq = 0; // monotonically increasing flight token
+
+// Preallocated scratch for pose SAVE — zero per-call allocation on the settle path.
+const _savePos = new Vector3();
+const _saveTgt = new Vector3();
+
+/**
+ * Pose SAVE — the write side of the U-15 `world:cameraPose` seam whose RESTORE
+ * lives in the mount effect below. Persists the camera's CURRENT position+target
+ * to sessionStorage so a World↔Page↔World round-trip (ModeToggle) rehydrates the
+ * exact viewpoint instead of snapping back to the vestibule. Called on every
+ * flight-settle (`rest`) and once more on unmount. Best-effort: storage failures
+ * (private mode / quota) are swallowed — a lost pose just falls back to the
+ * vestibule on the next mount, never a crash.
+ */
+function savePose(c: CameraControlsImpl): void {
+  try {
+    c.getPosition(_savePos);
+    c.getTarget(_saveTgt);
+    const pose: CameraPose = {
+      position: [_savePos.x, _savePos.y, _savePos.z],
+      target: [_saveTgt.x, _saveTgt.y, _saveTgt.z],
+    };
+    sessionStorage.setItem(POSE_STORAGE_KEY, JSON.stringify(pose));
+  } catch {
+    // ignore: private-mode / quota / disposed controls — vestibule fallback stands
+  }
+}
 
 // ── Frozen vestibule pose (§2.4) ────────────────────────────────────────────
 export const VESTIBULE_POSE: CameraPose = {
@@ -277,9 +305,17 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
       clearTimeout(failsafe);
     });
 
+    // Pose SAVE (§1.4 · U-15 seam, write side). `rest` fires when a glide/orbit
+    // settles below `restThreshold` — the moment the viewpoint is stable and
+    // worth persisting. Event-driven, so it adds no per-frame work and no rAF.
+    const onRest = (): void => savePose(c);
+    c.addEventListener("rest", onRest);
+
     return () => {
       off();
       clearTimeout(failsafe);
+      c.removeEventListener("rest", onRest);
+      savePose(c); // capture the final pose on World→Page teardown (ModeToggle)
       controlsInstance = null;
       invalidateWorld = () => {};
       // Do NOT reset _bootDone: same-session revisits skip the litany (U-17).
