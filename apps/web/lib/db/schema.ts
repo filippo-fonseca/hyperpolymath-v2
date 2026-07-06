@@ -1296,9 +1296,10 @@ export const journalEntries = pgTable(
     date: date("date").notNull(),
     mainResponse: text("main_response"), // nullable — response to the fixed prompt
     notesSection: text("notes_section"), // nullable — the separate Notes / Misc field
-    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
-    // entry is filtered out of the personal-context snapshot. Migration 0027 lineage.
-    noExport: boolean("no_export").notNull().default(false),
+    // Privacy gate for the MCP export. When true, this entry is filtered out
+    // of the personal-context snapshot. Journal entries default to true (opt-in
+    // export) per issue #191 — migration 0045 flips the default and existing rows.
+    noExport: boolean("no_export").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
