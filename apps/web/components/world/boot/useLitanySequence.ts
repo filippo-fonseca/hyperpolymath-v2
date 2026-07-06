@@ -27,12 +27,24 @@
  *   - `EB_GARAMOND_ITALIC` / `preloadWorldFonts` (../text/fonts).
  */
 
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type RefObject,
+} from "react";
 import { format } from "date-fns";
 import * as THREE from "three";
+import { useFrame, useThree } from "@react-three/fiber";
 import type { CameraPose } from "../data/diffing";
+import { worldEvents } from "../data/diffing";
 import type { TreeLayoutResult } from "../data/treeLayout";
+import { useWorldData } from "../data/useWorldData";
+import { cameraBus, VESTIBULE_POSE } from "../camera/CameraRig";
 import { inlayRegistry } from "../env/Atmosphere";
 import { STUDIOLO } from "../materials/tokens";
+import { preloadWorldFonts } from "../text/fonts";
 
 // ── §11 · public types ──────────────────────────────────────────────────────
 
@@ -590,4 +602,227 @@ function restoreAll(targets: KindleTargets): void {
     targets.keyLight.light.intensity = targets.keyLight.intensity;
   if (targets.moonLight !== null)
     targets.moonLight.light.intensity = targets.moonLight.intensity;
+}
+
+// ── §11 · the conductor hook ──────────────────────────────────────────────────
+
+export interface LitanySequenceOptions {
+  mode: LitanyMode;
+  anchor: RefObject<THREE.Group | null>; // camera-copied group
+  shutter: RefObject<THREE.Mesh | null>; // the Nightwalnut quad
+  greeting: RefObject<TroikaText | null>; // drei <Text> ref (troika mesh)
+}
+
+/**
+ * The conductor. Collects kindle targets, zeroes them before first paint, runs
+ * ONE absolute-time keyframe loop, flies the two-short-flights establishing
+ * move, types the greeting, and EMITs `boot-complete` exactly once per mount
+ * (normal ≈5.8 s, hard ceiling 6.8 s — inside CameraRig's 8 s failsafe). Returns
+ * `{ skip() }` (also driven by any key / pointer-down while playing).
+ */
+export function useLitanySequence(opts: LitanySequenceOptions): {
+  skip(): void;
+} {
+  const { mode, anchor, shutter, greeting } = opts;
+  const { layout } = useWorldData();
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+
+  const targetsRef = useRef<KindleTargets | null>(null);
+  const t0Ref = useRef<number | null>(null); // performance.now() at play start
+  const playingRef = useRef(false); // frame-loop early-return flag
+  const emittedRef = useRef(false); // boot-complete guard (once per mount)
+  const finalizedRef = useRef(false); // transparent restored at T_END
+  const chimedRef = useRef(false);
+  const flight2Ref = useRef(false);
+  const flightSettledRef = useRef(false); // establishing flight rested
+  const lastCharRef = useRef(-1); // typewriter throttle (integer compare)
+  const fullTextRef = useRef(""); // composed greeting
+  const removeSkipRef = useRef<() => void>(() => {});
+  // Stable scratch so the frame loop never allocates a refs object.
+  const refsScratch = useRef<TimelineRefs>({ shutter: null, greeting: null });
+
+  const emitBootComplete = useCallback(() => {
+    if (emittedRef.current) return;
+    emittedRef.current = true;
+    worldEvents.emit("boot-complete", undefined);
+  }, []);
+
+  const finalize = useCallback(() => {
+    if (finalizedRef.current) return;
+    finalizedRef.current = true;
+    if (targetsRef.current !== null) restoreTransparent(targetsRef.current);
+  }, []);
+
+  // §8 · any-key / any-pointer skip → jump to end, settle, emit, once.
+  const skip = useCallback(() => {
+    if (emittedRef.current) return;
+    const targets = targetsRef.current;
+    t0Ref.current = performance.now() - T_END; // so any late frame reads t = T_END
+    refsScratch.current.shutter = shutter.current;
+    refsScratch.current.greeting = greeting.current;
+    if (targets !== null) applyTimeline(T_END, targets, refsScratch.current);
+    finalize();
+    // Fast, comfortable settle from wherever the boot camera was (§8.1). Instant
+    // cuts aren't reachable through the frozen bus and a 600 ms ease is kinder.
+    void cameraBus.flyTo(VESTIBULE_POSE, SKIP_FLIGHT_MS);
+    emitBootComplete();
+    playingRef.current = false;
+    removeSkipRef.current();
+    invalidate();
+  }, [shutter, greeting, invalidate, finalize, emitBootComplete]);
+
+  // §2.4 · collect + zero BEFORE first paint; re-collect on layout identity
+  // change (Realtime echo). Cleanup restores every snapshot so a mid-boot
+  // unmount never leaves the world dark and StrictMode's double-invoke is idempotent.
+  useLayoutEffect(() => {
+    const targets = collectTargets(scene, layout);
+    targetsRef.current = targets;
+
+    // Seat the anchor at the camera so the shutter covers the view pre-paint.
+    const g = anchor.current;
+    if (g !== null) {
+      g.position.copy(camera.position);
+      g.quaternion.copy(camera.quaternion);
+    }
+
+    refsScratch.current.shutter = shutter.current;
+    refsScratch.current.greeting = greeting.current;
+    const t =
+      mode === "instant"
+        ? T_END
+        : t0Ref.current === null
+          ? 0
+          : performance.now() - t0Ref.current;
+    applyTimeline(t, targets, refsScratch.current);
+    invalidate();
+
+    return () => {
+      if (targetsRef.current !== null) restoreAll(targetsRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout]);
+
+  // §5–§8 · mount: session flag, flight 1, chime seed, skip listeners, and the
+  // instant/reduced-motion emit path.
+  useEffect(() => {
+    preloadWorldFonts();
+
+    const writeFlag = (): void => {
+      try {
+        window.sessionStorage.setItem(LITANY_SESSION_KEY, "1");
+      } catch {
+        // best-effort — a play with no flag simply may replay next visit.
+      }
+    };
+
+    if (mode === "instant") {
+      // Finals were applied in the layout effect; set the flag and emit at once.
+      // Even though bootDone() is already true on a revisit, emitting clears
+      // CameraRig's fresh 8 s failsafe so it never warns (§1).
+      writeFlag();
+      emitBootComplete();
+      return;
+    }
+
+    // ── play ──────────────────────────────────────────────────────────────
+    writeFlag(); // written at play START so a mid-boot Cmd+\ exit never replays
+    fullTextRef.current = composeGreeting(new Date());
+    lastCharRef.current = -1;
+    t0Ref.current = performance.now();
+    playingRef.current = true;
+
+    // Flight 1: the reposition happens behind the opaque shutter (§5).
+    void cameraBus.flyTo(LITANY_START_POSE, FLIGHT1_MS);
+
+    const onSkip = (): void => skip();
+    const capture: AddEventListenerOptions = { capture: true };
+    const capturePassive: AddEventListenerOptions = {
+      capture: true,
+      passive: true,
+    };
+    window.addEventListener("keydown", onSkip, capture);
+    window.addEventListener("pointerdown", onSkip, capturePassive);
+    removeSkipRef.current = () => {
+      window.removeEventListener("keydown", onSkip, capture);
+      window.removeEventListener("pointerdown", onSkip, capture);
+    };
+
+    invalidate(); // one kick; the loop self-sustains from here
+
+    return () => {
+      removeSkipRef.current();
+      playingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // §10 · ONE useFrame: clock → apply → anchor copy → typewriter → emit → invalidate.
+  useFrame(() => {
+    if (!playingRef.current) return; // done / instant / pre-play → world sleeps
+    const targets = targetsRef.current;
+    if (targets === null || t0Ref.current === null) return;
+    const t = performance.now() - t0Ref.current;
+
+    refsScratch.current.shutter = shutter.current;
+    refsScratch.current.greeting = greeting.current;
+    applyTimeline(t, targets, refsScratch.current);
+
+    // Camera-anchor copy (the Ledger pattern) — free while frames are demanded.
+    const g = anchor.current;
+    if (g !== null) {
+      g.position.copy(camera.position);
+      g.quaternion.copy(camera.quaternion);
+    }
+
+    // Soft wake tone (best-effort; U-18's AudioContext may still be locked).
+    if (!chimedRef.current && t >= CHIME_AT) {
+      chimedRef.current = true;
+      worldEvents.emit("chime", { kind: "two-note" });
+    }
+
+    // The establishing push-in.
+    if (!flight2Ref.current && t >= FLIGHT2_AT) {
+      flight2Ref.current = true;
+      void cameraBus.flyTo(VESTIBULE_POSE, FLIGHT2_MS).then(() => {
+        flightSettledRef.current = true;
+        invalidate();
+      });
+    }
+
+    // Typewriter — mutate `.text` + `.sync()` only when the integer char count
+    // changes (NOT per frame). Zero React state.
+    const full = fullTextRef.current;
+    const raw =
+      t >= GREETING_START ? Math.floor((t - GREETING_START) / GREETING_CPS_MS) : 0;
+    const chars = raw < 0 ? 0 : raw > full.length ? full.length : raw;
+    if (chars !== lastCharRef.current) {
+      lastCharRef.current = chars;
+      const gt = greeting.current;
+      if (gt !== null) {
+        gt.text = full.slice(0, chars);
+        gt.sync();
+      }
+    }
+
+    // Finals + transparent restore at the felt end.
+    if (t >= T_END) finalize();
+
+    // §7 · emit rule: after BOTH t ≥ 5800 AND the flight rested, or the hard ceiling.
+    if (
+      !emittedRef.current &&
+      ((t >= T_END && flightSettledRef.current) || t >= HARD_CEILING)
+    ) {
+      emitBootComplete();
+      playingRef.current = false; // the world sleeps on the committed units' terms
+      removeSkipRef.current();
+      invalidate();
+      return;
+    }
+
+    invalidate(); // self-sustaining demand loop for the boot's own duration
+  });
+
+  return { skip };
 }
