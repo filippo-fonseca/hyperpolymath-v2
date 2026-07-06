@@ -31,7 +31,9 @@ export const WORLD_GLYPH_SET =
   // ASCII printable (space → ~)
   ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~' +
   // Common date / time punctuation not in ASCII printable
-  '·–—''""…';
+  // (middle dot, en/em dash, curly single+double quotes, ellipsis — escaped to
+  //  avoid the ASCII-apostrophe-vs-string-delimiter hazard)
+  '\u00B7\u2013\u2014\u2018\u2019\u201C\u201D\u2026';
 
 /**
  * Preload both world fonts with the full glyph set so troika builds the
