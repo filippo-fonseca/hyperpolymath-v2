@@ -117,7 +117,16 @@ export function Atmosphere(): React.ReactElement {
         />
       </mesh>
 
-      {/* Brass inlay strips — one per area, rotated to its bough azimuth. */}
+      {/* Brass inlay strips — one per area, rotated to its bough azimuth.
+          PERF (U-20 audit): intentionally NOT batched. Merging the strips onto a
+          single mesh with a per-area material array does NOT cut draw calls —
+          three.js issues one draw call per geometry group / material — while a
+          single shared material would destroy the per-area `opacity`/`color`
+          control the Litany (U-17) animates and break the frozen `inlayRegistry`
+          shape (Map<areaId, MeshBasicMaterial> → one LIVE material per area). So
+          batching would add risk for zero GPU gain. With ≤6 areas this is ≤6
+          draw calls, comfortably inside §7.2's atmosphere budget (≤8) and total
+          ceiling (≤150). Correctness + the frozen contract beat the micro-op. */}
       {inlays.map(({ areaId, azimuth, material }) => (
         <group key={areaId} rotation={[0, -azimuth, 0]}>
           <mesh
