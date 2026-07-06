@@ -8,6 +8,7 @@
 
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
+import { splitDeltas } from "@/audio/sentence-splitter";
 
 let source: EventSource | null = null;
 
@@ -128,6 +129,98 @@ const toolCallListeners = new Set<ToolCallListener>();
 const responseEndListeners = new Set<ResponseEndListener>();
 const routineProgressListeners = new Set<RoutineProgressListener>();
 
+// ── Per-turn repeated-sentence dedupe (desktop-only render/speak guard) ──────
+// A single JARVIS turn runs an agentic tool loop server-side: the model can
+// stream a short acknowledgement (e.g. "Off it goes, sir.") in the pass that
+// emits a tool call AND stream the SAME line again in the feedback pass that
+// follows the tool result. Both passes reach us as `jarvis-response-chunk`
+// events on ONE turnId, so every downstream consumer — the transcript bubble,
+// the ack strip, the drawer mirror, and the TTS queue — renders and speaks the
+// line twice ("Off it goes, sir. Off it goes, sir.").
+//
+// The backend/SSE contract is fixed, so we dedupe on RECEIPT here, at the sole
+// chokepoint every chunk consumer funnels through. We buffer each turn's text,
+// split it into complete sentences with the same splitter the TTS path uses,
+// and forward only sentences NOT yet seen this turn: a verbatim repeat is
+// dropped whole, a novel sentence is recorded and passed on. Streaming UX is
+// preserved: novel text still flows into one bubble sentence-by-sentence (the
+// same granularity the TTS queue already speaks at), and only an exact
+// duplicate line is withheld. Per-turn state (keyed on turnId) so overlapping
+// turns (routine opener + brief) never cross-dedupe.
+interface ChunkDedupeState {
+  /** Unfinished tail carried between splitter calls (matches splitDeltas). */
+  ttsBuffer: string;
+  /** Normalized text of sentences already forwarded this turn. */
+  seen: Set<string>;
+}
+const chunkDedupe = new Map<string, ChunkDedupeState>();
+
+/** Normalize a sentence for duplicate comparison: strip non-alphanumerics,
+ *  collapse whitespace, lowercase. Casing/punctuation drift between the two
+ *  passes then still compares equal. */
+function normalizeSentence(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function chunkStateFor(turnId: string): ChunkDedupeState {
+  let st = chunkDedupe.get(turnId);
+  if (!st) {
+    st = { ttsBuffer: "", seen: new Set() };
+    chunkDedupe.set(turnId, st);
+  }
+  return st;
+}
+
+/**
+ * Filter one incoming chunk delta for a turn, returning the text to forward
+ * with any verbatim-repeat sentence removed. We buffer the turn's text and emit
+ * only COMPLETED sentences (each checked against the per-turn `seen` set): a
+ * duplicate is dropped, a novel one is recorded and forwarded. The unfinished
+ * tail is held until its terminator lands (flushed on response-end), mirroring
+ * exactly how the TTS path already batches sentences — so a repeat is caught
+ * before it can render or speak. Returns "" when this tick produced no new
+ * completed sentence (the caller then suppresses the downstream emit).
+ */
+function filterChunkDelta(turnId: string, delta: string): string {
+  const st = chunkStateFor(turnId);
+  const { sentences, remainder } = splitDeltas(st.ttsBuffer, delta);
+  st.ttsBuffer = remainder;
+
+  let out = "";
+  for (const sentence of sentences) {
+    const norm = normalizeSentence(sentence);
+    // Punctuation-only/empty fragments carry no meaning — forward to preserve
+    // spacing, but don't record them as "seen".
+    if (!norm) {
+      out += sentence;
+      continue;
+    }
+    if (st.seen.has(norm)) continue; // verbatim repeat this turn — drop it
+    st.seen.add(norm);
+    out += sentence;
+  }
+  return out;
+}
+
+/** Flush the turn's trailing (unterminated) sentence through the same dedupe,
+ *  then drop the turn's state. Called on response-end so a short reply that
+ *  never hit a terminator ("Off it goes, sir" with no trailing space) still
+ *  renders/speaks exactly once. */
+function flushChunkDedupe(turnId: string): string {
+  const st = chunkDedupe.get(turnId);
+  chunkDedupe.delete(turnId);
+  if (!st) return "";
+  const tail = st.ttsBuffer;
+  if (!tail.trim()) return "";
+  const norm = normalizeSentence(tail);
+  if (norm && st.seen.has(norm)) return "";
+  return tail;
+}
+
 export function onSseStatusChange(fn: StatusListener): () => void {
   statusListeners.add(fn);
   return () => statusListeners.delete(fn);
@@ -246,6 +339,10 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     if (!payload) return;
     // eslint-disable-next-line no-console
     console.log(`[jarvis] response-start turnId=${payload.turnId}`);
+    // Fresh per-turn dedupe state (first-seen wins; a duplicate response-start
+    // for the same turnId keeps the existing `seen` set rather than clearing
+    // sentences already forwarded).
+    chunkStateFor(payload.turnId);
     for (const fn of responseStartListeners) fn(payload);
   });
 
@@ -253,7 +350,13 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     const messageEvent = e as MessageEvent<string>;
     const payload = parseJson<JarvisResponseChunkPayload>(messageEvent.data);
     if (!payload) return;
-    for (const fn of responseChunkListeners) fn(payload);
+    // Repeated-sentence dedupe: forward only new completed sentences (see
+    // filterChunkDelta). A tick that yields nothing new is suppressed so no
+    // consumer (bubble / ack strip / drawer / TTS) sees a duplicate line.
+    const filtered = filterChunkDelta(payload.turnId, payload.delta);
+    if (!filtered) return;
+    const outPayload: JarvisResponseChunkPayload = { ...payload, delta: filtered };
+    for (const fn of responseChunkListeners) fn(outPayload);
   });
 
   source.addEventListener("jarvis-tool-call", (e) => {
@@ -271,6 +374,18 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     if (!payload) return;
     // eslint-disable-next-line no-console
     console.log(`[jarvis] response-end turnId=${payload.turnId}`);
+    // Flush the turn's trailing unterminated sentence through the same dedupe
+    // (and retire the turn's state) BEFORE signalling end — so a short reply
+    // that never hit a terminator still renders/speaks its final line once.
+    const tail = flushChunkDedupe(payload.turnId);
+    if (tail) {
+      const tailChunk: JarvisResponseChunkPayload = {
+        turnId: payload.turnId,
+        delta: tail,
+        at: payload.at,
+      };
+      for (const fn of responseChunkListeners) fn(tailChunk);
+    }
     for (const fn of responseEndListeners) fn(payload);
   });
 
