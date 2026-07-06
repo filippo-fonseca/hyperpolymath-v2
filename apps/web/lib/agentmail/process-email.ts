@@ -9,6 +9,7 @@ import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { db } from "@/lib/db";
 import { agentmailIngestEvents, captures, tasks, users } from "@/lib/db/schema";
 import { HAIKU_MODEL, getAnthropicClient } from "@/lib/jarvis/anthropic-client";
+import { mergeContentUrls } from "@/lib/url";
 
 export interface AgentMailReceivedEvent {
   eventId: string;
@@ -223,7 +224,12 @@ export async function processAgentMailReceivedEvent(event: AgentMailReceivedEven
     const analysis = await analyzeEmail(message);
     const content = buildCaptureContent(message, analysis);
     const captureId = randomUUID();
-    const url = firstUrl(`${message.subject ?? ""}\n${getMessageText(message)}`);
+    // Auto-derive the URL property (parity with the web/JARVIS/device paths):
+    // index every link in the capture body, seeding the primary from any link in
+    // the subject/text so a subject-only link is still captured.
+    const derivedUrls = mergeContentUrls(content, {
+      url: firstUrl(`${message.subject ?? ""}\n${getMessageText(message)}`),
+    });
 
     const createdTaskIds = await db.transaction(async (tx) => {
       await tx.insert(captures).values({
@@ -234,7 +240,8 @@ export async function processAgentMailReceivedEvent(event: AgentMailReceivedEven
         sourceDevice: "AgentMail",
         sourceInput: "email",
         sourceChannel: "email",
-        url,
+        url: derivedUrls.url,
+        urls: derivedUrls.urls,
       });
 
       const [{ maxPos }] = await tx
