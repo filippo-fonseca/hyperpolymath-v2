@@ -28,6 +28,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 
 import { onTranscriptReceived } from "@/audio/capture";
 import { onJarvisState } from "@/conversation/state-machine";
+import { onJarvisResponseStart } from "@/physical-extender/sse-client";
 import { buildIMessageSend, runAppleScript } from "@/actions/applescript";
 import { resolveImessageRecipient } from "@/actions/imessage-contacts";
 import type { SendMessageAction } from "@/actions/dispatcher";
@@ -68,7 +69,14 @@ const NEGATOR_RE = /\b(?:don'?t|do(?:es)?\s+not|doesn'?t|never|not|\w+n't)\b/i;
  *  very send (that self-confirmation was the iMessage double-send bug). Genuine
  *  confirmations ("yes", "send it", "go ahead") don't match this shape. */
 const REQUEST_RE =
-  /\bsend (?:a|an|another) (?:message|text)\b|\b(?:text|message)\s+\w+\s+(?:that|saying|:)/i;
+  /\bsend\s+\S+\s+(?:(?:a|an|another)\s+)?(?:message|text)\b|\bsend (?:a|an|another) (?:message|text)\b|\b(?:text|message|dm|whatsapp|imessage|ping|shoot|tell|ask|remind)\s+\S+\b|\b(?:that says|saying|say|tell|remind|ask)\b|:/i;
+
+/** Pre-confirm is only for the two-turn flow where the transcript that caused
+ *  the arriving tool call is itself a standalone confirmation. Never scan a
+ *  composition request's message body for "send it" / "go ahead": those words
+ *  may be the content to send, not permission to send it. */
+const STANDALONE_CONFIRM_RE =
+  /^\s*(?:yes|yeah|yep|yup|sure|ok(?:ay)?|confirm|affirmative|do it|go ahead|send (?:it|that|the message)|please do|please send(?: it)?)\s*[.!?]*\s*$/i;
 
 /** Normalize a message body for dedupe: drop a trailing "(via Jarvis)" /
  *  "(sent via Jarvis)" signature the model sometimes improvises, collapse
@@ -106,9 +114,14 @@ function hasUnnegatedSendVerb(text: string): boolean {
   return false;
 }
 
-/** How fresh a preceding affirmative transcript must be to pre-confirm an
- *  arriving send_message action (two-turn flow). */
-const PRECONFIRM_WINDOW_MS = 20_000;
+export function isStandaloneSendConfirmation(text: string): boolean {
+  return STANDALONE_CONFIRM_RE.test(text) && !REQUEST_RE.test(text);
+}
+
+/** How fresh a preceding standalone affirmative transcript must be to
+ *  pre-confirm an arriving send_message action (two-turn flow). Kept short so
+ *  an unrelated prior "yes" cannot linger across turns. */
+const PRECONFIRM_WINDOW_MS = 3_000;
 /** Suppress an identical recipient+text send arriving within this window
  *  (the model re-emitting the tool call for a send we already executed). */
 const DEDUPE_WINDOW_MS = 30_000;
@@ -424,11 +437,7 @@ export function holdSendMessage(action: SendMessageAction): void {
     !latched &&
     lastTranscript &&
     now - lastTranscript.at < PRECONFIRM_WINDOW_MS &&
-    // A composition REQUEST ("send a message to X that …") describes THIS send;
-    // it must never count as the confirmation for it. Only genuine
-    // affirmatives/send-verbs pre-confirm.
-    !REQUEST_RE.test(lastTranscript.text) &&
-    (AFFIRM_RE.test(lastTranscript.text) || hasUnnegatedSendVerb(lastTranscript.text))
+    isStandaloneSendConfirmation(lastTranscript.text)
   ) {
     // Two-turn flow: the transcript that triggered this turn was the spoken
     // confirmation. Consume it so it can't confirm anything else.
@@ -528,6 +537,13 @@ export function startConfirmGate(): void {
     if (!consumed) {
       lastTranscript = { text, at: Date.now() };
     }
+  });
+
+  onJarvisResponseStart(() => {
+    // New response turn boundary. Tool-call SSE can arrive before the desktop's
+    // transcript callback for the same turn, so never let a prior turn's
+    // affirmative pre-confirm a newly arriving destructive action.
+    lastTranscript = null;
   });
 
   onJarvisState((state) => {
