@@ -62,6 +62,27 @@ const POSE_CONFIG = { tension: 220, friction: 26 } as const; // PLAN §6 U-13
 
 const RING_LOCAL_X = -0.36; // ring sits at the ribbon's left (the wax seal)
 
+/**
+ * The ring's world-space center at the summon pose (§8.1 · U-16 seam).
+ *
+ * During a routing the ribbon is open, so the ring is settled at SUMMON_POSITION
+ * (springs land long before actions stream in). This single-sources the pose
+ * constants so U-16 never duplicates them. The camera is in the scene graph with
+ * a live matrixWorld (see the `scene.add(camera)` effect above), so
+ * `localToWorld` is correct at any frame. Writes into and returns `out`.
+ */
+export function ringWorldOrigin(
+  camera: THREE.Camera,
+  out: THREE.Vector3,
+): THREE.Vector3 {
+  out.set(
+    SUMMON_POSITION[0] + RING_LOCAL_X,
+    SUMMON_POSITION[1],
+    SUMMON_POSITION[2],
+  );
+  return camera.localToWorld(out);
+}
+
 // Per-state outer-ring intensity target (§3.3).
 function outerIntensityTarget(state: JarvisWorldState): number {
   if (state === "error") return 3.4;

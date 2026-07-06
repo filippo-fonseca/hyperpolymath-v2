@@ -36,6 +36,7 @@
 import { useEffect, useMemo, type JSX } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import type { Vector3Tuple } from "three";
 import { easing } from "maath";
 
 import { FIREFLY_GEOMETRY } from "../materials/sharedGeometries";
@@ -267,6 +268,21 @@ function seedSpawnPos(id: string, out: Float32Array, o: number): void {
   out[o] = r * Math.cos(theta);
   out[o + 1] = y;
   out[o + 2] = r * Math.sin(theta);
+}
+
+// Module scratch for the exported spawn-point wrapper (§8.2 · U-16 seam).
+const _spawnScratch = new Float32Array(3);
+
+/**
+ * The deterministic swarm spawn point for a capture id (§8.2 · U-16 seam).
+ *
+ * A thin exported wrapper over the private `seedSpawnPos` — EXACT reuse, no
+ * duplicated swarm constants. U-16's light-thread ends here for an unfiled
+ * capture so the thread tip and U-14's cork-pop coincide spatially (§8).
+ */
+export function captureSpawnPosition(id: string): Vector3Tuple {
+  seedSpawnPos(id, _spawnScratch, 0);
+  return [_spawnScratch[0]!, _spawnScratch[1]!, _spawnScratch[2]!];
 }
 
 // ── Allocation-free seeded randomness — per-slot LCG (§5.2) ────────────────────
