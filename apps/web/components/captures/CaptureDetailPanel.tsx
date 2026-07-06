@@ -611,11 +611,19 @@ export function CaptureDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
+      {/* Non-modal: the aside floats over the feed without locking body scroll,
+          so the captures list stays scrollable while it's open. No overlay, and
+          outside pointer interactions don't auto-dismiss (that would fire on the
+          feed behind it and on the discard/convert/delete popovers, which render
+          in sibling portals). Close via Esc, the × button, Cancel, or selecting
+          another capture. */}
+      <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-[560px] p-0 flex flex-col"
           showCloseButton={false}
+          overlay={false}
+          onInteractOutside={(e) => e.preventDefault()}
         >
           {capture && (
             <>
