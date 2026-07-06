@@ -46,13 +46,14 @@ import {
 } from "@/components/shared/ProjectMultiSelect";
 import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
 import { RelativeTime } from "@/components/shared/RelativeTime";
-import { UrlField } from "@/components/shared/UrlField";
+import { UrlListField } from "@/components/shared/UrlListField";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
 import { createPersonSuggestion } from "./person-suggestions";
-import { deleteCapture, updateCapture } from "@/app/actions/captures";
+import { deleteCapture, ensureCaptureUrls, updateCapture } from "@/app/actions/captures";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
+import { extractUrlsFromContent } from "@/lib/url";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
@@ -116,7 +117,8 @@ interface FormState {
   hashtagNames: string[];
   personNames: string[];
   projectIds: string[];
-  url: string | null;
+  /** The full multi-URL set (manual + body-derived). urls[0] is the primary. */
+  urls: string[];
 }
 
 function captureToFormState(c: CaptureWithLinks): FormState {
@@ -126,7 +128,7 @@ function captureToFormState(c: CaptureWithLinks): FormState {
     hashtagNames: c.hashtags.map((h) => h.displayName),
     personNames: c.people.map((p) => p.name),
     projectIds: c.projects.map((p) => p.id),
-    url: c.url ?? null,
+    urls: c.urls ?? [],
   };
 }
 
@@ -226,7 +228,7 @@ export function CaptureDetailPanel({
     hashtagNames: [],
     personNames: [],
     projectIds: [],
-    url: null,
+    urls: [],
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
   // Mirror of the editor's current parsed state. TipTap's editor instance
@@ -388,6 +390,43 @@ export function CaptureDetailPanel({
     }
   }, [capture?.id]);
 
+  // Lazy retroactive backfill: when a capture is opened whose body contains
+  // link(s) not yet recorded in `urls` (e.g. one created before this feature),
+  // derive + persist them server-side and fold the result into the panel + feed.
+  // Idempotent and additive — a no-op for captures already fully indexed.
+  useEffect(() => {
+    if (!open || !capture) return;
+    const stored = new Set((capture.urls ?? []).map((u) => u.toLowerCase()));
+    const hasUnindexed = extractUrlsFromContent(capture.content).some(
+      (u) => !stored.has(u.toLowerCase()),
+    );
+    if (!hasUnindexed) return;
+
+    let cancelled = false;
+    const captureId = capture.id;
+    const baseline = capture.urls ?? [];
+    void ensureCaptureUrls(captureId).then((r) => {
+      if (cancelled || !r.success || !r.data.changed) return;
+      const nextUrls = r.data.urls;
+      // Don't clobber an in-flight manual edit: only fold the server-derived set
+      // in if the user hasn't touched the list since the panel opened.
+      setForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
+      setInitialForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
+      onOptimisticUpdate?.(captureId, { url: r.data.url, urls: nextUrls });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, capture?.id]);
+
   // Permissive parse — wraps `parseEditorJSON` for the imperative save path.
   // Mirrors CaptureComposer.parseEditor exactly so detail edits get the same
   // hashtag extraction behavior (plain `#word` text counts).
@@ -411,7 +450,7 @@ export function CaptureDetailPanel({
         JSON.stringify([...initialForm.personNames].sort()) ||
       JSON.stringify([...form.projectIds].sort()) !==
         JSON.stringify([...initialForm.projectIds].sort()) ||
-      form.url !== initialForm.url);
+      JSON.stringify(form.urls) !== JSON.stringify(initialForm.urls));
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
@@ -445,12 +484,16 @@ export function CaptureDetailPanel({
       const known = capture.people.find((p) => p.name.toLowerCase() === name.toLowerCase());
       return known ?? { id: `pending-${name}`, name };
     });
+    // Primary url mirrors the first link in the set; the server re-derives body
+    // links additively on top of this authoritative manual list.
+    const primaryUrl = form.urls[0] ?? null;
     onOptimisticUpdate?.(capture.id, {
       content,
       hashtags: optimisticHashtags,
       people: optimisticPeople,
       projects: optimisticProjects,
-      url: form.url,
+      url: primaryUrl,
+      urls: form.urls,
       updatedAt: new Date(),
     });
 
@@ -460,7 +503,8 @@ export function CaptureDetailPanel({
       hashtagNames,
       personNames,
       projectIds: form.projectIds,
-      url: form.url,
+      url: primaryUrl,
+      urls: form.urls,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -468,9 +512,15 @@ export function CaptureDetailPanel({
       return;
     }
     toast("Capture updated.");
-    setInitialForm({ content, hashtagNames, personNames, projectIds: form.projectIds, url: form.url });
+    setInitialForm({
+      content,
+      hashtagNames,
+      personNames,
+      projectIds: form.projectIds,
+      urls: form.urls,
+    });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
-  }, [capture, parseEditor, form.projectIds, form.url, onOptimisticUpdate, onOptimisticRevert, projects]);
+  }, [capture, parseEditor, form.projectIds, form.urls, onOptimisticUpdate, onOptimisticRevert, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -561,11 +611,19 @@ export function CaptureDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
+      {/* Non-modal: the aside floats over the feed without locking body scroll,
+          so the captures list stays scrollable while it's open. No overlay, and
+          outside pointer interactions don't auto-dismiss (that would fire on the
+          feed behind it and on the discard/convert/delete popovers, which render
+          in sibling portals). Close via Esc, the × button, Cancel, or selecting
+          another capture. */}
+      <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-[560px] p-0 flex flex-col"
           showCloseButton={false}
+          overlay={false}
+          onInteractOutside={(e) => e.preventDefault()}
         >
           {capture && (
             <>
@@ -640,15 +698,15 @@ export function CaptureDetailPanel({
                   />
                 </section>
 
-                {/* URL property (issue #101) — Notion-style link field. Clickable
-                    when set; inline input to add/edit/clear. */}
+                {/* URL property (issue #101) — Notion-style multi-link field.
+                    Links auto-derive from the body; add/remove extra links here. */}
                 <section className="flex flex-col gap-2">
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
-                    URL
+                    {form.urls.length > 1 ? "URLs" : "URL"}
                   </h3>
-                  <UrlField
-                    value={form.url}
-                    onChange={(next) => setForm((prev) => ({ ...prev, url: next }))}
+                  <UrlListField
+                    value={form.urls}
+                    onChange={(next) => setForm((prev) => ({ ...prev, urls: next }))}
                     disabled={isPending}
                   />
                 </section>

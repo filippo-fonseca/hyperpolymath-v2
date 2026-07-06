@@ -18,6 +18,7 @@ import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { mergeContentUrls } from "@/lib/url";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
@@ -333,6 +334,7 @@ export function CaptureComposer({
     // they look right inline but are NOT the canonical join rows; the
     // Realtime echo + TanStack Query refetch reconciles to ground truth.
     const now = new Date();
+    const optimisticUrls = mergeContentUrls(content, {});
     const optimisticRow: CaptureWithLinks = {
       id: newId,
       content,
@@ -345,9 +347,11 @@ export function CaptureComposer({
       sourceDevice: "Web",
       sourceInput: "text",
       sourceChannel: null,
-      // Issue #101 — the quick-capture composer doesn't set a URL property; it's
-      // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
-      url: null,
+      // The URL property auto-derives from links in the body; reflect that
+      // optimistically so a pasted link shows up immediately (the server
+      // performs the authoritative derivation and the refetch reconciles).
+      url: optimisticUrls.url,
+      urls: optimisticUrls.urls,
       favorite: false,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
