@@ -187,6 +187,29 @@ export function mergeContentUrls(
 }
 
 /**
+ * Derive the single canonical `url` property for a Notion-style URL field on an
+ * entity that stores ONE link (tasks, pages) rather than a `urls[]` set like
+ * captures. Scans a run of text (e.g. a task's title + notes) for links and
+ * returns the FIRST one found — unless a link is already set, in which case that
+ * existing (manual or previously-derived) value is kept verbatim.
+ *
+ * Guarantees, mirroring the capture body-link derivation:
+ *   - **Never overwrites** an existing `url` — `existingUrl` (if a valid http(s)
+ *     link) always wins, so a link the user attached by hand is never clobbered.
+ *   - **Fills** the field with the first body link only when it was empty/unset.
+ *
+ * Implemented on top of `mergeContentUrls` so single-url derivation can never
+ * diverge from the multi-url capture path: the detection, normalization, and
+ * "never overwrite the primary" rule are shared, we simply take `.url`.
+ */
+export function deriveSingleUrl(
+  content: string | null | undefined,
+  existingUrl?: string | null,
+): string | null {
+  return mergeContentUrls(content, { url: existingUrl }).url;
+}
+
+/**
  * Extract every bare URL from a text run as absolute hrefs, deduped and in order
  * of first appearance (issue #221). Optionally seed with an already-normalized
  * canonical URL (the capture's `url` property) so it participates in previews too.
