@@ -74,6 +74,7 @@ export function JarvisRibbon(props: JarvisRibbonProps): React.ReactElement | nul
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textRef = useRef<TroikaText | null>(null);
+  const flashMeshRef = useRef<THREE.Mesh>(null);
   const flushedVersion = useRef(-1);
   const lastFlushAt = useRef(0);
   const flashStart = useRef<number | null>(null);
@@ -135,14 +136,19 @@ export function JarvisRibbon(props: JarvisRibbonProps): React.ReactElement | nul
       }
     }
 
-    // Error edge flash: parchment → ember → parchment over 600 ms.
+    // Error edge flash: parchment → ember → parchment over 600 ms. The frame
+    // mesh is culled (visible=false) except during the flash, so the steady-state
+    // draw-call count stays at 5 (§1.1) — the 6th is transient, within the ≤6 budget.
+    const flashMesh = flashMeshRef.current;
     if (flashStart.current !== null) {
       const e = performance.now() - flashStart.current;
       if (e < FLASH_MS) {
         FLASH_MATERIAL.opacity = Math.sin(Math.PI * (e / FLASH_MS)) * 0.5;
+        if (flashMesh) flashMesh.visible = true;
         invalidate();
       } else {
         FLASH_MATERIAL.opacity = 0;
+        if (flashMesh) flashMesh.visible = false;
         flashStart.current = null;
       }
     }
@@ -175,11 +181,14 @@ export function JarvisRibbon(props: JarvisRibbonProps): React.ReactElement | nul
         </mesh>
       </animated.group>
 
-      {/* Error edge flash frame — behind the glass, coral pulse on failure. */}
+      {/* Error edge flash frame — behind the glass, coral pulse on failure.
+          Culled until a flash arms so it never costs a steady-state draw call. */}
       <mesh
+        ref={flashMeshRef}
         geometry={FLASH_FRAME}
         material={FLASH_MATERIAL}
         position={[0.06, 0, -0.002]}
+        visible={false}
       />
 
       {/* Streamed reply — italic Garamond SDF, mutated imperatively (§4.3). */}
