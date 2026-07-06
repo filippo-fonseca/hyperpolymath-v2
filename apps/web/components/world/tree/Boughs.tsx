@@ -36,6 +36,7 @@ import {
   type TreeLayoutResult,
 } from "../data/treeLayout";
 import { worldEvents } from "../data/diffing";
+import { focusStack } from "../camera/useFocusStack";
 import { makeHologramMaterial } from "../materials/hologram";
 import { oklchToThreeColor } from "../materials/tokens";
 
@@ -232,6 +233,10 @@ export function Boughs(): React.ReactElement {
           geometry={b.geometry}
           material={b.material}
           userData={{ kind: "bough", areaId: b.areaId }}
+          onClick={(e) => {
+            e.stopPropagation();
+            focusStack.push({ kind: "bough", areaId: b.areaId });
+          }}
         />
       ))}
       {built.core !== null && (

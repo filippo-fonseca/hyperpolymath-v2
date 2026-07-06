@@ -4,6 +4,7 @@ import * as THREE from "three";
 import type { JSX } from "react";
 import { Instances, Instance } from "@react-three/drei";
 import { useWorldData } from "../data/useWorldData";
+import { focusStack, useFocusStack } from "../camera/useFocusStack";
 import type { LanternLayout } from "../data/treeLayout";
 import { LANTERN_GEOMETRY } from "../materials/sharedGeometries";
 import { makeHologramMaterial, heroGlass } from "../materials/hologram";
@@ -68,18 +69,15 @@ const classRingMaterial = new THREE.MeshStandardMaterial({
 export const lanternPickMap: Map<number, string> = new Map();
 
 /**
- * Focus seam for U-07. Until the CameraRig / useFocusStack lands (U-07), no
- * lantern is focused. U-07 replaces this body with a read of the real focus
- * stack, e.g.:
- *
- *   const f = useFocusStack();
- *   return f.kind === "lantern" ? f.projectId : null;
- *
- * Returning a projectId here hides that lantern's instance (scale 0) and
- * overlays a single `heroGlass` mesh in its place — the ≤1 transmission swap.
+ * Focus seam (U-07 wired). Reads the real focus stack reactively via
+ * `useSyncExternalStore` (inside `useFocusStack`), so a focus change re-renders
+ * Lanterns once at interaction cadence — never per frame. Returning a projectId
+ * here hides that lantern's instance (scale 0) and overlays a single `heroGlass`
+ * mesh in its place — the ≤1 transmission swap.
  */
 function useFocusedLanternId(): string | null {
-  return null;
+  const { current } = useFocusStack();
+  return current.kind === "lantern" ? current.projectId : null;
 }
 
 // Per-instance body color, HDR-scaled for the interior glow. Fresh THREE.Color
@@ -124,6 +122,17 @@ export function Lanterns(): JSX.Element {
             color={lanternInstanceColor(lantern.color)}
             scale={lantern.projectId === focusedId ? 0 : 1}
             userData={{ projectId: lantern.projectId }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Push the PARENT CHAIN in one handler (§2.6): the bough push is a
+              // no-op if already focused, then the lantern push. React 19 batches
+              // the two notify()s → CameraRig re-renders once → one flight.
+              const l = layout.byProject.get(lantern.projectId);
+              if (l) {
+                focusStack.push({ kind: "bough", areaId: l.areaId });
+                focusStack.push({ kind: "lantern", projectId: lantern.projectId });
+              }
+            }}
           />
         ))}
       </Instances>
