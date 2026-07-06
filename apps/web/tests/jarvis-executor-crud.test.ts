@@ -93,15 +93,22 @@ const { mockState } = vi.hoisted(() => ({
  * tree where leaf nodes are plain objects like `{ id: "uuid-value" }` or
  * `{ userId: "uuid-value" }`. We collect all string-valued leaf properties.
  */
-function extractWhereParams(node: unknown, depth = 0): string[] {
+function extractWhereParams(node: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): string[] {
   if (!node || typeof node !== "object" || depth > 10) return [];
+  // Cycle guard: Drizzle column objects hold a back-reference to their table
+  // (which lists every column, including array columns that wrap a baseColumn
+  // pointing back at the table). Without tracking visited objects, walking the
+  // WHERE node's column references recurses through those cycles and blows the
+  // stack. Skipping already-seen objects keeps extraction correct + bounded.
+  if (seen.has(node as object)) return [];
+  seen.add(node as object);
   const obj = node as Record<string, unknown>;
   const result: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
     if (key === "queryChunks" && Array.isArray(value)) {
       for (const chunk of value) {
-        result.push(...extractWhereParams(chunk, depth + 1));
+        result.push(...extractWhereParams(chunk, depth + 1, seen));
       }
     } else if (typeof value === "string" && value.length > 0 && !["(", ")", " and ", " or ", " = ", ","].includes(value)) {
       result.push(value);
@@ -110,11 +117,11 @@ function extractWhereParams(node: unknown, depth = 0): string[] {
       const isKeyword = value.length === 1 && typeof value[0] === "string" && value[0].trim().length <= 10;
       if (!isKeyword) {
         for (const item of value) {
-          result.push(...extractWhereParams(item, depth + 1));
+          result.push(...extractWhereParams(item, depth + 1, seen));
         }
       }
     } else if (value && typeof value === "object") {
-      result.push(...extractWhereParams(value, depth + 1));
+      result.push(...extractWhereParams(value, depth + 1, seen));
     }
   }
   return result;

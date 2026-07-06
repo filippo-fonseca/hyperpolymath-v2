@@ -267,10 +267,7 @@ export const captures = pgTable(
     // of links attached to the capture — manual entries plus any auto-derived
     // from the body. Derivation only ever ADDS links (never removes/overwrites),
     // so any link present in the content stays indexed here. Empty '{}' = none.
-    urls: text("urls")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
+    urls: text("urls").array().notNull().default([]),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
