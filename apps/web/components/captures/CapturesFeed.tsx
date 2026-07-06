@@ -1,15 +1,16 @@
 "use client";
 
-import { AnimatePresence } from "motion/react";
-import { Button } from "@/components/ui/button";
-import { CaptureCard } from "./CaptureCard";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { Button } from "@/components/ui/button";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { AnimatePresence } from "motion/react";
+import { CaptureCard } from "./CaptureCard";
 
 interface Props {
   captures: CaptureWithLinks[];
   activeHashtagId: string | null;
   isSearchActive: boolean;
+  isFavoritesActive?: boolean;
   /**
    * Issue #139 — the live search term, forwarded to each card so matched
    * substrings in the capture body are highlighted in the cyan accent. Empty
@@ -18,6 +19,7 @@ interface Props {
   searchQuery?: string;
   onClearHashtag: () => void;
   onClearSearch: () => void;
+  onClearFavorites?: () => void;
   /**
    * Clicking a card opens the canonical detail panel (Notion-style Sheet).
    * Owned by CapturesClient — feed just forwards the click.
@@ -36,6 +38,7 @@ interface Props {
    * invocation. Lifts the toast UX up one level (UI-SPEC §8h).
    */
   onDeleteCapture?: (capture: CaptureWithLinks) => void;
+  onToggleFavorite?: (capture: CaptureWithLinks) => void;
   /**
    * Signed-in user's avatar URL + fallback initial. Forwarded to each card so
    * the Twitter-style avatar | content rhythm renders consistently across the
@@ -63,12 +66,15 @@ export function CapturesFeed({
   captures,
   activeHashtagId,
   isSearchActive,
+  isFavoritesActive = false,
   searchQuery,
   onClearHashtag,
   onClearSearch,
+  onClearFavorites,
   onSelectCapture,
   onOptimisticDelete,
   onDeleteCapture,
+  onToggleFavorite,
   userAvatarUrl,
   userInitials,
   availableProjects,
@@ -84,6 +90,16 @@ export function CapturesFeed({
         />
       );
     }
+    if (isFavoritesActive) {
+      return (
+        <EmptyState
+          title="No favorite captures yet."
+          body="Star captures you want to find quickly."
+          actionLabel="Show all captures"
+          onAction={onClearFavorites}
+        />
+      );
+    }
     if (activeHashtagId) {
       return (
         <EmptyState
@@ -95,10 +111,7 @@ export function CapturesFeed({
       );
     }
     return (
-      <EmptyState
-        title="What's on your mind?"
-        body="Capture a thought. Tag it. Let it breathe."
-      />
+      <EmptyState title="What's on your mind?" body="Capture a thought. Tag it. Let it breathe." />
     );
   }
 
@@ -116,6 +129,7 @@ export function CapturesFeed({
             onOpen={() => onSelectCapture(c)}
             onOptimisticDelete={onOptimisticDelete}
             onDeleteCapture={onDeleteCapture}
+            onToggleFavorite={onToggleFavorite}
             userAvatarUrl={userAvatarUrl}
             userInitials={userInitials}
             availableProjects={availableProjects}
@@ -141,12 +155,8 @@ function EmptyState({
   // serif H2 24px + serif body --ink-muted + Document primary <Button>.
   return (
     <div className="flex flex-col items-center text-center py-24 px-6 gap-3">
-      <h2 className="font-serif text-2xl font-semibold leading-tight text-[var(--ink)]">
-        {title}
-      </h2>
-      <p className="font-serif text-base text-[var(--ink-muted)] max-w-md">
-        {body}
-      </p>
+      <h2 className="font-serif text-2xl font-semibold leading-tight text-[var(--ink)]">{title}</h2>
+      <p className="font-serif text-base text-[var(--ink-muted)] max-w-md">{body}</p>
       {actionLabel && onAction && (
         <Button onClick={onAction} className="mt-4">
           {actionLabel}

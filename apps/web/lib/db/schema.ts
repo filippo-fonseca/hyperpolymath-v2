@@ -260,6 +260,8 @@ export const captures = pgTable(
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
+    // Issue #202 — user-facing favorite/star flag for quick retrieval.
+    favorite: boolean("favorite").notNull().default(false),
     // 260615-h74 — captures-to-issues daily cron. Both columns are additive and
     // NULLABLE with no default, so existing rows are untouched. githubEvaluatedAt
     // is the "already considered" marker: it is set whenever Claude has evaluated
