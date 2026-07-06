@@ -63,14 +63,18 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  overlay = true,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  // Set false for non-modal sheets that should let the page behind stay
+  // scrollable/interactive (Radix's overlay otherwise swallows wheel/clicks).
+  overlay?: boolean
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {overlay && <SheetOverlay />}
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(

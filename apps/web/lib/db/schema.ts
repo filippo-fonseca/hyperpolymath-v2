@@ -255,10 +255,21 @@ export const captures = pgTable(
     // token deletion, plus the input modality ('voice' | 'text').
     sourceDevice: text("source_device"),
     sourceInput: text("source_input"),
+    // Issue #220 — first-class source channel for non-UI ingestion surfaces
+    // such as AgentMail. Kept separate from sourceInput so "email" does not
+    // render as a typed browser capture.
+    sourceChannel: text("source_channel"),
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the capture (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    // Kept as the primary/canonical link for backward-compatible single-link
+    // reads (feed, MCP export); mirrors urls[0].
     url: text("url"),
+    // Multi-URL property (migration 0028 / 0045). The full ordered, de-duped set
+    // of links attached to the capture — manual entries plus any auto-derived
+    // from the body. Derivation only ever ADDS links (never removes/overwrites),
+    // so any link present in the content stays indexed here. Empty '{}' = none.
+    urls: text("urls").array().notNull().default([]),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
@@ -804,6 +815,29 @@ export const cronRuns = pgTable(
   (t) => [
     // This UNIQUE constraint is the once-per-day lock.
     uniqueIndex("cron_runs_job_date_uniq").on(t.jobName, t.runDate),
+  ],
+);
+
+// agentmail_ingest_events — Issue #220. Idempotency ledger for AgentMail
+// webhooks. AgentMail retries delivery; eventId is the durable replay key so a
+// retry cannot create duplicate captures/tasks.
+export const agentmailIngestEvents = pgTable(
+  "agentmail_ingest_events",
+  {
+    eventId: text("event_id").primaryKey(),
+    inboxId: text("inbox_id").notNull(),
+    messageId: text("message_id").notNull(),
+    sender: text("sender"),
+    subject: text("subject"),
+    captureId: uuid("capture_id"),
+    status: text("status").notNull().default("received"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("agentmail_ingest_events_message_idx").on(t.inboxId, t.messageId),
+    index("agentmail_ingest_events_created_idx").on(sql`created_at DESC`),
   ],
 );
 

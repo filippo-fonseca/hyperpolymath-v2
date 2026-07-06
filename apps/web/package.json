@@ -43,6 +43,8 @@
     "@uiw/react-md-editor": "^4.1.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@x402/fetch": "^2.17.0",
+    "agentmail": "^0.5.13",
     "ccusage": "^20.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

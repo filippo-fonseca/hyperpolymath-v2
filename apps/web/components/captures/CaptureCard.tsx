@@ -438,6 +438,12 @@ function CaptureBody({
     personNames,
   });
   const query = searchQuery?.trim() ?? "";
+  const sourceChannelLabel =
+    capture.sourceChannel === "email"
+      ? "Email"
+      : capture.sourceChannel
+        ? capture.sourceChannel
+        : null;
 
   // Issue #221: rich link previews. Extract URLs from the body (+ canonical url
   // property) and read their cached metadata; render unfurl cards below the body.
@@ -533,6 +539,14 @@ function CaptureBody({
                 {p.name}
               </span>
             ))}
+            <span aria-hidden>·</span>
+          </>
+        )}
+        {sourceChannelLabel && (
+          <>
+            <span className="inline-flex items-center bg-[var(--surface)] border border-[var(--edge)] rounded-sm px-2 py-0.5 text-[var(--ink)]">
+              {sourceChannelLabel}
+            </span>
             <span aria-hidden>·</span>
           </>
         )}

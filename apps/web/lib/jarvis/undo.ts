@@ -63,6 +63,9 @@ const TaskBeforeSchema = z.object({
 
 const CaptureBeforeSchema = z.object({
   content: z.string().optional(),
+  // Included so undoing a content edit also reverts the auto-derived URL state.
+  url: z.string().nullable().optional(),
+  urls: z.array(z.string()).optional(),
 });
 
 const EventBeforeSchema = z.object({

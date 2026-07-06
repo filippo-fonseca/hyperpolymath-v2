@@ -26,8 +26,12 @@ export interface CaptureWithLinks {
   /** Provenance (migration 0028): device token name or 'Web'; 'voice' | 'text'. */
   sourceDevice: string | null;
   sourceInput: string | null;
-  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  /** Issue #220 — canonical ingestion channel, e.g. "email" for AgentMail. */
+  sourceChannel: string | null;
+  /** Issue #101 — Notion-style URL property; the primary link (NULL = unset). */
   url: string | null;
+  /** Multi-URL property — full set of links (manual + body-derived); [] = none. */
+  urls: string[];
   /** Issue #202 — starred/favorited quick captures stay in the main feed. */
   favorite: boolean;
   hashtags: { id: string; displayName: string; name: string }[];
@@ -89,7 +93,9 @@ export async function getCapturesForUser(
     createdVia: string | null;
     sourceDevice: string | null;
     sourceInput: string | null;
+    sourceChannel: string | null;
     url: string | null;
+    urls: string[];
     favorite: boolean;
   }>;
 
@@ -105,7 +111,9 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)
@@ -122,7 +130,9 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)
@@ -147,7 +157,9 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)

@@ -56,6 +56,7 @@ import {
   type PersonRefFromType,
 } from "@/app/actions/people";
 import { getPeopleForUser } from "@/lib/db/queries/people";
+import { mergeContentUrls } from "@/lib/url";
 import {
   createEventForJarvis,
   deleteEvent as gcalDeleteEvent,
@@ -238,12 +239,17 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const captureId = randomUUID();
+      // Auto-derive the URL property from links in the body (same behavior as
+      // the web + device create paths).
+      const derivedUrls = mergeContentUrls(input.content, {});
       try {
         await db.transaction(async (tx) => {
           await tx.insert(captures).values({
             id: captureId,
             userId: ctx.userId,
             content: input.content,
+            url: derivedUrls.url,
+            urls: derivedUrls.urls,
             createdVia: "jarvis", // D-14
             sourceDevice: ctx.source?.device ?? null,
             sourceInput: ctx.source?.input ?? null,
@@ -551,7 +557,12 @@ export function createServerExecutor(): ActionExecutor {
 
       const result = await db.transaction(async (tx) => {
         const existing = await tx
-          .select({ id: captures.id, content: captures.content })
+          .select({
+            id: captures.id,
+            content: captures.content,
+            url: captures.url,
+            urls: captures.urls,
+          })
           .from(captures)
           .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
           .limit(1);
@@ -561,6 +572,18 @@ export function createServerExecutor(): ActionExecutor {
         // Build before: only keys mirroring `set` (excluding updatedAt)
         const prev = existing[0]!;
         if (input.content != null) beforeSnapshot.content = prev.content;
+
+        // Re-derive the URL property when the body changes: body links merge
+        // additively into the existing set (never removing/overwriting).
+        if (input.content != null) {
+          const merged = mergeContentUrls(input.content, { url: prev.url, urls: prev.urls });
+          set.url = merged.url;
+          set.urls = merged.urls;
+          // Snapshot the pre-derivation URL state too, so an undo of this content
+          // edit reverts the derived links rather than leaving them in place.
+          beforeSnapshot.url = prev.url;
+          beforeSnapshot.urls = prev.urls;
+        }
 
         const updated = await tx
           .update(captures)
