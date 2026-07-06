@@ -4,17 +4,26 @@ import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { WorldDataProvider } from "./data/WorldDataProvider";
+import { Atmosphere } from "./env/Atmosphere";
+import { DustMotes } from "./env/DustMotes";
+import { PostFX } from "./env/PostFX";
+import { Trunk } from "./tree/Trunk";
+import { Boughs } from "./tree/Boughs";
+import { Lanterns } from "./tree/Lanterns";
+import { Embers } from "./tree/Embers";
+import { CameraRig } from "./camera/CameraRig";
 
 /**
  * WorldScene — the composition root of The Studiolo (U-02 scaffold).
  *
- * This is the shared integration point: every later work-unit mounts its
- * system here as a single-line insertion at the marked slots below. Keep it
- * minimal and clean — no logic lives in this file, only composition.
+ * This is the shared integration point: every work-unit mounts its system here
+ * as a single-line insertion at the marked slots below. Keep it minimal and
+ * clean — no logic lives in this file, only composition.
  *
- * For THIS unit it renders a smoke-test scene (a dim ambient light + one small
- * emissive placeholder mesh) so that navigating to /world visibly renders
- * something inside the Canvas without depending on any unbuilt system.
+ * Wave 2 is now assembled: Atmosphere owns lighting + the night environment +
+ * floor + brass inlays; the tree (Trunk/Boughs), lanterns, and embers render
+ * the live data; CameraRig is the sole flight authority; PostFX is the ONLY
+ * EffectComposer and MUST be the last child so it wraps the whole scene.
  */
 export interface WorldSceneProps {
   userId: string;
@@ -34,32 +43,30 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       initialTasks={props.initialTasks}
       initialCaptures={props.initialCaptures}
     >
-      {/* Dim ambient so the placeholder is visible against the #120E0B clear. */}
-      <ambientLight intensity={0.4} color="#F2E9D8" />
-
-      {/* ── Smoke-test placeholder ──────────────────────────────────────────
-          A single small emissive candle-point at the vestibule center. Removed
-          once real geography (U-06) mounts. Emissive + toneMapped:false so the
-          later Bloom composer (U-08) will pick it up. */}
-      <mesh position={[0, 1.6, 0]}>
-        <sphereGeometry args={[0.15, 16, 12]} />
-        <meshStandardMaterial
-          color="#E8C46B"
-          emissive="#E8C46B"
-          emissiveIntensity={2}
-          toneMapped={false}
-        />
-      </mesh>
+      {/* ── Wave 2: the assembled Studiolo ─────────────────────────────────
+          Composition-only; each system reads useWorldData() and takes no props.
+          Order is deliberate: environment/lighting first, geometry next, the
+          camera logic component, and the single composer LAST so Bloom/Vignette
+          wrap everything rendered above it. */}
+      <Atmosphere /> {/* [U-08] floor · night IBL · key/fill lights · brass inlays */}
+      <DustMotes /> {/* [U-08] ~600 drifting motes (own draw call) */}
+      <Trunk /> {/* [U-06] dais + trunk column + sap vein */}
+      <Boughs /> {/* [U-06] one limb per area (pickable → focus) */}
+      <Lanterns /> {/* [U-10] one lantern per project (pickable → focus) */}
+      <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
+      <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
+      <PostFX /> {/* [U-08] the ONLY EffectComposer — MUST stay last */}
 
       {/* ── Mount slots for later work-units (one-line insertions) ──────────
           Wired at wave boundaries by the orchestrator; keep this list current.
 
-          Wave 2: <CameraRig/> [U-07] · <Atmosphere/> + <PostFX/> [U-08]
-                  <Trunk/> + <Boughs/> [U-06] · <Lanterns/> [U-10] · <Embers/> [U-09]
-          Wave 3: <Fireflies/> [U-14] · <WorldLabels/> + <Ledger/> [U-11]
+          Wave 3 (pending): <Fireflies/> [U-14] · <WorldLabels/> + <Ledger/> [U-11]
                   <TodayPanel/> [U-12] · <JarvisRing/> [U-13]
-          Wave 4: <Litany/> [U-17]
-          Wave 5: <PerfGovernor/> [U-20] */}
+          Wave 4 (pending): <Litany/> [U-17]
+          Wave 5 (pending): <PerfGovernor/> [U-20]
+
+          NOTE: <PostFX/> must remain the LAST child of the provider — the
+          EffectComposer wraps all preceding scene content. */}
     </WorldDataProvider>
   );
 }
