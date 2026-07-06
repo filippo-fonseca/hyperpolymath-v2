@@ -17,6 +17,9 @@ import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
 import { TodayPanel } from "./panels/TodayPanel";
 import { JarvisRing } from "./jarvis/JarvisRing";
+import { JarvisChoreographer } from "./jarvis/useJarvisChoreography";
+import { Litany } from "./boot/Litany";
+import { Chimes } from "./audio/Chimes";
 
 /**
  * WorldScene — the composition root of The Studiolo (U-02 scaffold).
@@ -61,9 +64,12 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Fireflies /> {/* [U-14] every unfiled capture as a firefly (one draw call) */}
       <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
       <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
+      <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
       <Ledger /> {/* [U-11] camera-anchored day-at-a-glance HUD strip */}
       <TodayPanel /> {/* [U-12] uikit holographic panel — complete-from-world */}
+      <JarvisChoreographer /> {/* [U-16] routing choreography — resolve→assist→thread+fly */}
+      <Litany /> {/* [U-17] boot litany — shutter + greeting, then zero draw calls */}
       <JarvisRing /> {/* [U-13] the familiar — portaled into the camera; MUST stay just before PostFX */}
       <PostFX /> {/* [U-08] the ONLY EffectComposer — MUST stay last */}
 
@@ -72,8 +78,10 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
 
           Wave 3 (mounted): <Fireflies/> [U-14] · <WorldLabels/> + <Ledger/> [U-11]
                   <TodayPanel/> [U-12] · <JarvisRing/> [U-13]
-          Wave 4 (pending): <Litany/> [U-17]
-          Wave 5 (pending): <PerfGovernor/> [U-20]
+          Wave 4 (mounted): <JarvisChoreographer/> [U-16] · <Litany/> [U-17]
+                  <Chimes/> [U-18]
+          Remaining (pending): Wave 5 — <PerfGovernor/> [U-20 perf-hardening] +
+                  U-21 docs · U-19 reduced-motion (cross-cutting sweep, no new mount)
 
           NOTE: <PostFX/> must remain the LAST child of the provider — the
           EffectComposer wraps all preceding scene content — and <JarvisRing/>
