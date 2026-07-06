@@ -703,11 +703,13 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 			top = append(top, c)
 		}
 	}
-	if len(top) == 1 {
+	if len(top) == 1 && topTier == matchExact {
 		return types.ParseJID(top[0].jid)
 	}
-	// Multiple distinct JIDs share the top tier — genuinely ambiguous, ask the
-	// user rather than guessing. Surface just the top-tier candidates.
+	// Multiple distinct JIDs share the top tier, or the only top-tier match is
+	// sub-exact (first-token/prefix/contains). Do not silently send a bare name
+	// to a guessed handle; ask the user to disambiguate / provide the exact
+	// contact instead.
 	return types.JID{}, &errContactAmbiguous{query: recipient, candidates: top}
 }
 
