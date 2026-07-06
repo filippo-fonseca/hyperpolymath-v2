@@ -28,8 +28,10 @@ export interface CaptureWithLinks {
   sourceInput: string | null;
   /** Issue #220 — canonical ingestion channel, e.g. "email" for AgentMail. */
   sourceChannel: string | null;
-  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  /** Issue #101 — Notion-style URL property; the primary link (NULL = unset). */
   url: string | null;
+  /** Multi-URL property — full set of links (manual + body-derived); [] = none. */
+  urls: string[];
   /** Issue #202 — starred/favorited quick captures stay in the main feed. */
   favorite: boolean;
   hashtags: { id: string; displayName: string; name: string }[];
@@ -93,6 +95,7 @@ export async function getCapturesForUser(
     sourceInput: string | null;
     sourceChannel: string | null;
     url: string | null;
+    urls: string[];
     favorite: boolean;
   }>;
 
@@ -110,6 +113,7 @@ export async function getCapturesForUser(
         sourceInput: captures.sourceInput,
         sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)
@@ -128,6 +132,7 @@ export async function getCapturesForUser(
         sourceInput: captures.sourceInput,
         sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)
@@ -154,6 +159,7 @@ export async function getCapturesForUser(
         sourceInput: captures.sourceInput,
         sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
         favorite: captures.favorite,
       })
       .from(captures)
