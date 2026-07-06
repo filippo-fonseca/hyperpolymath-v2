@@ -11,6 +11,7 @@ import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
 import { SearchProvider } from "@/components/search/SearchProvider";
+import { ModeToggle } from "@/components/world/ModeToggle";
 import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
@@ -88,6 +89,12 @@ export default async function AppLayout({
           <CommandMenu hashtags={hashtagsForComposer} projects={projectsForComposer} />
           {/* `?` opens shortcuts cheat sheet (when no input is focused) */}
           <ShortcutsCheatSheet />
+          {/* The Studiolo U-15 — Cmd+\ flips between the 2D Page and the 3D
+            /world with a brief fade; a subtle corner affordance in both modes
+            keeps it discoverable. DOM/shell only (no 3D bytes in the 2D
+            bundle); cooperates with GlobalHotkeys (no "\" binding) and the
+            world's own capture-phase key listener (which ignores Cmd/Ctrl). */}
+          <ModeToggle />
           {/* Sonner toast notifications — bottom-right, 4000ms auto-dismiss (UI-SPEC).
             Glass register: translucent frosted surface (see .glass-toast). */}
           <Toaster
