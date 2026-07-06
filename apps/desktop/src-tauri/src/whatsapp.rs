@@ -1,19 +1,33 @@
-// WhatsApp bridge sidecar supervisor.
+// WhatsApp bridge supervisor — daemon-first, sidecar-fallback.
 //
-// Spawns the bundled `whatsapp-bridge` Tauri sidecar on app setup, pointed at an
-// app-data store dir and a fixed port (8080 — the desktop send path in
-// confirm-gate.ts POSTs to http://localhost:8080/api/send). It:
-//   - reads the sidecar's stdout and forwards structured events to the HUD:
-//       {"event":"qr","code":…}  -> Tauri event "whatsapp-qr" (payload = code)
-//       {"event":"ready"}        -> Tauri event "whatsapp-ready"
-//   - restarts the child on Terminated with a capped, backed-off retry so a
-//     crash-looping sidecar can't spin forever;
-//   - holds the child handle in managed state so the app can kill it on exit
-//     (the WhatsApp session persists on disk, so a plain kill is fine).
+// The bridge can run in one of two modes on the fixed port 8080 (the desktop
+// send path in confirm-gate.ts POSTs to http://localhost:8080/api/send):
+//
+//   1. EXTERNAL (daemon) mode — preferred. A persistent launchd agent
+//      (tools/whatsapp-bridge/com.hyperpolymath.whatsapp-bridge.plist) already
+//      owns :8080 and keeps the WhatsApp connection up 24/7, independent of
+//      this app. On startup we PROBE `GET /api/health`; if it answers we ADOPT
+//      that daemon: we do NOT reap it, do NOT spawn a child, and skip the whole
+//      child supervisor. We only poll `/api/qr` + `/api/health` to synthesize
+//      the same `whatsapp-qr` / `whatsapp-ready` HUD events the child path
+//      emits, and a user-initiated reconnect bounces the daemon via
+//      `launchctl kickstart` rather than killing a child we don't own.
+//
+//   2. CHILD (sidecar) mode — fallback for dev machines / first run before the
+//      daemon is installed. Spawns the bundled `whatsapp-bridge` Tauri sidecar,
+//      reaps any genuinely-hung orphan first (a squatter that holds :8080 but
+//      does NOT serve HTTP — the 44c15a1 case), reads stdout for structured
+//      events, restarts on Terminated with capped backoff (MAX_RESTARTS), and
+//      holds the child handle so the app can kill it on exit.
+//
+// The health-probe-then-adopt ORDERING is load-bearing: it runs BEFORE
+// `reap_stale_bridge()`, because the reaper matches any `whatsapp-bridge*`
+// process and would otherwise SIGKILL the daemon.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
@@ -22,6 +36,10 @@ use tauri_plugin_shell::ShellExt;
 /// Fixed sidecar HTTP port. Must match the default the TS send path targets
 /// (confirm-gate.ts: `http://localhost:8080`).
 const BRIDGE_PORT: &str = "8080";
+/// launchd label of the persistent daemon (tools/whatsapp-bridge plist). Used to
+/// `launchctl kickstart` the daemon on a user-initiated reconnect in external
+/// mode, instead of killing a child we don't own.
+const DAEMON_LABEL: &str = "com.hyperpolymath.whatsapp-bridge";
 /// Stop respawning after this many consecutive terminations to avoid a hot loop
 /// (e.g. a permanently broken store). Reset only on a fresh app launch.
 const MAX_RESTARTS: u32 = 8;
@@ -38,11 +56,19 @@ pub struct WhatsappBridge {
     /// Shared restart budget used by the supervisor pump. Reset to 0 on a
     /// user-initiated reconnect so a fresh attempt gets the full budget.
     restarts: Arc<AtomicU32>,
+    /// True when an external daemon (the launchd agent) owns :8080 and we've
+    /// adopted it: no child was spawned, no supervisor runs, and reconnect
+    /// bounces the daemon via `launchctl kickstart` instead of killing a child.
+    /// Set once at `start()` after the startup health probe; never has a child
+    /// handle, so `kill()` on exit is a no-op — we don't kill the daemon.
+    managed_externally: Arc<AtomicBool>,
 }
 
 impl WhatsappBridge {
     /// Kill the running sidecar if any (best-effort; the session persists on
-    /// disk so a hard kill loses nothing).
+    /// disk so a hard kill loses nothing). In external (daemon) mode there is
+    /// no child handle, so this is a no-op — the desktop never kills the
+    /// always-on daemon on exit.
     pub fn kill(&self) {
         if let Ok(mut guard) = self.child.lock() {
             if let Some(child) = guard.take() {
@@ -52,7 +78,13 @@ impl WhatsappBridge {
     }
 }
 
-/// Spawn the sidecar and start the event pump. Call once from `.setup`.
+/// Detect-and-adopt entry point. Call once from `.setup`.
+///
+/// Probes `GET http://localhost:8080/api/health` FIRST (before any reap):
+///   - If a bridge answers, an external daemon owns :8080 → adopt it. No reap,
+///     no child spawn, no supervisor; just poll for QR/ready events.
+///   - Otherwise fall through to the child-sidecar supervisor (dev / first run),
+///     which reaps a genuinely-hung orphan and spawns the bundled bridge.
 pub fn start(app: &AppHandle) {
     let store_dir = match app.path().app_data_dir() {
         Ok(dir) => dir.join("whatsapp"),
@@ -67,15 +99,121 @@ pub fn start(app: &AppHandle) {
     }
 
     let restarts = Arc::new(AtomicU32::new(0));
+    let managed_externally = Arc::new(AtomicBool::new(false));
     let state = WhatsappBridge {
         child: Arc::new(Mutex::new(None)),
         store_dir: Mutex::new(Some(store_dir.clone())),
         restarts: restarts.clone(),
+        managed_externally: managed_externally.clone(),
     };
     let child_slot = state.child.clone();
     app.manage(state);
 
+    // CRITICAL ORDERING: probe health BEFORE `reap_stale_bridge()`. The reaper
+    // matches any `whatsapp-bridge*` process and would kill the daemon. Only a
+    // process that answers HTTP 2xx here is treated as an authoritative daemon;
+    // a hung orphan that squats :8080 without serving HTTP fails the probe and
+    // is (correctly) reaped by the child path below.
+    if daemon_is_healthy() {
+        eprintln!(
+            "[whatsapp] external bridge answered /api/health on :{BRIDGE_PORT} — adopting daemon (no reap, no spawn, no supervisor)"
+        );
+        managed_externally.store(true, Ordering::SeqCst);
+        // No child handle is ever set in this mode, so `kill()` on exit is a
+        // no-op and we never take down the always-on daemon.
+        spawn_external_poller(app.clone());
+        return;
+    }
+
+    eprintln!("[whatsapp] no external bridge on :{BRIDGE_PORT} — starting supervised child sidecar");
     spawn_bridge(app.clone(), store_dir, child_slot, restarts);
+}
+
+/// Short, blocking health probe used at startup to decide daemon-vs-child.
+/// Returns true only if `GET /api/health` answers with a 2xx inside ~1s.
+fn daemon_is_healthy() -> bool {
+    tauri::async_runtime::block_on(async {
+        let client = match reqwest::Client::builder()
+            .timeout(Duration::from_millis(1000))
+            .build()
+        {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        match client
+            .get(format!("http://localhost:{BRIDGE_PORT}/api/health"))
+            .send()
+            .await
+        {
+            Ok(res) => res.status().is_success(),
+            Err(_) => false,
+        }
+    })
+}
+
+/// External (daemon) mode event poller. The stdout pump only works for a child
+/// we spawned; when we've adopted a daemon there is no stdout to read, so we
+/// poll the same HTTP endpoints the child would emit events from and synthesize
+/// the identical `whatsapp-qr` / `whatsapp-ready` Tauri events, so `whatsapp-qr.ts`
+/// and `whatsapp-settings.ts` work unchanged.
+///
+///   - `GET /api/qr` → 200 with a text/plain code while unpaired → `whatsapp-qr`.
+///     (204/empty means already paired / no code yet — nothing to emit.)
+///   - `GET /api/health` `{loggedIn:true}` → `whatsapp-ready` (once per edge).
+///
+/// De-duped so we only emit on transitions, matching the child path's cadence.
+fn spawn_external_poller(app: AppHandle) {
+    // A dedicated OS thread that drives each HTTP round-trip via `block_on` and
+    // sleeps between ticks with `std::thread::sleep`. This deliberately avoids a
+    // direct `tokio` timer dependency (same rationale as the respawn thread) and
+    // never blocks the shared async runtime.
+    std::thread::spawn(move || {
+        let client = match reqwest::Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()
+        {
+            Ok(c) => c,
+            Err(err) => {
+                eprintln!("[whatsapp] external poller: reqwest build failed: {err}");
+                return;
+            }
+        };
+        let base = format!("http://localhost:{BRIDGE_PORT}");
+        let mut last_qr: Option<String> = None;
+        let mut was_ready = false;
+        loop {
+            tauri::async_runtime::block_on(async {
+                // /api/qr: 200 + body = a fresh code to scan; 204 = paired/none.
+                if let Ok(res) = client.get(format!("{base}/api/qr")).send().await {
+                    if res.status().is_success() {
+                        if let Ok(code) = res.text().await {
+                            let code = code.trim().to_string();
+                            if !code.is_empty() && last_qr.as_deref() != Some(code.as_str()) {
+                                let _ = app.emit("whatsapp-qr", code.clone());
+                                last_qr = Some(code);
+                            }
+                        }
+                    }
+                }
+
+                // /api/health: loggedIn rising edge = ready. Also clears the
+                // cached QR so a later re-pair re-emits.
+                if let Ok(res) = client.get(format!("{base}/api/health")).send().await {
+                    if let Ok(val) = res.json::<serde_json::Value>().await {
+                        let logged_in =
+                            val.get("loggedIn").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if logged_in && !was_ready {
+                            let _ = app.emit("whatsapp-ready", ());
+                            last_qr = None;
+                        }
+                        was_ready = logged_in;
+                    }
+                }
+            });
+
+            std::thread::sleep(Duration::from_secs(2));
+        }
+    });
 }
 
 /// Free the fixed bridge port before spawning.
@@ -238,6 +376,13 @@ fn spawn_bridge(
 ///      never started), respawn directly from the stored `store_dir`.
 /// In every path the restart budget is reset first so a user gesture gets a
 /// fresh chance; a broken store can no longer permanently poison the pump.
+///
+/// EXTERNAL (daemon) mode: we do NOT own the bridge process, so there is no
+/// child to kill/respawn. The primary `POST /api/logout` still works (the
+/// daemon logs out and `os.Exit(0)`s; launchd's KeepAlive relaunches it into
+/// the QR branch and the external poller emits the QR event). If logout is
+/// unreachable or non-2xx, the fallback is `launchctl kickstart -k` to bounce
+/// the daemon rather than spawning a child — see `kickstart_daemon`.
 #[tauri::command]
 pub async fn whatsapp_reconnect(
     app: AppHandle,
@@ -250,7 +395,13 @@ pub async fn whatsapp_reconnect(
         .to_string();
     let logout_url = format!("{base}/api/logout");
 
-    // A user gesture — give the pump the full restart budget again.
+    let external = app
+        .try_state::<WhatsappBridge>()
+        .map(|b| b.managed_externally.load(Ordering::SeqCst))
+        .unwrap_or(false);
+
+    // A user gesture — give the pump the full restart budget again. (No-op in
+    // external mode, but harmless.)
     if let Some(bridge) = app.try_state::<WhatsappBridge>() {
         bridge.restarts.store(0, Ordering::SeqCst);
     }
@@ -268,20 +419,57 @@ pub async fn whatsapp_reconnect(
             Ok("logout ok — re-pairing, QR incoming".to_string())
         }
         Ok(res) => {
-            // Bridge answered but with a non-2xx. Fall through to the
-            // kill/respawn fallback rather than surface a raw HTTP code.
+            // Bridge answered but with a non-2xx. In external mode bounce the
+            // daemon; otherwise fall through to the child kill/respawn fallback
+            // rather than surface a raw HTTP code.
             eprintln!(
-                "[whatsapp] /api/logout returned HTTP {} — falling back to kill+respawn",
+                "[whatsapp] /api/logout returned HTTP {} — bouncing bridge",
                 res.status()
             );
-            fallback_respawn(&app)
+            if external {
+                kickstart_daemon()
+            } else {
+                fallback_respawn(&app)
+            }
         }
         Err(err) => {
-            // Bridge unreachable — fall back to kill/respawn.
-            eprintln!("[whatsapp] /api/logout unreachable ({err}) — falling back to kill+respawn");
-            fallback_respawn(&app)
+            // Bridge unreachable. In external mode bounce the daemon; otherwise
+            // fall back to the child kill/respawn.
+            eprintln!("[whatsapp] /api/logout unreachable ({err}) — bouncing bridge");
+            if external {
+                kickstart_daemon()
+            } else {
+                fallback_respawn(&app)
+            }
         }
     }
+}
+
+/// External-mode reconnect: bounce the persistent daemon via
+/// `launchctl kickstart -k gui/$UID/<label>`. We do NOT own the process (no
+/// child handle to kill), so this is the blunt-but-correct way to force a fresh
+/// connect without depending on any new bridge endpoint. launchd's `-k` kills
+/// the current instance and immediately restarts it.
+fn kickstart_daemon() -> Result<String, String> {
+    let uid = unsafe { libc_getuid() };
+    let target = format!("gui/{uid}/{DAEMON_LABEL}");
+    match std::process::Command::new("launchctl")
+        .args(["kickstart", "-k", &target])
+        .status()
+    {
+        Ok(status) if status.success() => {
+            Ok("daemon bounced — reconnecting; scan the QR if it appears".to_string())
+        }
+        Ok(status) => Err(format!("launchctl kickstart exited with {status}")),
+        Err(err) => Err(format!("launchctl kickstart failed: {err}")),
+    }
+}
+
+// Current real user id, for building the `gui/<uid>/…` launchd domain target.
+// Uses `getuid(2)` directly to avoid pulling in an extra crate.
+extern "C" {
+    #[link_name = "getuid"]
+    fn libc_getuid() -> u32;
 }
 
 /// Restart the sidecar when the bridge won't answer HTTP. Either kills the

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.hyperpolymath.whatsapp-bridge
+
+  launchd agent that runs the Go WhatsApp bridge (tools/whatsapp-bridge/main.go)
+  as a persistent, always-on daemon under the user login session — independent
+  of the Tauri desktop app. This keeps the WhatsApp linked-device connection up
+  24/7 so it survives desktop restarts and app-closed periods, and never gets
+  dropped for being offline too long (~14-day multi-device unlink).
+
+  It listens on :8080 (the same fixed port the desktop send path and settings
+  poll target), pointed at the SAME store dir the desktop resolves today:
+    $HOME/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp
+  so the existing paired session carries over with ZERO re-pair, and the
+  whatsapp-sync worker (tools/whatsapp-sync/sync.mjs) keeps reading the same
+  whatsapp.db unchanged. On startup the desktop detects this daemon on :8080
+  and adopts it as a client instead of spawning its own child.
+
+  Install: use tools/whatsapp-bridge/install-daemon.sh, which builds the bridge
+  binary to the stable path below, templates $HOME into this plist, copies it to
+  ~/Library/LaunchAgents/, and bootstraps it via launchctl. Do NOT hand-edit the
+  paths here; the installer fills __HOME__ in at install time.
+
+  KeepAlive + RunAtLoad mean the daemon starts on login and is relaunched by
+  launchd if it exits for any reason; ThrottleInterval 15 bounds any restart
+  loop, matching the sync workers.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.hyperpolymath.whatsapp-bridge</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/Library/Application Support/io.hyperpolymath.jarvis-desktop/bin/whatsapp-bridge</string>
+    <string>--store</string>
+    <string>__HOME__/Library/Application Support/io.hyperpolymath.jarvis-desktop/whatsapp</string>
+    <string>--port</string>
+    <string>8080</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/whatsapp-bridge.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/whatsapp-bridge.err.log</string>
+</dict>
+</plist>

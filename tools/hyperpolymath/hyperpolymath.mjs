@@ -6,8 +6,9 @@
 //   2. web        Next.js dev server on :3000
 //   3. desktop    Tauri desktop app (global hotkey + composer; no hardware)
 //   4. bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
-//   5. wa-sync    WhatsApp SQLite → Postgres mirror worker (personal-use)
-//   6. im-sync    iMessage chat.db → Postgres mirror worker (personal-use)
+//   5. wa-bridge  WhatsApp bridge daemon on :8080 (launchd-managed; adopted)
+//   6. wa-sync    WhatsApp SQLite → Postgres mirror worker (personal-use)
+//   7. im-sync    iMessage chat.db → Postgres mirror worker (personal-use)
 //
 // Flags:
 //   --no-supabase           skip Supabase (e.g. when using a remote project)
@@ -15,6 +16,7 @@
 //   --no-desktop            skip Tauri desktop app (default input layer)
 //   --no-mobile             skip Expo Metro dev server
 //   --no-bridge             skip serial bridge (no ESP32 plugged in)
+//   --no-wa-bridge          skip WhatsApp bridge daemon health check
 //   --no-wa-sync            skip WhatsApp sync worker
 //   --no-im-sync            skip iMessage sync worker
 //   --only=name[,name...]   start only listed services
@@ -208,6 +210,37 @@ const SERVICES = [
       }),
     keepAlive: true,
     ready: (proc) => waitForLog(proc, /\[bridge\] listening on/, 30_000),
+  },
+
+  {
+    // WhatsApp bridge daemon: a persistent launchd agent
+    // (com.hyperpolymath.whatsapp-bridge) that keeps the WhatsApp linked-device
+    // connection up 24/7 on :8080, independent of the desktop app. It is NOT
+    // spawned by this orchestrator — it's installed once via
+    // `tools/whatsapp-bridge/install-daemon.sh` and managed by launchd. We only
+    // health-check it here so the status bar reflects whether the always-on
+    // bridge is reachable; the desktop app detects-and-adopts the same daemon.
+    name: "wa-bridge",
+    color: "green",
+    port: ":8080",
+    async preflight() {
+      if (await isPortListening(8080)) {
+        // Daemon already up (the normal case). Don't spawn anything — just
+        // confirm health in `ready` below.
+        return { skipStart: true };
+      }
+      warn(
+        "wa-bridge",
+        "no bridge on :8080 — install the daemon via tools/whatsapp-bridge/install-daemon.sh",
+      );
+      return { skip: true };
+    },
+    // launchd owns the process lifecycle; the CLI never spawns or holds it, so
+    // `start` is never invoked (preflight returns skipStart when the daemon is
+    // up, or skip when it isn't).
+    start: () => null,
+    keepAlive: false,
+    ready: () => waitForHttp("http://localhost:8080/api/health", 5_000),
   },
 
   {
@@ -656,6 +689,7 @@ ${C.bold("Services")}
   desktop    Tauri desktop app (global hotkey + composer; no hardware)
   mobile     Expo Metro dev server for apps/mobile on :8081
   bridge     ESP32 → HTTP wake-word serial bridge (optional Polypad)
+  wa-bridge  WhatsApp bridge daemon on :8080 (launchd-managed; health-checked)
   wa-sync    WhatsApp SQLite → Postgres mirror worker
   im-sync    iMessage chat.db → Postgres mirror worker
 
@@ -665,6 +699,7 @@ ${C.bold("Flags")}
   --no-desktop            skip Tauri desktop app
   --no-mobile             skip Expo Metro dev server
   --no-bridge             skip serial bridge
+  --no-wa-bridge          skip WhatsApp bridge daemon health check
   --no-wa-sync            skip WhatsApp sync worker
   --no-im-sync            skip iMessage sync worker
   --only=name[,name...]   start only listed services
