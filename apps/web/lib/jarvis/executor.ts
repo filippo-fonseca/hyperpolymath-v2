@@ -258,6 +258,9 @@ export function createServerExecutor(): ActionExecutor {
             content: input.content,
             url: derivedUrls.url,
             urls: derivedUrls.urls,
+            // Resurfacing (remind-me) date, when the model resolved a "remind me
+            // ..." intent to an ISO instant. Omitted → NULL (never resurface).
+            resurfaceAt: input.resurface_at ? new Date(input.resurface_at) : null,
             createdVia: "jarvis", // D-14
             sourceDevice: ctx.source?.device ?? null,
             sourceInput: ctx.source?.input ?? null,
@@ -302,6 +305,7 @@ export function createServerExecutor(): ActionExecutor {
             content: input.content,
             hashtags: input.hashtags ?? [],
             project_ids: projectCheck.ids,
+            resurface_at: input.resurface_at ?? null,
             voice_summary: input.voice_summary,
           },
         };
@@ -577,6 +581,11 @@ export function createServerExecutor(): ActionExecutor {
     ): Promise<ExecutorResult> {
       const set: Partial<typeof captures.$inferInsert> = {};
       if (input.content != null) set.content = input.content;
+      // Resurfacing (remind-me) date: ISO instant to set/change, "" to clear,
+      // null to leave unchanged (mirrors update_task's `due` clear-with-"").
+      if (input.resurface_at != null) {
+        set.resurfaceAt = input.resurface_at === "" ? null : new Date(input.resurface_at);
+      }
       set.updatedAt = new Date();
 
       // SELECT-before-UPDATE in a transaction to capture the `before` snapshot.
@@ -590,6 +599,7 @@ export function createServerExecutor(): ActionExecutor {
             content: captures.content,
             url: captures.url,
             urls: captures.urls,
+            resurfaceAt: captures.resurfaceAt,
           })
           .from(captures)
           .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
@@ -600,6 +610,7 @@ export function createServerExecutor(): ActionExecutor {
         // Build before: only keys mirroring `set` (excluding updatedAt)
         const prev = existing[0]!;
         if (input.content != null) beforeSnapshot.content = prev.content;
+        if (input.resurface_at != null) beforeSnapshot.resurfaceAt = prev.resurfaceAt;
 
         // Re-derive the URL property when the body changes: body links merge
         // additively into the existing set (never removing/overwriting).

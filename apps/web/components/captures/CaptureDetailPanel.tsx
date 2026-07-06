@@ -119,6 +119,8 @@ interface FormState {
   projectIds: string[];
   /** The full multi-URL set (manual + body-derived). urls[0] is the primary. */
   urls: string[];
+  /** Resurface (remind-me) date as "yyyy-MM-dd" for the date input; "" = unset. */
+  resurfaceAt: string;
 }
 
 function captureToFormState(c: CaptureWithLinks): FormState {
@@ -129,6 +131,8 @@ function captureToFormState(c: CaptureWithLinks): FormState {
     personNames: c.people.map((p) => p.name),
     projectIds: c.projects.map((p) => p.id),
     urls: c.urls ?? [],
+    // Render the stored instant in the local calendar day it represents.
+    resurfaceAt: c.resurfaceAt ? format(c.resurfaceAt, "yyyy-MM-dd") : "",
   };
 }
 
@@ -229,6 +233,7 @@ export function CaptureDetailPanel({
     personNames: [],
     projectIds: [],
     urls: [],
+    resurfaceAt: "",
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
   // Mirror of the editor's current parsed state. TipTap's editor instance
@@ -450,7 +455,8 @@ export function CaptureDetailPanel({
         JSON.stringify([...initialForm.personNames].sort()) ||
       JSON.stringify([...form.projectIds].sort()) !==
         JSON.stringify([...initialForm.projectIds].sort()) ||
-      JSON.stringify(form.urls) !== JSON.stringify(initialForm.urls));
+      JSON.stringify(form.urls) !== JSON.stringify(initialForm.urls) ||
+      form.resurfaceAt !== initialForm.resurfaceAt);
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
@@ -487,6 +493,11 @@ export function CaptureDetailPanel({
     // Primary url mirrors the first link in the set; the server re-derives body
     // links additively on top of this authoritative manual list.
     const primaryUrl = form.urls[0] ?? null;
+    // Resurface date: interpret the picked calendar day as local midnight, then
+    // send the UTC instant (null when cleared). Matches how the query treats a
+    // resurface day as "due once that day begins" (server compares to end-of-day).
+    const resurfaceDate = form.resurfaceAt ? new Date(`${form.resurfaceAt}T00:00:00`) : null;
+    const resurfaceIso = resurfaceDate ? resurfaceDate.toISOString() : null;
     onOptimisticUpdate?.(capture.id, {
       content,
       hashtags: optimisticHashtags,
@@ -494,6 +505,7 @@ export function CaptureDetailPanel({
       projects: optimisticProjects,
       url: primaryUrl,
       urls: form.urls,
+      resurfaceAt: resurfaceDate,
       updatedAt: new Date(),
     });
 
@@ -505,6 +517,7 @@ export function CaptureDetailPanel({
       projectIds: form.projectIds,
       url: primaryUrl,
       urls: form.urls,
+      resurfaceAt: resurfaceIso,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -518,9 +531,10 @@ export function CaptureDetailPanel({
       personNames,
       projectIds: form.projectIds,
       urls: form.urls,
+      resurfaceAt: form.resurfaceAt,
     });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
-  }, [capture, parseEditor, form.projectIds, form.urls, onOptimisticUpdate, onOptimisticRevert, projects]);
+  }, [capture, parseEditor, form.projectIds, form.urls, form.resurfaceAt, onOptimisticUpdate, onOptimisticRevert, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -709,6 +723,41 @@ export function CaptureDetailPanel({
                     onChange={(next) => setForm((prev) => ({ ...prev, urls: next }))}
                     disabled={isPending}
                   />
+                </section>
+
+                {/* Resurface (remind-me) date — Notion-style property. Set a day
+                    to have this capture reappear in the /captures "Resurfacing
+                    today" section; clear it to stop. */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    Resurface
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={form.resurfaceAt}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, resurfaceAt: e.target.value }))
+                      }
+                      disabled={isPending}
+                      aria-label="Resurface date"
+                      className="font-sans text-[13px] h-8 flex-1 rounded-md border border-border bg-transparent px-2 text-foreground focus:outline-none focus:border-[var(--hud-cyan)]"
+                    />
+                    {form.resurfaceAt && (
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, resurfaceAt: "" }))}
+                        title="Clear resurface date"
+                        aria-label="Clear resurface date"
+                        className="p-1 rounded text-muted-foreground hover:text-[var(--ink-coral)] transition-colors"
+                      >
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="font-sans text-[13px] text-muted-foreground italic">
+                    Reappears in “Resurfacing today” on this day.
+                  </p>
                 </section>
 
                 {/* Metadata */}

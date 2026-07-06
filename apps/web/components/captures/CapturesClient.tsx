@@ -3,7 +3,9 @@
 import {
   deleteCapture,
   getCapturesForCurrentUser,
+  getResurfacingCapturesForCurrentUser,
   setCaptureFavorite,
+  updateCapture,
 } from "@/app/actions/captures";
 import { type HashtagWithCount, getHashtagsForUserAction } from "@/app/actions/hashtags";
 import { getPeopleForCurrentUser } from "@/app/actions/people";
@@ -25,6 +27,7 @@ import { CaptureDetailPanel } from "./CaptureDetailPanel";
 import { CaptureSearch } from "./CaptureSearch";
 import { CapturesFeed } from "./CapturesFeed";
 import { HashtagSidebar } from "./HashtagSidebar";
+import { ResurfacingSection } from "./ResurfacingSection";
 
 interface Props {
   /** Signed-in user id — required for tableKey-scoped queries + Realtime filters. */
@@ -189,6 +192,16 @@ export function CapturesClient({
     [peopleQuery.data]
   );
 
+  // Daily "Resurfacing today" set — captures whose resurface_at is due (server
+  // computes the boundary in the user's timezone). Keyed UNDER the captures
+  // prefix so the existing `captures` Realtime subscription's prefix-match
+  // invalidation refetches it whenever any capture changes (incl. a dismiss).
+  const resurfacingQuery = useQuery({
+    queryKey: [...tableKey("captures", userId), "resurfacing"] as const,
+    queryFn: getResurfacingCapturesForCurrentUser,
+    initialData: [] as CaptureWithLinks[],
+  });
+
   // -- Realtime plane -----------------------------------------------------
   useTableSubscription("captures", userId);
 
@@ -245,6 +258,18 @@ export function CapturesClient({
     () => optimisticCaptures.filter((c) => c.favorite).length,
     [optimisticCaptures]
   );
+
+  // Resurfacing list = the server-due set, reconciled against the optimistic
+  // feed so panel edits + dismisses reflect instantly: prefer the live copy of
+  // each row, then drop any whose resurface date has since been cleared (null).
+  // A moved-to-future date self-heals on the next refetch (the DB write fires a
+  // Realtime `captures` event → prefix invalidation → resurfacing refetch).
+  const resurfacing = useMemo(() => {
+    const byId = new Map(optimisticCaptures.map((c) => [c.id, c]));
+    return (resurfacingQuery.data ?? [])
+      .map((c) => byId.get(c.id) ?? c)
+      .filter((c) => c.resurfaceAt != null);
+  }, [resurfacingQuery.data, optimisticCaptures]);
 
   // Selected capture is pulled from the optimistic+live feed so detail panel
   // edits reflect the freshest data on every invalidation.
@@ -335,6 +360,29 @@ export function CapturesClient({
     [addOptimistic, showUndoToast]
   );
 
+  // Dismiss a resurfacing item — clear its resurface_at so it leaves the
+  // section. Optimistic patch removes it instantly (the derived list drops
+  // rows whose live resurfaceAt is null); the Realtime echo + refetch reconcile.
+  const handleDismissResurface = useCallback(
+    (capture: CaptureWithLinks) => {
+      addOptimistic({ type: "update", id: capture.id, patch: { resurfaceAt: null } });
+      startTransition(async () => {
+        const r = await updateCapture({ id: capture.id, resurfaceAt: null });
+        if (!r.success) {
+          toast.error(r.error);
+          addOptimistic({
+            type: "update",
+            id: capture.id,
+            patch: { resurfaceAt: capture.resurfaceAt },
+          });
+          return;
+        }
+        await queryClient.invalidateQueries({ queryKey: tableKey("captures", userId) });
+      });
+    },
+    [addOptimistic, queryClient, userId]
+  );
+
   const handleToggleFavorite = useCallback(
     (capture: CaptureWithLinks) => {
       const next = !capture.favorite;
@@ -372,6 +420,12 @@ export function CapturesClient({
         />
       </aside>
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden min-w-0">
+        {/* Daily resurfacing — pinned to the top; hides itself when empty. */}
+        <ResurfacingSection
+          captures={resurfacing}
+          onSelect={(c) => setSelectedCaptureId(c.id)}
+          onDismiss={handleDismissResurface}
+        />
         <CaptureSearch
           activeHashtagId={activeTagId}
           onResults={handleSearchResults}

@@ -4,8 +4,14 @@ import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import { db } from "@/lib/db";
-import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
-import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
+import {
+  type CaptureWithLinks,
+  getCapturesForUser,
+  getResurfacingCapturesForUser,
+} from "@/lib/db/queries/captures";
+import { captures, capturesHashtags, capturesProjects, projects, users } from "@/lib/db/schema";
+import { TZDate } from "@date-fns/tz";
+import { endOfDay } from "date-fns";
 import { hashtags } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { mergeContentUrls } from "@/lib/url";
@@ -162,6 +168,9 @@ const UpdateCaptureSchema = z.object({
   // Multi-URL property — the authoritative manual list (from the detail panel).
   // Body-derived links are still merged in additively on top of this.
   urls: z.array(z.string().trim().max(2048)).max(50).optional(),
+  // Resurfacing (remind-me) date. ISO datetime string to set/change, null to
+  // clear, or absent to leave unchanged. Persisted verbatim as a timestamptz.
+  resurfaceAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 
 const SetCaptureFavoriteSchema = z.object({
@@ -208,6 +217,13 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     // manually-set link).
     const scalarSet: Record<string, unknown> = {};
     if (parsed.data.content !== undefined) scalarSet.content = parsed.data.content;
+    // Resurfacing date: set/change (ISO → Date), clear (null), or leave
+    // untouched (absent). Independent of the URL derivation below.
+    if (parsed.data.resurfaceAt !== undefined) {
+      scalarSet.resurfaceAt = parsed.data.resurfaceAt
+        ? new Date(parsed.data.resurfaceAt)
+        : null;
+    }
 
     if (
       parsed.data.content !== undefined ||
@@ -451,6 +467,33 @@ export async function getCapturesForCurrentUser(
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
+}
+
+/**
+ * Captures due to resurface today — queryFn for the /captures "Resurfacing
+ * today" collapsible section. Computes the "end of today" boundary in the
+ * user's timezone (falls back to UTC) so the section rolls over per calendar
+ * day rather than at UTC midnight.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims, NOT getSession.
+ */
+export async function getResurfacingCapturesForCurrentUser(): Promise<CaptureWithLinks[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const userId = data.claims.sub;
+
+  const [u] = await db
+    .select({ timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const tz = u?.timezone ?? "UTC";
+  // end of today, anchored to the user's tz; .getTime() is the correct UTC
+  // instant to compare against the timestamptz column.
+  const before = new Date(endOfDay(new TZDate(new Date(), tz)).getTime());
+
+  return getResurfacingCapturesForUser(userId, { before });
 }
 
 /**

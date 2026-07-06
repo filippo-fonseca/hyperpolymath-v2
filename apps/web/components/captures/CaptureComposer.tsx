@@ -353,6 +353,8 @@ export function CaptureComposer({
       url: optimisticUrls.url,
       urls: optimisticUrls.urls,
       favorite: false,
+      // Composer captures never set a resurface date on creation.
+      resurfaceAt: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
