@@ -576,6 +576,10 @@ export function createServerExecutor(): ActionExecutor {
           const merged = mergeContentUrls(input.content, { url: prev.url, urls: prev.urls });
           set.url = merged.url;
           set.urls = merged.urls;
+          // Snapshot the pre-derivation URL state too, so an undo of this content
+          // edit reverts the derived links rather than leaving them in place.
+          beforeSnapshot.url = prev.url;
+          beforeSnapshot.urls = prev.urls;
         }
 
         const updated = await tx
