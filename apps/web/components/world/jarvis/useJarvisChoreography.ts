@@ -38,6 +38,7 @@ import type {
 import { useWorldData } from "../data/useWorldData";
 import { cameraBus, bootDone } from "../camera/CameraRig";
 import { fireflyBus, captureSpawnPosition } from "../tree/Fireflies";
+import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
 import { ringWorldOrigin } from "./JarvisRing";
 import { lightThreadBus, LightThreads } from "./LightThread";
 
@@ -83,15 +84,12 @@ const _assistF = new THREE.Vector3();
 const _assistD = new THREE.Vector3();
 
 /**
- * Reduced-motion seam (§9). U-19 later rewires this single named function to
- * `useWorldPrefs`; keep it a module function so U-19's diff is one line
- * (mirrors CameraRig.tsx:118-123 / Fireflies.tsx pattern).
+ * Reduced-motion seam (§9). U-19 routed this named function through the central
+ * `worldPrefersReducedMotion()` source; it is read at call time inside routing
+ * handlers (not render), so delegating keeps it live and single-sourced.
  */
 function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  return worldPrefersReducedMotion();
 }
 
 // ── Receipt extraction (§2.2) ─────────────────────────────────────────────────

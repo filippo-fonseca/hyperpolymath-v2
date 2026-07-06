@@ -76,6 +76,7 @@ import type { LanternLayout, TreeLayoutResult } from "../data/treeLayout";
 import { boughFocusPose } from "../tree/Boughs";
 import { focusStack, useFocusStack, type FocusLevel } from "./useFocusStack";
 import { useWorldKeys } from "./useWorldKeys";
+import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
 
 // ── Timing model (§1.3) ─────────────────────────────────────────────────────
 // `camera-controls` transitions are SmoothDamp toward the target, governed by
@@ -112,14 +113,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Reduced-motion seam (§5.3). U-19 later rewires this single function to
- * `useWorldPrefs`; keep it a named module function so U-19's diff is one line.
+ * Reduced-motion seam (§5.3). U-19 routed this single function through the
+ * central `worldPrefersReducedMotion()` source — the module-scope `cameraBus`
+ * reads it at call time, so it stays live without a hook.
  */
 function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  return worldPrefersReducedMotion();
 }
 
 /**

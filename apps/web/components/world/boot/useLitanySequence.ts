@@ -45,6 +45,7 @@ import { cameraBus, VESTIBULE_POSE } from "../camera/CameraRig";
 import { inlayRegistry } from "../env/Atmosphere";
 import { STUDIOLO } from "../materials/tokens";
 import { preloadWorldFonts } from "../text/fonts";
+import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
 
 // ── §11 · public types ──────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ export type LitanyMode = "play" | "instant";
 export function decideLitanyMode(): LitanyMode {
   if (typeof window === "undefined") return "instant";
   try {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (worldPrefersReducedMotion()) {
       return "instant";
     }
   } catch {

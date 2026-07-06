@@ -25,6 +25,7 @@ import {
   setJarvisWorldInputFocuser,
   type JarvisWorldHandle,
 } from "./useJarvisWorld";
+import { useWorldPrefs } from "../prefs/useWorldPrefs";
 
 // ── Module singletons (never per-frame allocation) ──────────────────────────
 const RIBBON_PLANE = new THREE.PlaneGeometry(0.72, 0.18);
@@ -50,17 +51,6 @@ export interface JarvisRibbonProps {
   handle: JarvisWorldHandle;
 }
 
-/**
- * Reduced-motion seam (§8) — copy of the CameraRig.tsx:114-123 named-function
- * pattern so U-19 rewires ONE function to useWorldPrefs later.
- */
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
 /** Last `n` chars, with a leading ellipsis when the buffer is clipped. */
 function tail(s: string, n: number): string {
   return s.length <= n ? s : "\u2026" + s.slice(s.length - n);
@@ -70,7 +60,7 @@ export function JarvisRibbon(props: JarvisRibbonProps): React.ReactElement | nul
   const { handle } = props;
   const { state, clarification, errorMessage } = handle;
   const invalidate = useThree((s) => s.invalidate);
-  const reduced = prefersReducedMotion();
+  const { reducedMotion: reduced } = useWorldPrefs();
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textRef = useRef<TroikaText | null>(null);

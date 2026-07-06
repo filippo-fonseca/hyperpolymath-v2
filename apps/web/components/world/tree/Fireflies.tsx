@@ -54,6 +54,7 @@ import {
   type FlightRequest,
 } from "../data/diffing";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
 
 // ── Caps + constants (§3) ────────────────────────────────────────────────────
 const MAX_FIREFLIES = 256; // brief amendment over PLAN's sketched 64 (§2.4)
@@ -208,9 +209,7 @@ function buildSystem(): FireflySystem {
     mesh.instanceColor.needsUpdate = true;
   }
 
-  const reducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reducedMotion = worldPrefersReducedMotion();
 
   const runtime: FireflyRuntime = {
     index: new Map(),

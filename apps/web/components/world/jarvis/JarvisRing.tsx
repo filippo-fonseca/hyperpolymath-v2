@@ -33,6 +33,7 @@ import {
   type JarvisWorldState,
 } from "./useJarvisWorld";
 import { JarvisRibbon } from "./JarvisRibbon";
+import { useWorldPrefs } from "../prefs/useWorldPrefs";
 
 // ── Geometry singletons (thin, precise — an astronomer's instrument, §3.1) ──
 const RING_OUTER_GEOMETRY = new THREE.TorusGeometry(0.14, 0.0045, 8, 64);
@@ -100,13 +101,6 @@ function rotationRate(state: JarvisWorldState): number {
 // ── Module scratch — the only Object3D the mote loop touches ─────────────────
 const _mote = new THREE.Object3D();
 
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
 /** The orbiting thinking motes: ONE InstancedMesh(FIREFLY_GEOMETRY, count 3). */
 function ThinkingMotes({
   active,
@@ -158,7 +152,7 @@ export function JarvisRing(): ReactElement {
   const handle = useJarvisWorld();
   const { state } = handle;
   const open = state !== "idle";
-  const reduced = prefersReducedMotion();
+  const { reducedMotion: reduced } = useWorldPrefs();
 
   const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
