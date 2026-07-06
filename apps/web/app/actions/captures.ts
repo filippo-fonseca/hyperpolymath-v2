@@ -14,6 +14,7 @@ import { TZDate } from "@date-fns/tz";
 import { endOfDay } from "date-fns";
 import { hashtags } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { mergeContentUrls } from "@/lib/url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -151,6 +152,11 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
   // Issue #221: fetch rich link previews for any URLs in the content (+ the
   // canonical url property). Also scheduled via after(); fail-soft.
   scheduleLinkPreviews(userId, parsed.data.content, parsed.data.url);
+
+  // Auto-derive linked people from the body: a background Haiku match links any
+  // EXISTING person confidently referenced in the text, additively on top of
+  // the explicit @-mentions reconciled above. Scheduled via after(); fail-soft.
+  scheduleEntityPeopleDerivation("capture", result, userId, parsed.data.content);
 
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
@@ -329,6 +335,12 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     scheduleLinkPreviews(userId, parsed.data.content ?? "", parsed.data.url);
   }
 
+  // Re-derive linked people when the body changes: the background match runs
+  // additively over the new text (never removing the reconciled explicit set).
+  if (parsed.data.content !== undefined) {
+    scheduleEntityPeopleDerivation("capture", parsed.data.id, userId, parsed.data.content);
+  }
+
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }
@@ -372,6 +384,31 @@ export async function ensureCaptureUrls(
   }
 
   return { success: true, data: { url: merged.url, urls: merged.urls, changed } };
+}
+
+/**
+ * Lazy retroactive backfill for linked people — the people twin of
+ * `ensureCaptureUrls`. Called when a capture is opened: if it has never been
+ * people-derived (`people_derived_at IS NULL`), run the Haiku smart-match once,
+ * link any confident matches, and stamp the marker. Guarded so subsequent opens
+ * are instant no-ops. Additive + fail-soft.
+ *
+ * Returns the capture's current linked people so the caller can reconcile its
+ * optimistic feed copy without a full refetch.
+ */
+export async function ensureCapturePeople(
+  id: unknown
+): Promise<ActionResult<{ people: { id: string; name: string }[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  try {
+    const result = await ensureEntityPeople(userId, "capture", id as string);
+    return { success: true, data: result };
+  } catch (err) {
+    console.error("[captures] ensureCapturePeople failed", err);
+    return { success: false, error: "Derivation failed" };
+  }
 }
 
 export async function deleteCapture(id: string): Promise<ActionResult<null>> {

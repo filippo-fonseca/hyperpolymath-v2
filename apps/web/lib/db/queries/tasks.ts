@@ -34,6 +34,11 @@ export interface TaskWithProjects {
   hashtags: { id: string; name: string; displayName: string }[];
   /** Issue #159 — @-mentioned people (from people_references, fromType "task"). */
   people: { id: string; name: string }[];
+  /**
+   * Linked-people derivation marker (ISO string, or null when never derived).
+   * The detail panel gates its lazy on-open people backfill on this being null.
+   */
+  peopleDerivedAt: string | null;
 }
 
 /**
@@ -136,6 +141,7 @@ export async function getAllTasksForUser(
     projects: linksByTask.get(t.id) ?? [],
     hashtags: tagsByTask.get(t.id) ?? [],
     people: peopleByTask.get(t.id) ?? [],
+    peopleDerivedAt: t.peopleDerivedAt ? t.peopleDerivedAt.toISOString() : null,
   }));
 }
 
@@ -174,5 +180,6 @@ export async function getTasksForProject(
     // Project detail view doesn't render tag/person chips; keep the query lean.
     hashtags: [],
     people: [],
+    peopleDerivedAt: r.task.peopleDerivedAt ? r.task.peopleDerivedAt.toISOString() : null,
   }));
 }

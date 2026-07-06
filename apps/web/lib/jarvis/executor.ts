@@ -56,6 +56,7 @@ import {
   type PersonRefFromType,
 } from "@/app/actions/people";
 import { getPeopleForUser } from "@/lib/db/queries/people";
+import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { deriveSingleUrl, mergeContentUrls } from "@/lib/url";
 import {
   createEventForJarvis,
@@ -209,6 +210,9 @@ export function createServerExecutor(): ActionExecutor {
             );
           }
         });
+        // Auto-derive linked people from the task title. Background Haiku match;
+        // fail-soft. (JARVIS-created tasks carry no notes at create time.)
+        scheduleEntityPeopleDerivation("task", taskId, ctx.userId, input.title);
         return {
           ok: true,
           id: taskId,
@@ -297,6 +301,9 @@ export function createServerExecutor(): ActionExecutor {
         scheduleAutoTagging(captureId, ctx.userId, input.content);
         // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
         scheduleLinkPreviews(ctx.userId, input.content);
+        // Auto-derive linked people from the body (parity with the web + device
+        // create paths). Background Haiku match; fail-soft.
+        scheduleEntityPeopleDerivation("capture", captureId, ctx.userId, input.content);
         return {
           ok: true,
           id: captureId,
@@ -552,6 +559,11 @@ export function createServerExecutor(): ActionExecutor {
       // intentionally ignores project_ids if present — cross-referencing the
       // tasksProjects junction table (delete-all + re-insert) is a separate
       // concern and will land in a follow-up plan.
+      // Re-derive linked people when the title or notes changed (additive; fail-soft).
+      if (input.title != null || input.description != null) {
+        const derivedText = [set.title ?? "", set.notes ?? ""].filter(Boolean).join("\n");
+        scheduleEntityPeopleDerivation("task", input.id, ctx.userId, derivedText);
+      }
       return {
         ok: true,
         id: input.id,
@@ -640,6 +652,10 @@ export function createServerExecutor(): ActionExecutor {
       // hashtags and project_ids updates are MVP-deferred: same join-table
       // concern as updateTask.project_ids. The content update is what matters
       // for the JARVIS correction flow ("change that qc to say X instead").
+      // Re-derive linked people over the new body (additive; fail-soft).
+      if (input.content != null) {
+        scheduleEntityPeopleDerivation("capture", input.id, ctx.userId, input.content);
+      }
       return {
         ok: true,
         id: input.id,

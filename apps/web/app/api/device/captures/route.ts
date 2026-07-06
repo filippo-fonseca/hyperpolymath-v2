@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { captures, capturesHashtags } from "@/lib/db/schema";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
+import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { mergeContentUrls } from "@/lib/url";
 
 export const runtime = "nodejs";
@@ -88,6 +89,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
   // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
   scheduleLinkPreviews(userId, content);
+  // Auto-derive linked people from the body (parity with the web + JARVIS
+  // create paths). Background Haiku match; fail-soft.
+  scheduleEntityPeopleDerivation("capture", id, userId, content);
   return Response.json({ id }, { headers: CORS });
 }
 
@@ -150,6 +154,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   // Issue #221: refresh link previews when the content changed. Fail-soft.
   if (typeof body.content === "string" && body.content.trim()) {
     scheduleLinkPreviews(userId, body.content.trim());
+    // Re-derive linked people over the new body. Background; fail-soft.
+    scheduleEntityPeopleDerivation("capture", body.id, userId, body.content.trim());
   }
   return Response.json({ ok: true }, { headers: CORS });
 }

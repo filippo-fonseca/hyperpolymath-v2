@@ -4,7 +4,12 @@ import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
-import { advanceRecurringTask, createTask, updateTask } from "@/app/actions/tasks";
+import {
+  advanceRecurringTask,
+  createTask,
+  ensureTaskPeople,
+  updateTask,
+} from "@/app/actions/tasks";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +42,7 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { UrlField } from "@/components/shared/UrlField";
+import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
@@ -183,6 +189,19 @@ function PillGroup<T extends string>({
       })}
     </div>
   );
+}
+
+/** Case-insensitive union of two name lists, preserving first-seen casing/order. */
+function unionNames(a: string[], b: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of [...a, ...b]) {
+    const key = name.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name.trim());
+  }
+  return out;
 }
 
 interface FormState {
@@ -385,6 +404,37 @@ export function TaskDetailPanel({
     }
   }, [task?.id]);
 
+  // Lazy retroactive backfill for LINKED PEOPLE — runs at most once per task
+  // (gated on `peopleDerivedAt` being null), firing the Haiku smart-match to
+  // link any existing person confidently referenced in the title/notes. Folds
+  // the result into the panel + kanban; a no-op for tasks already derived and
+  // skipped entirely in create mode (nothing is persisted yet).
+  useEffect(() => {
+    if (!open || !task || isCreate) return;
+    if (task.peopleDerivedAt != null) return;
+
+    let cancelled = false;
+    const taskId = task.id;
+    const key = (names: string[]) =>
+      JSON.stringify(Array.from(new Set(names.map((n) => n.trim().toLowerCase()))).sort());
+    const baseline = key(task.people.map((p) => p.name));
+    void ensureTaskPeople(taskId).then((r) => {
+      if (cancelled || !r.success || !r.data.changed) return;
+      const nextNames = r.data.people.map((p) => p.name);
+      setForm((prev) =>
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+      );
+      setInitialForm((prev) =>
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+      );
+      addOptimistic({ type: "update", id: taskId, patch: { people: r.data.people } });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, task?.id]);
+
   // In create mode, "dirty" = "has a title" — we just need something to save.
   // In edit mode, "dirty" = "form diverged from the initial snapshot".
   const dirty = task
@@ -396,7 +446,10 @@ export function TaskDetailPanel({
   const handleCreate = useCallback(async () => {
     const title = form.title.trim();
     if (!title) return;
-    const { notes, hashtagNames, personNames } = parseNotesEditor();
+    const parsed = parseNotesEditor();
+    const { notes, hashtagNames } = parsed;
+    // Save the union of the notes `@`-mentions and the explicit people field.
+    const personNames = unionNames(parsed.personNames, form.personNames);
     const newId = crypto.randomUUID();
     const projectChips = projects
       .filter((p) => form.projectIds.includes(p.id))
@@ -419,6 +472,7 @@ export function TaskDetailPanel({
         projects: projectChips,
         hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
+        peopleDerivedAt: null,
       },
     });
     const r = await createTask({
@@ -449,7 +503,10 @@ export function TaskDetailPanel({
       await handleCreate();
       return;
     }
-    const { notes, hashtagNames, personNames } = parseNotesEditor();
+    const parsed = parseNotesEditor();
+    const { notes, hashtagNames } = parsed;
+    // Save the union of the notes `@`-mentions and the explicit people field.
+    const personNames = unionNames(parsed.personNames, form.personNames);
     const patch = {
       title: form.title.trim() || task.title,
       notes: notes || null,
@@ -490,6 +547,9 @@ export function TaskDetailPanel({
     if (form.status === "lesno" && task.status !== "lesno") {
       toast("Lesno.");
     }
+    // Reflect the saved union into both the field and the dirty baseline so a
+    // notes-only `@`-mention doesn't leave the panel stuck dirty after save.
+    setForm((prev) => ({ ...prev, personNames }));
     setInitialForm({ ...form, notes, hashtagNames, personNames });
     // Realtime echo invalidates ['tasks', userId] → refetch → cache settles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -751,6 +811,18 @@ export function TaskDetailPanel({
                     projects={projects}
                     areas={areas}
                     onCreateProject={onCreateProject}
+                  />
+                </FieldSection>
+
+                {/* 4a. Linked people — first-class editable property. People are
+                    auto-derived from the title/notes (Haiku smart-match) and via
+                    inline `@`-mentions; add/remove them here too. */}
+                <FieldSection label="People">
+                  <PersonListField
+                    value={form.personNames}
+                    onChange={(next) => set("personNames", next)}
+                    suggestions={people}
+                    disabled={isPending}
                   />
                 </FieldSection>
 
