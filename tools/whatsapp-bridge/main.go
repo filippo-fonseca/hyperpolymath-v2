@@ -450,10 +450,83 @@ type resolvedContact struct {
 	pushName      string
 	businessName  string
 	redactedPhone string
-	// exactNameMatch is true when full_name or first_name matched the query
-	// exactly (case-insensitive); push_name / business_name matches don't
-	// count. Used as the tiebreaker per the unit brief.
-	exactNameMatch bool
+	// tier is the best (highest-confidence) match tier this row achieved
+	// against the query: matchExact > matchFirstToken > matchPrefix >
+	// matchContains. Used to rank candidates and decide send/ambiguous.
+	tier matchTier
+}
+
+// matchTier ranks how confidently a contact row matches the query name. Higher
+// is more confident. resolveRecipientToJID gathers candidates with a broad
+// LIKE query, scores each in Go, then sends only when a single distinct JID
+// occupies the top tier present (else ambiguous).
+type matchTier int
+
+const (
+	matchNone       matchTier = 0
+	matchContains   matchTier = 1 // query appears as an interior/last word
+	matchPrefix     matchTier = 2 // a name starts with query + boundary
+	matchFirstToken matchTier = 3 // query == first whitespace token of a name
+	matchExact      matchTier = 4 // query == full_name or first_name exactly
+)
+
+// firstToken returns the first whitespace-separated token of s, lower-cased.
+func firstToken(s string) string {
+	fields := strings.Fields(strings.ToLower(s))
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// scoreContactTier computes the best match tier for a candidate row against the
+// lowered query. full_name / first_name carry the exact tier; full_name's first
+// token outranks push_name's; prefix and contains apply across full_name,
+// push_name and business_name.
+func scoreContactTier(c resolvedContact, q string) matchTier {
+	full := strings.ToLower(c.fullName)
+	first := strings.ToLower(c.firstName)
+	push := strings.ToLower(c.pushName)
+	business := strings.ToLower(c.businessName)
+
+	best := matchNone
+	bump := func(t matchTier) {
+		if t > best {
+			best = t
+		}
+	}
+
+	// Tier 4 — exact full_name / first_name.
+	if full == q || first == q {
+		bump(matchExact)
+	}
+	// Tier 3 — first token of full_name (then push_name) equals query.
+	if firstToken(full) == q || firstToken(push) == q {
+		bump(matchFirstToken)
+	}
+	// Tier 2 — a name starts with query followed by a word boundary (space)
+	// or is exactly the query. "emir" matches "Emir Ahmed".
+	hasPrefix := func(name string) bool {
+		return name == q || strings.HasPrefix(name, q+" ")
+	}
+	if hasPrefix(full) || hasPrefix(push) || hasPrefix(business) {
+		bump(matchPrefix)
+	}
+	// Tier 1 — query appears as a standalone interior/last word.
+	hasWord := func(name string) bool {
+		return strings.Contains(" "+name+" ", " "+q+" ")
+	}
+	if hasWord(full) || hasWord(push) || hasWord(business) {
+		bump(matchContains)
+	}
+	return best
+}
+
+// escapeLike escapes LIKE metacharacters (% _ \) in s so it can be embedded in
+// a LIKE pattern used with `ESCAPE '\'`.
+func escapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(s)
 }
 
 func (c resolvedContact) displayLabel() string {
@@ -508,13 +581,17 @@ func (e *errContactAmbiguous) Error() string {
 
 // resolveRecipientToJID is the send-path recipient resolver. It preserves the
 // two existing recipient forms (raw '@'-JID, bare intl phone number) and adds
-// a name → JID lookup against whatsmeow_contacts. Ambiguity: an exact
-// (case-insensitive) full_name or first_name match wins over push_name /
-// business_name matches; only when that tiebreaker still leaves multiple
-// distinct their_jids do we return errContactAmbiguous. Zero matches returns
-// errContactNotFound. The bridge's msgDB handle points at the same SQLite
-// file whatsmeow uses for its session store, so the contacts table lives
-// alongside our capture tables — no second connection needed.
+// a smart, tiered name → JID lookup against whatsmeow_contacts.
+//
+// The name path gathers candidates with a broad LIKE query (exact + first-token
+// + prefix + interior-word patterns), then ranks each distinct their_jid by its
+// best match tier in Go: exact > first-token > prefix > contains. We take the
+// set of distinct JIDs at the highest tier present; exactly one → send, more
+// than one → errContactAmbiguous (ask the user, never guess), zero rows →
+// errContactNotFound. This makes "Emir" resolve to "Emir Ahmed" (a first-token
+// match) while still surfacing genuine ambiguity. The bridge's msgDB handle
+// points at the same SQLite file whatsmeow uses for its session store, so the
+// contacts table lives alongside our capture tables — no second connection.
 func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (types.JID, error) {
 	recipient = strings.TrimSpace(recipient)
 	if recipient == "" {
@@ -536,6 +613,20 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 		return types.JID{}, fmt.Errorf("contact lookup unavailable: no contacts database")
 	}
 	lowered := strings.ToLower(recipient)
+	esc := escapeLike(lowered)
+	// LIKE patterns feeding the broad candidate fetch (all matched against the
+	// lowered column, ESCAPE '\'):
+	//   exact           -> q          (also covered by the '=' terms)
+	//   first-token     -> q || ' %'  (query is the first whitespace token)
+	//   prefix          -> q || '%'   (name starts with query)
+	//   interior word   -> '% ' || q || ' %'
+	//   last word       -> '% ' || q
+	// The Go scorer (scoreContactTier) does the precise tier assignment; these
+	// patterns just cast a wide enough net to bring the rows back.
+	firstTokenPat := esc + " %"
+	prefixPat := esc + "%"
+	interiorPat := "% " + esc + " %"
+	lastWordPat := "% " + esc
 	rows, err := b.msgDB.QueryContext(ctx, `
 		SELECT their_jid,
 		       COALESCE(full_name, ''),
@@ -548,23 +639,44 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 		   OR LOWER(COALESCE(first_name, '')) = ?
 		   OR LOWER(COALESCE(push_name, '')) = ?
 		   OR LOWER(COALESCE(business_name, '')) = ?
-	`, lowered, lowered, lowered, lowered)
+		   OR LOWER(COALESCE(full_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(full_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(full_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(full_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(push_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(push_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(push_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(push_name, ''))     LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(business_name, '')) LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(business_name, '')) LIKE ? ESCAPE '\'
+		   OR LOWER(COALESCE(business_name, '')) LIKE ? ESCAPE '\'
+	`,
+		lowered, lowered, lowered, lowered,
+		firstTokenPat, prefixPat, interiorPat, lastWordPat,
+		firstTokenPat, prefixPat, interiorPat, lastWordPat,
+		prefixPat, interiorPat, lastWordPat,
+	)
 	if err != nil {
 		return types.JID{}, fmt.Errorf("contact lookup failed: %w", err)
 	}
 	defer rows.Close()
 
+	// Collapse to one entry per distinct their_jid, keeping the row that
+	// achieved the highest match tier for that JID.
 	seen := map[string]resolvedContact{}
 	for rows.Next() {
 		var c resolvedContact
 		if err := rows.Scan(&c.jid, &c.fullName, &c.firstName, &c.pushName, &c.businessName, &c.redactedPhone); err != nil {
 			return types.JID{}, fmt.Errorf("contact scan failed: %w", err)
 		}
-		c.exactNameMatch = strings.EqualFold(c.fullName, recipient) || strings.EqualFold(c.firstName, recipient)
-		// One entry per distinct their_jid; keep the exact-name-match row
-		// if we see one so the tiebreaker below has the right signal.
+		c.tier = scoreContactTier(c, lowered)
+		if c.tier == matchNone {
+			// LIKE over-matched (shouldn't normally happen given the
+			// patterns), but never treat a non-scoring row as a candidate.
+			continue
+		}
 		if existing, ok := seen[c.jid]; ok {
-			if c.exactNameMatch && !existing.exactNameMatch {
+			if c.tier > existing.tier {
 				seen[c.jid] = c
 			}
 			continue
@@ -577,31 +689,26 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 	if len(seen) == 0 {
 		return types.JID{}, &errContactNotFound{query: recipient}
 	}
-	if len(seen) == 1 {
-		for jidStr := range seen {
-			return types.ParseJID(jidStr)
-		}
-	}
-	// Multiple distinct their_jids: apply the exact full_name/first_name
-	// tiebreaker.
-	exact := make([]resolvedContact, 0)
-	all := make([]resolvedContact, 0, len(seen))
+
+	// Find the highest tier present, then collect the distinct JIDs at it.
+	topTier := matchNone
 	for _, c := range seen {
-		all = append(all, c)
-		if c.exactNameMatch {
-			exact = append(exact, c)
+		if c.tier > topTier {
+			topTier = c.tier
 		}
 	}
-	if len(exact) == 1 {
-		return types.ParseJID(exact[0].jid)
+	top := make([]resolvedContact, 0, len(seen))
+	for _, c := range seen {
+		if c.tier == topTier {
+			top = append(top, c)
+		}
 	}
-	// Still ambiguous — surface candidates. Prefer the narrowed exact list
-	// if we have one (more useful for the user), else the full match set.
-	pool := exact
-	if len(pool) == 0 {
-		pool = all
+	if len(top) == 1 {
+		return types.ParseJID(top[0].jid)
 	}
-	return types.JID{}, &errContactAmbiguous{query: recipient, candidates: pool}
+	// Multiple distinct JIDs share the top tier — genuinely ambiguous, ask the
+	// user rather than guessing. Surface just the top-tier candidates.
+	return types.JID{}, &errContactAmbiguous{query: recipient, candidates: top}
 }
 
 type sendRequest struct {
