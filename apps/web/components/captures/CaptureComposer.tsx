@@ -355,6 +355,9 @@ export function CaptureComposer({
       favorite: false,
       // Composer captures never set a resurface date on creation.
       resurfaceAt: null,
+      // Not yet derived — the server schedules the people match in the
+      // background; the marker + linked people reconcile on the next refetch.
+      peopleDerivedAt: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.

@@ -44,6 +44,12 @@ export interface CaptureWithLinks {
   /** @-mentioned people linked to this capture (Phase C). */
   people: { id: string; name: string }[];
   projects: { id: string; name: string }[];
+  /**
+   * Linked-people derivation marker (ISO string, or null when never derived).
+   * The detail panel gates its lazy on-open people backfill on this being null
+   * so the Haiku smart-match server call fires at most once per capture.
+   */
+  peopleDerivedAt: string | null;
 }
 
 /**
@@ -104,6 +110,7 @@ export async function getCapturesForUser(
     urls: string[];
     favorite: boolean;
     resurfaceAt: Date | null;
+    peopleDerivedAt: Date | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -123,6 +130,7 @@ export async function getCapturesForUser(
         urls: captures.urls,
         favorite: captures.favorite,
         resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -143,6 +151,7 @@ export async function getCapturesForUser(
         urls: captures.urls,
         favorite: captures.favorite,
         resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .innerJoin(
@@ -171,6 +180,7 @@ export async function getCapturesForUser(
         urls: captures.urls,
         favorite: captures.favorite,
         resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(eq(captures.userId, userId))
@@ -245,6 +255,7 @@ export async function getCapturesForUser(
 
   return captureRows.map((c) => ({
     ...c,
+    peopleDerivedAt: c.peopleDerivedAt ? c.peopleDerivedAt.toISOString() : null,
     hashtags: tagsByCapture.get(c.id) ?? [],
     people: peopleByCapture.get(c.id) ?? [],
     projects: projsByCapture.get(c.id) ?? [],

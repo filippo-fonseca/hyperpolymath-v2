@@ -625,6 +625,7 @@ export function TasksClient({
           projects: [],
           hashtags: [],
           people: [],
+          peopleDerivedAt: null,
         },
       });
       const r = await createTask({
@@ -674,6 +675,7 @@ export function TasksClient({
         projects: [],
         hashtags: [],
         people: [],
+        peopleDerivedAt: null,
       }
     : null;
 
