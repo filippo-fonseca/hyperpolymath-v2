@@ -222,6 +222,11 @@ export const tasks = pgTable(
     // to the next occurrence on completion/skip. Shape is RecurrenceRule from
     // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
     recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
+    // Linked-people derivation marker. NULL = the task's title/notes have never
+    // been scanned for references to known people; non-null = already derived
+    // (set by lib/people/derive.ts). Guards the lazy view-time backfill so the
+    // Haiku smart-match runs at most once per task. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the task (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
@@ -290,6 +295,11 @@ export const captures = pgTable(
     // filed (non-actionable or privacy-refused captures).
     githubIssueUrl: text("github_issue_url"),
     githubEvaluatedAt: timestamp("github_evaluated_at", { withTimezone: true }),
+    // Linked-people derivation marker. NULL = the capture body has never been
+    // scanned for references to known people; non-null = already derived (set by
+    // lib/people/derive.ts). Guards the lazy view-time backfill so the Haiku
+    // smart-match runs at most once per capture. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
