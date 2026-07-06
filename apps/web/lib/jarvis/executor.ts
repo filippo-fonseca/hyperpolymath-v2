@@ -210,6 +210,9 @@ export function createServerExecutor(): ActionExecutor {
             );
           }
         });
+        // Auto-derive linked people from the task title. Background Haiku match;
+        // fail-soft. (JARVIS-created tasks carry no notes at create time.)
+        scheduleEntityPeopleDerivation("task", taskId, ctx.userId, input.title);
         return {
           ok: true,
           id: taskId,
@@ -556,6 +559,11 @@ export function createServerExecutor(): ActionExecutor {
       // intentionally ignores project_ids if present — cross-referencing the
       // tasksProjects junction table (delete-all + re-insert) is a separate
       // concern and will land in a follow-up plan.
+      // Re-derive linked people when the title or notes changed (additive; fail-soft).
+      if (input.title != null || input.description != null) {
+        const derivedText = [set.title ?? "", set.notes ?? ""].filter(Boolean).join("\n");
+        scheduleEntityPeopleDerivation("task", input.id, ctx.userId, derivedText);
+      }
       return {
         ok: true,
         id: input.id,
