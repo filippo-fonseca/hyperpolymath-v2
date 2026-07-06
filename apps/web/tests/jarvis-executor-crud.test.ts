@@ -560,3 +560,94 @@ describe("JARVIS executor CRUD — ownership enforcement (Plan 16-03)", () => {
 
   it.todo("updateEvent includes before snapshot from getEvent");
 });
+
+// ---------------------------------------------------------------------------
+// URL derivation — a link embedded in the task title/notes is auto-populated
+// into the tasks.url property (single-url Notion-style field), mirroring the
+// capture body-link derivation. Never overwrites a url that was already set.
+// ---------------------------------------------------------------------------
+
+describe("JARVIS executor — task URL derivation", () => {
+  it("createTask derives the url from a link in the title (reported case)", async () => {
+    // Capture the values written to the tasks insert (skip join-table inserts).
+    const inserted: Record<string, unknown>[] = [];
+    mockDb.insert.mockImplementation((() => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        if (vals && "title" in vals) inserted.push(vals);
+        return Promise.resolve(undefined);
+      }),
+    })) as never);
+
+    const executor = createServerExecutor();
+    const result = await executor.createTask(
+      {
+        title:
+          "Reproduce GPT-2 from Karpathy https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+      },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(inserted[0]?.url).toBe(
+      "https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+    );
+    // The title text itself is kept verbatim (link stays in the title).
+    expect(inserted[0]?.title).toBe(
+      "Reproduce GPT-2 from Karpathy https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+    );
+  });
+
+  it("createTask leaves url null when the title has no link", async () => {
+    const inserted: Record<string, unknown>[] = [];
+    mockDb.insert.mockImplementation((() => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        if (vals && "title" in vals) inserted.push(vals);
+        return Promise.resolve(undefined);
+      }),
+    })) as never);
+
+    const executor = createServerExecutor();
+    const result = await executor.createTask({ title: "Reproduce GPT-2" }, ctxA);
+
+    expect(result.ok).toBe(true);
+    expect(inserted[0]?.url).toBeNull();
+  });
+
+  it("updateTask fills url when a link is added to the title and url was unset", async () => {
+    const row = seedTask(USER_A, { title: "plain task", url: null });
+
+    const executor = createServerExecutor();
+    const result = await executor.updateTask(
+      { id: row.id, title: "watch https://youtu.be/abc123 now" },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const changes = (result.receipt as { changes: { url?: string | null } })
+        .changes;
+      expect(changes.url).toBe("https://youtu.be/abc123");
+    }
+  });
+
+  it("updateTask never overwrites a url that was already set", async () => {
+    const row = seedTask(USER_A, {
+      title: "plain task",
+      url: "https://manual.example.com/kept",
+    });
+
+    const executor = createServerExecutor();
+    const result = await executor.updateTask(
+      { id: row.id, title: "now mentions https://different.example.com/x" },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const changes = (result.receipt as { changes: { url?: string | null } })
+        .changes;
+      // Derived value equals the existing url, so the update writes no url change.
+      expect(changes.url).toBeUndefined();
+    }
+  });
+});
