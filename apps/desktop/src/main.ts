@@ -294,12 +294,26 @@ function startJarvisTurn(): void {
 }
 
 /** Append a streamed delta to the in-progress JARVIS reply bubble. */
+function appendWithBoundarySpacing(current: string, delta: string): string {
+  if (!current || !delta) return current + delta;
+  const last = current.at(-1) ?? "";
+  const first = delta.at(0) ?? "";
+  if (/\s/.test(last) || /^\s/.test(delta)) return current + delta;
+  if (/[.!?]/.test(last) && /[A-Z"']/.test(first)) return `${current} ${delta}`;
+  return current + delta;
+}
+
 function appendJarvisDelta(delta: string): void {
   const el = transcriptEl();
   if (!el) return;
   if (!currentReplyBody) startJarvisTurn();
   const near = isNearBottom(el);
-  if (currentReplyBody) currentReplyBody.textContent += delta;
+  if (currentReplyBody) {
+    currentReplyBody.textContent = appendWithBoundarySpacing(
+      currentReplyBody.textContent ?? "",
+      delta,
+    );
+  }
   autoScroll(el, near);
 }
 
@@ -380,7 +394,7 @@ function paintResponseChunk(delta: string): void {
   appendJarvisDelta(delta);
   // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
-  if (textEl) textEl.textContent = (textEl.textContent ?? "") + delta;
+  if (textEl) textEl.textContent = appendWithBoundarySpacing(textEl.textContent ?? "", delta);
 }
 
 // Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
