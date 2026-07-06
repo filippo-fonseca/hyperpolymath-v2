@@ -305,6 +305,47 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
   return { success: true, data: null };
 }
 
+/**
+ * Lazy retroactive backfill for the multi-URL property. Called when a capture
+ * is opened: if its body contains link(s) not yet recorded in `urls` (e.g. a
+ * capture created before this feature shipped, or one whose backfill script
+ * hasn't run), derive and persist them. Additive + idempotent — a no-op DB
+ * write is skipped, and a manually-set primary `url` is never overwritten.
+ *
+ * Returns the (possibly unchanged) URL state so the caller can reconcile its
+ * optimistic feed copy without a full refetch.
+ */
+export async function ensureCaptureUrls(
+  id: unknown
+): Promise<ActionResult<{ url: string | null; urls: string[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  const captureId = id as string;
+
+  const [current] = await db
+    .select({ content: captures.content, url: captures.url, urls: captures.urls })
+    .from(captures)
+    .where(and(eq(captures.id, captureId), eq(captures.userId, userId)))
+    .limit(1);
+  if (!current) return { success: false, error: "Not found" };
+
+  const merged = mergeContentUrls(current.content, { url: current.url, urls: current.urls });
+  const changed =
+    merged.url !== (current.url ?? null) ||
+    merged.urls.length !== current.urls.length ||
+    merged.urls.some((u, i) => u !== current.urls[i]);
+
+  if (changed) {
+    await db
+      .update(captures)
+      .set({ url: merged.url, urls: merged.urls, updatedAt: sql`now()` })
+      .where(and(eq(captures.id, captureId), eq(captures.userId, userId)));
+  }
+
+  return { success: true, data: { url: merged.url, urls: merged.urls, changed } };
+}
+
 export async function deleteCapture(id: string): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };
