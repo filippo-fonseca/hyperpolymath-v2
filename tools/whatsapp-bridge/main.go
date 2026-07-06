@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,6 +55,22 @@ type bridge struct {
 	mu    sync.RWMutex
 	qr    string // most recent unscanned QR code, "" once paired
 	ready bool
+
+	// connState is the lifecycle bundle reported by /api/health, guarded by
+	// stateMu (separate from mu so a health poll never contends with QR setters).
+	// state is one of: connecting | connected | reconnecting | logged_out |
+	// perm_failure. reason carries a human string for perm_failure/logged_out
+	// (e.g. "stream_replaced", "temp_ban until <t>"). lastConnected/
+	// lastDisconnected are zero until the first such transition. degraded flips
+	// true on KeepAliveTimeout and clears on KeepAliveRestored — the connection
+	// is nominally up but pings are missing (whatsmeow force-reconnects after
+	// 3 min on its own).
+	stateMu          sync.RWMutex
+	state            string
+	stateReason      string
+	lastConnected    time.Time
+	lastDisconnected time.Time
+	degraded         bool
 
 	msgDB *sql.DB
 
@@ -120,12 +137,97 @@ func (b *bridge) chatDisplayName(ctx context.Context, chat types.JID, pushName s
 	return pushName
 }
 
-// handleEvent is the whatsmeow event bus callback. We only care about
-// *events.Message; *events.HistorySync is intentionally not handled ("start
-// fresh from now" per the unit brief).
+// handleEvent is the whatsmeow event bus callback. It captures *events.Message
+// into the messages/chats tables and tracks the connection lifecycle for
+// truthful /api/health reporting + self-recovery from the recoverable subset of
+// whatsmeow's PermanentDisconnect class. *events.HistorySync is intentionally
+// not handled ("start fresh from now" per the unit brief).
+//
+// whatsmeow's built-in auto-reconnect (EnableAutoReconnect, default true)
+// already recovers transient socket drops; we do NOT run a bespoke reconnect
+// loop for those. We only add manual recovery for the two recoverable
+// PermanentDisconnect cases (StreamReplaced reclaim, TemporaryBan expiry) and
+// surface the rest truthfully.
 func (b *bridge) handleEvent(evt any) {
-	msg, ok := evt.(*events.Message)
-	if !ok || msg == nil {
+	switch evt := evt.(type) {
+	case *events.Message:
+		b.handleMessage(evt)
+
+	case *events.Connected:
+		// Socket up + authed. Presence-available is required for some delivery
+		// behavior; a paired session has a pushname so this succeeds.
+		b.markConnected()
+		if err := b.client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
+			log.Printf("lifecycle: SendPresence after Connected failed: %v", err)
+		}
+		log.Printf("lifecycle: connected")
+
+	case *events.Disconnected:
+		// Server/network closed the socket. Auto-reconnect is already running;
+		// just reflect it. No manual action.
+		b.markDisconnected()
+		log.Printf("lifecycle: disconnected (auto-reconnect in progress)")
+
+	case *events.KeepAliveTimeout:
+		// Ping missed. whatsmeow force-reconnects after 3 min of failures on
+		// its own; we only surface the degraded flag for v1.
+		b.setDegraded(true)
+		log.Printf("lifecycle: keepalive timeout (errorCount=%d)", evt.ErrorCount)
+
+	case *events.KeepAliveRestored:
+		b.setDegraded(false)
+		log.Printf("lifecycle: keepalive restored")
+
+	case *events.LoggedOut:
+		// Device unpaired; whatsmeow wipes the session row. Reconnecting is
+		// futile — flip to logged_out, clear ready so the /api/qr flow can
+		// restart, and emit a stdout line the desktop pump parses.
+		reason := "logged_out"
+		if evt.Reason != 0 {
+			reason = evt.Reason.String()
+		}
+		b.setState("logged_out", reason)
+		b.mu.Lock()
+		b.ready = false
+		b.mu.Unlock()
+		log.Printf("lifecycle: logged out (%s)", reason)
+		emitEvent("logged_out", map[string]string{"reason": reason})
+
+	case *events.StreamReplaced:
+		// Another client connected with the same session keys. Do NOT blind
+		// reconnect (ping-pong risk). After a randomized 30-60s delay, attempt
+		// exactly one Connect() to reclaim the session in case the other copy
+		// was a short-lived orphan; if we get replaced again, stay down.
+		b.setState("perm_failure", "stream_replaced")
+		log.Printf("lifecycle: stream replaced — scheduling one reclaim attempt")
+		go b.reclaimAfterStreamReplaced()
+
+	case *events.TemporaryBan:
+		reason := fmt.Sprintf("temp_ban %s", evt.Code.String())
+		if evt.Expire > 0 {
+			reason = fmt.Sprintf("temp_ban until %s (%s)", time.Now().Add(evt.Expire).Format(time.RFC3339), evt.Code.String())
+		}
+		b.setState("perm_failure", reason)
+		log.Printf("lifecycle: temporary ban — %s", reason)
+		go b.reconnectAfter(evt.Expire)
+
+	default:
+		// Catch the remaining PermanentDisconnect class (ClientOutdated,
+		// CATRefreshError, ConnectFailure) generically. These need human
+		// judgment (rebuild the binary, etc.) — surface, don't retry.
+		if pd, ok := evt.(events.PermanentDisconnect); ok {
+			desc := pd.PermanentDisconnectDescription()
+			b.setState("perm_failure", desc)
+			log.Printf("lifecycle: permanent disconnect — %s", desc)
+		}
+	}
+}
+
+// handleMessage persists a captured incoming/outgoing message into the
+// chats/messages tables (unchanged capture logic, factored out of the type
+// switch).
+func (b *bridge) handleMessage(msg *events.Message) {
+	if msg == nil {
 		return
 	}
 	content, mediaType := extractContent(msg.Message)
@@ -143,6 +245,41 @@ func (b *bridge) handleEvent(evt any) {
 		content, mediaType, msg.Info.Timestamp, msg.Info.IsFromMe,
 	); err != nil {
 		log.Printf("capture: storeMessage %s/%s: %v", chatJID, msg.Info.ID, err)
+	}
+}
+
+// reclaimAfterStreamReplaced waits a randomized 30-60s then attempts exactly one
+// Connect() to reclaim a session that was replaced by a (possibly short-lived
+// orphan) second client. If Connect errors, we stay in perm_failure. If the
+// reclaim itself gets StreamReplaced again, that event re-enters handleEvent and
+// we do NOT loop (each StreamReplaced schedules at most one attempt, but the
+// second replacement means a genuine other owner exists — surfaced as
+// perm_failure, no further auto-retry beyond that single attempt's schedule).
+func (b *bridge) reclaimAfterStreamReplaced() {
+	delay := 30*time.Second + time.Duration(rand.Int63n(int64(30*time.Second)))
+	log.Printf("lifecycle: stream-replaced reclaim in %s", delay.Round(time.Second))
+	time.Sleep(delay)
+	b.setState("reconnecting", "stream_replaced_reclaim")
+	if err := b.client.Connect(); err != nil {
+		b.setState("perm_failure", fmt.Sprintf("stream_replaced (reclaim failed: %v)", err))
+		log.Printf("lifecycle: stream-replaced reclaim failed: %v", err)
+	}
+}
+
+// reconnectAfter waits until `expire` (plus 5-30s jitter) then attempts one
+// Connect() — used to resume after a TemporaryBan window elapses.
+func (b *bridge) reconnectAfter(expire time.Duration) {
+	if expire < 0 {
+		expire = 0
+	}
+	jitter := 5*time.Second + time.Duration(rand.Int63n(int64(25*time.Second)))
+	delay := expire + jitter
+	log.Printf("lifecycle: scheduling reconnect after ban in %s", delay.Round(time.Second))
+	time.Sleep(delay)
+	b.setState("reconnecting", "post_ban_reconnect")
+	if err := b.client.Connect(); err != nil {
+		b.setState("perm_failure", fmt.Sprintf("post-ban reconnect failed: %v", err))
+		log.Printf("lifecycle: post-ban reconnect failed: %v", err)
 	}
 }
 
@@ -226,6 +363,9 @@ func (b *bridge) setReady() {
 	b.qr = ""
 	b.ready = true
 	b.mu.Unlock()
+	// Ready implies a live, authed session; keep lifecycle state coherent even
+	// if the *events.Connected arm hasn't fired yet.
+	b.markConnected()
 	emitEvent("ready", nil)
 }
 
@@ -233,6 +373,51 @@ func (b *bridge) currentQR() string {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.qr
+}
+
+// setState updates the lifecycle state + reason atomically. A blank reason
+// clears any prior reason (so a recovery to `connected` wipes a stale
+// perm_failure message).
+func (b *bridge) setState(state, reason string) {
+	b.stateMu.Lock()
+	b.state = state
+	b.stateReason = reason
+	b.stateMu.Unlock()
+}
+
+// markConnected records a successful connect: state=connected, reason cleared,
+// lastConnected stamped, degraded cleared.
+func (b *bridge) markConnected() {
+	b.stateMu.Lock()
+	b.state = "connected"
+	b.stateReason = ""
+	b.lastConnected = time.Now()
+	b.degraded = false
+	b.stateMu.Unlock()
+}
+
+// markDisconnected records a socket close: state=reconnecting (whatsmeow's
+// auto-reconnect is already running), lastDisconnected stamped.
+func (b *bridge) markDisconnected() {
+	b.stateMu.Lock()
+	b.state = "reconnecting"
+	b.lastDisconnected = time.Now()
+	b.stateMu.Unlock()
+}
+
+// setDegraded flips the degraded flag (keepalives failing / restored) without
+// changing the coarse state.
+func (b *bridge) setDegraded(degraded bool) {
+	b.stateMu.Lock()
+	b.degraded = degraded
+	b.stateMu.Unlock()
+}
+
+// stateSnapshot returns a copy of the lifecycle bundle for /api/health.
+func (b *bridge) stateSnapshot() (state, reason string, lastConn, lastDisc time.Time, degraded bool) {
+	b.stateMu.RLock()
+	defer b.stateMu.RUnlock()
+	return b.state, b.stateReason, b.lastConnected, b.lastDisconnected, b.degraded
 }
 
 // looksLikePhoneNumber reports whether a recipient string is a bare phone
@@ -493,9 +678,27 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *bridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
+	state, reason, lastConn, lastDisc, degraded := b.stateSnapshot()
+	// Timestamps are RFC3339 UTC strings, or "" when never set, so the desktop
+	// can render/compare them without a zero-time sentinel.
+	lastConnStr := ""
+	if !lastConn.IsZero() {
+		lastConnStr = lastConn.UTC().Format(time.RFC3339)
+	}
+	lastDiscStr := ""
+	if !lastDisc.IsZero() {
+		lastDiscStr = lastDisc.UTC().Format(time.RFC3339)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		// Backward-compat booleans the desktop polls today — KEEP.
 		"connected": b.client.IsConnected(),
 		"loggedIn":  b.client.IsLoggedIn(),
+		// Truthful lifecycle bundle (Phase 1).
+		"state":            state,
+		"reason":           reason,
+		"lastConnected":    lastConnStr,
+		"lastDisconnected": lastDiscStr,
+		"degraded":         degraded,
 	})
 }
 
@@ -538,6 +741,40 @@ func (b *bridge) handleQR(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("content-type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte(qr))
+}
+
+// startPairing runs the QR-channel pairing flow in-process: it pulls the QR
+// channel BEFORE connecting, connects, and pumps the channel's code/success/
+// timeout items into setQR/setReady. It is callable both from main (first run)
+// and, in a later phase, from a logged-out state so a re-pair never needs a
+// process bounce. Initial connect failure is NOT fatal — with
+// InitialAutoReconnect the client will come up when the network does.
+func (b *bridge) startPairing(ctx context.Context) error {
+	qrChan, err := b.client.GetQRChannel(ctx)
+	if err != nil {
+		return fmt.Errorf("get QR channel: %w", err)
+	}
+	if err := b.client.Connect(); err != nil {
+		log.Printf("pairing connect failed (will auto-reconnect): %v", err)
+		b.setState("reconnecting", "initial_connect_failed")
+	}
+	go func() {
+		for item := range qrChan {
+			switch item.Event {
+			case "code":
+				b.setQR(item.Code)
+			case "success":
+				b.setReady()
+			case "timeout":
+				log.Printf("QR timeout; store may need a fresh scan")
+			default:
+				if item.Error != nil {
+					log.Printf("QR channel error: %v", item.Error)
+				}
+			}
+		}
+	}()
+	return nil
 }
 
 func main() {
@@ -592,43 +829,50 @@ func main() {
 		client:     client,
 		msgDB:      msgDB,
 		groupNames: make(map[types.JID]string),
+		state:      "connecting",
 	}
 
-	// Register the capture handler BEFORE either connect branch so no messages
-	// are missed on the already-paired path.
+	// Configure reconnection behavior. EnableAutoReconnect stays on (default) so
+	// whatsmeow recovers transient drops without a bespoke loop. InitialAutoReconnect
+	// makes a boot-time network blip enter that loop instead of erroring out, so
+	// a daemon can start before the network is up. AutoReconnectHook logs each
+	// failed attempt, keeps state truthful, and clamps whatsmeow's unbounded
+	// linear backoff (AutoReconnectErrors*2s): when the NEXT delay would exceed
+	// 60s we pin AutoReconnectErrors to 30 (→ ~60s). It ALWAYS returns true;
+	// giving up is launchd's/the supervisor's job, never the client's.
+	client.EnableAutoReconnect = true
+	client.InitialAutoReconnect = true
+	client.AutoReconnectHook = func(err error) bool {
+		b.setState("reconnecting", "")
+		log.Printf("lifecycle: auto-reconnect attempt failed (errors=%d): %v", client.AutoReconnectErrors, err)
+		// AutoReconnectErrors was already incremented before this hook fires;
+		// the next delay is AutoReconnectErrors*2s. Clamp so we never wait more
+		// than ~60s between attempts.
+		if client.AutoReconnectErrors*2 > 60 {
+			client.AutoReconnectErrors = 30
+		}
+		return true
+	}
+
+	// Register the capture + lifecycle handler BEFORE either connect branch so no
+	// messages or lifecycle events are missed on the already-paired path.
 	client.AddEventHandler(b.handleEvent)
 
 	if client.Store.ID == nil {
-		// Not paired: pull the QR channel BEFORE connecting.
-		qrChan, err := client.GetQRChannel(ctx)
-		if err != nil {
-			log.Fatalf("failed to get QR channel: %v", err)
+		// Not paired: run the in-process pairing flow.
+		if err := b.startPairing(ctx); err != nil {
+			log.Fatalf("failed to start pairing: %v", err)
 		}
-		if err := client.Connect(); err != nil {
-			log.Fatalf("failed to connect: %v", err)
-		}
-		go func() {
-			for item := range qrChan {
-				switch item.Event {
-				case "code":
-					b.setQR(item.Code)
-				case "success":
-					b.setReady()
-				case "timeout":
-					log.Printf("QR timeout; store may need a fresh scan")
-				default:
-					if item.Error != nil {
-						log.Printf("QR channel error: %v", item.Error)
-					}
-				}
-			}
-		}()
 	} else {
-		// Already paired: just connect; the session auto-reconnects.
+		// Already paired: just connect; the session auto-reconnects. Do NOT
+		// fatal on failure — with InitialAutoReconnect the client enters the
+		// background reconnect loop, so log, mark reconnecting, and serve HTTP.
 		if err := client.Connect(); err != nil {
-			log.Fatalf("failed to connect: %v", err)
+			log.Printf("initial connect failed (will auto-reconnect): %v", err)
+			b.setState("reconnecting", "initial_connect_failed")
+		} else {
+			b.setReady()
 		}
-		b.setReady()
 	}
 
 	mux := http.NewServeMux()
