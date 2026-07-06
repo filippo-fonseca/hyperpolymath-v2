@@ -17,12 +17,22 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  JarvisClarificationEvent,
-  JarvisRequest,
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  streamJarvis,
+  type JarvisCallbacks,
+  type JarvisClarificationEvent,
+  type JarvisRequest,
 } from "@/components/jarvis/jarvis-stream-client";
 import { buildJarvisInputPayload } from "@/components/jarvis/jarvis-input-payload";
-import type { ScrollbackAction } from "@/components/jarvis/jarvis-types";
+import { invalidateAfterJarvisAction } from "@/lib/jarvis/invalidate-after-action";
+import { saveJarvisTurn } from "@/app/actions/jarvis-turns";
+import type {
+  ScrollbackAction,
+  ScrollbackTurn,
+} from "@/components/jarvis/jarvis-types";
+import { worldEvents } from "../data/diffing";
+import { useWorldData } from "../data/useWorldData";
 
 // Session-history cap — mirrors JarvisConsole's HISTORY_TURN_LIMIT (JarvisConsole.tsx:167).
 const HISTORY_TURN_LIMIT = 10;
@@ -80,8 +90,35 @@ interface AssistantAccumulator {
   errorMessage?: string;
 }
 
+/**
+ * Fire-and-forget scrollback save. Mirrors GlobalJarvisHandler.persistTurn
+ * (GlobalJarvisHandler.tsx:59-75) byte-for-byte — a failed save is logged but
+ * never bubbles, so the world turn joins the ONE `/today` conversation record
+ * (JarvisConsole live-merges it via its jarvis_turns Realtime channel) without
+ * ever disrupting the ribbon.
+ */
+function persistTurn(turn: ScrollbackTurn): void {
+  void saveJarvisTurn({
+    id: turn.id,
+    kind: turn.kind,
+    text: turn.kind === "user" ? turn.text : null,
+    textDelta: turn.kind === "assistant" ? turn.textDelta : null,
+    actions: turn.kind === "assistant" ? turn.actions : [],
+    clarification: null,
+    status: turn.kind === "assistant" ? turn.status : null,
+    errorMessage:
+      turn.kind === "assistant" ? turn.errorMessage ?? null : null,
+    createdAt: turn.createdAt.toISOString(),
+  }).catch((err) => {
+    console.warn("[jarvis] world persistTurn failed (non-fatal)", err);
+  });
+}
+
 /** Mounted EXACTLY ONCE, by JarvisRing. Owns the machine, the stream, the bus. */
 export function useJarvisWorld(): JarvisWorldHandle {
+  const { userId } = useWorldData();
+  const queryClient = useQueryClient();
+
   const [state, setState] = useState<JarvisWorldState>("idle");
   const [clarification, setClarification] =
     useState<JarvisClarificationEvent | null>(null);
@@ -108,42 +145,148 @@ export function useJarvisWorld(): JarvisWorldHandle {
 
   /**
    * Begin a turn: reset buffers, push the user history entry, move to `thinking`,
-   * and (in the next commit) fire `streamJarvis`. Split out so `submit` and
-   * `answerClarification` share one entry point.
+   * persist the user turn, then fire `streamJarvis` with the full callback table
+   * (§6.2). Split out so `submit` and `answerClarification` share one entry point.
    */
-  const startTurn = useCallback((request: JarvisRequest, userText: string) => {
-    // History: plain strings only (JarvisRequest.history accepts them by contract).
-    historyRef.current = [
-      ...historyRef.current,
-      { role: "user" as const, content: userText },
-    ].slice(-HISTORY_TURN_LIMIT);
+  const startTurn = useCallback(
+    (request: JarvisRequest, userText: string) => {
+      // History: plain strings only (JarvisRequest.history accepts them by contract).
+      historyRef.current = [
+        ...historyRef.current,
+        { role: "user" as const, content: userText },
+      ].slice(-HISTORY_TURN_LIMIT);
 
-    // Fresh per-turn buffers.
-    replyBuffer.current = "";
-    replyVersion.current++;
-    turnIdRef.current = null;
-    assistantRef.current = {
-      id:
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : String(Date.now()),
-      textDelta: "",
-      actions: [],
-      createdAt: new Date(),
-      status: "streaming",
-    };
+      // Fresh per-turn buffers.
+      replyBuffer.current = "";
+      replyVersion.current++;
+      turnIdRef.current = null;
+      const assistant: AssistantAccumulator = {
+        id: crypto.randomUUID(),
+        textDelta: "",
+        actions: [],
+        createdAt: new Date(),
+        status: "streaming",
+      };
+      assistantRef.current = assistant;
 
-    if (errorTimerRef.current) {
-      clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = null;
-    }
-    setErrorMessage(null);
-    setState("thinking");
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+      setErrorMessage(null);
+      setState("thinking");
 
-    // Stream wiring (streamJarvis + callbacks + persistence + invalidation) is
-    // added in the next commit. `request` carries the console-grade payload.
-    void request;
-  }, []);
+      // Persist the user turn immediately (crypto UUID id) so the world turn
+      // joins the /today conversation record (§6.5).
+      persistTurn({
+        kind: "user",
+        id: crypto.randomUUID(),
+        text: userText,
+        createdAt: new Date(),
+      });
+
+      const callbacks: JarvisCallbacks = {
+        onTurnStart: ({ turnId }) => {
+          turnIdRef.current = turnId; // persistence correlation only
+        },
+        onText: (delta) => {
+          replyBuffer.current += delta;
+          replyVersion.current++;
+          assistant.textDelta += delta;
+          if (stateRef.current === "thinking") setState("streaming");
+        },
+        onQueued: (ev) => {
+          // Tool acknowledged pre-executor — record for the persisted receipt.
+          assistant.actions.push({
+            toolUseId: ev.toolUseId,
+            name: ev.name as ScrollbackAction["name"],
+            status: "queued",
+          });
+        },
+        onClarification: (ev) => {
+          setClarification(ev);
+          // Render the question as ribbon ink, in the familiar's own hand (§6.4).
+          replyBuffer.current +=
+            (replyBuffer.current ? "\n" : "") + ev.question;
+          replyVersion.current++;
+        },
+        onAction: (ev) => {
+          // Upgrade an existing queued placeholder, else append (JarvisConsole shape).
+          const existing = assistant.actions.find(
+            (a) => a.toolUseId === ev.toolUseId,
+          );
+          if (existing) {
+            existing.status = "done";
+            existing.result = ev.result as ScrollbackAction["result"];
+          } else {
+            assistant.actions.push({
+              toolUseId: ev.toolUseId,
+              name: ev.name as ScrollbackAction["name"],
+              status: "done",
+              result: ev.result as ScrollbackAction["result"],
+            });
+          }
+          if (ev.result?.ok) {
+            // Invalidate FIRST (the refetch that kindles the ember), THEN emit —
+            // the frozen handshake U-16 subscribes to (§6.2 / §7.1). Same call,
+            // same gate as JarvisConsole.tsx:679-681.
+            invalidateAfterJarvisAction(queryClient, ev.name, userId);
+            worldEvents.emit("jarvis-action", ev);
+          } else {
+            // Failed action: transient error + edge flash; do NOT emit (a
+            // light-thread to nowhere would lie — diffing.ts:42-45).
+            setErrorMessage(ev.result?.error ?? "That action didn't land.");
+          }
+        },
+        onDone: () => {
+          replyVersion.current++; // final bump so the tail always flushes
+          historyRef.current = [
+            ...historyRef.current,
+            { role: "assistant" as const, content: replyBuffer.current },
+          ].slice(-HISTORY_TURN_LIMIT);
+          assistant.status = "done";
+          persistTurn({
+            kind: "assistant",
+            id: assistant.id,
+            textDelta: assistant.textDelta,
+            actions: assistant.actions,
+            createdAt: assistant.createdAt,
+            status: "done",
+          });
+          abortRef.current = null;
+          setState("listening"); // ribbon clears + refocuses the input
+        },
+        onError: (message) => {
+          if (message === "aborted") return; // dismissal path — silent
+          assistant.status = "error";
+          assistant.errorMessage = message;
+          persistTurn({
+            kind: "assistant",
+            id: assistant.id,
+            textDelta: assistant.textDelta,
+            actions: assistant.actions,
+            createdAt: assistant.createdAt,
+            status: "error",
+            errorMessage: message,
+          });
+          setErrorMessage(message); // 402 BYOK arrives here pre-formatted
+          setState("error");
+          abortRef.current = null;
+          // Auto-return to listening after the linger window (§2).
+          if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+          errorTimerRef.current = setTimeout(() => {
+            if (stateRef.current === "error") setState("listening");
+          }, ERROR_LINGER_MS);
+        },
+      };
+
+      // Abort-before-start — the console contract (JarvisConsole.tsx:536-538).
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+      void streamJarvis(request, callbacks, abortRef.current.signal);
+    },
+    [queryClient, userId],
+  );
 
   const summon = useCallback(() => {
     if (stateRef.current !== "idle") {
