@@ -37,6 +37,21 @@ const CORS = {
 /** Cap on rows scanned — recent history is enough; the newest match wins. */
 const SCAN_LIMIT = 200;
 
+function isNameTokenMatch(candidate: string | null, query: string): boolean {
+  const tokenKey = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const c = tokenKey(candidate ?? "");
+  const q = tokenKey(query);
+  if (!c || !q) return false;
+  if (c === q || c.startsWith(`${q} `)) return true;
+  return ` ${c} `.includes(` ${q} `);
+}
+
 /**
  * GET /api/imessage/resolve?name=Rohan
  *
@@ -67,7 +82,11 @@ export async function GET(req: NextRequest): Promise<Response> {
     // usable sender handle — fromMe rows are the owner's own outgoing messages,
     // so exclude them (and rows with a null sender).
     const rows = await db
-      .select({ sender: imessageMessages.sender, sentAt: imessageMessages.sentAt })
+      .select({
+        sender: imessageMessages.sender,
+        senderName: imessageMessages.senderName,
+        sentAt: imessageMessages.sentAt,
+      })
       .from(imessageMessages)
       .where(
         and(
@@ -84,6 +103,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const seen = new Set<string>();
     const handles: string[] = [];
     for (const r of rows) {
+      if (!isNameTokenMatch(r.senderName, name)) continue;
       const h = r.sender?.trim();
       if (!h || seen.has(h)) continue;
       seen.add(h);

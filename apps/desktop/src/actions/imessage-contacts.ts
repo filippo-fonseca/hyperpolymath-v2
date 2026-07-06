@@ -97,7 +97,17 @@ async function queryContacts(
   const nameLiteral = JSON.stringify(name);
   const script = `
 const Contacts = Application("Contacts");
-const matched = Contacts.people.whose({ name: { _contains: ${nameLiteral} } })();
+const query = ${nameLiteral}.trim().toLowerCase();
+function tokenKey(s) {
+  return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\\s+/g, " ").trim();
+}
+const queryKey = tokenKey(query);
+const matched = Contacts.people.whose({ name: { _contains: ${nameLiteral} } })()
+  .filter((p) => {
+    const n = String(p.name() || "").trim().toLowerCase();
+    const key = tokenKey(n);
+    return key === queryKey || key.startsWith(queryKey + " ") || (" " + key + " ").indexOf(" " + queryKey + " ") !== -1;
+  });
 const out = [];
 for (const p of matched) {
   const phones = p.phones();
