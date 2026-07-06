@@ -21,6 +21,7 @@ import { useEffect, useRef } from "react";
 import { useWorldData } from "../data/useWorldData";
 import { focusStack } from "./useFocusStack";
 import { bootDone } from "./CameraRig";
+import { jarvisWorldBus } from "../jarvis/useJarvisWorld";
 
 export function useWorldKeys(): void {
   const { layout } = useWorldData();
@@ -34,6 +35,24 @@ export function useWorldKeys(): void {
       // Boot gate: the world ignores ALL navigation until the Litany finishes
       // (or the 8s failsafe elapses). See CameraRig §3.4.
       if (!bootDone()) return;
+
+      // U-13: Cmd/Ctrl+K — summon the ring. This capture-phase listener beats
+      // GlobalHotkeys' bubble-phase focusJarvis (GlobalHotkeys.tsx:33-37,126);
+      // GlobalJarvisDialog is route-guarded out on /world (GlobalJarvisDialog §5.2).
+      // Placed BEFORE the typing guard so Cmd+K still lands while the ribbon's own
+      // input is focused (idempotent summon → refocus), and before the modifier
+      // bail below which would otherwise swallow it.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (e.key === "k" || e.key === "K")
+      ) {
+        e.preventDefault(); // and the browser default (Firefox: Cmd+K = search)
+        e.stopPropagation(); // kills the bubble-phase GlobalHotkeys handler
+        jarvisWorldBus.summon();
+        return;
+      }
 
       // Typing guard — copied VERBATIM from GlobalHotkeys.tsx:89-98. Also solves
       // the future Esc-vs-Jarvis-ribbon conflict: when U-13's <Html> <input> has
