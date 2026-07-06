@@ -265,7 +265,9 @@ export async function deriveEntityPeople(
  * Schedule people derivation for an entity after the response is sent. Returns
  * immediately; the match + writes run via `after()` so they never delay the
  * write path, exactly like `scheduleAutoTagging` / `scheduleLinkPreviews`.
- * Safe to call from server actions and route handlers. Fail-soft.
+ * Safe to call from server actions and route handlers. Fail-soft: if there is
+ * no active request scope to attach `after()` to (e.g. a non-request caller),
+ * derivation is simply skipped rather than crashing the entity write.
  */
 export function scheduleEntityPeopleDerivation(
   entityType: PeopleDerivationEntity,
@@ -274,13 +276,17 @@ export function scheduleEntityPeopleDerivation(
   content: string,
 ): void {
   if (!content.trim()) return;
-  after(async () => {
-    try {
-      await deriveEntityPeople(userId, entityType, entityId, content);
-    } catch (err) {
-      console.error("[people-derive] background derivation failed", err);
-    }
-  });
+  try {
+    after(async () => {
+      try {
+        await deriveEntityPeople(userId, entityType, entityId, content);
+      } catch (err) {
+        console.error("[people-derive] background derivation failed", err);
+      }
+    });
+  } catch (err) {
+    console.error("[people-derive] could not schedule derivation", err);
+  }
 }
 
 /**
