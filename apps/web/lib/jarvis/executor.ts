@@ -164,6 +164,7 @@ type WebSearchResult = {
   title: string;
   url: string;
   snippet?: string;
+  content?: string;
 };
 
 function googleSearchUrl(query: string): string {
@@ -209,6 +210,69 @@ function normalizeWebSearchResults(payload: unknown): WebSearchResult[] {
     .slice(0, 5);
 }
 
+function isFetchableWebUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function compactFetchedContent(content: unknown): string | undefined {
+  if (typeof content !== "string") return undefined;
+  const compact = content
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return compact ? compact.slice(0, 6_000) : undefined;
+}
+
+async function browserbaseFetchPage(url: string, apiKey: string): Promise<string | undefined> {
+  if (!isFetchableWebUrl(url)) return undefined;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch("https://api.browserbase.com/v1/fetch", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-bb-api-key": apiKey,
+      },
+      body: JSON.stringify({ url, allowRedirects: true, format: "markdown" }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return undefined;
+    const payload = (await res.json()) as { content?: unknown };
+    return compactFetchedContent(payload.content);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function enrichSparseWebSearchResults(
+  results: WebSearchResult[],
+  apiKey: string,
+): Promise<WebSearchResult[]> {
+  if (results.length === 0 || results.some((result) => result.snippet)) {
+    return results;
+  }
+
+  const enrichable = results.slice(0, 2);
+  const contents = await Promise.all(
+    enrichable.map((result) => browserbaseFetchPage(result.url, apiKey)),
+  );
+  return results.map((result, index) => {
+    const content = contents[index];
+    return content ? { ...result, content } : result;
+  });
+}
+
 async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
   const apiKey = process.env.BROWSERBASE_API_KEY;
   if (!apiKey) return [];
@@ -229,7 +293,8 @@ async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
       console.warn(`[jarvis] web_search: Browserbase returned ${res.status}`);
       return [];
     }
-    return normalizeWebSearchResults(await res.json());
+    const results = normalizeWebSearchResults(await res.json());
+    return enrichSparseWebSearchResults(results, apiKey);
   } catch (err) {
     console.warn("[jarvis] web_search: Browserbase lookup failed", err);
     return [];

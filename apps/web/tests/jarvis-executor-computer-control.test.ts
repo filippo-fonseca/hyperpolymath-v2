@@ -239,6 +239,72 @@ describe("executor.webSearch", () => {
     });
   });
 
+  it("google engine with sparse Browserbase results: fetches top pages for answer content", async () => {
+    vi.stubEnv("BROWSERBASE_API_KEY", "bb_test_key");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              title: "Search - Browserbase Documentation",
+              url: "https://docs.browserbase.com/platform/search/overview",
+            },
+            {
+              title: "Fetch a Page",
+              url: "https://docs.browserbase.com/reference/api/fetch-a-page",
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: "Browserbase Search uses POST /v1/search for web search results.",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: "Browserbase Fetch uses POST /v1/fetch for page content.",
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const executor = createServerExecutor();
+    const result = await executor.webSearch({ query: "Browserbase Search endpoint" }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.browserbase.com/v1/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          url: "https://docs.browserbase.com/platform/search/overview",
+          allowRedirects: true,
+          format: "markdown",
+        }),
+      }),
+    );
+    expect(result.receipt).toMatchObject({
+      provider: "browserbase",
+      results: [
+        {
+          title: "Search - Browserbase Documentation",
+          content: "Browserbase Search uses POST /v1/search for web search results.",
+        },
+        {
+          title: "Fetch a Page",
+          content: "Browserbase Fetch uses POST /v1/fetch for page content.",
+        },
+      ],
+    });
+  });
+
   it("google engine with Browserbase failure: falls back to opening Google", async () => {
     vi.stubEnv("BROWSERBASE_API_KEY", "bb_test_key");
     vi.stubGlobal(

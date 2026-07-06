@@ -21,6 +21,6 @@ export type WebSearchInput = z.infer<typeof WebSearchInputSchema>;
 export const webSearchTool = {
   name: "web_search" as const,
   description:
-    "Search the web or Google Maps on the user's behalf. The `query` is the search terms. `engine` defaults to 'google'; use 'google' for quick current/web questions so the server can return search results for a spoken answer, and use 'maps' when the user asks to find a place, get directions, or look something up on a map. For 'maps', the desktop opens Google Maps. For 'google', answer directly from returned results when present; if the receipt contains an open_url action fallback, the desktop will open the Google results page.",
+    "Search the web or Google Maps on the user's behalf. The `query` is the search terms. `engine` defaults to 'google'; use 'google' for quick current/web questions so the server can return search results for a spoken answer, and use 'maps' when the user asks to find a place, get directions, or look something up on a map. For 'maps', the desktop opens Google Maps. For 'google', answer directly from returned results when present. Do not call open_url after web_search unless the user explicitly asked to open a page; if the receipt contains an open_url action fallback, the desktop will open the Google results page.",
   input_schema: toJsonSchema(WebSearchInputSchema),
 };
