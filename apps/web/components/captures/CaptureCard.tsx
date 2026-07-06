@@ -26,11 +26,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { useLinkPreviews } from "@/lib/hooks/use-link-previews";
 import { highlightSegments } from "@/lib/search";
-import { splitTextWithUrls } from "@/lib/url";
+import { extractUrls, splitTextWithUrls } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
 import { HashtagChip } from "./HashtagChip";
+import { LinkPreviewCard } from "./LinkPreviewCard";
 import { PersonChip } from "./PersonChip";
 
 interface Props {
@@ -437,6 +439,11 @@ function CaptureBody({
   });
   const query = searchQuery?.trim() ?? "";
 
+  // Issue #221: rich link previews. Extract URLs from the body (+ canonical url
+  // property) and read their cached metadata; render unfurl cards below the body.
+  const captureUrls = extractUrls(capture.content, capture.url);
+  const previews = useLinkPreviews(captureUrls);
+
   // Render a plain-text run (no hashtag) with both URL autolinking (issue #101)
   // and search highlighting (issue #139). URLs win: a matched URL becomes a real
   // clickable anchor (new tab); the text around it still gets the cyan search
@@ -506,6 +513,14 @@ function CaptureBody({
       <div className="font-serif text-base text-[var(--ink)] whitespace-pre-wrap break-words">
         {rendered}
       </div>
+      {/* Issue #221: rich link-preview unfurls for URLs in this capture. */}
+      {captureUrls.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {captureUrls.map((u) => (
+            <LinkPreviewCard key={u} url={u} preview={previews.get(u)} />
+          ))}
+        </div>
+      )}
       {/* Metadata strip — mono timestamp + project chips per UI-SPEC §5i / §4a */}
       <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--ink-muted)]">
         {!compact && capture.projects.length > 0 && (

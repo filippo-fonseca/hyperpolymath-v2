@@ -6,6 +6,7 @@ import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { captures, capturesHashtags } from "@/lib/db/schema";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         .onConflictDoNothing();
     }
   });
+  // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
+  scheduleLinkPreviews(userId, content);
   return Response.json({ id }, { headers: CORS });
 }
 
@@ -127,6 +130,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       }
     }
   });
+  // Issue #221: refresh link previews when the content changed. Fail-soft.
+  if (typeof body.content === "string" && body.content.trim()) {
+    scheduleLinkPreviews(userId, body.content.trim());
+  }
   return Response.json({ ok: true }, { headers: CORS });
 }
 
