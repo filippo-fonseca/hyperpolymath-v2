@@ -110,43 +110,64 @@ pub fn start(app: &AppHandle) {
     app.manage(state);
 
     // CRITICAL ORDERING: probe health BEFORE `reap_stale_bridge()`. The reaper
-    // matches any `whatsapp-bridge*` process and would kill the daemon. Only a
-    // process that answers HTTP 2xx here is treated as an authoritative daemon;
-    // a hung orphan that squats :8080 without serving HTTP fails the probe and
-    // is (correctly) reaped by the child path below.
-    if daemon_is_healthy() {
-        eprintln!(
+    // matches any `whatsapp-bridge*` process and would kill the daemon. A
+    // connection-refused probe means nothing is listening and the child path may
+    // safely reap stale orphans. A timeout / 5xx / malformed response means
+    // something owns the port, so we fail closed: do NOT reap and do NOT spawn.
+    match probe_daemon_health() {
+        BridgeProbe::Healthy => {
+            eprintln!(
             "[whatsapp] external bridge answered /api/health on :{BRIDGE_PORT} — adopting daemon (no reap, no spawn, no supervisor)"
         );
-        managed_externally.store(true, Ordering::SeqCst);
-        // No child handle is ever set in this mode, so `kill()` on exit is a
-        // no-op and we never take down the always-on daemon.
-        spawn_external_poller(app.clone());
-        return;
-    }
+            managed_externally.store(true, Ordering::SeqCst);
+            // No child handle is ever set in this mode, so `kill()` on exit is a
+            // no-op and we never take down the always-on daemon.
+            spawn_external_poller(app.clone());
+            return;
+        }
+        BridgeProbe::NoListener => {
+            eprintln!(
+                "[whatsapp] no external bridge on :{BRIDGE_PORT} — starting supervised child sidecar"
+            );
+        }
+        BridgeProbe::Ambiguous(reason) => {
+            eprintln!(
+                "[whatsapp] :{BRIDGE_PORT} probe was ambiguous ({reason}); refusing to reap/spawn to avoid killing the launchd daemon"
+            );
+            return;
+        }
+    };
 
-    eprintln!("[whatsapp] no external bridge on :{BRIDGE_PORT} — starting supervised child sidecar");
     spawn_bridge(app.clone(), store_dir, child_slot, restarts);
 }
 
-/// Short, blocking health probe used at startup to decide daemon-vs-child.
-/// Returns true only if `GET /api/health` answers with a 2xx inside ~1s.
-fn daemon_is_healthy() -> bool {
+enum BridgeProbe {
+    Healthy,
+    NoListener,
+    Ambiguous(String),
+}
+
+/// Blocking health probe used at startup to decide daemon-vs-child.
+/// A timeout is NOT "no daemon": it means a process owns the port but did not
+/// answer quickly enough, and reaping it could kill the launchd daemon.
+fn probe_daemon_health() -> BridgeProbe {
     tauri::async_runtime::block_on(async {
         let client = match reqwest::Client::builder()
-            .timeout(Duration::from_millis(1000))
+            .timeout(Duration::from_millis(3000))
             .build()
         {
             Ok(c) => c,
-            Err(_) => return false,
+            Err(err) => return BridgeProbe::Ambiguous(format!("client build failed: {err}")),
         };
         match client
             .get(format!("http://localhost:{BRIDGE_PORT}/api/health"))
             .send()
             .await
         {
-            Ok(res) => res.status().is_success(),
-            Err(_) => false,
+            Ok(res) if res.status().is_success() => BridgeProbe::Healthy,
+            Ok(res) => BridgeProbe::Ambiguous(format!("HTTP {}", res.status())),
+            Err(err) if err.is_connect() => BridgeProbe::NoListener,
+            Err(err) => BridgeProbe::Ambiguous(err.to_string()),
         }
     })
 }
@@ -200,8 +221,10 @@ fn spawn_external_poller(app: AppHandle) {
                 // cached QR so a later re-pair re-emits.
                 if let Ok(res) = client.get(format!("{base}/api/health")).send().await {
                     if let Ok(val) = res.json::<serde_json::Value>().await {
-                        let logged_in =
-                            val.get("loggedIn").and_then(|v| v.as_bool()).unwrap_or(false);
+                        let logged_in = val
+                            .get("loggedIn")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
                         if logged_in && !was_ready {
                             let _ = app.emit("whatsapp-ready", ());
                             last_qr = None;
@@ -245,7 +268,10 @@ fn reap_stale_bridge() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut reaped_any = false;
-    for pid in stdout.split_whitespace().filter_map(|s| s.trim().parse::<u32>().ok()) {
+    for pid in stdout
+        .split_whitespace()
+        .filter_map(|s| s.trim().parse::<u32>().ok())
+    {
         // Verify the PID is actually our bridge before killing it. `ps -o comm=`
         // prints the executable's command name; we require its basename to be
         // `whatsapp-bridge` so we never kill an unrelated :8080 holder.
@@ -337,9 +363,7 @@ fn spawn_bridge(
                     eprintln!("[whatsapp] bridge terminated: {payload:?}");
                     let n = restarts.fetch_add(1, Ordering::SeqCst) + 1;
                     if n > MAX_RESTARTS {
-                        eprintln!(
-                            "[whatsapp] bridge exceeded {MAX_RESTARTS} restarts; giving up"
-                        );
+                        eprintln!("[whatsapp] bridge exceeded {MAX_RESTARTS} restarts; giving up");
                         break;
                     }
                     // Linear backoff, capped, so transient failures recover fast
@@ -500,7 +524,12 @@ fn fallback_respawn(app: &AppHandle) -> Result<String, String> {
     let Some(dir) = store_dir else {
         return Err("no stored WhatsApp dir — restart the app to recover".to_string());
     };
-    spawn_bridge(app.clone(), dir, bridge.child.clone(), bridge.restarts.clone());
+    spawn_bridge(
+        app.clone(),
+        dir,
+        bridge.child.clone(),
+        bridge.restarts.clone(),
+    );
     Ok("bridge restarted — scan the QR once it appears".to_string())
 }
 
@@ -514,7 +543,10 @@ fn forward_event(app: &AppHandle, line: &str) {
     };
     match value.get("event").and_then(|v| v.as_str()) {
         Some("qr") => {
-            let code = value.get("code").and_then(|v| v.as_str()).unwrap_or_default();
+            let code = value
+                .get("code")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             let _ = app.emit("whatsapp-qr", code.to_string());
         }
         Some("ready") => {
