@@ -29,6 +29,8 @@ import {
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
+// Issue #221 — providerData jsonb shape, single-sourced in the link-preview lib.
+import type { LinkPreviewProviderData } from "../link-preview/types";
 // Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 // JARVIS routines — spec shape single-sourced in jarvis-core; imported type-only
@@ -295,6 +297,46 @@ export const captures = pgTable(
   (t) => [
     index("captures_user_created_desc_idx").on(t.userId, sql`created_at DESC`),
     index("captures_content_search_gin_idx").using("gin", t.contentSearch),
+  ],
+);
+
+// Issue #221 — rich link previews. Cached, per-user metadata for any URL that
+// appears in a capture (or its `url` property). One row per (user, url); the
+// fetch happens asynchronously at capture-write time and on first view, then is
+// read from here rather than re-fetched on every render. `providerData` holds
+// media-specific extras (YouTube video title/duration, persisted tweet text +
+// author) so the content survives the source going private/deleted. Migration
+// 0022, additive.
+export const linkPreviews = pgTable(
+  "link_previews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // The URL as fetched (normalized to include a scheme). Dedup key with userId.
+    url: text("url").notNull(),
+    // Fetch lifecycle: 'pending' (queued/never fetched) | 'ok' (metadata cached)
+    // | 'error' (fetch failed; degrade to a plain link). Drives retry + render.
+    status: text("status").notNull().default("pending"),
+    // Coarse media class for render branching: 'generic' | 'youtube' | 'twitter'.
+    mediaType: text("media_type"),
+    title: text("title"),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    faviconUrl: text("favicon_url"),
+    siteName: text("site_name"),
+    // Media-specific persisted payload (see LinkPreviewProviderData).
+    providerData: jsonb("provider_data").$type<LinkPreviewProviderData>(),
+    // Last fetch error message (truncated), when status = 'error'.
+    error: text("error"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("link_previews_user_url_uniq").on(t.userId, t.url),
+    index("link_previews_user_status_idx").on(t.userId, t.status),
   ],
 );
 
@@ -1335,9 +1377,10 @@ export const journalEntries = pgTable(
     date: date("date").notNull(),
     mainResponse: text("main_response"), // nullable — response to the fixed prompt
     notesSection: text("notes_section"), // nullable — the separate Notes / Misc field
-    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
-    // entry is filtered out of the personal-context snapshot. Migration 0027 lineage.
-    noExport: boolean("no_export").notNull().default(false),
+    // Privacy gate for the MCP export. When true, this entry is filtered out
+    // of the personal-context snapshot. Journal entries default to true (opt-in
+    // export) per issue #191 — migration 0045 flips the default and existing rows.
+    noExport: boolean("no_export").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

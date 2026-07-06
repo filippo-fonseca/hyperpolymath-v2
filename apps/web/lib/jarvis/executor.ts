@@ -49,6 +49,7 @@ import {
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
+import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import {
   reconcilePersonReferencesForUser,
   resolveOrCreatePersonForUser,
@@ -283,6 +284,8 @@ export function createServerExecutor(): ActionExecutor {
         // explicit model-supplied hashtags are deduped against the DB so they
         // are not re-applied. Realtime surfaces the result live.
         scheduleAutoTagging(captureId, ctx.userId, input.content);
+        // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
+        scheduleLinkPreviews(ctx.userId, input.content);
         return {
           ok: true,
           id: captureId,

@@ -412,8 +412,9 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   //
   // The model may call find_tasks/find_captures/find_events and then in the
   // same user turn call update_*/delete_* on the discovered items. This loop
-  // runs up to LOOP_CAP passes, feeding tool_results back each time the model
-  // stops with stop_reason="tool_use".
+  // runs up to LOOP_CAP feedback rounds (plus up to CONTINUATION_CAP extra
+  // passes when a pass is truncated at max_tokens), feeding tool_results back
+  // each time the model stops with stop_reason="tool_use" or "max_tokens".
   //
   // Pitfalls observed (from RESEARCH.md):
   //   Pitfall 1 — tool_result content MUST be serialized to a string (JSON.stringify)
@@ -424,6 +425,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   // ---------------------------------------------------------------------------
 
   const LOOP_CAP = 5;
+  // Separate budget for continuation passes after a max_tokens truncation.
+  // Large batches (e.g. 30 daily tasks) emit one tool_use block per item; if
+  // the output is cut off mid-batch we keep going without burning the normal
+  // feedback-round budget. Bounded so a pathological turn cannot loop forever.
+  const CONTINUATION_CAP = 6;
   const loopMessages: typeof anthropicMessages = [...anthropicMessages];
 
   // Prime session-entities scratchpad from prior-turn history so the model
@@ -439,8 +445,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   try {
     let passCount = 0;
+    let feedbackRounds = 0;
+    let continuations = 0;
 
-    while (passCount < LOOP_CAP) {
+    while (feedbackRounds < LOOP_CAP && continuations < CONTINUATION_CAP) {
       passCount++;
 
       // Re-build system per pass to inject the (mutating) session-entities scratchpad
@@ -467,7 +475,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       const anthStream = anth.messages.stream(
         {
           model: JARVIS_MODEL,
-          max_tokens: 1024,
+          // Generous budget for batched tool calls: each create_* block costs
+          // roughly 110-130 output tokens, so 8192 comfortably covers a full
+          // month of daily creations in a single pass.
+          max_tokens: 8192,
           system: passSystem as unknown as never,
           tools: tools as unknown as never,
           // tool_choice: only forced on pass 1; subsequent passes let the model
@@ -749,19 +760,40 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
         if (entity) sessionEntities.push(entity);
       }
 
-      // Exit loop if model chose to stop or no tools were invoked
-      if (final.stop_reason !== "tool_use") break;
-      if (toolResultsThisPass.length === 0) break; // safety: stop_reason was tool_use but nothing executed
+      // Exit loop if model chose to stop or no tools were invoked.
+      // stop_reason "max_tokens" means the output was truncated mid-batch:
+      // execute what landed, then continue so the model emits the rest.
+      const truncated = final.stop_reason === "max_tokens";
+      if (final.stop_reason !== "tool_use" && !truncated) break;
+      if (toolResultsThisPass.length === 0) break; // safety: nothing executed, avoid spinning
+      if (truncated) continuations++;
+      else feedbackRounds++;
 
-      // Build the feedback turns so the next pass can reference results
-      loopMessages.push({ role: "assistant", content: final.content as never });
+      // Build the feedback turns so the next pass can reference results.
+      // On truncation, drop any tool_use block that was cut off before it
+      // executed (it has no tool_result, and the API rejects assistant
+      // tool_use blocks without a matching tool_result).
+      const executedIds = new Set(toolResultsThisPass.map((r) => r.id));
+      const assistantContent = truncated
+        ? (final.content as Array<{ type: string; id?: string }>).filter(
+            (b) => b.type !== "tool_use" || executedIds.has(b.id ?? ""),
+          )
+        : final.content;
+      loopMessages.push({ role: "assistant", content: assistantContent as never });
+      const feedbackContent: unknown[] = toolResultsThisPass.map((r) => ({
+        type: "tool_result" as const,
+        tool_use_id: r.id,
+        content: JSON.stringify(r.result),
+      }));
+      if (truncated) {
+        feedbackContent.push({
+          type: "text" as const,
+          text: "Your previous response was cut off by the output token limit. Continue where you left off: emit ONLY the remaining tool calls. Do not repeat any tool call that already has a result above.",
+        });
+      }
       loopMessages.push({
         role: "user",
-        content: toolResultsThisPass.map((r) => ({
-          type: "tool_result" as const,
-          tool_use_id: r.id,
-          content: JSON.stringify(r.result),
-        })) as never,
+        content: feedbackContent as never,
       });
     }
 

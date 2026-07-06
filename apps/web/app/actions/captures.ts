@@ -2,6 +2,7 @@
 
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
+import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import { db } from "@/lib/db";
 import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
 import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
@@ -140,6 +141,10 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
   // after() inside the helper so it never delays this response; the captures +
   // captures_hashtags Realtime subscriptions surface the result live.
   scheduleAutoTagging(result, userId, parsed.data.content);
+
+  // Issue #221: fetch rich link previews for any URLs in the content (+ the
+  // canonical url property). Also scheduled via after(); fail-soft.
+  scheduleLinkPreviews(userId, parsed.data.content, parsed.data.url);
 
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
@@ -299,6 +304,13 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
       if (person) personIds.push(person.id);
     }
     await reconcilePersonReferencesForUser(userId, "capture", parsed.data.id, personIds);
+  }
+
+  // Issue #221: refresh link previews when the content or url property changed.
+  // ensurePendingPreviews only fetches URLs without an existing row, so this
+  // never re-fetches already-cached links.
+  if (parsed.data.content !== undefined || parsed.data.url !== undefined) {
+    scheduleLinkPreviews(userId, parsed.data.content ?? "", parsed.data.url);
   }
 
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.

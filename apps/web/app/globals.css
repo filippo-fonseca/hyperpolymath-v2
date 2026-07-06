@@ -733,6 +733,209 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 /* =====================================================================
+   Receipt cards — neumorphic iMessage/Raycast hybrid (July 2026 redesign).
+
+   Cards materialize below Kiwi's prose as soft-UI tiles: a single
+   extruded surface per card with a gentle top-left highlight and a
+   grounded bottom-right shadow. Cyan is an accent (focus/hover), not
+   the dominant color. When multiple receipts stack in one turn, the
+   .receipt-group parent snugs their vertical rhythm and rounds only
+   the outermost corners so they read as an iMessage bubble stack.
+
+   Intent is a tactile inset chip (.receipt-chip) tinted by intent ink
+   with a small Lucide glyph. Undo is a self-erasing hairline that
+   depletes across the bottom edge of the card over 5s (10s on
+   suggested facts) plus a quietly fading "Undo" pill.
+   ===================================================================== */
+
+.receipt-card {
+  position: relative;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in oklch, var(--edge) 65%, transparent);
+  border-radius: 14px;
+  box-shadow:
+    var(--glass-raise),
+    var(--glass-drop),
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 -1px 0 var(--glass-lo);
+  transition:
+    border-color 220ms var(--ease-out-quart),
+    box-shadow 220ms var(--ease-out-quart),
+    background-color 220ms var(--ease-out-quart);
+}
+.receipt-card:hover {
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--edge));
+  box-shadow:
+    var(--glass-raise),
+    var(--glass-drop),
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 -1px 0 var(--glass-lo),
+    0 0 22px var(--hud-cyan-glow-soft);
+}
+.receipt-card:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklch, var(--hud-cyan) 55%, var(--edge));
+  box-shadow:
+    var(--glass-raise),
+    var(--glass-drop),
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 -1px 0 var(--glass-lo),
+    0 0 0 3px var(--hud-cyan-glow);
+}
+
+.receipt-card[data-status="queued"] {
+  opacity: 0.85;
+}
+
+.receipt-card[data-status="error"] {
+  border-left: 2px solid color-mix(in oklch, var(--ink-coral) 80%, transparent);
+}
+
+.receipt-card[data-undone="true"] {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+/* iMessage grouping — when receipts stack under a single turn, snug them
+   vertically and round only the outermost corners. Middle rows keep a
+   softer 6px radius so the stack reads as one bubble column. */
+.receipt-group > .receipt-card + .receipt-card {
+  margin-top: 4px;
+}
+.receipt-group > .receipt-card:not(:first-child):not(:last-child) {
+  border-radius: 8px;
+}
+.receipt-group > .receipt-card:first-child:not(:last-child) {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+.receipt-group > .receipt-card:last-child:not(:first-child) {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Intent chip — softly-inset tinted pill with the Lucide glyph.
+   Background is the intent ink at very low alpha; a whisper-thin
+   ring in the same ink ties it together. Reads as tactile, not HUD. */
+.receipt-chip {
+  --chip-ink: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklch, var(--chip-ink) 88%, var(--ink));
+  background: color-mix(in oklch, var(--chip-ink) 12%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, white 30%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 28%, transparent);
+}
+.dark .receipt-chip {
+  color: color-mix(in oklch, var(--chip-ink) 92%, var(--ink));
+  background: color-mix(in oklch, var(--chip-ink) 16%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, white 6%, transparent),
+    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 34%, transparent);
+}
+.receipt-chip svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+/* Undo affordance — a fading pill (right side) paired with a
+   thin hairline that depletes across the bottom edge. Both are
+   opt-in via the .receipt-undo-active class; both use the same
+   --undo-duration custom property so 5s vs 10s callers just pass
+   the number in inline style. */
+.receipt-undo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hud-cyan);
+  background: color-mix(in oklch, var(--hud-cyan) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 24%, transparent);
+  transition:
+    background-color 160ms var(--ease-out-quart),
+    color 160ms var(--ease-out-quart),
+    opacity 220ms var(--ease-out-quart);
+}
+.receipt-undo-pill:hover {
+  background: color-mix(in oklch, var(--hud-cyan) 16%, transparent);
+  color: var(--hud-cyan-bright);
+}
+.receipt-undo-hairline {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklch, var(--hud-cyan) 55%, transparent) 0%,
+    color-mix(in oklch, var(--hud-cyan) 20%, transparent) 100%
+  );
+  transform-origin: left center;
+  animation: receipt-undo-deplete var(--undo-duration, 5000ms) linear forwards;
+  pointer-events: none;
+}
+@keyframes receipt-undo-deplete {
+  from {
+    transform: scaleX(1);
+    opacity: 0.85;
+  }
+  to {
+    transform: scaleX(0);
+    opacity: 0.4;
+  }
+}
+
+/* Queued shimmer — reuses the existing hud-receipt-shimmer keyframes
+   but scoped to a subtler .receipt-shimmer overlay so we don't drag
+   the old busy border-trace into the new cards. */
+.receipt-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--hud-cyan) 12%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: hud-receipt-shimmer 1800ms linear infinite;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-undo-hairline,
+  .receipt-shimmer {
+    animation: none !important;
+  }
+  .receipt-undo-hairline {
+    transform: scaleX(1);
+    opacity: 0.5;
+  }
+}
+
+/* =====================================================================
    Phase 6.1 Plan 06.1-01 — Reduced-motion fallback (UI-SPEC §7h, §11c).
    Disables every .hud-* keyframe animation when the user has
    prefers-reduced-motion: reduce set. Also zeroes view-transition

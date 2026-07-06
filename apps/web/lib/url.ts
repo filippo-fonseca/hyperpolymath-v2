@@ -185,3 +185,31 @@ export function mergeContentUrls(
   const primary = normalizeUrl(existing.url ?? "") ?? merged[0] ?? null;
   return { url: primary, urls: merged };
 }
+
+/**
+ * Extract every bare URL from a text run as absolute hrefs, deduped and in order
+ * of first appearance (issue #221). Optionally seed with an already-normalized
+ * canonical URL (the capture's `url` property) so it participates in previews too.
+ */
+export function extractUrls(input: string, seed?: string | null): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (href: string) => {
+    if (!seen.has(href)) {
+      seen.add(href);
+      out.push(href);
+    }
+  };
+  if (seed) {
+    const normalized = normalizeUrl(seed);
+    if (normalized) push(normalized);
+  }
+  for (const seg of splitTextWithUrls(input)) {
+    if (seg.href) {
+      // Normalize so the stored cache key matches the API lookup key exactly.
+      const normalized = normalizeUrl(seg.href);
+      if (normalized) push(normalized);
+    }
+  }
+  return out;
+}
