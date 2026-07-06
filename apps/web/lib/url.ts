@@ -121,6 +121,9 @@ export function extractUrlsFromContent(content: string | null | undefined): stri
     const display = trailing ? raw.slice(0, raw.length - trailing[0].length) : raw;
     const normalized = normalizeUrl(display);
     if (!normalized) continue;
+    // Cap at the same length the persistence contract enforces (2048) so a
+    // derived link always round-trips back through validation on the next save.
+    if (normalized.length > 2048) continue;
     const key = normalized.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
