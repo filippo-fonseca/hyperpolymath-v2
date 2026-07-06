@@ -56,6 +56,7 @@ import {
   type PersonRefFromType,
 } from "@/app/actions/people";
 import { getPeopleForUser } from "@/lib/db/queries/people";
+import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { deriveSingleUrl, mergeContentUrls } from "@/lib/url";
 import {
   createEventForJarvis,
@@ -297,6 +298,9 @@ export function createServerExecutor(): ActionExecutor {
         scheduleAutoTagging(captureId, ctx.userId, input.content);
         // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
         scheduleLinkPreviews(ctx.userId, input.content);
+        // Auto-derive linked people from the body (parity with the web + device
+        // create paths). Background Haiku match; fail-soft.
+        scheduleEntityPeopleDerivation("capture", captureId, ctx.userId, input.content);
         return {
           ok: true,
           id: captureId,
@@ -640,6 +644,10 @@ export function createServerExecutor(): ActionExecutor {
       // hashtags and project_ids updates are MVP-deferred: same join-table
       // concern as updateTask.project_ids. The content update is what matters
       // for the JARVIS correction flow ("change that qc to say X instead").
+      // Re-derive linked people over the new body (additive; fail-soft).
+      if (input.content != null) {
+        scheduleEntityPeopleDerivation("capture", input.id, ctx.userId, input.content);
+      }
       return {
         ok: true,
         id: input.id,

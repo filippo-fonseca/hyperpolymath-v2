@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { extractEmailAddress, isAllowedAgentMailSender } from "@/lib/agentmail/webhook";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
+import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { db } from "@/lib/db";
 import { agentmailIngestEvents, captures, tasks, users } from "@/lib/db/schema";
 import { HAIKU_MODEL, getAnthropicClient } from "@/lib/jarvis/anthropic-client";
@@ -279,6 +280,9 @@ export async function processAgentMailReceivedEvent(event: AgentMailReceivedEven
     });
 
     scheduleAutoTagging(captureId, owner.id, content);
+    // Auto-derive linked people from the email capture body (parity with the
+    // web + JARVIS + device paths). Background Haiku match; fail-soft.
+    scheduleEntityPeopleDerivation("capture", captureId, owner.id, content);
     await replyWithReceipt({ message, captureId, taskCount: createdTaskIds.length });
     return { status: "done", captureId, taskCount: createdTaskIds.length };
   } catch (err) {
