@@ -1,9 +1,9 @@
-// Issue #221 — query helpers for the cached link_previews table.
-import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { linkPreviews } from "@/lib/db/schema";
 import type { LinkPreviewRecord } from "@/lib/link-preview/types";
 import type { LinkPreviewResult } from "@/lib/link-preview/types";
+// Issue #221 — query helpers for the cached link_previews table.
+import { and, eq, inArray } from "drizzle-orm";
 
 function toRecord(row: typeof linkPreviews.$inferSelect): LinkPreviewRecord {
   return {
@@ -22,7 +22,7 @@ function toRecord(row: typeof linkPreviews.$inferSelect): LinkPreviewRecord {
 /** Fetch cached previews for a set of URLs belonging to one user. */
 export async function getLinkPreviews(
   userId: string,
-  urls: string[],
+  urls: string[]
 ): Promise<LinkPreviewRecord[]> {
   const unique = Array.from(new Set(urls.filter(Boolean)));
   if (unique.length === 0) return [];
@@ -34,10 +34,7 @@ export async function getLinkPreviews(
 }
 
 /** Which of the given URLs already have a row (any status) for this user. */
-export async function getExistingPreviewUrls(
-  userId: string,
-  urls: string[],
-): Promise<Set<string>> {
+export async function getExistingPreviewUrls(userId: string, urls: string[]): Promise<Set<string>> {
   const unique = Array.from(new Set(urls.filter(Boolean)));
   if (unique.length === 0) return new Set();
   const rows = await db
@@ -52,10 +49,7 @@ export async function getExistingPreviewUrls(
  * row for this user. No-op on conflict (the (user_id, url) unique index). Returns
  * the URLs that were newly inserted (i.e. still need fetching).
  */
-export async function ensurePendingPreviews(
-  userId: string,
-  urls: string[],
-): Promise<string[]> {
+export async function ensurePendingPreviews(userId: string, urls: string[]): Promise<string[]> {
   const unique = Array.from(new Set(urls.filter(Boolean)));
   if (unique.length === 0) return [];
   const existing = await getExistingPreviewUrls(userId, unique);
@@ -69,10 +63,7 @@ export async function ensurePendingPreviews(
 }
 
 /** Upsert the resolved metadata for a URL (keyed on user_id + url). */
-export async function upsertLinkPreview(
-  userId: string,
-  result: LinkPreviewResult,
-): Promise<void> {
+export async function upsertLinkPreview(userId: string, result: LinkPreviewResult): Promise<void> {
   const values = {
     userId,
     url: result.url,

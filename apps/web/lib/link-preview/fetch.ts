@@ -65,8 +65,7 @@ function extractMeta(html: string): {
   const metaVal = (keys: string[]): string | null => {
     for (const key of keys) {
       const el =
-        root.querySelector(`meta[property="${key}"]`) ||
-        root.querySelector(`meta[name="${key}"]`);
+        root.querySelector(`meta[property="${key}"]`) || root.querySelector(`meta[name="${key}"]`);
       const content = el?.getAttribute("content");
       if (content?.trim()) return content.trim();
     }
@@ -103,7 +102,7 @@ async function fetchOEmbed(endpoint: string): Promise<OEmbed | null> {
 async function fetchYouTube(url: string, videoId: string): Promise<LinkPreviewResult> {
   const thumb = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
   const oembed = await fetchOEmbed(
-    `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+    `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
   );
   const provider: LinkPreviewProviderData = {
     youtubeVideoId: videoId,
@@ -136,7 +135,7 @@ function tweetTextFromHtml(html: string | undefined): string | null {
 
 async function fetchTwitter(url: string): Promise<LinkPreviewResult> {
   const oembed = await fetchOEmbed(
-    `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=1&dnt=true`,
+    `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=1&dnt=true`
   );
   if (!oembed) {
     // Degrade: still a recognizable X card even without the tweet body.

@@ -1,3 +1,7 @@
+import { getLinkPreviews } from "@/lib/db/queries/link-previews";
+import { scheduleLinkPreviewUrls } from "@/lib/link-preview/schedule";
+import { createClient } from "@/lib/supabase/server";
+import { normalizeUrl } from "@/lib/url";
 /**
  * /api/captures/link-preview — read cached link-preview metadata for a set of
  * URLs, and lazily trigger a fetch for any not yet seen (issue #221,
@@ -10,10 +14,6 @@
  * Runtime: Node (outbound fetch + Drizzle).
  */
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getLinkPreviews } from "@/lib/db/queries/link-previews";
-import { scheduleLinkPreviewUrls } from "@/lib/link-preview/schedule";
-import { normalizeUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,8 +40,8 @@ export async function POST(req: Request): Promise<Response> {
       raw
         .filter((u): u is string => typeof u === "string")
         .map((u) => normalizeUrl(u))
-        .filter((u): u is string => u != null),
-    ),
+        .filter((u): u is string => u != null)
+    )
   ).slice(0, MAX_URLS);
 
   if (urls.length === 0) {

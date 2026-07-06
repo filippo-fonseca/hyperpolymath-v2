@@ -36,8 +36,7 @@ export function isTwitterStatusUrl(raw: string): boolean {
   const u = safeParseUrl(raw);
   if (!u) return false;
   const host = hostname(u);
-  const isTwitterHost =
-    host === "twitter.com" || host === "x.com" || host === "mobile.twitter.com";
+  const isTwitterHost = host === "twitter.com" || host === "x.com" || host === "mobile.twitter.com";
   return isTwitterHost && /\/status(?:es)?\/\d+/.test(u.pathname);
 }
 

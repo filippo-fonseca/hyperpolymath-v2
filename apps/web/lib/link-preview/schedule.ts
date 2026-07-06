@@ -1,3 +1,5 @@
+import { ensurePendingPreviews, upsertLinkPreview } from "@/lib/db/queries/link-previews";
+import { extractUrls } from "@/lib/url";
 /**
  * schedule.ts — background link-preview fetching for captures (issue #221).
  *
@@ -9,8 +11,6 @@
  * link, nothing breaks the create/update path.
  */
 import { after } from "next/server";
-import { extractUrls } from "@/lib/url";
-import { ensurePendingPreviews, upsertLinkPreview } from "@/lib/db/queries/link-previews";
 import { fetchLinkPreview } from "./fetch";
 
 const MAX_URLS_PER_CAPTURE = 8;
@@ -43,7 +43,7 @@ async function fetchAndStore(userId: string, urls: string[]): Promise<void> {
 export function scheduleLinkPreviews(
   userId: string,
   content: string,
-  seedUrl?: string | null,
+  seedUrl?: string | null
 ): void {
   const urls = extractUrls(content, seedUrl).slice(0, MAX_URLS_PER_CAPTURE);
   scheduleLinkPreviewUrls(userId, urls);
