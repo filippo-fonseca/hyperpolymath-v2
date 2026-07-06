@@ -3,6 +3,7 @@
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { WorldDataProvider } from "./data/WorldDataProvider";
 
 /**
  * WorldScene — the composition root of The Studiolo (U-02 scaffold).
@@ -22,14 +23,17 @@ export interface WorldSceneProps {
   initialCaptures: CaptureWithLinks[];
 }
 
-export function WorldScene(_props: WorldSceneProps): React.ReactElement {
+export function WorldScene(props: WorldSceneProps): React.ReactElement {
   return (
-    <>
-      {/* ── Data bridge (U-04) ──────────────────────────────────────────────
-          Later: <WorldDataProvider {...props}> wraps everything below so scene
-          systems read the shared TanStack Query caches. For now props are held
-          but unused — the smoke scene needs no data. */}
-
+    // The data bridge (U-04) wraps the whole scene INSIDE <Canvas> so every
+    // system reads the shared TanStack Query caches via useWorldData(). Mounted
+    // at the wave-1 boundary by the orchestrator.
+    <WorldDataProvider
+      userId={props.userId}
+      initialTree={props.initialTree}
+      initialTasks={props.initialTasks}
+      initialCaptures={props.initialCaptures}
+    >
       {/* Dim ambient so the placeholder is visible against the #120E0B clear. */}
       <ambientLight intensity={0.4} color="#F2E9D8" />
 
@@ -50,18 +54,12 @@ export function WorldScene(_props: WorldSceneProps): React.ReactElement {
       {/* ── Mount slots for later work-units (one-line insertions) ──────────
           Wired at wave boundaries by the orchestrator; keep this list current.
 
-          <CameraRig/>        camera guided flight            [U-07]
-          <Atmosphere/>       floor · environment · lights    [U-08]
-          <TreeSystem/>       trunk · boughs · lanterns       [U-06, U-10]
-          <Embers/>           task ember InstancedMesh        [U-09]
-          <Fireflies/>        capture firefly swarm           [U-14]
-          <WorldLabels/>      SDF captions                    [U-11]
-          <Ledger/>           bottom-center strip             [U-11]
-          <TodayPanel/>       uikit today panel               [U-12]
-          <JarvisRing/>       ring + ribbon                   [U-13]
-          <Litany/>           6s boot sequence                [U-17]
-          <PostFX/>           Bloom + Vignette composer       [U-08]
-          <PerfGovernor/>     PerformanceMonitor ladder       [U-20] */}
-    </>
+          Wave 2: <CameraRig/> [U-07] · <Atmosphere/> + <PostFX/> [U-08]
+                  <Trunk/> + <Boughs/> [U-06] · <Lanterns/> [U-10] · <Embers/> [U-09]
+          Wave 3: <Fireflies/> [U-14] · <WorldLabels/> + <Ledger/> [U-11]
+                  <TodayPanel/> [U-12] · <JarvisRing/> [U-13]
+          Wave 4: <Litany/> [U-17]
+          Wave 5: <PerfGovernor/> [U-20] */}
+    </WorldDataProvider>
   );
 }
