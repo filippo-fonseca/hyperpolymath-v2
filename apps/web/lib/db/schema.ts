@@ -260,7 +260,17 @@ export const captures = pgTable(
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the capture (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    // Kept as the primary/canonical link for backward-compatible single-link
+    // reads (feed, MCP export); mirrors urls[0].
     url: text("url"),
+    // Multi-URL property (migration 0028 / 0045). The full ordered, de-duped set
+    // of links attached to the capture — manual entries plus any auto-derived
+    // from the body. Derivation only ever ADDS links (never removes/overwrites),
+    // so any link present in the content stays indexed here. Empty '{}' = none.
+    urls: text("urls")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
