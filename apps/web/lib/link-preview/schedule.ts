@@ -46,10 +46,20 @@ export function scheduleLinkPreviews(
   seedUrl?: string | null,
 ): void {
   const urls = extractUrls(content, seedUrl).slice(0, MAX_URLS_PER_CAPTURE);
-  if (urls.length === 0) return;
+  scheduleLinkPreviewUrls(userId, urls);
+}
+
+/**
+ * Schedule background fetching for an explicit list of URLs (issue #221). Used by
+ * the on-view API route. Inserts pending rows, then fetches only the ones that
+ * didn't already have a row. Runs after the response via after(); fail-soft.
+ */
+export function scheduleLinkPreviewUrls(userId: string, urls: string[]): void {
+  const capped = Array.from(new Set(urls.filter(Boolean))).slice(0, MAX_URLS_PER_CAPTURE);
+  if (capped.length === 0) return;
   after(async () => {
     try {
-      const missing = await ensurePendingPreviews(userId, urls);
+      const missing = await ensurePendingPreviews(userId, capped);
       await fetchAndStore(userId, missing);
     } catch (err) {
       console.error("[link-preview] scheduling failed", err);

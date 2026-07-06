@@ -122,7 +122,11 @@ export function extractUrls(input: string, seed?: string | null): string[] {
     if (normalized) push(normalized);
   }
   for (const seg of splitTextWithUrls(input)) {
-    if (seg.href) push(seg.href);
+    if (seg.href) {
+      // Normalize so the stored cache key matches the API lookup key exactly.
+      const normalized = normalizeUrl(seg.href);
+      if (normalized) push(normalized);
+    }
   }
   return out;
 }
