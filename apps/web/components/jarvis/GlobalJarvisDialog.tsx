@@ -65,6 +65,7 @@ export function GlobalJarvisDialog() {
       if (e.shiftKey) return; // Cmd+Shift+K is reserved for CommandMenu.
       if (e.key !== "k" && e.key !== "K") return;
       if (pathname?.startsWith("/today")) return;
+      if (pathname?.startsWith("/world")) return; // U-13: the world owns Cmd+K (ring summon)
       e.preventDefault();
       e.stopPropagation();
       setOpen(true);
