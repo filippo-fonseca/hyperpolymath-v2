@@ -18,6 +18,88 @@ import type { DesktopSettings } from "@/settings";
 
 type StatusTone = "muted" | "ok" | "warn" | "err";
 
+/** Bridge lifecycle state (Phase 1 `/api/health` contract). */
+type BridgeState = "connecting" | "connected" | "reconnecting" | "logged_out" | "perm_failure";
+
+/** Shape of the Phase 1 `/api/health` payload. All fields optional so we stay
+ *  defensive against an OLD bridge binary that only returns the two legacy
+ *  booleans (`connected`/`loggedIn`). */
+interface HealthBody {
+  connected?: boolean;
+  loggedIn?: boolean;
+  state?: BridgeState;
+  reason?: string;
+  lastConnected?: string;
+  lastDisconnected?: string;
+  degraded?: boolean;
+}
+
+/** Resolved UI status derived from a health read (or a fetch failure). */
+interface UiStatus {
+  text: string;
+  tone: StatusTone;
+  /** Which reconnect flow the button should offer for this status. */
+  action: "reconnect" | "relink";
+  /** True when the bridge needs a fresh QR scan (drives the overlay hint). */
+  needsQr: boolean;
+}
+
+/** Poll cadence while the Settings drawer is open. */
+const HEALTH_POLL_MS = 10_000;
+
+/**
+ * Map a `/api/health` body to a UI status.
+ *
+ * Prefers the Phase 1 `state` field. If `state` is ABSENT (old bridge binary),
+ * falls back to the legacy `connected`/`loggedIn` booleans so nothing breaks
+ * against a non-upgraded bridge.
+ */
+function statusFromHealth(body: HealthBody): UiStatus {
+  // Phase 1 path: authoritative `state` enum.
+  if (body.state) {
+    switch (body.state) {
+      case "connected":
+        return { text: "connected", tone: "ok", action: "reconnect", needsQr: false };
+      case "connecting":
+        return { text: "connecting…", tone: "warn", action: "reconnect", needsQr: false };
+      case "reconnecting":
+        return { text: "reconnecting…", tone: "warn", action: "reconnect", needsQr: false };
+      case "logged_out":
+        return {
+          text: "not linked — scan QR",
+          tone: "warn",
+          action: "relink",
+          needsQr: true,
+        };
+      case "perm_failure": {
+        // Surface the bridge's reason verbatim (e.g. "stream replaced",
+        // "temp-banned until …", "bridge outdated — rebuild").
+        const reason = body.reason?.trim();
+        return {
+          text: reason && reason.length > 0 ? reason : "connection failed",
+          tone: "err",
+          action: "reconnect",
+          needsQr: false,
+        };
+      }
+    }
+  }
+
+  // `degraded` keepalive flag (Phase 1) — treat as reconnecting, not offline.
+  if (body.degraded) {
+    return { text: "reconnecting…", tone: "warn", action: "reconnect", needsQr: false };
+  }
+
+  // Legacy fallback: no `state` field → map from the two booleans as before.
+  if (body.connected && body.loggedIn) {
+    return { text: "connected", tone: "ok", action: "reconnect", needsQr: false };
+  }
+  if (body.loggedIn) {
+    return { text: "reconnecting…", tone: "warn", action: "reconnect", needsQr: false };
+  }
+  return { text: "not linked", tone: "warn", action: "relink", needsQr: true };
+}
+
 const TONE_COLORS: Record<StatusTone, string> = {
   muted: "var(--muted)",
   // Reuse the "connected" green (mirrors sse-status ok) if the CSS var exists;
@@ -34,55 +116,109 @@ function setStatus(el: HTMLElement, text: string, tone: StatusTone = "muted"): v
 
 /** Wire the whole WhatsApp section. Called once from boot(). */
 export async function wireWhatsappSettings(settings: DesktopSettings): Promise<void> {
-  const btn = document.getElementById("wa-reconnect");
-  const statusEl = document.getElementById("wa-status");
-  if (!(btn instanceof HTMLButtonElement) || !(statusEl instanceof HTMLElement)) {
+  const btnEl = document.getElementById("wa-reconnect");
+  const statusElRaw = document.getElementById("wa-status");
+  if (!(btnEl instanceof HTMLButtonElement) || !(statusElRaw instanceof HTMLElement)) {
     // eslint-disable-next-line no-console
     console.warn("[whatsapp-settings] elements missing; skipping WhatsApp settings wiring");
     return;
   }
+  // Bind narrowed types into consts the nested closures below can rely on
+  // (control-flow narrowing from the guard doesn't propagate into closures).
+  const btn: HTMLButtonElement = btnEl;
+  const statusEl: HTMLElement = statusElRaw;
 
   const bridgeUrl = settings.whatsappBridgeUrl.replace(/\/$/, "");
 
+  // The reconnect flow the button currently offers, kept in sync with the last
+  // health read. Defaults to a plain reconnect until the first poll resolves.
+  let currentAction: UiStatus["action"] = "reconnect";
+
+  /** Adapt the button label to the current bridge state. */
+  function labelForAction(action: UiStatus["action"]): string {
+    return action === "relink" ? "Re-link (scan QR)" : "Reconnect";
+  }
+
+  function applyStatus(status: UiStatus): void {
+    setStatus(statusEl, status.text, status.tone);
+    currentAction = status.action;
+    // Only touch the label when the button is idle — never stomp the transient
+    // "Reconnecting…" label mid-click.
+    if (!btn.disabled) {
+      btn.textContent = labelForAction(status.action);
+    }
+  }
+
   // Event-driven pill. The Rust side already emits these events for the QR
-  // overlay; we ride the same signals for the status text.
+  // overlay (whatsapp-qr.ts renders the actual code); we ride the same signals
+  // for the status text so first-run pairing stays responsive between polls.
   void listen<string>("whatsapp-qr", () => {
-    setStatus(statusEl, "scan QR to link", "warn");
+    applyStatus({
+      text: "not linked — scan QR",
+      tone: "warn",
+      action: "relink",
+      needsQr: true,
+    });
   });
   void listen("whatsapp-ready", () => {
-    setStatus(statusEl, "connected", "ok");
+    applyStatus({ text: "connected", tone: "ok", action: "reconnect", needsQr: false });
   });
 
-  // Seed the pill once by asking the bridge directly. Mirrors confirm-gate.ts's
-  // pattern (global fetch to http://localhost:8080), which the plugin-http
-  // capability already allows. Failure is cosmetic — never blocks the button.
-  try {
-    const res = await fetch(`${bridgeUrl}/api/health`, { method: "GET" });
-    if (res.ok) {
-      const body = (await res.json()) as { connected?: boolean; loggedIn?: boolean };
-      if (body.connected && body.loggedIn) {
-        setStatus(statusEl, "connected", "ok");
-      } else if (body.loggedIn) {
-        setStatus(statusEl, "reconnecting…", "warn");
+  // Poll the bridge health on an interval while Settings is open. Prefers the
+  // Phase 1 `state` field, falls back to legacy booleans (see statusFromHealth).
+  // A fetch failure now means EXCLUSIVELY "no process on :8080" — an accurate
+  // "bridge offline". Failure is cosmetic and never blocks the button.
+  async function refreshStatus(): Promise<void> {
+    // Don't clobber the pill/label while a reconnect is mid-flight.
+    if (btn.disabled) return;
+    try {
+      const res = await fetch(`${bridgeUrl}/api/health`, { method: "GET" });
+      if (res.ok) {
+        const body = (await res.json()) as HealthBody;
+        applyStatus(statusFromHealth(body));
       } else {
-        setStatus(statusEl, "not linked", "warn");
+        // HTTP served but not OK — the process is up but unhappy. Not "offline".
+        applyStatus({
+          text: `bridge http ${res.status}`,
+          tone: "err",
+          action: "reconnect",
+          needsQr: false,
+        });
       }
-    } else {
-      setStatus(statusEl, `bridge http ${res.status}`, "err");
+    } catch {
+      // No response at all → nothing is listening on :8080.
+      applyStatus({
+        text: "bridge offline",
+        tone: "err",
+        action: "reconnect",
+        needsQr: false,
+      });
     }
-  } catch {
-    setStatus(statusEl, "bridge offline", "err");
   }
+
+  await refreshStatus();
+  const pollTimer = window.setInterval(() => {
+    void refreshStatus();
+  }, HEALTH_POLL_MS);
+  window.addEventListener("beforeunload", () => {
+    window.clearInterval(pollTimer);
+  });
 
   // Button click: fire the Tauri command and reflect state on the pill. The
   // command is idempotent on the bridge side (logout of a device-less store
   // returns "already logged out"), so double-clicks are safe; the disabled
-  // flag is just UX polish.
+  // flag is just UX polish. The label already reflects the current action
+  // (Reconnect vs Re-link) from the latest poll.
   btn.addEventListener("click", () => {
-    const originalLabel = btn.textContent ?? "Reconnect";
+    const relinking = currentAction === "relink";
+    const idleLabel = labelForAction(currentAction);
     btn.disabled = true;
-    btn.textContent = "Reconnecting…";
-    setStatus(statusEl, "re-pairing — scan the QR", "warn");
+    btn.textContent = relinking ? "Re-linking…" : "Reconnecting…";
+    setStatus(
+      statusEl,
+      relinking ? "re-pairing — scan the QR" : "reconnecting…",
+      "warn",
+    );
     void invoke<string>("whatsapp_reconnect", { bridgeUrl })
       .then((msg) => {
         // eslint-disable-next-line no-console
@@ -96,7 +232,9 @@ export async function wireWhatsappSettings(settings: DesktopSettings): Promise<v
       })
       .finally(() => {
         btn.disabled = false;
-        btn.textContent = originalLabel;
+        btn.textContent = idleLabel;
+        // Re-sync immediately so the label/pill reflect the post-action state.
+        void refreshStatus();
       });
   });
 }
