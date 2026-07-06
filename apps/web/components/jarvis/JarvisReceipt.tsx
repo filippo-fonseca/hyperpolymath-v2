@@ -129,16 +129,25 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const navRef = ok && !undone && entityId ? receiptEntityRef(action.name, entityId) : null;
   const navHref = navRef ? entityHref(navRef) : null;
 
-  function fmtDate(iso: unknown, allDay?: boolean): string {
-    if (typeof iso !== "string") return String(iso ?? "");
-    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
-    const d = dateOnly
-      ? (() => {
-          const [y, m, day] = iso.split("-").map(Number);
-          return new Date(y, m - 1, day);
-        })()
-      : new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
+  function fmtDate(input: unknown, allDay?: boolean): string {
+    let d: Date;
+    let dateOnly = false;
+    if (input instanceof Date) {
+      d = input;
+    } else if (typeof input === "string") {
+      const iso = input;
+      dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+      d = dateOnly
+        ? (() => {
+            const [y, m, day] = iso.split("-").map(Number);
+            return new Date(y, m - 1, day);
+          })()
+        : new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+    } else {
+      return String(input ?? "");
+    }
+    if (Number.isNaN(d.getTime())) return "";
 
     let inferredAllDay: boolean;
     if (dateOnly) {
@@ -167,14 +176,71 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     if (inferredAllDay) {
       if (sameDay) return "today";
       if (isTomorrow) return "tomorrow";
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     }
-    return d.toLocaleString("en-US", {
+    if (sameDay) {
+      return `Today at ${d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`;
+    }
+    if (isTomorrow) {
+      return `Tomorrow at ${d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`;
+    }
+    return d.toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
     });
+  }
+
+  const TIMESTAMP_KEYS = new Set([
+    "updatedAt",
+    "createdAt",
+    "due",
+    "dueDate",
+    "start",
+    "end",
+    "startDate",
+    "endDate",
+    "scheduledAt",
+    "completedAt",
+  ]);
+
+  function isTimestampValue(key: string, value: unknown): boolean {
+    if (value instanceof Date) return true;
+    if (TIMESTAMP_KEYS.has(key) && typeof value === "string") {
+      return !Number.isNaN(new Date(value).getTime());
+    }
+    return false;
+  }
+
+  function fmtChangeValue(key: string, value: unknown): string {
+    if (value == null) return "—";
+    if (isTimestampValue(key, value)) return fmtDate(value);
+    if (typeof value === "boolean") return value ? "yes" : "no";
+    if (typeof value === "object") {
+      // gcal event start/end are {dateTime, date} objects
+      const obj = value as { dateTime?: unknown; date?: unknown };
+      if (obj.dateTime != null) return fmtDate(obj.dateTime);
+      if (obj.date != null) return fmtDate(obj.date, true);
+      return JSON.stringify(value);
+    }
+    return String(value);
+  }
+
+  function prettifyFieldName(key: string): string {
+    // camelCase / snake_case → Sentence case
+    const spaced = key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/[_-]+/g, " ")
+      .trim()
+      .toLowerCase();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
   }
 
   const isError = !ok;
@@ -375,36 +441,68 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
               )}
             </div>
           ) : null}
-          {action.name.startsWith("update_") ? (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 mt-1">
-              {Object.entries((receipt.changes ?? {}) as Record<string, unknown>).map(
-                ([field, value]) => (
-                  <Fragment key={field}>
-                    <dt
-                      className="font-mono text-[11px] tracking-[0.02em] self-center"
-                      style={{ color: "var(--ink-muted)" }}
-                    >
-                      {field}
-                    </dt>
-                    <dd className="font-serif text-sm">
-                      <span className="text-[var(--ink-muted)] mr-1">→</span>
-                      <span style={{ color: "var(--ink-amber)" }}>{String(value)}</span>
-                    </dd>
-                  </Fragment>
-                )
-              )}
-              {Object.keys((receipt.changes ?? {}) as Record<string, unknown>).length === 0 ? (
-                <Fragment>
-                  <dt
-                    className="font-mono text-[11px] col-span-2"
-                    style={{ color: "var(--ink-muted)" }}
-                  >
-                    {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
-                  </dt>
-                </Fragment>
-              ) : null}
-            </dl>
-          ) : null}
+          {action.name.startsWith("update_") ? (() => {
+            const rawChanges = (receipt.changes ?? {}) as Record<string, unknown>;
+            const before = (receipt.before ?? {}) as Record<string, unknown>;
+            // Hoist updatedAt out of the visible diff — it's implementation
+            // churn, not a change the user asked for. Surface it once as a
+            // human-readable footer instead.
+            const { updatedAt, ...visibleChanges } = rawChanges;
+            const visibleEntries = Object.entries(visibleChanges);
+            return (
+              <>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mt-1">
+                  {visibleEntries.map(([field, value]) => {
+                    const beforeVal = before[field];
+                    const hasBefore = beforeVal != null && beforeVal !== "";
+                    return (
+                      <Fragment key={field}>
+                        <dt
+                          className="font-mono text-[11px] tracking-[0.02em] self-center uppercase"
+                          style={{ color: "var(--ink-muted)" }}
+                        >
+                          {prettifyFieldName(field)}
+                        </dt>
+                        <dd className="font-serif text-sm leading-snug">
+                          {hasBefore ? (
+                            <>
+                              <span
+                                className="line-through"
+                                style={{ color: "var(--ink-muted)" }}
+                              >
+                                {fmtChangeValue(field, beforeVal)}
+                              </span>
+                              <span className="mx-1.5 text-[var(--ink-muted)]">→</span>
+                            </>
+                          ) : (
+                            <span className="text-[var(--ink-muted)] mr-1">→</span>
+                          )}
+                          <span style={{ color: "var(--ink-amber)" }}>
+                            {fmtChangeValue(field, value)}
+                          </span>
+                        </dd>
+                      </Fragment>
+                    );
+                  })}
+                  {visibleEntries.length === 0 ? (
+                    <Fragment>
+                      <dt
+                        className="font-mono text-[11px] col-span-2"
+                        style={{ color: "var(--ink-muted)" }}
+                      >
+                        {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
+                      </dt>
+                    </Fragment>
+                  ) : null}
+                </dl>
+                {isTimestampValue("updatedAt", updatedAt) ? (
+                  <div className={cn(metaCls, "mt-2")}>
+                    Updated {fmtDate(updatedAt).toLowerCase()}
+                  </div>
+                ) : null}
+              </>
+            );
+          })() : null}
           {action.name.startsWith("delete_") ? (
             <div className="flex items-baseline gap-2">
               <span
