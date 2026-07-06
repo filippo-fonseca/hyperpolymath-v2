@@ -40,19 +40,23 @@ Phase 1 waves (file-disjoint, parallel within a wave):
 ## MODE: AUTONOMOUS CONDUCT — user is away; drive all waves without asking permission. bgsd workflow, subagents, atomic commits.
 
 ## Live status
-- ✅ U-01 deps-config — commit 74744b4 (pnpm, versions pinned, three transpiled).
-- ✅ U-05 assets — commit fe44ab6 (EB Garamond TTF+OFL+fonts.ts; HDRI→Environment preset, SFX→WebAudio synth documented).
-- ✅ U-02 island-scaffold — commit 4d4cfd1 (/world route, ssr:false island, WebGL2 gate, code-split confirmed). NOTE: real capture type is `CaptureWithLinks` via `getCapturesForUser` (NOT placeholder CaptureRow) — U-04 must match.
-- ✅ fonts.ts glyph-set syntax fix — commit 8be520c (Conductor fix; U-05's ASCII-quote bug).
-- ✅ U-03 pre-plan → preplans/U-03-tokens-materials.md (froze shader contract: chainOnBeforeCompile, aState itemSize2, cache key studiolo:sf@1|ember@1, embers own material instance).
-- ✅ U-04 pre-plan → preplans/U-04-data-bridge.md
-- ⏳ U-03 tokens-materials EXEC (opus) — 4d0785c0-ccdf-4b5e-84f6-d8b108e40bf1
-- ⏳ U-04 data-bridge EXEC (opus) — b9975cc9-04de-47b0-9707-e19ab20cbbfa
+### ✅ Wave 1 — DONE + integrated
+- U-01 deps-config 74744b4 · U-05 assets fe44ab6 · U-02 island-scaffold 4d4cfd1 · fonts fix 8be520c · U-03 materials 68a9b36 · U-04 data-bridge (2 commits, 38 tests green).
+- Integration: WorldDataProvider mounted in WorldScene 974670e · docs(planning) 5f9f3fa.
+- FROZEN contracts (do not break): `worldEvents` 5 names (task-completed/capture-created/chime/jarvis-action/boot-complete); `CameraBus`/`CameraPose` (U-07 implements `export const cameraBus`); `FireflyBus`/`FlightRequest` (U-14); `solveTreeLayout`/`boughPoint`/`emberShellPosition`/`trunkShellPosition`/`classifyTask`/`hasFilament`/`filamentScaleY`/`buildEmberSlots`/`diffSnapshots`/`useWorldData`/`hash01`; `EMBER_VISUALS`; shader treaty in hologram.ts (`chainOnBeforeCompile`, `aState` itemSize2, cache key `ember@1`, embers own material instance).
+- Capture type is `CaptureWithLinks`; query keys: areas `tableKey("areas",uid)`, tasks `tableKey("tasks",uid)`, captures `[...tableKey("captures",uid),null]`.
 
-## When Wave 1 done (U-02, U-03, U-04 committed):
-1. docs(planning) commit for .planning/lifeos-redesign/** (VISION, TECH, PLAN, CODEBASE-MAP, SESSION-STATE, preplans).
-2. Wire WorldDataProvider into WorldScene/WorldCanvas (Conductor edit, atomic commit).
-3. Read frozen contracts from U-03/U-04 reports; open Wave 2: U-06 tree-geometry, U-07 camera-rig(+Fable pre-plan), U-08 atmosphere-post, U-09 ember-system(+Fable pre-plan), U-10 lantern-system. Fable pre-plans first (fresh, model pinned), then Opus execs. Wire each into WorldScene at boundary.
+### 🔄 Wave 2 — IN FLIGHT (launched, background)
+- 🧠 Fable pre-plan U-07 camera-rig → 03e2adc1-68cd-497f-a6c3-1e3d35cd1816 → preplans/U-07-camera-rig.md
+- 🧠 Fable pre-plan U-09 ember-system → 0ec400e1-e698-4944-ad27-52b848d074a4 → preplans/U-09-ember-system.md
+- 🔧 U-06 tree-geometry (opus) → fe2ee18f-f022-4f1b-ab5c-7a97577bb80a → tree/{Trunk,Boughs}.tsx, exports boughFocusPose
+- 🔧 U-08 atmosphere-post (opus) → 0c4a1827-ee0c-4180-ad47-ffd65ca365b9 → env/{Atmosphere,PostFX,DustMotes}.tsx, exports inlayRegistry
+- 🔧 U-10 lantern-system (opus) → bfadd41d-0e8f-4ed2-840d-e812af5f64f2 → tree/Lanterns.tsx, exports lanternPickMap
+
+### Wave 2 — remaining Conductor duties
+1. When U-07 pre-plan lands → launch U-07 EXEC (opus), but only AFTER U-06 + U-10 committed (needs boughFocusPose + lantern poses).
+2. When U-09 pre-plan lands → launch U-09 EXEC (opus) (needs only U-03/U-04, already done).
+3. When all Wave-2 execs committed → wire into WorldScene at boundary (Conductor edit): <Atmosphere/> <PostFX/> <Trunk/> <Boughs/> <Lanterns/> <Embers/> <CameraRig/>; remove smoke-test placeholder; atomic commit. Then open Wave 3.
 
 ## Conductor wiring duty
 WorldScene.tsx is the shared integration point — Conductor wires each wave's components into it at the wave boundary (not the unit agents) to avoid collisions. Commit planning docs as one docs(planning) commit after pre-plans finish writing.
