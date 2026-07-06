@@ -170,7 +170,7 @@ const UpdateCaptureSchema = z.object({
   urls: z.array(z.string().trim().max(2048)).max(50).optional(),
   // Resurfacing (remind-me) date. ISO datetime string to set/change, null to
   // clear, or absent to leave unchanged. Persisted verbatim as a timestamptz.
-  resurfaceAt: z.string().datetime({ offset: true }).nullable().optional(),
+  resurfaceAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 
 const SetCaptureFavoriteSchema = z.object({
