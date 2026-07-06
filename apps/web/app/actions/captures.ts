@@ -150,6 +150,31 @@ const UpdateCaptureSchema = z.object({
   url: z.string().trim().max(2048).nullable().optional(),
 });
 
+const SetCaptureFavoriteSchema = z.object({
+  id: z.string().uuid(),
+  favorite: z.boolean(),
+});
+
+export async function setCaptureFavorite(input: unknown): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SetCaptureFavoriteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  await db
+    .update(captures)
+    .set({ favorite: parsed.data.favorite, updatedAt: sql`now()` })
+    .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)));
+
+  // Realtime invalidates the captures feed; optimistic UI owns the immediate echo.
+  return { success: true, data: null };
+}
+
 export async function updateCapture(input: unknown): Promise<ActionResult<null>> {
   const userId = await getUserId();
   if (!userId) return { success: false, error: "Not authenticated" };

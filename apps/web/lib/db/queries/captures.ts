@@ -1,4 +1,3 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -9,6 +8,7 @@ import {
   peopleReferences,
   projects,
 } from "@/lib/db/schema";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 export interface CaptureWithLinks {
   id: string;
@@ -28,6 +28,8 @@ export interface CaptureWithLinks {
   sourceInput: string | null;
   /** Issue #101 — Notion-style URL property (NULL = unset). */
   url: string | null;
+  /** Issue #202 — starred/favorited quick captures stay in the main feed. */
+  favorite: boolean;
   hashtags: { id: string; displayName: string; name: string }[];
   /** @-mentioned people linked to this capture (Phase C). */
   people: { id: string; name: string }[];
@@ -41,7 +43,7 @@ export interface CaptureWithLinks {
  */
 export async function searchCapturesByContent(
   userId: string,
-  query: string,
+  query: string
 ): Promise<{ id: string; rank: number }[]> {
   const tokens = query
     .split(/\s+/)
@@ -59,14 +61,10 @@ export async function searchCapturesByContent(
     .where(
       and(
         eq(captures.userId, userId),
-        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`,
-      ),
+        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`
+      )
     )
-    .orderBy(
-      desc(
-        sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery}))`,
-      ),
-    )
+    .orderBy(desc(sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery}))`))
     .limit(10);
   return rows;
 }
@@ -79,7 +77,7 @@ export async function searchCapturesByContent(
  */
 export async function getCapturesForUser(
   userId: string,
-  opts: { hashtagId?: string; ids?: string[]; limit?: number } = {},
+  opts: { hashtagId?: string; ids?: string[]; limit?: number } = {}
 ): Promise<CaptureWithLinks[]> {
   const limit = opts.limit ?? 100;
 
@@ -92,6 +90,7 @@ export async function getCapturesForUser(
     sourceDevice: string | null;
     sourceInput: string | null;
     url: string | null;
+    favorite: boolean;
   }>;
 
   if (opts.ids !== undefined) {
@@ -107,6 +106,7 @@ export async function getCapturesForUser(
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
         url: captures.url,
+        favorite: captures.favorite,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -123,6 +123,7 @@ export async function getCapturesForUser(
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
         url: captures.url,
+        favorite: captures.favorite,
       })
       .from(captures)
       .innerJoin(
@@ -130,8 +131,8 @@ export async function getCapturesForUser(
         and(
           eq(capturesHashtags.captureId, captures.id),
           eq(capturesHashtags.hashtagId, opts.hashtagId),
-          eq(capturesHashtags.userId, userId),
-        ),
+          eq(capturesHashtags.userId, userId)
+        )
       )
       .where(eq(captures.userId, userId))
       .orderBy(desc(captures.createdAt))
@@ -147,6 +148,7 @@ export async function getCapturesForUser(
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
         url: captures.url,
+        favorite: captures.favorite,
       })
       .from(captures)
       .where(eq(captures.userId, userId))
@@ -167,10 +169,7 @@ export async function getCapturesForUser(
     .from(capturesHashtags)
     .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
     .where(
-      and(
-        eq(capturesHashtags.userId, userId),
-        inArray(capturesHashtags.captureId, captureIds),
-      ),
+      and(eq(capturesHashtags.userId, userId), inArray(capturesHashtags.captureId, captureIds))
     );
 
   const projLinks = await db
@@ -182,10 +181,7 @@ export async function getCapturesForUser(
     .from(capturesProjects)
     .innerJoin(projects, eq(projects.id, capturesProjects.projectId))
     .where(
-      and(
-        eq(capturesProjects.userId, userId),
-        inArray(capturesProjects.captureId, captureIds),
-      ),
+      and(eq(capturesProjects.userId, userId), inArray(capturesProjects.captureId, captureIds))
     );
 
   // Phase C: @-mentioned people linked to these captures, via the polymorphic
@@ -202,8 +198,8 @@ export async function getCapturesForUser(
       and(
         eq(peopleReferences.userId, userId),
         eq(peopleReferences.fromType, "capture"),
-        inArray(peopleReferences.fromId, captureIds),
-      ),
+        inArray(peopleReferences.fromId, captureIds)
+      )
     );
 
   const tagsByCapture = new Map<string, CaptureWithLinks["hashtags"]>();
@@ -255,18 +251,13 @@ export async function getCaptureCountForUser(userId: string): Promise<number> {
  */
 export async function getCapturesForProject(
   userId: string,
-  projectId: string,
+  projectId: string
 ): Promise<CaptureWithLinks[]> {
   const rows = await db
     .select({ id: captures.id })
     .from(capturesProjects)
     .innerJoin(captures, eq(captures.id, capturesProjects.captureId))
-    .where(
-      and(
-        eq(capturesProjects.userId, userId),
-        eq(capturesProjects.projectId, projectId),
-      ),
-    )
+    .where(and(eq(capturesProjects.userId, userId), eq(capturesProjects.projectId, projectId)))
     .orderBy(desc(captures.createdAt))
     .limit(100);
   const ids = rows.map((r) => r.id);

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { createArea } from "@/app/actions/areas";
+import { Spinner } from "@/components/shared/Spinner";
+import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +12,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Spinner } from "@/components/shared/Spinner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createArea } from "@/app/actions/areas";
-import type { AreaOptimisticDispatch } from "@/components/shell/Sidebar";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 interface Props {
   children: React.ReactNode;
@@ -35,6 +35,10 @@ interface Props {
    * arrive via the Realtime echo refetch). Optional when addOptimisticArea is absent.
    */
   currentAreaCount?: number;
+  /** Optional page-local callback for surfaces that want instant UI updates without the Sidebar. */
+  onCreated?: (area: SidebarArea) => void;
+  /** Removes a page-local optimistic row when creation fails server-side. */
+  onCreateFailed?: (id: string) => void;
 }
 
 export function AreaCreateDialog({
@@ -42,6 +46,8 @@ export function AreaCreateDialog({
   userId,
   addOptimisticArea,
   currentAreaCount,
+  onCreated,
+  onCreateFailed,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -74,22 +80,24 @@ export function AreaCreateDialog({
     const newId = crypto.randomUUID();
     const trimmedName = name.trim();
     const trimmedEmoji = emoji.trim() || null;
+    const optimisticArea: SidebarArea = {
+      id: newId,
+      name: trimmedName,
+      emoji: trimmedEmoji,
+      orderIndex: currentAreaCount ?? 0,
+      archivedAt: null,
+      projects: [],
+    };
 
     startTransition(async () => {
       if (addOptimisticArea) {
         // D-04: optimistic insert FIRST — sidebar flashes the new area immediately.
         addOptimisticArea({
           type: "insert",
-          row: {
-            id: newId,
-            name: trimmedName,
-            emoji: trimmedEmoji,
-            orderIndex: currentAreaCount ?? 0,
-            archivedAt: null,
-            projects: [],
-          } satisfies SidebarArea,
+          row: optimisticArea,
         });
       }
+      onCreated?.(optimisticArea);
 
       // Close the dialog optimistically — D-02 instant.
       setOpen(false);
@@ -105,6 +113,7 @@ export function AreaCreateDialog({
       if (!result.success) {
         // D-03: silent revert (useOptimistic auto-reverts) + toast.error
         toast.error(result.error);
+        onCreateFailed?.(newId);
         // Reopen so the user can correct
         setOpen(true);
         setName(trimmedName);
@@ -162,11 +171,7 @@ export function AreaCreateDialog({
             )}
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpen(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => handleOpen(false)}>
               Never mind
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>

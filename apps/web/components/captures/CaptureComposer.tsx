@@ -2,9 +2,9 @@
 
 import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 
 import { Sparkles } from "lucide-react";
@@ -204,11 +204,11 @@ export function CaptureComposer({
   // (frozen at editor-creation time) can reach the current editor for Cmd+K.
   editorRef.current = editor;
 
-  function parseEditor(): {
+  const parseEditor = useCallback((): {
     content: string;
     hashtagNames: string[];
     personNames: string[];
-  } {
+  } => {
     if (!editor) return { content: "", hashtagNames: [], personNames: [] };
     const json = editor.getJSON();
     const tagSet = new Set<string>();
@@ -279,7 +279,7 @@ export function CaptureComposer({
       hashtagNames: finalTags,
       personNames: Array.from(personCasing.values()),
     };
-  }
+  }, [editor]);
 
   const handleSuggestTags = useCallback(async () => {
     const { content, hashtagNames } = parseEditor();
@@ -300,9 +300,7 @@ export function CaptureComposer({
     } finally {
       setSuggesting(false);
     }
-    // editor closure is stable; parseEditor reads from it directly
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggesting]);
+  }, [parseEditor, suggesting]);
 
   const acceptSuggestion = useCallback(
     (tag: SuggestedTag) => {
@@ -349,6 +347,7 @@ export function CaptureComposer({
       // Issue #101 — the quick-capture composer doesn't set a URL property; it's
       // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
       url: null,
+      favorite: false,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
@@ -405,10 +404,9 @@ export function CaptureComposer({
       onSubmitSuccess?.();
       // No manual cache busting — Realtime echo + invalidation handles it (D-12).
     });
-    // editor is captured via closure; intentionally stable for the lifetime of the editor instance
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editor,
+    parseEditor,
     selectedProjectIds,
     onSubmitSuccess,
     onOptimisticInsert,

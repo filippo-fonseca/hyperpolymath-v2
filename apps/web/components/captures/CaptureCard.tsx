@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, MoreHorizontal } from "lucide-react";
+import { Check, Copy, MoreHorizontal, Star } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -73,6 +73,8 @@ interface Props {
    * + confirm dialog flow — the toast IS the confirmation surface.
    */
   onDeleteCapture?: (capture: CaptureWithLinks) => void;
+  /** Issue #202 — parent-owned favorite toggle with optimistic persistence. */
+  onToggleFavorite?: (capture: CaptureWithLinks) => void;
   /**
    * Signed-in user's avatar URL (from Supabase Auth `user_metadata.avatar_url`).
    * Rendered Twitter-style on the leading edge of the card in non-compact mode
@@ -123,6 +125,7 @@ export function CaptureCard({
   onOptimisticDelete,
   onOptimisticRevert,
   onDeleteCapture,
+  onToggleFavorite,
   userAvatarUrl,
   userInitials,
   availableProjects = [],
@@ -271,6 +274,27 @@ export function CaptureCard({
               type="button"
               variant="ghost"
               size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onToggleFavorite?.(capture);
+              }}
+              className={cn(
+                "h-8 w-8 p-0 sm:h-7 sm:w-7",
+                "opacity-100 transition-opacity",
+                capture.favorite
+                  ? "text-[var(--ink-amber)]"
+                  : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+              )}
+              aria-label={capture.favorite ? "Unstar capture" : "Star capture"}
+              aria-pressed={capture.favorite}
+            >
+              <Star size={14} fill={capture.favorite ? "currentColor" : "none"} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={handleCopy}
               className={cn(
                 "h-8 w-8 p-0 sm:h-7 sm:w-7",
@@ -289,31 +313,31 @@ export function CaptureCard({
                 "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 data-[state=open]:opacity-100"
               )}
             >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  aria-label="Capture actions"
-                >
-                  <MoreHorizontal size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="font-serif text-base">
-                {onOpen && <DropdownMenuItem onSelect={() => onOpen()}>Open</DropdownMenuItem>}
-                {isJarvisCreated && (
-                  // D-14 / JARVIS-13 — only render this item for createdVia === "jarvis"
-                  <DropdownMenuItem onSelect={() => setConvertOpen(true)}>
-                    Convert to task
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    aria-label="Capture actions"
+                  >
+                    <MoreHorizontal size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="font-serif text-base">
+                  {onOpen && <DropdownMenuItem onSelect={() => onOpen()}>Open</DropdownMenuItem>}
+                  {isJarvisCreated && (
+                    // D-14 / JARVIS-13 — only render this item for createdVia === "jarvis"
+                    <DropdownMenuItem onSelect={() => setConvertOpen(true)}>
+                      Convert to task
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
+                    Delete
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -418,11 +442,15 @@ function CaptureBody({
   // clickable anchor (new tab); the text around it still gets the cyan search
   // mark when a query is active.
   function renderTextRun(text: string, keyPrefix: string) {
-    return splitTextWithUrls(text).map((seg, j) => {
+    let textOffset = 0;
+    return splitTextWithUrls(text).map((seg) => {
+      const start = textOffset;
+      textOffset += seg.text.length;
+      const key = `${keyPrefix}-${seg.href ? "url" : "text"}-${start}-${seg.text.length}`;
       if (seg.href) {
         return (
           <a
-            key={`${keyPrefix}-url-${j}`}
+            key={key}
             href={seg.href}
             target="_blank"
             rel="noopener noreferrer"
@@ -435,32 +463,41 @@ function CaptureBody({
         );
       }
       if (!query) {
-        return <span key={`${keyPrefix}-text-${j}`}>{seg.text}</span>;
+        return <span key={key}>{seg.text}</span>;
       }
+      let highlightOffset = 0;
       return (
-        <span key={`${keyPrefix}-text-${j}`}>
-          {highlightSegments(seg.text, query).map((m, k) =>
-            m.match ? (
-              <mark key={k} className="captures-search-mark">
+        <span key={key}>
+          {highlightSegments(seg.text, query).map((m) => {
+            const markStart = highlightOffset;
+            highlightOffset += m.text.length;
+            const markKey = `${key}-${m.match ? "match" : "plain"}-${markStart}-${m.text.length}`;
+            return m.match ? (
+              <mark key={markKey} className="captures-search-mark">
                 {m.text}
               </mark>
             ) : (
-              <span key={k}>{m.text}</span>
-            ),
-          )}
+              <span key={markKey}>{m.text}</span>
+            );
+          })}
         </span>
       );
     });
   }
 
-  const rendered = segments.map((seg, i) => {
+  let segmentOffset = 0;
+  const rendered = segments.map((seg) => {
+    const label = seg.kind === "text" ? seg.value : seg.display;
+    const start = segmentOffset;
+    segmentOffset += label.length;
+    const key = `${seg.kind}-${start}-${label.length}`;
     if (seg.kind === "hashtag") {
-      return <HashtagChip key={`${i}-tag`} displayName={seg.display} asButton={false} />;
+      return <HashtagChip key={key} displayName={seg.display} asButton={false} />;
     }
     if (seg.kind === "person") {
-      return <PersonChip key={`${i}-person`} name={seg.display} asButton={false} />;
+      return <PersonChip key={key} name={seg.display} asButton={false} />;
     }
-    return <span key={`${i}-text`}>{renderTextRun(seg.value, String(i))}</span>;
+    return <span key={key}>{renderTextRun(seg.value, key)}</span>;
   });
 
   return (
