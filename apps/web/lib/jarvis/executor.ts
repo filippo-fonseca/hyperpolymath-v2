@@ -32,7 +32,9 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { google } from "googleapis";
+import { and, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
+import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -43,6 +45,7 @@ import {
   peopleReferences,
   tasks,
   tasksProjects,
+  whatsappMessages,
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
@@ -59,10 +62,16 @@ import {
   listEvents,
   patchEvent,
 } from "@/lib/gcal/events";
-import { GcalNotConnectedError, GcalTokenRevokedError, getValidGcalToken } from "@/lib/gcal/token";
+import {
+  GcalNotConnectedError,
+  GcalTokenRevokedError,
+  getAuthenticatedGoogleOAuthClient,
+  getValidGcalToken,
+} from "@/lib/gcal/token";
 import type {
   ActionExecutor,
   AskClarificationAction,
+  ComputerUseAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -76,11 +85,26 @@ import type {
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetNewsAction,
+  GetWeatherAction,
   LinkPeopleAction,
+  ReadGmailAction,
+  OpenAppAction,
+  OpenUrlAction,
+  PlayMusicAction,
+  PressKeyAction,
+  ReadWhatsappAction,
   RememberFactAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  SendMessageAction,
+  SystemControlAction,
+  TakeScreenshotAction,
+  TypeTextAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
+  WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
 
@@ -115,6 +139,22 @@ async function resolveProjectIds(
 function dateInUserTz(iso: string, tz: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(iso));
+}
+
+// Clicky slice — WMO weather interpretation codes → human phrase.
+// Open-Meteo `weather_code` follows the WMO 4677 table.
+function describeWeatherCode(code: number): string {
+  if (code === 0) return "clear skies";
+  if (code === 1) return "mainly clear";
+  if (code === 2) return "partly cloudy";
+  if (code === 3) return "overcast";
+  if (code === 45 || code === 48) return "foggy";
+  if (code >= 51 && code <= 57) return "drizzling";
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "raining";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snowing";
+  if (code === 95) return "thunderstorms";
+  if (code === 96 || code === 99) return "thunderstorms with hail";
+  return "unsettled";
 }
 
 export function createServerExecutor(): ActionExecutor {
@@ -813,6 +853,556 @@ export function createServerExecutor(): ActionExecutor {
         reference_count: person.referenceCount,
       }));
       return { ok: true, id: "find_people", receipt: { matches } };
+    },
+
+    // -------------------------------------------------------------------------
+    // Computer-control tools — open_url / open_app / web_search
+    //
+    // These tools CANNOT touch the Mac from the server. Each executor arm
+    // validates input and returns a structured { ok, action } result for the
+    // desktop client to execute. No DB writes, no gcal calls.
+    //
+    // Result contract (parallel agent builds desktop client against this):
+    //   open_url  → { ok: true, action: { kind: "open_url", url, label } }
+    //   open_app  → { ok: true, action: { kind: "open_app", app, label } }
+    //   web_search → { ok: true, action: { kind: "open_url", url, label } }
+    // -------------------------------------------------------------------------
+
+    async openUrl(input: OpenUrlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.url;
+      return {
+        ok: true,
+        id: `open_url:${input.url}`,
+        receipt: { url: input.url, label },
+        action: { kind: "open_url", url: input.url, label },
+      };
+    },
+
+    async openApp(input: OpenAppAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label ?? input.app;
+      return {
+        ok: true,
+        id: `open_app:${input.app}`,
+        receipt: { app: input.app, label },
+        action: { kind: "open_app", app: input.app, label },
+      };
+    },
+
+    async webSearch(input: WebSearchAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const engine = input.engine ?? "google";
+      let url: string;
+      if (engine === "maps") {
+        url =
+          "https://www.google.com/maps/search/?api=1&query=" +
+          encodeURIComponent(input.query);
+      } else {
+        url =
+          "https://www.google.com/search?q=" + encodeURIComponent(input.query);
+      }
+      const label = engine === "maps" ? "Google Maps" : "the web";
+      return {
+        ok: true,
+        id: `web_search:${input.query}`,
+        receipt: { query: input.query, engine, url, label },
+        action: { kind: "open_url", url, label },
+      };
+    },
+
+    // -------------------------------------------------------------------------
+    // Clicky slice — desktop action tools.
+    //
+    // Same pattern as open_url/open_app: validate args server-side, return a
+    // structured { ok, receipt?, action } result. NOTHING here executes
+    // AppleScript or touches the Mac — the desktop dispatcher does that, keyed
+    // off action.kind. get_weather is the exception: it runs fully server-side
+    // (Open-Meteo fetch) and returns data in the receipt with no action.
+    // -------------------------------------------------------------------------
+
+    async sendMessage(input: SendMessageAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const recipient = input.recipient.trim();
+      const text = input.text.trim();
+      if (!recipient) {
+        return { ok: false, kind: "validation", error: "send_message requires a recipient" };
+      }
+      if (!text) {
+        return { ok: false, kind: "validation", error: "send_message requires message text" };
+      }
+      // Zod already narrows to "imessage"|"whatsapp", but defence-in-depth in
+      // case a downstream extension widens the schema without touching this arm.
+      const app: "imessage" | "whatsapp" = input.app === "whatsapp" ? "whatsapp" : "imessage";
+      return {
+        ok: true,
+        id: `send_message:${app}:${recipient}`,
+        receipt: { app, recipient, text, requires_confirm: true },
+        // requires_confirm is load-bearing: the desktop confirm-gate holds the
+        // send (AppleScript for iMessage / HTTP for WhatsApp) until the user
+        // confirms aloud. iMessage has no draft verb; WhatsApp is
+        // symmetrically treated as destructive to keep one UX for messaging.
+        action: { kind: "send_message", app, recipient, text, requires_confirm: true },
+      };
+    },
+
+    async systemControl(input: SystemControlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      if ((input.action === "volume" || input.action === "brightness")) {
+        const v = typeof input.value === "string" ? Number(input.value) : input.value;
+        if (typeof v !== "number" || Number.isNaN(v) || v < 0 || v > 100) {
+          return {
+            ok: false,
+            kind: "validation",
+            error: `system_control ${input.action} requires a numeric value 0-100`,
+          };
+        }
+        return {
+          ok: true,
+          id: `system_control:${input.action}`,
+          receipt: { action: input.action, value: v },
+          action: { kind: "system_control", action: input.action, value: v },
+        };
+      }
+      // focus: optional string value (Focus-mode name; omit = off). sleep: no value.
+      return {
+        ok: true,
+        id: `system_control:${input.action}`,
+        receipt: { action: input.action, ...(input.value !== undefined ? { value: input.value } : {}) },
+        action: {
+          kind: "system_control",
+          action: input.action,
+          ...(input.value !== undefined ? { value: input.value } : {}),
+        },
+      };
+    },
+
+    async typeText(input: TypeTextAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      return {
+        ok: true,
+        id: "type_text",
+        receipt: { text: input.text },
+        action: { kind: "type_text", text: input.text },
+      };
+    },
+
+    async pressKey(input: PressKeyAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const modifiers = (input.modifiers ?? []).map((m) => m.trim().toLowerCase()).filter(Boolean);
+      return {
+        ok: true,
+        id: `press_key:${input.key}`,
+        receipt: { key: input.key, modifiers },
+        action: { kind: "press_key", key: input.key, modifiers },
+      };
+    },
+
+    async takeScreenshot(input: TakeScreenshotAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const describe = input.describe ?? true;
+      return {
+        ok: true,
+        id: "take_screenshot",
+        receipt: { describe },
+        action: { kind: "take_screenshot", describe },
+      };
+    },
+
+    async runApplescript(input: RunApplescriptAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const label = input.label.trim();
+      const script = input.script.trim();
+      if (!label || !script) {
+        return { ok: false, kind: "validation", error: "run_applescript requires label and script" };
+      }
+      return {
+        ok: true,
+        id: `run_applescript:${label}`,
+        receipt: { label, script },
+        action: { kind: "run_applescript", label, script },
+      };
+    },
+
+    async runShortcut(input: RunShortcutAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const name = input.name.trim();
+      if (!name) {
+        return { ok: false, kind: "validation", error: "run_shortcut requires a shortcut name" };
+      }
+      return {
+        ok: true,
+        id: `run_shortcut:${name}`,
+        receipt: { name, ...(input.input !== undefined ? { input: input.input } : {}) },
+        action: {
+          kind: "run_shortcut",
+          name,
+          ...(input.input !== undefined ? { input: input.input } : {}),
+        },
+      };
+    },
+
+    async playMusic(input: PlayMusicAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      const app = input.app ?? "music";
+      const query = input.query?.trim() || undefined;
+      return {
+        ok: true,
+        id: `play_music:${query ?? "resume"}`,
+        receipt: { app, ...(query ? { query } : {}) },
+        action: { kind: "play_music", app, ...(query ? { query } : {}) },
+      };
+    },
+
+    async computerUse(input: ComputerUseAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Computer Use fallback: mint a session_id and hand the task to the
+      // desktop, which drives the agentic loop against
+      // /api/jarvis/computer-use/step. Nothing executes server-side here.
+      const task = input.task.trim();
+      if (!task) {
+        return { ok: false, kind: "validation", error: "computer_use requires a task" };
+      }
+      const sessionId = randomUUID();
+      return {
+        ok: true,
+        id: `computer_use:${sessionId}`,
+        receipt: { task, session_id: sessionId },
+        action: { kind: "computer_use", task, session_id: sessionId },
+      };
+    },
+
+    async getWeather(input: GetWeatherAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: Open-Meteo geocoding + forecast (free, keyless).
+      const location =
+        input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
+      try {
+        const geoRes = await fetch(
+          "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
+            encodeURIComponent(location),
+        );
+        if (!geoRes.ok) {
+          return { ok: false, kind: "network", error: `Geocoding failed (${geoRes.status})` };
+        }
+        const geo = (await geoRes.json()) as {
+          results?: { latitude: number; longitude: number; name: string; admin1?: string; country?: string }[];
+        };
+        const place = geo.results?.[0];
+        if (!place) {
+          return { ok: false, kind: "not_found", error: `No location found matching "${location}"` };
+        }
+        const fcRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
+            "&current=temperature_2m,weather_code,wind_speed_10m",
+        );
+        if (!fcRes.ok) {
+          return { ok: false, kind: "network", error: `Forecast fetch failed (${fcRes.status})` };
+        }
+        const fc = (await fcRes.json()) as {
+          current?: { temperature_2m?: number; weather_code?: number; wind_speed_10m?: number };
+        };
+        const current = fc.current;
+        if (!current || typeof current.temperature_2m !== "number") {
+          return { ok: false, kind: "network", error: "Forecast response missing current weather" };
+        }
+        const tempC = Math.round(current.temperature_2m * 10) / 10;
+        const tempF = Math.round((tempC * 9) / 5 + 32);
+        // Open-Meteo default wind_speed_10m unit is km/h.
+        const windKph = Math.round(current.wind_speed_10m ?? 0);
+        const weather = {
+          location: place.name,
+          tempC,
+          tempF,
+          condition: describeWeatherCode(current.weather_code ?? -1),
+          windKph,
+        };
+        return { ok: true, id: `get_weather:${place.name}`, receipt: { weather } };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: uses the existing Google OAuth client (same tokens
+      // Calendar + Drive already ride) extended with the gmail.readonly scope
+      // added in /api/gcal/auth. Metadata + snippet only — never the full body.
+      const requested = typeof input.maxResults === "number" ? input.maxResults : 10;
+      const maxResults = Math.min(Math.max(1, Math.floor(requested)), 25);
+      const query = input.query?.trim() || undefined;
+
+      let auth;
+      try {
+        auth = await getAuthenticatedGoogleOAuthClient(ctx.userId);
+      } catch (err) {
+        if (err instanceof GcalNotConnectedError) {
+          return {
+            ok: false,
+            kind: "not_connected",
+            error:
+              "Google account not connected — connect Google in Settings so JARVIS can read your inbox.",
+          };
+        }
+        if (err instanceof GcalTokenRevokedError) {
+          return {
+            ok: false,
+            kind: "revoked",
+            error:
+              "Google access was revoked — reconnect Google in Settings so JARVIS can read your inbox.",
+          };
+        }
+        return {
+          ok: false,
+          kind: "internal",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+
+      try {
+        const gmail = google.gmail({ version: "v1", auth });
+        const listRes = await gmail.users.messages.list({
+          userId: "me",
+          maxResults,
+          ...(query ? { q: query } : {}),
+        });
+        const ids = (listRes.data.messages ?? [])
+          .map((m) => m.id)
+          .filter((id): id is string => typeof id === "string");
+
+        if (ids.length === 0) {
+          return {
+            ok: true,
+            id: `read_gmail:empty`,
+            receipt: { messages: [], count: 0, ...(query ? { query } : {}) },
+          };
+        }
+
+        // Fetch metadata + snippet for each message in parallel. `format: "metadata"`
+        // with `metadataHeaders` is the compact, snippet-included shape (no body).
+        const details = await Promise.all(
+          ids.map((id) =>
+            gmail.users.messages
+              .get({
+                userId: "me",
+                id,
+                format: "metadata",
+                metadataHeaders: ["From", "Subject", "Date"],
+              })
+              .then((r) => r.data)
+              .catch(() => null),
+          ),
+        );
+
+        const messages = details
+          .filter((d): d is NonNullable<typeof d> => d !== null)
+          .map((d) => {
+            const headers = d.payload?.headers ?? [];
+            const getHeader = (name: string): string | undefined => {
+              const h = headers.find(
+                (x) => (x.name ?? "").toLowerCase() === name.toLowerCase(),
+              );
+              return h?.value ?? undefined;
+            };
+            return {
+              id: d.id ?? undefined,
+              from: getHeader("From"),
+              subject: getHeader("Subject"),
+              date: getHeader("Date"),
+              snippet: d.snippet ?? undefined,
+            };
+          });
+
+        return {
+          ok: true,
+          id: `read_gmail:${messages.length}`,
+          receipt: {
+            messages,
+            count: messages.length,
+            ...(query ? { query } : {}),
+          },
+        };
+      } catch (err) {
+        // A missing gmail.readonly scope shows up here (403 / insufficientPermissions).
+        const message = err instanceof Error ? err.message : String(err);
+        const looksLikeScope =
+          /insufficientPermissions|insufficient authentication scopes|Insufficient Permission/i.test(
+            message,
+          );
+        if (looksLikeScope) {
+          return {
+            ok: false,
+            kind: "revoked",
+            error:
+              "Google account is missing Gmail permission — reconnect Google in Settings to grant Gmail read access.",
+          };
+        }
+        return { ok: false, kind: "network", error: message };
+      }
+    },
+
+    async getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Fully server-side: Guardian Open Platform Content API. BYOK-first
+      // (per-user "guardian" provider key) with an owner env fallback of
+      // GUARDIAN_API_KEY so the owner-flavoured devices don't need a saved key.
+      const requested = typeof input.maxResults === "number" ? input.maxResults : 8;
+      const maxResults = Math.min(Math.max(1, Math.floor(requested)), 15);
+      const topic = input.topic?.trim() || undefined;
+
+      const userKey = await getUserKeyOrNull(ctx.userId, "guardian");
+      const apiKey = userKey ?? process.env.GUARDIAN_API_KEY ?? null;
+      if (!apiKey) {
+        return {
+          ok: false,
+          kind: "not_connected",
+          error:
+            "No Guardian API key configured — add one in Settings (grab a free key at open-platform.theguardian.com).",
+        };
+      }
+
+      const params = new URLSearchParams({
+        "api-key": apiKey,
+        "show-fields": "trailText",
+        "page-size": String(maxResults),
+        "order-by": "newest",
+      });
+      if (topic) params.set("q", topic);
+
+      try {
+        const res = await fetch(
+          `https://content.guardianapis.com/search?${params.toString()}`,
+        );
+        if (!res.ok) {
+          return {
+            ok: false,
+            kind: "network",
+            error: `Guardian API request failed (${res.status})`,
+          };
+        }
+        const body = (await res.json()) as {
+          response?: {
+            results?: Array<{
+              webTitle?: string;
+              sectionName?: string;
+              webPublicationDate?: string;
+              webUrl?: string;
+              fields?: { trailText?: string };
+            }>;
+          };
+        };
+        const results = body.response?.results ?? [];
+        const articles = results.map((r) => ({
+          title: r.webTitle,
+          section: r.sectionName,
+          published: r.webPublicationDate,
+          trailText: r.fields?.trailText,
+          url: r.webUrl,
+        }));
+        return {
+          ok: true,
+          id: `get_news:${articles.length}`,
+          receipt: {
+            articles,
+            count: articles.length,
+            ...(topic ? { topic } : {}),
+          },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "network",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      // Server-side read from whatsapp_messages (populated by the local sync
+      // worker). Empty table → friendly hint receipt; the agent narrates it
+      // rather than guessing.
+      const windowHours = Math.min(input.since_hours ?? 24, 168);
+      const cap = Math.min(input.maxResults ?? 30, 100);
+      const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+      try {
+        const filters = [
+          eq(whatsappMessages.userId, ctx.userId),
+          gte(whatsappMessages.sentAt, since),
+        ];
+        if (input.chat && input.chat.trim()) {
+          const pattern = `%${input.chat.trim()}%`;
+          const chatFilter = or(
+            ilike(whatsappMessages.chatName, pattern),
+            ilike(whatsappMessages.senderName, pattern),
+          );
+          if (chatFilter) filters.push(chatFilter);
+        }
+
+        const rows = await db
+          .select({
+            chatJid: whatsappMessages.chatJid,
+            chatName: whatsappMessages.chatName,
+            senderName: whatsappMessages.senderName,
+            fromMe: whatsappMessages.fromMe,
+            body: whatsappMessages.body,
+            sentAt: whatsappMessages.sentAt,
+          })
+          .from(whatsappMessages)
+          .where(and(...filters))
+          .orderBy(desc(whatsappMessages.sentAt))
+          .limit(cap);
+
+        if (rows.length === 0) {
+          return {
+            ok: true,
+            id: "read_whatsapp:empty",
+            receipt: {
+              chats: [],
+              totalCount: 0,
+              windowHours,
+              note:
+                "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
+            },
+          };
+        }
+
+        // Group by chat, preserving newest-first order.
+        const chatMap = new Map<
+          string,
+          {
+            chatName: string;
+            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+          }
+        >();
+        for (const r of rows) {
+          const key = r.chatJid;
+          const bucket = chatMap.get(key);
+          const entry = {
+            senderName: r.senderName,
+            fromMe: r.fromMe,
+            body: r.body,
+            sentAt: r.sentAt instanceof Date ? r.sentAt.toISOString() : String(r.sentAt),
+          };
+          if (bucket) {
+            bucket.messages.push(entry);
+          } else {
+            chatMap.set(key, {
+              chatName: r.chatName ?? r.senderName ?? r.chatJid,
+              messages: [entry],
+            });
+          }
+        }
+
+        let chats = Array.from(chatMap.values());
+        if (input.unrepliedOnly === true) {
+          // "Unreplied" = the most recent message in the chat is NOT from the user.
+          // Rows are ordered newest-first, so the first message in each group is the latest.
+          chats = chats.filter((c) => c.messages.length > 0 && !c.messages[0]!.fromMe);
+        }
+
+        const totalCount = chats.reduce((n, c) => n + c.messages.length, 0);
+        return {
+          ok: true,
+          id: `read_whatsapp:${totalCount}`,
+          receipt: { chats, totalCount, windowHours },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          kind: "internal",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
     },
 
     async linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult> {

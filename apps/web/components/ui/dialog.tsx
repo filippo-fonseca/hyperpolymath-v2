@@ -1,53 +1,45 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { XIcon } from "lucide-react"
-import { Dialog as DialogPrimitive } from "radix-ui"
+import { XIcon } from "lucide-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import type * as React from "react";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { HudCornerCrops } from "@/components/shared/HudCornerCrops"
+import { HudCornerCrops } from "@/components/shared/HudCornerCrops";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §9c + §13 anti-pattern):
  *
- * Diplomatic-tier modal chrome. Background --surface-raised, 1px --edge
- * border, 10px --edge-hud corner L-brackets (rendered via HudCornerCrops
- * at the diplomatic scale — 10px legs per UI-SPEC §5f, vs the 12px viewport
- * crops on agent surfaces). Backdrop uses plain `backdrop-blur-md` (8px)
- * over rgba(canvas, 0.6) — NOT iOS Liquid Glass refraction (UI-SPEC §13
- * anti-pattern catalog).
+ * Diplomatic-tier modal chrome. DialogContent is the app-wide modal surface:
+ * the shared `.glass-tile` soft-UI panel, 1px glass border, and 10px
+ * --edge-hud corner L-brackets (rendered via HudCornerCrops at the diplomatic
+ * scale — 10px legs per UI-SPEC §5f, vs the 12px viewport crops on agent
+ * surfaces). Backdrop uses plain `backdrop-blur-md` (8px) over rgba(canvas,
+ * 0.6) — NOT iOS Liquid Glass refraction (UI-SPEC §13 anti-pattern catalog).
  *
  * Motion: scale 0.95 → 1 + fade-in over 200ms on open (tailwindcss-animate's
  * zoom-in-95 + fade-in-0 — close enough to UI-SPEC §5f's 0.96 → 1 spec for
  * the visual delta to be imperceptible). 150ms opacity-only exit per
  * UI-SPEC §7b.
  *
- * Neumorphic shadow tokens retired (UI-SPEC §14a) — single hard-coded
- * box-shadow per UI-SPEC §9c instead.
+ * Modal hover is pinned to the resting glow strength so the whole dialog
+ * does not brighten just because the pointer crosses the panel.
  */
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
 function DialogOverlay({
@@ -67,7 +59,7 @@ function DialogOverlay({
       style={{ backgroundColor: "rgb(0 0 0 / 0.5)" }}
       {...props}
     />
-  )
+  );
 }
 
 function DialogContent({
@@ -76,20 +68,18 @@ function DialogContent({
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
+  showCloseButton?: boolean;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        // --surface-raised + 1px --edge per UI-SPEC §9c. box-shadow values
-        // per UI-SPEC §9c dark + light variants (the literal here matches
-        // the dark value; light mode reads softer per the @theme palette).
+        // Shared modal glass surface per Issue #213.
         // Motion: 200ms enter scale 0.95→1 + fade-in; 150ms exit opacity-only.
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-6 outline-none",
-          "shadow-[0_12px_32px_rgba(0,0,0,0.3)]",
+          "glass-tile fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-md p-6 outline-none",
+          "[--glass-glow-hover:var(--glass-glow)]",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-150",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-200",
           "sm:max-w-lg",
@@ -100,7 +90,11 @@ function DialogContent({
         {/* UI-SPEC §5f — 10px corner L-brackets on diplomatic-tier modals.
             Static (breathing={false}) — only viewport-level agent crops
             breathe per UI-SPEC §6e. */}
-        <HudCornerCrops size={10} breathing={false} className="absolute inset-0 pointer-events-none" />
+        <HudCornerCrops
+          size={10}
+          breathing={false}
+          className="absolute inset-0 pointer-events-none"
+        />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
@@ -113,7 +107,7 @@ function DialogContent({
         )}
       </DialogPrimitive.Content>
     </DialogPortal>
-  )
+  );
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
@@ -123,7 +117,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
       className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DialogFooter({
@@ -132,15 +126,12 @@ function DialogFooter({
   children,
   ...props
 }: React.ComponentProps<"div"> & {
-  showCloseButton?: boolean
+  showCloseButton?: boolean;
 }) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className
-      )}
+      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
       {...props}
     >
       {children}
@@ -150,13 +141,10 @@ function DialogFooter({
         </DialogPrimitive.Close>
       )}
     </div>
-  )
+  );
 }
 
-function DialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -166,7 +154,7 @@ function DialogTitle({
       className={cn("font-serif text-lg leading-none font-semibold text-[var(--ink)]", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DialogDescription({
@@ -179,7 +167,7 @@ function DialogDescription({
       className={cn("font-serif text-sm text-[var(--ink-muted)]", className)}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -193,4 +181,4 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-}
+};

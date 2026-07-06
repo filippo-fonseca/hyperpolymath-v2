@@ -16,7 +16,13 @@ export {
   type SlashCommand,
 } from "./parsers";
 
+// Runtime list of all JARVIS tool names + membership guard. Consumed by the
+// routine block-engine (validating authored block tools) and the routine-model
+// editor (gating tool selection). Kept exhaustive against JarvisToolName.
+export { JARVIS_TOOL_NAMES, isJarvisToolName } from "./tool-names";
+
 export {
+  COMPUTER_MODE_ADDENDUM,
   JARVIS_PERSONALITY,
   TOOL_USE_RULES,
   VOICE_ADDENDUM,
@@ -78,7 +84,52 @@ export type {
   CreatePersonAction,
   FindPeopleAction,
   LinkPeopleAction,
+  // Computer-control action types + desktop result type
+  OpenUrlAction,
+  OpenAppAction,
+  WebSearchAction,
+  DesktopAction,
+  // Clicky slice — desktop action tools + server-side weather
+  SendMessageAction,
+  SystemControlAction,
+  TypeTextAction,
+  PressKeyAction,
+  TakeScreenshotAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  PlayMusicAction,
+  GetWeatherAction,
+  // Server-side data tools (Gmail read + Guardian news)
+  ReadGmailAction,
+  GetNewsAction,
+  // WhatsApp — server-side read of synced messages
+  ReadWhatsappAction,
+  // Computer Use fallback — catch-all agentic desktop loop
+  ComputerUseAction,
 } from "./types";
 
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
 export type { AskClarificationAction } from "./tools/ask-clarification";
+
+// JARVIS routines — natural-language "routines + triggers" spec contracts.
+// Also available via the `@hyperpolymath/jarvis-core/routines` subpath.
+export {
+  ROUTINE_SPEC_VERSION,
+  zRoutineTrigger,
+  zRoutineBlock,
+  zRoutineSpec,
+  deriveTriggerTypes,
+  computeNextRunAt,
+} from "./routines";
+export type {
+  WakePhraseTrigger,
+  UtteranceTrigger,
+  TimeTrigger,
+  HotkeyTrigger,
+  RoutineTrigger,
+  RoutineTriggerType,
+  RoutineBlock,
+  RoutineSpec,
+  Routine,
+  RoutineSpecInput,
+} from "./routines";

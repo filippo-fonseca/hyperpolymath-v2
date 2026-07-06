@@ -6,18 +6,34 @@
 // On `jarvis-response-*` events, forwards them to registered listeners so
 // the desktop UI can render the server-side JARVIS response without the browser.
 
-import { startCaptureTurn } from "@/audio/capture";
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
 
 let source: EventSource | null = null;
 
 /** When false, incoming `trigger` SSE events are ignored. The global
- *  keyboard hotkey (Cmd+Shift+J) fires startCaptureTurn() directly. */
+ *  keyboard hotkey (Cmd+Shift+J) fires the invocation directly. */
 let _peEnabled = true;
 
 export function setPeEnabled(enabled: boolean): void {
   _peEnabled = enabled;
+}
+
+/**
+ * Invocation handler for ESP32 `trigger` events. Injected by main.ts (wired to
+ * the conversation FSM's `startConversation`) rather than importing the FSM
+ * here — the FSM imports THIS module (onJarvisResponseStart), so a direct
+ * import would create a cycle. Routing the trigger through the FSM means it
+ * respects the Phase 1 half-duplex gate: a trigger can't open the mic while
+ * TTS is playing or a response is in flight. Defaults to a no-op until wired.
+ */
+let _triggerHandler: () => void = () => {
+  // eslint-disable-next-line no-console
+  console.warn("[trigger] no invocation handler wired yet — ignoring trigger");
+};
+
+export function setTriggerHandler(handler: () => void): void {
+  _triggerHandler = handler;
 }
 
 interface PhysicalTriggerPayload {
@@ -147,7 +163,9 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     console.log(
       `[trigger] source=${payload.source} command=${payload.commandName ?? payload.commandId}`,
     );
-    void startCaptureTurn();
+    // Route through the FSM (via the injected handler) so the trigger honors
+    // the half-duplex gate — never opens the mic while JARVIS is speaking.
+    _triggerHandler();
   });
 
   source.addEventListener("jarvis-response-start", (e) => {

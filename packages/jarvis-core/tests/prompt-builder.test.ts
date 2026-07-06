@@ -1,7 +1,7 @@
 // D-16 personality + buildSystemPrompt + voice-aware addendum tests.
 
 import { describe, expect, it } from "vitest";
-import { JARVIS_PERSONALITY } from "../src/personality";
+import { COMPUTER_MODE_ADDENDUM, JARVIS_PERSONALITY } from "../src/personality";
 import { buildSystemPrompt } from "../src/prompt-builder";
 
 describe("JARVIS_PERSONALITY", () => {
@@ -97,5 +97,111 @@ describe("buildSystemPrompt", () => {
     expect(blocks[0]?.text).toContain("listening as well as reading");
     expect(blocks[1]?.text).toContain("JARVIS");
     expect(blocks[2]?.text).toContain("create_task");
+  });
+
+  // Phase 2 (Task 2.1 / 2.3) — computer-control mode steering.
+  describe("mode: 'computer'", () => {
+    it("omitting mode does NOT include the COMPUTER-CONTROL MODE addendum", () => {
+      const blocks = buildSystemPrompt({ projects: [] });
+      const joined = blocks.map((b) => b.text).join("\n");
+      expect(joined).not.toContain("COMPUTER-CONTROL MODE");
+      expect(blocks).toHaveLength(4);
+    });
+
+    it("mode='computer' appends the addendum as an extra trailing block", () => {
+      const base = buildSystemPrompt({ projects: [] });
+      const withMode = buildSystemPrompt({ projects: [], mode: "computer" });
+      expect(withMode).toHaveLength(base.length + 1);
+      expect(withMode[withMode.length - 1]?.text).toBe(COMPUTER_MODE_ADDENDUM);
+      expect(withMode[withMode.length - 1]?.text).toContain("COMPUTER-CONTROL MODE");
+    });
+
+    it("addendum steers toward computer actions and away from filing", () => {
+      expect(COMPUTER_MODE_ADDENDUM).toContain("open_url");
+      expect(COMPUTER_MODE_ADDENDUM).toContain("open_app");
+      expect(COMPUTER_MODE_ADDENDUM).toContain("web_search");
+      expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT create tasks|Do NOT create tasks/i);
+    });
+
+    it("addendum carries the destructive-action confirm guardrail (Task 2.3)", () => {
+      expect(COMPUTER_MODE_ADDENDUM).toMatch(/destructive/i);
+      expect(COMPUTER_MODE_ADDENDUM).toContain("confirm");
+    });
+
+    it("the addendum block is UNCACHED — the 1h cache breakpoint stays on the block before it", () => {
+      const blocks = buildSystemPrompt({ projects: [], mode: "computer" });
+      // Trailing (mode) block must NOT carry cache_control — appended after the
+      // breakpoint so it never invalidates the cached prefix (RESEARCH Q3).
+      const last = blocks[blocks.length - 1];
+      expect(last?.cache_control).toBeUndefined();
+      // The block immediately before it still owns the 1h ephemeral breakpoint.
+      const breakpoint = blocks[blocks.length - 2];
+      expect(breakpoint?.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    });
+
+    // Clicky slice — persistent preference learning (PREFERENCE MEMORY rules).
+    describe("PREFERENCE MEMORY rules", () => {
+      it("carves the sole exception out of the no-filing rule", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toContain("sole exception: PREFERENCE MEMORY");
+      });
+
+      it("instructs silent same-turn remember_fact capture with type preference / source user_explicit", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toContain("PREFERENCE MEMORY");
+        expect(COMPUTER_MODE_ADDENDUM).toContain("remember_fact");
+        expect(COMPUTER_MODE_ADDENDUM).toContain('type "preference"');
+        expect(COMPUTER_MODE_ADDENDUM).toContain('source "user_explicit"');
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/never ask permission/i);
+      });
+
+      it("defines the normalized key convention so the UNIQUE(user_id,type,key) upsert dedupes", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toContain("message channel: <contact first name>");
+        expect(COMPUTER_MODE_ADDENDUM).toContain('"music app"');
+        expect(COMPUTER_MODE_ADDENDUM).toContain('"default browser"');
+        expect(COMPUTER_MODE_ADDENDUM).toContain('"maps app"');
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/IDENTICAL lowercase key/);
+      });
+
+      it("carries the overwrite-on-update rule (same key, new value)", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toContain("OVERWRITES");
+        expect(COMPUTER_MODE_ADDENDUM).toContain("SAME key");
+      });
+
+      it("instructs recall from JARVIS MEMORY before ask_clarification when a detail is omitted", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toContain("JARVIS MEMORY [PREFERENCE]");
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/without asking/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(
+          /Only ask_clarification when no remembered preference/i,
+        );
+      });
+
+      it("routes non-imessage remembered channels via computer_use and keeps the send confirm guardrail", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/not supported by send_message/i);
+        expect(COMPUTER_MODE_ADDENDUM).toContain("computer_use");
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(
+          /readback-and-confirm guardrail applies to EVERY outgoing message/i,
+        );
+      });
+
+      it("excludes one-offs and keeps the adversarial-defense rules in force", () => {
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/do NOT store one-offs/i);
+        expect(COMPUTER_MODE_ADDENDUM).toMatch(/never from content being filed/i);
+      });
+    });
+
+    it("facts + mode='computer': JARVIS MEMORY precedes the addendum; breakpoint stays on facts", () => {
+      // Recall path (cross-session): remembered preferences must be IN context
+      // on computer-mode turns — facts block (cached, 1h) then addendum (uncached).
+      const blocks = buildSystemPrompt({
+        projects: [],
+        facts: [{ type: "preference", key: "music app", value: "spotify" }],
+        mode: "computer",
+      });
+      const last = blocks[blocks.length - 1]!;
+      const factsBlock = blocks[blocks.length - 2]!;
+      expect(last.text).toContain("COMPUTER-CONTROL MODE");
+      expect(last.cache_control).toBeUndefined();
+      expect(factsBlock.text).toContain("[PREFERENCE] music app: spotify");
+      expect(factsBlock.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    });
   });
 });

@@ -14,7 +14,8 @@ export type ByokProvider =
   | "anthropic"
   | "anthropic_admin"
   | "groq"
-  | "elevenlabs";
+  | "elevenlabs"
+  | "guardian";
 
 export interface ByokProviderMeta {
   id: ByokProvider;
@@ -68,6 +69,16 @@ export const BYOK_PROVIDERS: Record<ByokProvider, ByokProviderMeta> = {
     label: "ElevenLabs",
     powers: "Text-to-speech — JARVIS speaking responses back to you",
     consoleUrl: "https://elevenlabs.io/app/settings/api-keys",
+    keyPrefix: "",
+    required: false,
+  },
+  guardian: {
+    id: "guardian",
+    label: "The Guardian (news)",
+    powers:
+      "News briefings — JARVIS's get_news tool reads Guardian headlines on demand",
+    consoleUrl: "https://open-platform.theguardian.com/access/",
+    // Guardian keys are free-tier UUIDs with no fixed prefix.
     keyPrefix: "",
     required: false,
   },

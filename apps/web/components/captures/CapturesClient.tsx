@@ -1,6 +1,10 @@
 "use client";
 
-import { deleteCapture, getCapturesForCurrentUser } from "@/app/actions/captures";
+import {
+  deleteCapture,
+  getCapturesForCurrentUser,
+  setCaptureFavorite,
+} from "@/app/actions/captures";
 import { type HashtagWithCount, getHashtagsForUserAction } from "@/app/actions/hashtags";
 import { getPeopleForCurrentUser } from "@/app/actions/people";
 import { createProject } from "@/app/actions/projects";
@@ -136,10 +140,12 @@ export function CapturesClient({
       toast("Project created.");
       return newId;
     },
-    [queryClient, userId],
+    [queryClient, userId]
   );
 
   const [activeTagId, setActiveTagId] = useQueryState("tag", parseAsString);
+  const [favoriteFilter, setFavoriteFilter] = useQueryState("favorite", parseAsString);
+  const favoritesOnly = favoriteFilter === "1";
   const [searchResultIds, setSearchResultIds] = useState<string[] | null>(null);
   // Issue #139 — live search text (un-debounced) used purely to highlight the
   // matched substring inside each rendered capture card. Kept separate from
@@ -225,12 +231,20 @@ export function CapturesClient({
     if (activeTagId) {
       result = result.filter((c) => c.hashtags.some((h) => h.id === activeTagId));
     }
+    if (favoritesOnly) {
+      result = result.filter((c) => c.favorite);
+    }
     if (searchResultIds !== null) {
       const allowed = new Set(searchResultIds);
       result = result.filter((c) => allowed.has(c.id));
     }
     return result;
-  }, [optimisticCaptures, activeTagId, searchResultIds]);
+  }, [optimisticCaptures, activeTagId, favoritesOnly, searchResultIds]);
+
+  const favoriteCount = useMemo(
+    () => optimisticCaptures.filter((c) => c.favorite).length,
+    [optimisticCaptures]
+  );
 
   // Selected capture is pulled from the optimistic+live feed so detail panel
   // edits reflect the freshest data on every invalidation.
@@ -321,14 +335,40 @@ export function CapturesClient({
     [addOptimistic, showUndoToast]
   );
 
+  const handleToggleFavorite = useCallback(
+    (capture: CaptureWithLinks) => {
+      const next = !capture.favorite;
+      addOptimistic({ type: "update", id: capture.id, patch: { favorite: next } });
+      startTransition(async () => {
+        const r = await setCaptureFavorite({ id: capture.id, favorite: next });
+        if (!r.success) {
+          toast.error(r.error);
+          addOptimistic({ type: "update", id: capture.id, patch: { favorite: capture.favorite } });
+          return;
+        }
+        toast(next ? "Capture starred." : "Capture unstarred.");
+      });
+    },
+    [addOptimistic]
+  );
+
   return (
     <div className="flex h-full min-h-0">
       <aside className="w-[232px] p-4 pr-2 overflow-y-auto shrink-0">
         <HashtagSidebar
           hashtags={liveHashtags}
           activeHashtagId={activeTagId}
+          favoritesActive={favoritesOnly}
+          favoritesCount={favoriteCount}
           totalCount={totalCount}
-          onSelect={setActiveTagId}
+          onSelect={(tagId) => {
+            setActiveTagId(tagId);
+            if (tagId) setFavoriteFilter(null);
+          }}
+          onToggleFavorites={() => {
+            setFavoriteFilter(favoritesOnly ? null : "1");
+            if (!favoritesOnly) setActiveTagId(null);
+          }}
         />
       </aside>
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden min-w-0">
@@ -361,15 +401,18 @@ export function CapturesClient({
               captures={filtered}
               activeHashtagId={activeTagId}
               isSearchActive={searchResultIds !== null}
+              isFavoritesActive={favoritesOnly}
               // Issue #139 — only highlight while a search is actually active
               // (results gated, not just typing). Cleared automatically when
               // searchResultIds returns to null (empty field / Clear search).
               searchQuery={searchResultIds !== null ? searchQuery : ""}
               onClearHashtag={() => setActiveTagId(null)}
               onClearSearch={() => handleSearchResults(null)}
+              onClearFavorites={() => setFavoriteFilter(null)}
               onSelectCapture={(c) => setSelectedCaptureId(c.id)}
               onOptimisticDelete={handleOptimisticDelete}
               onDeleteCapture={handleDeleteCapture}
+              onToggleFavorite={handleToggleFavorite}
               userAvatarUrl={userAvatarUrl}
               userInitials={userInitials}
               availableProjects={projects}

@@ -13,11 +13,8 @@
 //   9. Wire all settings toggles (TTS enabled, provider, PE mode, Stop button)
 //  10. Register global hotkey when PE mode is OFF (Piece 5 / Cmd+Shift+J)
 
-import {
-  register as registerShortcut,
-  unregister as unregisterShortcut,
-  isRegistered as isShortcutRegistered,
-} from "@tauri-apps/plugin-global-shortcut";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 import { postClaim } from "@/api/client";
 import {
@@ -25,10 +22,11 @@ import {
   onCaptureState,
   onExtendedChange,
   onManualModeChange,
+  onMicAmplitude,
+  onNoSpeechDetected,
   onTranscriptReceived,
   setManualMode,
   setVadSilenceMs,
-  toggleCaptureTurn,
   toggleExtended,
   type CaptureState,
 } from "@/audio/capture";
@@ -42,6 +40,7 @@ import {
   reconnectPhysicalExtenderListener,
   stopPhysicalExtenderListener,
   setPeEnabled,
+  setTriggerHandler,
   type SseStatus,
 } from "@/physical-extender/sse-client";
 import {
@@ -52,16 +51,54 @@ import {
 } from "@/jarvis-response";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
+import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
+import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import {
+  getJarvisState,
+  onJarvisState,
+  startConversation,
+  startConversationMachine,
+  type JarvisState,
+} from "@/conversation/state-machine";
+import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
+import { mountOrb } from "@/hud/orb";
+import { wireStartupWakeSettings } from "@/hud/startup-settings";
+import {
+  refreshIdleLoopForPhrases,
+  setHasPhraseTriggers,
+  setPhraseMatcher,
+  setRoutineFireHandler,
+  setWakeEnabled,
+  setWakeTriggerHandler,
+} from "@/wake/wake-probe";
+import { safeRegister } from "@/hotkeys/register";
+import {
+  fireRoutine,
+  hasPhraseTriggers,
+  matchPhrase,
+  refreshRoutines,
+  setHotkeySync,
+  setRoutineBusyCheck,
+  setSchedulerSync,
+} from "@/routines/registry";
+import { syncHotkeys } from "@/routines/hotkeys";
+import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
+// Re-fetch the owner's enabled routines on this cadence so the desktop's
+// trigger surface (phrase table, hotkeys, time next-runs) tracks web edits.
+const ROUTINE_SYNC_INTERVAL_MS = 5 * 60_000;
 
 function paintSseStatus(status: SseStatus): void {
+  // Drive the header connection dot (body[data-sse]) + the drawer text row.
+  document.body.dataset.sse = status;
   const el = document.getElementById("sse-status");
-  if (!el) return;
-  el.textContent =
-    status === "connected" ? "connected"
-    : status === "error" ? "reconnecting…"
-    : "connecting…";
+  if (el) {
+    el.textContent =
+      status === "connected" ? "connected"
+      : status === "error" ? "reconnecting…"
+      : "connecting…";
+  }
 }
 
 // Local cache so paintExtendedState can re-render the recording label
@@ -93,7 +130,9 @@ function paintCaptureState(state: CaptureState): void {
   _captureState = state;
   renderLivePanel();
   paintActionRow(state, _extended);
-  document.body.dataset.jarvisState = state;
+  // NOTE: body[data-jarvis-state] is driven by the conversation FSM
+  // (idle/listening/thinking/speaking), NOT by raw capture state. See
+  // onJarvisState() wiring in boot().
 }
 
 function paintExtended(active: boolean): void {
@@ -102,36 +141,125 @@ function paintExtended(active: boolean): void {
   paintActionRow(_captureState, active);
 }
 
+// ── Transcript region: the scrollable conversation log ─────────────────────
+// A turn bubble is appended per user utterance and per JARVIS reply. The reply
+// bubble is created on response-start and its body grows as chunks stream. The
+// region auto-scrolls to the latest text (only when the user is already near
+// the bottom, so a manual scroll-up to re-read isn't yanked away).
+
+function transcriptEl(): HTMLElement | null {
+  return document.getElementById("transcript");
+}
+
+/** True when the transcript is scrolled near its bottom (auto-follow zone). */
+function isNearBottom(el: HTMLElement): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+}
+
+function autoScroll(el: HTMLElement, wasNearBottom: boolean): void {
+  if (wasNearBottom) el.scrollTop = el.scrollHeight;
+}
+
+/** Append a completed user-utterance bubble. */
+function appendUserTurn(text: string): void {
+  const el = transcriptEl();
+  if (!el || !text.trim()) return;
+  const near = isNearBottom(el);
+  el.classList.add("has-content");
+  const turn = document.createElement("div");
+  turn.className = "turn user";
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "you";
+  const body = document.createElement("div");
+  body.className = "body";
+  body.textContent = text;
+  turn.append(who, body);
+  el.appendChild(turn);
+  autoScroll(el, near);
+}
+
+// The in-progress JARVIS reply bubble's body element (grows as chunks stream).
+let currentReplyBody: HTMLElement | null = null;
+
+/** Start a fresh JARVIS reply bubble for the streaming turn. */
+function startJarvisTurn(): void {
+  const el = transcriptEl();
+  if (!el) return;
+  el.classList.add("has-content");
+  const turn = document.createElement("div");
+  turn.className = "turn jarvis";
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "jarvis";
+  const body = document.createElement("div");
+  body.className = "body";
+  turn.append(who, body);
+  el.appendChild(turn);
+  currentReplyBody = body;
+  el.scrollTop = el.scrollHeight;
+}
+
+/** Append a streamed delta to the in-progress JARVIS reply bubble. */
+function appendJarvisDelta(delta: string): void {
+  const el = transcriptEl();
+  if (!el) return;
+  if (!currentReplyBody) startJarvisTurn();
+  const near = isNearBottom(el);
+  if (currentReplyBody) currentReplyBody.textContent += delta;
+  autoScroll(el, near);
+}
+
 function paintTranscript(text: string): void {
+  // Visible transcript log.
+  appendUserTurn(text);
+  // Keep the drawer QA row in sync.
   const panel = document.getElementById("transcript-panel");
   const out = document.getElementById("transcript-text");
-  if (!panel || !out) return;
-  out.textContent = text;
-  panel.classList.add("visible");
+  if (panel && out) {
+    out.textContent = text;
+    panel.classList.add("visible");
+  }
 }
 
 function paintResponseStart(): void {
+  // Open a new JARVIS reply bubble in the visible transcript.
+  currentReplyBody = null;
+  startJarvisTurn();
+  // Drawer QA mirror.
   const panel = document.getElementById("response-panel");
   const textEl = document.getElementById("response-text");
   const toolCallsEl = document.getElementById("tool-calls");
-  if (!panel || !textEl || !toolCallsEl) return;
-  textEl.textContent = "";
-  toolCallsEl.innerHTML = "";
-  panel.classList.add("streaming");
-  panel.classList.add("visible");
+  if (textEl) textEl.textContent = "";
+  if (toolCallsEl) toolCallsEl.innerHTML = "";
+  if (panel) {
+    panel.classList.add("streaming");
+    panel.classList.add("visible");
+  }
 }
 
 function paintResponseChunk(delta: string): void {
+  appendJarvisDelta(delta);
+  // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
-  if (!textEl) return;
-  textEl.textContent = (textEl.textContent ?? "") + delta;
+  if (textEl) textEl.textContent = (textEl.textContent ?? "") + delta;
+}
+
+// Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
+// and the drawer QA list. Keeps chrome out of the scrollable transcript.
+function pushFooterReceipt(text: string, extraClass = ""): void {
+  const footer = document.getElementById("tool-calls-footer");
+  if (footer) {
+    const item = document.createElement("div");
+    item.className = `tool-call-item${extraClass ? ` ${extraClass}` : ""}`;
+    item.textContent = text;
+    footer.appendChild(item);
+    // Cap to the last 2 lines so the footer never grows/overlaps.
+    while (footer.children.length > 2) footer.removeChild(footer.firstChild!);
+  }
 }
 
 function paintToolCall(name: string, result: unknown): void {
-  const toolCallsEl = document.getElementById("tool-calls");
-  if (!toolCallsEl) return;
-  const item = document.createElement("div");
-  item.className = "tool-call-item";
   const resultOk = (result as { ok?: boolean })?.ok === true;
   const receipt = (result as { receipt?: Record<string, unknown> })?.receipt;
   let summary = `→ ${name}`;
@@ -145,8 +273,33 @@ function paintToolCall(name: string, result: unknown): void {
       summary = `→ Event: ${String(receipt.title ?? "")}`;
     }
   }
-  item.textContent = summary;
-  toolCallsEl.appendChild(item);
+  pushFooterReceipt(summary);
+  // Drawer QA mirror.
+  const toolCallsEl = document.getElementById("tool-calls");
+  if (toolCallsEl) {
+    const item = document.createElement("div");
+    item.className = "tool-call-item";
+    item.textContent = summary;
+    toolCallsEl.appendChild(item);
+  }
+}
+
+/**
+ * Flash a brief "▸ {summary}" receipt line on the HUD when a computer-control
+ * action is dispatched (summary comes from describeAction, e.g. "opening
+ * Spotify", "message to Emir — awaiting confirmation"). Purely visual — the
+ * agent's streamed text already speaks the acknowledgement, so no TTS here.
+ */
+function flashActionLine(summary: string): void {
+  pushFooterReceipt(`▸ ${summary || "…"}`, "action-flash");
+  // Drawer QA mirror.
+  const toolCallsEl = document.getElementById("tool-calls");
+  if (toolCallsEl) {
+    const item = document.createElement("div");
+    item.className = "tool-call-item action-flash";
+    item.textContent = `▸ ${summary || "…"}`;
+    toolCallsEl.appendChild(item);
+  }
 }
 
 function paintResponseComplete(response: JarvisResponseComplete): void {
@@ -160,16 +313,11 @@ function paintResponseComplete(response: JarvisResponseComplete): void {
 }
 
 function paintTtsState(playing: boolean): void {
-  const stopBtn = document.getElementById("stop-btn");
+  const stopBtn = document.getElementById("stop-btn") as HTMLElement | null;
   const idleLabel = document.getElementById("stop-btn-idle");
   if (!stopBtn || !idleLabel) return;
-  if (playing) {
-    stopBtn.classList.add("visible");
-    idleLabel.style.display = "none";
-  } else {
-    stopBtn.classList.remove("visible");
-    idleLabel.style.display = "";
-  }
+  stopBtn.style.display = playing ? "inline-flex" : "none";
+  idleLabel.style.display = playing ? "none" : "";
 }
 
 let _wakeRegistered = false;
@@ -195,8 +343,10 @@ function wireCancelButton(): void {
 function wireWakeButton(): void {
   const btn = document.getElementById("wake-btn");
   if (!btn) return;
+  // The manual "Talk to JARVIS" button is the guaranteed fallback invocation
+  // surface. It goes through the conversation FSM like the hotkey and tray.
   btn.addEventListener("click", () => {
-    void toggleCaptureTurn();
+    void startConversation();
   });
 }
 
@@ -285,46 +435,6 @@ function prettyHotkey(accel: string): string {
     .replace(/\+/g, "");
 }
 
-async function safeRegister(
-  hotkey: string,
-  label: string,
-  handler: () => void,
-): Promise<boolean> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) already registered`);
-      return true;
-    }
-    await registerShortcut(hotkey, (event) => {
-      if (event.state !== "Pressed") return;
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) pressed`);
-      handler();
-    });
-    // eslint-disable-next-line no-console
-    console.log(`[hotkey] ${label} (${hotkey}) registered`);
-    return true;
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to register ${label} (${hotkey})`, err);
-    return false;
-  }
-}
-
-async function safeUnregister(hotkey: string, label: string): Promise<void> {
-  try {
-    if (await isShortcutRegistered(hotkey)) {
-      await unregisterShortcut(hotkey);
-      // eslint-disable-next-line no-console
-      console.log(`[hotkey] ${label} (${hotkey}) released`);
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(`[hotkey] failed to unregister ${label} (${hotkey})`, err);
-  }
-}
-
 /**
  * Always register the wake hotkey. Previously this gated on PE mode, which
  * meant new users (default: PE ON) had no working hotkey — the only path
@@ -334,10 +444,9 @@ async function safeUnregister(hotkey: string, label: string): Promise<void> {
  * input surface, not a replacement.
  */
 async function wireGlobalShortcut(peEnabled: boolean): Promise<void> {
-  // Cmd+Ctrl+J is a single toggle: start a turn when idle, end-and-send when
-  // recording. Same chord stops in physical-extender mode too (the ESP32/SSE
-  // path starts the turn; this stops it).
-  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "wake/stop", () => void toggleCaptureTurn());
+  // Cmd+Ctrl+J is the primary invocation surface, routed through the FSM:
+  // idle → begin conversation (brief, then listen); listening → end the turn.
+  _wakeRegistered = await safeRegister(WAKE_HOTKEY, "invoke", () => void startConversation());
   paintHotkeyStatus(peEnabled);
 }
 
@@ -356,6 +465,11 @@ async function wireExtendShortcut(): Promise<void> {
 }
 
 async function boot(): Promise<void> {
+  // 0. Audio: TTS now plays natively in Rust (rodio), so there is no webview
+  //    AudioContext to prime/resume/recover. `unlock()` is a no-op retained for
+  //    API compatibility. The Rust output thread is created lazily on the first
+  //    tts_play_pcm and lives for the app's lifetime.
+
   // 1. Load persisted settings and apply them before wiring anything.
   const settings = await loadSettings();
   ttsPlayer.setEnabled(settings.ttsEnabled && settings.ttsProvider !== "off");
@@ -425,6 +539,9 @@ async function boot(): Promise<void> {
       paintTokenStatus(value);
       // Re-open the SSE stream so the new token authenticates it immediately.
       void reconnectPhysicalExtenderListener();
+      // Routines were unfetchable while unauthenticated — sync now that a
+      // valid bearer is in place so triggers register without an app restart.
+      void refreshRoutines();
       return true;
     };
 
@@ -490,12 +607,44 @@ async function boot(): Promise<void> {
     if (manualModeEl) manualModeEl.checked = active;
   });
 
-  // Drive the kiwi orb state from capture state — idle → recording → uploading → idle.
-  // TTS playing is mapped to "speaking" via ttsPlayer.onStateChange below.
-  function setJarvisState(s: "idle" | "recording" | "uploading" | "speaking"): void {
-    document.body.dataset.jarvisState = s;
-  }
-  setJarvisState("idle");
+  // 3a-bis. Idle wake-phrase listener ("daddy's home") — OPT-IN, default OFF.
+  // The trigger handler is injected (same pattern as setTriggerHandler below)
+  // so wake invokes funnel through startConversation(): the startup
+  // sequencer's once-per-session and no-briefing-overlap guarantees hold for
+  // wake exactly as for the hotkey/tray/button. setWakeEnabled() applies the
+  // persisted setting now and is also the LIVE toggle surface the settings
+  // pane (hud/startup-settings.ts) calls on every flip — start/stop without
+  // an app restart.
+  setWakeTriggerHandler(() => void startConversation());
+
+  // 3a-ter. Routine triggers. Wire the injection seams that connect the
+  // registry (dispatch + fireRoutine), the wake probe (phrase matching), the
+  // hotkey manager, and the time scheduler — all data-driven from the owner's
+  // enabled routines fetched over the bearer-authed GET route. Seams avoid
+  // module import cycles (same pattern as setWakeTriggerHandler above).
+  //   - registry ↔ wake probe: matcher + fire handler + phrase-exists gate
+  //   - registry → hotkey manager / scheduler: dispatch-table syncers
+  //   - registry ← FSM: half-duplex busy check so a time/hotkey fire defers
+  //     while JARVIS is thinking/speaking instead of talking over a turn.
+  setPhraseMatcher(matchPhrase);
+  setRoutineFireHandler((routineId, type) => void fireRoutine(routineId, type));
+  setHasPhraseTriggers(hasPhraseTriggers);
+  setHotkeySync((entries) => {
+    syncHotkeys(entries);
+    // A phrase routine may have just appeared/vanished — re-evaluate whether
+    // the idle mic loop should now be running even with the wake toggle off.
+    void refreshIdleLoopForPhrases();
+  });
+  setSchedulerSync(syncTimeRoutines);
+  setRoutineBusyCheck(() => {
+    const s = getJarvisState();
+    return s === "thinking" || s === "speaking";
+  });
+
+  // Enable the wake feature AFTER the phrase seams are wired, so the initial
+  // shouldRunIdleLoop() check sees any phrase routines. Routines are fetched
+  // below once the device token is confirmed present.
+  setWakeEnabled(settings.wakeEnabled);
 
   // 3b. Wire VAD silence dropdown
   if (vadSilenceEl) {
@@ -527,20 +676,40 @@ async function boot(): Promise<void> {
   onCaptureState(paintCaptureState);
   onExtendedChange(paintExtended);
   onTranscriptReceived(paintTranscript);
+  // Empty / failed STT → flash a butler line through the acknowledge strip so
+  // the user gets immediate feedback instead of a silent stall. The strip's
+  // own guard keeps this from clobbering a live streaming response.
+  onNoSpeechDetected((reason) => {
+    flashAckStrip(
+      reason === "stt-failed" ? "Sorry sir, transcription failed" : "Didn't catch that, sir",
+    );
+  });
 
-  // TTS state drives the Stop button visibility + the kiwi orb's "speaking" hue.
+  // TTS state drives the Stop button visibility. The orb's "speaking" state is
+  // owned by the conversation FSM (which reads the same ttsPlayer signal).
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
-    if (state === "playing" && _captureState === "idle") {
-      setJarvisState("speaking");
-    } else if (state === "idle" && _captureState === "idle") {
-      setJarvisState("idle");
-    }
   });
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => paintToolCall(name, result));
+  onJarvisToolCall(({ name, result }) => {
+    paintToolCall(name, result);
+    // Computer-control tool results carry an `action` on their result. Key
+    // strictly off result.action.kind (fixed contract with the backend agent):
+    // execute the action + flash a visual confirmation. TTS is NOT triggered —
+    // the streamed response text already speaks the acknowledgement.
+    const rawAction = (result as { action?: unknown })?.action;
+    const action = parseAction(rawAction);
+    if (action) {
+      flashActionLine(describeAction(action));
+      // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
+      // foregrounds the target. We do NOT set_focus() the HUD after an open —
+      // that would yank key focus back from the app the user wants to use. The
+      // alwaysOnTop + Accessory HUD floats above without stealing input.
+      void handleAction(action);
+    }
+  });
   onJarvisResponseEnd(() => {
     // Streaming indicator cleared when response-complete fires.
   });
@@ -557,7 +726,89 @@ async function boot(): Promise<void> {
   wireWakeButton();
   wireExtendButton();
 
+  // Route ESP32 `trigger` events through the conversation FSM so the physical
+  // button respects the half-duplex gate (no mic-open while TTS is playing),
+  // exactly like the hotkey and tray. Injected here to avoid a circular import
+  // (the FSM imports the SSE client for onJarvisResponseStart).
+  setTriggerHandler(() => void startConversation());
+
   void startPhysicalExtenderListener();
+
+  // 5b. Conversation FSM: single source of truth for body[data-jarvis-state]
+  //     (idle/listening/thinking/speaking). Wire it up and mirror its state
+  //     onto the body so the orb reacts.
+  const STATUS_LABEL: Record<JarvisState, string> = {
+    idle: "standing by",
+    listening: "listening",
+    thinking: "working",
+    speaking: "speaking",
+  };
+  onJarvisState((s: JarvisState) => {
+    document.body.dataset.jarvisState = s;
+    // Update just the status word — the connection dot lives beside it.
+    const statusWord = document.getElementById("status-word");
+    if (statusWord) statusWord.textContent = STATUS_LABEL[s];
+  });
+  startConversationMachine();
+  document.body.dataset.jarvisState = "idle";
+
+  // 5b-bis. send_message confirm gate: holds any send_message action until a
+  // spoken affirmative lands in the continue-listening window (transcript +
+  // FSM-state subscriptions live inside the gate). Must start after the FSM
+  // so its idle-expiry subscription sees real transitions.
+  // Guarded-confirm ring: while a send is held pending, the orb's tick
+  // overlay shifts amber (index.html keys off body[data-confirm-pending]).
+  // Subscribe before arming the gate so no transition is missed.
+  onConfirmPendingChange((confirmPending) => {
+    document.body.dataset.confirmPending = confirmPending ? "true" : "false";
+  });
+  startConfirmGate();
+
+  // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
+  //     live amplitude: mic RMS while listening, TTS output while speaking.
+  let latestMicLevel = 0;
+  onMicAmplitude((level) => {
+    latestMicLevel = level;
+  });
+  const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement | null;
+  if (orbCanvas) {
+    mountOrb(orbCanvas, {
+      getState: () => getJarvisState(),
+      getMicLevel: () => latestMicLevel,
+      getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
+    });
+  }
+
+  // 5c-bis. Acknowledge strip: auto-fading first-clause echo of each JARVIS
+  // utterance under the status line. Subscribes to the same SSE response
+  // events painted above; purely presentational.
+  startAckStrip();
+
+  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  const gearBtn = document.getElementById("gear-btn");
+  const settingsEl = document.getElementById("settings");
+  const settingsCloseBtn = document.getElementById("settings-close");
+  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
+
+  // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
+  // into Settings, where the device token lives — so a dropped server / bad
+  // token is both obvious and one tap from being fixed.
+  document
+    .getElementById("disconnect-banner")
+    ?.addEventListener("click", () => settingsEl?.classList.add("open"));
+
+  // 5d-bis. "Startup & Wake" section of the drawer: wake toggle (live), the
+  // briefing toggle, and the openOnStart / Shortcuts list editors. All persist
+  // via saveSetting immediately on change.
+  wireStartupWakeSettings(settings);
+
+  // Tray left-click also invokes a turn (emitted from Rust as `tray-invoke`).
+  // "Show / Hide HUD" stays on the right-click menu so visibility toggling is
+  // not conflated with invocation.
+  void listen("tray-invoke", () => {
+    void startConversation();
+  });
 
   // Initial global shortcut setup
   await wireGlobalShortcut(settings.physicalExtenderEnabled);
@@ -567,6 +818,41 @@ async function boot(): Promise<void> {
   setInterval(() => {
     void postClaim();
   }, CLAIM_HEARTBEAT_MS);
+
+  // Routine triggers: start the time scheduler, do the initial sync (fetches
+  // the owner's enabled routines and rebuilds all dispatch tables), then poll
+  // so web-app edits propagate. The initial fetch no-ops gracefully (returns
+  // []) if no device token is present yet; the token-save handler above calls
+  // refreshRoutines() again the moment a valid bearer lands.
+  startScheduler();
+  void refreshRoutines();
+  setInterval(() => {
+    void refreshRoutines();
+  }, ROUTINE_SYNC_INTERVAL_MS);
+
+  // 6b. Startup permission probe: without the Accessibility TCC grant, enigo
+  // input injection (type_text / press_key / mouse) is a SILENT no-op — the
+  // OS reports success and nothing happens. Warn loudly at boot so the
+  // failure mode is visible in the console instead of mystifying a demo.
+  void invoke<boolean>("accessibility_trusted")
+    .then((trusted) => {
+      if (trusted) {
+        // eslint-disable-next-line no-console
+        console.log("[perm] Accessibility: granted — keyboard/mouse injection available");
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[perm] Accessibility NOT granted — type_text/press_key/mouse actions will fail. " +
+            "Enable JARVIS in System Settings → Privacy & Security → Accessibility. " +
+            "(Screen Recording for take_screenshot is a separate TCC-panel grant.)",
+        );
+      }
+    })
+    .catch((err) => {
+      // Non-fatal — running outside Tauri (plain vite dev) has no command.
+      // eslint-disable-next-line no-console
+      console.warn("[perm] accessibility probe failed", err);
+    });
 
   // eslint-disable-next-line no-console
   console.log(

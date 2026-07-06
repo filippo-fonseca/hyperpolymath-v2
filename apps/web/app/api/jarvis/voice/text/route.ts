@@ -8,6 +8,7 @@ import {
   emitPhysicalTranscript,
 } from "@/lib/voice/physical-extension/bus";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
+import { buildRecentHistory } from "@/lib/jarvis/recent-history";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
@@ -22,8 +23,16 @@ const MAX_TEXT_CHARS = 4000;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Jarvis-Mode",
 };
+
+/**
+ * Normalize the `X-Jarvis-Mode` header (Phase 2). Only "computer" is honored;
+ * anything else (or absent) → undefined, preserving browser/mobile behaviour.
+ */
+function readJarvisMode(req: NextRequest): "computer" | undefined {
+  return req.headers.get("x-jarvis-mode") === "computer" ? "computer" : undefined;
+}
 
 /**
  * POST /api/jarvis/voice/text
@@ -63,6 +72,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response("Unauthorized", { status: 401, headers: CORS });
   }
   const userId = identity.userId;
+  const jarvisMode = readJarvisMode(req);
 
   // Owner-only while the physical bus is a single global emitter (see
   // lib/auth/owner.ts) — its events fan out to the shared SSE stream.
@@ -133,6 +143,21 @@ export async function POST(req: NextRequest): Promise<Response> {
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
 
+  // Resolve conversation history BEFORE persisting the current user turn, so
+  // the current utterance is never double-counted in the server-side fallback
+  // window. When the client sends its own history, honor it and skip the
+  // fallback entirely. Fail-open: a load error degrades to no history.
+  let historyEntries: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> =
+    Array.isArray(body.history) ? body.history.slice(-10) : [];
+  if (historyEntries.length === 0) {
+    try {
+      historyEntries = await buildRecentHistory(userId);
+    } catch (err) {
+      console.error("[voice/text] buildRecentHistory failed; running without history", err);
+      historyEntries = [];
+    }
+  }
+
   void db
     .insert(jarvisTurns)
     .values({
@@ -157,9 +182,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   let assistantText = "";
   const assistantActions: Array<{ toolUseId: string; name: string; result: unknown }> = [];
 
-  // Build the messages array: prior history (capped at 10 entries) followed
+  // Prior history (client-supplied or server fallback, resolved above) followed
   // by the current user turn with system hints injected.
-  const historyEntries = Array.isArray(body.history) ? body.history.slice(-10) : [];
   const messages: Array<{ role: "user" | "assistant"; content: string | ContentBlock[] }> = [
     ...historyEntries,
     { role: "user", content: userContent },
@@ -180,6 +204,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     messages,
     toolChoice,
     parsedPriority: body.parsedPriority,
+    mode: jarvisMode,
     source: { device: identity.deviceName, input: "text" },
     isVoice: false,
     sttDoneAt: null,

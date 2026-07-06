@@ -2,322 +2,469 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>JARVIS Desktop</title>
+    <title>JARVIS</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        --bg: light-dark(#fff, #161616);
-        --fg: light-dark(#111, #ececec);
-        --muted: light-dark(#6b6b6b, #8a8a8a);
-        --rule: light-dark(#e6e6e6, #2a2a2a);
+        /* Locked HUD palette (p2 design spec). Near-black base, cyan as the
+           canonical Stark signature (#00d4ff — also hardcoded in hud/orb.ts
+           for the canvas orb; keep the two in sync), amber reserved for the
+           guarded-confirm state. */
+        --bg: #050608;
+        --surface: #0b1018;
+        --fg: #dce8ee;
+        --muted: #546878;
+        --rule: #16202b;
         --accent: #00d4ff;
-        --rec: #e54b4b;
-        --upload: #f6b03e;
+        --accent-hi: #3de4ff;
+        --amber: #f59e0b;
+        --err: #c45a4a;
+        /* Mono for UI chrome/labels; serif for transcript turn text. Both
+           stacks resolve from locally installed fonts only — no network
+           font loads (EB Garamond ships in the user's font library; absent
+           that, the serif fallbacks carry the register). */
+        --mono: "Berkeley Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --serif: "EB Garamond", Garamond, "Iowan Old Style", Palatino, Georgia, serif;
       }
-      body { margin: 0; padding: 28px 32px; background: var(--bg); color: var(--fg); }
-      h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 12px; }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(120% 90% at 50% 0%, var(--surface) 0%, color-mix(in srgb, var(--surface) 45%, var(--bg)) 60%, var(--bg) 100%);
+        color: var(--fg);
+        overflow: hidden;
+        user-select: none;
+      }
 
-      /* Kiwi orb — the JARVIS visual anchor. Concentric rings around the
-         brand kiwi-bird glyph; CSS-only animations; state-driven. */
-      .kiwi-orb {
+      /* ── Stage: three fixed regions in a column grid ───────────────────────
+         [header/orb]  auto — never scrolls, never shrinks
+         [transcript]  1fr  — the ONLY scroll region; text can never overlap
+         [footer/btn]  auto — pinned to the bottom
+         The min-height:0 on the middle row is what lets it scroll instead of
+         pushing the footer off-screen (CSS grid overflow gotcha). Responsive to
+         window resize because every dimension is relative / clamped. */
+      .stage {
         position: relative;
-        width: 38px; height: 38px; flex-shrink: 0;
-        display: inline-grid; place-items: center;
-      }
-      .kiwi-orb::before, .kiwi-orb::after {
-        content: ""; position: absolute; inset: 0;
-        border-radius: 50%;
-        pointer-events: none;
-      }
-      .kiwi-orb::before {
-        background: radial-gradient(circle at center,
-          color-mix(in srgb, var(--accent) 45%, transparent) 0%,
-          color-mix(in srgb, var(--accent) 15%, transparent) 35%,
-          transparent 70%);
-        animation: orb-breathe 3.2s ease-in-out infinite;
-      }
-      .kiwi-orb::after {
-        border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-        animation: orb-ring 4s linear infinite;
-      }
-      .kiwi-orb .kiwi-glyph {
-        position: relative; z-index: 1;
-        width: 18px; height: 18px;
-        color: var(--accent);
-        filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
-        animation: orb-glyph-pulse 3.2s ease-in-out infinite;
-      }
-      @keyframes orb-breathe {
-        0%, 100% { transform: scale(0.92); opacity: 0.55; }
-        50%      { transform: scale(1.05); opacity: 1; }
-      }
-      @keyframes orb-ring {
-        from { transform: rotate(0deg)   scale(1); opacity: 0.5; }
-        50%  {                             opacity: 0.9; }
-        to   { transform: rotate(360deg) scale(1); opacity: 0.5; }
-      }
-      @keyframes orb-glyph-pulse {
-        0%, 100% { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 40%, transparent)); }
-        50%      { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 80%, transparent)); }
-      }
-      /* State variants — driven by body[data-jarvis-state] */
-      body[data-jarvis-state="recording"] .kiwi-orb::before { animation-duration: 1.1s; background: radial-gradient(circle at center, color-mix(in srgb, var(--rec) 55%, transparent), color-mix(in srgb, var(--rec) 18%, transparent) 38%, transparent 72%); }
-      body[data-jarvis-state="recording"] .kiwi-orb::after  { border-color: color-mix(in srgb, var(--rec) 60%, transparent); animation-duration: 2s; }
-      body[data-jarvis-state="recording"] .kiwi-orb .kiwi-glyph { color: var(--rec); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--rec) 80%, transparent)); animation-duration: 1.1s; }
-      body[data-jarvis-state="uploading"] .kiwi-orb::before { background: radial-gradient(circle at center, color-mix(in srgb, var(--upload) 55%, transparent), color-mix(in srgb, var(--upload) 18%, transparent) 38%, transparent 72%); }
-      body[data-jarvis-state="uploading"] .kiwi-orb::after  { border-color: color-mix(in srgb, var(--upload) 60%, transparent); animation-duration: 1.4s; }
-      body[data-jarvis-state="uploading"] .kiwi-orb .kiwi-glyph { color: var(--upload); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--upload) 80%, transparent)); }
-      body[data-jarvis-state="speaking"] .kiwi-orb::before { animation-duration: 1.6s; }
-      body[data-jarvis-state="speaking"] .kiwi-orb::after  { animation-duration: 2s; }
-      .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
-      .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
-      .row:last-child { border-bottom: none; }
-      .label { color: var(--muted); display: flex; align-items: center; gap: 8px; }
-      .value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg); text-align: right; max-width: 60%; word-break: break-word; }
-      footer { color: var(--muted); font-size: 11px; margin-top: 24px; }
-
-      .live-panel {
-        margin-top: 16px;
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--rec) 8%, transparent);
-        border: 1px solid color-mix(in srgb, var(--rec) 30%, var(--rule));
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      .live-panel[data-state="recording"] {
-        display: flex;
-        background: color-mix(in srgb, var(--rec) 8%, transparent);
-        border-color: color-mix(in srgb, var(--rec) 35%, var(--rule));
-      }
-      .live-panel[data-state="uploading"] {
-        display: flex;
-        background: color-mix(in srgb, var(--upload) 10%, transparent);
-        border-color: color-mix(in srgb, var(--upload) 35%, var(--rule));
-      }
-      .live-panel[data-state="recording"][data-extended="true"] {
-        background: color-mix(in srgb, var(--accent) 8%, transparent);
-        border-color: color-mix(in srgb, var(--accent) 40%, var(--rule));
-      }
-      .live-panel[data-state="recording"][data-extended="true"] .pulse-dot {
-        background: var(--accent);
-        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
-        animation-duration: 2s;
-      }
-      .live-label { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: var(--fg); }
-      .pulse-dot {
-        width: 10px; height: 10px; border-radius: 50%; background: var(--rec);
-        box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 60%, transparent);
-        animation: pulse 1.2s ease-out infinite;
-      }
-      .live-panel[data-state="uploading"] .pulse-dot {
-        background: var(--upload);
-        box-shadow: 0 0 0 0 color-mix(in srgb, var(--upload) 60%, transparent);
-        animation-duration: 0.8s;
-      }
-      @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 70%, transparent); transform: scale(1); }
-        50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--rec) 0%, transparent); transform: scale(1.1); }
-        100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rec) 0%, transparent); transform: scale(1); }
-      }
-      .cancel-btn {
-        background: transparent; border: 1px solid color-mix(in srgb, var(--rec) 50%, var(--rule));
-        color: var(--rec); padding: 4px 12px; border-radius: 6px;
-        font-size: 11px; cursor: pointer; font-weight: 500;
-        font-family: inherit;
-      }
-      .cancel-btn:hover { background: color-mix(in srgb, var(--rec) 15%, transparent); }
-      .cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-      /* Manual action row at the top — always-works fallback to global hotkeys. */
-      .action-row {
-        display: flex; gap: 8px; margin-top: 4px; margin-bottom: 18px;
-      }
-      .action-btn {
-        flex: 1;
-        background: color-mix(in srgb, var(--accent) 12%, transparent);
-        border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--rule));
-        color: var(--fg);
-        padding: 10px 14px; border-radius: 8px;
-        font-size: 13px; font-weight: 500; cursor: pointer;
-        font-family: inherit;
-        transition: background 0.15s, transform 0.05s;
-        display: flex; align-items: center; justify-content: center; gap: 8px;
-      }
-      .action-btn:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
-      .action-btn:active { transform: scale(0.98); }
-      .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .action-btn.extend-btn {
-        background: color-mix(in srgb, var(--accent) 6%, transparent);
-        border-color: color-mix(in srgb, var(--accent) 25%, var(--rule));
-        color: var(--muted);
-        display: none;
-      }
-      .action-btn.extend-btn.visible { display: flex; }
-      .action-btn.extend-btn[data-extended="true"] {
-        background: color-mix(in srgb, var(--accent) 18%, transparent);
-        border-color: var(--accent);
-        color: var(--accent);
-      }
-      .action-btn .shortcut-label {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 10px; color: var(--muted);
-        padding: 1px 5px; background: color-mix(in srgb, var(--fg) 8%, transparent);
-        border-radius: 3px;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        row-gap: 12px;
+        padding: 16px 18px 18px;
       }
 
-      .transcript-panel {
-        margin-top: 16px;
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: var(--rule);
-        font-size: 12px;
-        line-height: 1.5;
-        color: var(--fg);
-        display: none;
-      }
-      .transcript-panel.visible { display: block; }
-      .transcript-panel .transcript-label {
-        color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-        margin-bottom: 4px;
-      }
-      .transcript-panel .transcript-text {
-        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-      }
-
-      .response-panel {
-        margin-top: 16px;
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--accent) 6%, transparent);
-        border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--rule));
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--fg);
-        display: none;
-      }
-      .response-panel.visible { display: block; }
-      .response-panel.streaming {
-        display: block;
-        border-color: color-mix(in srgb, var(--accent) 35%, var(--rule));
-      }
-      .response-panel .response-label {
-        color: var(--accent); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-        margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
-      }
-      .response-panel.streaming .response-label::after {
-        content: "";
-        display: inline-block;
-        width: 6px; height: 6px; border-radius: 50%;
-        background: var(--accent);
-        animation: pulse 1s ease-in-out infinite;
-      }
-      .response-panel .response-text {
-        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        white-space: pre-wrap;
-      }
-      .response-panel .tool-calls {
-        margin-top: 8px;
+      /* ── Header: orb + status, centered, fixed height ── */
+      .hud-header {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        gap: 8px;
+        padding-top: 4px;
       }
-      .response-panel .tool-call-item {
-        font-size: 11px;
+      .orb-wrap {
+        position: relative;
+        width: clamp(128px, 36vh, 220px);
+        height: clamp(128px, 36vh, 220px);
+        display: grid; place-items: center;
+      }
+      #orb-canvas { width: 100%; height: 100%; display: block; }
+
+      /* 4 tick marks at 0/90/180/270° just outside the canvas ring (Stark
+         targeting feel) — a CSS-only overlay so hud/orb.ts stays untouched.
+         The canvas ring radius is 0.28 × the box; this overlay's circle sits
+         at 0.33 × so ticks ride just outside the stroke + glow.
+         Guarded confirm: while a send_message is held awaiting a spoken
+         confirmation (body[data-confirm-pending="true"], driven by
+         actions/confirm-gate.ts via main.ts), the ticks cross-fade cyan →
+         amber and a thin amber guard ring appears. That fade and the
+         acknowledge strip are the only new motion — nothing else animates. */
+      .orb-ticks {
+        position: absolute;
+        width: 66%; height: 66%;
+        left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 1px solid transparent;
+        transition: border-color 0.35s ease;
+        pointer-events: none;
+      }
+      body[data-confirm-pending="true"] .orb-ticks {
+        border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+      }
+      .orb-ticks::before,
+      .orb-ticks::after {
+        content: "";
+        position: absolute; inset: -1px; /* cover the border box so ticks sit on the guard ring */
+        background:
+          linear-gradient(currentColor, currentColor) center top    / 1.5px 7px no-repeat,
+          linear-gradient(currentColor, currentColor) center bottom / 1.5px 7px no-repeat,
+          linear-gradient(currentColor, currentColor) left   center / 7px 1.5px no-repeat,
+          linear-gradient(currentColor, currentColor) right  center / 7px 1.5px no-repeat;
+        transition: opacity 0.35s ease;
+      }
+      .orb-ticks::before { color: color-mix(in srgb, var(--accent) 50%, transparent); }
+      .orb-ticks::after  { color: color-mix(in srgb, var(--amber) 80%, transparent); opacity: 0; }
+      body[data-confirm-pending="true"] .orb-ticks::before { opacity: 0; }
+      body[data-confirm-pending="true"] .orb-ticks::after  { opacity: 1; }
+
+      /* Status glyph — tiny mono line under the orb (font-mono-stats). */
+      .status-line {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
         color: var(--muted);
-        padding: 4px 8px;
-        background: color-mix(in srgb, var(--accent) 8%, transparent);
-        border-radius: 4px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        transition: color 0.3s ease;
+      }
+      body[data-jarvis-state="listening"] .status-line { color: var(--accent); }
+      body[data-jarvis-state="speaking"] .status-line { color: var(--accent); }
+      body[data-jarvis-state="thinking"] .status-line { color: var(--accent); opacity: 0.8; }
+      /* Tiny connection dot next to the status word. */
+      .status-line .conn-dot {
+        display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+        margin-right: 7px; vertical-align: middle;
+        background: var(--muted); transition: background 0.3s, box-shadow 0.3s;
+      }
+      body[data-sse="connected"] .status-line .conn-dot {
+        background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+      }
+      body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
+
+      /* Disconnect banner — an always-visible top strip whenever the JARVIS
+         server / device-token link is down, so the user never has to open
+         Settings to discover the HUD is offline. Hidden unless the SSE bus is
+         in the error state; tap it to jump straight to Settings. */
+      .disconnect-banner {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 60;
+        padding: 7px 30px 7px 12px;
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-align: center;
+        color: var(--err);
+        background: color-mix(in srgb, var(--err) 16%, var(--surface));
+        border: none;
+        border-bottom: 1px solid color-mix(in srgb, var(--err) 45%, transparent);
+        cursor: pointer;
+      }
+      body[data-sse="error"] .disconnect-banner { display: block; }
+
+      /* Acknowledge strip — auto-fading first-clause echo of each JARVIS
+         utterance (src/hud/ack-strip.ts). Fixed height so the fade never
+         shifts the grid; opacity is the only thing that moves. */
+      .ack-strip {
+        height: 15px;
+        max-width: min(420px, 86vw);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--accent);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+      .ack-strip.visible { opacity: 1; }
+
+      /* ── Transcript: the scrollable middle region. Never overlaps anything.
+         Auto-scrolls to the latest text; wraps; readable type. ── */
+      .transcript {
+        min-height: 0;              /* critical: allow the grid row to shrink */
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--rule);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--surface) 70%, transparent);
+        scroll-behavior: smooth;
+      }
+      /* Slim custom scrollbar (custom-scrollbar pattern). */
+      .transcript::-webkit-scrollbar { width: 7px; }
+      .transcript::-webkit-scrollbar-track { background: transparent; }
+      .transcript::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--accent) 22%, var(--rule));
+        border-radius: 999px;
+      }
+      .transcript::-webkit-scrollbar-thumb:hover {
+        background: color-mix(in srgb, var(--accent) 40%, var(--rule));
       }
 
-      /* Settings controls */
+      /* Empty-state hint, shown when there's no conversation yet. */
+      .transcript-empty {
+        margin: auto;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.6;
+        max-width: 260px;
+      }
+      .transcript.has-content .transcript-empty { display: none; }
+
+      /* A single turn bubble: the user line (right) or JARVIS line (left). */
+      .turn {
+        max-width: 100%;
+        font-size: 14px;
+        line-height: 1.55;
+        letter-spacing: 0.01em;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .turn .who {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 3px;
+      }
+      .turn.user .who { color: color-mix(in srgb, var(--fg) 55%, var(--muted)); }
+      .turn.jarvis .who { color: var(--accent); }
+      /* Turn text is the one serif surface — EB Garamond (journal register)
+         against the mono chrome everywhere else. Slightly larger than the
+         old sans size; Garamond runs small on the body. */
+      .turn .body { font-family: var(--serif); font-size: 15px; }
+      .turn.user .body { color: color-mix(in srgb, var(--fg) 80%, var(--muted)); }
+      .turn.jarvis .body { color: var(--fg); }
+
+      /* ── Footer: pinned invoke button + inline tool receipts ── */
+      .hud-footer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      /* Inline action receipts ("▸ opening Calendar"), most-recent-first, capped. */
+      .footer-receipts {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        max-height: 44px;
+        overflow: hidden;
+      }
+      .footer-receipts:empty { display: none; }
+      .footer-receipts .tool-call-item {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+      }
+      .footer-receipts .tool-call-item.action-flash { color: var(--accent); }
+
+      /* Primary invoke button — restrained, glassy. Guaranteed fallback. */
+      .invoke-btn {
+        appearance: none;
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--rule));
+        color: var(--fg);
+        padding: 9px 18px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        display: inline-flex; align-items: center; gap: 9px;
+        transition: background 0.15s, border-color 0.15s, transform 0.05s;
+      }
+      .invoke-btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: color-mix(in srgb, var(--accent) 55%, var(--rule)); }
+      .invoke-btn:active { transform: scale(0.98); }
+      .invoke-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .invoke-btn[data-recording="true"] {
+        background: color-mix(in srgb, var(--accent) 22%, transparent);
+        border-color: var(--accent);
+        color: var(--accent-hi);
+      }
+      .invoke-btn .shortcut-label {
+        font-family: var(--mono);
+        font-size: 10px; color: var(--muted);
+        padding: 1px 6px; border-radius: 4px;
+        background: color-mix(in srgb, var(--fg) 8%, transparent);
+      }
+      /* Hidden extend button — retained for the capture module's wiring only. */
+      #extend-btn { display: none !important; }
+
+      /* Cancel affordance — appears only while recording. */
+      .cancel-btn {
+        appearance: none;
+        background: transparent;
+        border: 1px solid color-mix(in srgb, var(--err) 45%, var(--rule));
+        color: var(--err);
+        padding: 4px 12px; border-radius: 999px;
+        font-size: 11px; cursor: pointer; font-family: inherit;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      }
+      body[data-jarvis-state="listening"] .cancel-btn { opacity: 0.85; pointer-events: auto; }
+      .cancel-btn:hover { background: color-mix(in srgb, var(--err) 15%, transparent); }
+      .cancel-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+      /* ── Settings drawer (behind a gear toggle; auto-hidden by default) ── */
+      .gear-btn {
+        position: fixed; top: 12px; right: 12px;
+        appearance: none; background: transparent; border: none;
+        color: var(--muted); cursor: pointer; font-size: 15px;
+        padding: 6px; border-radius: 8px; line-height: 1;
+        transition: color 0.15s, background 0.15s;
+      }
+      .gear-btn:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); }
+      .settings {
+        position: fixed; inset: 0;
+        background: color-mix(in srgb, var(--bg) 92%, transparent);
+        backdrop-filter: blur(8px);
+        padding: 40px 28px 28px;
+        overflow-y: auto;
+        display: none;
+        z-index: 10;
+      }
+      .settings.open { display: block; }
+      .settings h2 { font-size: 14px; font-weight: 600; margin: 0 0 14px; color: var(--fg); }
+      .row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+      .row:last-child { border-bottom: none; }
+      .label { color: var(--muted); }
+      .value { font-family: var(--mono); font-size: 12px; color: var(--fg); text-align: right; max-width: 62%; word-break: break-word; }
       select {
-        background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
-        border-radius: 5px; padding: 3px 6px; font-size: 12px; font-family: inherit;
+        background: var(--surface); color: var(--fg); border: 1px solid var(--rule);
+        border-radius: 6px; padding: 4px 7px; font-size: 12px; font-family: inherit;
         cursor: pointer; outline: none;
       }
       select:focus { border-color: var(--accent); }
-      .toggle-pill {
-        position: relative;
-        display: inline-flex; align-items: center;
-        width: 36px; height: 22px;
-        cursor: pointer; user-select: none;
-      }
-      .toggle-pill input[type=checkbox] {
-        position: absolute; inset: 0;
-        width: 100%; height: 100%;
-        margin: 0; padding: 0;
-        opacity: 0; cursor: pointer;
-        z-index: 2;
-      }
-      .toggle-track {
-        position: absolute; inset: 0;
-        background: var(--rule);
-        border-radius: 11px;
-        transition: background 0.2s;
-        z-index: 1;
-      }
-      .toggle-track::before {
-        content: ""; position: absolute; top: 3px; left: 3px;
-        width: 16px; height: 16px; border-radius: 50%; background: #fff;
-        transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      }
-      .toggle-pill input[type=checkbox]:checked + .toggle-track {
-        background: var(--accent);
-      }
-      .toggle-pill input[type=checkbox]:checked + .toggle-track::before {
-        transform: translateX(14px);
-      }
+      .toggle-pill { position: relative; display: inline-flex; align-items: center; width: 36px; height: 22px; cursor: pointer; }
+      .toggle-pill input[type=checkbox] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
+      .toggle-track { position: absolute; inset: 0; background: var(--rule); border-radius: 11px; transition: background 0.2s; z-index: 1; }
+      .toggle-track::before { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+      .toggle-pill input[type=checkbox]:checked + .toggle-track { background: var(--accent); }
+      .toggle-pill input[type=checkbox]:checked + .toggle-track::before { transform: translateX(14px); }
       .stop-btn {
         background: transparent; border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--rule));
         color: var(--accent); padding: 4px 12px; border-radius: 6px;
         font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit;
-        display: none;
       }
-      .stop-btn.visible { display: inline-flex; }
       .stop-btn:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+      .settings-close {
+        position: absolute; top: 12px; right: 14px;
+        appearance: none; background: transparent; border: none; color: var(--muted);
+        font-size: 18px; cursor: pointer; line-height: 1;
+      }
+      .settings-close:hover { color: var(--fg); }
+      /* Section header inside the drawer — mono-caps with a hairline rule,
+         same register as .status-line, faint cyan cast to mark the section. */
+      .section-title {
+        font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--accent) 40%, var(--muted));
+        margin: 24px 0 4px; padding-bottom: 6px;
+        border-bottom: 1px solid var(--rule);
+      }
+      /* Muted description line under a settings row. */
+      .note {
+        color: var(--muted); font-size: 11px; line-height: 1.6;
+        margin: 7px 0 3px; max-width: 460px;
+      }
+      /* Add/remove list editors (Open on start, Startup Shortcuts) — indented
+         under their row behind a hairline, so they read as the row's detail. */
+      .list-editor {
+        display: flex; flex-direction: column; gap: 6px;
+        padding: 8px 0 10px 10px; margin-left: 2px;
+        border-left: 1px solid var(--rule);
+      }
+      .list-editor .list-item { display: flex; align-items: center; gap: 6px; }
+      .list-editor input[type=text] {
+        flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; padding: 5px 8px;
+        border-radius: 5px; border: 1px solid var(--rule);
+        background: color-mix(in srgb, var(--surface) 80%, transparent); color: var(--fg);
+        transition: border-color 0.15s;
+      }
+      .list-editor input[type=text]:focus {
+        border-color: color-mix(in srgb, var(--accent) 60%, var(--rule)); outline: none;
+      }
+      /* Remove is a quiet ghost until hovered — destructive tint on intent
+         only, so the cyan .stop-btn base doesn't imply a primary action. */
+      .list-editor .list-remove {
+        padding: 4px 8px; font-size: 12px; line-height: 1;
+        color: var(--muted); border-color: var(--rule);
+      }
+      .list-editor .list-remove:hover {
+        color: var(--err);
+        border-color: color-mix(in srgb, var(--err) 45%, var(--rule));
+        background: color-mix(in srgb, var(--err) 10%, transparent);
+      }
+      .list-editor .list-empty { color: var(--muted); font-size: 11px; font-style: italic; }
+      input[type=password] {
+        font-family: var(--mono); font-size: 12px; width: 200px; padding: 4px 8px;
+        border-radius: 5px; border: 1px solid var(--rule); background: var(--surface); color: var(--fg);
+      }
+      /* Screen-reader-only wrappers for the hidden capture-control elements the
+         main.ts wiring still reads (stop-btn-idle, live-text, etc.). */
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     </style>
   </head>
-  <body>
-    <main>
-      <h1>
-        <span class="kiwi-orb" aria-hidden="true">
-          <svg class="kiwi-glyph" viewBox="0 0 24 24" fill="currentColor">
-            <path d="m20.741,5.991c.21-.595.299-1.234.243-1.88-.114-1.326-.812-2.532-1.913-3.309-1.422-1.002-3.378-1.072-4.87-.174-.307.185-.59.403-.841.647-.807.786-2.119,1.723-3.788,1.723h-.794C4.18,2.998.334,6.462.022,10.884c-.174,2.468.725,4.883,2.468,6.625.844.844,1.848,1.484,2.938,1.906l.573,4.583h2.191l-.499-4.04c.271.026.544.04.818.04.201,0,.403-.007.604-.021.447-.032.881-.108,1.305-.209l.529,4.231h2.168l-.706-4.987c2.729-1.469,4.589-4.425,4.589-7.791l.021-2.262c.615-.069,1.187-.271,1.708-.568,3.845,3.229,4.272,8.608,4.272,8.608h1c0-5.446-2.104-9.299-3.259-11.007Zm-3.943.98c-1.025.115-1.798.952-1.798,1.947v2.302c0,3.553-2.647,6.523-6.026,6.761-1.891.131-3.737-.555-5.07-1.887-1.333-1.333-2.021-3.181-1.887-5.071.238-3.379,3.208-6.026,6.761-6.026h.794c1.852,0,3.645-.792,5.183-2.29.141-.137.301-.261.477-.366.823-.495,1.901-.458,2.686.095.627.442,1.008,1.098,1.073,1.846.063.737-.2,1.46-.723,1.983-.398.398-.907.642-1.47.705Zm1.202-2.473c0,.828-.672,1.5-1.5,1.5s-1.5-.672-1.5-1.5.672-1.5,1.5-1.5,1.5.672,1.5,1.5Z"/>
-          </svg>
-        </span>
-        JARVIS Desktop
-      </h1>
-      <p class="subtitle">Physical Extender mode — desktop owns the mic.</p>
+  <body data-jarvis-state="idle">
+    <button class="disconnect-banner" id="disconnect-banner" type="button">
+      ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
+    </button>
+    <main class="stage">
+      <!-- Region 1: fixed orb header + status. Never scrolls. -->
+      <header class="hud-header">
+        <div class="orb-wrap">
+          <canvas id="orb-canvas" aria-hidden="true"></canvas>
+          <div class="orb-ticks" aria-hidden="true"></div>
+        </div>
+        <div class="status-line" id="status-line">
+          <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
+        </div>
+        <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
+      </header>
 
-      <div class="action-row">
-        <button class="action-btn" id="wake-btn" type="button">
-          🎤 Talk to JARVIS
-          <span class="shortcut-label">⌘⌃J</span>
-        </button>
-        <button class="action-btn extend-btn" id="extend-btn" type="button">
-          ⏸ Hold
-          <span class="shortcut-label">⌘⌃E</span>
-        </button>
-      </div>
+      <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
+           auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
+      <section class="transcript" id="transcript" aria-live="polite">
+        <div class="transcript-empty" id="transcript-empty">
+          Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
+          Your words and JARVIS's replies appear here.
+        </div>
+      </section>
 
-      <div class="row">
-        <span class="label">Manual mode</span>
-        <span class="value">
-          <label class="toggle-pill">
-            <input type="checkbox" id="manual-mode" />
-            <span class="toggle-track"></span>
-          </label>
-        </span>
-      </div>
-      <div class="row"><span class="label"></span><span class="value" id="manual-mode-help" style="color:var(--muted);font-size:11px;text-align:right;">VAD off — only ⌘⌃E or toggle ends turns</span></div>
+      <!-- Region 3: pinned footer — invoke button + inline action receipts. -->
+      <footer class="hud-footer">
+        <div class="footer-receipts" id="tool-calls-footer" aria-live="polite"></div>
+        <div class="footer-actions">
+          <button class="invoke-btn" id="wake-btn" type="button">
+            Talk to JARVIS
+            <span class="shortcut-label">⌘⌃J</span>
+          </button>
+          <button class="cancel-btn" id="cancel-btn">Cancel</button>
+        </div>
+      </footer>
+
+      <!-- Retained for capture-module wiring; visually hidden. -->
+      <button id="extend-btn" type="button" aria-hidden="true"></button>
+    </main>
+
+    <!-- Settings drawer trigger -->
+    <button class="gear-btn" id="gear-btn" type="button" title="Settings" aria-label="Settings">⚙</button>
+
+    <section class="settings" id="settings">
+      <button class="settings-close" id="settings-close" aria-label="Close settings">✕</button>
+      <h2>JARVIS · settings</h2>
 
       <div class="row"><span class="label">Mode</span><span class="value" id="mode">physical extender</span></div>
       <div class="row"><span class="label">SSE status</span><span class="value" id="sse-status">connecting…</span></div>
+
       <div class="row">
         <span class="label">Speak responses</span>
         <span class="value">
@@ -339,8 +486,17 @@
       <div class="row">
         <span class="label">Speaking</span>
         <span class="value">
-          <button class="stop-btn" id="stop-btn">Stop speaking</button>
+          <button class="stop-btn" id="stop-btn" style="display:none;">Stop speaking</button>
           <span id="stop-btn-idle" style="color:var(--muted);font-size:12px;">idle</span>
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Manual mode</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="manual-mode" />
+            <span class="toggle-track"></span>
+          </label>
         </span>
       </div>
       <div class="row">
@@ -352,7 +508,7 @@
           </label>
         </span>
       </div>
-      <div class="row"><span class="label">Hotkey</span><span class="value" id="hotkey-status" style="color:var(--muted);font-size:12px;">PE active — using ESP32</span></div>
+      <div class="row"><span class="label">Hotkey</span><span class="value" id="hotkey-status" style="color:var(--muted);font-size:12px;">—</span></div>
       <div class="row">
         <span class="label">Silence wait</span>
         <span class="value">
@@ -365,6 +521,43 @@
           </select>
         </span>
       </div>
+      <!-- ── Startup & Wake (wired in src/hud/startup-settings.ts) ── -->
+      <div class="section-title">Startup &amp; Wake</div>
+
+      <div class="row">
+        <span class="label">Wake word</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="wake-enabled" />
+            <span class="toggle-track"></span>
+          </label>
+        </span>
+      </div>
+      <p class="note">Wake word mode keeps your microphone open at all times so JARVIS can listen for your phrase — macOS will show the green mic indicator continuously while this is on. Short audio snippets are sent to your private JARVIS server for wake-phrase detection; fully on-device detection is planned.</p>
+
+      <div class="row">
+        <span class="label">Briefing</span>
+        <span class="value">
+          <label class="toggle-pill">
+            <input type="checkbox" id="startup-briefing-enabled" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </span>
+      </div>
+      <p class="note">Spoken briefing on the first invoke of each session.</p>
+
+      <div class="row">
+        <span class="label">Open on start</span>
+        <span class="value"><button class="stop-btn" id="open-on-start-add" type="button">+ Add</button></span>
+      </div>
+      <div class="list-editor" id="open-on-start-list" aria-label="Open on start items"></div>
+
+      <div class="row">
+        <span class="label">Startup Shortcuts</span>
+        <span class="value"><button class="stop-btn" id="startup-shortcuts-add" type="button">+ Add</button></span>
+      </div>
+      <div class="list-editor" id="startup-shortcuts-list" aria-label="Startup Shortcuts"></div>
+
       <div class="row"><span class="label">Bundle ID</span><span class="value">io.hyperpolymath.jarvis-desktop</span></div>
 
       <div class="row">
@@ -372,12 +565,7 @@
         <span class="value" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           <span id="token-status" style="color:var(--muted);font-size:12px;">unauthenticated</span>
           <span style="display:flex;gap:6px;">
-            <input
-              type="password"
-              id="device-token-input"
-              placeholder="hpd_..."
-              style="font-family:ui-monospace,Menlo,monospace;font-size:12px;width:200px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--ink);"
-            />
+            <input type="password" id="device-token-input" placeholder="hpd_..." />
             <button class="stop-btn" id="device-token-save" style="font-size:12px;padding:4px 8px;">Save</button>
             <button class="stop-btn" id="device-token-clear" style="font-size:12px;padding:4px 8px;background:transparent;">Clear</button>
           </span>
@@ -385,27 +573,18 @@
         </span>
       </div>
 
-      <div class="live-panel" id="live-panel" data-state="idle">
-        <div class="live-label">
-          <span class="pulse-dot"></span>
-          <span id="live-text">Recording</span>
-        </div>
-        <button class="cancel-btn" id="cancel-btn">Cancel</button>
-      </div>
+      <!-- Live capture panel + transcript/response, kept in-drawer for QA. -->
+      <div class="row"><span class="label">Capture</span><span class="value" id="live-text" style="color:var(--muted);font-size:12px;">idle</span></div>
+      <div class="row"><span class="label">Last transcript</span><span class="value" id="transcript-text" style="color:var(--muted);font-size:12px;"></span></div>
+      <div class="row"><span class="label">Response</span><span class="value" id="response-text" style="color:var(--fg);font-size:12px;"></span></div>
+      <div class="value" id="tool-calls" style="margin-top:8px;display:flex;flex-direction:column;gap:4px;"></div>
 
-      <div class="transcript-panel" id="transcript-panel">
-        <div class="transcript-label">Last transcript sent</div>
-        <div class="transcript-text" id="transcript-text"></div>
-      </div>
+      <!-- Hidden shells the wiring references for state/attributes. -->
+      <div class="sr-only" id="live-panel" data-state="idle" data-extended="false"></div>
+      <div class="sr-only" id="transcript-panel"></div>
+      <div class="sr-only" id="response-panel"></div>
+    </section>
 
-      <div class="response-panel" id="response-panel">
-        <div class="response-label">JARVIS</div>
-        <div class="response-text" id="response-text"></div>
-        <div class="tool-calls" id="tool-calls"></div>
-      </div>
-
-      <footer>Phase 14 · voice surface migration — desktop owns mic + TTS.</footer>
-    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -11,6 +11,23 @@
     "global-shortcut:allow-register",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-unregister",
+    "opener:default",
+    "opener:allow-open-url",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "open-app",
+          "cmd": "open",
+          "args": ["-a", { "validator": ".+" }]
+        },
+        {
+          "name": "open-app-url",
+          "cmd": "open",
+          "args": ["-a", { "validator": ".+" }, { "validator": ".+" }]
+        }
+      ]
+    },
     {
       "identifier": "http:default",
       "allow": [

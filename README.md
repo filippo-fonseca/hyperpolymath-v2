@@ -262,6 +262,15 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Vercel + Supabase prod setup, and [`C
 
 ---
 
+## ❦  Docs
+
+| Document | What it covers |
+|---|---|
+| [`docs/jarvis-integrations.md`](./docs/jarvis-integrations.md) | Gmail, news, weather, and WhatsApp integrations: what each does, how it works, and setup instructions (including the full WhatsApp bridge runbook). |
+| [`docs/jarvis-memory.md`](./docs/jarvis-memory.md) | Conversation memory (15-min window, 12-turn cap) and long-term fact memory (auto-extracted after each turn, injected into the cached system prompt). |
+
+---
+
 ## ❦  Roadmap
 
 **Shipped**

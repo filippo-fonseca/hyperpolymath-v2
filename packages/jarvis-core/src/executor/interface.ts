@@ -6,6 +6,7 @@
 // NEVER emits a userId; trusting one from the model is a vulnerability.
 
 import type {
+  ComputerUseAction,
   CreateCaptureAction,
   CreateEventAction,
   CreatePersonAction,
@@ -13,15 +14,31 @@ import type {
   DeleteCaptureAction,
   DeleteEventAction,
   DeleteTaskAction,
+  DesktopAction,
   FindCapturesAction,
   FindEventsAction,
   FindPeopleAction,
   FindTasksAction,
+  GetNewsAction,
+  GetWeatherAction,
   LinkPeopleAction,
+  ReadGmailAction,
+  OpenAppAction,
+  OpenUrlAction,
+  PlayMusicAction,
+  PressKeyAction,
+  ReadWhatsappAction,
   RememberFactAction,
+  RunApplescriptAction,
+  RunShortcutAction,
+  SendMessageAction,
+  SystemControlAction,
+  TakeScreenshotAction,
+  TypeTextAction,
   UpdateCaptureAction,
   UpdateEventAction,
   UpdateTaskAction,
+  WebSearchAction,
 } from "../types";
 import type { AskClarificationAction } from "../tools/ask-clarification";
 
@@ -50,7 +67,14 @@ export interface ExecutionContext {
 }
 
 export type ExecutorResult =
-  | { ok: true; id: string; receipt: Record<string, unknown> }
+  | {
+      ok: true;
+      id: string;
+      receipt: Record<string, unknown>;
+      /** Present on computer-control tool results (open_url/open_app/web_search).
+       *  The desktop client reads this field to decide what to do on the Mac. */
+      action?: DesktopAction;
+    }
   | {
       ok: false;
       error: string;
@@ -102,4 +126,36 @@ export interface ActionExecutor {
   createPerson(input: CreatePersonAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   findPeople(input: FindPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   linkPeople(input: LinkPeopleAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Computer-control tools — validate input server-side, return a DesktopAction
+  // for the desktop client to execute on the Mac. No DB writes, no gcal calls.
+  openUrl(input: OpenUrlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  openApp(input: OpenAppAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  webSearch(input: WebSearchAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Clicky slice — desktop action tools. Each validates input server-side and
+  // returns a DesktopAction for the desktop dispatcher; getWeather is the
+  // exception (fully server-side fetch, data in receipt, no DesktopAction).
+  sendMessage(input: SendMessageAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  systemControl(input: SystemControlAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  typeText(input: TypeTextAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  pressKey(input: PressKeyAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  takeScreenshot(input: TakeScreenshotAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  runApplescript(input: RunApplescriptAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  runShortcut(input: RunShortcutAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  playMusic(input: PlayMusicAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  getWeather(input: GetWeatherAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Server-side data tools — fully server-side fetches; data rides back in
+  // `receipt` for the model to narrate. No DesktopAction is emitted.
+  readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  getNews(input: GetNewsAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  // WhatsApp read — fully server-side (queries synced whatsapp_messages);
+  // returns a grouped receipt for the agent to narrate. No DesktopAction.
+  readWhatsapp(input: ReadWhatsappAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+
+  // Computer Use fallback — mints a session_id and returns the computer_use
+  // DesktopAction; the desktop drives the step loop against
+  // /api/jarvis/computer-use/step. No side effects server-side at dispatch.
+  computerUse(input: ComputerUseAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 }
