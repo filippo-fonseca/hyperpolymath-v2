@@ -667,13 +667,27 @@ export function CaptureDetailPanel({
                     <dd className="text-foreground">
                       {format(capture.updatedAt, "PPpp")}
                     </dd>
+                    {capture.sourceChannel && (
+                      <>
+                        <dt className="text-muted-foreground">Channel</dt>
+                        <dd className="text-foreground">
+                          {capture.sourceChannel === "email" ? "Email" : capture.sourceChannel}
+                        </dd>
+                      </>
+                    )}
                     {(capture.sourceDevice || capture.sourceInput) && (
                       <>
                         <dt className="text-muted-foreground">Source</dt>
                         <dd className="text-foreground">
                           {capture.sourceDevice ?? "Unknown device"}
                           {capture.sourceInput
-                            ? ` · ${capture.sourceInput === "voice" ? "spoken" : "typed"}`
+                            ? ` · ${
+                                capture.sourceInput === "voice"
+                                  ? "spoken"
+                                  : capture.sourceInput === "email"
+                                    ? "email"
+                                    : "typed"
+                              }`
                             : ""}
                         </dd>
                       </>

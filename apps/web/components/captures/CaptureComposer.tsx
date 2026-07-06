@@ -344,6 +344,7 @@ export function CaptureComposer({
       createdVia: null,
       sourceDevice: "Web",
       sourceInput: "text",
+      sourceChannel: null,
       // Issue #101 — the quick-capture composer doesn't set a URL property; it's
       // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
       url: null,

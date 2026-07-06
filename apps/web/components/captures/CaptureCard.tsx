@@ -436,6 +436,12 @@ function CaptureBody({
     personNames,
   });
   const query = searchQuery?.trim() ?? "";
+  const sourceChannelLabel =
+    capture.sourceChannel === "email"
+      ? "Email"
+      : capture.sourceChannel
+        ? capture.sourceChannel
+        : null;
 
   // Render a plain-text run (no hashtag) with both URL autolinking (issue #101)
   // and search highlighting (issue #139). URLs win: a matched URL becomes a real
@@ -518,6 +524,14 @@ function CaptureBody({
                 {p.name}
               </span>
             ))}
+            <span aria-hidden>·</span>
+          </>
+        )}
+        {sourceChannelLabel && (
+          <>
+            <span className="inline-flex items-center bg-[var(--surface)] border border-[var(--edge)] rounded-sm px-2 py-0.5 text-[var(--ink)]">
+              {sourceChannelLabel}
+            </span>
             <span aria-hidden>·</span>
           </>
         )}
