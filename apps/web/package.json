@@ -82,6 +82,7 @@
     "tailwind-merge": "^2.5.0",
     "three": "0.185.1",
     "three-mesh-bvh": "0.9.10",
+    "troika-three-text": "0.52.4",
     "zod": "4"
   },
   "devDependencies": {

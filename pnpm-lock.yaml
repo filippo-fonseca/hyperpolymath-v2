@@ -298,6 +298,9 @@ importers:
       three-mesh-bvh:
         specifier: 0.9.10
         version: 0.9.10(three@0.185.1)
+      troika-three-text:
+        specifier: 0.52.4
+        version: 0.52.4(three@0.185.1)
       zod:
         specifier: '4'
         version: 4.4.3

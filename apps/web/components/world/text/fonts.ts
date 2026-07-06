@@ -41,24 +41,28 @@ export const WORLD_GLYPH_SET =
  *
  * Call once from WorldCanvas (or WorldLoader) before mounting <Text> nodes.
  *
- * Depends on @react-three/drei re-exporting troika's `preloadFont`.
- * Safe to call before deps land — `preloadFont` is a no-op fire-and-forget
- * that resolves asynchronously; the module import is lazy so it won't throw
- * at import time if drei isn't installed yet.
+ * Uses troika-three-text's `preloadFont` directly — @react-three/drei's <Text>
+ * is a thin wrapper over troika but does not re-export the preload helper. The
+ * import is lazy so troika only enters the world island's chunk, never the 2D
+ * route bundles.
  */
 export function preloadWorldFonts(): void {
-  // Dynamic import avoids a hard crash if @react-three/drei is not yet
-  // installed (possible during Wave-1 parallel setup, see U-05 spec note).
-  import('@react-three/drei')
+  import('troika-three-text')
     .then(({ preloadFont }) => {
-      preloadFont({ font: EB_GARAMOND_REGULAR, characters: WORLD_GLYPH_SET });
-      preloadFont({ font: EB_GARAMOND_ITALIC, characters: WORLD_GLYPH_SET });
+      preloadFont(
+        { font: EB_GARAMOND_REGULAR, characters: WORLD_GLYPH_SET },
+        () => {},
+      );
+      preloadFont(
+        { font: EB_GARAMOND_ITALIC, characters: WORLD_GLYPH_SET },
+        () => {},
+      );
     })
     .catch(() => {
-      // drei not yet installed — fonts will load on first <Text> render.
-      // This is safe; the only consequence is a glyph-atlas build on first paint.
+      // troika unavailable — fonts will load on first <Text> render instead.
+      // Only consequence is a one-time glyph-atlas build on first paint.
       if (process.env.NODE_ENV === 'development') {
-        console.warn('[world/fonts] @react-three/drei not available; font preload deferred.');
+        console.warn('[world/fonts] troika-three-text unavailable; font preload deferred.');
       }
     });
 }
