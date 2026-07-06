@@ -4,10 +4,17 @@ import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
 import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import { db } from "@/lib/db";
-import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
-import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
+import {
+  type CaptureWithLinks,
+  getCapturesForUser,
+  getResurfacingCapturesForUser,
+} from "@/lib/db/queries/captures";
+import { captures, capturesHashtags, capturesProjects, projects, users } from "@/lib/db/schema";
+import { TZDate } from "@date-fns/tz";
+import { endOfDay } from "date-fns";
 import { hashtags } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
 import { mergeContentUrls } from "@/lib/url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -146,6 +153,11 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
   // canonical url property). Also scheduled via after(); fail-soft.
   scheduleLinkPreviews(userId, parsed.data.content, parsed.data.url);
 
+  // Auto-derive linked people from the body: a background Haiku match links any
+  // EXISTING person confidently referenced in the text, additively on top of
+  // the explicit @-mentions reconciled above. Scheduled via after(); fail-soft.
+  scheduleEntityPeopleDerivation("capture", result, userId, parsed.data.content);
+
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
   return { success: true, data: { id: result } };
@@ -162,6 +174,9 @@ const UpdateCaptureSchema = z.object({
   // Multi-URL property — the authoritative manual list (from the detail panel).
   // Body-derived links are still merged in additively on top of this.
   urls: z.array(z.string().trim().max(2048)).max(50).optional(),
+  // Resurfacing (remind-me) date. ISO datetime string to set/change, null to
+  // clear, or absent to leave unchanged. Persisted verbatim as a timestamptz.
+  resurfaceAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 
 const SetCaptureFavoriteSchema = z.object({
@@ -208,6 +223,13 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     // manually-set link).
     const scalarSet: Record<string, unknown> = {};
     if (parsed.data.content !== undefined) scalarSet.content = parsed.data.content;
+    // Resurfacing date: set/change (ISO → Date), clear (null), or leave
+    // untouched (absent). Independent of the URL derivation below.
+    if (parsed.data.resurfaceAt !== undefined) {
+      scalarSet.resurfaceAt = parsed.data.resurfaceAt
+        ? new Date(parsed.data.resurfaceAt)
+        : null;
+    }
 
     if (
       parsed.data.content !== undefined ||
@@ -313,6 +335,12 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     scheduleLinkPreviews(userId, parsed.data.content ?? "", parsed.data.url);
   }
 
+  // Re-derive linked people when the body changes: the background match runs
+  // additively over the new text (never removing the reconciled explicit set).
+  if (parsed.data.content !== undefined) {
+    scheduleEntityPeopleDerivation("capture", parsed.data.id, userId, parsed.data.content);
+  }
+
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
 }
@@ -356,6 +384,31 @@ export async function ensureCaptureUrls(
   }
 
   return { success: true, data: { url: merged.url, urls: merged.urls, changed } };
+}
+
+/**
+ * Lazy retroactive backfill for linked people — the people twin of
+ * `ensureCaptureUrls`. Called when a capture is opened: if it has never been
+ * people-derived (`people_derived_at IS NULL`), run the Haiku smart-match once,
+ * link any confident matches, and stamp the marker. Guarded so subsequent opens
+ * are instant no-ops. Additive + fail-soft.
+ *
+ * Returns the capture's current linked people so the caller can reconcile its
+ * optimistic feed copy without a full refetch.
+ */
+export async function ensureCapturePeople(
+  id: unknown
+): Promise<ActionResult<{ people: { id: string; name: string }[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  try {
+    const result = await ensureEntityPeople(userId, "capture", id as string);
+    return { success: true, data: result };
+  } catch (err) {
+    console.error("[captures] ensureCapturePeople failed", err);
+    return { success: false, error: "Derivation failed" };
+  }
 }
 
 export async function deleteCapture(id: string): Promise<ActionResult<null>> {
@@ -451,6 +504,33 @@ export async function getCapturesForCurrentUser(
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
+}
+
+/**
+ * Captures due to resurface today — queryFn for the /captures "Resurfacing
+ * today" collapsible section. Computes the "end of today" boundary in the
+ * user's timezone (falls back to UTC) so the section rolls over per calendar
+ * day rather than at UTC midnight.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims, NOT getSession.
+ */
+export async function getResurfacingCapturesForCurrentUser(): Promise<CaptureWithLinks[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const userId = data.claims.sub;
+
+  const [u] = await db
+    .select({ timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const tz = u?.timezone ?? "UTC";
+  // end of today, anchored to the user's tz; .getTime() is the correct UTC
+  // instant to compare against the timestamptz column.
+  const before = new Date(endOfDay(new TZDate(new Date(), tz)).getTime());
+
+  return getResurfacingCapturesForUser(userId, { before });
 }
 
 /**

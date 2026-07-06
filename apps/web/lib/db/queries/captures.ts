@@ -8,7 +8,7 @@ import {
   peopleReferences,
   projects,
 } from "@/lib/db/schema";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 
 export interface CaptureWithLinks {
   id: string;
@@ -34,10 +34,22 @@ export interface CaptureWithLinks {
   urls: string[];
   /** Issue #202 — starred/favorited quick captures stay in the main feed. */
   favorite: boolean;
+  /**
+   * Resurfacing (remind-me): the timestamp at which this capture should surface
+   * back in the /captures "Resurfacing today" section. null = never. Migration
+   * 0029. Editable in the detail panel + settable by JARVIS via NL date.
+   */
+  resurfaceAt: Date | null;
   hashtags: { id: string; displayName: string; name: string }[];
   /** @-mentioned people linked to this capture (Phase C). */
   people: { id: string; name: string }[];
   projects: { id: string; name: string }[];
+  /**
+   * Linked-people derivation marker (ISO string, or null when never derived).
+   * The detail panel gates its lazy on-open people backfill on this being null
+   * so the Haiku smart-match server call fires at most once per capture.
+   */
+  peopleDerivedAt: string | null;
 }
 
 /**
@@ -97,6 +109,8 @@ export async function getCapturesForUser(
     url: string | null;
     urls: string[];
     favorite: boolean;
+    resurfaceAt: Date | null;
+    peopleDerivedAt: Date | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -115,6 +129,8 @@ export async function getCapturesForUser(
         url: captures.url,
         urls: captures.urls,
         favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -134,6 +150,8 @@ export async function getCapturesForUser(
         url: captures.url,
         urls: captures.urls,
         favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .innerJoin(
@@ -161,6 +179,8 @@ export async function getCapturesForUser(
         url: captures.url,
         urls: captures.urls,
         favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(eq(captures.userId, userId))
@@ -235,6 +255,7 @@ export async function getCapturesForUser(
 
   return captureRows.map((c) => ({
     ...c,
+    peopleDerivedAt: c.peopleDerivedAt ? c.peopleDerivedAt.toISOString() : null,
     hashtags: tagsByCapture.get(c.id) ?? [],
     people: peopleByCapture.get(c.id) ?? [],
     projects: projsByCapture.get(c.id) ?? [],
@@ -275,4 +296,56 @@ export async function getCapturesForProject(
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
   return getCapturesForUser(userId, { ids });
+}
+
+/**
+ * Daily "Resurfacing" feed for /captures — captures whose resurface date has
+ * come due (`resurface_at <= before`, defaulting to end of today). Ordered by
+ * soonest/most-overdue first.
+ *
+ * Semantics (documented in the PR): a capture appears here as soon as its
+ * `resurface_at` is at or before the boundary, and stays until the user clears
+ * or moves the date (dismiss = set `resurface_at` back to NULL, or edit it to a
+ * future day). Overdue items (a resurface date in the past that was never
+ * cleared) keep showing so nothing is silently dropped.
+ *
+ * @param opts.before - the inclusive due boundary. Callers should pass end of
+ *   today in the user's timezone; defaults to end of today in the server's
+ *   locale as a safety net.
+ */
+export async function getResurfacingCapturesForUser(
+  userId: string,
+  opts: { before?: Date; limit?: number } = {}
+): Promise<CaptureWithLinks[]> {
+  const before =
+    opts.before ??
+    (() => {
+      const d = new Date();
+      d.setHours(23, 59, 59, 999);
+      return d;
+    })();
+  const limit = opts.limit ?? 100;
+
+  const rows = await db
+    .select({ id: captures.id })
+    .from(captures)
+    .where(
+      and(
+        eq(captures.userId, userId),
+        isNotNull(captures.resurfaceAt),
+        lte(captures.resurfaceAt, before)
+      )
+    )
+    .orderBy(asc(captures.resurfaceAt))
+    .limit(limit);
+
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+
+  // Hydrate the join rows (hashtags / people / projects) via the shared reader,
+  // then restore the soonest-first resurface ordering (getCapturesForUser
+  // returns rows in created-desc order for an explicit id set).
+  const hydrated = await getCapturesForUser(userId, { ids, limit });
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return hydrated.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }

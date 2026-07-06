@@ -222,6 +222,11 @@ export const tasks = pgTable(
     // to the next occurrence on completion/skip. Shape is RecurrenceRule from
     // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
     recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
+    // Linked-people derivation marker. NULL = the task's title/notes have never
+    // been scanned for references to known people; non-null = already derived
+    // (set by lib/people/derive.ts). Guards the lazy view-time backfill so the
+    // Haiku smart-match runs at most once per task. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the task (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
@@ -275,6 +280,13 @@ export const captures = pgTable(
     noExport: boolean("no_export").notNull().default(false),
     // Issue #202 — user-facing favorite/star flag for quick retrieval.
     favorite: boolean("favorite").notNull().default(false),
+    // Resurfacing (remind-me): optional timestamp at which this capture should
+    // be surfaced back to the user in the /captures "Resurfacing today" section.
+    // NULL = never resurface (the default for every existing row). Editable from
+    // the detail panel and settable by JARVIS via natural language ("remind me
+    // about this next Tuesday"). A capture leaves the resurfacing section when
+    // this is cleared (set back to NULL) or moved to a future day. Migration 0029.
+    resurfaceAt: timestamp("resurface_at", { withTimezone: true }),
     // 260615-h74 — captures-to-issues daily cron. Both columns are additive and
     // NULLABLE with no default, so existing rows are untouched. githubEvaluatedAt
     // is the "already considered" marker: it is set whenever Claude has evaluated
@@ -283,6 +295,11 @@ export const captures = pgTable(
     // filed (non-actionable or privacy-refused captures).
     githubIssueUrl: text("github_issue_url"),
     githubEvaluatedAt: timestamp("github_evaluated_at", { withTimezone: true }),
+    // Linked-people derivation marker. NULL = the capture body has never been
+    // scanned for references to known people; non-null = already derived (set by
+    // lib/people/derive.ts). Guards the lazy view-time backfill so the Haiku
+    // smart-match runs at most once per capture. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
@@ -297,6 +314,11 @@ export const captures = pgTable(
   (t) => [
     index("captures_user_created_desc_idx").on(t.userId, sql`created_at DESC`),
     index("captures_content_search_gin_idx").using("gin", t.contentSearch),
+    // Partial index for the daily resurfacing query — only rows with a set
+    // resurface date are indexed, keeping it tiny and skipping the NULL majority.
+    index("captures_user_resurface_idx")
+      .on(t.userId, t.resurfaceAt)
+      .where(sql`resurface_at IS NOT NULL`),
   ],
 );
 
