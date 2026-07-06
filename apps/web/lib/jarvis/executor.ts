@@ -56,7 +56,7 @@ import {
   type PersonRefFromType,
 } from "@/app/actions/people";
 import { getPeopleForUser } from "@/lib/db/queries/people";
-import { mergeContentUrls } from "@/lib/url";
+import { deriveSingleUrl, mergeContentUrls } from "@/lib/url";
 import {
   createEventForJarvis,
   deleteEvent as gcalDeleteEvent,
@@ -173,6 +173,13 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const taskId = randomUUID();
+      // Auto-derive the Notion-style URL property from any link in the title,
+      // exactly like the capture body-link derivation (single source of truth:
+      // deriveSingleUrl → mergeContentUrls). create_task has no notes field, so
+      // the title is the only source; the first link found wins. The title text
+      // itself is kept verbatim (link stays in the title, mirroring how a
+      // capture keeps its body content).
+      const derivedUrl = deriveSingleUrl(input.title);
       // No-date → Inbox policy (Phase 19, D-02): a task with no explicit due
       // date lands in the Inbox (dueDate = NULL), NOT silently dated to today.
       // The model must emit an explicit `due` when the user specifies one;
@@ -184,6 +191,7 @@ export function createServerExecutor(): ActionExecutor {
             id: taskId,
             userId: ctx.userId, // JARVIS-12: from getClaims(), NEVER model
             title: input.title,
+            url: derivedUrl,
             priority: input.priority ?? "P3", // JARVIS-05 default
             status: input.status ?? "not started", // DB enum literal w/ SPACE
             // tasks.dueDate is a DATE column (no time component). Convert the
@@ -479,6 +487,7 @@ export function createServerExecutor(): ActionExecutor {
             id: tasks.id,
             title: tasks.title,
             notes: tasks.notes,
+            url: tasks.url,
             priority: tasks.priority,
             status: tasks.status,
             dueDate: tasks.dueDate,
@@ -496,6 +505,25 @@ export function createServerExecutor(): ActionExecutor {
         if (input.priority != null) beforeSnapshot.priority = prev.priority;
         if (input.status != null) beforeSnapshot.status = prev.status;
         if (input.due != null) beforeSnapshot.dueDate = prev.dueDate;
+
+        // Re-derive the URL property when the title or notes change: the first
+        // link found in the (new) title + notes fills the url field, but a url
+        // that was already set (manual or previously derived) is NEVER
+        // overwritten. Same detection as the capture body-link derivation
+        // (deriveSingleUrl → mergeContentUrls). Only write + snapshot when the
+        // derived value actually differs, so a link-free edit is a no-op.
+        if (input.title != null || input.description != null) {
+          const newTitle = input.title != null ? input.title : prev.title;
+          const newNotes = set.notes !== undefined ? set.notes : prev.notes;
+          const derivedUrl = deriveSingleUrl(
+            [newTitle, newNotes].filter(Boolean).join("\n"),
+            prev.url,
+          );
+          if (derivedUrl !== prev.url) {
+            set.url = derivedUrl;
+            beforeSnapshot.url = prev.url;
+          }
+        }
 
         const updated = await tx
           .update(tasks)

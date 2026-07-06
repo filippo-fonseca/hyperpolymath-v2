@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractUrlsFromContent, mergeContentUrls } from "@/lib/url";
+import { deriveSingleUrl, extractUrlsFromContent, mergeContentUrls } from "@/lib/url";
 
 describe("extractUrlsFromContent", () => {
   it("returns [] for empty / null / link-free content", () => {
@@ -98,5 +98,45 @@ describe("mergeContentUrls", () => {
     });
     expect(result.url).toBe("https://a.com/1");
     expect(result.urls).toEqual(["https://a.com/1", "https://b.com/2"]);
+  });
+});
+
+describe("deriveSingleUrl (task / page single-url property)", () => {
+  it("derives the link embedded in a task title (the reported case)", () => {
+    expect(
+      deriveSingleUrl(
+        "Reproduce GPT-2 from Karpathy https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+      ),
+    ).toBe("https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s");
+  });
+
+  it("returns null for link-free text", () => {
+    expect(deriveSingleUrl("Reproduce GPT-2 from Karpathy")).toBeNull();
+    expect(deriveSingleUrl("")).toBeNull();
+    expect(deriveSingleUrl(null)).toBeNull();
+    expect(deriveSingleUrl(undefined)).toBeNull();
+  });
+
+  it("takes the FIRST link when the text has several (single-url entity)", () => {
+    expect(
+      deriveSingleUrl("watch https://a.com/1 then read https://b.com/2"),
+    ).toBe("https://a.com/1");
+  });
+
+  it("never overwrites an existing/manual url", () => {
+    expect(
+      deriveSingleUrl("now points at https://body.com/link", "https://manual.com/kept"),
+    ).toBe("https://manual.com/kept");
+  });
+
+  it("fills the url only when the existing value is empty/unset", () => {
+    expect(deriveSingleUrl("see https://filled.com/x", null)).toBe("https://filled.com/x");
+    expect(deriveSingleUrl("see https://filled.com/x", "")).toBe("https://filled.com/x");
+  });
+
+  it("prefixes https:// onto a scheme-less www. link in the title", () => {
+    expect(deriveSingleUrl("notes on www.example.com/path")).toBe(
+      "https://www.example.com/path",
+    );
   });
 });
