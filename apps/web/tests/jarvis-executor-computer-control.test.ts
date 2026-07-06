@@ -10,7 +10,7 @@
  * here are minimal — just enough to let createServerExecutor() build.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServerExecutor } from "@/lib/jarvis/executor";
 import type { ExecutionContext } from "@hyperpolymath/jarvis-core";
 
@@ -138,7 +138,16 @@ describe("executor.openApp", () => {
 // ---------------------------------------------------------------------------
 
 describe("executor.webSearch", () => {
-  it("google engine: builds correct Google Search URL", async () => {
+  beforeEach(() => {
+    vi.stubEnv("BROWSERBASE_API_KEY", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("google engine without Browserbase: builds correct Google Search URL fallback", async () => {
     const executor = createServerExecutor();
     const result = await executor.webSearch({ query: "how to cook pasta", engine: "google" }, ctx);
 
@@ -149,9 +158,16 @@ describe("executor.webSearch", () => {
       url: "https://www.google.com/search?q=how%20to%20cook%20pasta",
       label: "the web",
     });
+    expect(result.receipt).toMatchObject({
+      query: "how to cook pasta",
+      engine: "google",
+      provider: "google_url_fallback",
+      url: "https://www.google.com/search?q=how%20to%20cook%20pasta",
+      label: "the web",
+    });
   });
 
-  it("google engine is default when engine is omitted", async () => {
+  it("google engine is default when engine is omitted and no search provider is configured", async () => {
     const executor = createServerExecutor();
     const result = await executor.webSearch({ query: "typescript generics" }, ctx);
 
@@ -163,6 +179,91 @@ describe("executor.webSearch", () => {
       "https://www.google.com/search?q=" + encodeURIComponent("typescript generics"),
     );
     expect(action.label).toBe("the web");
+    expect(result.receipt).toMatchObject({ provider: "google_url_fallback" });
+  });
+
+  it("google engine with Browserbase: returns normalized search results and no desktop action", async () => {
+    vi.stubEnv("BROWSERBASE_API_KEY", "bb_test_key");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            title: "Browserbase Search",
+            url: "https://docs.browserbase.com/platform/search/overview",
+            description: "Fast web search results from Browserbase.",
+          },
+          {
+            name: "Fallback field title",
+            link: "https://example.com/result",
+            snippet: "Alternate response shape.",
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const executor = createServerExecutor();
+    const result = await executor.webSearch({ query: "browserbase search api" }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.browserbase.com/v1/search",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "content-type": "application/json",
+          "x-bb-api-key": "bb_test_key",
+        }),
+        body: JSON.stringify({ query: "browserbase search api", numResults: 5 }),
+      }),
+    );
+    expect(result.action).toBeUndefined();
+    expect(result.receipt).toMatchObject({
+      query: "browserbase search api",
+      engine: "google",
+      provider: "browserbase",
+      results: [
+        {
+          title: "Browserbase Search",
+          url: "https://docs.browserbase.com/platform/search/overview",
+          snippet: "Fast web search results from Browserbase.",
+        },
+        {
+          title: "Fallback field title",
+          url: "https://example.com/result",
+          snippet: "Alternate response shape.",
+        },
+      ],
+    });
+  });
+
+  it("google engine with Browserbase failure: falls back to opening Google", async () => {
+    vi.stubEnv("BROWSERBASE_API_KEY", "bb_test_key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+      }),
+    );
+
+    const executor = createServerExecutor();
+    const result = await executor.webSearch({ query: "latest ai news" }, ctx);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.action).toEqual({
+      kind: "open_url",
+      url: "https://www.google.com/search?q=latest%20ai%20news",
+      label: "the web",
+    });
+    expect(result.receipt).toMatchObject({
+      query: "latest ai news",
+      engine: "google",
+      provider: "google_url_fallback",
+    });
   });
 
   it("maps engine: builds correct Google Maps URL", async () => {
@@ -203,7 +304,7 @@ describe("executor.webSearch", () => {
     );
   });
 
-  it("receipt contains query, engine, url, and label", async () => {
+  it("fallback receipt contains query, engine, url, and label", async () => {
     const executor = createServerExecutor();
     const result = await executor.webSearch({ query: "next.js app router", engine: "google" }, ctx);
 

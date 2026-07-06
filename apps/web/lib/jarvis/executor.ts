@@ -160,6 +160,84 @@ function describeWeatherCode(code: number): string {
   return "unsettled";
 }
 
+type WebSearchResult = {
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
+function googleSearchUrl(query: string): string {
+  return "https://www.google.com/search?q=" + encodeURIComponent(query);
+}
+
+function googleMapsSearchUrl(query: string): string {
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+function textField(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeWebSearchResults(payload: unknown): WebSearchResult[] {
+  const body = payload as {
+    results?: unknown;
+    data?: unknown;
+    organic?: unknown;
+  };
+  const candidates = Array.isArray(body.results)
+    ? body.results
+    : Array.isArray(body.data)
+      ? body.data
+      : Array.isArray(body.organic)
+        ? body.organic
+        : [];
+
+  return candidates
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const title = textField(row.title) ?? textField(row.name);
+      const url = textField(row.url) ?? textField(row.link);
+      const snippet =
+        textField(row.snippet) ??
+        textField(row.description) ??
+        textField(row.text) ??
+        textField(row.content);
+      if (!title || !url) return null;
+      return { title, url, ...(snippet ? { snippet } : {}) };
+    })
+    .filter((item): item is WebSearchResult => item !== null)
+    .slice(0, 5);
+}
+
+async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
+  const apiKey = process.env.BROWSERBASE_API_KEY;
+  if (!apiKey) return [];
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch("https://api.browserbase.com/v1/search", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-bb-api-key": apiKey,
+      },
+      body: JSON.stringify({ query, numResults: 5 }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn(`[jarvis] web_search: Browserbase returned ${res.status}`);
+      return [];
+    }
+    return normalizeWebSearchResults(await res.json());
+  } catch (err) {
+    console.warn("[jarvis] web_search: Browserbase lookup failed", err);
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function createServerExecutor(): ActionExecutor {
   return {
     async createTask(input: CreateTaskAction, ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -868,7 +946,8 @@ export function createServerExecutor(): ActionExecutor {
     // Result contract (parallel agent builds desktop client against this):
     //   open_url  → { ok: true, action: { kind: "open_url", url, label } }
     //   open_app  → { ok: true, action: { kind: "open_app", app, label } }
-    //   web_search → { ok: true, action: { kind: "open_url", url, label } }
+    //   web_search → maps: open_url action; web: server-side search receipt
+    //                when Browserbase is configured, Google URL fallback when not.
     // -------------------------------------------------------------------------
 
     async openUrl(input: OpenUrlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
@@ -908,21 +987,46 @@ export function createServerExecutor(): ActionExecutor {
 
     async webSearch(input: WebSearchAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       const engine = input.engine ?? "google";
-      let url: string;
       if (engine === "maps") {
-        url =
-          "https://www.google.com/maps/search/?api=1&query=" +
-          encodeURIComponent(input.query);
-      } else {
-        url =
-          "https://www.google.com/search?q=" + encodeURIComponent(input.query);
+        const url = googleMapsSearchUrl(input.query);
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: { query: input.query, engine, url, label: "Google Maps" },
+          action: { kind: "open_url", url, label: "Google Maps" },
+        };
       }
-      const label = engine === "maps" ? "Google Maps" : "the web";
+
+      const results = await browserbaseWebSearch(input.query);
+      if (results.length > 0) {
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: {
+            query: input.query,
+            engine,
+            provider: "browserbase",
+            results,
+            answer_hint:
+              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question.",
+          },
+        };
+      }
+
+      const url = googleSearchUrl(input.query);
       return {
         ok: true,
         id: `web_search:${input.query}`,
-        receipt: { query: input.query, engine, url, label },
-        action: { kind: "open_url", url, label },
+        receipt: {
+          query: input.query,
+          engine,
+          provider: "google_url_fallback",
+          url,
+          label: "the web",
+          answer_hint:
+            "No server-side search provider returned results, so the desktop should open the Google results page.",
+        },
+        action: { kind: "open_url", url, label: "the web" },
       };
     },
 
