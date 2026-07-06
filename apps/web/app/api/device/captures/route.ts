@@ -6,6 +6,7 @@ import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { db } from "@/lib/db";
 import { captures, capturesHashtags } from "@/lib/db/schema";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
+import { mergeContentUrls } from "@/lib/url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,11 +64,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   const hashtagNames = cleanHashtags(body.hashtagNames);
 
   const id = crypto.randomUUID();
+  // Auto-derive the URL property from links in the body (parity with the web
+  // + JARVIS create paths).
+  const derivedUrls = mergeContentUrls(content, {});
   await db.transaction(async (tx) => {
     await tx.insert(captures).values({
       id,
       userId,
       content,
+      url: derivedUrls.url,
+      urls: derivedUrls.urls,
       sourceDevice: deviceName,
       sourceInput: "text",
     });
@@ -96,7 +102,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (typeof body.id !== "string") return bad("id required");
 
   const existing = await db
-    .select({ id: captures.id })
+    .select({ id: captures.id, url: captures.url, urls: captures.urls })
     .from(captures)
     .where(and(eq(captures.id, body.id), eq(captures.userId, userId)))
     .limit(1);
@@ -104,9 +110,20 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   await db.transaction(async (tx) => {
     if (typeof body.content === "string" && body.content.trim()) {
+      const nextContent = body.content.trim().slice(0, 20000);
+      // Re-derive the URL property from the new body, additively.
+      const merged = mergeContentUrls(nextContent, {
+        url: existing[0]!.url,
+        urls: existing[0]!.urls,
+      });
       await tx
         .update(captures)
-        .set({ content: body.content.trim().slice(0, 20000), updatedAt: new Date() })
+        .set({
+          content: nextContent,
+          url: merged.url,
+          urls: merged.urls,
+          updatedAt: new Date(),
+        })
         .where(and(eq(captures.id, body.id as string), eq(captures.userId, userId)));
     }
     if (Array.isArray(body.hashtagNames)) {
