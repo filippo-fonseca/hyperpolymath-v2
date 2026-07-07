@@ -169,9 +169,25 @@ Gate approved 2026-07-06 (defaults shipped: title→class tint heuristic ON; 60s
 - M-11 labels-ledger (3 commits) → meridian/MeridianLabels.tsx (8 old-style numerals replicating dial transform, date line, hover+zenith captions via tabletHoverBus) + Ledger next-event clause (22 tests green) + fonts.ts (+× U+00D7). 11 live Text (at budget).
 - **Conductor mount 380174c:** `<TollScheduler/><MeridianAudio/>` after `<Chimes/>`; `<MeridianLabels/>` after `<WorldLabels/>`. useRingScrub self-mounts in MeridianRing. Verified green.
 
-### 🔄 Wave M4 — SEQUENTIAL CLOSEOUT (M-13/M-14 must reflect M-12's final state)
-- M-12 honesty-sweep (Opus, LAUNCHING) → reduced-motion collapse across ALL meridian surfaces (scrub discrete [M-10 done, verify], lean-down/snap instant, boot fade crossfade, god-ray breathe off) + connection-state honesty (not_connected→dark petrified brass, no tablets/plumb, 1 Garamond zenith line reusing caption slot; expired/revoked→"Reconnect"; empty-but-connected→bright ring, no tablets, plumb still falls, wordless). Touches meridian components; sequential = no collision.
-- AFTER M-12: M-13 perf-hardening (Opus, tests + components/world/__tests__ perf doc, §4.4 protocol; live-fps numbers pending human gate) ‖ M-14 docs-changelog (Sonnet, README meridian section + CHANGELOG + .planning). File-disjoint from each other.
+### ✅ Wave M4 — DONE (sequential closeout complete)
+- M-12 honesty-sweep (96d7c317; 2 commits) → meridianMaterials (applyRingPetrified/Live), MeridianRing (status-keyed petrify), PlumbLine (null unless connected — status alone, empty day keeps line), EventTablets (empty-solve when disconnected + live reduced-motion via useWorldPrefs), MeridianLabels (disconnect nudge REUSES zenith caption slot, no new Text). status union = `connected|not_connected|expired`; "revoked" never reaches (query maps failures→[]). Confirmed M-10 scrub / M-07 breathe / M-06 leans already reduced-motion-correct.
+- M-13 perf-hardening (b1939450; 18e5a02; 2 commits) → meridian/__tests__/meridianPerf.test.ts (10 green) + extended components/world/__tests__/perf.md "Meridian (Phase 2)". Draw-call audit ≤20 layer (ring4/tablets2/hero1+pass/plumb2/text≤11); Vestibule steady-state ~9–11. FINDING: meridian adds ZERO idle self-demand (stricter than §4.1's 1/min — the assumed per-minute invalidate isn't wired; todayYmd bails on unchanged ymd, dial reads on already-demanded frames). Live-fps rows PENDING HUMAN GATE.
+- M-14 docs-changelog (807856da; Sonnet; 2 commits) → README.md "Meridian Ring (Phase 2)" (14-row module map, dial model, frozen contracts, idle rule, widget recipe) + created apps/web/CHANGELOG.md (Keep-a-Changelog, [Unreleased] Phase-2 entry).
+
+## ✅ PHASE 2 — THE MERIDIAN RING — CODE-COMPLETE (2026-07-06)
+All 14 units (M-01→M-14) built, verified, committed on `lifeos-studiolo`; NOT pushed. Final gate at HEAD 18e5a02: tsc clean (baseline-only), 163/163 components/world tests green, build exit 0 (/world emitted) at last source change 380174c. 15th unit M-15 (month-zoetrope) remains DEFERRED stretch (Gate decides).
+
+### ⏳ PENDING HUMAN GATE (Phase 2 — before push/merge): authenticated in-browser smoke on /world (needs Filippo's gcal-connected Supabase session). Checklist (PHASE-2-PLAN §6 + M-13's perf rows in perf.md):
+1. /world renders the ring overhead; tablet positions/times match /calendar for the same day.
+2. `C` → camera glides up to the ring (RING_VIEW_POSE); Esc → snapToNow then glides home.
+3. Click a tablet → tablet-focus pose; caption shows title·time·calendar-dot.
+4. Wheel/two-finger scrub while ring-focused → heavy brass momentum, 30-min detent, edge rubber-band; dial dolly disabled during scrub; releasing settles legibly.
+5. Event starting in ≤15 min → T-15 toll sounds FROM ABOVE (positional), fires once; tablet leans down.
+6. Now-plumb-line falls from zenith; breathes only in the 4s post-interaction window.
+7. Disconnect gcal in Settings → within ≤60s (no reload) ring flips to dark petrified brass, no tablets/plumb, zenith line "The ring is dark. Reconnect…". Reconnect → relights.
+8. macOS Reduce Motion ON → scrub = discrete 1h steps, snap instant, no god-ray breathe, no leans/glides; everything legible.
+9. Perf (M-13 rows): idle 10s hands-off → 0 extra meridian frames/min; Vestibule gl.info.render.calls ≤170 & ≤300k tris; C-glide ≥58fps; 20s scrub ≥58fps no >33ms hitch; DPR ladder 2→1.5→1 with ring in frame.
+Then report to Filippo for review before any push/merge.
 ### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
 
 ### PENDING HUMAN GATE (Phase 2, before push/merge): in-browser smoke §6 (needs Filippo's gcal-connected auth session) — ring overhead matches /calendar, C look-up, scrub momentum, T-15 toll from above, Jarvis event rivets in, disconnect→petrified ring. Dev stack currently UP on :3000 (web shell) + local Supabase (Docker).
