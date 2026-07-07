@@ -9,6 +9,7 @@ import { StudioSkeleton } from "./StudioSkeleton";
 import { StudioFocusOverlay } from "./overlay/StudioFocusOverlay";
 import { DebugDomTiles } from "./overlay/DebugDomTiles";
 import { HandControlOnboarding } from "./onboarding/HandControlOnboarding";
+import { StudioHandReticle } from "./cursor/StudioHandReticle";
 
 /**
  * StudioLoader — the client boundary that owns BOTH the data bridge and the
@@ -156,6 +157,10 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
               chrome at z-30 (below the focus overlay); constructs the
               HandTrackingDriver only after an explicit opt-in. */}
           <HandControlOnboarding />
+          {/* On-brand hand cursor — z-35: above the Canvas and the z-30
+              onboarding chrome, below the z-40 focus scrim. pointer-events:none;
+              visible only while the hand driver is running (hand-status store). */}
+          <StudioHandReticle />
         </div>
       </StudioInputProvider>
     </StudioDataProvider>
