@@ -2,24 +2,27 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { HabitWithAreas } from "@/app/actions/habits";
-import type { JournalEntry } from "@/app/actions/journal";
-import type { CalendarSeed, HabitCompletionRow } from "./data/useStudioData";
+import { StudioDataProvider } from "./data/StudioDataProvider";
+import type { StudioSeed } from "./data/useStudioData";
 import { StudioSkeleton } from "./StudioSkeleton";
 
 /**
- * StudioLoader — the client boundary that owns the ssr:false Canvas island.
+ * StudioLoader — the client boundary that owns BOTH the data bridge and the
+ * ssr:false Canvas island.
+ *
+ * The data bridge (`StudioDataProvider`) mounts HERE, ABOVE the Canvas, as a
+ * plain-React provider. On R3F v9 parent context is bridged into the Canvas
+ * automatically, so this ONE provider serves both the in-Canvas widget-cloud
+ * and the DOM focus-overlay (a future sibling of the Canvas under this provider).
  *
  * Next 16 App Router requires `dynamic(..., { ssr:false })` to live inside a
- * Client Component. Keeping it here means three/R3F are code-split into a chunk
- * that loads ONLY on /studio; every 2D route ships zero 3D bytes.
+ * Client Component. Keeping the Canvas import here means three/R3F are
+ * code-split into a chunk that loads ONLY on /studio; every 2D route ships zero
+ * 3D bytes.
  *
  * Before mounting the Canvas we run a capability gate: if WebGL2 is
  * unavailable, we render a Parchment-on-Nightwalnut fallback card instead of
- * crashing.
+ * crashing. The provider still wraps that fallback so overlays keep their data.
  */
 
 const StudioCanvas = dynamic(() => import("./StudioCanvas"), {
@@ -29,13 +32,7 @@ const StudioCanvas = dynamic(() => import("./StudioCanvas"), {
 
 export interface StudioLoaderProps {
   userId: string;
-  initialTree: SidebarArea[];
-  initialTasks: TaskWithProjects[];
-  initialCaptures: CaptureWithLinks[];
-  initialCalendar: CalendarSeed;
-  initialHabits: HabitWithAreas[];
-  initialHabitCompletions: HabitCompletionRow[];
-  initialJournal: JournalEntry | null;
+  seed: StudioSeed;
 }
 
 /** Probe for a usable WebGL2 context without leaking the throwaway canvas. */
@@ -103,8 +100,7 @@ function FallbackCard(): React.ReactElement {
 export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
   // The WebGL2 probe is client-only (`getContext` needs a real canvas). Running
   // it during render would make SSR — where it always returns false — emit the
-  // <FallbackCard> while the client emits <StudioCanvas>, a hydration mismatch
-  // (the "<StudioLoader> … <Suspense fallback> vs <div style=…>" error + flash).
+  // <FallbackCard> while the client emits <StudioCanvas>, a hydration mismatch.
   //
   // Instead, SSR and the first client render BOTH emit <StudioSkeleton> — which
   // is exactly what the dynamic() `loading` fallback shows too, so the
@@ -119,10 +115,19 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
     setDecision(hasWebGL2() ? "canvas" : "fallback");
   }, []);
 
-  if (decision === "pending") return <StudioSkeleton />;
-  if (decision === "fallback") return <FallbackCard />;
+  let body: React.ReactElement;
+  if (decision === "pending") body = <StudioSkeleton />;
+  else if (decision === "fallback") body = <FallbackCard />;
+  else body = <StudioCanvas />;
 
-  return <StudioCanvas {...props} />;
+  // The provider wraps the body in ALL states so the future DOM focus-overlay
+  // (a sibling of the Canvas) and the in-Canvas widget-cloud share one data
+  // source. R3F bridges this context into the Canvas below automatically.
+  return (
+    <StudioDataProvider userId={props.userId} seed={props.seed}>
+      {body}
+    </StudioDataProvider>
+  );
 }
 
 export default StudioLoader;

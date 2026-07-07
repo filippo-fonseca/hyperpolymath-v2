@@ -1,57 +1,20 @@
-import { startOfDay, addDays } from "date-fns";
-import { TZDate } from "@date-fns/tz";
-import { eq } from "drizzle-orm";
-
 import { getUserOrRedirect } from "@/lib/auth/get-user";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { getSidebarTree } from "@/lib/db/queries/sidebar";
-import { getAllTasksForUser } from "@/lib/db/queries/tasks";
-import { getCapturesForUser } from "@/lib/db/queries/captures";
-import {
-  getHabitsForCurrentUser,
-  getHabitCompletionsInRange,
-} from "@/app/actions/habits";
-import { getJournalEntry } from "@/app/actions/journal";
-import {
-  getGcalConnectionStatus,
-  type GcalConnectionStatus,
-} from "@/lib/db/queries/gcal-connection";
-import {
-  getValidGcalToken,
-  GcalNotConnectedError,
-  GcalTokenRevokedError,
-} from "@/lib/gcal/token";
-import { listCalendars, type GcalCalendarMeta } from "@/lib/gcal/calendars";
-import { eventToDTO, type GcalEventDTO } from "@/lib/gcal/event-dto";
-import type { CalendarSeed } from "@/components/studio/data/useStudioData";
+import { loadStudioSeed } from "@/lib/studio/load-studio-seed";
 import { StudioLoader } from "@/components/studio/StudioLoader";
 
 /**
  * /studio — The Studio, the 3D theatre of the life-OS.
  *
- * Server Component. Lives in the authenticated `(app)` route group, so it
- * inherits the full provider stack from `(app)/layout.tsx` — auth gate,
- * QueryProvider (TanStack Query), NuqsAdapter, SearchProvider,
- * NavHistoryProvider, AppShell. The Canvas island therefore sits INSIDE the
- * existing QueryClient and reads the SAME shared caches the 2D app uses (no
- * parallel store).
+ * Server Component in the authenticated `(app)` route group, so it inherits the
+ * full provider stack (auth gate, QueryProvider, AppShell). The studio island
+ * therefore sits INSIDE the existing QueryClient and reads the SAME shared
+ * caches the 2D app uses (no parallel store).
  *
- * SSR-seeds the same data the 2D surfaces seed (active sidebar tree, all tasks,
- * captures) so the client island hydrates its shared-key queries with no extra
- * round-trip. All three-touching code lives behind StudioLoader's ssr:false
- * boundary — this file ships zero 3D bytes.
- *
- * Calendar seed (Phase 2 M-01, renamed from `meridian` in Phase 3 W-01):
- *   Mirrors `/calendar/page.tsx` exactly (the verified precedent): read
- *   connection status + timezone + visible-calendar prefs in parallel; if
- *   connected, `getValidGcalToken` → `listCalendars` → per-calendar
- *   `events.list` over the rolling `[startOfDay(today)-1d, +8d)` slab
- *   (`singleEvents`/`orderBy`/`timeZone`), wrapped in try/catch → status
- *   variants. gcal is the ONLY source of truth for events — nothing is mirrored
- *   in Postgres, so this route is `force-dynamic` (caching would surface stale
- *   events). The resolved seed hydrates the client calendar query with no extra
- *   client round-trip.
+ * All SSR seeding is encapsulated in `loadStudioSeed` (parallel fetches + the
+ * gcal calendar-slab read). gcal is the ONLY source of truth for events —
+ * nothing is mirrored in Postgres — so this route is `force-dynamic`. All
+ * three-touching code lives behind StudioLoader's ssr:false boundary; this file
+ * ships zero 3D bytes.
  */
 
 // Never cache — gcal is the source of truth (no Postgres mirror).
@@ -60,131 +23,14 @@ export const revalidate = 0;
 
 export default async function StudioPage() {
   const user = await getUserOrRedirect();
-
-  // Habits + journal seed dates in LOCAL time — byte-identical to the 2D
-  // /habits (rolling 14-day window) and /journaling (today) server pages, and
-  // to the studio provider's `todayYmd` client clock, so the SSR seeds hydrate
-  // the shared-key queries with no extra round-trip.
-  const localToday = new Date();
-  const toLocalYmd = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const habitsWindowStartDate = new Date(localToday);
-  habitsWindowStartDate.setDate(localToday.getDate() - 13);
-  const localTodayYmd = toLocalYmd(localToday);
-  const habitsWindowStartYmd = toLocalYmd(habitsWindowStartDate);
-
-  const [
-    initialTree,
-    initialTasks,
-    initialCaptures,
-    statusResult,
-    tzRow,
-    initialHabits,
-    initialHabitCompletions,
-    journalResult,
-  ] = await Promise.all([
-    getSidebarTree(user.id, false),
-    getAllTasksForUser(user.id),
-    getCapturesForUser(user.id),
-    getGcalConnectionStatus(user.id),
-    db
-      .select({
-        tz: users.timezone,
-        visibleCals: users.gcalVisibleCalendarIds,
-      })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1),
-    getHabitsForCurrentUser(),
-    getHabitCompletionsInRange(habitsWindowStartYmd, localTodayYmd),
-    getJournalEntry({ date: localTodayYmd }),
-  ]);
-
-  const initialJournal = journalResult.success ? journalResult.data : null;
-
-  const calendarTz = tzRow[0]?.tz ?? "UTC";
-  const persistedVisibleCals = tzRow[0]?.visibleCals ?? null;
-
-  // The rolling slab: [startOfDay(today) - 1 day, startOfDay(today) + 8 days)
-  // in the user's IANA timezone. TZDate keeps day math DST-correct.
-  const todayInTz = startOfDay(new TZDate(Date.now(), calendarTz));
-  const windowStart = addDays(todayInTz, -1);
-  const windowEnd = addDays(todayInTz, 8);
-
-  let status: GcalConnectionStatus = "connected";
-  let events: GcalEventDTO[] = [];
-  let calendars: GcalCalendarMeta[] = [];
-  let visibleCalendarIds: string[] = [];
-
-  if (statusResult === "not_connected") {
-    status = "not_connected";
-  } else {
-    // Fetch calendars + this slab's events. Wrap in try/catch so a
-    // revoked/disconnected refresh path yields a quiet-brass status instead of
-    // crashing the route (mirrors /calendar's banner-variant handling).
-    try {
-      const cal = await getValidGcalToken(user.id);
-      calendars = await listCalendars(cal);
-      visibleCalendarIds =
-        persistedVisibleCals && persistedVisibleCals.length > 0
-          ? persistedVisibleCals
-          : calendars.map((c) => c.id);
-
-      const eventsPerCal = await Promise.all(
-        visibleCalendarIds.map(async (cid) => {
-          const { data } = await cal.events.list({
-            calendarId: cid,
-            timeMin: windowStart.toISOString(),
-            timeMax: windowEnd.toISOString(),
-            singleEvents: true, // expand recurring
-            orderBy: "startTime",
-            maxResults: 250,
-            timeZone: calendarTz, // DST correctness
-          });
-          return (data.items ?? [])
-            .map((e) => eventToDTO(e, cid))
-            .filter((e): e is GcalEventDTO => e !== null);
-        }),
-      );
-      events = eventsPerCal.flat();
-    } catch (e) {
-      if (e instanceof GcalTokenRevokedError) {
-        status = "expired";
-      } else if (e instanceof GcalNotConnectedError) {
-        // Belt-and-suspenders: a race between the status read and the token
-        // read is possible if the user disconnects in another tab mid-load.
-        status = "not_connected";
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  const initialCalendar: CalendarSeed = {
-    status,
-    events,
-    calendars,
-    timezone: calendarTz,
-    windowStartMs: windowStart.getTime(),
-    windowEndMs: windowEnd.getTime(),
-    visibleCalendarIds,
-  };
+  const seed = await loadStudioSeed(user.id);
 
   return (
     <main
       className="relative min-h-full w-full overflow-hidden bg-[#120E0B]"
       style={{ height: "100%" }}
     >
-      <StudioLoader
-        userId={user.id}
-        initialTree={initialTree}
-        initialTasks={initialTasks}
-        initialCaptures={initialCaptures}
-        initialCalendar={initialCalendar}
-        initialHabits={initialHabits}
-        initialHabitCompletions={initialHabitCompletions}
-        initialJournal={initialJournal}
-      />
+      <StudioLoader userId={user.id} seed={seed} />
     </main>
   );
 }

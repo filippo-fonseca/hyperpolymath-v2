@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { StudioScene, type StudioSceneProps } from "./StudioScene";
+import { StudioScene } from "./StudioScene";
 
 /**
  * StudioCanvas — the single R3F <Canvas> boundary for The Studio.
@@ -11,12 +11,14 @@ import { StudioScene, type StudioSceneProps } from "./StudioScene";
  * dynamic({ ssr:false }) import in StudioLoader, so three/R3F never ship in any
  * 2D route chunk.
  *
+ * The data bridge (`StudioDataProvider`) sits ABOVE this Canvas in StudioLoader;
+ * R3F v9 bridges that parent React context into the Canvas root automatically,
+ * so in-Canvas systems read the shared caches with no provider inside the tree.
+ *
  * §7 doctrine: frameloop="demand" (the studio sleeps when idle), dpr clamped to
  * [1,2] (governed downward by PerfGovernor), antialias + high-performance GPU.
  */
-export type StudioCanvasProps = StudioSceneProps;
-
-export function StudioCanvas(props: StudioCanvasProps): React.ReactElement {
+export function StudioCanvas(): React.ReactElement {
   return (
     <Canvas
       frameloop="demand"
@@ -29,7 +31,7 @@ export function StudioCanvas(props: StudioCanvasProps): React.ReactElement {
       }}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
     >
-      <StudioScene {...props} />
+      <StudioScene />
     </Canvas>
   );
 }
