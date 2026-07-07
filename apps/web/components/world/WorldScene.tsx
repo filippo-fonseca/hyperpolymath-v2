@@ -13,6 +13,9 @@ import { Boughs } from "./tree/Boughs";
 import { Lanterns } from "./tree/Lanterns";
 import { Embers } from "./tree/Embers";
 import { Fireflies } from "./tree/Fireflies";
+import { MeridianRing } from "./meridian/MeridianRing";
+import { EventTablets } from "./meridian/EventTablets";
+import { PlumbLine } from "./meridian/PlumbLine";
 import { CameraRig } from "./camera/CameraRig";
 import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
@@ -67,6 +70,9 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Lanterns /> {/* [U-10] one lantern per project (pickable → focus) */}
       <Fireflies /> {/* [U-14] every unfiled capture as a firefly (one draw call) */}
       <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
+      <MeridianRing /> {/* [M-05] the calendar sky — canted brass annulus overhead */}
+      <EventTablets /> {/* [M-06] gcal events as glass tablets (1 InstancedMesh + zenith hero) */}
+      <PlumbLine /> {/* [M-07] the "now" god-ray falling from zenith toward the trunk */}
       <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
       <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
