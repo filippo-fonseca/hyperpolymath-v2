@@ -37,6 +37,17 @@ export {
   type SystemBlock,
 } from "./prompt-builder";
 
+// Time-of-day bucketing + greeting helpers (bgsd/time-aware-greeting). Pure
+// functions consumed by the run-turn temporal-context block so JARVIS greets
+// with the correct part of the day from the user's real local time.
+export {
+  timeOfDayForHour,
+  greetingForTimeOfDay,
+  greetingForHour,
+  correctLeadingGreeting,
+  type TimeOfDay,
+} from "./time-of-day";
+
 export {
   buildToolDefinitions,
   type JarvisToolDefinition,
