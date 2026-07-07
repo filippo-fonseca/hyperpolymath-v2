@@ -78,6 +78,11 @@ import { boughFocusPose } from "../tree/Boughs";
 import { focusStack, useFocusStack, type FocusLevel } from "./useFocusStack";
 import { useWorldKeys } from "./useWorldKeys";
 import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
+// Module-level getter (no React state) — mirrors how `lanternFocusPose` resolves
+// a pose from layout. Populated by WidgetRig's effect; safe as a cyclic import
+// because it is only ever CALLED at runtime (inside `poseForFocus`), never at
+// module-eval time.
+import { getBenchSlot } from "../panels/WidgetRig";
 
 // ── Timing model (§1.3) ─────────────────────────────────────────────────────
 // `camera-controls` transitions are SmoothDamp toward the target, governed by
@@ -220,12 +225,13 @@ function poseForFocus(
       const l = layout.byProject.get(f.projectId);
       return l ? lanternFocusPose(l) : null;
     }
-    // Phase 3: the bench widget pose. W-06 fills the real widget pose (a bench
-    // slot's reading pose via the layout solver); until then the widget level
-    // resolves to the vestibule so the FocusLevel switch stays exhaustive and
-    // the camera never lands nowhere.
+    // Phase 3: the bench widget pose (§4.3). WidgetRig keeps the current solved
+    // bench in a module ref and exposes `getBenchSlot` over it (mirroring how
+    // `lanternFocusPose` resolves from layout WITHOUT React state), so this pure
+    // function stays hook-free. A widget not (yet) on the bench falls back to the
+    // vestibule so the camera never lands nowhere.
     case "widget":
-      return VESTIBULE_POSE; // W-06 fills the real widget pose
+      return getBenchSlot(f.widgetId)?.cameraPose ?? VESTIBULE_POSE;
   }
 }
 
