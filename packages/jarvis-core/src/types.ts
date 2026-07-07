@@ -71,6 +71,8 @@ export interface CreateCaptureAction {
   content: string;
   hashtags?: string[];
   project_ids?: string[];
+  /** Resurfacing (remind-me) date — ISO 8601 with offset. Omit for none. */
+  resurface_at?: string;
   voice_summary?: string;
 }
 
@@ -130,6 +132,11 @@ export interface UpdateCaptureAction {
   content?: string | null;
   hashtags?: string[] | null;
   project_ids?: string[] | null;
+  /**
+   * Resurfacing (remind-me) date — ISO 8601 with offset to set/change, empty
+   * string "" to clear, null to leave unchanged.
+   */
+  resurface_at?: string | null;
 }
 
 export interface DeleteCaptureAction {

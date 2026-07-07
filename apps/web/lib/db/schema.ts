@@ -29,6 +29,8 @@ import {
 // DevRunItem is single-sourced in the query helper; imported type-only here so
 // the kiwi_dev_runs items jsonb column is typed without duplicating the shape.
 import type { DevRunItem } from "./queries/dev-runs";
+// Issue #221 — providerData jsonb shape, single-sourced in the link-preview lib.
+import type { LinkPreviewProviderData } from "../link-preview/types";
 // Issue #144 — recurring-task rule shape, single-sourced in lib/tasks/recurrence.
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 // JARVIS routines — spec shape single-sourced in jarvis-core; imported type-only
@@ -220,6 +222,11 @@ export const tasks = pgTable(
     // to the next occurrence on completion/skip. Shape is RecurrenceRule from
     // lib/tasks/recurrence.ts: { frequency, interval, weekdays? }. Migration 0040.
     recurrence: jsonb("recurrence").$type<RecurrenceRule>(),
+    // Linked-people derivation marker. NULL = the task's title/notes have never
+    // been scanned for references to known people; non-null = already derived
+    // (set by lib/people/derive.ts). Guards the lazy view-time backfill so the
+    // Haiku smart-match runs at most once per task. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the task (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
@@ -253,13 +260,33 @@ export const captures = pgTable(
     // token deletion, plus the input modality ('voice' | 'text').
     sourceDevice: text("source_device"),
     sourceInput: text("source_input"),
+    // Issue #220 — first-class source channel for non-UI ingestion surfaces
+    // such as AgentMail. Kept separate from sourceInput so "email" does not
+    // render as a typed browser capture.
+    sourceChannel: text("source_channel"),
     // Issue #101 — Notion-style "URL" property. Optional canonical link the user
     // attaches to the capture (normalized to include a scheme client-side; NULL =
     // unset). Rendered as a clickable link in the detail panel. Migration 0042.
+    // Kept as the primary/canonical link for backward-compatible single-link
+    // reads (feed, MCP export); mirrors urls[0].
     url: text("url"),
+    // Multi-URL property (migration 0028 / 0045). The full ordered, de-duped set
+    // of links attached to the capture — manual entries plus any auto-derived
+    // from the body. Derivation only ever ADDS links (never removes/overwrites),
+    // so any link present in the content stays indexed here. Empty '{}' = none.
+    urls: text("urls").array().notNull().default([]),
     // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
     // capture is filtered out of the personal-context snapshot. Migration 0027.
     noExport: boolean("no_export").notNull().default(false),
+    // Issue #202 — user-facing favorite/star flag for quick retrieval.
+    favorite: boolean("favorite").notNull().default(false),
+    // Resurfacing (remind-me): optional timestamp at which this capture should
+    // be surfaced back to the user in the /captures "Resurfacing today" section.
+    // NULL = never resurface (the default for every existing row). Editable from
+    // the detail panel and settable by JARVIS via natural language ("remind me
+    // about this next Tuesday"). A capture leaves the resurfacing section when
+    // this is cleared (set back to NULL) or moved to a future day. Migration 0029.
+    resurfaceAt: timestamp("resurface_at", { withTimezone: true }),
     // 260615-h74 — captures-to-issues daily cron. Both columns are additive and
     // NULLABLE with no default, so existing rows are untouched. githubEvaluatedAt
     // is the "already considered" marker: it is set whenever Claude has evaluated
@@ -268,6 +295,11 @@ export const captures = pgTable(
     // filed (non-actionable or privacy-refused captures).
     githubIssueUrl: text("github_issue_url"),
     githubEvaluatedAt: timestamp("github_evaluated_at", { withTimezone: true }),
+    // Linked-people derivation marker. NULL = the capture body has never been
+    // scanned for references to known people; non-null = already derived (set by
+    // lib/people/derive.ts). Guards the lazy view-time backfill so the Haiku
+    // smart-match runs at most once per capture. Additive, migration 0029.
+    peopleDerivedAt: timestamp("people_derived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     // CAPT-06: full-text search column (generated; backed by raw-SQL migration 0005).
@@ -282,6 +314,51 @@ export const captures = pgTable(
   (t) => [
     index("captures_user_created_desc_idx").on(t.userId, sql`created_at DESC`),
     index("captures_content_search_gin_idx").using("gin", t.contentSearch),
+    // Partial index for the daily resurfacing query — only rows with a set
+    // resurface date are indexed, keeping it tiny and skipping the NULL majority.
+    index("captures_user_resurface_idx")
+      .on(t.userId, t.resurfaceAt)
+      .where(sql`resurface_at IS NOT NULL`),
+  ],
+);
+
+// Issue #221 — rich link previews. Cached, per-user metadata for any URL that
+// appears in a capture (or its `url` property). One row per (user, url); the
+// fetch happens asynchronously at capture-write time and on first view, then is
+// read from here rather than re-fetched on every render. `providerData` holds
+// media-specific extras (YouTube video title/duration, persisted tweet text +
+// author) so the content survives the source going private/deleted. Migration
+// 0022, additive.
+export const linkPreviews = pgTable(
+  "link_previews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // The URL as fetched (normalized to include a scheme). Dedup key with userId.
+    url: text("url").notNull(),
+    // Fetch lifecycle: 'pending' (queued/never fetched) | 'ok' (metadata cached)
+    // | 'error' (fetch failed; degrade to a plain link). Drives retry + render.
+    status: text("status").notNull().default("pending"),
+    // Coarse media class for render branching: 'generic' | 'youtube' | 'twitter'.
+    mediaType: text("media_type"),
+    title: text("title"),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    faviconUrl: text("favicon_url"),
+    siteName: text("site_name"),
+    // Media-specific persisted payload (see LinkPreviewProviderData).
+    providerData: jsonb("provider_data").$type<LinkPreviewProviderData>(),
+    // Last fetch error message (truncated), when status = 'error'.
+    error: text("error"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("link_previews_user_url_uniq").on(t.userId, t.url),
+    index("link_previews_user_status_idx").on(t.userId, t.status),
   ],
 );
 
@@ -760,6 +837,29 @@ export const cronRuns = pgTable(
   (t) => [
     // This UNIQUE constraint is the once-per-day lock.
     uniqueIndex("cron_runs_job_date_uniq").on(t.jobName, t.runDate),
+  ],
+);
+
+// agentmail_ingest_events — Issue #220. Idempotency ledger for AgentMail
+// webhooks. AgentMail retries delivery; eventId is the durable replay key so a
+// retry cannot create duplicate captures/tasks.
+export const agentmailIngestEvents = pgTable(
+  "agentmail_ingest_events",
+  {
+    eventId: text("event_id").primaryKey(),
+    inboxId: text("inbox_id").notNull(),
+    messageId: text("message_id").notNull(),
+    sender: text("sender"),
+    subject: text("subject"),
+    captureId: uuid("capture_id"),
+    status: text("status").notNull().default("received"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("agentmail_ingest_events_message_idx").on(t.inboxId, t.messageId),
+    index("agentmail_ingest_events_created_idx").on(sql`created_at DESC`),
   ],
 );
 
@@ -1299,9 +1399,10 @@ export const journalEntries = pgTable(
     date: date("date").notNull(),
     mainResponse: text("main_response"), // nullable — response to the fixed prompt
     notesSection: text("notes_section"), // nullable — the separate Notes / Misc field
-    // Phase 999.12 / CTX-04 — privacy gate for the MCP export. When true, this
-    // entry is filtered out of the personal-context snapshot. Migration 0027 lineage.
-    noExport: boolean("no_export").notNull().default(false),
+    // Privacy gate for the MCP export. When true, this entry is filtered out
+    // of the personal-context snapshot. Journal entries default to true (opt-in
+    // export) per issue #191 — migration 0045 flips the default and existing rows.
+    noExport: boolean("no_export").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

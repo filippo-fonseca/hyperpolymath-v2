@@ -22,8 +22,8 @@
  *      preserved in form state.
  */
 
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -58,9 +58,7 @@ vi.mock("@/components/shared/ProjectMultiSelect", () => ({
     <div data-testid="project-multi-select">
       <button
         type="button"
-        onClick={() =>
-          onChange(value.length ? [] : ["aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"])
-        }
+        onClick={() => onChange(value.length ? [] : ["aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"])}
       >
         toggle-project ({value.length})
       </button>
@@ -92,7 +90,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         capture={{ id: "11111111-1111-4111-8111-111111111111", content: longContent }}
         existingProjectIds={[]}
         availableProjects={[]}
-      />,
+      />
     );
 
     // Find the input that holds the title (Label text "Task title")
@@ -113,7 +111,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         }}
         existingProjectIds={["bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"]}
         availableProjects={[]}
-      />,
+      />
     );
 
     const convertBtn = screen.getByRole("button", { name: /^Convert$/i });
@@ -149,7 +147,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         }}
         existingProjectIds={[]}
         availableProjects={[]}
-      />,
+      />
     );
 
     await act(async () => {
@@ -172,7 +170,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         capture={{ id: "44444444-4444-4444-8444-444444444444", content: "x" }}
         existingProjectIds={[]}
         availableProjects={[]}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Cancel/i }));
@@ -189,7 +187,7 @@ describe("ConvertCaptureToTaskDialog", () => {
         capture={{ id: "55555555-5555-4555-8555-555555555555", content: "" }}
         existingProjectIds={[]}
         availableProjects={[]}
-      />,
+      />
     );
 
     const convertBtn = screen.getByRole("button", { name: /^Convert$/i });
@@ -206,9 +204,7 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
     // Compile-time only — we import the type and construct an object with
     // both null and "jarvis" values. If the surface dropped the field, this
     // would fail TypeScript compilation.
-    const { type } = await import("@/lib/db/queries/captures").then(
-      (m) => ({ type: m }),
-    );
+    const { type } = await import("@/lib/db/queries/captures").then((m) => ({ type: m }));
     expect(type).toBeTruthy();
 
     const sampleJarvis: import("@/lib/db/queries/captures").CaptureWithLinks = {
@@ -217,9 +213,14 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       createdVia: "jarvis",
-    sourceDevice: null,
-    sourceInput: null,
-    url: null,
+      sourceDevice: null,
+      sourceInput: null,
+      sourceChannel: null,
+      url: null,
+      urls: [],
+      favorite: false,
+      resurfaceAt: null,
+      peopleDerivedAt: null,
       hashtags: [],
       people: [],
       projects: [],
@@ -230,9 +231,14 @@ describe("CaptureWithLinks shape (D-14 surface)", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       createdVia: null,
-    sourceDevice: null,
-    sourceInput: null,
-    url: null,
+      sourceDevice: null,
+      sourceInput: null,
+      sourceChannel: null,
+      url: null,
+      urls: [],
+      favorite: false,
+      resurfaceAt: null,
+      peopleDerivedAt: null,
       hashtags: [],
       people: [],
       projects: [],

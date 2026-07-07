@@ -16,6 +16,12 @@ import {
   reconcilePersonReferencesForUser,
   resolveOrCreatePersonForUser,
 } from "./people";
+import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+
+/** The text scanned for people references on a task: title + notes. */
+function taskContent(title: string | undefined | null, notes: string | undefined | null): string {
+  return [title ?? "", notes ?? ""].filter(Boolean).join("\n");
+}
 
 type ActionResult<T = unknown> =
   | { success: true; data: T }
@@ -173,6 +179,16 @@ export async function createTask(
     await reconcilePersonReferencesForUser(userId, "task", result, personIds);
   }
 
+  // Auto-derive linked people from title + notes: a background Haiku match links
+  // any EXISTING person confidently referenced, additively on top of the
+  // explicit @-mentions reconciled above. Scheduled via after(); fail-soft.
+  scheduleEntityPeopleDerivation(
+    "task",
+    result,
+    userId,
+    taskContent(parsed.data.title, parsed.data.notes),
+  );
+
   return { success: true, data: { id: result } };
 }
 
@@ -298,7 +314,30 @@ export async function updateTask(
     await reconcilePersonReferencesForUser(userId, "task", id, personIds);
   }
 
+  // Re-derive linked people when the title or notes changed: the background
+  // match runs additively over the new text (never removing the reconciled
+  // explicit set). Fail-soft.
+  if (rest.title !== undefined || rest.notes !== undefined) {
+    scheduleEntityPeopleDerivation("task", id, userId, taskContent(rest.title, rest.notes));
+  }
+
   return { success: true, data: null };
+}
+
+/** Server-action wrapper for the task detail panel's lazy on-open backfill. */
+export async function ensureTaskPeople(
+  id: unknown,
+): Promise<ActionResult<{ people: { id: string; name: string }[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  try {
+    const result = await ensureEntityPeople(userId, "task", id as string);
+    return { success: true, data: result };
+  } catch (err) {
+    console.error("[tasks] ensureTaskPeople failed", err);
+    return { success: false, error: "Derivation failed" };
+  }
 }
 
 /**

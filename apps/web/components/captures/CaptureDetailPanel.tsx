@@ -46,13 +46,20 @@ import {
 } from "@/components/shared/ProjectMultiSelect";
 import type { InlineProjectArea } from "@/components/shared/InlineProjectCreateForm";
 import { RelativeTime } from "@/components/shared/RelativeTime";
-import { UrlField } from "@/components/shared/UrlField";
+import { UrlListField } from "@/components/shared/UrlListField";
+import { PersonListField } from "@/components/shared/PersonListField";
 import { createHashtagSuggestion } from "./tiptap-suggestions";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
 import { createPersonSuggestion } from "./person-suggestions";
-import { deleteCapture, updateCapture } from "@/app/actions/captures";
+import {
+  deleteCapture,
+  ensureCapturePeople,
+  ensureCaptureUrls,
+  updateCapture,
+} from "@/app/actions/captures";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
+import { extractUrlsFromContent } from "@/lib/url";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { cn } from "@/lib/utils";
 import { ConvertCaptureToTaskDialog } from "./ConvertCaptureToTaskDialog";
@@ -116,7 +123,30 @@ interface FormState {
   hashtagNames: string[];
   personNames: string[];
   projectIds: string[];
-  url: string | null;
+  /** The full multi-URL set (manual + body-derived). urls[0] is the primary. */
+  urls: string[];
+  /** Resurface (remind-me) date as "yyyy-MM-dd" for the date input; "" = unset. */
+  resurfaceAt: string;
+}
+
+/** Case-insensitive union of two name lists, preserving first-seen casing/order. */
+function unionNames(a: string[], b: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of [...a, ...b]) {
+    const key = name.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name.trim());
+  }
+  return out;
+}
+
+/** Order-independent, case-insensitive key for dirty comparison of a name set. */
+function personSetKey(names: string[]): string {
+  return JSON.stringify(
+    Array.from(new Set(names.map((n) => n.trim().toLowerCase()))).sort(),
+  );
 }
 
 function captureToFormState(c: CaptureWithLinks): FormState {
@@ -126,7 +156,9 @@ function captureToFormState(c: CaptureWithLinks): FormState {
     hashtagNames: c.hashtags.map((h) => h.displayName),
     personNames: c.people.map((p) => p.name),
     projectIds: c.projects.map((p) => p.id),
-    url: c.url ?? null,
+    urls: c.urls ?? [],
+    // Render the stored instant in the local calendar day it represents.
+    resurfaceAt: c.resurfaceAt ? format(c.resurfaceAt, "yyyy-MM-dd") : "",
   };
 }
 
@@ -226,7 +258,8 @@ export function CaptureDetailPanel({
     hashtagNames: [],
     personNames: [],
     projectIds: [],
-    url: null,
+    urls: [],
+    resurfaceAt: "",
   });
   const [initialForm, setInitialForm] = useState<FormState>(form);
   // Mirror of the editor's current parsed state. TipTap's editor instance
@@ -388,6 +421,77 @@ export function CaptureDetailPanel({
     }
   }, [capture?.id]);
 
+  // Lazy retroactive backfill: when a capture is opened whose body contains
+  // link(s) not yet recorded in `urls` (e.g. one created before this feature),
+  // derive + persist them server-side and fold the result into the panel + feed.
+  // Idempotent and additive — a no-op for captures already fully indexed.
+  useEffect(() => {
+    if (!open || !capture) return;
+    const stored = new Set((capture.urls ?? []).map((u) => u.toLowerCase()));
+    const hasUnindexed = extractUrlsFromContent(capture.content).some(
+      (u) => !stored.has(u.toLowerCase()),
+    );
+    if (!hasUnindexed) return;
+
+    let cancelled = false;
+    const captureId = capture.id;
+    const baseline = capture.urls ?? [];
+    void ensureCaptureUrls(captureId).then((r) => {
+      if (cancelled || !r.success || !r.data.changed) return;
+      const nextUrls = r.data.urls;
+      // Don't clobber an in-flight manual edit: only fold the server-derived set
+      // in if the user hasn't touched the list since the panel opened.
+      setForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
+      setInitialForm((prev) =>
+        JSON.stringify(prev.urls) === JSON.stringify(baseline)
+          ? { ...prev, urls: nextUrls }
+          : prev,
+      );
+      onOptimisticUpdate?.(captureId, { url: r.data.url, urls: nextUrls });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, capture?.id]);
+
+  // Lazy retroactive backfill for LINKED PEOPLE — the people twin of the URL
+  // backfill above. Runs at most once per capture (gated on `peopleDerivedAt`
+  // being null), firing the Haiku smart-match server-side to link any existing
+  // person confidently referenced in the body. Folds the result into the panel
+  // + feed without a refetch; a no-op for captures already derived.
+  useEffect(() => {
+    if (!open || !capture) return;
+    if (capture.peopleDerivedAt != null) return;
+
+    let cancelled = false;
+    const captureId = capture.id;
+    const baseline = capture.people.map((p) => p.name);
+    void ensureCapturePeople(captureId).then((r) => {
+      if (cancelled || !r.success || !r.data.changed) return;
+      const nextNames = r.data.people.map((p) => p.name);
+      // Don't clobber an in-flight manual edit: only fold the server-derived set
+      // in if the user hasn't touched the people field since the panel opened.
+      setForm((prev) =>
+        personSetKey(prev.personNames) === personSetKey(baseline)
+          ? { ...prev, personNames: nextNames }
+          : prev,
+      );
+      setInitialForm((prev) =>
+        personSetKey(prev.personNames) === personSetKey(baseline)
+          ? { ...prev, personNames: nextNames }
+          : prev,
+      );
+      onOptimisticUpdate?.(captureId, { people: r.data.people });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, capture?.id]);
+
   // Permissive parse — wraps `parseEditorJSON` for the imperative save path.
   // Mirrors CaptureComposer.parseEditor exactly so detail edits get the same
   // hashtag extraction behavior (plain `#word` text counts).
@@ -400,22 +504,37 @@ export function CaptureDetailPanel({
     return parseEditorJSON(editor.getJSON());
   }, [editor, parseEditorJSON]);
 
-  // Dirty check — content/hashtags/people from `editorState` (kept in sync by
-  // `onUpdate`), projects from `form` state.
+  // Linked people are edited from TWO surfaces that both feed the same set:
+  // inline `@`-mentions in the content editor (editorState.personNames) and the
+  // explicit "Linked people" chip field (form.personNames, seeded from the
+  // capture's derived + mentioned people). The saved set is their union — so a
+  // new `@`-mention links, and a chip removed from the field only "sticks" when
+  // the person isn't still `@`-mentioned in the body (the people twin of the
+  // URL field's "any link in the body stays indexed" contract).
+  const effectivePersonNames = useMemo(
+    () => unionNames(editorState.personNames, form.personNames),
+    [editorState.personNames, form.personNames],
+  );
+
+  // Dirty check — content/hashtags from `editorState` (kept in sync by
+  // `onUpdate`), people from the effective union, projects/urls from `form`.
   const dirty =
     !!capture &&
     (editorState.content !== initialForm.content ||
       JSON.stringify([...editorState.hashtagNames].sort()) !==
         JSON.stringify([...initialForm.hashtagNames].sort()) ||
-      JSON.stringify([...editorState.personNames].sort()) !==
-        JSON.stringify([...initialForm.personNames].sort()) ||
+      personSetKey(effectivePersonNames) !== personSetKey(initialForm.personNames) ||
       JSON.stringify([...form.projectIds].sort()) !==
         JSON.stringify([...initialForm.projectIds].sort()) ||
-      form.url !== initialForm.url);
+      JSON.stringify(form.urls) !== JSON.stringify(initialForm.urls) ||
+      form.resurfaceAt !== initialForm.resurfaceAt);
 
   const handleSave = useCallback(async () => {
     if (!capture) return;
-    const { content, hashtagNames, personNames } = parseEditor();
+    const parsed = parseEditor();
+    const { content, hashtagNames } = parsed;
+    // Save the union of the editor `@`-mentions and the explicit people field.
+    const personNames = unionNames(parsed.personNames, form.personNames);
     if (!content) {
       toast.error("Capture cannot be empty.");
       return;
@@ -445,12 +564,22 @@ export function CaptureDetailPanel({
       const known = capture.people.find((p) => p.name.toLowerCase() === name.toLowerCase());
       return known ?? { id: `pending-${name}`, name };
     });
+    // Primary url mirrors the first link in the set; the server re-derives body
+    // links additively on top of this authoritative manual list.
+    const primaryUrl = form.urls[0] ?? null;
+    // Resurface date: interpret the picked calendar day as local midnight, then
+    // send the UTC instant (null when cleared). Matches how the query treats a
+    // resurface day as "due once that day begins" (server compares to end-of-day).
+    const resurfaceDate = form.resurfaceAt ? new Date(`${form.resurfaceAt}T00:00:00`) : null;
+    const resurfaceIso = resurfaceDate ? resurfaceDate.toISOString() : null;
     onOptimisticUpdate?.(capture.id, {
       content,
       hashtags: optimisticHashtags,
       people: optimisticPeople,
       projects: optimisticProjects,
-      url: form.url,
+      url: primaryUrl,
+      urls: form.urls,
+      resurfaceAt: resurfaceDate,
       updatedAt: new Date(),
     });
 
@@ -460,7 +589,9 @@ export function CaptureDetailPanel({
       hashtagNames,
       personNames,
       projectIds: form.projectIds,
-      url: form.url,
+      url: primaryUrl,
+      urls: form.urls,
+      resurfaceAt: resurfaceIso,
     });
     if (!r.success) {
       toast.error(r.error);
@@ -468,9 +599,18 @@ export function CaptureDetailPanel({
       return;
     }
     toast("Capture updated.");
-    setInitialForm({ content, hashtagNames, personNames, projectIds: form.projectIds, url: form.url });
+    // Reflect the saved union back into both the field and the dirty baseline.
+    setForm((prev) => ({ ...prev, personNames }));
+    setInitialForm({
+      content,
+      hashtagNames,
+      personNames,
+      projectIds: form.projectIds,
+      urls: form.urls,
+      resurfaceAt: form.resurfaceAt,
+    });
     // No manual cache busting — Realtime echo + invalidation handles it (D-12).
-  }, [capture, parseEditor, form.projectIds, form.url, onOptimisticUpdate, onOptimisticRevert, projects]);
+  }, [capture, parseEditor, form.personNames, form.projectIds, form.urls, form.resurfaceAt, onOptimisticUpdate, onOptimisticRevert, projects]);
 
   // Cmd+Enter to save (per UI-SPEC §Right-Side Detail Panel)
   useEffect(() => {
@@ -561,11 +701,19 @@ export function CaptureDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
+      {/* Non-modal: the aside floats over the feed without locking body scroll,
+          so the captures list stays scrollable while it's open. No overlay, and
+          outside pointer interactions don't auto-dismiss (that would fire on the
+          feed behind it and on the discard/convert/delete popovers, which render
+          in sibling portals). Close via Esc, the × button, Cancel, or selecting
+          another capture. */}
+      <Sheet open={open} onOpenChange={handleSheetOpenChange} modal={false}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-[560px] p-0 flex flex-col"
           showCloseButton={false}
+          overlay={false}
+          onInteractOutside={(e) => e.preventDefault()}
         >
           {capture && (
             <>
@@ -640,17 +788,69 @@ export function CaptureDetailPanel({
                   />
                 </section>
 
-                {/* URL property (issue #101) — Notion-style link field. Clickable
-                    when set; inline input to add/edit/clear. */}
+                {/* Linked people — first-class editable property. People are
+                    auto-derived from the body (Haiku smart-match) and via inline
+                    `@`-mentions; add/remove them here too. */}
                 <section className="flex flex-col gap-2">
                   <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
-                    URL
+                    Linked people
                   </h3>
-                  <UrlField
-                    value={form.url}
-                    onChange={(next) => setForm((prev) => ({ ...prev, url: next }))}
+                  <PersonListField
+                    value={effectivePersonNames}
+                    onChange={(next) =>
+                      setForm((prev) => ({ ...prev, personNames: next }))
+                    }
+                    suggestions={people}
                     disabled={isPending}
                   />
+                </section>
+
+                {/* URL property (issue #101) — Notion-style multi-link field.
+                    Links auto-derive from the body; add/remove extra links here. */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    {form.urls.length > 1 ? "URLs" : "URL"}
+                  </h3>
+                  <UrlListField
+                    value={form.urls}
+                    onChange={(next) => setForm((prev) => ({ ...prev, urls: next }))}
+                    disabled={isPending}
+                  />
+                </section>
+
+                {/* Resurface (remind-me) date — Notion-style property. Set a day
+                    to have this capture reappear in the /captures "Resurfacing
+                    today" section; clear it to stop. */}
+                <section className="flex flex-col gap-2">
+                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                    Resurface
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={form.resurfaceAt}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, resurfaceAt: e.target.value }))
+                      }
+                      disabled={isPending}
+                      aria-label="Resurface date"
+                      className="font-sans text-[13px] h-8 flex-1 rounded-md border border-border bg-transparent px-2 text-foreground focus:outline-none focus:border-[var(--hud-cyan)]"
+                    />
+                    {form.resurfaceAt && (
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, resurfaceAt: "" }))}
+                        title="Clear resurface date"
+                        aria-label="Clear resurface date"
+                        className="p-1 rounded text-muted-foreground hover:text-[var(--ink-coral)] transition-colors"
+                      >
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="font-sans text-[13px] text-muted-foreground italic">
+                    Reappears in “Resurfacing today” on this day.
+                  </p>
                 </section>
 
                 {/* Metadata */}
@@ -667,13 +867,27 @@ export function CaptureDetailPanel({
                     <dd className="text-foreground">
                       {format(capture.updatedAt, "PPpp")}
                     </dd>
+                    {capture.sourceChannel && (
+                      <>
+                        <dt className="text-muted-foreground">Channel</dt>
+                        <dd className="text-foreground">
+                          {capture.sourceChannel === "email" ? "Email" : capture.sourceChannel}
+                        </dd>
+                      </>
+                    )}
                     {(capture.sourceDevice || capture.sourceInput) && (
                       <>
                         <dt className="text-muted-foreground">Source</dt>
                         <dd className="text-foreground">
                           {capture.sourceDevice ?? "Unknown device"}
                           {capture.sourceInput
-                            ? ` · ${capture.sourceInput === "voice" ? "spoken" : "typed"}`
+                            ? ` · ${
+                                capture.sourceInput === "voice"
+                                  ? "spoken"
+                                  : capture.sourceInput === "email"
+                                    ? "email"
+                                    : "typed"
+                              }`
                             : ""}
                         </dd>
                       </>

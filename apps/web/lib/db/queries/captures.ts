@@ -1,4 +1,3 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -9,6 +8,7 @@ import {
   peopleReferences,
   projects,
 } from "@/lib/db/schema";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte, sql } from "drizzle-orm";
 
 export interface CaptureWithLinks {
   id: string;
@@ -26,12 +26,30 @@ export interface CaptureWithLinks {
   /** Provenance (migration 0028): device token name or 'Web'; 'voice' | 'text'. */
   sourceDevice: string | null;
   sourceInput: string | null;
-  /** Issue #101 — Notion-style URL property (NULL = unset). */
+  /** Issue #220 — canonical ingestion channel, e.g. "email" for AgentMail. */
+  sourceChannel: string | null;
+  /** Issue #101 — Notion-style URL property; the primary link (NULL = unset). */
   url: string | null;
+  /** Multi-URL property — full set of links (manual + body-derived); [] = none. */
+  urls: string[];
+  /** Issue #202 — starred/favorited quick captures stay in the main feed. */
+  favorite: boolean;
+  /**
+   * Resurfacing (remind-me): the timestamp at which this capture should surface
+   * back in the /captures "Resurfacing today" section. null = never. Migration
+   * 0029. Editable in the detail panel + settable by JARVIS via NL date.
+   */
+  resurfaceAt: Date | null;
   hashtags: { id: string; displayName: string; name: string }[];
   /** @-mentioned people linked to this capture (Phase C). */
   people: { id: string; name: string }[];
   projects: { id: string; name: string }[];
+  /**
+   * Linked-people derivation marker (ISO string, or null when never derived).
+   * The detail panel gates its lazy on-open people backfill on this being null
+   * so the Haiku smart-match server call fires at most once per capture.
+   */
+  peopleDerivedAt: string | null;
 }
 
 /**
@@ -41,7 +59,7 @@ export interface CaptureWithLinks {
  */
 export async function searchCapturesByContent(
   userId: string,
-  query: string,
+  query: string
 ): Promise<{ id: string; rank: number }[]> {
   const tokens = query
     .split(/\s+/)
@@ -59,14 +77,10 @@ export async function searchCapturesByContent(
     .where(
       and(
         eq(captures.userId, userId),
-        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`,
-      ),
+        sql`${captures.contentSearch} @@ to_tsquery('english', ${tsQuery})`
+      )
     )
-    .orderBy(
-      desc(
-        sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery}))`,
-      ),
-    )
+    .orderBy(desc(sql`ts_rank(${captures.contentSearch}, to_tsquery('english', ${tsQuery}))`))
     .limit(10);
   return rows;
 }
@@ -79,7 +93,7 @@ export async function searchCapturesByContent(
  */
 export async function getCapturesForUser(
   userId: string,
-  opts: { hashtagId?: string; ids?: string[]; limit?: number } = {},
+  opts: { hashtagId?: string; ids?: string[]; limit?: number } = {}
 ): Promise<CaptureWithLinks[]> {
   const limit = opts.limit ?? 100;
 
@@ -91,7 +105,12 @@ export async function getCapturesForUser(
     createdVia: string | null;
     sourceDevice: string | null;
     sourceInput: string | null;
+    sourceChannel: string | null;
     url: string | null;
+    urls: string[];
+    favorite: boolean;
+    resurfaceAt: Date | null;
+    peopleDerivedAt: Date | null;
   }>;
 
   if (opts.ids !== undefined) {
@@ -106,7 +125,12 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
+        favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(and(eq(captures.userId, userId), inArray(captures.id, opts.ids)))
@@ -122,7 +146,12 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
+        favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .innerJoin(
@@ -130,8 +159,8 @@ export async function getCapturesForUser(
         and(
           eq(capturesHashtags.captureId, captures.id),
           eq(capturesHashtags.hashtagId, opts.hashtagId),
-          eq(capturesHashtags.userId, userId),
-        ),
+          eq(capturesHashtags.userId, userId)
+        )
       )
       .where(eq(captures.userId, userId))
       .orderBy(desc(captures.createdAt))
@@ -146,7 +175,12 @@ export async function getCapturesForUser(
         createdVia: captures.createdVia,
         sourceDevice: captures.sourceDevice,
         sourceInput: captures.sourceInput,
+        sourceChannel: captures.sourceChannel,
         url: captures.url,
+        urls: captures.urls,
+        favorite: captures.favorite,
+        resurfaceAt: captures.resurfaceAt,
+        peopleDerivedAt: captures.peopleDerivedAt,
       })
       .from(captures)
       .where(eq(captures.userId, userId))
@@ -167,10 +201,7 @@ export async function getCapturesForUser(
     .from(capturesHashtags)
     .innerJoin(hashtags, eq(hashtags.id, capturesHashtags.hashtagId))
     .where(
-      and(
-        eq(capturesHashtags.userId, userId),
-        inArray(capturesHashtags.captureId, captureIds),
-      ),
+      and(eq(capturesHashtags.userId, userId), inArray(capturesHashtags.captureId, captureIds))
     );
 
   const projLinks = await db
@@ -182,10 +213,7 @@ export async function getCapturesForUser(
     .from(capturesProjects)
     .innerJoin(projects, eq(projects.id, capturesProjects.projectId))
     .where(
-      and(
-        eq(capturesProjects.userId, userId),
-        inArray(capturesProjects.captureId, captureIds),
-      ),
+      and(eq(capturesProjects.userId, userId), inArray(capturesProjects.captureId, captureIds))
     );
 
   // Phase C: @-mentioned people linked to these captures, via the polymorphic
@@ -202,8 +230,8 @@ export async function getCapturesForUser(
       and(
         eq(peopleReferences.userId, userId),
         eq(peopleReferences.fromType, "capture"),
-        inArray(peopleReferences.fromId, captureIds),
-      ),
+        inArray(peopleReferences.fromId, captureIds)
+      )
     );
 
   const tagsByCapture = new Map<string, CaptureWithLinks["hashtags"]>();
@@ -227,6 +255,7 @@ export async function getCapturesForUser(
 
   return captureRows.map((c) => ({
     ...c,
+    peopleDerivedAt: c.peopleDerivedAt ? c.peopleDerivedAt.toISOString() : null,
     hashtags: tagsByCapture.get(c.id) ?? [],
     people: peopleByCapture.get(c.id) ?? [],
     projects: projsByCapture.get(c.id) ?? [],
@@ -255,21 +284,68 @@ export async function getCaptureCountForUser(userId: string): Promise<number> {
  */
 export async function getCapturesForProject(
   userId: string,
-  projectId: string,
+  projectId: string
 ): Promise<CaptureWithLinks[]> {
   const rows = await db
     .select({ id: captures.id })
     .from(capturesProjects)
     .innerJoin(captures, eq(captures.id, capturesProjects.captureId))
-    .where(
-      and(
-        eq(capturesProjects.userId, userId),
-        eq(capturesProjects.projectId, projectId),
-      ),
-    )
+    .where(and(eq(capturesProjects.userId, userId), eq(capturesProjects.projectId, projectId)))
     .orderBy(desc(captures.createdAt))
     .limit(100);
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
   return getCapturesForUser(userId, { ids });
+}
+
+/**
+ * Daily "Resurfacing" feed for /captures — captures whose resurface date has
+ * come due (`resurface_at <= before`, defaulting to end of today). Ordered by
+ * soonest/most-overdue first.
+ *
+ * Semantics (documented in the PR): a capture appears here as soon as its
+ * `resurface_at` is at or before the boundary, and stays until the user clears
+ * or moves the date (dismiss = set `resurface_at` back to NULL, or edit it to a
+ * future day). Overdue items (a resurface date in the past that was never
+ * cleared) keep showing so nothing is silently dropped.
+ *
+ * @param opts.before - the inclusive due boundary. Callers should pass end of
+ *   today in the user's timezone; defaults to end of today in the server's
+ *   locale as a safety net.
+ */
+export async function getResurfacingCapturesForUser(
+  userId: string,
+  opts: { before?: Date; limit?: number } = {}
+): Promise<CaptureWithLinks[]> {
+  const before =
+    opts.before ??
+    (() => {
+      const d = new Date();
+      d.setHours(23, 59, 59, 999);
+      return d;
+    })();
+  const limit = opts.limit ?? 100;
+
+  const rows = await db
+    .select({ id: captures.id })
+    .from(captures)
+    .where(
+      and(
+        eq(captures.userId, userId),
+        isNotNull(captures.resurfaceAt),
+        lte(captures.resurfaceAt, before)
+      )
+    )
+    .orderBy(asc(captures.resurfaceAt))
+    .limit(limit);
+
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+
+  // Hydrate the join rows (hashtags / people / projects) via the shared reader,
+  // then restore the soonest-first resurface ordering (getCapturesForUser
+  // returns rows in created-desc order for an explicit id set).
+  const hydrated = await getCapturesForUser(userId, { ids, limit });
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return hydrated.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }

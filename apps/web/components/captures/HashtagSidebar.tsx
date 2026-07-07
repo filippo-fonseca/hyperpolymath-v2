@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Star } from "lucide-react";
+import { useState } from "react";
 
 interface Hashtag {
   id: string;
@@ -13,6 +14,8 @@ interface Hashtag {
 interface Props {
   hashtags: Hashtag[];
   activeHashtagId: string | null;
+  favoritesActive?: boolean;
+  favoritesCount?: number;
   /**
    * Total captures owned by the user (no filter applied). Rendered as the
    * count on the "All"row at the top of the sidebar — the primary
@@ -20,6 +23,7 @@ interface Props {
    */
   totalCount: number;
   onSelect: (hashtagId: string | null) => void;
+  onToggleFavorites?: () => void;
 }
 
 /**
@@ -52,14 +56,17 @@ interface Props {
 export function HashtagSidebar({
   hashtags,
   activeHashtagId,
+  favoritesActive = false,
+  favoritesCount = 0,
   totalCount,
   onSelect,
+  onToggleFavorites,
 }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   const active = hashtags.filter((h) => h.count > 0);
   const orphans = hashtags.filter((h) => h.count === 0);
-  const allIsActive = activeHashtagId === null;
+  const allIsActive = activeHashtagId === null && !favoritesActive;
 
   function rowFor(h: Hashtag, isOrphan: boolean) {
     const isActive = activeHashtagId === h.id;
@@ -73,14 +80,12 @@ export function HashtagSidebar({
           isActive
             ? "bg-secondary font-medium text-foreground"
             : "text-foreground hover:bg-secondary/60",
-          isOrphan && !isActive && "opacity-40",
+          isOrphan && !isActive && "opacity-40"
         )}
         aria-pressed={isActive}
       >
         <span className="truncate">#{h.displayName}</span>
-        <span className="text-muted-foreground tabular-nums shrink-0">
-          {h.count}
-        </span>
+        <span className="text-muted-foreground tabular-nums shrink-0">{h.count}</span>
       </button>
     );
   }
@@ -95,14 +100,34 @@ export function HashtagSidebar({
           "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
           allIsActive
             ? "bg-secondary font-medium text-foreground"
-            : "text-foreground hover:bg-secondary/60",
+            : "text-foreground hover:bg-secondary/60"
         )}
         aria-pressed={allIsActive}
       >
         <span className="truncate">All</span>
-        <span className="text-muted-foreground tabular-nums shrink-0">
-          {totalCount}
+        <span className="text-muted-foreground tabular-nums shrink-0">{totalCount}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onToggleFavorites}
+        className={cn(
+          "w-full flex items-center justify-between gap-2 px-2 py-1 rounded-md font-sans text-[13px] font-normal text-left",
+          favoritesActive
+            ? "bg-secondary font-medium text-foreground"
+            : "text-foreground hover:bg-secondary/60"
+        )}
+        aria-pressed={favoritesActive}
+      >
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <Star
+            className={cn("h-3.5 w-3.5 shrink-0", favoritesActive && "text-[var(--ink-amber)]")}
+            fill={favoritesActive ? "currentColor" : "none"}
+            aria-hidden="true"
+          />
+          <span className="truncate">Favorites</span>
         </span>
+        <span className="text-muted-foreground tabular-nums shrink-0">{favoritesCount}</span>
       </button>
 
       <div className="border-b border-border my-2" />

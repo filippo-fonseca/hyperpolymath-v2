@@ -2,11 +2,20 @@
 
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
 import { type SuggestedTag, suggestCaptureTags } from "@/lib/captures/suggest-tags";
+import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import { db } from "@/lib/db";
-import { type CaptureWithLinks, getCapturesForUser } from "@/lib/db/queries/captures";
-import { captures, capturesHashtags, capturesProjects, projects } from "@/lib/db/schema";
+import {
+  type CaptureWithLinks,
+  getCapturesForUser,
+  getResurfacingCapturesForUser,
+} from "@/lib/db/queries/captures";
+import { captures, capturesHashtags, capturesProjects, projects, users } from "@/lib/db/schema";
+import { TZDate } from "@date-fns/tz";
+import { endOfDay } from "date-fns";
 import { hashtags } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { ensureEntityPeople, scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+import { mergeContentUrls } from "@/lib/url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { upsertHashtag } from "./hashtags";
@@ -52,6 +61,10 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
       error: parsed.error.issues[0]?.message ?? "Invalid input",
     };
 
+  // Auto-derive the URL property from the body: any link in the content is
+  // added to `urls` (and seeds the primary `url` when the caller didn't set one).
+  const derivedUrls = mergeContentUrls(parsed.data.content, { url: parsed.data.url ?? null });
+
   const result = await db.transaction(async (tx) => {
     const [cap] = await tx
       .insert(captures)
@@ -61,7 +74,8 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
         ...(parsed.data.id ? { id: parsed.data.id } : {}),
         userId,
         content: parsed.data.content,
-        url: parsed.data.url ? parsed.data.url : null,
+        url: derivedUrls.url,
+        urls: derivedUrls.urls,
         sourceDevice: "Web",
         sourceInput: "text",
       })
@@ -135,6 +149,15 @@ export async function createCapture(input: unknown): Promise<ActionResult<{ id: 
   // captures_hashtags Realtime subscriptions surface the result live.
   scheduleAutoTagging(result, userId, parsed.data.content);
 
+  // Issue #221: fetch rich link previews for any URLs in the content (+ the
+  // canonical url property). Also scheduled via after(); fail-soft.
+  scheduleLinkPreviews(userId, parsed.data.content, parsed.data.url);
+
+  // Auto-derive linked people from the body: a background Haiku match links any
+  // EXISTING person confidently referenced in the text, additively on top of
+  // the explicit @-mentions reconciled above. Scheduled via after(); fail-soft.
+  scheduleEntityPeopleDerivation("capture", result, userId, parsed.data.content);
+
   // Phase 3 D-12: no manual cache busting here — Supabase Realtime echo +
   // TanStack Query invalidation own cross-window propagation now.
   return { success: true, data: { id: result } };
@@ -146,9 +169,40 @@ const UpdateCaptureSchema = z.object({
   hashtagNames: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   personNames: z.array(z.string().trim().min(1).max(200)).max(40).optional(),
   projectIds: z.array(z.string().uuid()).max(20).optional(),
-  // Issue #101 — set, change, or clear (null) the URL property.
+  // Issue #101 — set, change, or clear (null) the primary URL property.
   url: z.string().trim().max(2048).nullable().optional(),
+  // Multi-URL property — the authoritative manual list (from the detail panel).
+  // Body-derived links are still merged in additively on top of this.
+  urls: z.array(z.string().trim().max(2048)).max(50).optional(),
+  // Resurfacing (remind-me) date. ISO datetime string to set/change, null to
+  // clear, or absent to leave unchanged. Persisted verbatim as a timestamptz.
+  resurfaceAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
+
+const SetCaptureFavoriteSchema = z.object({
+  id: z.string().uuid(),
+  favorite: z.boolean(),
+});
+
+export async function setCaptureFavorite(input: unknown): Promise<ActionResult<null>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  const parsed = SetCaptureFavoriteSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  await db
+    .update(captures)
+    .set({ favorite: parsed.data.favorite, updatedAt: sql`now()` })
+    .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)));
+
+  // Realtime invalidates the captures feed; optimistic UI owns the immediate echo.
+  return { success: true, data: null };
+}
 
 export async function updateCapture(input: unknown): Promise<ActionResult<null>> {
   const userId = await getUserId();
@@ -161,12 +215,50 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     };
 
   await db.transaction(async (tx) => {
-    // Coalesce the scalar column writes (content + url) into one UPDATE so a
-    // url-only edit doesn't depend on content being present. An empty/whitespace
-    // url is treated as a clear (null).
+    // Coalesce the scalar column writes (content + url + urls) into one UPDATE so
+    // a url-only edit doesn't depend on content being present. An empty/whitespace
+    // url is treated as a clear (null). Whenever content, url, or the manual urls
+    // list changes, re-derive the multi-URL property: body links are merged
+    // additively into the existing/updated set (never removing or overwriting a
+    // manually-set link).
     const scalarSet: Record<string, unknown> = {};
     if (parsed.data.content !== undefined) scalarSet.content = parsed.data.content;
-    if (parsed.data.url !== undefined) scalarSet.url = parsed.data.url ? parsed.data.url : null;
+    // Resurfacing date: set/change (ISO → Date), clear (null), or leave
+    // untouched (absent). Independent of the URL derivation below.
+    if (parsed.data.resurfaceAt !== undefined) {
+      scalarSet.resurfaceAt = parsed.data.resurfaceAt
+        ? new Date(parsed.data.resurfaceAt)
+        : null;
+    }
+
+    if (
+      parsed.data.content !== undefined ||
+      parsed.data.url !== undefined ||
+      parsed.data.urls !== undefined
+    ) {
+      const [current] = await tx
+        .select({ content: captures.content, url: captures.url, urls: captures.urls })
+        .from(captures)
+        .where(and(eq(captures.id, parsed.data.id), eq(captures.userId, userId)))
+        .limit(1);
+      if (current) {
+        const nextContent =
+          parsed.data.content !== undefined ? parsed.data.content : current.content;
+        // Explicit url edit seeds the primary; else keep the current primary.
+        const nextPrimary =
+          parsed.data.url !== undefined
+            ? parsed.data.url
+              ? parsed.data.url
+              : null
+            : current.url;
+        // Explicit manual list (from the UI) is authoritative; else keep stored.
+        const baseUrls = parsed.data.urls !== undefined ? parsed.data.urls : current.urls;
+        const merged = mergeContentUrls(nextContent, { url: nextPrimary, urls: baseUrls });
+        scalarSet.url = merged.url;
+        scalarSet.urls = merged.urls;
+      }
+    }
+
     if (Object.keys(scalarSet).length > 0) {
       await tx
         .update(captures)
@@ -236,8 +328,87 @@ export async function updateCapture(input: unknown): Promise<ActionResult<null>>
     await reconcilePersonReferencesForUser(userId, "capture", parsed.data.id, personIds);
   }
 
+  // Issue #221: refresh link previews when the content or url property changed.
+  // ensurePendingPreviews only fetches URLs without an existing row, so this
+  // never re-fetches already-cached links.
+  if (parsed.data.content !== undefined || parsed.data.url !== undefined) {
+    scheduleLinkPreviews(userId, parsed.data.content ?? "", parsed.data.url);
+  }
+
+  // Re-derive linked people when the body changes: the background match runs
+  // additively over the new text (never removing the reconciled explicit set).
+  if (parsed.data.content !== undefined) {
+    scheduleEntityPeopleDerivation("capture", parsed.data.id, userId, parsed.data.content);
+  }
+
   // Phase 3 D-12: no manual cache busting — Realtime + TanStack Query own refresh.
   return { success: true, data: null };
+}
+
+/**
+ * Lazy retroactive backfill for the multi-URL property. Called when a capture
+ * is opened: if its body contains link(s) not yet recorded in `urls` (e.g. a
+ * capture created before this feature shipped, or one whose backfill script
+ * hasn't run), derive and persist them. Additive + idempotent — a no-op DB
+ * write is skipped, and a manually-set primary `url` is never overwritten.
+ *
+ * Returns the (possibly unchanged) URL state so the caller can reconcile its
+ * optimistic feed copy without a full refetch.
+ */
+export async function ensureCaptureUrls(
+  id: unknown
+): Promise<ActionResult<{ url: string | null; urls: string[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  const captureId = id as string;
+
+  const [current] = await db
+    .select({ content: captures.content, url: captures.url, urls: captures.urls })
+    .from(captures)
+    .where(and(eq(captures.id, captureId), eq(captures.userId, userId)))
+    .limit(1);
+  if (!current) return { success: false, error: "Not found" };
+
+  const merged = mergeContentUrls(current.content, { url: current.url, urls: current.urls });
+  const changed =
+    merged.url !== (current.url ?? null) ||
+    merged.urls.length !== current.urls.length ||
+    merged.urls.some((u, i) => u !== current.urls[i]);
+
+  if (changed) {
+    await db
+      .update(captures)
+      .set({ url: merged.url, urls: merged.urls, updatedAt: sql`now()` })
+      .where(and(eq(captures.id, captureId), eq(captures.userId, userId)));
+  }
+
+  return { success: true, data: { url: merged.url, urls: merged.urls, changed } };
+}
+
+/**
+ * Lazy retroactive backfill for linked people — the people twin of
+ * `ensureCaptureUrls`. Called when a capture is opened: if it has never been
+ * people-derived (`people_derived_at IS NULL`), run the Haiku smart-match once,
+ * link any confident matches, and stamp the marker. Guarded so subsequent opens
+ * are instant no-ops. Additive + fail-soft.
+ *
+ * Returns the capture's current linked people so the caller can reconcile its
+ * optimistic feed copy without a full refetch.
+ */
+export async function ensureCapturePeople(
+  id: unknown
+): Promise<ActionResult<{ people: { id: string; name: string }[]; changed: boolean }>> {
+  const userId = await getUserId();
+  if (!userId) return { success: false, error: "Not authenticated" };
+  if (!z.string().uuid().safeParse(id).success) return { success: false, error: "Invalid id" };
+  try {
+    const result = await ensureEntityPeople(userId, "capture", id as string);
+    return { success: true, data: result };
+  } catch (err) {
+    console.error("[captures] ensureCapturePeople failed", err);
+    return { success: false, error: "Derivation failed" };
+  }
 }
 
 export async function deleteCapture(id: string): Promise<ActionResult<null>> {
@@ -333,6 +504,33 @@ export async function getCapturesForCurrentUser(
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) throw new Error("Unauthorized");
   return getCapturesForUser(data.claims.sub, { hashtagId: options.tag });
+}
+
+/**
+ * Captures due to resurface today — queryFn for the /captures "Resurfacing
+ * today" collapsible section. Computes the "end of today" boundary in the
+ * user's timezone (falls back to UTC) so the section rolls over per calendar
+ * day rather than at UTC midnight.
+ *
+ * CLAUDE.md Critical Pattern 1: getClaims, NOT getSession.
+ */
+export async function getResurfacingCapturesForCurrentUser(): Promise<CaptureWithLinks[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) throw new Error("Unauthorized");
+  const userId = data.claims.sub;
+
+  const [u] = await db
+    .select({ timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const tz = u?.timezone ?? "UTC";
+  // end of today, anchored to the user's tz; .getTime() is the correct UTC
+  // instant to compare against the timestamptz column.
+  const before = new Date(endOfDay(new TZDate(new Date(), tz)).getTime());
+
+  return getResurfacingCapturesForUser(userId, { before });
 }
 
 /**

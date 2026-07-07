@@ -2,9 +2,9 @@
 
 import Mention from "@tiptap/extension-mention";
 import { EditorContent, useEditor } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 
 import { Sparkles } from "lucide-react";
@@ -18,6 +18,7 @@ import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { mergeContentUrls } from "@/lib/url";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
 import { createPersonDecorations } from "./person-decorations";
@@ -204,11 +205,11 @@ export function CaptureComposer({
   // (frozen at editor-creation time) can reach the current editor for Cmd+K.
   editorRef.current = editor;
 
-  function parseEditor(): {
+  const parseEditor = useCallback((): {
     content: string;
     hashtagNames: string[];
     personNames: string[];
-  } {
+  } => {
     if (!editor) return { content: "", hashtagNames: [], personNames: [] };
     const json = editor.getJSON();
     const tagSet = new Set<string>();
@@ -279,7 +280,7 @@ export function CaptureComposer({
       hashtagNames: finalTags,
       personNames: Array.from(personCasing.values()),
     };
-  }
+  }, [editor]);
 
   const handleSuggestTags = useCallback(async () => {
     const { content, hashtagNames } = parseEditor();
@@ -300,9 +301,7 @@ export function CaptureComposer({
     } finally {
       setSuggesting(false);
     }
-    // editor closure is stable; parseEditor reads from it directly
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggesting]);
+  }, [parseEditor, suggesting]);
 
   const acceptSuggestion = useCallback(
     (tag: SuggestedTag) => {
@@ -335,6 +334,7 @@ export function CaptureComposer({
     // they look right inline but are NOT the canonical join rows; the
     // Realtime echo + TanStack Query refetch reconciles to ground truth.
     const now = new Date();
+    const optimisticUrls = mergeContentUrls(content, {});
     const optimisticRow: CaptureWithLinks = {
       id: newId,
       content,
@@ -346,9 +346,18 @@ export function CaptureComposer({
       createdVia: null,
       sourceDevice: "Web",
       sourceInput: "text",
-      // Issue #101 — the quick-capture composer doesn't set a URL property; it's
-      // added/edited from the canonical CaptureDetailPanel (like hashtags/links).
-      url: null,
+      sourceChannel: null,
+      // The URL property auto-derives from links in the body; reflect that
+      // optimistically so a pasted link shows up immediately (the server
+      // performs the authoritative derivation and the refetch reconciles).
+      url: optimisticUrls.url,
+      urls: optimisticUrls.urls,
+      favorite: false,
+      // Composer captures never set a resurface date on creation.
+      resurfaceAt: null,
+      // Not yet derived — the server schedules the people match in the
+      // background; the marker + linked people reconcile on the next refetch.
+      peopleDerivedAt: null,
       // Optimistic hashtags — `id: "pending-${name}"` because the canonical
       // hashtag rows may not exist yet (Server Action upserts them). Replaced
       // by the canonical join on the next refetch.
@@ -405,10 +414,9 @@ export function CaptureComposer({
       onSubmitSuccess?.();
       // No manual cache busting — Realtime echo + invalidation handles it (D-12).
     });
-    // editor is captured via closure; intentionally stable for the lifetime of the editor instance
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editor,
+    parseEditor,
     selectedProjectIds,
     onSubmitSuccess,
     onOptimisticInsert,

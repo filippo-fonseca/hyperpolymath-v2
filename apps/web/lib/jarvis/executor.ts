@@ -50,12 +50,15 @@ import {
 } from "@/lib/db/schema";
 import { upsertHashtag } from "@/app/actions/hashtags";
 import { scheduleAutoTagging } from "@/lib/captures/auto-tag";
+import { scheduleLinkPreviews } from "@/lib/link-preview/schedule";
 import {
   reconcilePersonReferencesForUser,
   resolveOrCreatePersonForUser,
   type PersonRefFromType,
 } from "@/app/actions/people";
 import { getPeopleForUser } from "@/lib/db/queries/people";
+import { scheduleEntityPeopleDerivation } from "@/lib/people/derive";
+import { deriveSingleUrl, mergeContentUrls } from "@/lib/url";
 import {
   createEventForJarvis,
   deleteEvent as gcalDeleteEvent,
@@ -317,6 +320,13 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const taskId = randomUUID();
+      // Auto-derive the Notion-style URL property from any link in the title,
+      // exactly like the capture body-link derivation (single source of truth:
+      // deriveSingleUrl → mergeContentUrls). create_task has no notes field, so
+      // the title is the only source; the first link found wins. The title text
+      // itself is kept verbatim (link stays in the title, mirroring how a
+      // capture keeps its body content).
+      const derivedUrl = deriveSingleUrl(input.title);
       // No-date → Inbox policy (Phase 19, D-02): a task with no explicit due
       // date lands in the Inbox (dueDate = NULL), NOT silently dated to today.
       // The model must emit an explicit `due` when the user specifies one;
@@ -328,6 +338,7 @@ export function createServerExecutor(): ActionExecutor {
             id: taskId,
             userId: ctx.userId, // JARVIS-12: from getClaims(), NEVER model
             title: input.title,
+            url: derivedUrl,
             priority: input.priority ?? "P3", // JARVIS-05 default
             status: input.status ?? "not started", // DB enum literal w/ SPACE
             // tasks.dueDate is a DATE column (no time component). Convert the
@@ -345,6 +356,9 @@ export function createServerExecutor(): ActionExecutor {
             );
           }
         });
+        // Auto-derive linked people from the task title. Background Haiku match;
+        // fail-soft. (JARVIS-created tasks carry no notes at create time.)
+        scheduleEntityPeopleDerivation("task", taskId, ctx.userId, input.title);
         return {
           ok: true,
           id: taskId,
@@ -383,12 +397,20 @@ export function createServerExecutor(): ActionExecutor {
       }
 
       const captureId = randomUUID();
+      // Auto-derive the URL property from links in the body (same behavior as
+      // the web + device create paths).
+      const derivedUrls = mergeContentUrls(input.content, {});
       try {
         await db.transaction(async (tx) => {
           await tx.insert(captures).values({
             id: captureId,
             userId: ctx.userId,
             content: input.content,
+            url: derivedUrls.url,
+            urls: derivedUrls.urls,
+            // Resurfacing (remind-me) date, when the model resolved a "remind me
+            // ..." intent to an ISO instant. Omitted → NULL (never resurface).
+            resurfaceAt: input.resurface_at ? new Date(input.resurface_at) : null,
             createdVia: "jarvis", // D-14
             sourceDevice: ctx.source?.device ?? null,
             sourceInput: ctx.source?.input ?? null,
@@ -423,6 +445,11 @@ export function createServerExecutor(): ActionExecutor {
         // explicit model-supplied hashtags are deduped against the DB so they
         // are not re-applied. Realtime surfaces the result live.
         scheduleAutoTagging(captureId, ctx.userId, input.content);
+        // Issue #221: fetch rich link previews for URLs in the capture. Fail-soft.
+        scheduleLinkPreviews(ctx.userId, input.content);
+        // Auto-derive linked people from the body (parity with the web + device
+        // create paths). Background Haiku match; fail-soft.
+        scheduleEntityPeopleDerivation("capture", captureId, ctx.userId, input.content);
         return {
           ok: true,
           id: captureId,
@@ -431,6 +458,7 @@ export function createServerExecutor(): ActionExecutor {
             content: input.content,
             hashtags: input.hashtags ?? [],
             project_ids: projectCheck.ids,
+            resurface_at: input.resurface_at ?? null,
             voice_summary: input.voice_summary,
           },
         };
@@ -616,6 +644,7 @@ export function createServerExecutor(): ActionExecutor {
             id: tasks.id,
             title: tasks.title,
             notes: tasks.notes,
+            url: tasks.url,
             priority: tasks.priority,
             status: tasks.status,
             dueDate: tasks.dueDate,
@@ -633,6 +662,25 @@ export function createServerExecutor(): ActionExecutor {
         if (input.priority != null) beforeSnapshot.priority = prev.priority;
         if (input.status != null) beforeSnapshot.status = prev.status;
         if (input.due != null) beforeSnapshot.dueDate = prev.dueDate;
+
+        // Re-derive the URL property when the title or notes change: the first
+        // link found in the (new) title + notes fills the url field, but a url
+        // that was already set (manual or previously derived) is NEVER
+        // overwritten. Same detection as the capture body-link derivation
+        // (deriveSingleUrl → mergeContentUrls). Only write + snapshot when the
+        // derived value actually differs, so a link-free edit is a no-op.
+        if (input.title != null || input.description != null) {
+          const newTitle = input.title != null ? input.title : prev.title;
+          const newNotes = set.notes !== undefined ? set.notes : prev.notes;
+          const derivedUrl = deriveSingleUrl(
+            [newTitle, newNotes].filter(Boolean).join("\n"),
+            prev.url,
+          );
+          if (derivedUrl !== prev.url) {
+            set.url = derivedUrl;
+            beforeSnapshot.url = prev.url;
+          }
+        }
 
         const updated = await tx
           .update(tasks)
@@ -657,6 +705,11 @@ export function createServerExecutor(): ActionExecutor {
       // intentionally ignores project_ids if present — cross-referencing the
       // tasksProjects junction table (delete-all + re-insert) is a separate
       // concern and will land in a follow-up plan.
+      // Re-derive linked people when the title or notes changed (additive; fail-soft).
+      if (input.title != null || input.description != null) {
+        const derivedText = [set.title ?? "", set.notes ?? ""].filter(Boolean).join("\n");
+        scheduleEntityPeopleDerivation("task", input.id, ctx.userId, derivedText);
+      }
       return {
         ok: true,
         id: input.id,
@@ -686,6 +739,11 @@ export function createServerExecutor(): ActionExecutor {
     ): Promise<ExecutorResult> {
       const set: Partial<typeof captures.$inferInsert> = {};
       if (input.content != null) set.content = input.content;
+      // Resurfacing (remind-me) date: ISO instant to set/change, "" to clear,
+      // null to leave unchanged (mirrors update_task's `due` clear-with-"").
+      if (input.resurface_at != null) {
+        set.resurfaceAt = input.resurface_at === "" ? null : new Date(input.resurface_at);
+      }
       set.updatedAt = new Date();
 
       // SELECT-before-UPDATE in a transaction to capture the `before` snapshot.
@@ -694,7 +752,13 @@ export function createServerExecutor(): ActionExecutor {
 
       const result = await db.transaction(async (tx) => {
         const existing = await tx
-          .select({ id: captures.id, content: captures.content })
+          .select({
+            id: captures.id,
+            content: captures.content,
+            url: captures.url,
+            urls: captures.urls,
+            resurfaceAt: captures.resurfaceAt,
+          })
           .from(captures)
           .where(and(eq(captures.id, input.id), eq(captures.userId, ctx.userId)))
           .limit(1);
@@ -704,6 +768,19 @@ export function createServerExecutor(): ActionExecutor {
         // Build before: only keys mirroring `set` (excluding updatedAt)
         const prev = existing[0]!;
         if (input.content != null) beforeSnapshot.content = prev.content;
+        if (input.resurface_at != null) beforeSnapshot.resurfaceAt = prev.resurfaceAt;
+
+        // Re-derive the URL property when the body changes: body links merge
+        // additively into the existing set (never removing/overwriting).
+        if (input.content != null) {
+          const merged = mergeContentUrls(input.content, { url: prev.url, urls: prev.urls });
+          set.url = merged.url;
+          set.urls = merged.urls;
+          // Snapshot the pre-derivation URL state too, so an undo of this content
+          // edit reverts the derived links rather than leaving them in place.
+          beforeSnapshot.url = prev.url;
+          beforeSnapshot.urls = prev.urls;
+        }
 
         const updated = await tx
           .update(captures)
@@ -721,6 +798,10 @@ export function createServerExecutor(): ActionExecutor {
       // hashtags and project_ids updates are MVP-deferred: same join-table
       // concern as updateTask.project_ids. The content update is what matters
       // for the JARVIS correction flow ("change that qc to say X instead").
+      // Re-derive linked people over the new body (additive; fail-soft).
+      if (input.content != null) {
+        scheduleEntityPeopleDerivation("capture", input.id, ctx.userId, input.content);
+      }
       return {
         ok: true,
         id: input.id,

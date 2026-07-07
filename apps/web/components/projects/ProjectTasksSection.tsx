@@ -216,6 +216,7 @@ export function ProjectTasksSection({
           projects: [{ id: projectId, name: "" }],
           hashtags: [],
           people: [],
+          peopleDerivedAt: null,
         },
       });
       const r = await createTask({
@@ -261,6 +262,7 @@ export function ProjectTasksSection({
         projects: [{ id: projectId, name: currentProject?.name ?? "" }],
         hashtags: [],
         people: [],
+        peopleDerivedAt: null,
       }
     : null;
 

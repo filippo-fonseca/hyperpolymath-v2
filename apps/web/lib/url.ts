@@ -102,3 +102,137 @@ export function splitTextWithUrls(input: string): UrlSegment[] {
   }
   return segments;
 }
+
+/**
+ * Extract every bare link found in a run of plain text, normalized for storage
+ * as a capture "URL" property entry. Uses the same detection as
+ * `splitTextWithUrls` (so what renders as a clickable link in the body is
+ * exactly what gets indexed), strips trailing sentence punctuation, runs each
+ * candidate through `normalizeUrl`, and de-duplicates case-insensitively while
+ * preserving first-seen order. Returns `[]` for empty / link-free input.
+ */
+export function extractUrlsFromContent(content: string | null | undefined): string[] {
+  if (!content) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const match of content.matchAll(URL_IN_TEXT_RE)) {
+    const raw = match[0];
+    const trailing = TRAILING_PUNCT_RE.exec(raw);
+    const display = trailing ? raw.slice(0, raw.length - trailing[0].length) : raw;
+    const normalized = normalizeUrl(display);
+    if (!normalized) continue;
+    // Cap at the same length the persistence contract enforces (2048) so a
+    // derived link always round-trips back through validation on the next save.
+    if (normalized.length > 2048) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+/** The persisted URL state for a capture: a primary link plus the full set. */
+export interface CaptureUrlState {
+  /**
+   * Primary / canonical link — the backward-compatible single `url` column.
+   * Seeded from the first known link only when it was previously unset; a
+   * manually-set primary is never overwritten.
+   */
+  url: string | null;
+  /** The full ordered, de-duplicated set of links (manual + body-derived). */
+  urls: string[];
+}
+
+/**
+ * Additively merge the links found in a capture's body into its existing URL
+ * state. This is the single source of truth for the "auto-assign links from the
+ * body" behavior, shared by every capture write path (web action, JARVIS
+ * executor, device API) and the lazy view-time backfill.
+ *
+ * Guarantees:
+ *   - **Never removes** a link already recorded (manual or previously derived).
+ *   - **Never overwrites** a manually-set primary `url`.
+ *   - **Adds** any body link not already present, in first-seen order.
+ *   - De-duplicates case-insensitively via `normalizeUrl`, so a manual entry
+ *     and its body twin collapse to one canonical href.
+ *
+ * @param content   the capture body to scan for links
+ * @param existing  the current primary `url` and full `urls` set (either may be
+ *                   omitted / null — treated as empty)
+ */
+export function mergeContentUrls(
+  content: string | null | undefined,
+  existing: { url?: string | null; urls?: string[] | null } = {},
+): CaptureUrlState {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  const push = (candidate: string | null | undefined): void => {
+    const normalized = normalizeUrl(candidate ?? "");
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(normalized);
+  };
+
+  // Order matters: the existing primary stays canonical (first), then the rest
+  // of the recorded set, then anything newly found in the body — all additive.
+  push(existing.url);
+  for (const u of existing.urls ?? []) push(u);
+  for (const u of extractUrlsFromContent(content)) push(u);
+
+  const primary = normalizeUrl(existing.url ?? "") ?? merged[0] ?? null;
+  return { url: primary, urls: merged };
+}
+
+/**
+ * Derive the single canonical `url` property for a Notion-style URL field on an
+ * entity that stores ONE link (tasks, pages) rather than a `urls[]` set like
+ * captures. Scans a run of text (e.g. a task's title + notes) for links and
+ * returns the FIRST one found — unless a link is already set, in which case that
+ * existing (manual or previously-derived) value is kept verbatim.
+ *
+ * Guarantees, mirroring the capture body-link derivation:
+ *   - **Never overwrites** an existing `url` — `existingUrl` (if a valid http(s)
+ *     link) always wins, so a link the user attached by hand is never clobbered.
+ *   - **Fills** the field with the first body link only when it was empty/unset.
+ *
+ * Implemented on top of `mergeContentUrls` so single-url derivation can never
+ * diverge from the multi-url capture path: the detection, normalization, and
+ * "never overwrite the primary" rule are shared, we simply take `.url`.
+ */
+export function deriveSingleUrl(
+  content: string | null | undefined,
+  existingUrl?: string | null,
+): string | null {
+  return mergeContentUrls(content, { url: existingUrl }).url;
+}
+
+/**
+ * Extract every bare URL from a text run as absolute hrefs, deduped and in order
+ * of first appearance (issue #221). Optionally seed with an already-normalized
+ * canonical URL (the capture's `url` property) so it participates in previews too.
+ */
+export function extractUrls(input: string, seed?: string | null): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (href: string) => {
+    if (!seen.has(href)) {
+      seen.add(href);
+      out.push(href);
+    }
+  };
+  if (seed) {
+    const normalized = normalizeUrl(seed);
+    if (normalized) push(normalized);
+  }
+  for (const seg of splitTextWithUrls(input)) {
+    if (seg.href) {
+      // Normalize so the stored cache key matches the API lookup key exactly.
+      const normalized = normalizeUrl(seg.href);
+      if (normalized) push(normalized);
+    }
+  }
+  return out;
+}

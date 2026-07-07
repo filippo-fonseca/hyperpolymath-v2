@@ -93,15 +93,22 @@ const { mockState } = vi.hoisted(() => ({
  * tree where leaf nodes are plain objects like `{ id: "uuid-value" }` or
  * `{ userId: "uuid-value" }`. We collect all string-valued leaf properties.
  */
-function extractWhereParams(node: unknown, depth = 0): string[] {
+function extractWhereParams(node: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): string[] {
   if (!node || typeof node !== "object" || depth > 10) return [];
+  // Cycle guard: Drizzle column objects hold a back-reference to their table
+  // (which lists every column, including array columns that wrap a baseColumn
+  // pointing back at the table). Without tracking visited objects, walking the
+  // WHERE node's column references recurses through those cycles and blows the
+  // stack. Skipping already-seen objects keeps extraction correct + bounded.
+  if (seen.has(node as object)) return [];
+  seen.add(node as object);
   const obj = node as Record<string, unknown>;
   const result: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
     if (key === "queryChunks" && Array.isArray(value)) {
       for (const chunk of value) {
-        result.push(...extractWhereParams(chunk, depth + 1));
+        result.push(...extractWhereParams(chunk, depth + 1, seen));
       }
     } else if (typeof value === "string" && value.length > 0 && !["(", ")", " and ", " or ", " = ", ","].includes(value)) {
       result.push(value);
@@ -110,11 +117,11 @@ function extractWhereParams(node: unknown, depth = 0): string[] {
       const isKeyword = value.length === 1 && typeof value[0] === "string" && value[0].trim().length <= 10;
       if (!isKeyword) {
         for (const item of value) {
-          result.push(...extractWhereParams(item, depth + 1));
+          result.push(...extractWhereParams(item, depth + 1, seen));
         }
       }
     } else if (value && typeof value === "object") {
-      result.push(...extractWhereParams(value, depth + 1));
+      result.push(...extractWhereParams(value, depth + 1, seen));
     }
   }
   return result;
@@ -552,4 +559,95 @@ describe("JARVIS executor CRUD — ownership enforcement (Plan 16-03)", () => {
   });
 
   it.todo("updateEvent includes before snapshot from getEvent");
+});
+
+// ---------------------------------------------------------------------------
+// URL derivation — a link embedded in the task title/notes is auto-populated
+// into the tasks.url property (single-url Notion-style field), mirroring the
+// capture body-link derivation. Never overwrites a url that was already set.
+// ---------------------------------------------------------------------------
+
+describe("JARVIS executor — task URL derivation", () => {
+  it("createTask derives the url from a link in the title (reported case)", async () => {
+    // Capture the values written to the tasks insert (skip join-table inserts).
+    const inserted: Record<string, unknown>[] = [];
+    mockDb.insert.mockImplementation((() => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        if (vals && "title" in vals) inserted.push(vals);
+        return Promise.resolve(undefined);
+      }),
+    })) as never);
+
+    const executor = createServerExecutor();
+    const result = await executor.createTask(
+      {
+        title:
+          "Reproduce GPT-2 from Karpathy https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+      },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(inserted[0]?.url).toBe(
+      "https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+    );
+    // The title text itself is kept verbatim (link stays in the title).
+    expect(inserted[0]?.title).toBe(
+      "Reproduce GPT-2 from Karpathy https://www.youtube.com/watch?v=l8pRSuU81PU&t=76s",
+    );
+  });
+
+  it("createTask leaves url null when the title has no link", async () => {
+    const inserted: Record<string, unknown>[] = [];
+    mockDb.insert.mockImplementation((() => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        if (vals && "title" in vals) inserted.push(vals);
+        return Promise.resolve(undefined);
+      }),
+    })) as never);
+
+    const executor = createServerExecutor();
+    const result = await executor.createTask({ title: "Reproduce GPT-2" }, ctxA);
+
+    expect(result.ok).toBe(true);
+    expect(inserted[0]?.url).toBeNull();
+  });
+
+  it("updateTask fills url when a link is added to the title and url was unset", async () => {
+    const row = seedTask(USER_A, { title: "plain task", url: null });
+
+    const executor = createServerExecutor();
+    const result = await executor.updateTask(
+      { id: row.id, title: "watch https://youtu.be/abc123 now" },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const changes = (result.receipt as { changes: { url?: string | null } })
+        .changes;
+      expect(changes.url).toBe("https://youtu.be/abc123");
+    }
+  });
+
+  it("updateTask never overwrites a url that was already set", async () => {
+    const row = seedTask(USER_A, {
+      title: "plain task",
+      url: "https://manual.example.com/kept",
+    });
+
+    const executor = createServerExecutor();
+    const result = await executor.updateTask(
+      { id: row.id, title: "now mentions https://different.example.com/x" },
+      ctxA,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const changes = (result.receipt as { changes: { url?: string | null } })
+        .changes;
+      // Derived value equals the existing url, so the update writes no url change.
+      expect(changes.url).toBeUndefined();
+    }
+  });
 });

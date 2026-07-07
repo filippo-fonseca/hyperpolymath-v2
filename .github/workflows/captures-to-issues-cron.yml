@@ -1,0 +1,52 @@
+name: captures-to-issues cron
+
+# Durable trigger for the daily "captures tagged #hyperpolymath -> GitHub issues"
+# job. Vercel Hobby crons are best-effort and were skipping for days, so the
+# schedule lives here instead. The endpoint itself does all the work (owner
+# lookup, hashtag filter, privacy gate); this workflow only calls it with the
+# bearer secret. It carries NO secrets in the file: CRON_SECRET is a repo
+# Actions secret, and the target user email lives only in the server env.
+#
+# Scheduled triggers run ONLY from the default branch, so this must be on main
+# to take effect. The server-side once-per-day DB lock makes a double fire
+# (this workflow + a stray Vercel cron) harmless: the second call returns
+# {"status":"already-ran"}.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC daily
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+# Never let two runs overlap.
+concurrency:
+  group: captures-to-issues-cron
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fire the captures-to-issues endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET repo secret is not set" >&2
+            exit 1
+          fi
+          code=$(curl -sS -m 300 -o /tmp/resp.json -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://hyperpolymath.com/api/cron/captures-to-issues)
+          # The response body is aggregate counts only (processed/issued/skipped/
+          # errors) with no capture content, so it is safe to echo in public logs.
+          echo "HTTP $code"
+          cat /tmp/resp.json 2>/dev/null || true
+          echo
+          if [ "$code" != "200" ]; then
+            echo "::error::endpoint returned HTTP $code" >&2
+            exit 1
+          fi
