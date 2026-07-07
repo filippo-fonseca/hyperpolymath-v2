@@ -172,7 +172,12 @@ describe("StudioFocusOverlay", () => {
     });
 
     expect(await screen.findByTestId("habits-focus")).toBeInTheDocument();
-    expect(screen.queryByTestId("tasks-focus")).toBeNull();
+    // The panel body now animates the swap via a nested AnimatePresence
+    // (split-screen paging), so the outgoing widget unmounts one tick later —
+    // await its removal rather than asserting it synchronously.
+    await waitFor(() =>
+      expect(screen.queryByTestId("tasks-focus")).toBeNull(),
+    );
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", "Habits");
     expect(getActiveWidgets()).toEqual(["habits"]);
 
