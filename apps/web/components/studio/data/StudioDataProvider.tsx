@@ -269,7 +269,7 @@ export function StudioDataProvider({
   );
 
   // Calendar object identity memoized on its inputs (M-01 perf constraint):
-  // the Agenda panel (W-09) reads `useWorldData().calendar` in render.
+  // the Agenda panel (W-09) reads `useStudioData().calendar` in render.
   const calendar = useMemo<CalendarData>(
     () => ({
       status: calendarStatus,
@@ -317,7 +317,7 @@ export function StudioDataProvider({
       );
       for (const tr of diff.completed) worldEvents.emit("task-completed", tr);
       // added/removed are consumed declaratively via the emberSlots array
-      // (useWorldData); events are for one-shot choreography only.
+      // (useStudioData); events are for one-shot choreography only.
     }
     prevTasksRef.current = new Map(tasks.map((t) => [t.id, t]));
     prevSlotsRef.current = new Map(emberSlots.map((s) => [s.taskId, s]));

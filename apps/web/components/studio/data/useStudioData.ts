@@ -50,7 +50,7 @@ export interface CalendarData {
 
 /**
  * SSR seed for the calendar slice (page → WorldLoader → WorldCanvas →
- * WorldScene → WorldDataProvider). A superset of `CalendarData`: it also
+ * StudioScene → StudioDataProvider). A superset of `CalendarData`: it also
  * carries the resolved visible-calendar ids so the client query key
  * (`worldCalIds`) matches the SSR fetch exactly and the seed hydrates the
  * client `useQuery` with no extra round-trip. `CalendarData` itself stays the
