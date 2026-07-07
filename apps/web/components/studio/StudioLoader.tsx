@@ -8,6 +8,7 @@ import type { StudioSeed } from "./data/useStudioData";
 import { StudioSkeleton } from "./StudioSkeleton";
 import { StudioFocusOverlay } from "./overlay/StudioFocusOverlay";
 import { DebugDomTiles } from "./overlay/DebugDomTiles";
+import { HandControlOnboarding } from "./onboarding/HandControlOnboarding";
 
 /**
  * StudioLoader — the client boundary that owns BOTH the data bridge and the
@@ -151,6 +152,10 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
               dev-only geometric hover substrate (?studioDomTiles=1). */}
           <StudioFocusOverlay />
           <DebugDomTiles />
+          {/* Camera-consent gate for the additive hand driver. Renders its own
+              chrome at z-30 (below the focus overlay); constructs the
+              HandTrackingDriver only after an explicit opt-in. */}
+          <HandControlOnboarding />
         </div>
       </StudioInputProvider>
     </StudioDataProvider>
