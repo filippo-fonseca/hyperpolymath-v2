@@ -22,24 +22,35 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useThree } from "@react-three/fiber";
+import { TZDate } from "@date-fns/tz";
+import { addDays } from "date-fns";
 import { getAreasForCurrentUser } from "@/app/actions/areas";
 import { getTasksForCurrentUser } from "@/app/actions/tasks";
 import { getCapturesForCurrentUser } from "@/app/actions/captures";
+import { listEventsForUser } from "@/app/actions/gcal-events";
+import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import { solveTreeLayout, type EmberSlot } from "./treeLayout";
 import { buildEmberSlots, todayYmd as computeTodayYmd } from "./mappings";
 import { diffSnapshots, worldEvents } from "./diffing";
-import { WorldDataContext, type WorldData } from "./useWorldData";
+import {
+  WorldDataContext,
+  type WorldData,
+  type MeridianData,
+  type MeridianSeed,
+} from "./useWorldData";
 
 interface WorldDataProviderProps {
   userId: string;
   initialTree: SidebarArea[]; // SSR seed: getSidebarTree(user.id, false)
   initialTasks: TaskWithProjects[]; // SSR seed: getAllTasksForUser(user.id)
   initialCaptures: CaptureWithLinks[]; // SSR seed: getCapturesForUser
+  initialMeridian: MeridianSeed; // SSR seed: /world gcal read (M-01)
   children: ReactNode;
 }
 
@@ -48,6 +59,7 @@ export function WorldDataProvider({
   initialTree,
   initialTasks,
   initialCaptures,
+  initialMeridian,
   children,
 }: WorldDataProviderProps) {
   // ── Realtime subscriptions (singleton channels; refcounted) ──────────────
@@ -97,11 +109,101 @@ export function WorldDataProvider({
     return () => clearInterval(id);
   }, []);
 
+  // ── The Meridian Ring slice (M-01) — gcal as a pure projection ───────────
+  // The world adds ONE more slice of the SAME `["calendar-events", …]` query
+  // key family the 2D `/calendar` uses (§1.2) — not a parallel store. Because
+  // `invalidateAfterJarvisAction` invalidates the `["calendar-events", userId]`
+  // PREFIX, a Jarvis "put lunch at noon Friday" (from any surface, any tab)
+  // refetches this slice with zero new wiring. gcal is the only source of
+  // truth for events — nothing here is mirrored in Postgres, and there is no
+  // Realtime channel for events (nothing to broadcast); focus-refetch + the
+  // 5-min foreground poll + the Jarvis prefix invalidation are the freshness
+  // surfaces.
+  const worldTz = initialMeridian.timezone;
+  const worldCalIds = initialMeridian.visibleCalendarIds;
+
+  // Window bounds ride the EXISTING `today` minute clock — ZERO new intervals.
+  // `[startOfDay(today)-1d, startOfDay(today)+8d)` in the user's IANA tz (a
+  // rolling ~9-day slab covering the ±7-day scrub range). When `today` rolls at
+  // midnight the key changes → a natural daily refetch. TZDate keeps the day
+  // math DST-correct (addDays operates on calendar days).
+  const worldWindow = useMemo(() => {
+    const [y, mo, d] = today.split("-").map(Number);
+    const base = new TZDate(y ?? 1970, (mo ?? 1) - 1, d ?? 1, worldTz); // midnight today
+    const start = addDays(base, -1);
+    const end = addDays(base, 8);
+    return {
+      windowStartMs: start.getTime(),
+      windowEndMs: end.getTime(),
+      timeMin: start.toISOString(),
+      timeMax: end.toISOString(),
+    };
+  }, [today, worldTz]);
+
+  const { data: meridianEvents = initialMeridian.events } = useQuery({
+    queryKey: [
+      "calendar-events",
+      userId,
+      worldCalIds.join(","),
+      worldWindow.timeMin,
+      worldWindow.timeMax,
+    ] as const,
+    queryFn: async () => {
+      if (worldCalIds.length === 0) return [];
+      const res = await listEventsForUser({
+        calendarIds: worldCalIds,
+        timeMin: worldWindow.timeMin,
+        timeMax: worldWindow.timeMax,
+      });
+      // Map failure kinds → [] and let the shared connection-status key carry
+      // the honest state (below), so the ring and the Settings badge never
+      // disagree. A refetch is a network event, not a frame.
+      if (!res.success) return [];
+      return res.data;
+    },
+    initialData: initialMeridian.events,
+    // Treat the SSR seed as fresh so the ring paints real events with NO extra
+    // client round-trip on mount (matches the areas-query discipline above).
+    initialDataUpdatedAt: Date.now(),
+    enabled: worldCalIds.length > 0,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 300_000,
+    refetchIntervalInBackground: false,
+  });
+
+  // Connection status: reuse the EXACT shared key (`["gcal-connection-status"]`)
+  // the Settings badge uses, so disconnecting in Settings flips the ring within
+  // 60 s and the two never disagree (§1.2). Seed falls back to the SSR status.
+  const { data: connStatus } = useGcalConnectionStatus();
+  const meridianStatus: GcalConnectionStatus =
+    connStatus ?? initialMeridian.status;
+
   // ── Memoized derivations on data identity ────────────────────────────────
   const layout = useMemo(() => solveTreeLayout(tree), [tree]);
   const emberSlots = useMemo(
     () => buildEmberSlots(tasks, layout, today),
     [tasks, layout, today],
+  );
+
+  // Meridian object identity memoized on its inputs (M-01 perf constraint):
+  // downstream ring/tablet systems read `useWorldData().meridian` in render.
+  const meridian = useMemo<MeridianData>(
+    () => ({
+      status: meridianStatus,
+      events: meridianEvents,
+      calendars: initialMeridian.calendars,
+      timezone: worldTz,
+      windowStartMs: worldWindow.windowStartMs,
+      windowEndMs: worldWindow.windowEndMs,
+    }),
+    [
+      meridianStatus,
+      meridianEvents,
+      initialMeridian.calendars,
+      worldTz,
+      worldWindow,
+    ],
   );
 
   // ── Task snapshot differ → task-completed events (§4.2) ──────────────────
@@ -141,11 +243,20 @@ export function WorldDataProvider({
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     invalidate();
-  }, [tree, tasks, captures, invalidate]);
+  }, [tree, tasks, captures, meridianEvents, invalidate]);
 
   const value = useMemo<WorldData>(
-    () => ({ userId, tree, layout, tasks, emberSlots, captures, todayYmd: today }),
-    [userId, tree, layout, tasks, emberSlots, captures, today],
+    () => ({
+      userId,
+      tree,
+      layout,
+      tasks,
+      emberSlots,
+      captures,
+      todayYmd: today,
+      meridian,
+    }),
+    [userId, tree, layout, tasks, emberSlots, captures, today, meridian],
   );
 
   return (
