@@ -163,7 +163,15 @@ Gate approved 2026-07-06 (defaults shipped: title→class tint heuristic ON; 60s
 - M-10 zoetrope-scrub [92e8f475] → meridian/useRingScrub.ts (implements+registers meridianBus via __registerMeridianBusImpl) + surgical meridian/MeridianRing.tsx (mount hook) + camera/CameraRig.tsx (owns `setRingScrubActive` seam this wave). Heavy brass momentum, 30-min detent, frames-demanded-only-while-scrubbing, reduced-motion=discrete 1h steps.
 - M-11 labels-ledger [a8de94cf] → meridian/MeridianLabels.tsx + surgical text/Ledger.tsx (next-event clause + test) + text/fonts.ts (glyph audit). 8 old-style numerals riding dial (replicated transform, does NOT edit MeridianRing), date line, hover caption via tabletHoverBus, zenith caption. ≤11 live Text.
 - Conductor mounts at M3 close: `<MeridianLabels/>` beside `<WorldLabels/>`; `<TollScheduler/><MeridianAudio/>` after `<Chimes/>`. (useRingScrub self-mounts inside MeridianRing.)
-### Wave M4: M-12 honesty-sweep, M-13 perf-hardening, M-14 docs (Sonnet).
+### ✅ Wave M3 — DONE + integration-gate green (tsc baseline-only, build exit 0)
+- M-09 toll-scheduler (3898b9c/c08fd28) → meridian/{TollScheduler(null),MeridianAudio}.tsx + synth.ts seam (isAudioUnlocked/isMuted; NO 2nd AudioContext). One timer, session dedupe Set, visibilitychange recompute, all-day excluded.
+- M-10 zoetrope-scrub (3 commits) → meridian/useRingScrub.ts (implements+registers meridianBus, module refs, no React state) + surgical MeridianRing (hook mount) + CameraRig (setRingScrubActive: wheel=NONE + relax polar). Heavy 350ms friction → 30-min detent, snapToNow ~700ms, edge rubber-band, idle→0 frames, reduced-motion=discrete 1h.
+- M-11 labels-ledger (3 commits) → meridian/MeridianLabels.tsx (8 old-style numerals replicating dial transform, date line, hover+zenith captions via tabletHoverBus) + Ledger next-event clause (22 tests green) + fonts.ts (+× U+00D7). 11 live Text (at budget).
+- **Conductor mount 380174c:** `<TollScheduler/><MeridianAudio/>` after `<Chimes/>`; `<MeridianLabels/>` after `<WorldLabels/>`. useRingScrub self-mounts in MeridianRing. Verified green.
+
+### 🔄 Wave M4 — SEQUENTIAL CLOSEOUT (M-13/M-14 must reflect M-12's final state)
+- M-12 honesty-sweep (Opus, LAUNCHING) → reduced-motion collapse across ALL meridian surfaces (scrub discrete [M-10 done, verify], lean-down/snap instant, boot fade crossfade, god-ray breathe off) + connection-state honesty (not_connected→dark petrified brass, no tablets/plumb, 1 Garamond zenith line reusing caption slot; expired/revoked→"Reconnect"; empty-but-connected→bright ring, no tablets, plumb still falls, wordless). Touches meridian components; sequential = no collision.
+- AFTER M-12: M-13 perf-hardening (Opus, tests + components/world/__tests__ perf doc, §4.4 protocol; live-fps numbers pending human gate) ‖ M-14 docs-changelog (Sonnet, README meridian section + CHANGELOG + .planning). File-disjoint from each other.
 ### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
 
 ### PENDING HUMAN GATE (Phase 2, before push/merge): in-browser smoke §6 (needs Filippo's gcal-connected auth session) — ring overhead matches /calendar, C look-up, scrub momentum, T-15 toll from above, Jarvis event rivets in, disconnect→petrified ring. Dev stack currently UP on :3000 (web shell) + local Supabase (Docker).
