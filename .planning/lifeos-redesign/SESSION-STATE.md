@@ -217,6 +217,17 @@ Note (W-04): `moveWidget` is a no-op for an id in `hidden` — un-hide needs its
 - W-09 agenda-widget [055c262f] → panels/agenda/AgendaWidget.tsx (flat calendar on the calendar slice + agendaLogic; today/tomorrow sections; classifyEvent/linkEventToProject/calendarDotColor; diffEventSnapshots shimmer; disconnected honesty).
 Registry NOT edited by widget units — Conductor adds tasks/captures/agenda entries + imports at W2 close.
 
+### ✅ Wave W2 COMPLETE, VERIFIED & WIRED (integration gate green)
+All 4 units landed. Non-baseline tsc = 0; build exit 0. Widgets: W-05 TasksWidget (TodayPanel deleted), W-08 CapturesWidget (delete affordance mirrored), W-06 WidgetRig+nav (LOD, getBenchSlot getter, ←/→ + C + wheel-swipe, no useFrame), W-09 AgendaWidget (flat calendar, classifyEvent/linkEventToProject/calendarDotColor + diffEventSnapshots shimmer + honesty). Conductor wired the bench (commit be77b41): registered tasks/captures/agenda in widgetRegistry + mounted `<WidgetRig/>` after `<Embers/>` before `<CameraRig/>`. Conductor amendment 1e3bbab: added optional `dragHandleProps` to `WidgetComponentProps` (W3-open seam for grab-and-move).
+
+### 🔄 Wave W3 — LAUNCHING (parallel, file-disjoint)
+- W-07 grab-and-move [be0bfa25] → panels/useWidgetDrag.ts (new) + WidgetRig.tsx (drag integration; the ONLY new useFrame, self-invalidating early-exit) + CapturesWidget.tsx (1-line dragHandleProps forward). Ray→arc yaw → nearestSlotIndex → moveWidget → re-solve → dock two-note chime; reduced-motion ghost.
+- W-10 habits-widget [052902a6] → panels/HabitsWidget.tsx (7-day tick strip, toggleHabitCompletion; forwards dragHandleProps).
+- W-11 journal-widget [29d89718] → panels/JournalWidget.tsx (plain-text extraction + open-on-Page via ModeToggle doorway; forwards dragHandleProps).
+- W-12 focused-hero-glass [0612d6ab] → panels/FocusedPanelGlass.tsx (freed heroGlass slot = backplate behind focused panel; swap-on-focus like Lanterns; registry 3/3). Conductor MOUNTS `<FocusedPanelGlass/>` in WorldScene at W3 close.
+- W-13 greeting-and-sounds [92f99468] → boot/Litany.tsx (bottega greeting copy only; timeline frozen).
+Registry: Conductor adds habits/journal entries at W3 close. Then verify green → Wave W4 closeout.
+
 ### Conductor duties at wave boundaries (Phase 3)
 - W1 close: verify tsc/build/tests green with `meridian/` gone; FREEZE contracts (widgetLayout, widgetBus, widgetRegistry shape, WorldPanel primitive, widgetTypes). NO WorldScene mount change (WidgetRig arrives W2). Then launch Wave W2.
 - W2 close: REMOVE `<TodayPanel/>` (W-05 deletes the file), ADD `<WidgetRig/>` after `<Embers/>` before `<CameraRig/>`; JarvisRing before PostFX; PostFX last. POPULATE widgetRegistry with the W2 widgets (tasks/captures/agenda) — Conductor-owned, like WorldScene mounts. Then launch Wave W3 (W-07 grab-move, W-10 habits, W-11 journal, W-12 focused-hero-glass, W-13 greeting). Add remaining registry entries at W3 close.
