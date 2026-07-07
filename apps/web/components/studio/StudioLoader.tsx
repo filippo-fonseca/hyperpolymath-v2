@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { StudioInputProvider } from "@/lib/studio/input/react";
 import { StudioDataProvider } from "./data/StudioDataProvider";
 import type { StudioSeed } from "./data/useStudioData";
 import { StudioSkeleton } from "./StudioSkeleton";
@@ -115,17 +116,36 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
     setDecision(hasWebGL2() ? "canvas" : "fallback");
   }, []);
 
+  // The stage element anchors cursor coordinates for the input core. It is the
+  // absolute-inset-0 box that contains both the Canvas and the DOM overlay, so
+  // stage space ≡ canvas space — the raycast HoverProvider's NDC math depends on
+  // this. Wave-2 units render their siblings (widget-cloud in the Canvas, the
+  // focus-overlay as a DOM sibling) inside this same stage/provider subtree.
+  const stageRef = useRef<HTMLDivElement>(null);
+
   let body: React.ReactElement;
   if (decision === "pending") body = <StudioSkeleton />;
   else if (decision === "fallback") body = <FallbackCard />;
   else body = <StudioCanvas />;
 
-  // The provider wraps the body in ALL states so the future DOM focus-overlay
-  // (a sibling of the Canvas) and the in-Canvas widget-cloud share one data
-  // source. R3F bridges this context into the Canvas below automatically.
+  // Provider order (outer → inner):
+  //   StudioDataProvider  — one data source for the Canvas AND the DOM overlay;
+  //                         R3F v9 bridges it into the Canvas automatically.
+  //   StudioInputProvider — the shared cursor/hover/intent hub. Mounts here,
+  //                         above the Canvas, so both the in-Canvas raycast hover
+  //                         provider and the DOM overlay's intent subscription
+  //                         read the same hub. Defaults to the mouse/keyboard
+  //                         driver; the hand driver is registered by a later wave
+  //                         (behind a camera-permission gate).
+  // The `<div ref={stageRef}>` is the coordinate stage; focus-overlay renders as
+  // a sibling of `body` inside it.
   return (
     <StudioDataProvider userId={props.userId} seed={props.seed}>
-      {body}
+      <StudioInputProvider stageRef={stageRef}>
+        <div ref={stageRef} className="absolute inset-0">
+          {body}
+        </div>
+      </StudioInputProvider>
     </StudioDataProvider>
   );
 }
