@@ -148,6 +148,19 @@ export function useStudioIntent(cb: (intent: import("./types").StudioIntent) => 
   useEffect(() => hub.subscribeIntent((i) => cbRef.current(i)), [hub]);
 }
 
+/**
+ * Effect-based phase subscription — zero re-renders. Mirrors `useStudioIntent`
+ * but for the continuous grab/drag/pull phase bus, which fires at frame rate;
+ * consumers must handle it imperatively (refs, direct scene mutation) rather
+ * than through React state.
+ */
+export function useStudioPhase(cb: (phase: import("./types").StudioPhaseEvent) => void): void {
+  const hub = useHub();
+  const cbRef = useRef(cb);
+  cbRef.current = cb;
+  useEffect(() => hub.subscribePhase((p) => cbRef.current(p)), [hub]);
+}
+
 /** Registers a DOM rect in the built-in hover provider for `id`. */
 export function useStudioDomTarget(id: string, ref: RefObject<HTMLElement | null>): void {
   const hub = useHub();
