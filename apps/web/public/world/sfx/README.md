@@ -49,3 +49,17 @@ C5 → F5 (perfect fourth).
 
 > **Note for U-18 executor:** synthesize these by default; treat file
 > presence as an optional override, not a requirement.
+
+## ring-toll.mp3 — License & synthesis record
+
+| Field | Value |
+|-------|-------|
+| **File** | `ring-toll.mp3` |
+| **License** | CC0 1.0 Universal (Public Domain Dedication) — original synthesis, no third-party samples |
+| **Author** | Synthesized via FFmpeg 8.1.2 `aevalsrc` additive synthesis |
+| **Fundamental** | **220 Hz (A3)** — two octaves below the glass-bell (880 Hz / A5); same A-pentatonic family |
+| **Partials** | 220 Hz (1×, amp 0.55) · 303 Hz (~1.38×, amp 0.28) · 440 Hz (2×, amp 0.18) · 582 Hz (~2.65×, amp 0.09) · 874 Hz (~3.97×, amp 0.05) — inharmonic ratios for bell timbre |
+| **Envelope** | Per-partial exponential decay (τ = 0.9–4.5 s); fade-out at 2.8 s; total duration 3.2 s |
+| **Format** | MP3 · mono · 44.1 kHz · 32 kbps · 13 184 bytes |
+| **Synthesis command** | `ffmpeg -f lavfi -i "aevalsrc=0.55*exp(-t*1.1)*sin(2*PI*220*t)+0.28*exp(-t*1.8)*sin(2*PI*303*t)+0.18*exp(-t*2.4)*sin(2*PI*440*t)+0.09*exp(-t*3.2)*sin(2*PI*582*t)+0.05*exp(-t*4.5)*sin(2*PI*874*t):s=44100:d=3.2" -af "afade=t=out:st=2.8:d=0.4,volume=0.85" -ar 44100 -ac 1 -codec:a libmp3lame -b:a 32k ring-toll.mp3` |
+| **Pentatonic note** | A3 is the root of the A-pentatonic scale (A–B–C♯–E–F♯); a fifth below D5 (the natural pentatonic fifth above A) and an octave below the glass-bell's A5 fundamental. The toll sits a major third above F♯ / two-note chime's C5–F5 pair, resolving warmly within the same pentatonic family. |
