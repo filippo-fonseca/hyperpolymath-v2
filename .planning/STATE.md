@@ -2,16 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Wiki + In-Document JARVIS
+current_phase: 30
+current_phase_name: 31 → 32 → 30 all executed
 status: executing
-stopped_at: Phase 30 (Daily Pages) executed + merged ff-only — milestone v1.2 content-complete; pending human browser-verify + prod migrations + push
-last_updated: "2026-06-21T21:50:00.000Z"
-last_activity: 2026-06-21 — Phase 30 (Page of the Day / Daily Pages) executed
+stopped_at: context exhaustion at 75% (2026-07-03)
+last_updated: "2026-07-03T00:37:45.720Z"
+last_activity: 2026-06-21
+last_activity_desc: Phase 29 (MCP + knowledge-graph inclusion) executed
 progress:
-  total_phases: 36
+  total_phases: 35
   completed_phases: 22
-  total_plans: 106
-  completed_plans: 99
-  percent: 61
+  total_plans: 109
+  completed_plans: 101
+  percent: 63
 ---
 
 # Project State
@@ -30,14 +33,17 @@ Plan: 30-01 executed.
 Status (Phase 30 — DONE): Delegated plan+execute to an Opus subagent (STEP-0-merge worktree method); merged ff-only onto fix/pages-create-ux (commits 058ad98..d6e36c1). Adds a `pages.daily_date` date column + partial unique index `(user_id, daily_date) WHERE daily_date IS NOT NULL` (migration apps/web/supabase/migrations/0035_pages_daily_date.sql — NOT applied to prod) threaded through lib/db/queries/pages.ts. New idempotent `openDailyPage(date)` server action (ON CONFLICT DO NOTHING then select) + `getDailyPagesForUser` + lib/pages/daily-page.ts helpers (date→title). Wiki home (PagesListClient.tsx) gains a collapsible "Daily Pages" calendar section reusing a generalized JournalCalendar (now takes markedDates Set + ariaLabel; /journaling usage preserved); day-click opens/creates the daily page and routes to it. PageDetailClient.tsx renders a "Daily Page" pill (when page.dailyDate) + a Daily-Pages-only "process this page" button that runs the WHOLE page through invokeInDocumentJarvis with a new optional scopeOverride:"page" arg (added to invoke-in-document.ts); editor instance exposed to the parent via a new onEditorReady prop on PageBlockEditor.tsx. Tests: tests/{daily-page-helpers,get-daily-pages,open-daily-page,invoke-in-document-scope-override}.test.ts → 13/13 green in the MAIN checkout. PRE-EXISTING (not Phase 30) failures remain in tests/{jarvis-core-cache-ttl,jarvis-prompt-stability,voice-adversarial}.test.ts (5 total — buildToolDefinitions tool-count + cache-TTL assertions; no Phase 30 file touches jarvis-core/voice/cache). NOTE: ALL Phase 30 browser UX DEFERRED to human (calendar render, day-open routing, pill, process-toast vs a live JARVIS turn). Nothing pushed.
 
 ### Pre-existing test failures (tech debt, not milestone-blocking)
+
 tests/jarvis-core-cache-ttl.test.ts (2), tests/jarvis-prompt-stability.test.ts (1), tests/voice-adversarial.test.ts (2) fail: they assert the voice tool set is EXACTLY 5 tools and ask_clarification carries cache_control ttl 1h. The live jarvis-core tool set has drifted (14 tools per session memory) and/or cache placement changed. Predates Phase 30; fix separately.
 
 Status (Phase 32 — DONE): Plan 32-01 executed, merged ff-only onto fix/pages-create-ux. All 6 JDOC-UX wired, builds on the Phase 31 seam invokeInDocumentJarvis (no engine fork). New pure utils lib/jarvis/{receipt-summary,at-trigger,receipt-markdown}.ts + components/pages/JarvisReceiptInline.tsx + edits to PageBlockEditor.tsx/PageDetailClient.tsx/page-block-editor.css. @ autocomplete (second SuggestionMenuController, KiwiIcon), neumorphic mono prompt pill (jarvisReceipt inline content, content:"none"), Cmd/Ctrl+Enter submit, loading→receipt summary via formatReceiptSummary, hover tooltip=original prompt, /Jarvis slash item, nav hide-receipts toggle (data-hide-receipts CSS), export exclusion double-guarded (content:"none" + receiptToMarkdownComment stripped by existing stripReceipts). Tests: tests/{receipt-summary,at-trigger,strip-receipts-pill}.test.ts → 21/21 green in MAIN checkout. typecheck/build pass (only the 6 known-ignorable api-jarvis-tts errors). NOTE: ALL Phase 32 interactive browser behavior is DEFERRED to the human — menu open, pill render, Cmd+Enter round-trip, spinner, tooltip, hide toggle NOT browser-verified. Risk flagged by subagent: prompt body read as cursor block's plain text (single-block authoring assumed); updatePill rebuilds content with a PartialBlock["content"] cast — confirm in-place pill update in the browser pass. Nothing pushed.
 
 ### Phase 30 — TODO (last milestone phase)
+
 Requirements WIKI-DAILY-01..04 (.planning/REQUIREMENTS.md): (01) toggleable "Daily Pages" section in Wiki with Journal-style calendar; (02) opening today/a day auto-creates exactly one dated Daily Page, idempotent per user per day; (03) "Daily Page" pill badge under the title; (04) Daily-Pages-only "process this page" JARVIS button that feeds the WHOLE page through the shared engine via the Phase 31 seam (invokeInDocumentJarvis with whole-page scope) — supersedes the Morning Dump PR #69 / issues #32, #33. Depends on Phase 21 (data model) + Phase 31 (pipeline) — both DONE. Suggested resume: /gsd-discuss-phase 30 (or delegate plan+execute to an Opus subagent using the same STEP-0-merge worktree method below).
 
 ### Outstanding (whole milestone, before any prod merge)
+
 - Browser verification of Phase 29 noExport toggle, all of Phase 32 UX, and Phase 30 once built — DEFERRED to human.
 - Remote/prod Supabase migration apply (0034 + any later wiki migrations) OUTSTANDING — local Docker only.
 - Nothing pushed; one milestone PR closes all phase issues per ROADMAP.
@@ -433,6 +439,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-21T20:45:30.833Z
-Stopped at: context exhaustion at 76% (2026-06-21)
+Last session: 2026-07-03T00:37:45.680Z
+Stopped at: context exhaustion at 75% (2026-07-03)
 Resume file: .planning/phases/31-in-document-jarvis-engine-integration/31-CONTEXT.md
