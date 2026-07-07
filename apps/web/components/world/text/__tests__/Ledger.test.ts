@@ -12,7 +12,7 @@ import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { TreeLayoutResult } from "../../data/treeLayout";
-import type { MeridianData, WorldData } from "../../data/useWorldData";
+import type { CalendarData, WorldData } from "../../data/useWorldData";
 import {
   composeLedgerLine,
   composeNextEventClause,
@@ -39,7 +39,7 @@ function mkEvent(over: Partial<GcalEventDTO> = {}): GcalEventDTO {
   };
 }
 
-function mkMeridian(over: Partial<MeridianData> = {}): MeridianData {
+function mkCalendar(over: Partial<CalendarData> = {}): CalendarData {
   return {
     status: over.status ?? "connected",
     events: over.events ?? [],
@@ -54,7 +54,7 @@ function mkData(over: {
   tasks?: TaskWithProjects[];
   captureCount?: number;
   todayYmd?: string;
-  meridian?: MeridianData;
+  calendar?: CalendarData;
 }): WorldData {
   const captures = new Array(over.captureCount ?? 0).fill(
     null,
@@ -67,7 +67,10 @@ function mkData(over: {
     emberSlots: [],
     captures,
     todayYmd: over.todayYmd ?? "2026-07-06",
-    meridian: over.meridian ?? mkMeridian(),
+    calendar: over.calendar ?? mkCalendar(),
+    habits: { habits: [], completions: [], windowStart: "2026-06-23" },
+    journal: { entry: null },
+    hashtags: [],
   };
 }
 
@@ -75,7 +78,7 @@ function mkData(over: {
 describe("composeLedgerLine — base counts", () => {
   it("an empty desk with no gcal clause reads calm", () => {
     const line = composeLedgerLine(
-      mkData({ meridian: mkMeridian({ status: "not_connected" }) }),
+      mkData({ calendar: mkCalendar({ status: "not_connected" }) }),
       NOW,
     );
     expect(line).toBe("The desk is clear.");
@@ -89,7 +92,7 @@ describe("composeLedgerLine — base counts", () => {
           mkTask({ status: "not started", dueDate: "2026-07-06" }),
         ],
         captureCount: 3,
-        meridian: mkMeridian({ status: "not_connected" }),
+        calendar: mkCalendar({ status: "not_connected" }),
       }),
       NOW,
     );
@@ -101,7 +104,7 @@ describe("composeLedgerLine — base counts", () => {
       mkData({
         tasks: [mkTask({ status: "not started", dueDate: "2026-07-05" })],
         captureCount: 0,
-        meridian: mkMeridian({ status: "not_connected" }),
+        calendar: mkCalendar({ status: "not_connected" }),
       }),
       NOW,
     );
@@ -113,7 +116,7 @@ describe("composeLedgerLine — base counts", () => {
 describe("composeNextEventClause — the engraved voice", () => {
   it("appends the next timed event today in colloquial hours", () => {
     const clause = composeNextEventClause(
-      mkMeridian({
+      mkCalendar({
         events: [mkEvent({ title: "Lecture", start: "2026-07-06T14:00:00-04:00" })],
       }),
       NOW,
@@ -123,7 +126,7 @@ describe("composeNextEventClause — the engraved voice", () => {
 
   it("picks the EARLIEST upcoming event today", () => {
     const clause = composeNextEventClause(
-      mkMeridian({
+      mkCalendar({
         events: [
           mkEvent({ id: "b", title: "Dinner", start: "2026-07-06T18:00:00-04:00" }),
           mkEvent({ id: "a", title: "Lecture", start: "2026-07-06T14:00:00-04:00" }),
@@ -137,7 +140,7 @@ describe("composeNextEventClause — the engraved voice", () => {
   it("omits the clause when gcal is not connected", () => {
     expect(
       composeNextEventClause(
-        mkMeridian({
+        mkCalendar({
           status: "not_connected",
           events: [mkEvent({ start: "2026-07-06T14:00:00-04:00" })],
         }),
@@ -149,7 +152,7 @@ describe("composeNextEventClause — the engraved voice", () => {
   it("omits the clause when the token is expired", () => {
     expect(
       composeNextEventClause(
-        mkMeridian({
+        mkCalendar({
           status: "expired",
           events: [mkEvent({ start: "2026-07-06T14:00:00-04:00" })],
         }),
@@ -161,7 +164,7 @@ describe("composeNextEventClause — the engraved voice", () => {
   it("omits the clause when every event today has already started/passed", () => {
     expect(
       composeNextEventClause(
-        mkMeridian({
+        mkCalendar({
           events: [
             mkEvent({ start: "2026-07-06T09:00:00-04:00", end: "2026-07-06T10:00:00-04:00" }),
             // ongoing now (start ≤ now < end) — not a "next start after now"
@@ -176,7 +179,7 @@ describe("composeNextEventClause — the engraved voice", () => {
   it("omits the clause when the next event is tomorrow (no events remain today)", () => {
     expect(
       composeNextEventClause(
-        mkMeridian({
+        mkCalendar({
           events: [mkEvent({ start: "2026-07-07T09:00:00-04:00" })],
         }),
         NOW,
@@ -187,7 +190,7 @@ describe("composeNextEventClause — the engraved voice", () => {
   it("ignores all-day events (they carry no colloquial hour)", () => {
     expect(
       composeNextEventClause(
-        mkMeridian({
+        mkCalendar({
           events: [mkEvent({ allDay: true, start: "2026-07-06", end: "2026-07-07" })],
         }),
         NOW,
@@ -197,7 +200,7 @@ describe("composeNextEventClause — the engraved voice", () => {
 
   it("falls back to a title when the event summary is blank", () => {
     const clause = composeNextEventClause(
-      mkMeridian({
+      mkCalendar({
         events: [mkEvent({ title: "   ", start: "2026-07-06T14:00:00-04:00" })],
       }),
       NOW,
@@ -211,7 +214,7 @@ describe("composeLedgerLine — with the next-event clause", () => {
   it("appends the clause to a clear desk", () => {
     const line = composeLedgerLine(
       mkData({
-        meridian: mkMeridian({
+        calendar: mkCalendar({
           events: [mkEvent({ title: "Lecture", start: "2026-07-06T14:00:00-04:00" })],
         }),
       }),
@@ -225,7 +228,7 @@ describe("composeLedgerLine — with the next-event clause", () => {
       mkData({
         tasks: [mkTask({ status: "in progress", dueDate: "2026-07-06" })],
         captureCount: 2,
-        meridian: mkMeridian({
+        calendar: mkCalendar({
           events: [mkEvent({ title: "Seminar", start: "2026-07-06T15:30:00-04:00" })],
         }),
       }),

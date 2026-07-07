@@ -27,9 +27,9 @@
  *     the ledger reads as ink, not glow (SDF text in bloom smears — see
  *     WorldLabels for the full rationale).
  *
- * NOTE (Phase 2, M-11): the "next event" clause from the VISION strip now lands
- * with the Meridian Ring — Google Calendar events entered WorldData via the
- * `meridian` slice (M-01). `composeLedgerLine` appends a colloquial next-event
+ * NOTE (Phase 2, M-11): the "next event" clause from the VISION strip lands via
+ * Google Calendar events in WorldData's `calendar` slice (M-01, renamed from
+ * `meridian` in Phase 3 W-01). `composeLedgerLine` appends a colloquial next-event
  * clause ("…Lecture at two.") when gcal is connected and an event still remains
  * today. The clause is composed by the PURE `composeNextEventClause`, so the
  * whole line stays a pure function of `(WorldData, nowMs)` and unit-testable.
@@ -44,7 +44,7 @@ import { Text } from "@react-three/drei";
 import { classifyTask } from "../data/mappings";
 import {
   useWorldData,
-  type MeridianData,
+  type CalendarData,
   type WorldData,
 } from "../data/useWorldData";
 import { STUDIOLO } from "../materials/tokens";
@@ -142,7 +142,7 @@ function civilDayKey(ms: number, tz: string): string {
 }
 
 /**
- * The next-event clause, or `null` to omit it. PURE given `(meridian, nowMs)`.
+ * The next-event clause, or `null` to omit it. PURE given `(calendar, nowMs)`.
  *
  * Omitted when gcal is not connected (`status !== "connected"`) or no timed
  * event remains today (the tz-local civil day of `nowMs`). All-day events carry
@@ -150,15 +150,15 @@ function civilDayKey(ms: number, tz: string): string {
  * event whose start is strictly after `nowMs` and falls on today.
  */
 export function composeNextEventClause(
-  meridian: MeridianData,
+  calendar: CalendarData,
   nowMs: number,
 ): string | null {
-  if (meridian.status !== "connected") return null;
-  const tz = meridian.timezone;
+  if (calendar.status !== "connected") return null;
+  const tz = calendar.timezone;
   const todayKey = civilDayKey(nowMs, tz);
 
   let best: { startMs: number; title: string } | null = null;
-  for (const ev of meridian.events) {
+  for (const ev of calendar.events) {
     if (ev.allDay) continue;
     const startMs = new Date(ev.start).getTime();
     if (Number.isNaN(startMs) || startMs <= nowMs) continue;
@@ -200,7 +200,7 @@ export function composeLedgerLine(d: WorldData, nowMs: number = Date.now()): str
     base = parts.join(LEDGER_SEPARATOR);
   }
 
-  const clause = composeNextEventClause(d.meridian, nowMs);
+  const clause = composeNextEventClause(d.calendar, nowMs);
   return clause === null ? base : `${base}${LEDGER_SEPARATOR}${clause}`;
 }
 
