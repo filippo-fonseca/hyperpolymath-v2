@@ -153,7 +153,9 @@ const FRAG_EMISSIVE_INJECTION = `#include <emissivemap_fragment>
     // ascending: floor at today's max; the ×3 flare rides instanceColor HDR (§6)
     emGlow = ${f(TODAY.emissiveMax)};
   }
-  totalEmissiveRadiance += vColor * emGlow;
+  // vColor.rgb: three.js r185 declares vColor as vec4 under USE_INSTANCING_COLOR;
+  // the .rgb swizzle is valid on both vec3/vec4 so the vec3 add always type-checks.
+  totalEmissiveRadiance += vColor.rgb * emGlow;
 }
 // </studiolo:ember:pulse>`;
 
