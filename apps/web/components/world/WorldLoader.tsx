@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { MeridianSeed } from "./data/useWorldData";
 import { WorldSkeleton } from "./WorldSkeleton";
 
 /**
@@ -30,6 +31,7 @@ export interface WorldLoaderProps {
   initialTree: SidebarArea[];
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
+  initialMeridian: MeridianSeed;
 }
 
 /** Probe for a usable WebGL2 context without leaking the throwaway canvas. */
