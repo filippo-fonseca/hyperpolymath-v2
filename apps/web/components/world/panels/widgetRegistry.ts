@@ -26,6 +26,10 @@
  */
 import type { ComponentType } from "react";
 import type { BenchSlot, WidgetId } from "./widgetTypes";
+// ── Conductor-populated roster (grows at each wave boundary, like WorldScene mounts) ──
+import { TasksWidget } from "./TasksWidget"; // W-05 (wave W2)
+import { CapturesWidget } from "./CapturesWidget"; // W-08 (wave W2)
+import { AgendaWidget } from "./agenda/AgendaWidget"; // W-09 (wave W2)
 
 /** Panel level-of-detail (PHASE-3-PLAN §7.2): full uikit content vs. frame + SDF title. */
 export type WidgetLod = "full" | "placard";
@@ -61,7 +65,13 @@ export interface WidgetSpec {
  *     tasks: { id: "tasks", title: "Tasks", component: TasksWidget },
  *   };
  */
-export const WIDGET_REGISTRY: Partial<Record<WidgetId, WidgetSpec>> = {};
+export const WIDGET_REGISTRY: Partial<Record<WidgetId, WidgetSpec>> = {
+  // Wave W2 (mounted): the first three citizens of the bench.
+  tasks: { id: "tasks", title: "Tasks", component: TasksWidget },
+  captures: { id: "captures", title: "Captures", component: CapturesWidget },
+  agenda: { id: "agenda", title: "Agenda", component: AgendaWidget },
+  // Wave W3 (pending): habits [W-10], journal [W-11].
+};
 
 /** The spec for `id`, or `undefined` if that widget hasn't landed on the bench yet. */
 export function getWidgetSpec(id: WidgetId): WidgetSpec | undefined {

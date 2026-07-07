@@ -15,6 +15,7 @@ import { Boughs } from "./tree/Boughs";
 import { Lanterns } from "./tree/Lanterns";
 import { Embers } from "./tree/Embers";
 import { Fireflies } from "./tree/Fireflies";
+import { WidgetRig } from "./panels/WidgetRig";
 import { CameraRig } from "./camera/CameraRig";
 import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
@@ -74,11 +75,11 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Lanterns /> {/* [U-10] one lantern per project (pickable → focus) */}
       <Fireflies /> {/* [U-14] every unfiled capture as a firefly (one draw call) */}
       <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
+      <WidgetRig /> {/* [P3 W-06] the bench of WorldPanels on the arc (pickables) — swipe/summon/LOD */}
       <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
       <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
       <Ledger /> {/* [U-11] camera-anchored day-at-a-glance HUD strip */}
-      {/* [P3 W2 close] <WidgetRig/> mounts here — the bench of WorldPanels replaces the lone TodayPanel */}
       <JarvisChoreographer /> {/* [U-16] routing choreography — resolve→assist→thread+fly */}
       <Litany /> {/* [U-17] boot litany — shutter + greeting, then zero draw calls */}
       <PerfGovernor /> {/* [U-20] adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
