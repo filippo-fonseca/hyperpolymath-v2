@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "integration_branch": "next",
+  "base_branch": null,
+  "git": {
+    "sync_integration_from_base": true,
+    "integration_to_main": "manual"
+  },
+  "env": {
+    "propagate": true,
+    "files": [
+      ".env",
+      ".env.local",
+      ".env.*.local"
+    ]
+  },
+  "github": {
+    "issues": true,
+    "require_remote": true
+  },
+  "model_posture": {
+    "thresholds": {
+      "high": 0.7,
+      "medium": 0.4
+    },
+    "tiers": {
+      "high": {
+        "model": "opus",
+        "effort": "xhigh"
+      },
+      "medium": {
+        "model": "sonnet",
+        "effort": "high"
+      },
+      "low": {
+        "model": "haiku",
+        "effort": "medium"
+      }
+    },
+    "researcher": "one-tier-below",
+    "verifier": {
+      "model": "haiku",
+      "effort": "low"
+    }
+  },
+  "conductor": {
+    "persona": "kiwi",
+    "narrate": true,
+    "suggest_gate_commands": true
+  }
+}
