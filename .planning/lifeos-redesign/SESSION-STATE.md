@@ -206,6 +206,17 @@ New direction (session "The Stark Makerspace Pivot", 2026-07-06): Filippo finds 
 - W-03 worldpanel-primitive [6301673b] → panels/WorldPanel.tsx (TodayPanel generalized; uikit body + 2-instance hologram frame + placard LOD + honesty states; ≤22 full / ≤4 placard draw calls).
 - W-04 layout-persistence [5e772b99] → panels/widgetLayoutStore.ts (localStorage `world:widgetLayout@1` + useWidgetLayout) + tests.
 
+### ✅ Wave W1 COMPLETE & VERIFIED (integration gate green)
+All 4 units landed on `lifeos-studiolo`. Non-baseline tsc errors = 0; `pnpm --filter web build` exit 0; `/world` emitted; `meridian/` deleted; worldEvents = 5 names; focusStack = `{kind:"widget"}` (no ring). Commits: W-01 8e87778→664d670 (7), W-02 57f03ae/00dd96b/f1c8cc1/ad7d7b5, W-03 fef8007, W-04 49f28dd/2452317. Contracts FROZEN: widgetTypes, widgetLayout (angle convention: signed offset from aisle centerline, 0=Tree, <0 left, >0 right), widgetBus, widgetRegistry (empty Partial literal — Conductor grows it), WorldPanel (2-material frame, placard=2 calls / full≤22), widgetLayoutStore (localStorage `world:widgetLayout@1`). Provider now serves calendar/habits/journal/hashtags with subs + SSR seeds.
+Note (W-04): `moveWidget` is a no-op for an id in `hidden` — un-hide needs its own path (out of scope; flag for a later unit if summon-from-hidden ships).
+
+### 🔄 Wave W2 — LAUNCHING (parallel; Conductor demounted `<TodayPanel/>` from WorldScene, commit 25fd680)
+- W-05 tasks-widget [446cd639] → panels/TasksWidget.tsx (TodayPanel reborn on WorldPanel) + DELETE TodayPanel.tsx.
+- W-06 widget-rig-and-nav [9bf76ab0] → panels/WidgetRig.tsx (LOD: focused+2 neighbors full, rest placard) + module `getBenchSlot()` getter; CameraRig widget pose (replaces temp VESTIBULE fallback); useWorldKeys ←/→ + C→Agenda; wheel-swipe (horizontal-dominant). NO useFrame.
+- W-08 captures-widget [ccb9b010] → panels/CapturesWidget.tsx (rows + tag chips + 2D updateCapture/deleteCapture affordances).
+- W-09 agenda-widget [055c262f] → panels/agenda/AgendaWidget.tsx (flat calendar on the calendar slice + agendaLogic; today/tomorrow sections; classifyEvent/linkEventToProject/calendarDotColor; diffEventSnapshots shimmer; disconnected honesty).
+Registry NOT edited by widget units — Conductor adds tasks/captures/agenda entries + imports at W2 close.
+
 ### Conductor duties at wave boundaries (Phase 3)
 - W1 close: verify tsc/build/tests green with `meridian/` gone; FREEZE contracts (widgetLayout, widgetBus, widgetRegistry shape, WorldPanel primitive, widgetTypes). NO WorldScene mount change (WidgetRig arrives W2). Then launch Wave W2.
 - W2 close: REMOVE `<TodayPanel/>` (W-05 deletes the file), ADD `<WidgetRig/>` after `<Embers/>` before `<CameraRig/>`; JarvisRing before PostFX; PostFX last. POPULATE widgetRegistry with the W2 widgets (tasks/captures/agenda) — Conductor-owned, like WorldScene mounts. Then launch Wave W3 (W-07 grab-move, W-10 habits, W-11 journal, W-12 focused-hero-glass, W-13 greeting). Add remaining registry entries at W3 close.
