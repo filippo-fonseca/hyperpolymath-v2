@@ -48,6 +48,11 @@ import { bootDone } from "../camera/CameraRig";
 import { neighborOf, solveBenchLayout } from "./widgetLayout";
 import { getWidgetSpec } from "./widgetRegistry";
 import { useWidgetLayout } from "./widgetLayoutStore";
+import {
+  GHOST_GEOMETRY,
+  GHOST_MATERIAL,
+  useWidgetDrag,
+} from "./useWidgetDrag";
 import type { BenchSlot, WidgetId } from "./widgetTypes";
 
 // ── Module-synced bench state (the no-React-state seam for CameraRig / keys) ──
@@ -177,6 +182,17 @@ export function WidgetRig(): JSX.Element {
 
   const focusedWidgetId = current.kind === "widget" ? current.widgetId : null;
 
+  // ── W-07 grab-and-move (§4.4) ────────────────────────────────────────────
+  // The drag lifecycle hook — the phase's ONE new `useFrame` lives inside it,
+  // self-invalidating while a drag/settle is in flight and early-exiting to
+  // idle-zero at rest (§7.3). It hands back a per-widget `dragHandleProps` bag
+  // (spread onto each panel's frame grip), a per-widget ref callback for the
+  // OUTER animation group we wrap each panel in (the hook writes that group's
+  // matrix so the panel body/frame stay a frozen `<WorldPanel>` — the panel is
+  // never re-rendered per frame), the id currently being carried, and the ref
+  // for the reduced-motion drag ghost.
+  const drag = useWidgetDrag(slots, layout.order);
+
   // LOD centre (§7.2): the focused slot, or the arc middle at the vestibule.
   const n = slots.length;
   const focusIndex = focusedWidgetId
@@ -190,18 +206,44 @@ export function WidgetRig(): JSX.Element {
         const spec = getWidgetSpec(slot.widgetId);
         if (spec === undefined) return null; // not landed on the bench yet (W2)
         const WidgetComponent = spec.component;
-        const focused = slot.widgetId === focusedWidgetId;
+        // The carried panel reads focused so its brass frame blooms and stands
+        // out while its siblings recede — the sanctioned way to signal
+        // "picked up" through `<WorldPanel>`'s frozen 2-material seam (no rim
+        // dim prop exists to touch). Interaction cadence only (grab / release).
+        const focused =
+          slot.widgetId === focusedWidgetId || slot.widgetId === drag.draggingId;
         const lod =
           Math.abs(slot.index - center) <= LOD_FULL_RADIUS ? "full" : "placard";
         return (
-          <WidgetComponent
+          // OUTER animation group: `matrixAutoUpdate={false}`, identity at rest
+          // (so the inner `<WorldPanel>` group positions the panel by its slot,
+          // static — the primitive's contract). During a drag the hook writes
+          // this group's matrix each frame; panel-content pointer events cannot
+          // complete a click because the gesture is pointer-captured on the
+          // frame grip (uikit never sees a matching pointerdown on a row).
+          <group
             key={slot.widgetId}
-            slot={slot}
-            focused={focused}
-            lod={lod}
-          />
+            ref={drag.panelGroupRef(slot.widgetId)}
+            matrixAutoUpdate={false}
+          >
+            <WidgetComponent
+              slot={slot}
+              focused={focused}
+              lod={lod}
+              dragHandleProps={drag.dragHandlePropsFor(slot.widgetId)}
+            />
+          </group>
         );
       })}
+      {/* The reduced-motion drag ghost (§4.4.4): a frame-only outline the hook
+          snaps to the candidate slot and toggles imperatively. One draw call,
+          and only visible while a reduced-motion drag is in flight. */}
+      <lineSegments
+        ref={drag.registerGhost}
+        geometry={GHOST_GEOMETRY}
+        material={GHOST_MATERIAL}
+        frustumCulled={false}
+      />
     </>
   );
 }
