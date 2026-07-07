@@ -22,13 +22,13 @@ export function StudioAtmosphere(): React.ReactElement {
       {/* Warm candle key + cool moonlight fill. */}
       <pointLight
         color={STUDIOLO.candleflame}
-        intensity={2.2}
+        intensity={2.6}
         distance={12}
         position={[0, 2.5, 1]}
       />
       <directionalLight
         color={STUDIOLO.moonlace}
-        intensity={0.35}
+        intensity={0.25}
         position={[0, 8, 2]}
       />
     </>
