@@ -29,12 +29,20 @@ import type { JournalEntry } from "@/app/actions/journal";
 import type { HashtagWithCount } from "@/app/actions/hashtags";
 
 /** The five studio widgets, in canonical tile order. */
-export type StudioWidgetId =
-  | "tasks"
-  | "captures"
-  | "agenda"
-  | "habits"
-  | "journal";
+export const STUDIO_WIDGET_ORDER = [
+  "tasks",
+  "captures",
+  "agenda",
+  "habits",
+  "journal",
+] as const satisfies readonly string[];
+
+/**
+ * The five studio widget ids, derived from the canonical order above so the
+ * order is the single source of truth. The resulting union is identical to the
+ * former hand-written one (`tasks | captures | agenda | habits | journal`).
+ */
+export type StudioWidgetId = (typeof STUDIO_WIDGET_ORDER)[number];
 
 /**
  * Uniform tile projection — `widget-cloud` maps five tiles off this
