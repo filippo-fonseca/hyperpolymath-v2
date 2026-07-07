@@ -215,9 +215,19 @@ export function TodayPanel(): JSX.Element {
                       void handleComplete(task);
                     }) as PanelClick}
                   >
-                    <Text fontSize={11} color={tick}>
-                      ○
-                    </Text>
+                    {/* The empty-checkbox mark. Drawn as a uikit ring Container,
+                        NOT a "○" glyph: uikit's Inter MSDF atlas has no U+25CB, so
+                        a text "○" logs "Missing glyph info for character" per row
+                        and renders as tofu. A bordered Container needs no glyph and
+                        preserves the concentric "target" look inside the ring
+                        button. */}
+                    <Container
+                      width={8}
+                      height={8}
+                      borderRadius={4}
+                      borderWidth={1}
+                      borderColor={tick}
+                    />
                   </Button>
                   <Container flexDirection="column" flexGrow={1} flexShrink={1}>
                     <Text fontSize={13} color={STUDIOLO.parchment}>
