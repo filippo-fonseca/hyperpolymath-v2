@@ -197,8 +197,20 @@ New direction (session "The Stark Makerspace Pivot", 2026-07-06): Filippo finds 
 - Foundation audit (Opus, b4ecde15): `.planning/lifeos-redesign/PHASE-3-FOUNDATION-AUDIT.md` — verdict KEEP don't rebuild; TodayPanel IS the widget template; Meridian presentation (~4,100 LOC) is the demolition target but its M-01 gcal bridge + classifyTablet/linkEventToProject survive; ≤3 transmission cap is the headline constraint.
 - Fable plan (claude-fable-5, 44b10f20): `.planning/lifeos-redesign/PHASE-3-PLAN.md` — milestone "THE BOTTEGA"; `<WorldPanel>` primitive (TodayPanel generalized); workbench-arc layout (≤7 slots) with a 70° aisle keeping the Tree; swipe=camera-glide via focusStack `{kind:"widget"}` + freed wheel; grab-move=slot reorder persisted as versioned `order: WidgetId[]`; MVP = 5 widgets (Tasks/Captures/flat Agenda/Habits/Journal); 18 units / 4 waves + 1 stretch; transmission solved via uikit translucency bodies + makeHologramMaterial frames + the freed zenith heroGlass slot as a swap-on-focus backplate; ≤190 draw calls, idle-rAF unchanged.
 
-### ⏳ HARD GATE (Phase 3) — awaiting Filippo, no builders spawn until answered
-8 gate questions in PHASE-3-PLAN §9 (each with a Fable default): (1) layout persistence store [localStorage], (2) MVP widget count [5], (3) grab-move scope [slot reorder], (4) Tree as hub [untouched centerpiece + aisle], (5) flat Agenda in MVP [yes full], (6) hologram aesthetic [Leonardo drafting light], (7) freed transmission slot [focused-panel backplate], (8) Meridian disposal [delete, git is archive]. Presented via AskUserQuestion; on answers → freeze contracts → launch Wave B1.
+### ✅ GATE PASSED (Phase 3) — Filippo ratified ALL 8 Fable defaults (2026-07-06)
+(1) persistence = localStorage; (2) MVP = 5 widgets; (3) grab-move = slot reorder; (4) Tree = untouched centerpiece + aisle; (5) flat Agenda ships in MVP (full); (6) aesthetic = Leonardo drafting light (cyan = Jarvis only); (7) freed transmission slot = focused-panel backplate (W-12 BUILDS); (8) Meridian = delete wholesale, git is archive. Plan stands exactly as written.
+
+### 🔄 Wave W1 — LAUNCHING (parallel, file-disjoint; Conductor pre-froze `panels/widgetTypes.ts` [WidgetId/BenchConfig/BenchSlot] + demounted the 6 meridian components from WorldScene, commit d47d10c)
+- W-01 demolition-and-amendments [e3c528fe] → extract agendaLogic (classifyTablet→classifyEvent, linkEventToProject, calendarDotColor) BEFORE deleting `meridian/`; ONE amendment commit (focusStack ring→widget, worldEvents 6→5, WorldData meridian→calendar rename + habits/journal add); provider habits+journal+hashtags queries + subs; SSR seeds; Ledger rename. Owns the meridian→calendar prop rename through WorldScene (rename ONLY, no mounts).
+- W-02 bench-solver-and-contracts [1a4ebcba] → panels/{widgetLayout(pure solver),widgetBus(singleton),widgetRegistry(EMPTY map; CONDUCTOR populates at wave boundaries)}.ts + tests.
+- W-03 worldpanel-primitive [6301673b] → panels/WorldPanel.tsx (TodayPanel generalized; uikit body + 2-instance hologram frame + placard LOD + honesty states; ≤22 full / ≤4 placard draw calls).
+- W-04 layout-persistence [5e772b99] → panels/widgetLayoutStore.ts (localStorage `world:widgetLayout@1` + useWidgetLayout) + tests.
+
+### Conductor duties at wave boundaries (Phase 3)
+- W1 close: verify tsc/build/tests green with `meridian/` gone; FREEZE contracts (widgetLayout, widgetBus, widgetRegistry shape, WorldPanel primitive, widgetTypes). NO WorldScene mount change (WidgetRig arrives W2). Then launch Wave W2.
+- W2 close: REMOVE `<TodayPanel/>` (W-05 deletes the file), ADD `<WidgetRig/>` after `<Embers/>` before `<CameraRig/>`; JarvisRing before PostFX; PostFX last. POPULATE widgetRegistry with the W2 widgets (tasks/captures/agenda) — Conductor-owned, like WorldScene mounts. Then launch Wave W3 (W-07 grab-move, W-10 habits, W-11 journal, W-12 focused-hero-glass, W-13 greeting). Add remaining registry entries at W3 close.
+- W4 sequential closeout: W-14 honesty-sweep → W-15 perf-hardening ‖ W-16 docs (Sonnet).
+- W5 STRETCH (Filippo decides later): W-17 tree-crosslink, W-18 free-placement.
 NOTE: Phase 2 (Meridian Ring) is code-complete on `lifeos-studiolo` but its in-browser human gate is now MOOT for the cal-view (being demolished); the reusable bridge/logic carries into Phase 3. Do not push/PR Phase 2's ring UI.
 ### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
 
