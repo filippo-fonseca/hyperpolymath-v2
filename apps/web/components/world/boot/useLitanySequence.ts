@@ -724,7 +724,18 @@ export function useLitanySequence(opts: LitanySequenceOptions): {
       // CameraRig's fresh 8 s failsafe so it never warns (§1).
       writeFlag();
       emitBootComplete();
-      return;
+      // React StrictMode (dev) double-invokes this effect: setup → cleanup →
+      // setup. `emittedRef` persists across the remount (same fiber), so without
+      // resetting it here the SECOND setup's emit is swallowed as a no-op — while
+      // CameraRig re-arms a fresh 8 s failsafe on ITS remount that then never gets
+      // cleared (the spurious "[CameraRig] boot-complete failsafe fired (8s)"
+      // warning seen on every instant/reduced-motion load). Resetting the guard on
+      // teardown lets the real (second) mount re-emit; boot-complete's listener is
+      // fully idempotent (focusStack.reset + _bootDone + clearTimeout), so a repeat
+      // emit is harmless.
+      return () => {
+        emittedRef.current = false;
+      };
     }
 
     // ── play ──────────────────────────────────────────────────────────────
