@@ -1,31 +1,55 @@
 "use client";
 
 /**
- * useStudioData.ts — The Studio · data-bridge
+ * useStudioData.ts — The Studio · data-bridge (context + slice types)
  *
- * The context object every scene system reads in RENDER (never per-frame). It
- * exposes only PLAIN DATA (no callbacks) so nothing tempts a per-frame read;
- * `useFrame` animation belongs to wave-2+ units. Context identity changes only
- * when a constituent changes (Realtime cadence).
+ * The context object every studio consumer reads in RENDER (never per-frame).
+ * It exposes only PLAIN DATA (no callbacks) so nothing tempts a per-frame read.
+ * Context identity changes only when a constituent changes (Realtime cadence).
+ *
+ * The provider (`StudioDataProvider`) mounts ABOVE the R3F <Canvas>. On R3F v9
+ * parent React context is bridged into the Canvas root automatically, so ONE
+ * provider serves BOTH the in-Canvas `widget-cloud` and the DOM `focus-overlay`.
  */
 import { createContext, useContext } from "react";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
-// Phase 3 (W-01): the new bench-data slices reuse the 2D server actions' return
-// types verbatim (type-only imports — no server code is pulled into the client
-// bundle, and nothing is redeclared). `getHabitCompletionsInRange` is imported
-// as a type-only binding purely to derive its row shape.
+// The bench-data slices reuse the 2D server actions' return types verbatim
+// (type-only imports — no server code is pulled into the client bundle).
+// `getHabitCompletionsInRange` is imported as a type-only binding purely to
+// derive its row shape.
 import type {
   HabitWithAreas,
   getHabitCompletionsInRange,
 } from "@/app/actions/habits";
 import type { JournalEntry } from "@/app/actions/journal";
 import type { HashtagWithCount } from "@/app/actions/hashtags";
-import type { EmberSlot, TreeLayoutResult } from "./treeLayout";
+
+/** The five studio widgets, in canonical tile order. */
+export type StudioWidgetId =
+  | "tasks"
+  | "captures"
+  | "agenda"
+  | "habits"
+  | "journal";
+
+/**
+ * Uniform tile projection — `widget-cloud` maps five tiles off this
+ * generically. Each field is pre-computed/pre-truncated so a tile is a dumb
+ * renderer of strings + a badge + a state token. A pure `useMemo` selector over
+ * the same context produces this (never a second query).
+ */
+export interface StudioTileSummary {
+  id: StudioWidgetId;
+  label: string; // "Tasks", "Captures", "Agenda", "Habits", "Journal"
+  badge: number | null; // count chip; null = no badge
+  headline: string | null; // next/latest item, pre-truncated
+  subline: string | null; // secondary line, e.g. "3 due today", "2/5 done"
+  state: "ok" | "empty" | "attention"; // attention: gcal expired/not_connected
+}
 
 /** One habit-completion row, as the 2D `getHabitCompletionsInRange` returns it. */
 export type HabitCompletionRow = Awaited<
@@ -33,11 +57,9 @@ export type HabitCompletionRow = Awaited<
 >[number];
 
 /**
- * The calendar slice of the world data (RENAMED from `meridian`, Phase 3 W-01;
- * shape byte-identical to the Phase-2 M-01 slice). A PURE projection of live
- * gcal data through the existing fetch layer — never a parallel store (gcal is
- * the only source of truth for events; nothing is mirrored in Postgres). The
- * surviving Agenda panel (W-09) consumes it verbatim.
+ * The calendar slice. A PURE projection of live gcal data through the existing
+ * fetch layer — never a parallel store (gcal is the only source of truth for
+ * events; nothing is mirrored in Postgres). The Agenda overlay consumes it.
  */
 export interface CalendarData {
   status: GcalConnectionStatus; // "connected" | "not_connected" | "expired"
@@ -49,22 +71,19 @@ export interface CalendarData {
 }
 
 /**
- * SSR seed for the calendar slice (page → WorldLoader → WorldCanvas →
- * StudioScene → StudioDataProvider). A superset of `CalendarData`: it also
- * carries the resolved visible-calendar ids so the client query key
- * (`worldCalIds`) matches the SSR fetch exactly and the seed hydrates the
- * client `useQuery` with no extra round-trip. `CalendarData` itself stays the
- * frozen shape (no `visibleCalendarIds`).
+ * SSR seed for the calendar slice: a superset of `CalendarData` that also
+ * carries the resolved visible-calendar ids so the client query key matches the
+ * SSR fetch exactly and the seed hydrates the client `useQuery` with no extra
+ * round-trip. `CalendarData` itself stays the frozen shape.
  */
 export interface CalendarSeed extends CalendarData {
   visibleCalendarIds: string[]; // persisted pref, else all calendars
 }
 
 /**
- * The habits slice (NEW, Phase 3 W-01 / §3.2). Habits + today's trailing
- * completion window, keyed exactly like the 2D `/habits` client. `windowStart`
- * is derived from the provider's existing `todayYmd` minute clock — no new
- * interval.
+ * The habits slice. Habits + today's trailing completion window, keyed exactly
+ * like the 2D `/habits` client. `windowStart` is derived from the provider's
+ * `todayYmd` minute clock — no new interval.
  */
 export interface HabitsData {
   habits: HabitWithAreas[]; // tableKey("habits", userId)
@@ -73,35 +92,47 @@ export interface HabitsData {
 }
 
 /**
- * The journal slice (NEW, Phase 3 W-01 / §3.2). Today's entry only (read-only
- * in MVP), keyed `["journaling", userId, todayYmd]` exactly like the 2D client.
+ * The journal slice. Today's entry only, keyed `["journaling", userId, today]`
+ * exactly like the 2D client.
  */
 export interface JournalTodayData {
-  entry: JournalEntry | null; // ["journaling", userId, todayYmd]
+  entry: JournalEntry | null;
 }
 
-export interface WorldData {
-  userId: string;
-  tree: SidebarArea[]; // active areas (the query already excludes archived)
-  layout: TreeLayoutResult;
+/**
+ * One SSR seed object (replaces the world provider's loose props). The `/studio`
+ * page builds this via `loadStudioSeed(userId)` and passes it whole to the
+ * provider, which hydrates each shared-key query with no extra round-trip.
+ */
+export interface StudioSeed {
   tasks: TaskWithProjects[];
-  emberSlots: EmberSlot[];
   captures: CaptureWithLinks[];
-  todayYmd: string;
-  calendar: CalendarData; // RENAMED from `meridian` (M-01) — the flat agenda slice
-  habits: HabitsData; // NEW (Phase 3 W-01)
-  journal: JournalTodayData; // NEW (Phase 3 W-01)
-  hashtags: HashtagWithCount[]; // NEW (Phase 3 W-01) — tag chips for the Captures panel (W-08 reads)
+  calendar: CalendarSeed;
+  habits: HabitWithAreas[];
+  habitCompletions: HabitCompletionRow[];
+  journal: JournalEntry | null;
 }
 
-export const WorldDataContext = createContext<WorldData | null>(null);
+export interface StudioData {
+  userId: string;
+  todayYmd: string;
+  tasks: TaskWithProjects[];
+  captures: CaptureWithLinks[];
+  hashtags: HashtagWithCount[]; // tag chips for the Captures overlay
+  calendar: CalendarData;
+  habits: HabitsData;
+  journal: JournalTodayData;
+}
 
-export function useStudioData(): WorldData {
-  const ctx = useContext(WorldDataContext);
+export const StudioDataContext = createContext<StudioData | null>(null);
+
+export function useStudioData(): StudioData {
+  const ctx = useContext(StudioDataContext);
   if (ctx === null) {
     throw new Error(
       "useStudioData() must be called inside a <StudioDataProvider>. " +
-        "The provider lives inside <Canvas>; scene systems read it in render.",
+        "The provider mounts above the R3F <Canvas>; both the in-Canvas " +
+        "widget-cloud and the DOM focus-overlay read it in render.",
     );
   }
   return ctx;
