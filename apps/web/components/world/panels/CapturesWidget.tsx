@@ -64,7 +64,12 @@ const CHIP_CAP = 4;
 /** ~2 lines at fontSize 13 (line box ≈ 16 px) — the 2-line clamp, uikit-side. */
 const CLAMP_HEIGHT = 34;
 
-export function CapturesWidget({ slot, focused, lod }: WidgetComponentProps): JSX.Element {
+export function CapturesWidget({
+  slot,
+  focused,
+  lod,
+  dragHandleProps,
+}: WidgetComponentProps): JSX.Element {
   const { userId, captures, hashtags } = useWorldData();
   const queryClient = useQueryClient();
 
@@ -149,6 +154,7 @@ export function CapturesWidget({ slot, focused, lod }: WidgetComponentProps): JS
       focused={focused}
       lod={lod}
       slot={slot}
+      dragHandleProps={dragHandleProps}
     >
       {visible.map((capture) => {
         // Chips derived from the hashtags slice, scoped to this capture's tags.
