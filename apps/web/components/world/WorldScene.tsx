@@ -13,9 +13,6 @@ import { Boughs } from "./tree/Boughs";
 import { Lanterns } from "./tree/Lanterns";
 import { Embers } from "./tree/Embers";
 import { Fireflies } from "./tree/Fireflies";
-import { MeridianRing } from "./meridian/MeridianRing";
-import { EventTablets } from "./meridian/EventTablets";
-import { PlumbLine } from "./meridian/PlumbLine";
 import { CameraRig } from "./camera/CameraRig";
 import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
@@ -24,9 +21,6 @@ import { JarvisRing } from "./jarvis/JarvisRing";
 import { JarvisChoreographer } from "./jarvis/useJarvisChoreography";
 import { Litany } from "./boot/Litany";
 import { Chimes } from "./audio/Chimes";
-import { MeridianLabels } from "./meridian/MeridianLabels";
-import { TollScheduler } from "./meridian/TollScheduler";
-import { MeridianAudio } from "./meridian/MeridianAudio";
 import { PerfGovernor } from "./perf/PerfGovernor";
 
 /**
@@ -73,15 +67,9 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Lanterns /> {/* [U-10] one lantern per project (pickable → focus) */}
       <Fireflies /> {/* [U-14] every unfiled capture as a firefly (one draw call) */}
       <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
-      <MeridianRing /> {/* [M-05] the calendar sky — canted brass annulus overhead */}
-      <EventTablets /> {/* [M-06] gcal events as glass tablets (1 InstancedMesh + zenith hero) */}
-      <PlumbLine /> {/* [M-07] the "now" god-ray falling from zenith toward the trunk */}
       <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
       <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
-      <TollScheduler /> {/* [M-09] arms one T-15 timer → emits meridian-toll; renders null */}
-      <MeridianAudio /> {/* [M-09] positional ring-toll from the zenith (reuses Chimes' unlock/mute) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
-      <MeridianLabels /> {/* [M-11] engraved hour numerals + date/zenith/hover captions */}
       <Ledger /> {/* [U-11] camera-anchored day-at-a-glance HUD strip */}
       <TodayPanel /> {/* [U-12] uikit holographic panel — complete-from-world */}
       <JarvisChoreographer /> {/* [U-16] routing choreography — resolve→assist→thread+fly */}
