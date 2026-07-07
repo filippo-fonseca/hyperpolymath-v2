@@ -31,6 +31,8 @@ import type { DragHandleProps } from "./WorldPanel";
 import { TasksWidget } from "./TasksWidget"; // W-05 (wave W2)
 import { CapturesWidget } from "./CapturesWidget"; // W-08 (wave W2)
 import { AgendaWidget } from "./agenda/AgendaWidget"; // W-09 (wave W2)
+import { HabitsWidget } from "./HabitsWidget"; // W-10 (wave W3)
+import { JournalWidget } from "./JournalWidget"; // W-11 (wave W3)
 
 /** Panel level-of-detail (PHASE-3-PLAN §7.2): full uikit content vs. frame + SDF title. */
 export type WidgetLod = "full" | "placard";
@@ -78,7 +80,9 @@ export const WIDGET_REGISTRY: Partial<Record<WidgetId, WidgetSpec>> = {
   tasks: { id: "tasks", title: "Tasks", component: TasksWidget },
   captures: { id: "captures", title: "Captures", component: CapturesWidget },
   agenda: { id: "agenda", title: "Agenda", component: AgendaWidget },
-  // Wave W3 (pending): habits [W-10], journal [W-11].
+  // Wave W3 (mounted): the full five-widget bench.
+  habits: { id: "habits", title: "Habits", component: HabitsWidget },
+  journal: { id: "journal", title: "Journal", component: JournalWidget },
 };
 
 /** The spec for `id`, or `undefined` if that widget hasn't landed on the bench yet. */

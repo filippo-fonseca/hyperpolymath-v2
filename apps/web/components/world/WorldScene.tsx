@@ -16,6 +16,7 @@ import { Lanterns } from "./tree/Lanterns";
 import { Embers } from "./tree/Embers";
 import { Fireflies } from "./tree/Fireflies";
 import { WidgetRig } from "./panels/WidgetRig";
+import { FocusedPanelGlass } from "./panels/FocusedPanelGlass";
 import { CameraRig } from "./camera/CameraRig";
 import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
@@ -76,6 +77,7 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Fireflies /> {/* [U-14] every unfiled capture as a firefly (one draw call) */}
       <Embers /> {/* [U-09] every task as an ember (two instanced draw calls) */}
       <WidgetRig /> {/* [P3 W-06] the bench of WorldPanels on the arc (pickables) — swipe/summon/LOD */}
+      <FocusedPanelGlass /> {/* [P3 W-12] heroGlass backplate behind the focused panel (freed transmission slot) */}
       <CameraRig /> {/* [U-07] CameraControls + world keys; sole flight authority */}
       <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
