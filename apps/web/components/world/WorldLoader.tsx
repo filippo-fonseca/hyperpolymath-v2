@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
@@ -95,10 +95,26 @@ function FallbackCard(): React.ReactElement {
 }
 
 export function WorldLoader(props: WorldLoaderProps): React.ReactElement {
-  // Probe once on mount; the result is stable for the session.
-  const webgl2 = useMemo(hasWebGL2, []);
+  // The WebGL2 probe is client-only (`getContext` needs a real canvas). Running
+  // it during render would make SSR — where it always returns false — emit the
+  // <FallbackCard> while the client emits <WorldCanvas>, a hydration mismatch
+  // (the "<WorldLoader> … <Suspense fallback> vs <div style=…>" error + flash).
+  //
+  // Instead, SSR and the first client render BOTH emit <WorldSkeleton> — which is
+  // exactly what the dynamic() `loading` fallback shows too, so the transition to
+  // the Canvas is seamless. The probe runs after mount, then we swap to the real
+  // Canvas (WebGL2 present) or the branded FallbackCard (absent) as a normal
+  // client update, never a hydration comparison.
+  const [decision, setDecision] = useState<"pending" | "canvas" | "fallback">(
+    "pending",
+  );
 
-  if (!webgl2) return <FallbackCard />;
+  useEffect(() => {
+    setDecision(hasWebGL2() ? "canvas" : "fallback");
+  }, []);
+
+  if (decision === "pending") return <WorldSkeleton />;
+  if (decision === "fallback") return <FallbackCard />;
 
   return <WorldCanvas {...props} />;
 }
