@@ -394,7 +394,9 @@ export function createHandGestureInterpreter(
       t: tMs,
       nx: sPalm.x,
       ny: sPalm.y,
-      depth: sSize > 0 ? Math.log(sSize) : 0,
+      // Floor the size before log so a degenerate/near-zero frame from the
+      // tracker can't emit a huge negative depth (matches pinch-pull's guard).
+      depth: Math.log(Math.max(sSize, 1e-4)),
       engaged: pinchActive,
     });
     pinchHold.push({ t: tMs, nx: sPalm.x, ny: sPalm.y, engaged: pinchActive });
