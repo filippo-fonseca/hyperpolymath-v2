@@ -74,7 +74,21 @@ export function useWorldKeys(): void {
 
       if (e.key === "Escape") {
         e.preventDefault();
+        // Pop per stack semantics: tablet-focus → framed ring → vestibule. The
+        // snapToNow-then-glide-home sequencing for leaving the ring lives in
+        // CameraRig's focus effect (the sole camera authority), not here — this
+        // handler only mutates the stack; the glide is CameraRig's to sequence.
         focusStack.pop(); // CameraRig's focus effect performs the glide
+        return;
+      }
+
+      // C — the look-up ritual (M-08). Frame the Meridian Ring overhead. Rank 1
+      // (sibling of bough), so it REPLACES a bough/lantern focus with one glide,
+      // exactly like pressing a bough digit. Same guards as the 1–9 siblings:
+      // the boot gate + typing guard + modifier bail above already apply.
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        focusStack.push({ kind: "ring" });
         return;
       }
 
