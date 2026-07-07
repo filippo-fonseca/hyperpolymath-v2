@@ -211,6 +211,47 @@ export const cameraBus: CameraBus = {
   },
 };
 
+// ── The ring-scrub seam (M-10 · zoetrope-scrub) ─────────────────────────────
+// While the ring is framed and time is being scrubbed (wheel / two-finger swipe
+// → `meridianBus.addScrubVelocity`), CameraControls must NOT also dolly on those
+// same wheel events — the framed ring IS the zoetrope mode (PHASE-2 §7 Q5, full
+// claim). `useRingScrub` (M-10) calls this on ring-focus enter/leave. We stash
+// the pre-scrub wheel action + up-look polar limit and restore them VERBATIM on
+// exit, so every other CameraRig behavior stays byte-identical. Uses the same
+// `controlsInstance` singleton M-08 published; no CameraControls props change.
+let ringScrubActive = false;
+let savedWheelAction: CameraControlsImpl["mouseButtons"]["wheel"] | null = null;
+let savedMinPolar: number | null = null;
+
+/**
+ * Suspend (or restore) CameraControls' wheel/dolly for ring scrubbing. When
+ * active: the mouse-wheel action is set to `NONE` (two-finger swipe = scrub, not
+ * dolly) and the up-look polar limit is relaxed to 0 so the eye can tip fully up
+ * into the overhead ring; when inactive, both are restored to their saved
+ * values. Idempotent and null-safe (no-op before the controls mount).
+ */
+export function setRingScrubActive(active: boolean): void {
+  const c = controlsInstance;
+  if (c === null) return;
+  if (active === ringScrubActive) return;
+  ringScrubActive = active;
+  if (active) {
+    savedWheelAction = c.mouseButtons.wheel;
+    c.mouseButtons.wheel = CameraControlsImpl.ACTION.NONE;
+    savedMinPolar = c.minPolarAngle;
+    c.minPolarAngle = 0;
+  } else {
+    if (savedWheelAction !== null) {
+      c.mouseButtons.wheel = savedWheelAction;
+      savedWheelAction = null;
+    }
+    if (savedMinPolar !== null) {
+      c.minPolarAngle = savedMinPolar;
+      savedMinPolar = null;
+    }
+  }
+}
+
 /** Resolve a focus level to a camera pose, or null if the target vanished. */
 function poseForFocus(
   f: FocusLevel,
@@ -288,6 +329,14 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
 
     controlsInstance = c;
     invalidateWorld = invalidate;
+
+    // Reset the M-10 ring-scrub seam to a clean state for this controls instance
+    // (a remount / HMR must not inherit a stale "active" flag or saved values —
+    // otherwise the next ring-focus enter would early-return and never suspend
+    // the wheel dolly). Fresh controls default to DOLLY + the prop polar limits.
+    ringScrubActive = false;
+    savedWheelAction = null;
+    savedMinPolar = null;
 
     // Disable truck/pan — guided flight: the user orbits and dollies, never
     // strafes off into the void (§1.1).
