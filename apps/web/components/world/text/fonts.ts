@@ -23,17 +23,31 @@ export const EB_GARAMOND_ITALIC = '/world/fonts/EBGaramond-Italic.ttf' as const;
  *
  * Covers every character needed for:
  *   - Area / project / task captions
- *   - The Ledger strip ("N tasks due · next event · M unfiled")
+ *   - The Ledger strip ("N due today · M unfiled · Lecture at two.")
  *   - Ribbon text from Jarvis SSE deltas
- *   - Date strings ("Mon 7 Jul", "2026-07-06", etc.)
+ *   - Date strings ("Monday, July 6th", "2026-07-06", etc.)
+ *   - The Meridian Ring (M-11): hour numerals, the italic date line, and the
+ *     hover/zenith captions.
+ *
+ * M-11 GLYPH AUDIT (Phase 2 — verified at world mount):
+ *   • DIGITS 0–9 are in the ASCII range below, so the ring's hour numerals
+ *     (24, 3, 6, 9, 12, …) preload with the rest of the atlas. EB Garamond's
+ *     DEFAULT figures are OLD-STYLE (text) figures — the ascending/descending
+ *     Renaissance numerals VISION §5.3 calls for — so no OpenType feature toggle
+ *     or extra glyph is required to get them; rendering the digits IS old-style.
+ *   • The stacked-overlap count badge uses the MULTIPLICATION SIGN "×"
+ *     (U+00D7), which is NOT in ASCII printable — it is added explicitly below.
+ *     This is the ONLY glyph the meridian layer adds; the set stays tight.
  */
 export const WORLD_GLYPH_SET =
-  // ASCII printable (space → ~)
+  // ASCII printable (space → ~) — includes 0123456789 (the ring's numerals)
   ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~' +
   // Common date / time punctuation not in ASCII printable
   // (middle dot, en/em dash, curly single+double quotes, ellipsis — escaped to
   //  avoid the ASCII-apostrophe-vs-string-delimiter hazard)
-  '\u00B7\u2013\u2014\u2018\u2019\u201C\u201D\u2026';
+  '\u00B7\u2013\u2014\u2018\u2019\u201C\u201D\u2026' +
+  // Meridian count badge "×" (multiplication sign — "×3" on merged tablets, M-11)
+  '\u00D7';
 
 /**
  * Preload both world fonts with the full glyph set so troika builds the
