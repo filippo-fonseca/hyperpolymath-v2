@@ -228,6 +228,16 @@ All 4 units landed. Non-baseline tsc = 0; build exit 0. Widgets: W-05 TasksWidge
 - W-13 greeting-and-sounds [92f99468] → boot/Litany.tsx (bottega greeting copy only; timeline frozen).
 Registry: Conductor adds habits/journal entries at W3 close. Then verify green → Wave W4 closeout.
 
+### ✅ Wave W3 COMPLETE, VERIFIED & WIRED (integration gate green)
+All 5 units landed. Non-baseline tsc = 0; build exit 0. W-07 grab-and-move (useWidgetDrag + WidgetRig integration; ray→arc inverse-of-solver yaw; self-invalidating loop early-exits to idle-zero; reduced-motion wireframe ghost; two-note dock chime; Esc cancel), W-10 HabitsWidget, W-11 JournalWidget (plain-text extraction, reuses ModeToggle Cmd+\ doorway), W-12 FocusedPanelGlass (registry 3/3), W-13 Litany greeting ("The bench is yours." — greeting lives in boot/useLitanySequence.ts composeGreeting, not Litany.tsx). Conductor wired W3 close (commit 0fdb5a5): registered habits/journal → full 5-widget bench; mounted `<FocusedPanelGlass/>` after `<WidgetRig/>`.
+Flags for W-14/gate: (a) W-07 signals "picked up" by blooming the carried panel's focused frame (WorldPanel has no per-panel rim-dim seam — frozen); (b) JournalWidget paints its empty line in the ready region because WorldPanel's empty/disconnected branch discards children — W-14 to make this uniform across panels.
+
+### 🔄 Wave W4 — CLOSEOUT (sequential): W-14 first (may touch all panels), then W-15 ‖ W-16
+- W-14 honesty-sweep [0e5029fa] → audit reduced-motion + empty/disconnected + boot-gate across every panel + drag; minimal surgical fixes. RUNNING.
+- W-15 perf-hardening → §7.4 protocol: static draw-call accounting + any automatable perf tests + record numbers; the live fps/draw-call numbers need Filippo's authed in-browser smoke (gate item). LAUNCH after W-14.
+- W-16 docs-changelog (Sonnet) → README meridian→bench rewrite, CHANGELOG, .planning note. LAUNCH after W-14 (‖ W-15).
+Then: final integration verify → Phase 3 code-complete → human smoke gate (§8 in-browser checklist, needs Filippo's Supabase session). Do NOT push/PR until Filippo blesses the smoke test.
+
 ### Conductor duties at wave boundaries (Phase 3)
 - W1 close: verify tsc/build/tests green with `meridian/` gone; FREEZE contracts (widgetLayout, widgetBus, widgetRegistry shape, WorldPanel primitive, widgetTypes). NO WorldScene mount change (WidgetRig arrives W2). Then launch Wave W2.
 - W2 close: REMOVE `<TodayPanel/>` (W-05 deletes the file), ADD `<WidgetRig/>` after `<Embers/>` before `<CameraRig/>`; JarvisRing before PostFX; PostFX last. POPULATE widgetRegistry with the W2 widgets (tasks/captures/agenda) — Conductor-owned, like WorldScene mounts. Then launch Wave W3 (W-07 grab-move, W-10 habits, W-11 journal, W-12 focused-hero-glass, W-13 greeting). Add remaining registry entries at W3 close.
