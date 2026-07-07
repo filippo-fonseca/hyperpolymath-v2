@@ -30,6 +30,7 @@ import {
   type HologramUniforms,
 } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
+import { STUDIO_RIM } from "../env/postfx.params";
 
 // The camera is fixed (StudioCanvas: position [0, 1.6, 6]); tiles orient to it
 // once on mount rather than billboarding per frame.
@@ -78,13 +79,20 @@ export function WidgetTile({
 
   // One material instance per tile; recreated only if the widget flips into (or
   // out of) the "attention" state, which swaps the rim to the ember alarm.
+  //
+  // Rim color is unified to warm candleflame for all non-attention tiles (was a
+  // per-widget tint — two of five were cyan, the scene's biggest "neon sci-fi"
+  // contributor). Widget identity survives via the per-widget BODY tint (kept),
+  // the badge/label text, and layout position. `attention` keeps its distinct
+  // ember-orange alarm channel.
   const material = useMemo(() => {
     const tint = TINTS[summary.id] ?? PARCHMENT;
     const attention = summary.state === "attention";
     return makeHologramMaterial({
       tint,
-      rimColor: attention ? STUDIOLO.emberAlarm : tint,
-      rimIntensity: 1.6,
+      opacity: 0.16,
+      rimColor: attention ? STUDIOLO.emberAlarm : STUDIOLO.candleflame,
+      rimIntensity: STUDIO_RIM.rest,
     });
   }, [summary.id, summary.state]);
 
@@ -122,7 +130,7 @@ export function WidgetTile({
 
     if (orientRef.current) orientRef.current.scale.setScalar(1 + 0.06 * t);
     const uniforms = material.userData.rimUniforms as HologramUniforms;
-    uniforms.uRimIntensity.value = 1.6 + 1.8 * t;
+    uniforms.uRimIntensity.value = STUDIO_RIM.rest + STUDIO_RIM.hoverBoost * t;
 
     if (Math.abs(target - t) > 0.001) invalidate();
   });

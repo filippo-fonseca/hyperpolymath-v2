@@ -13,18 +13,35 @@
  *     threshold — it will NOT glow. To bloom, an object must set
  *     `toneMapped:false` AND drive its color/emissive above 1 (the embers,
  *     lanterns, ring, fireflies, and ignited inlays all do this deliberately).
+ *     `luminanceSmoothing` only feathers the knee AT the threshold (a soft
+ *     candlelit edge instead of a ringy hard cut) — it does NOT grant
+ *     tone-mapped content bloom; the HDR opt-in contract holds.
  *   - Vignette darkens the frame edges for the candle-lit, inward focus.
  *
+ * Tuned params live in `postfx.params.ts` (pure, tested) so the doctrine
+ * invariants (threshold === 1) are locked without brittle snapshots.
+ *
  * Mounted once by the orchestrator inside <WorldScene/>. Runs at the composer's
- * default resolution — no custom render targets, no second pass.
+ * default resolution — no custom render targets, no second pass. `multisampling`
+ * is trimmed 8 → 4: a free per-frame bandwidth win, invisible on soft slabs at
+ * dpr ≤ 2.
  */
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 
+import { STUDIO_BLOOM } from "./postfx.params";
+
 export function PostFX(): React.ReactElement {
   return (
-    <EffectComposer>
-      <Bloom mipmapBlur luminanceThreshold={1} intensity={1.2} />
-      <Vignette offset={0.4} darkness={0.6} />
+    <EffectComposer multisampling={4}>
+      <Bloom
+        mipmapBlur
+        luminanceThreshold={STUDIO_BLOOM.luminanceThreshold}
+        luminanceSmoothing={STUDIO_BLOOM.luminanceSmoothing}
+        intensity={STUDIO_BLOOM.intensity}
+        radius={STUDIO_BLOOM.radius}
+        levels={STUDIO_BLOOM.levels}
+      />
+      <Vignette offset={0.4} darkness={0.62} />
     </EffectComposer>
   );
 }
