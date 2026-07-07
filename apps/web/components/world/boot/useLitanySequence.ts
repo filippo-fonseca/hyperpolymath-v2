@@ -198,14 +198,16 @@ export function litanySchedule(boughCount: number): {
 /**
  * Compose the whispered greeting once at mount (§6). Exported for tests.
  * `hour < 12` → morning, `< 18` → afternoon, else evening; then the date via
- * `date-fns` `format(now, "EEEE, MMMM do")`. e.g. "Good evening. Monday, July 6th."
+ * `date-fns` `format(now, "EEEE, MMMM do")`; then the bottega's closing line —
+ * the room is a working bench now, not a scholar's cell (Phase 3 W-13). e.g.
+ * "Good evening. Monday, July 6th. The bench is yours."
  * Every glyph is covered by `WORLD_GLYPH_SET`. No name — second-person-silent.
  */
 export function composeGreeting(now: Date): string {
   const hour = now.getHours();
   const salute =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return `${salute}. ${format(now, "EEEE, MMMM do")}.`;
+  return `${salute}. ${format(now, "EEEE, MMMM do")}. The bench is yours.`;
 }
 
 // ── §3 · easings ──────────────────────────────────────────────────────────────

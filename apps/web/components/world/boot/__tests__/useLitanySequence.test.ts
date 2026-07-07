@@ -75,19 +75,19 @@ describe("composeGreeting", () => {
   it("says 'Good morning' before noon", () => {
     // Local time constructor → getHours() is deterministic. Mon Jul 6 2026, 9am.
     expect(composeGreeting(new Date(2026, 6, 6, 9, 0, 0))).toBe(
-      "Good morning. Monday, July 6th.",
+      "Good morning. Monday, July 6th. The bench is yours.",
     );
   });
 
   it("says 'Good afternoon' between noon and 18:00", () => {
     expect(composeGreeting(new Date(2026, 6, 6, 14, 30, 0))).toBe(
-      "Good afternoon. Monday, July 6th.",
+      "Good afternoon. Monday, July 6th. The bench is yours.",
     );
   });
 
   it("says 'Good evening' from 18:00 onward", () => {
     expect(composeGreeting(new Date(2026, 6, 6, 20, 0, 0))).toBe(
-      "Good evening. Monday, July 6th.",
+      "Good evening. Monday, July 6th. The bench is yours.",
     );
   });
 
@@ -109,11 +109,11 @@ describe("composeGreeting", () => {
   it("formats the date with weekday, month, and ordinal day", () => {
     // New Year's Day 2026 is a Thursday; ordinal "1st".
     expect(composeGreeting(new Date(2026, 0, 1, 10, 0, 0))).toBe(
-      "Good morning. Thursday, January 1st.",
+      "Good morning. Thursday, January 1st. The bench is yours.",
     );
     // 23rd → ordinal "rd".
     expect(composeGreeting(new Date(2026, 11, 23, 20, 0, 0))).toBe(
-      "Good evening. Wednesday, December 23rd.",
+      "Good evening. Wednesday, December 23rd. The bench is yours.",
     );
   });
 });
