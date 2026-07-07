@@ -72,19 +72,12 @@ import { useThree } from "@react-three/fiber";
 import { CameraControls, CameraControlsImpl } from "@react-three/drei";
 import type { CameraBus, CameraPose } from "../data/diffing";
 import { worldEvents } from "../data/diffing";
-import { useWorldData, type MeridianData } from "../data/useWorldData";
+import { useWorldData } from "../data/useWorldData";
 import type { LanternLayout, TreeLayoutResult } from "../data/treeLayout";
-import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { boughFocusPose } from "../tree/Boughs";
 import { focusStack, useFocusStack, type FocusLevel } from "./useFocusStack";
 import { useWorldKeys } from "./useWorldKeys";
 import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
-import {
-  ringRotationFor,
-  solveMeridianLayout,
-} from "../meridian/meridianLayout";
-import { meridianBus } from "../meridian/meridianBus";
-import { RING_VIEW_POSE, tabletFocusPose } from "../meridian/meridianPoses";
 
 // ── Timing model (§1.3) ─────────────────────────────────────────────────────
 // `camera-controls` transitions are SmoothDamp toward the target, governed by
@@ -211,53 +204,10 @@ export const cameraBus: CameraBus = {
   },
 };
 
-// ── The ring-scrub seam (M-10 · zoetrope-scrub) ─────────────────────────────
-// While the ring is framed and time is being scrubbed (wheel / two-finger swipe
-// → `meridianBus.addScrubVelocity`), CameraControls must NOT also dolly on those
-// same wheel events — the framed ring IS the zoetrope mode (PHASE-2 §7 Q5, full
-// claim). `useRingScrub` (M-10) calls this on ring-focus enter/leave. We stash
-// the pre-scrub wheel action + up-look polar limit and restore them VERBATIM on
-// exit, so every other CameraRig behavior stays byte-identical. Uses the same
-// `controlsInstance` singleton M-08 published; no CameraControls props change.
-let ringScrubActive = false;
-let savedWheelAction: CameraControlsImpl["mouseButtons"]["wheel"] | null = null;
-let savedMinPolar: number | null = null;
-
-/**
- * Suspend (or restore) CameraControls' wheel/dolly for ring scrubbing. When
- * active: the mouse-wheel action is set to `NONE` (two-finger swipe = scrub, not
- * dolly) and the up-look polar limit is relaxed to 0 so the eye can tip fully up
- * into the overhead ring; when inactive, both are restored to their saved
- * values. Idempotent and null-safe (no-op before the controls mount).
- */
-export function setRingScrubActive(active: boolean): void {
-  const c = controlsInstance;
-  if (c === null) return;
-  if (active === ringScrubActive) return;
-  ringScrubActive = active;
-  if (active) {
-    savedWheelAction = c.mouseButtons.wheel;
-    c.mouseButtons.wheel = CameraControlsImpl.ACTION.NONE;
-    savedMinPolar = c.minPolarAngle;
-    c.minPolarAngle = 0;
-  } else {
-    if (savedWheelAction !== null) {
-      c.mouseButtons.wheel = savedWheelAction;
-      savedWheelAction = null;
-    }
-    if (savedMinPolar !== null) {
-      c.minPolarAngle = savedMinPolar;
-      savedMinPolar = null;
-    }
-  }
-}
-
 /** Resolve a focus level to a camera pose, or null if the target vanished. */
 function poseForFocus(
   f: FocusLevel,
   layout: TreeLayoutResult,
-  tree: SidebarArea[],
-  meridian: MeridianData,
 ): CameraPose | null {
   switch (f.kind) {
     case "vestibule":
@@ -270,31 +220,12 @@ function poseForFocus(
       const l = layout.byProject.get(f.projectId);
       return l ? lanternFocusPose(l) : null;
     }
-    // Phase 2 M-08 (lookup-camera): the ring look-up + tablet focus, through the
-    // frozen camera authority. `{kind:"ring"}` frames the ring overhead;
-    // `{kind:"ring", eventId}` flies to a specific tablet at reading distance.
-    case "ring": {
-      if (f.eventId === undefined) return RING_VIEW_POSE;
-      // Resolve the tablet slot from live gcal data via the pure solver, then
-      // place the camera at its CURRENT world position (dial rotation includes
-      // any live scrub offset). Interaction cadence — never per-frame.
-      const { byEvent } = solveMeridianLayout(
-        meridian.events,
-        tree,
-        meridian.calendars,
-        meridian.timezone,
-      );
-      const slot = byEvent.get(f.eventId);
-      // Event vanished (a refetch dropped it while focused) → frame the ring
-      // rather than a hard reset to the vestibule.
-      if (slot === undefined) return RING_VIEW_POSE;
-      const rot = ringRotationFor(
-        Date.now(),
-        meridianBus.getScrubOffsetMs(),
-        meridian.timezone,
-      );
-      return tabletFocusPose(slot, rot);
-    }
+    // Phase 3: the bench widget pose. W-06 fills the real widget pose (a bench
+    // slot's reading pose via the layout solver); until then the widget level
+    // resolves to the vestibule so the FocusLevel switch stays exhaustive and
+    // the camera never lands nowhere.
+    case "widget":
+      return VESTIBULE_POSE; // W-06 fills the real widget pose
   }
 }
 
@@ -308,16 +239,7 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
   const invalidate = useThree((s) => s.invalidate);
 
   const { current } = useFocusStack();
-  const { layout, tree, meridian } = useWorldData();
-
-  // The ring pose mapping reads live gcal data (M-08). Keep it reachable in the
-  // focus effect WITHOUT adding it to the effect deps — otherwise a routine
-  // meridian refetch (60 s / focus poll) would re-fire the effect and re-fly the
-  // camera. Refs hold the latest; the effect only triggers on focus/layout.
-  const treeRef = useRef(tree);
-  treeRef.current = tree;
-  const meridianRef = useRef(meridian);
-  meridianRef.current = meridian;
+  const { layout } = useWorldData();
 
   // Mount the single world keydown listener (§3.1) exactly once.
   useWorldKeys();
@@ -329,14 +251,6 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
 
     controlsInstance = c;
     invalidateWorld = invalidate;
-
-    // Reset the M-10 ring-scrub seam to a clean state for this controls instance
-    // (a remount / HMR must not inherit a stale "active" flag or saved values —
-    // otherwise the next ring-focus enter would early-return and never suspend
-    // the wheel dolly). Fresh controls default to DOLLY + the prop polar limits.
-    ringScrubActive = false;
-    savedWheelAction = null;
-    savedMinPolar = null;
 
     // Disable truck/pan — guided flight: the user orbits and dollies, never
     // strafes off into the void (§1.1).
@@ -432,41 +346,16 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
       return; // gate: ignore navigation until the Litany finishes
     }
 
-    const prev = prevFocusRef.current;
     prevFocusRef.current = current;
 
-    const pose = poseForFocus(
-      current,
-      layout,
-      treeRef.current,
-      meridianRef.current,
-    );
+    const pose = poseForFocus(current, layout);
     if (pose === null) {
       // Stale focus (area/project deleted via Realtime) — fall back to base.
       focusStack.reset();
       return;
     }
 
-    // The look-up ring arc is a single 800 ms glide (§5.4 — the instrument
-    // should loom); every other focus keeps the 700 ms comfort glide.
-    const ms = current.kind === "ring" ? 800 : 700;
-
-    // Esc semantics (M-08): leaving the ring entirely (a ring level → a non-ring
-    // level) must settle the dial back to *now* FIRST, THEN glide home —
-    // SEQUENCED, never parallel. `meridianBus.snapToNow()` is the decelerating
-    // return (a resolved no-op until M-10 registers the scrub impl; instant
-    // under reduced motion). Tablet → framed-ring pops stay ring-focused and
-    // skip the snap. All motion still flows through `cameraBus.flyTo` alone.
-    const leavingRing = prev.kind === "ring" && current.kind !== "ring";
-    if (leavingRing) {
-      void (async () => {
-        await meridianBus.snapToNow();
-        await cameraBus.flyTo(pose, ms);
-      })();
-      return;
-    }
-
-    void cameraBus.flyTo(pose, ms);
+    void cameraBus.flyTo(pose, 700);
   }, [current, layout]);
 
   return (

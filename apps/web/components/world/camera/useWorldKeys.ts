@@ -82,14 +82,12 @@ export function useWorldKeys(): void {
         return;
       }
 
-      // C — the look-up ritual (M-08). Frame the Meridian Ring overhead. Rank 1
-      // (sibling of bough), so it REPLACES a bough/lantern focus with one glide,
-      // exactly like pressing a bough digit. Same guards as the 1–9 siblings:
-      // the boot gate + typing guard + modifier bail above already apply.
+      // C — reserved for the bench. The Meridian Ring's look-up ritual is gone;
+      // W-06 re-points C to summon the Agenda panel
+      // (focusStack.push({ kind: "widget", widgetId: "agenda" })). Until then
+      // this is an inert no-op so the muscle memory never pushes a dead level.
       if (e.key === "c" || e.key === "C") {
-        e.preventDefault();
-        focusStack.push({ kind: "ring" });
-        return;
+        return; // W-06 re-points C to summon Agenda
       }
 
       // 1–9 → focus the Nth bough. `layout.boughs` is already in orderIndex order
