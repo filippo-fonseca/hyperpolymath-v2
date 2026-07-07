@@ -49,7 +49,28 @@ export interface ChimeEngine {
   dispose(): void;
 }
 
-function isMuted(): boolean {
+/**
+ * The world's SINGLE shared audio-unlock flag. Flipped `true` the first time the
+ * one gesture-unlock listener (below) fires — i.e. the first `pointerdown`/
+ * `keydown`. It represents "a user gesture has occurred, so browsers now permit
+ * audio to start" and stays true for the page lifetime (a gesture, once given,
+ * is not taken back — `dispose()` closing the ChimeContext must NOT reset it).
+ *
+ * This is the ONE unlock path in the world. Other audio surfaces (e.g. the
+ * Meridian toll's drei `PositionalAudio`, which rides three.js's own shared
+ * `THREE.AudioContext` on the camera listener) MUST reuse this flag rather than
+ * install a second gesture listener or spin up a second unlock mechanism.
+ */
+let audioUnlocked = false;
+
+/** True once the shared gesture-unlock has fired. See `audioUnlocked`. */
+export function isAudioUnlocked(): boolean {
+  return audioUnlocked;
+}
+
+/** The shared global-mute flag (`localStorage['world:muted']`). Reused by every
+ * audio surface so nothing can play while the world is muted. */
+export function isMuted(): boolean {
   try {
     return window.localStorage.getItem("world:muted") === "true";
   } catch {
@@ -284,6 +305,9 @@ export function createChimeEngine(): ChimeEngine {
   }
 
   const unlock = () => {
+    // A user gesture has occurred: mark the shared unlock flag so every audio
+    // surface (chimes here + the Meridian toll) may start. Set once, never reset.
+    audioUnlocked = true;
     const c = ensureContext();
     if (c && c.state === "suspended") void c.resume().catch(() => {});
     removeUnlock(); // one-time — first gesture is enough
