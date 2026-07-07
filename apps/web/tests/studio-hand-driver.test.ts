@@ -14,8 +14,14 @@ function makeSink(): StudioInputSink & {
   moveCursor: ReturnType<typeof vi.fn>;
   setCursorActive: ReturnType<typeof vi.fn>;
   emitIntent: ReturnType<typeof vi.fn>;
+  emitPhase: ReturnType<typeof vi.fn>;
 } {
-  return { moveCursor: vi.fn(), setCursorActive: vi.fn(), emitIntent: vi.fn() };
+  return {
+    moveCursor: vi.fn(),
+    setCursorActive: vi.fn(),
+    emitIntent: vi.fn(),
+    emitPhase: vi.fn(),
+  };
 }
 
 const ENV: StudioDriverEnv = {

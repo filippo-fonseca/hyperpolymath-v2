@@ -7,6 +7,7 @@ import type {
   StudioInputDriver,
   StudioInputSink,
   StudioIntent,
+  StudioPhaseEvent,
 } from "@/lib/studio/input/types";
 
 function makeHub(stage = { left: 0, top: 0, width: 1000, height: 500 }) {
@@ -187,12 +188,102 @@ describe("StudioInputHub — intent bus", () => {
     ]);
   });
 
+  it("passes the targetless halt intent through unchanged", () => {
+    const hub = makeHub();
+    const got: StudioIntent[] = [];
+    hub.subscribeIntent((i) => got.push(i));
+    hub.sink.emitIntent({ type: "halt" });
+    expect(got).toEqual([{ type: "halt" }]);
+  });
+
   it("stops delivering after unsubscribe", () => {
     const hub = makeHub();
     const cb = vi.fn();
     const unsub = hub.subscribeIntent(cb);
     unsub();
     hub.sink.emitIntent({ type: "collapse" });
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe("StudioInputHub — phase bus", () => {
+  it("upgrades grabStart with the current hover target", () => {
+    const hub = makeHub();
+    hub.registerHoverProvider({ id: "p", priority: 5, resolve: () => "widget-7" });
+    hub.sink.moveCursor(0.5, 0.5);
+    const got: StudioPhaseEvent[] = [];
+    hub.subscribePhase((e) => got.push(e));
+    hub.sink.emitPhase({ type: "grabStart" });
+    hub.sink.emitPhase({ type: "grabMove", nx: 0.6, ny: 0.4 });
+    hub.sink.emitPhase({ type: "grabEnd" });
+    expect(got).toEqual([
+      { type: "grabStart", targetId: "widget-7" },
+      { type: "grabMove", nx: 0.6, ny: 0.4 },
+      { type: "grabEnd" },
+    ]);
+  });
+
+  it("drops the whole grab lifecycle when grabStart has no hover target", () => {
+    const hub = makeHub();
+    hub.sink.moveCursor(0.5, 0.5); // no non-DOM providers → null hover
+    const cb = vi.fn();
+    hub.subscribePhase(cb);
+    hub.sink.emitPhase({ type: "grabStart" });
+    hub.sink.emitPhase({ type: "grabMove", nx: 0.6, ny: 0.4 });
+    hub.sink.emitPhase({ type: "grabEnd" });
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("re-delivers a fresh grab after a suppressed one ends", () => {
+    const hub = makeHub();
+    const provider = { id: "p", priority: 5, resolve: (): string | null => null };
+    hub.registerHoverProvider(provider);
+    hub.sink.moveCursor(0.5, 0.5);
+    const got: StudioPhaseEvent[] = [];
+    hub.subscribePhase((e) => got.push(e));
+
+    // First grab: no target → suppressed.
+    hub.sink.emitPhase({ type: "grabStart" });
+    hub.sink.emitPhase({ type: "grabEnd" });
+    expect(got).toEqual([]);
+
+    // Now a target exists; a new grab must deliver normally.
+    (provider as { resolve: () => string | null }).resolve = () => "widget-2";
+    hub.sink.moveCursor(0.51, 0.51); // re-resolve hover
+    hub.sink.emitPhase({ type: "grabStart" });
+    hub.sink.emitPhase({ type: "grabEnd" });
+    expect(got).toEqual([
+      { type: "grabStart", targetId: "widget-2" },
+      { type: "grabEnd" },
+    ]);
+  });
+
+  it("passes drag and pull phases through untouched", () => {
+    const hub = makeHub();
+    const got: StudioPhaseEvent[] = [];
+    hub.subscribePhase((e) => got.push(e));
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 });
+    hub.sink.emitPhase({ type: "dragEnd" });
+    hub.sink.emitPhase({ type: "pullStart" });
+    hub.sink.emitPhase({ type: "pullDelta", delta: 0.3 });
+    hub.sink.emitPhase({ type: "pullEnd" });
+    expect(got).toEqual([
+      { type: "dragStart" },
+      { type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 },
+      { type: "dragEnd" },
+      { type: "pullStart" },
+      { type: "pullDelta", delta: 0.3 },
+      { type: "pullEnd" },
+    ]);
+  });
+
+  it("stops delivering phases after unsubscribe", () => {
+    const hub = makeHub();
+    const cb = vi.fn();
+    const unsub = hub.subscribePhase(cb);
+    unsub();
+    hub.sink.emitPhase({ type: "dragStart" });
     expect(cb).not.toHaveBeenCalled();
   });
 });
