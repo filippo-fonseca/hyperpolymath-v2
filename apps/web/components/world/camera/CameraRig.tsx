@@ -72,12 +72,19 @@ import { useThree } from "@react-three/fiber";
 import { CameraControls, CameraControlsImpl } from "@react-three/drei";
 import type { CameraBus, CameraPose } from "../data/diffing";
 import { worldEvents } from "../data/diffing";
-import { useWorldData } from "../data/useWorldData";
+import { useWorldData, type MeridianData } from "../data/useWorldData";
 import type { LanternLayout, TreeLayoutResult } from "../data/treeLayout";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { boughFocusPose } from "../tree/Boughs";
 import { focusStack, useFocusStack, type FocusLevel } from "./useFocusStack";
 import { useWorldKeys } from "./useWorldKeys";
 import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
+import {
+  ringRotationFor,
+  solveMeridianLayout,
+} from "../meridian/meridianLayout";
+import { meridianBus } from "../meridian/meridianBus";
+import { RING_VIEW_POSE, tabletFocusPose } from "../meridian/meridianPoses";
 
 // ── Timing model (§1.3) ─────────────────────────────────────────────────────
 // `camera-controls` transitions are SmoothDamp toward the target, governed by
@@ -208,6 +215,8 @@ export const cameraBus: CameraBus = {
 function poseForFocus(
   f: FocusLevel,
   layout: TreeLayoutResult,
+  tree: SidebarArea[],
+  meridian: MeridianData,
 ): CameraPose | null {
   switch (f.kind) {
     case "vestibule":
@@ -220,13 +229,31 @@ function poseForFocus(
       const l = layout.byProject.get(f.projectId);
       return l ? lanternFocusPose(l) : null;
     }
-    // Phase 2 M-01: the ring focus levels are compile-safety stubs here — the
-    // real RING_VIEW_POSE / tabletFocusPose mapping is added by M-08
-    // (lookup-camera), which owns this switch for Wave M2. Returning null keeps
-    // the exhaustive union compiling without asserting a camera authority M-01
-    // doesn't own.
-    case "ring":
-      return null;
+    // Phase 2 M-08 (lookup-camera): the ring look-up + tablet focus, through the
+    // frozen camera authority. `{kind:"ring"}` frames the ring overhead;
+    // `{kind:"ring", eventId}` flies to a specific tablet at reading distance.
+    case "ring": {
+      if (f.eventId === undefined) return RING_VIEW_POSE;
+      // Resolve the tablet slot from live gcal data via the pure solver, then
+      // place the camera at its CURRENT world position (dial rotation includes
+      // any live scrub offset). Interaction cadence — never per-frame.
+      const { byEvent } = solveMeridianLayout(
+        meridian.events,
+        tree,
+        meridian.calendars,
+        meridian.timezone,
+      );
+      const slot = byEvent.get(f.eventId);
+      // Event vanished (a refetch dropped it while focused) → frame the ring
+      // rather than a hard reset to the vestibule.
+      if (slot === undefined) return RING_VIEW_POSE;
+      const rot = ringRotationFor(
+        Date.now(),
+        meridianBus.getScrubOffsetMs(),
+        meridian.timezone,
+      );
+      return tabletFocusPose(slot, rot);
+    }
   }
 }
 
@@ -240,7 +267,16 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
   const invalidate = useThree((s) => s.invalidate);
 
   const { current } = useFocusStack();
-  const { layout } = useWorldData();
+  const { layout, tree, meridian } = useWorldData();
+
+  // The ring pose mapping reads live gcal data (M-08). Keep it reachable in the
+  // focus effect WITHOUT adding it to the effect deps — otherwise a routine
+  // meridian refetch (60 s / focus poll) would re-fire the effect and re-fly the
+  // camera. Refs hold the latest; the effect only triggers on focus/layout.
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+  const meridianRef = useRef(meridian);
+  meridianRef.current = meridian;
 
   // Mount the single world keydown listener (§3.1) exactly once.
   useWorldKeys();
@@ -332,22 +368,56 @@ export function CameraRig(props?: CameraRigProps): ReactElement {
 
   // ── Focus → pose → flyTo: the ONLY flight authority for focus (§2.3) ──────
   const isInitialMount = useRef(true);
+  const prevFocusRef = useRef<FocusLevel>(focusStack.current());
   useEffect(() => {
     if (isInitialMount.current) {
       // Vestibule at mount = already there (§1.4, instant setLookAt above). Skip
       // the mount flight but consume the flag regardless of the boot gate so the
       // first REAL navigation is never swallowed.
       isInitialMount.current = false;
+      prevFocusRef.current = current;
       return;
     }
-    if (!bootDone()) return; // gate: ignore navigation until the Litany finishes
-    const pose = poseForFocus(current, layout);
+    if (!bootDone()) {
+      prevFocusRef.current = current; // keep the transition edge honest post-boot
+      return; // gate: ignore navigation until the Litany finishes
+    }
+
+    const prev = prevFocusRef.current;
+    prevFocusRef.current = current;
+
+    const pose = poseForFocus(
+      current,
+      layout,
+      treeRef.current,
+      meridianRef.current,
+    );
     if (pose === null) {
       // Stale focus (area/project deleted via Realtime) — fall back to base.
       focusStack.reset();
       return;
     }
-    void cameraBus.flyTo(pose, 700);
+
+    // The look-up ring arc is a single 800 ms glide (§5.4 — the instrument
+    // should loom); every other focus keeps the 700 ms comfort glide.
+    const ms = current.kind === "ring" ? 800 : 700;
+
+    // Esc semantics (M-08): leaving the ring entirely (a ring level → a non-ring
+    // level) must settle the dial back to *now* FIRST, THEN glide home —
+    // SEQUENCED, never parallel. `meridianBus.snapToNow()` is the decelerating
+    // return (a resolved no-op until M-10 registers the scrub impl; instant
+    // under reduced motion). Tablet → framed-ring pops stay ring-focused and
+    // skip the snap. All motion still flows through `cameraBus.flyTo` alone.
+    const leavingRing = prev.kind === "ring" && current.kind !== "ring";
+    if (leavingRing) {
+      void (async () => {
+        await meridianBus.snapToNow();
+        await cameraBus.flyTo(pose, ms);
+      })();
+      return;
+    }
+
+    void cameraBus.flyTo(pose, ms);
   }, [current, layout]);
 
   return (
