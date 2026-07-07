@@ -45,7 +45,12 @@ import { useEffect, useMemo, type JSX } from "react";
 import { useThree } from "@react-three/fiber";
 import { focusStack, useFocusStack } from "../camera/useFocusStack";
 import { bootDone } from "../camera/CameraRig";
-import { neighborOf, solveBenchLayout } from "./widgetLayout";
+import {
+  lodCenterIndex,
+  lodForSlot,
+  neighborOf,
+  solveBenchLayout,
+} from "./widgetLayout";
 import { getWidgetSpec } from "./widgetRegistry";
 import { useWidgetLayout } from "./widgetLayoutStore";
 import {
@@ -148,9 +153,6 @@ function useWheelSwipe(): void {
   }, [gl]);
 }
 
-/** Full-LOD radius from the arc centre: the panel + its two arc neighbours. */
-const LOD_FULL_RADIUS = 1;
-
 /**
  * The bench: mounts every REGISTERED widget on its solved slot with the right
  * LOD, keeps the module bench state synced for the pose getter + navigation, and
@@ -194,11 +196,13 @@ export function WidgetRig(): JSX.Element {
   const drag = useWidgetDrag(slots, layout.order);
 
   // LOD centre (§7.2): the focused slot, or the arc middle at the vestibule.
+  // `lodCenterIndex`/`lodForSlot` are the pure §7.2 selector (widgetLayout.ts) —
+  // the ≤3-full draw-call invariant they enforce is pinned by benchPerf.test.ts.
   const n = slots.length;
   const focusIndex = focusedWidgetId
     ? slots.findIndex((s) => s.widgetId === focusedWidgetId)
     : -1;
-  const center = focusIndex >= 0 ? focusIndex : Math.floor(n / 2);
+  const center = lodCenterIndex(n, focusIndex);
 
   return (
     <>
@@ -212,8 +216,7 @@ export function WidgetRig(): JSX.Element {
         // dim prop exists to touch). Interaction cadence only (grab / release).
         const focused =
           slot.widgetId === focusedWidgetId || slot.widgetId === drag.draggingId;
-        const lod =
-          Math.abs(slot.index - center) <= LOD_FULL_RADIUS ? "full" : "placard";
+        const lod = lodForSlot(slot.index, center);
         return (
           // OUTER animation group: `matrixAutoUpdate={false}`, identity at rest
           // (so the inner `<WorldPanel>` group positions the panel by its slot,

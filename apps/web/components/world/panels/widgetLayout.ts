@@ -189,6 +189,36 @@ export function solveBenchLayout(order: WidgetId[], cfg?: Partial<BenchConfig>):
   return slots;
 }
 
+// ── The LOD law (§7.2 — the draw-call guard) ─────────────────────────────────
+/**
+ * Full-LOD radius from the arc centre: a panel renders FULL content only within
+ * this many slots of the LOD centre — the focused panel plus its ≤2 arc
+ * neighbours. Everything else is a placard (frame + one SDF title). This single
+ * constant is what caps the bench at ≤3 full uikit `<Root>`s (§7.2), the
+ * load-bearing draw-call invariant `benchPerf.test.ts` pins.
+ */
+export const LOD_FULL_RADIUS = 1;
+
+/**
+ * The LOD centre for a bench of `slotCount` slots: the `focusIndex` when a bench
+ * panel is focused (≥ 0), else the arc middle (`floor(n/2)`) at the vestibule
+ * (`focusIndex < 0`). Pure mirror of the rig's centre choice, hoisted here so the
+ * ≤3-full invariant is provable without mounting the R3F rig.
+ */
+export function lodCenterIndex(slotCount: number, focusIndex: number): number {
+  return focusIndex >= 0 ? focusIndex : Math.floor(slotCount / 2);
+}
+
+/**
+ * The LOD for slot `index` given the resolved `center`: "full" within
+ * `LOD_FULL_RADIUS`, else "placard". Because the full window is the closed
+ * interval `[center-1, center+1]`, at most THREE slots are ever "full" for any
+ * `center`/`slotCount` — the §7.2 draw-call ceiling, guaranteed by construction.
+ */
+export function lodForSlot(index: number, center: number): "full" | "placard" {
+  return Math.abs(index - center) <= LOD_FULL_RADIUS ? "full" : "placard";
+}
+
 // ── Swipe navigation (§4.3) ──────────────────────────────────────────────────
 /**
  * The widget one slot away from `current` in direction `dir` (+1 = right/next,
