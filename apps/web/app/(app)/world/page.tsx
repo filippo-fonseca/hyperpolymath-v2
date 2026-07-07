@@ -42,7 +42,7 @@ import { WorldLoader } from "@/components/world/WorldLoader";
  * round-trip. All three-touching code lives behind WorldLoader's ssr:false
  * boundary — this file ships zero 3D bytes.
  *
- * Meridian seed (Phase 2 M-01) — the calendar sky:
+ * Calendar seed (Phase 2 M-01, renamed from `meridian` in Phase 3 W-01):
  *   Mirrors `/calendar/page.tsx` exactly (the verified precedent): read
  *   connection status + timezone + visible-calendar prefs in parallel; if
  *   connected, `getValidGcalToken` → `listCalendars` → per-calendar
@@ -50,7 +50,7 @@ import { WorldLoader } from "@/components/world/WorldLoader";
  *   (`singleEvents`/`orderBy`/`timeZone`), wrapped in try/catch → status
  *   variants. gcal is the ONLY source of truth for events — nothing is mirrored
  *   in Postgres, so this route is `force-dynamic` (caching would surface stale
- *   events). The resolved seed hydrates the client meridian query with no extra
+ *   events). The resolved seed hydrates the client calendar query with no extra
  *   client round-trip.
  */
 
@@ -102,12 +102,12 @@ export default async function WorldPage() {
 
   const initialJournal = journalResult.success ? journalResult.data : null;
 
-  const meridianTz = tzRow[0]?.tz ?? "UTC";
+  const calendarTz = tzRow[0]?.tz ?? "UTC";
   const persistedVisibleCals = tzRow[0]?.visibleCals ?? null;
 
   // The rolling slab: [startOfDay(today) - 1 day, startOfDay(today) + 8 days)
   // in the user's IANA timezone. TZDate keeps day math DST-correct.
-  const todayInTz = startOfDay(new TZDate(Date.now(), meridianTz));
+  const todayInTz = startOfDay(new TZDate(Date.now(), calendarTz));
   const windowStart = addDays(todayInTz, -1);
   const windowEnd = addDays(todayInTz, 8);
 
@@ -139,7 +139,7 @@ export default async function WorldPage() {
             singleEvents: true, // expand recurring
             orderBy: "startTime",
             maxResults: 250,
-            timeZone: meridianTz, // DST correctness
+            timeZone: calendarTz, // DST correctness
           });
           return (data.items ?? [])
             .map((e) => eventToDTO(e, cid))
@@ -164,7 +164,7 @@ export default async function WorldPage() {
     status,
     events,
     calendars,
-    timezone: meridianTz,
+    timezone: calendarTz,
     windowStartMs: windowStart.getTime(),
     windowEndMs: windowEnd.getTime(),
     visibleCalendarIds,
