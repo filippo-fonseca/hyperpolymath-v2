@@ -107,7 +107,10 @@ export function useStudioInput(): StudioInputBus {
   return useHub();
 }
 
-/** Re-renders on every cursor change. Intended for the debug cursor only. */
+/**
+ * Re-renders on every cursor change. Intended for cursor-visual overlays only
+ * (the debug cursor and the production hand reticle) — never for tree-wide state.
+ */
 export function useStudioCursor(): StudioCursor {
   const hub = useHub();
   return useSyncExternalStore(
