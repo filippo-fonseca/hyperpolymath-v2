@@ -343,3 +343,195 @@ Steps to run and record:
 
 Fill the `⟨PENDING⟩` cells with the observed numbers and tick each box. Ship the
 meridian perf gate when every box is checked.
+
+> **Phase-3 note (W-15):** the meridian layer above was DEMOLISHED with `meridian/`
+> (its `meridianPerf.test.ts` deleted). The meridian ≤170 scene ceiling retires
+> with it; the Phase-3 §7.2 ceiling below (bench layer ≤90, new scene ≤190)
+> supersedes it. The meridian sections are kept as the historical record of the
+> living protocol; the live meridian gate rows are moot now that the ring is gone.
+
+---
+---
+
+# The Studiolo — Performance Protocol & Audit, The Bottega (Phase 3, W-15)
+
+Phase 3 (The Bottega) replaces the single `TodayPanel` with a navigable **bench**
+of up to seven `WorldPanel`s on an arc. `PHASE-3-PLAN.md` §7 is LAW for the bench
+layer; this section records how the assembled bench conforms — the DERIVABLE
+audit filled in by code inspection + the pure invariants pinned by
+`panels/__tests__/benchPerf.test.ts`, and the live-fps / `gl.info.render.calls`
+rows marked **PENDING HUMAN GATE** for Filippo to record on the authenticated
+`/world` route (the static/CI verifier cannot open an authenticated session).
+
+Method for everything marked "(derivable)": direct source inspection of every
+`<mesh>` / `InstancedMesh` / uikit `<Root>` / `<Text>` under
+`components/world/panels/**` plus the pure invariants in `benchPerf.test.ts`.
+
+## B1. Bench draw-call audit vs §7.2 budget (derivable)
+
+§7.2 ceilings: **bench layer ≤90**; **new scene ≤190** (meridian's ≤170 retires;
+base scene minus TodayPanel's ~20 plus the bench). The bench LOD law caps FULL
+content at **3 panels** (focused + its two arc neighbours; at the vestibule, the
+central trio) — everything else is a placard. Live-widget cap = **7**
+(`DEFAULT_BENCH_CONFIG.maxSlots`).
+
+Per-surface counts, read from source:
+
+| Surface | Draw call(s) | §7.2 budget | Evidence (code) |
+|---|---|---|---|
+| **Full panel** (`WorldPanel.tsx`, `lod="full"`) | **≤22** = uikit `<Root>` batches ≤21 + brass-rail frame 1 | ≤22 | `WorldPanel.tsx:54` comment; ONE `<Root>` (`WorldPanel.tsx:301`), ONE `<mesh FRAME_GEOMETRY>` (`:270`). Rows capped at `PANEL_ROW_CAP=12` (`:145`). Panel text is **uikit**, not SDF. |
+| **Placard** (`WorldPanel.tsx`, `lod="placard"`) | **2** = frame 1 + ONE SDF `<Text>` 1 | ≤4 | `WorldPanel.tsx:52` comment; `<mesh FRAME_GEOMETRY>` (`:270`) + `<SdfText>` title (`:280`), `sdfGlyphSize=64` (§7.2 SDF ceiling). |
+| **Focused-panel hero backplate** (`FocusedPanelGlass.tsx`) | **1 (+1 transmission pass)** | 1 (+1) | ONE `<RoundedBox>{heroGlass()}` (`FocusedPanelGlass.tsx:176`), mounted ONLY while `focus.kind === "widget"` (`:88`). Consumes the 3rd/3 `HERO_GLASS_CAP` slot freed by the zenith tablet's demolition. |
+| **Reduced-motion drag ghost** (`WidgetRig.tsx`) | 1 when a reduced-motion drag is live, else **0** | — | ONE `<lineSegments GHOST_GEOMETRY>` (`WidgetRig.tsx:241`), `visible=false` at rest (`useWidgetDrag.ts:603`); a look-up/interaction peak, never the idle bench. |
+| **Bench frame geometry** | ~72 tris/panel | ≤8k bench tris | ONE merged `FRAME_GEOMETRY` = 6 boxes × 12 tris (`WorldPanel.tsx:156`), module singleton built once. |
+
+### Static tally (the §7.4 five-widget seed)
+
+| Scenario | Full | Placard | Backplate | Modelled calls | vs ceiling |
+|---|---|---|---|---|---|
+| Vestibule (nothing focused, n=5) | 3 (idx 1·2·3) | 2 (idx 0·4) | 0 | 3×22 + 2×2 = **70** | ≤90 ✔ (bench), ≤190 ✔ (scene) |
+| A widget focused (n=5) | 3 | 2 | 1 (+1 pass) | 70 + 1 = **71** | ≤90 ✔ |
+| Worst case (full 7-widget arc, one focused) | 3 | 4 | 1 (+1 pass) | 3×22 + 4×2 + 1 = **75** | ≤90 ✔ |
+
+**Verdict (derivable): the bench layer's simultaneous draw-call ceiling is ≤75
+(model), comfortably within the §7.2 ≤90 budget with ≥15 headroom.** The ≤3-full
+LOD invariant, the ≤7 slot cap, and the ≤90 bench-layer model are pinned
+deterministically in `panels/__tests__/benchPerf.test.ts` (14 assertions).
+
+**Deviations from the §7.2 table, stated for honesty:**
+
+1. **The §7.2 table sums placards (≤16) AND a separate "Bench SDF `<Text>` ≤7"
+   line into the ≤90 ceiling; those two OVERLAP** — a placard's SDF title IS the
+   only SDF `<Text>` a placard contributes (full panels use uikit text). The
+   plan's ≤90 is therefore a deliberately conservative ceiling that double-counts
+   placard titles; the as-built simultaneous count (≤75) sits well under it either
+   way. The "≤7 live SDF `<Text>`" line is best read as the SDF-resource ceiling
+   (≤7 titles across ≤7 panels), not 7 draw calls *on top of* the placards.
+2. **Frame triangles are ~72/panel, not the ~600 the §7.2 table estimated.** The
+   as-built `FRAME_GEOMETRY` is 6 merged boxes = 72 tris (`WorldPanel.tsx:156`), so
+   7 frames ≈ 504 tris + one `RoundedBox` backplate (a few hundred tris) + the
+   ghost's `EdgesGeometry` — the bench-triangle budget (≤8k, scene ≤300k) holds
+   with an order of magnitude of headroom (a favourable deviation).
+3. **New textures: ZERO** (frames/backplate procedural; placard titles reuse the
+   preloaded EB Garamond SDF atlas). **New dependencies: ZERO** (uikit, drei,
+   maath, troika all already installed).
+
+### B1a. Bench-view `gl.info.render.calls` — PENDING HUMAN GATE
+
+The MODEL above predicts ~70 bench-layer calls at the vestibule; the LIVE total
+(`gl.info.render.calls` via `?perf=1`, §4) is the human-gate row below.
+
+## B2. Bench idle → 0 rAF audit (derivable, §7.3)
+
+§7.3: panels at rest are static world objects — **zero per-frame work** (the
+TodayPanel gold standard, now a contract of the `WorldPanel` primitive). Static
+audit of EVERY `useFrame` / `invalidate()` the Bottega adds confirms the world
+sleeps at rest. The Phase-3 bench introduces exactly **two** new per-frame
+consumers, both self-invalidating with an early exit, plus one passive observer:
+
+- **The drag loop** — `useWidgetDrag.ts:341`, the phase's ONE new interactive
+  `useFrame`. It **early-exits the instant the bench is at rest**:
+  `if (phase === "idle") return;` (`useWidgetDrag.ts:343`) — costs one comparison
+  on foreign frames, demands nothing. While `dragging` it self-sustains via
+  `invalidate()` (`:369`); while `settling` it invalidates ONLY `if (moving)`
+  (`:385–387`); on settle it snaps exact, sets `phaseRef.current = "idle"`
+  (`:398`), fires the ONE dock chime, then a FINAL `invalidate()` (`:406`) paints
+  the settled transform and the world sleeps. The pointer-move handler is pure ray
+  arithmetic → a ref write + one `invalidate()` per event (`:545`), never a loop.
+- **The focused-panel glass fade** — `FocusedPanelGlass.tsx:126`, ONE `useFrame`
+  damping the backplate opacity. It returns immediately if the mesh is unmounted
+  (`:127–130`), and self-invalidates ONLY `if (moving)` (`:157–158`); once faded
+  OUT to 0 it unmounts the mesh (`:159–163`), releasing the `heroGlass` registry
+  slot — so the world sleeps the moment the ~300 ms fade lands. Reduced motion →
+  an instant cut (`:145–148`), no damp, no lingering frames.
+- **`PerfGovernor.tsx:93`** — a PASSIVE frame-density observer that **never calls
+  `invalidate()`** (`:93–102`); drei's `<PerformanceMonitor>` likewise samples
+  fps off a bare `useFrame` without demanding a frame. Adds zero idle rAF
+  (unchanged from §1).
+
+Everything else the bench adds is discrete-cadence, not per-frame:
+
+- **Wheel-swipe** (`WidgetRig.tsx` `useWheelSwipe`) — accumulation is listener-side
+  arithmetic that allocates nothing and does **not** `invalidate()` until the
+  threshold trips (`WidgetRig.tsx:135`); the discrete swipe then pushes focus and
+  CameraRig's existing effect owns the invalidate + glide (`:140`). `←/→` keys
+  share the same `swipeBench` body.
+- **Agenda shimmer** (`agenda/AgendaWidget.tsx`) — a one-shot React state toggle
+  armed/disarmed by a per-id `setTimeout` (`:214`); **no `useFrame`, no interval,
+  no `invalidate()`** (`:34–40`, `:40`). uikit demands one frame per discrete
+  state change, then sleeps.
+- **The five widgets** (`TasksWidget`, `CapturesWidget`, `AgendaWidget`,
+  `HabitsWidget`, `JournalWidget`) — each explicitly "no `useFrame`, no ref
+  mutation, no `invalidate()`" (`TasksWidget.tsx:30`, `CapturesWidget.tsx:40`,
+  `HabitsWidget.tsx:30`, `JournalWidget.tsx:46`, `AgendaWidget.tsx:40`). They write
+  ONLY through 2D server actions + `queryClient.invalidateQueries` at interaction
+  cadence; content re-layout is a uikit discrete change, one demanded frame then
+  quiet.
+- **`WidgetRig.tsx`** and **`widgetLayout.ts`** — NO `useFrame` at all
+  (`WidgetRig.tsx:18`; solver is a pure mount/reorder-cadence static solve).
+
+**Conclusion (derivable): the Bottega adds ZERO continuous idle frame demand of
+its own.** With the bench mounted, a hands-off `/world` reaches the Phase-2 amended
+criterion — `idle 10 s → rAF → 0 (± firefly heartbeat ≤5 fps, ± minute-tick = 1
+frame/min)` (§7.3) — because the two new `useFrame` consumers both early-exit to
+idle-zero and the provider's minute tick is unchanged. Observing 0 extra bench
+frames/min at the gate is the EXPECTED, in-budget result.
+
+## B3. Phase-3 acceptance protocol (§7.4) — PENDING HUMAN GATE
+
+Baseline: M-series MacBook (M1 Pro integrated), Chrome + Safari, authenticated
+`/world`. Surface `?perf=1` (drei `<Stats>` + `gl.info.render` logging, §4) for
+live `calls` / `triangles`.
+
+**Seed (§7.4, exact):** Phase-1 seed (8 areas / 40 projects / 300 tasks / 12
+captures) **+ 40 events across 9 days + 8 habits with completions + a journal
+entry**; **5 widgets on the bench**. (The pure solver's handling of the bench —
+≤7 slots, ≤3 full panels for any focus, unique slot angles for the default
+roster — is asserted deterministically in `panels/__tests__/benchPerf.test.ts`.)
+
+Steps to run and record (tick each box; fill the `⟨PENDING⟩` cells):
+
+1. **Bench view (vestibule):** read `gl.info.render.calls` and `triangles`.
+   Expect calls ≤ **190**, tris ≤ **300k**. (Derivable prediction: bench layer
+   ≈ 70; scene ≈ base 40–55 + 70 ≈ 110–125.)
+2. **Swipe marathon:** 10 consecutive swipes end-to-end across the arc (`←/→` or
+   two-finger horizontal). Expect **≥58 fps**; every glide settles to idle within
+   **1 s** of arrival.
+3. **Drag-thrash:** 20 s of continuous grab/carry/drop across all slots. Expect
+   **≥58 fps**, **no hitch > 33 ms** on preview-shift or LOD switches.
+4. **Data churn:** complete 3 tasks + toggle 2 habits + create 1 capture in quick
+   succession from the panels. Expect every uikit re-layout **< 16 ms** (profile
+   once, note the number); ember/firefly choreography unharmed.
+5. **Hands off 10 s:** rAF = firefly heartbeat (≤5 fps) + **1 frame/min**
+   minute-tick; CPU at idle baseline. (Derivable: the bench adds 0 self-demanded
+   idle frames — B2.)
+6. **Reduced-motion pass** (macOS Reduce Motion ON): swipe/drag produce **zero
+   continuous demand** — instant cuts only (drag ghost snaps, drop is an instant
+   reorder, fades are cuts); the dock chime still rings (sound is not gated).
+7. **DPR ladder with the bench in frame:** DevTools → throttle GPU (4–6× slowdown)
+   while orbiting/dragging → confirm `[PerfGovernor] dpr → …` logs step
+   **2 → 1.5 → 1**; remove the throttle → dpr climbs back. (Derivable: the drag
+   loop and glide produce the back-to-back frames `MIN_DENSE_FRAMES=20` needs, so
+   the ladder still engages with the bench loaded.)
+
+### B3 results table — record on hardware (PENDING HUMAN GATE)
+
+| # | Scenario | Target | Chrome | Safari | Pass? |
+|---|---|---|---|---|---|
+| 1a | Bench-view `gl.info.render.calls` | ≤ 190 | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 1b | Bench-view `triangles` | ≤ 300k | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 2a | Swipe marathon (10 swipes) fps | ≥ 58 | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 2b | Every glide settles to idle | ≤ 1 s | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 3a | Drag-thrash 20 s fps | ≥ 58 | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 3b | Drag-thrash max hitch | ≤ 33 ms | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 4a | Data-churn uikit re-layout | < 16 ms | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 4b | Ember/firefly choreography unharmed | no hitch | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 5a | Hands-off 10 s idle rAF (ex-heartbeat, ex-minute-tick) | 0 | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 5b | Hands-off CPU | idle baseline | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 6 | Reduced-motion swipe/drag: continuous demand | 0 (cuts only) | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+| 7 | DPR ladder with bench in frame | 2 → 1.5 → 1, then back | ⟨PENDING⟩ | ⟨PENDING⟩ | ☐ |
+
+Fill the `⟨PENDING⟩` cells with the observed numbers and tick each box. Ship the
+Phase-3 perf gate when every box is checked. The automatable half (slot cap,
+≤3-full LOD, ≤90 bench model, `DEFAULT_LAYOUT` fit) is already green in
+`panels/__tests__/benchPerf.test.ts`.
