@@ -96,6 +96,61 @@ export function makeTabletMaterial(): THREE.MeshPhysicalMaterial {
   });
 }
 
+// ── Connection-state honesty (M-12) ─────────────────────────────────────────
+//
+// When Google Calendar is not connected / expired, the ring PETRIFIES into a
+// lightless dark-brass artifact (Aesthetic Bible §5.6: "the ring petrifies —
+// history's silhouette, like archived boughs"). Emissive drops to 0, metalness
+// rises to full (so it only mirrors the night HDRI and stays dark), roughness
+// rises (matte — no warm specular), and the body darkens toward walnut. These
+// are pure MATERIAL-UNIFORM mutations (no shader recompile → no `needsUpdate`),
+// applied live when `meridian.status` flips so the world flips to dark within
+// the shared connection-status poll without a reload.
+
+/** Dark petrified brass body — the disconnected ring's lightless artifact. */
+const PETRIFIED_BRASS_HEX = "#2A2118";
+const PETRIFIED_METALNESS = 1.0; // metalness UP — mirrors only the dark night
+const PETRIFIED_ROUGHNESS = 0.9; // roughness UP — matte, no warm specular
+
+/** Live brass values (the M-05 factory defaults) — restored on reconnect. */
+const LIVE_BRASS_METALNESS = 0.85;
+const LIVE_BRASS_ROUGHNESS = 0.4;
+const LIVE_STRIP_METALNESS = 0.7;
+const LIVE_STRIP_ROUGHNESS = 0.5;
+const LIVE_STRIP_EMISSIVE_INTENSITY = 0.6; // sub-bloom lamplit warmth
+
+/**
+ * Petrify the ring: dark brass, emissive 0, metalness/roughness up. Mutates the
+ * SHARED brass material (ring + ticks + marker) and the engraved strip in place.
+ */
+export function applyRingPetrified(
+  brass: THREE.MeshStandardMaterial,
+  strip: THREE.MeshStandardMaterial,
+): void {
+  brass.color.set(PETRIFIED_BRASS_HEX);
+  brass.metalness = PETRIFIED_METALNESS;
+  brass.roughness = PETRIFIED_ROUGHNESS;
+  strip.color.set(PETRIFIED_BRASS_HEX);
+  strip.emissiveIntensity = 0; // petrified: the lamplit scale goes cold
+  strip.metalness = PETRIFIED_METALNESS;
+  strip.roughness = PETRIFIED_ROUGHNESS;
+}
+
+/** Relight the ring to its warm live brass (the M-05 factory look). */
+export function applyRingLive(
+  brass: THREE.MeshStandardMaterial,
+  strip: THREE.MeshStandardMaterial,
+): void {
+  brass.color.set(STUDIOLO.brass);
+  brass.metalness = LIVE_BRASS_METALNESS;
+  brass.roughness = LIVE_BRASS_ROUGHNESS;
+  strip.color.set(STUDIOLO.brass);
+  strip.emissive.set(STUDIOLO.candleflame);
+  strip.emissiveIntensity = LIVE_STRIP_EMISSIVE_INTENSITY;
+  strip.metalness = LIVE_STRIP_METALNESS;
+  strip.roughness = LIVE_STRIP_ROUGHNESS;
+}
+
 /**
  * `makeGodRayMaterial` — the plumb-line god-ray shaft (M-07).
  *

@@ -33,6 +33,14 @@
  * `useWorldPrefs().reducedMotion` → the breathe is OFF (static shaft at rest
  * opacity); no wake listeners, no `useFrame` work, no demand.
  *
+ * ── Connection state (M-12 honesty-sweep) ────────────────────────────────────
+ * The now-line only falls when gcal is CONNECTED. When `meridian.status !==
+ * "connected"` the ring petrifies (dark brass, no tablets) and the shaft goes
+ * with it — the disconnected sky has no *now* to mark, so this renders NOTHING
+ * (Aesthetic Bible §5.6: "dark brass, no tablets, no shaft"). An empty-but-
+ * connected day still gets its shaft (a very good day is still a day). Gated on
+ * status alone (never on event count).
+ *
  * Perf: 2 draw calls (line + cone), ~60 tris, zero per-frame cost while idle.
  *
  * Positioned in a FIXED frame at the central axis — it does NOT rotate with the
@@ -47,6 +55,7 @@ import { STUDIOLO } from "../materials/tokens";
 import { SHAFT_GEOMETRY } from "./meridianGeometries";
 import { makeGodRayMaterial } from "./meridianMaterials";
 import { useWorldPrefs } from "../prefs/useWorldPrefs";
+import { useWorldData } from "../data/useWorldData";
 
 // ── The vertical span (metres) ──────────────────────────────────────────────
 //
@@ -73,9 +82,13 @@ const BREATHE_FRACTION = 0.15; // ±15% opacity breathe (spec)
 const BREATHE_HZ = 0.2; // slow lamplight breath, matches the world's cadence
 const ACTIVE_MS = 4000; // the SAME 4 s post-interaction window DustMotes uses
 
-export function PlumbLine(): ReactElement {
+export function PlumbLine(): ReactElement | null {
   const invalidate = useThree((s) => s.invalidate);
   const { reducedMotion: reduced } = useWorldPrefs();
+  const { meridian } = useWorldData();
+  // The shaft falls only over a CONNECTED sky (M-12). Empty-but-connected days
+  // still get their now-line; disconnected/expired skies render nothing.
+  const connected = meridian.status === "connected";
 
   const godrayRef = useRef<THREE.Mesh>(null);
   const activeUntilRef = useRef(0);
@@ -108,6 +121,12 @@ export function PlumbLine(): ReactElement {
     godRayMaterial.opacity = GODRAY_BASE_OPACITY;
     invalidate();
   }, [reduced, godRayMaterial, invalidate]);
+
+  // M-12: paint the appear/vanish when the connection state flips (the shaft
+  // mounts/unmounts below on `connected`); one demanded frame, no reload.
+  useEffect(() => {
+    invalidate();
+  }, [connected, invalidate]);
 
   // Ride the SAME 4 s post-interaction breath window as DustMotes — identical
   // events, no new demand source. Skipped entirely under reduced motion.
@@ -146,6 +165,11 @@ export function PlumbLine(): ReactElement {
     // Keep the demand loop alive for the rest of the window.
     invalidate();
   });
+
+  // Disconnected / expired sky → no *now* to mark → render nothing (§5.6). All
+  // hooks above run unconditionally; the owned geometry/materials persist (they
+  // are disposed on unmount) and simply aren't drawn while the ring is dark.
+  if (!connected) return null;
 
   return (
     <group position={[0, CENTER_Y, 0]}>

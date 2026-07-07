@@ -946,6 +946,13 @@ function stepFrame(
 export function EventTablets(): JSX.Element {
   const invalidate = useThree((s) => s.invalidate);
   const { tree, meridian } = useWorldData();
+  // M-12 honesty: no tablets over a disconnected/expired sky. Feed the solver an
+  // EMPTY event set whenever `status !== "connected"` so any resident tablets
+  // leave (spring-out, or instant under reduced motion) — the ring goes dark and
+  // wordless regardless of a stale event cache. An empty-but-connected day is
+  // still `connected`, so it just yields zero slots naturally (same result, no
+  // caption). Never gated on event count — only on the honest status.
+  const connected = meridian.status === "connected";
 
   const sys = useMemo(() => buildSystem(), []);
   const dialRef = useRef<THREE.Group | null>(null);
@@ -955,16 +962,17 @@ export function EventTablets(): JSX.Element {
   const hoveredSlotRef = useRef<number>(-1);
   const [hero, setHero] = useState<HeroDesc | null>(null);
 
-  // Solve the dial layout on data identity change (never per-frame).
+  // Solve the dial layout on data identity change (never per-frame). When the
+  // sky is not connected we solve over NO events (M-12) — the honest dark ring.
   const solved = useMemo(
     () =>
       solveMeridianLayout(
-        meridian.events,
+        connected ? meridian.events : [],
         tree,
         meridian.calendars,
         meridian.timezone,
       ),
-    [meridian.events, meridian.calendars, meridian.timezone, tree],
+    [connected, meridian.events, meridian.calendars, meridian.timezone, tree],
   );
 
   // Track the previous event map so a genuinely-new (Jarvis-riveted) event pops.

@@ -26,7 +26,10 @@
  *      to day-change (the troika `text` is mutated directly — never React state).
  *
  *   3. ONE ZENITH CAPTION — the current/imminent tablet (title · clock), fixed
- *      beneath the date line; recomputed on the same coarse cadence.
+ *      beneath the date line; recomputed on the same coarse cadence. M-12 REUSES
+ *      this exact slot (no new <Text>) for the disconnected/expired nudge — "The
+ *      ring is dark. (Re)connect Google Calendar on the Page." — when
+ *      `meridian.status !== "connected"`.
  *
  *   4. ONE HOVER CAPTION — a camera-anchored HUD singleton driven by
  *      `tabletHoverBus` (M-06 publishes the hovered eventId; this unit renders
@@ -244,6 +247,13 @@ export function MeridianLabels(): JSX.Element {
   const focusKindRef = useRef<string>(focus.kind);
   focusKindRef.current = focus.kind;
 
+  // M-12: mirror the connection status into a ref so the coarse `refresh` (which
+  // runs off the scrub bus / drift, not React deps) reads the live value. The
+  // `meridian`-keyed effect below re-runs `refresh` when status flips, so the
+  // nudge appears/clears within the shared connection-status poll (≤60 s).
+  const statusRef = useRef(meridian.status);
+  statusRef.current = meridian.status;
+
   const slotsRef = useRef<TabletSlot[]>(slots);
   slotsRef.current = slots;
   const byEventRef = useRef(byEvent);
@@ -277,6 +287,22 @@ export function MeridianLabels(): JSX.Element {
       if (key !== lastDateKey.current) {
         lastDateKey.current = key;
         setTroikaText(dateRef.current, formatDateLine(centerMs, zone), invalidate);
+      }
+
+      // M-12 honesty: over a disconnected/expired sky the ring is dark and
+      // wordless of events — REUSE this zenith caption slot (no new <Text>) for
+      // the single engraved nudge pointing back to the Page. "Connect" when
+      // never linked, "Reconnect" when the grant lapsed (expired/revoked). The
+      // world never initiates OAuth; `Cmd+\` to the Page stays the only path.
+      const status = statusRef.current;
+      if (status !== "connected") {
+        const verb = status === "not_connected" ? "Connect" : "Reconnect";
+        const nudge = `The ring is dark. ${verb} Google Calendar on the Page.`;
+        if (nudge !== lastZenithText.current) {
+          lastZenithText.current = nudge;
+          setTroikaText(zenithRef.current, nudge, invalidate);
+        }
+        return;
       }
 
       // The current tablet (start ≤ center < end) wins the zenith; else the

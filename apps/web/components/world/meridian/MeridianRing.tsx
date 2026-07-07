@@ -46,9 +46,14 @@
  * meridian motion — scrub momentum, lean-down, god-ray breathe — is gated in its
  * owning unit, not on the structural ring).
  *
- * CONNECTION STATE: `meridian.status` honesty (dark petrified brass when gcal is
- * not connected) is the honesty-sweep unit's job (M-12); M-05 renders the warm
- * live ring. Only `meridian.timezone` is consumed here.
+ * CONNECTION STATE (M-12 honesty-sweep): when `meridian.status !== "connected"`
+ * the ring PETRIFIES into dark brass (emissive 0, metalness/roughness up — a
+ * lightless artifact, Aesthetic Bible §5.6). This is a pure material-uniform
+ * mutation on the already-built brass/strip (no rebuild, no shader recompile),
+ * applied in an effect keyed on `status` + one `invalidate()`, so disconnecting
+ * in Settings flips the ring dark within the shared connection-status poll
+ * (≤60 s) with no reload. `connected` (including an empty-but-connected day)
+ * keeps the warm live brass. `meridian.timezone` still drives the dial rotation.
  *
  * PERF (PLAN §4.2): 4 draw calls (ring · strip · ticks-instanced · marker),
  * ≪28k tris (ring 512 + 120 ticks × 12 + strip ~192 + marker ~24 ≈ 1.9k).
@@ -57,7 +62,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useWorldData } from "../data/useWorldData";
 import { focusStack } from "../camera/useFocusStack";
 import { meridianBus } from "./meridianBus";
@@ -70,6 +75,8 @@ import { RING_GEOMETRY, TICK_GEOMETRY, RING_RADIUS } from "./meridianGeometries"
 import {
   makeRingBrassMaterial,
   makeEngravedStripMaterial,
+  applyRingPetrified,
+  applyRingLive,
 } from "./meridianMaterials";
 import { useRingScrub } from "./useRingScrub";
 
@@ -163,7 +170,9 @@ function buildRing(): RingParts {
 export function MeridianRing(): React.ReactElement {
   const { meridian } = useWorldData();
   const tz = meridian.timezone;
+  const status = meridian.status;
   const cfg = MERIDIAN_CONFIG_DEFAULTS;
+  const invalidate = useThree((s) => s.invalidate);
 
   // M-10 · zoetrope-scrub: MeridianRing is the R3F host for the scrub runtime
   // (§M-10). `useRingScrub` implements + registers the `meridianBus`, owns the
@@ -175,6 +184,15 @@ export function MeridianRing(): React.ReactElement {
   const parts = useMemo(buildRing, []);
   const dialRef = useRef<THREE.Group>(null);
   const lastRot = useRef(Number.NaN);
+
+  // M-12 honesty: petrify the brass when gcal is not connected, relight it when
+  // it reconnects. Pure material-uniform mutation (no rebuild); one demanded
+  // frame paints the new state. `connected` (incl. an empty day) = warm live.
+  useEffect(() => {
+    if (status === "connected") applyRingLive(parts.brass, parts.strip);
+    else applyRingPetrified(parts.brass, parts.strip);
+    invalidate();
+  }, [status, parts, invalidate]);
 
   // Dispose per-mount GPU resources on unmount (never the shared singletons).
   useEffect(() => {
