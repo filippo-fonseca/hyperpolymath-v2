@@ -10,6 +10,121 @@ a phase date heading until the project ships a tagged release.
 
 ## [Unreleased]
 
+### Phase 3 — The Bottega (W-01 through W-16, 2026-07-06)
+
+The Meridian Ring came down. In its place, the Studiolo grew hands: a workbench
+arc of holographic drafting-paper panels — Tasks, Captures, Agenda, Habits,
+Journal — standing where you can swipe between them, grab and rearrange them,
+and work in them for real through the exact same server actions and query keys
+as the 2D app. The Tree keeps its place as the room's centerpiece, framed
+dead-ahead down the aisle between the benches.
+
+**What shipped:**
+
+- **The demolition** (`W-01`): the `meridian/` directory — the ring structure,
+  event tablets, plumb-line, T-15 toll scheduler + positional audio, the
+  zoetrope wheel-scrub, ~4,100 LOC in all — is deleted at the file level. Its
+  surviving pure logic (`classifyTablet` → `classifyEvent`, `linkEventToProject`,
+  `calendarDotColor`) was extracted verbatim into `panels/agenda/agendaLogic.ts`
+  before the burn. The gcal data bridge survives wholesale, renamed
+  `meridian` → `calendar` throughout the provider/SSR chain.
+  `public/world/sfx/ring-toll.mp3` is intentionally kept on disk, reserved for
+  a future generic reminder chime.
+
+- **The `<WorldPanel>` primitive** (`WorldPanel.tsx`): everything `TodayPanel`
+  proved, generalized once — the deep-vellum uikit skin, ONE shared brass-rail
+  frame mesh drawn with one of two module-singleton `makeHologramMaterial`
+  instances (idle/focused rim-lift, zero shader recompile on swap), the
+  full/placard LOD split, and the connection/empty honesty states. `TodayPanel`
+  itself is deleted.
+
+- **The bench** (`widgetLayout.ts`, `WidgetRig.tsx`): a pure, deterministic arc
+  solver placing ≤7 panel slots around the standing point with a central aisle
+  that keeps the Tree framed dead-ahead. Navigation via two-finger/trackpad
+  swipe (horizontal-dominant wheel gesture), `←`/`→` keys, `C` to summon the
+  Agenda panel, or a direct click — every path resolving through
+  `focusStack.push({kind:"widget"})` and the existing `cameraBus` flight
+  authority (~700 ms glide). The panel-LOD law caps full-content rendering at 3
+  panels (focused + neighbors); everything else is a placard (frame + one SDF
+  title).
+
+- **Grab-and-move** (`useWidgetDrag.ts`): the phase's one new `useFrame` —
+  self-invalidating while dragging/settling, idle-zero at rest. Grab a panel's
+  header grip, carry it along the bench arc (ray → vertical-cylinder yaw math),
+  watch the other panels preview-shift out of the way, and drop — the new order
+  persists to `localStorage` (`widgetLayoutStore.ts`) and survives a reload.
+  One `two-note` dock chime on settle. `Esc` cancels mid-drag without
+  persisting; reduced motion collapses the whole mechanic to a frame-only ghost
+  outline and an instant-cut drop.
+
+- **Five widgets on the bench**: `TasksWidget` (TodayPanel's content reborn —
+  the real `updateTaskStatus` completion → the same ember-ascent loop),
+  `CapturesWidget` (newest-first inbox with hashtag chips, real `deleteCapture`
+  row action), `AgendaWidget` (a flat, read-only Today/Tomorrow calendar on the
+  surviving gcal bridge, with area-hue accents and a one-shot shimmer on a
+  Jarvis-created event), `HabitsWidget` (today's habit grid with a trailing
+  7-day tick strip, real `toggleHabitCompletion`), and `JournalWidget` (a
+  plain-text preview of today's entry + an "Open on the Page" affordance that
+  reuses `ModeToggle`'s one `Cmd+\` doorway — no in-world editing this phase).
+
+- **The focused-panel hero glass** (`FocusedPanelGlass.tsx`): the one true
+  glass moment — a single `heroGlass` backplate mounted behind whichever panel
+  is focused, occupying the transmission slot freed by the Meridian zenith
+  tablet's demolition. Swap-on-focus (never double-mounts); fades in/out via
+  one damped `useFrame` that unmounts (and frees the registry slot) on full
+  fade-out.
+
+- **The widget registry + layout persistence** (`widgetRegistry.ts`,
+  `widgetLayoutStore.ts`): the single place the bench roster grows (a
+  `WidgetId → {title, component}` map, Conductor-populated like `WorldScene`'s
+  mount list) and a versioned, self-healing `localStorage` store for the arc
+  order (unknown ids dropped, missing ids appended, corrupt JSON falls back to
+  default — never crashes the world).
+
+- **The greeting** (`Litany.tsx`): boot copy shifts from studiolo-contemplative
+  to bottega-workshop diction. The Litany's timeline and keyframes are
+  untouched — only strings changed.
+
+**Contracts amended (orchestrator amendment commit, W-01):**
+
+- `worldEvents` returns to 5 names: `"meridian-toll"` is removed with its
+  emitter and consumers.
+- `FocusLevel` loses `{ kind: "ring"; eventId? }`; gains
+  `{ kind: "widget"; widgetId: WidgetId }` (rank 1, sibling of `bough`).
+- `WorldData.meridian` is renamed `WorldData.calendar` (shape byte-identical);
+  `WorldData` additively gains `habits: HabitsData`, `journal: JournalTodayData`,
+  and `hashtags: HashtagWithCount[]`.
+
+**New frozen contracts (Phase 3, frozen at Wave W1 close):**
+
+- `widgetBus: WidgetBus` — the module-singleton pub/sub carrying ONLY the
+  grab-and-move lifecycle (`drag-start`/`drag-move`/`drag-drop`/`docked`);
+  focus/navigation state stays in `focusStack` (`panels/widgetBus.ts`).
+- `solveBenchLayout`, `neighborOf`, `nearestSlotIndex`, `BenchConfig`,
+  `BenchSlot` — the pure arc solver (`panels/widgetLayout.ts`,
+  `panels/widgetTypes.ts`).
+- `WorldPanelProps`, `DragHandleProps`, `PANEL_ROW_CAP` — the panel primitive's
+  contract (`panels/WorldPanel.tsx`).
+- `WidgetLayoutV1`, `useWidgetLayout`, `DEFAULT_LAYOUT` — the layout
+  persistence contract (`panels/widgetLayoutStore.ts`).
+- `WidgetSpec`, `WIDGET_REGISTRY`, `WidgetComponentProps` — the widget roster
+  contract (`panels/widgetRegistry.ts`).
+
+**Draw-call ceiling:** ≤170 (ring in frame) → ≤190 (bench in view). Bench layer
+≤90 draw calls (≤3 full panels + placards + one hero backplate + SDF titles).
+Transmission registry stays 3/3 (focused lantern + Jarvis ribbon +
+focused-panel backplate — the Meridian zenith tablet's old slot).
+
+**No new npm dependencies.** uikit, uikit-default, maath, and troika were all
+already installed. Zero new Postgres tables; zero new API routes. Google
+Calendar remains the sole source of truth for events.
+
+See `components/world/README.md § The Workbench (Phase 3 — The Bottega)` for
+the full module map, contracts, spatial model, and the "how to add a widget"
+recipe.
+
+---
+
 ### Phase 2 — The Meridian Ring (M-01 through M-14, 2026-07-06)
 
 Google Calendar rendered as a great slow brass-and-glass annulus turning overhead —
