@@ -123,20 +123,21 @@ export function diffEventSnapshots(
 }
 
 // ── `worldEvents` — the tiny mitt-style emitter (FROZEN, §4.3) ──────────────
-// Exactly these SIX event names. No additions without an orchestrator
+// Exactly these FIVE event names. No additions without an orchestrator
 // amendment. Do NOT install `mitt`.
 //
-// Phase 2 M-01 orchestrator amendment: +1 name `"meridian-toll"` (bus 5 → 6).
-// Emitted by the T-15 scheduler (M-09); consumed by the positional-audio node
-// (M-09) and the tablet lean-down (M-06). The `chime` union is intentionally
-// NOT extended — the toll is positional and does NOT route through Chimes.tsx.
+// Phase 3 W-01 orchestrator amendment: the Phase-2 `"meridian-toll"` name is
+// REMOVED with the Meridian Ring's demolition (bus 6 → 5, back to the five
+// Phase-1 names). No name is added this phase — the bench drag/dock intents
+// ride the separate module-singleton `widgetBus` (PHASE-3-PLAN §3.5), not a
+// sixth worldEvents name. `diffEventSnapshots` (above) is KEPT: the Agenda
+// panel uses it to shimmer in a Jarvis-created event (W-09).
 export type WorldEventMap = {
   "task-completed": TaskTransition;
   "capture-created": { captureId: string };
   chime: { kind: "glass-bell" | "cork-pop" | "two-note" };
   "jarvis-action": JarvisActionEvent;
   "boot-complete": void;
-  "meridian-toll": { eventId: string; title: string; startIso: string };
 };
 
 type AnyHandler = (payload: unknown) => void;

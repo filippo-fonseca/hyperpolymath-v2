@@ -3,7 +3,7 @@
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { MeridianSeed } from "./data/useWorldData";
+import type { CalendarSeed } from "./data/useWorldData";
 import { WorldDataProvider } from "./data/WorldDataProvider";
 import { Atmosphere } from "./env/Atmosphere";
 import { DustMotes } from "./env/DustMotes";
@@ -40,7 +40,7 @@ export interface WorldSceneProps {
   initialTree: SidebarArea[];
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
-  initialMeridian: MeridianSeed;
+  initialCalendar: CalendarSeed;
 }
 
 export function WorldScene(props: WorldSceneProps): React.ReactElement {
@@ -53,7 +53,7 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       initialTree={props.initialTree}
       initialTasks={props.initialTasks}
       initialCaptures={props.initialCaptures}
-      initialMeridian={props.initialMeridian}
+      initialCalendar={props.initialCalendar}
     >
       {/* ── Wave 2: the assembled Studiolo ─────────────────────────────────
           Composition-only; each system reads useWorldData() and takes no props.

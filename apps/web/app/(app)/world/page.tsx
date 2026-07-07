@@ -19,7 +19,7 @@ import {
 } from "@/lib/gcal/token";
 import { listCalendars, type GcalCalendarMeta } from "@/lib/gcal/calendars";
 import { eventToDTO, type GcalEventDTO } from "@/lib/gcal/event-dto";
-import type { MeridianSeed } from "@/components/world/data/useWorldData";
+import type { CalendarSeed } from "@/components/world/data/useWorldData";
 import { WorldLoader } from "@/components/world/WorldLoader";
 
 /**
@@ -130,7 +130,7 @@ export default async function WorldPage() {
     }
   }
 
-  const initialMeridian: MeridianSeed = {
+  const initialCalendar: CalendarSeed = {
     status,
     events,
     calendars,
@@ -150,7 +150,7 @@ export default async function WorldPage() {
         initialTree={initialTree}
         initialTasks={initialTasks}
         initialCaptures={initialCaptures}
-        initialMeridian={initialMeridian}
+        initialCalendar={initialCalendar}
       />
     </main>
   );

@@ -15,15 +15,31 @@ import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { GcalConnectionStatus } from "@/lib/db/queries/gcal-connection";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
+// Phase 3 (W-01): the new bench-data slices reuse the 2D server actions' return
+// types verbatim (type-only imports — no server code is pulled into the client
+// bundle, and nothing is redeclared). `getHabitCompletionsInRange` is imported
+// as a type-only binding purely to derive its row shape.
+import type {
+  HabitWithAreas,
+  getHabitCompletionsInRange,
+} from "@/app/actions/habits";
+import type { JournalEntry } from "@/app/actions/journal";
+import type { HashtagWithCount } from "@/app/actions/hashtags";
 import type { EmberSlot, TreeLayoutResult } from "./treeLayout";
 
+/** One habit-completion row, as the 2D `getHabitCompletionsInRange` returns it. */
+export type HabitCompletionRow = Awaited<
+  ReturnType<typeof getHabitCompletionsInRange>
+>[number];
+
 /**
- * The Meridian Ring's slice of the world data (Phase 2, M-01). A PURE
- * projection of live gcal data through the existing fetch layer — the ring is
- * never a parallel store (gcal is the only source of truth for events; nothing
- * is mirrored in Postgres). Shape frozen at Wave M1 (PHASE-2-PLAN §2.2).
+ * The calendar slice of the world data (RENAMED from `meridian`, Phase 3 W-01;
+ * shape byte-identical to the Phase-2 M-01 slice). A PURE projection of live
+ * gcal data through the existing fetch layer — never a parallel store (gcal is
+ * the only source of truth for events; nothing is mirrored in Postgres). The
+ * surviving Agenda panel (W-09) consumes it verbatim.
  */
-export interface MeridianData {
+export interface CalendarData {
   status: GcalConnectionStatus; // "connected" | "not_connected" | "expired"
   events: GcalEventDTO[]; // rolling window slice, raw DTOs
   calendars: GcalCalendarMeta[]; // for per-calendar color fallback
@@ -33,15 +49,35 @@ export interface MeridianData {
 }
 
 /**
- * SSR seed for the meridian slice (page → WorldLoader → WorldCanvas →
- * WorldScene → WorldDataProvider). A superset of `MeridianData`: it also
+ * SSR seed for the calendar slice (page → WorldLoader → WorldCanvas →
+ * WorldScene → WorldDataProvider). A superset of `CalendarData`: it also
  * carries the resolved visible-calendar ids so the client query key
  * (`worldCalIds`) matches the SSR fetch exactly and the seed hydrates the
- * client `useQuery` with no extra round-trip. `MeridianData` itself stays the
- * frozen §2.2 shape (no `visibleCalendarIds`).
+ * client `useQuery` with no extra round-trip. `CalendarData` itself stays the
+ * frozen shape (no `visibleCalendarIds`).
  */
-export interface MeridianSeed extends MeridianData {
+export interface CalendarSeed extends CalendarData {
   visibleCalendarIds: string[]; // persisted pref, else all calendars
+}
+
+/**
+ * The habits slice (NEW, Phase 3 W-01 / §3.2). Habits + today's trailing
+ * completion window, keyed exactly like the 2D `/habits` client. `windowStart`
+ * is derived from the provider's existing `todayYmd` minute clock — no new
+ * interval.
+ */
+export interface HabitsData {
+  habits: HabitWithAreas[]; // tableKey("habits", userId)
+  completions: HabitCompletionRow[]; // [...tableKey("habit_completions"), windowStart, today]
+  windowStart: string; // ymd, derived from todayYmd
+}
+
+/**
+ * The journal slice (NEW, Phase 3 W-01 / §3.2). Today's entry only (read-only
+ * in MVP), keyed `["journaling", userId, todayYmd]` exactly like the 2D client.
+ */
+export interface JournalTodayData {
+  entry: JournalEntry | null; // ["journaling", userId, todayYmd]
 }
 
 export interface WorldData {
@@ -52,7 +88,10 @@ export interface WorldData {
   emberSlots: EmberSlot[];
   captures: CaptureWithLinks[];
   todayYmd: string;
-  meridian: MeridianData; // NEW (M-01) — the calendar sky, additive
+  calendar: CalendarData; // RENAMED from `meridian` (M-01) — the flat agenda slice
+  habits: HabitsData; // NEW (Phase 3 W-01)
+  journal: JournalTodayData; // NEW (Phase 3 W-01)
+  hashtags: HashtagWithCount[]; // NEW (Phase 3 W-01) — tag chips for the Captures panel (W-08 reads)
 }
 
 export const WorldDataContext = createContext<WorldData | null>(null);
