@@ -13,6 +13,7 @@
  */
 import type { Vector3Tuple } from "three";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { EmberSlot } from "./treeLayout";
 import type { EmberState } from "./mappings";
 import { classifyTask } from "./mappings";
@@ -81,6 +82,44 @@ export function diffSnapshots(
   }
 
   return { completed, added, removedIds };
+}
+
+// ── The event differ (Phase 2 M-01) ────────────────────────────────────────
+export interface EventSnapshotDiff {
+  added: string[]; // eventIds in `next`, absent from `prev`
+  removed: string[]; // eventIds in `prev`, absent from `next`
+}
+
+/**
+ * O(n) event snapshot diff over gcal event ids — the SAME Map/Set pattern as
+ * `diffSnapshots`. Lets `EventTablets` (M-06) spring a newly-appeared tablet in
+ * (and visibly rivet a Jarvis-created event) and freelist-release a vanished
+ * one. It intentionally gets NO `worldEvents` name: EventTablets diffs in its
+ * own data-change effect, exactly how `Fireflies` handles capture rows today.
+ *
+ * Only event IDENTITY (id present/absent) is diffed — a moved/renamed event
+ * keeps its id, so it re-poses through the declarative slot array rather than
+ * springing. This is deliberate: the tablet stays "the same tablet," it just
+ * slides on the dial.
+ */
+export function diffEventSnapshots(
+  prev: Map<string, GcalEventDTO>,
+  next: GcalEventDTO[],
+): EventSnapshotDiff {
+  const added: string[] = [];
+  const nextIds = new Set<string>();
+
+  for (const e of next) {
+    nextIds.add(e.id);
+    if (!prev.has(e.id)) added.push(e.id);
+  }
+
+  const removed: string[] = [];
+  for (const id of prev.keys()) {
+    if (!nextIds.has(id)) removed.push(id);
+  }
+
+  return { added, removed };
 }
 
 // ── `worldEvents` — the tiny mitt-style emitter (FROZEN, §4.3) ──────────────
