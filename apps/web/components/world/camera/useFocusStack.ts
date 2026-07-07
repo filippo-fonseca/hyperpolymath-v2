@@ -25,8 +25,16 @@ import { useSyncExternalStore } from "react";
 export type FocusLevel =
   | { kind: "vestibule" }
   | { kind: "bough"; areaId: string }
-  | { kind: "lantern"; projectId: string };
+  | { kind: "lantern"; projectId: string }
+  | { kind: "ring"; eventId?: string }; // NEW (M-01) — the Meridian Ring
 
+// Phase 2 M-01 orchestrator amendment: the ring is additive and rank-mapped so
+// push/pop/truncate semantics stay byte-identical. `{kind:"ring"}` (ring framed
+// overhead) is rank 1 — a SIBLING of bough (look-up replaces a bough focus, one
+// glide). `{kind:"ring", eventId}` (a specific tablet focused) is rank 2 — a
+// SIBLING of lantern, so it can be drilled into from the framed ring
+// ([V, ring] → [V, ring, ring+eventId]). CameraRig maps the two ring ranks →
+// poses in M-08; M-01 only keeps the exhaustiveness compiling.
 function rank(f: FocusLevel): number {
   switch (f.kind) {
     case "vestibule":
@@ -35,6 +43,8 @@ function rank(f: FocusLevel): number {
       return 1;
     case "lantern":
       return 2;
+    case "ring":
+      return f.eventId !== undefined ? 2 : 1;
   }
 }
 
@@ -44,6 +54,7 @@ function sameLevel(a: FocusLevel, b: FocusLevel): boolean {
   if (a.kind === "bough" && b.kind === "bough") return a.areaId === b.areaId;
   if (a.kind === "lantern" && b.kind === "lantern")
     return a.projectId === b.projectId;
+  if (a.kind === "ring" && b.kind === "ring") return a.eventId === b.eventId;
   return true; // both vestibule
 }
 

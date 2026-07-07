@@ -84,14 +84,20 @@ export function diffSnapshots(
 }
 
 // ── `worldEvents` — the tiny mitt-style emitter (FROZEN, §4.3) ──────────────
-// Exactly these five event names. No additions without an orchestrator
+// Exactly these SIX event names. No additions without an orchestrator
 // amendment. Do NOT install `mitt`.
+//
+// Phase 2 M-01 orchestrator amendment: +1 name `"meridian-toll"` (bus 5 → 6).
+// Emitted by the T-15 scheduler (M-09); consumed by the positional-audio node
+// (M-09) and the tablet lean-down (M-06). The `chime` union is intentionally
+// NOT extended — the toll is positional and does NOT route through Chimes.tsx.
 export type WorldEventMap = {
   "task-completed": TaskTransition;
   "capture-created": { captureId: string };
   chime: { kind: "glass-bell" | "cork-pop" | "two-note" };
   "jarvis-action": JarvisActionEvent;
   "boot-complete": void;
+  "meridian-toll": { eventId: string; title: string; startIso: string };
 };
 
 type AnyHandler = (payload: unknown) => void;
