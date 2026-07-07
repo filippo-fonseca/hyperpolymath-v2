@@ -18,7 +18,6 @@ import { Fireflies } from "./tree/Fireflies";
 import { CameraRig } from "./camera/CameraRig";
 import { WorldLabels } from "./text/WorldLabels";
 import { Ledger } from "./text/Ledger";
-import { TodayPanel } from "./panels/TodayPanel";
 import { JarvisRing } from "./jarvis/JarvisRing";
 import { JarvisChoreographer } from "./jarvis/useJarvisChoreography";
 import { Litany } from "./boot/Litany";
@@ -79,7 +78,7 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       <Chimes /> {/* [U-18] the world's voice — WebAudio, renders null (event-driven) */}
       <WorldLabels /> {/* [U-11] area/project SDF captions (camera-billboarded) */}
       <Ledger /> {/* [U-11] camera-anchored day-at-a-glance HUD strip */}
-      <TodayPanel /> {/* [U-12] uikit holographic panel — complete-from-world */}
+      {/* [P3 W2 close] <WidgetRig/> mounts here — the bench of WorldPanels replaces the lone TodayPanel */}
       <JarvisChoreographer /> {/* [U-16] routing choreography — resolve→assist→thread+fly */}
       <Litany /> {/* [U-17] boot litany — shutter + greeting, then zero draw calls */}
       <PerfGovernor /> {/* [U-20] adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
