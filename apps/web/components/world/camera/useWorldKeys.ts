@@ -22,6 +22,7 @@ import { useWorldData } from "../data/useWorldData";
 import { focusStack } from "./useFocusStack";
 import { bootDone } from "./CameraRig";
 import { jarvisWorldBus } from "../jarvis/useJarvisWorld";
+import { swipeBench } from "../panels/WidgetRig";
 
 export function useWorldKeys(): void {
   const { layout } = useWorldData();
@@ -82,12 +83,23 @@ export function useWorldKeys(): void {
         return;
       }
 
-      // C — reserved for the bench. The Meridian Ring's look-up ritual is gone;
-      // W-06 re-points C to summon the Agenda panel
-      // (focusStack.push({ kind: "widget", widgetId: "agenda" })). Until then
-      // this is an inert no-op so the muscle memory never pushes a dead level.
+      // ←/→ (§4.3) — glide to the prev/next bench panel. `swipeBench` (WidgetRig)
+      // reads the current solved order + focus and resolves the neighbour via
+      // `neighborOf`: at the vestibule it focuses the nearest panel on that side;
+      // past the arc's end it is the soft no-op (nothing pushed). We preventDefault
+      // either way so an edge no-op never scrolls the page out from under the world.
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        swipeBench(e.key === "ArrowRight" ? 1 : -1);
+        return;
+      }
+
+      // C — summon the Agenda panel (§4.3). Muscle memory preserved from the
+      // Meridian Ring's look-up ritual; now it flies to the bench's Agenda slot.
       if (e.key === "c" || e.key === "C") {
-        return; // W-06 re-points C to summon Agenda
+        e.preventDefault();
+        focusStack.push({ kind: "widget", widgetId: "agenda" });
+        return;
       }
 
       // 1–9 → focus the Nth bough. `layout.boughs` is already in orderIndex order
