@@ -134,6 +134,21 @@ export { DEFAULT_PERSONALITY_CONFIG, DEFAULT_STARTUP_CONFIG } from "./types";
 // Phase 5.1 (D-A1 / JARVIS-19): AskClarificationAction from tools barrel
 export type { AskClarificationAction } from "./tools/ask-clarification";
 
+// Send-path: shared WhatsApp send-error classifier. Distinguishes a
+// connectivity failure ("not connected") from a contact-resolution failure
+// ("not found" / "ambiguous") so the desktop confirm-gate speaks the right
+// line instead of always blaming the connection.
+export {
+  classifyWhatsappSendError,
+  whatsappSendFailureLine,
+} from "./tools/whatsapp-send-error";
+export type {
+  WhatsappSendErrorCategory,
+  WhatsappSendTransport,
+  WhatsappBridgeErrorBody,
+  WhatsappSendClassification,
+} from "./tools/whatsapp-send-error";
+
 // JARVIS routines — natural-language "routines + triggers" spec contracts.
 // Also available via the `@hyperpolymath/jarvis-core/routines` subpath.
 export {
