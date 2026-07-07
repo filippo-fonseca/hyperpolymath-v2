@@ -27,6 +27,7 @@ import {
 } from "@/lib/studio/input/drivers/hand";
 import { useStudioInput } from "@/lib/studio/input/react";
 import type { StudioInputDriver } from "@/lib/studio/input/types";
+import { publishHandStatus } from "@/lib/studio/state/hand-status";
 
 /** localStorage key holding the persisted opt-in ("on" | "off"). */
 export const HAND_CONTROL_PREF_KEY = "studio:hand-control";
@@ -92,7 +93,15 @@ export function useHandControl(createDriver: CreateDriver): UseHandControl {
    */
   const register = useCallback(() => {
     unregisterRef.current?.();
-    const driver = createDriverRef.current({ onStatusChange: setStatus });
+    // Mirror every status transition into the shared hand-status store so the
+    // StudioHandReticle (and future HUD chrome) can read hand-mode state — this
+    // hook is the SINGLE writer of that store.
+    const driver = createDriverRef.current({
+      onStatusChange: (s) => {
+        setStatus(s);
+        publishHandStatus(s);
+      },
+    });
     // `registerDriver` both registers AND starts the driver; the returned fn
     // stops + unregisters it — so holding it is the complete disable path.
     unregisterRef.current = bus.registerDriver(driver);
@@ -111,6 +120,7 @@ export function useHandControl(createDriver: CreateDriver): UseHandControl {
     if (stored === "on") register();
     return () => {
       teardown();
+      publishHandStatus(null);
     };
   }, [register, teardown]);
 
@@ -125,6 +135,7 @@ export function useHandControl(createDriver: CreateDriver): UseHandControl {
     writeStoredPref("off");
     setPref("off");
     setStatus(null);
+    publishHandStatus(null);
   }, [teardown]);
 
   const retry = useCallback(() => {
