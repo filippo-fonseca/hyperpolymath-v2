@@ -6,6 +6,8 @@ import { StudioInputProvider } from "@/lib/studio/input/react";
 import { StudioDataProvider } from "./data/StudioDataProvider";
 import type { StudioSeed } from "./data/useStudioData";
 import { StudioSkeleton } from "./StudioSkeleton";
+import { StudioFocusOverlay } from "./overlay/StudioFocusOverlay";
+import { DebugDomTiles } from "./overlay/DebugDomTiles";
 
 /**
  * StudioLoader — the client boundary that owns BOTH the data bridge and the
@@ -144,6 +146,11 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
       <StudioInputProvider stageRef={stageRef}>
         <div ref={stageRef} className="absolute inset-0">
           {body}
+          {/* DOM siblings of the Canvas, inside both providers + the stage:
+              the crisp expand overlay (single writer of the focus store) and a
+              dev-only geometric hover substrate (?studioDomTiles=1). */}
+          <StudioFocusOverlay />
+          <DebugDomTiles />
         </div>
       </StudioInputProvider>
     </StudioDataProvider>
