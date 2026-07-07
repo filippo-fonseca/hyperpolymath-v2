@@ -151,14 +151,18 @@ Gate approved 2026-07-06 (defaults shipped: title→class tint heuristic ON; 60s
 - M-01 data-bridge-amendment (6 commits; amendment **4e83131**): SSR gcal seed on /world, WorldDataProvider meridian query (key `["calendar-events",uid,calIds,tMin,tMax]`, stale60s/focus/5-min poll), worldEvents 5→6 (+meridian-toll), focusStack +{kind:"ring";eventId?}, WorldData.meridian, diffEventSnapshots (7/7). CameraRig `case "ring"` stub (M-08 fills).
 - M-02 meridian-solver (4 commits): meridian/{meridianLayout,meridianMappings,meridianBus}.ts + 31/31 tests (incl. NY DST). FROZEN contracts: §2.3 layout types + `meridianBus` (stub via `__registerMeridianBusImpl`, M-10 registers real impl). colorHex = area-hue-or-parchment, NEVER gcal bg (stricter per §5).
 
-### 🔄 Wave M2 — LAUNCHING (parallel, file-disjoint; deps = M1)
-- M-05 ring-structure → meridian/MeridianRing.tsx (canted brass annulus, instanced ticks, minute-tick rotation reading meridianBus offset).
-- M-06 tablet-system → meridian/EventTablets.tsx (ONE InstancedMesh, aTabletState |tablet@1 chunk on makeTabletMaterial, sepia/imminent/current grammar, zenith heroGlass swap = 3rd transmission slot, lean-down on meridian-toll, hover/pick).
-- M-07 plumb-line → meridian/PlumbLine.tsx (now-line zenith→trunk apex + additive god-ray cone).
-- M-08 lookup-camera → camera/{useWorldKeys.ts,CameraRig.tsx (owned this wave)} + meridian/meridianPoses.ts (C key, RING_VIEW_POSE/tabletFocusPose, Esc→snapToNow then home).
-- Conductor mounts at M2 close: `<MeridianRing/><EventTablets/><PlumbLine/>` after `<Embers/>` before `<CameraRig/>`. JarvisRing before PostFX; PostFX last.
+### ✅ Wave M2 — DONE + integration-gate green (tsc baseline-only, build exit 0, /world emitted)
+- M-05 ring-structure 667772e → meridian/MeridianRing.tsx (canted brass annulus, instanced ticks, minute-tick rotation reading meridianBus offset).
+- M-06 tablet-system (2 commits) → meridian/EventTablets.tsx + meridian/meridianHover.ts (tabletHoverBus seam). ONE InstancedMesh(128)+band InstancedMesh(8)+zenith hero; cache key `studiolo:sf@1|tablet@1`; transmission cap still 3 (lantern/ribbon/zenith).
+- M-07 plumb-line b04845d → meridian/PlumbLine.tsx (now-line zenith→trunk + additive god-ray cone; rides DustMotes activity window, no new demand).
+- M-08 lookup-camera 82018ec/6c70e12/72114dd → camera/{useWorldKeys,CameraRig} + meridian/meridianPoses.ts (C key, RING_VIEW_POSE/tabletFocusPose, Esc→snapToNow then home).
+- **Conductor mount e8ea705:** `<MeridianRing/><EventTablets/><PlumbLine/>` mounted after `<Embers/>` before `<CameraRig/>`. JarvisRing before PostFX; PostFX last. Verified green.
 
-### Wave M3 (after M2): M-09 toll-scheduler, M-10 zoetrope-scrub (registers meridianBus impl), M-11 labels-ledger.
+### 🔄 Wave M3 — LAUNCHING (parallel, file-disjoint; deps = M2)
+- M-09 toll-scheduler [40e845f2] → meridian/{TollScheduler(null),MeridianAudio}.tsx. One setTimeout at T-15, session dedupe Set, visibilitychange recompute; PositionalAudio at zenith reusing Chimes' unlock+mute flags (NO 2nd AudioContext).
+- M-10 zoetrope-scrub [92e8f475] → meridian/useRingScrub.ts (implements+registers meridianBus via __registerMeridianBusImpl) + surgical meridian/MeridianRing.tsx (mount hook) + camera/CameraRig.tsx (owns `setRingScrubActive` seam this wave). Heavy brass momentum, 30-min detent, frames-demanded-only-while-scrubbing, reduced-motion=discrete 1h steps.
+- M-11 labels-ledger [a8de94cf] → meridian/MeridianLabels.tsx + surgical text/Ledger.tsx (next-event clause + test) + text/fonts.ts (glyph audit). 8 old-style numerals riding dial (replicated transform, does NOT edit MeridianRing), date line, hover caption via tabletHoverBus, zenith caption. ≤11 live Text.
+- Conductor mounts at M3 close: `<MeridianLabels/>` beside `<WorldLabels/>`; `<TollScheduler/><MeridianAudio/>` after `<Chimes/>`. (useRingScrub self-mounts inside MeridianRing.)
 ### Wave M4: M-12 honesty-sweep, M-13 perf-hardening, M-14 docs (Sonnet).
 ### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
 
