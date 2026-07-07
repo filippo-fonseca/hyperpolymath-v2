@@ -38,6 +38,12 @@ export function StudioDebugCursor(): React.JSX.Element {
   return (
     <div
       aria-hidden
+      // Test-observability seam (D5): 3D-rendered tiles are unqueryable from the
+      // DOM, so mirror the resolved hover target and last intent here for
+      // Playwright. Zero behavior change; only present under `?studioDebug=1`.
+      data-studio-cursor=""
+      data-studio-hover={hover ?? ""}
+      data-studio-intent={lastIntent ?? ""}
       style={{
         position: "fixed",
         left: 0,
