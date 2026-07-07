@@ -15,8 +15,32 @@ import {
   emitJarvisToolCall,
 } from "@/lib/voice/physical-extension/bus";
 import { db } from "@/lib/db";
-import { routines } from "@/lib/db/schema";
+import { routines, users } from "@/lib/db/schema";
 import { resolveBlockId, runRoutine } from "@/lib/jarvis/routine-runner";
+
+/** Fallback timezone when a user has no configured `users.timezone`. */
+export const DEFAULT_TIMEZONE = "America/New_York";
+
+/**
+ * Resolve a user's IANA timezone from `users.timezone`, the SAME source
+ * run-turn.ts uses for its temporal/greeting contract. Falls back to
+ * DEFAULT_TIMEZONE when unset or on any read error, so a routine's opener /
+ * fillers always have a sane local clock to greet by
+ * (bgsd/briefing-opener-greeting).
+ */
+export async function resolveUserTimezone(userId: string): Promise<string> {
+  try {
+    const rows = await db
+      .select({ timezone: users.timezone })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    return rows[0]?.timezone ?? DEFAULT_TIMEZONE;
+  } catch (err) {
+    console.error("[routine-fire] timezone resolve failed, using default", err);
+    return DEFAULT_TIMEZONE;
+  }
+}
 
 type RoutineRow = typeof routines.$inferSelect;
 
@@ -52,6 +76,13 @@ export interface FireRoutineOpts {
   mode?: "computer";
   routineName: string;
   runId?: string;
+  /**
+   * User's IANA timezone, resolved by the caller (route) via
+   * `resolveUserTimezone`. Threaded into the runner so the opener / per-block
+   * fillers greet by the user's LOCAL time-of-day. Omitted = fillers get no
+   * greeting contract (behavior-neutral for callers that don't set it).
+   */
+  timezone?: string;
   abortSignal?: AbortSignal;
   /**
    * Briefing cohesion (Option C). When true, blocks gather silently and ONE
@@ -130,6 +161,7 @@ export function fireRoutineOverBus(blocks: RoutineBlock[], opts: FireRoutineOpts
       parallel: opts.parallel,
       routineName: opts.routineName,
       loadingInstruction: opts.loadingInstruction,
+      timezone: opts.timezone,
       runId,
       abortSignal: opts.abortSignal,
     },

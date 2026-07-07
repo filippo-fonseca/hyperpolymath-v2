@@ -10,7 +10,11 @@ import {
 } from "@/lib/voice/physical-extension/bus";
 import { phraseMatches } from "@hyperpolymath/jarvis-core/routines";
 import { findSingleUserId } from "@/lib/jarvis/find-single-user";
-import { fireRoutineOverBus, getEnabledRoutines } from "@/lib/jarvis/routine-fire";
+import {
+  fireRoutineOverBus,
+  getEnabledRoutines,
+  resolveUserTimezone,
+} from "@/lib/jarvis/routine-fire";
 import { runJarvisTurnStream } from "@/lib/jarvis/run-turn";
 import { buildRecentHistory } from "@/lib/jarvis/recent-history";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
@@ -186,6 +190,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       });
       const routineKey =
         (await getUserKeyOrNull(userId, "anthropic")) ?? process.env.ANTHROPIC_API_KEY ?? "";
+      const routineTimezone = await resolveUserTimezone(userId);
       const runId = fireRoutineOverBus(matched.spec.blocks, {
         userId,
         apiKey: routineKey,
@@ -195,6 +200,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         parallel: matched.spec.parallel === true,
         routineName: matched.name,
         loadingInstruction: matched.spec.loadingInstruction?.trim() || undefined,
+        timezone: routineTimezone,
       });
       return Response.json({ transcript, sttDoneAt, routine: matched.id, runId }, { headers: CORS });
     }
