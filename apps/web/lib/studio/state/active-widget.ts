@@ -23,7 +23,10 @@
  */
 
 import { useSyncExternalStore } from "react";
-import type { StudioWidgetId } from "@/components/studio/data/useStudioData";
+import {
+  STUDIO_WIDGET_ORDER,
+  type StudioWidgetId,
+} from "@/components/studio/data/useStudioData";
 
 const EMPTY: readonly StudioWidgetId[] = [];
 
@@ -39,6 +42,21 @@ export function activateWidget(id: StudioWidgetId): void {
   if (active.length === 1 && active[0] === id) return;
   active = [id];
   emit();
+}
+
+/**
+ * Page the (single) focused widget to its neighbor in canonical order,
+ * wrapping around at the ends. No-op when nothing is focused — paging is only
+ * meaningful inside the focus overlay. Delegates to {@link activateWidget}, so
+ * it reuses the same replace + no-op + subscriber-notify semantics.
+ */
+export function pageActiveWidget(dir: "next" | "prev"): void {
+  const current = active[0];
+  if (current === undefined) return; // nothing focused → no-op
+  const i = STUDIO_WIDGET_ORDER.indexOf(current);
+  const n = STUDIO_WIDGET_ORDER.length;
+  const next = STUDIO_WIDGET_ORDER[(i + (dir === "next" ? 1 : -1) + n) % n]!;
+  activateWidget(next);
 }
 
 /** Clear all focus — collapse back to the ambient cloud. */
