@@ -28,6 +28,17 @@ import { getAreasForCurrentUser } from "@/app/actions/areas";
 import { getTasksForCurrentUser } from "@/app/actions/tasks";
 import { getCapturesForCurrentUser } from "@/app/actions/captures";
 import { listEventsForUser } from "@/app/actions/gcal-events";
+import {
+  getHabitsForCurrentUser,
+  getHabitCompletionsInRange,
+  type HabitWithAreas,
+} from "@/app/actions/habits";
+import { getJournalEntry, type JournalEntry } from "@/app/actions/journal";
+import {
+  getHashtagsForUserAction,
+  type HashtagWithCount,
+} from "@/app/actions/hashtags";
+import { addDaysISO } from "@/components/habits/date-utils";
 import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
@@ -43,6 +54,9 @@ import {
   type WorldData,
   type CalendarData,
   type CalendarSeed,
+  type HabitsData,
+  type JournalTodayData,
+  type HabitCompletionRow,
 } from "./useWorldData";
 
 interface WorldDataProviderProps {
@@ -51,6 +65,9 @@ interface WorldDataProviderProps {
   initialTasks: TaskWithProjects[]; // SSR seed: getAllTasksForUser(user.id)
   initialCaptures: CaptureWithLinks[]; // SSR seed: getCapturesForUser
   initialCalendar: CalendarSeed; // SSR seed: /world gcal read (M-01, renamed W-01)
+  initialHabits: HabitWithAreas[]; // SSR seed: getHabitsForCurrentUser (W-01)
+  initialHabitCompletions: HabitCompletionRow[]; // SSR seed: trailing-14d completions (W-01)
+  initialJournal: JournalEntry | null; // SSR seed: today's journal entry (W-01)
   children: ReactNode;
 }
 
@@ -60,6 +77,9 @@ export function WorldDataProvider({
   initialTasks,
   initialCaptures,
   initialCalendar,
+  initialHabits,
+  initialHabitCompletions,
+  initialJournal,
   children,
 }: WorldDataProviderProps) {
   // ── Realtime subscriptions (singleton channels; refcounted) ──────────────
@@ -75,6 +95,25 @@ export function WorldDataProvider({
     alsoInvalidate: [tableKey("tasks", userId)],
   });
   useTableSubscription("captures", userId);
+
+  // Phase 3 (W-01): the new bench-data channels, mirroring the exact 2D
+  // subscriptions (HabitsClient, JournalingClient, CapturesClient) so the world
+  // and the Page stay one observer of the same cache. Habits: the habits list,
+  // the area-link junction (fanned onto the habits key), and completions.
+  // Journal: journal_entries invalidates the whole ["journaling", userId]
+  // prefix (the 2D client subscribes to it). Hashtags: the tag list + the
+  // captures↔hashtags junction (fanned onto hashtags + captures) for the
+  // Captures panel's tag chips (W-08 reads).
+  useTableSubscription("habits", userId);
+  useTableSubscription("habits_areas", userId, {
+    alsoInvalidate: [tableKey("habits", userId)],
+  });
+  useTableSubscription("habit_completions", userId);
+  useTableSubscription("journal_entries", userId);
+  useTableSubscription("hashtags", userId);
+  useTableSubscription("captures_hashtags", userId, {
+    alsoInvalidate: [tableKey("hashtags", userId), tableKey("captures", userId)],
+  });
 
   // ── Shared-cache reads (same keys/fns as the 2D app) ─────────────────────
   const { data: tree = initialTree } = useQuery({
@@ -179,6 +218,49 @@ export function WorldDataProvider({
   const calendarStatus: GcalConnectionStatus =
     connStatus ?? initialCalendar.status;
 
+  // ── Habits slice (W-01, §1.2) — 2D keys/fns verbatim ─────────────────────
+  // The habits list + a trailing 14-day completion window, keyed EXACTLY like
+  // the 2D `/habits` client (HabitsClient.tsx:157-178). `windowStart` rides the
+  // EXISTING `today` minute clock (addDaysISO(today, -13)) — ZERO new intervals.
+  const habitsWindowStart = useMemo(() => addDaysISO(today, -13), [today]);
+
+  const { data: habitRows = initialHabits } = useQuery({
+    queryKey: tableKey("habits", userId),
+    queryFn: getHabitsForCurrentUser,
+    initialData: initialHabits,
+  });
+
+  const { data: habitCompletionRows = initialHabitCompletions } = useQuery({
+    queryKey: [
+      ...tableKey("habit_completions", userId),
+      habitsWindowStart,
+      today,
+    ] as const,
+    queryFn: () => getHabitCompletionsInRange(habitsWindowStart, today),
+    initialData: initialHabitCompletions,
+  });
+
+  // ── Journal slice (W-01, §1.2) — today's entry only, keyed like the 2D
+  // JournalingClient (["journaling", userId, selectedDate], selectedDate =
+  // today here). Read-only in MVP; the server action returns an ActionResult,
+  // so unwrap to the entry (or null) for the slice.
+  const { data: journalResult } = useQuery({
+    queryKey: ["journaling", userId, today] as const,
+    queryFn: () => getJournalEntry({ date: today }),
+    initialData: { success: true as const, data: initialJournal },
+  });
+  const journalEntry: JournalEntry | null = journalResult?.success
+    ? journalResult.data
+    : null;
+
+  // ── Hashtags (W-01, §1.2) — tag chips for the Captures panel (W-08 reads).
+  // Same key/fn as CapturesClient.tsx:166-169. No SSR seed (per build order);
+  // fetches on mount and stays live via the hashtags/captures_hashtags channels.
+  const { data: hashtags = [] } = useQuery({
+    queryKey: tableKey("hashtags", userId),
+    queryFn: () => getHashtagsForUserAction({ withCounts: true }),
+  });
+
   // ── Memoized derivations on data identity ────────────────────────────────
   const layout = useMemo(() => solveTreeLayout(tree), [tree]);
   const emberSlots = useMemo(
@@ -204,6 +286,22 @@ export function WorldDataProvider({
       worldTz,
       worldWindow,
     ],
+  );
+
+  // Habits/journal slice identities memoized on their inputs (perf constraint):
+  // the Habits (W-10) / Journal (W-11) panels read these in render.
+  const habits = useMemo<HabitsData>(
+    () => ({
+      habits: habitRows,
+      completions: habitCompletionRows,
+      windowStart: habitsWindowStart,
+    }),
+    [habitRows, habitCompletionRows, habitsWindowStart],
+  );
+
+  const journal = useMemo<JournalTodayData>(
+    () => ({ entry: journalEntry }),
+    [journalEntry],
   );
 
   // ── Task snapshot differ → task-completed events (§4.2) ──────────────────
@@ -243,7 +341,17 @@ export function WorldDataProvider({
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     invalidate();
-  }, [tree, tasks, captures, calendarEvents, invalidate]);
+  }, [
+    tree,
+    tasks,
+    captures,
+    calendarEvents,
+    habitRows,
+    habitCompletionRows,
+    journalEntry,
+    hashtags,
+    invalidate,
+  ]);
 
   const value = useMemo<WorldData>(
     () => ({
@@ -255,8 +363,23 @@ export function WorldDataProvider({
       captures,
       todayYmd: today,
       calendar,
+      habits,
+      journal,
+      hashtags,
     }),
-    [userId, tree, layout, tasks, emberSlots, captures, today, calendar],
+    [
+      userId,
+      tree,
+      layout,
+      tasks,
+      emberSlots,
+      captures,
+      today,
+      calendar,
+      habits,
+      journal,
+      hashtags,
+    ],
   );
 
   return (
