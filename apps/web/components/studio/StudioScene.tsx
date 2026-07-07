@@ -4,6 +4,7 @@ import { StudioAtmosphere } from "./env/StudioAtmosphere";
 import { DustMotes } from "./env/DustMotes";
 import { PostFX } from "./env/PostFX";
 import { PerfGovernor } from "./perf/PerfGovernor";
+import { WidgetCloud } from "./cloud/WidgetCloud";
 
 /**
  * StudioScene — the composition root of The Studio (Wave-1 scaffold).
@@ -32,6 +33,7 @@ export function StudioScene(): React.ReactElement {
           <PostFX/> MUST remain the LAST child (single EffectComposer wraps all).
           NB: the DOM focus-overlay is NOT mounted here — it lives outside the
           Canvas, as a sibling under <StudioDataProvider> in StudioLoader. */}
+      <WidgetCloud /> {/* ambient cloud of five hologram tiles + raycast hover */}
       <PerfGovernor /> {/* adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
       <PostFX /> {/* the ONLY EffectComposer — MUST stay last */}
     </>
