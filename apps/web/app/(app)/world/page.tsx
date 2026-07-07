@@ -9,6 +9,11 @@ import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { getAllTasksForUser } from "@/lib/db/queries/tasks";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
 import {
+  getHabitsForCurrentUser,
+  getHabitCompletionsInRange,
+} from "@/app/actions/habits";
+import { getJournalEntry } from "@/app/actions/journal";
+import {
   getGcalConnectionStatus,
   type GcalConnectionStatus,
 } from "@/lib/db/queries/gcal-connection";
@@ -56,21 +61,46 @@ export const revalidate = 0;
 export default async function WorldPage() {
   const user = await getUserOrRedirect();
 
-  const [initialTree, initialTasks, initialCaptures, statusResult, tzRow] =
-    await Promise.all([
-      getSidebarTree(user.id, false),
-      getAllTasksForUser(user.id),
-      getCapturesForUser(user.id),
-      getGcalConnectionStatus(user.id),
-      db
-        .select({
-          tz: users.timezone,
-          visibleCals: users.gcalVisibleCalendarIds,
-        })
-        .from(users)
-        .where(eq(users.id, user.id))
-        .limit(1),
-    ]);
+  // Habits + journal seed dates in LOCAL time — byte-identical to the 2D
+  // /habits (rolling 14-day window) and /journaling (today) server pages, and
+  // to the world provider's `todayYmd` client clock, so the SSR seeds hydrate
+  // the shared-key queries with no extra round-trip.
+  const localToday = new Date();
+  const toLocalYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const habitsWindowStartDate = new Date(localToday);
+  habitsWindowStartDate.setDate(localToday.getDate() - 13);
+  const localTodayYmd = toLocalYmd(localToday);
+  const habitsWindowStartYmd = toLocalYmd(habitsWindowStartDate);
+
+  const [
+    initialTree,
+    initialTasks,
+    initialCaptures,
+    statusResult,
+    tzRow,
+    initialHabits,
+    initialHabitCompletions,
+    journalResult,
+  ] = await Promise.all([
+    getSidebarTree(user.id, false),
+    getAllTasksForUser(user.id),
+    getCapturesForUser(user.id),
+    getGcalConnectionStatus(user.id),
+    db
+      .select({
+        tz: users.timezone,
+        visibleCals: users.gcalVisibleCalendarIds,
+      })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
+    getHabitsForCurrentUser(),
+    getHabitCompletionsInRange(habitsWindowStartYmd, localTodayYmd),
+    getJournalEntry({ date: localTodayYmd }),
+  ]);
+
+  const initialJournal = journalResult.success ? journalResult.data : null;
 
   const meridianTz = tzRow[0]?.tz ?? "UTC";
   const persistedVisibleCals = tzRow[0]?.visibleCals ?? null;
@@ -151,6 +181,9 @@ export default async function WorldPage() {
         initialTasks={initialTasks}
         initialCaptures={initialCaptures}
         initialCalendar={initialCalendar}
+        initialHabits={initialHabits}
+        initialHabitCompletions={initialHabitCompletions}
+        initialJournal={initialJournal}
       />
     </main>
   );

@@ -3,7 +3,9 @@
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { CalendarSeed } from "./data/useWorldData";
+import type { HabitWithAreas } from "@/app/actions/habits";
+import type { JournalEntry } from "@/app/actions/journal";
+import type { CalendarSeed, HabitCompletionRow } from "./data/useWorldData";
 import { WorldDataProvider } from "./data/WorldDataProvider";
 import { Atmosphere } from "./env/Atmosphere";
 import { DustMotes } from "./env/DustMotes";
@@ -41,6 +43,9 @@ export interface WorldSceneProps {
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
   initialCalendar: CalendarSeed;
+  initialHabits: HabitWithAreas[];
+  initialHabitCompletions: HabitCompletionRow[];
+  initialJournal: JournalEntry | null;
 }
 
 export function WorldScene(props: WorldSceneProps): React.ReactElement {
@@ -54,6 +59,9 @@ export function WorldScene(props: WorldSceneProps): React.ReactElement {
       initialTasks={props.initialTasks}
       initialCaptures={props.initialCaptures}
       initialCalendar={props.initialCalendar}
+      initialHabits={props.initialHabits}
+      initialHabitCompletions={props.initialHabitCompletions}
+      initialJournal={props.initialJournal}
     >
       {/* ── Wave 2: the assembled Studiolo ─────────────────────────────────
           Composition-only; each system reads useWorldData() and takes no props.

@@ -5,7 +5,9 @@ import dynamic from "next/dynamic";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
-import type { CalendarSeed } from "./data/useWorldData";
+import type { HabitWithAreas } from "@/app/actions/habits";
+import type { JournalEntry } from "@/app/actions/journal";
+import type { CalendarSeed, HabitCompletionRow } from "./data/useWorldData";
 import { WorldSkeleton } from "./WorldSkeleton";
 
 /**
@@ -32,6 +34,9 @@ export interface WorldLoaderProps {
   initialTasks: TaskWithProjects[];
   initialCaptures: CaptureWithLinks[];
   initialCalendar: CalendarSeed;
+  initialHabits: HabitWithAreas[];
+  initialHabitCompletions: HabitCompletionRow[];
+  initialJournal: JournalEntry | null;
 }
 
 /** Probe for a usable WebGL2 context without leaking the throwaway canvas. */
