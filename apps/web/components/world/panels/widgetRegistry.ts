@@ -26,6 +26,7 @@
  */
 import type { ComponentType } from "react";
 import type { BenchSlot, WidgetId } from "./widgetTypes";
+import type { DragHandleProps } from "./WorldPanel";
 // ── Conductor-populated roster (grows at each wave boundary, like WorldScene mounts) ──
 import { TasksWidget } from "./TasksWidget"; // W-05 (wave W2)
 import { CapturesWidget } from "./CapturesWidget"; // W-08 (wave W2)
@@ -44,6 +45,13 @@ export interface WidgetComponentProps {
   slot: BenchSlot;
   focused: boolean;
   lod: WidgetLod;
+  /**
+   * Drag-handle plumbing produced per-widget by the rig (W-07 grab-and-move) and
+   * forwarded by each widget to its `<WorldPanel dragHandleProps={…}>` header grip.
+   * Optional: `undefined` before grab-and-move mounts, so all W2 widgets stay
+   * assignable. (Conductor amendment at the W3-open boundary.)
+   */
+  dragHandleProps?: DragHandleProps;
 }
 
 export type WidgetComponent = ComponentType<WidgetComponentProps>;
