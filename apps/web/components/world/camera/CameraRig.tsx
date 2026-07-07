@@ -220,6 +220,13 @@ function poseForFocus(
       const l = layout.byProject.get(f.projectId);
       return l ? lanternFocusPose(l) : null;
     }
+    // Phase 2 M-01: the ring focus levels are compile-safety stubs here — the
+    // real RING_VIEW_POSE / tabletFocusPose mapping is added by M-08
+    // (lookup-camera), which owns this switch for Wave M2. Returning null keeps
+    // the exhaustive union compiling without asserting a camera authority M-01
+    // doesn't own.
+    case "ring":
+      return null;
   }
 }
 
