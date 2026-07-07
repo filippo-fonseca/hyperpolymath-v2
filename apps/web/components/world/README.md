@@ -69,7 +69,7 @@ The world renders full-bleed inside the `AppShell` main pane; the 2D sidebar rem
 | `text/WorldLabels.tsx` | World captions | Distance-culled SDF `<Text>` captions via troika-three-text: area names (always visible, ≤9), project names (visible ≤6 m), hover caption (one singleton reused across all hovered objects). | `WorldLabels` |
 | `text/Ledger.tsx` | Day-at-a-glance HUD | Camera-anchored bottom-center `<Text>` strip in italic EB Garamond composing a one-line day summary from `useWorldData()`. | `Ledger`, `composeLedgerLine()` |
 | `text/fonts.ts` | Font preload | URL constants for the EB Garamond `.woff` files in `public/world/fonts/`. Exports `preloadWorldFonts()` (calls troika's `preloadFont` with the ASCII+dates glyph set at world mount). | `EB_GARAMOND_WOFF`, `EB_GARAMOND_ITALIC_WOFF`, `preloadWorldFonts()` |
-| `panels/TodayPanel.tsx` | Today holographic panel | One `@react-three/uikit` `<Root>` panel at the dais listing due/overdue tasks. Completion calls the same server action as the 2D `UpcomingTasksWidget` → `invalidateQueries(tableKey("tasks", userId))` → differ → ascending spark. | `TodayPanel` |
+| `panels/**` | The Workbench (Phase 3) | `TodayPanel.tsx` is gone — the whole bench-of-panels subsystem lives here now. See [The Workbench (Phase 3 — The Bottega)](#the-workbench-phase-3--the-bottega) below for its own module map. | — |
 | `jarvis/JarvisRing.tsx` | Jarvis ring mesh | Two concentric `TorusGeometry` meshes (Jarvis Cyan, `toneMapped:false` for bloom). Idle breathing at 12 bpm. Summon/dismiss spring via `@react-spring/three`. Mounts `useJarvisWorld()` exactly once. | `JarvisRing` |
 | `jarvis/JarvisRibbon.tsx` | Jarvis input ribbon | Drei `<Html transform>` wrapping a styled `<input>` (the ONLY `<Html>` root in the scene). Real DOM caret. Streams italic Garamond reply text via troika `text` property mutation (throttled 50 ms). Clarification chips render as uikit buttons. | `JarvisRibbon` |
 | `jarvis/useJarvisWorld.ts` | Jarvis state machine | State machine (`idle → listening → thinking → streaming → error`). Wires `streamJarvis()` callbacks: `onText` → ref buffers (never React re-render), `onAction` → `invalidateAfterJarvisAction` then `worldEvents.emit('jarvis-action', ev)`, `onDone` → persist turn + history. | `useJarvisWorld(): JarvisWorldHandle`, `jarvisWorldBus` |
@@ -266,107 +266,105 @@ A new visual object family (e.g. "habits as moths") follows this pattern:
 
 ---
 
-## Meridian Ring (Phase 2)
+## The Workbench (Phase 3 — The Bottega)
 
-> *"Time in every other app is a grid you look at. Here it is a wheel you put your hand on."*
+> *"I'm tired of a sky I only look at. Give me a bench I can work at."*
 
-Google Calendar rendered as a great slow brass-and-glass annulus turning overhead — canted like an armillary sphere's ecliptic. The day is a 24-hour dial; *now* is always at zenith under the plumb-line of light; events are glass tablets riveted to the ring, approaching you all morning and swinging behind you into sepia once they pass. A new engineer can add a ring widget from this section alone.
+The Meridian Ring came down. In its place the Studiolo grew **hands**: a workbench arc of holographic drafting-paper panels standing where the ring used to loom, each one a live window onto a 2D surface — Tasks, Captures, Agenda, Habits, Journal — that you swipe between, grab and rearrange, and genuinely work in through the exact same server actions and query keys as the 2D app. The Tree keeps its place as the room's centerpiece, framed dead-ahead down the aisle between the benches. A new engineer can add a widget to the bench from this section alone.
 
 ---
 
-### Module Map (meridian/)
+### Module Map (panels/)
 
 | File | System | What It Owns | Key Exports |
 |---|---|---|---|
-| `meridian/meridianLayout.ts` | Dial math | Pure 24h dial math: `timeToAngle`, `ringRotationFor`, `solveMeridianLayout`, `visibleSlots`, `classifyTablet`, `linkEventToProject`, `resolveOverlaps`. Zero `three` imports; deterministic given its inputs; memoizable by identity. | `MeridianConfig`, `TabletSlot`, `TabletState`, `TabletPlacement`, `timeToAngle()`, `ringRotationFor()`, `solveMeridianLayout()`, `visibleSlots()`, `classifyTablet()`, `linkEventToProject()`, `resolveOverlaps()` |
-| `meridian/meridianMappings.ts` | State→light grammar | Tablet tint resolution (`resolveTabletTint`), calendar-dot color for hover captions (`calendarDotColor`), the `TABLET_VISUALS` constants (sepia mix, emissive, rim, lean), and `TABLET_STATE_ID` encoding. Zero `three` imports. | `resolveTabletTint()`, `calendarDotColor()`, `TABLET_VISUALS`, `TABLET_STATE_ID`, `PARCHMENT_HEX`, `oklchToHex()` |
-| `meridian/meridianBus.ts` | Scrub seam | The frozen `MeridianBus` interface + module singleton. Wave-M2 components import `meridianBus` immediately; M-10 registers the real impl via `__registerMeridianBusImpl` at mount (no second bus needed). Buffered subscriptions wire through on registration. | `MeridianBus`, `meridianBus`, `__registerMeridianBusImpl()` |
-| `meridian/meridianMaterials.ts` | Material factory | Three material factories: `makeRingBrassMaterial` (Studiolo Brass, metalness 0.85, non-emissive), `makeEngravedStripMaterial` (sub-bloom Candleflame warmth), `makeTabletMaterial` (hologram recipe reparameterised — parchment, Candleflame rim; M-06 chains the state chunk on), `makeGodRayMaterial` (additive, `toneMapped:false`, ~0.06 opacity). | `makeRingBrassMaterial()`, `makeEngravedStripMaterial()`, `makeTabletMaterial()`, `makeGodRayMaterial()` |
-| `meridian/meridianGeometries.ts` | Geometry singletons | Module-local singletons for the Meridian Ring: `RING_GEOMETRY`, `TABLET_GEOMETRY`, `TICK_GEOMETRY`, `BAND_GEOMETRY`, `SHAFT_GEOMETRY`. One per file; never constructed inside a component or `useFrame`. NOT added to the frozen `materials/sharedGeometries.ts`. | `RING_GEOMETRY`, `TABLET_GEOMETRY`, `TICK_GEOMETRY`, `BAND_GEOMETRY`, `SHAFT_GEOMETRY` |
-| `meridian/meridianHover.ts` | Hover seam | `tabletHoverBus` — a pure, `three`-free pub/sub between `EventTablets` (emitter, M-06) and `MeridianLabels` (consumer, M-11). `set(eventId|null)` dedupes repeated `onPointerMove` calls; `subscribe` returns an unsubscribe fn. Keeps the dependency direction one-way. | `TabletHoverBus`, `tabletHoverBus` |
-| `meridian/meridianPoses.ts` | Camera poses | Pure pose math for the look-up ritual (no React, no `three` runtime). `RING_VIEW_POSE`: camera low on the dais (~y 1.1, z 7.0), target the ring center — the ring looms overhead. `tabletFocusPose(slot, dialRotation)`: ~2.5 m reading distance, camera below the tablet so the lean-down reads correctly. | `RING_VIEW_POSE`, `tabletFocusPose()` |
-| `meridian/MeridianRing.tsx` | Ring structure | The canted brass annulus overhead. One `<group>` at `[0, 8.5, 0]` rotated `cantRad` about X; inside it a dial group whose y-rotation = `ringRotationFor(now, scrubOffsetMs, tz)` (read via `meridianBus`). Children: lathe ring mesh, engraved strip, ONE `InstancedMesh(TICK_GEOMETRY)` for 24 hour ticks + 96 quarter ticks (majors 2× scaled), fixed zenith pointer. `userData = { kind:'ring' }` for raycast pick → look-up. Boots `useRingScrub`. | `MeridianRing` |
-| `meridian/EventTablets.tsx` | Tablet system | ONE imperative `InstancedMesh(TABLET_GEOMETRY, …, 128)` for all event tablets + a small `InstancedMesh(BAND_GEOMETRY, …, 8)` for all-day bands. Freelist + `Map<eventId, slot>`; `aTabletState` instanced attribute (§2.4 treaty). Zenith hero swap: slot nearest zenith with `state === "current" | "imminent"` hides its instance and renders one `heroGlass` mesh (consuming the ≤3-cap reserve). T-15 lean-down: 25° pitch spring on `worldEvents("meridian-toll")`; instant state-color under `prefers-reduced-motion`. Hover → `tabletHoverBus.set()`; click → `focusStack.push({ kind:"ring", eventId })`. | `EventTablets` |
-| `meridian/PlumbLine.tsx` | Plumb-line | The now-line of light: thin emissive box (Candleflame, `toneMapped:false`, > 1 intensity → Bloom) falling from the zenith pointer to y ≈ 4.2 (never touches the Tree). Wrapped by `SHAFT_GEOMETRY` cone with `makeGodRayMaterial`. Static geometry; opacity breathes ±15% only during the 4 s post-interaction window (shares the DustMotes activity flag, zero new demand source). Fixed frame — does not rotate with the dial. | `PlumbLine` |
-| `meridian/MeridianLabels.tsx` | Labels | SDF `<Text>` (EB Garamond, from `text/fonts.ts` constants): 8 hour numerals (every 3 h, old-style figures, sepia-on-brass, z-inset, parented inside the dial group so they rotate with time; `visible` only when ring-focused or camera pitch > ~35° up); one italic date line under the zenith pointer (re-composed from the scrub center via `meridianBus.subscribe`, day-change throttled, troika mutation, not React state); one hover caption singleton (title · time range · calendar-color dot via `tabletHoverBus.subscribe`) + one zenith caption for the current/imminent tablet. | `MeridianLabels` |
-| `meridian/TollScheduler.tsx` | T-15 scheduler | Renders `null`. Arms exactly ONE `setTimeout` for `startMs − 15 min` of the nearest upcoming timed event; dedupes via a session `Set<eventId>` so each event tolls at most once per session. Re-arms on `meridian.events` identity change; recomputes on `visibilitychange` (timer drift in background tabs). Emits `worldEvents("meridian-toll", { eventId, title, startIso })`. Zero rAF impact. | `TollScheduler` |
-| `meridian/MeridianAudio.tsx` | Positional audio | Drei `<PositionalAudio url="/world/sfx/ring-toll.mp3" distance={6} loop={false}>` parented at the zenith marker (~[0, 8.5, 0]) — the T-15 toll literally arrives from overhead. Lazy mount: the audio node doesn't exist until the first `worldEvents("meridian-toll")`; mounted inside `<Suspense fallback={null}>` so the ~13 KB MP3 stays off the boot path. Reuses the world's shared gesture-unlock (`isAudioUnlocked()`) and mute (`isMuted()`) flags from `audio/synth.ts` — no second `AudioContext`. | `MeridianAudio` |
-| `meridian/useRingScrub.ts` | Zoetrope scrub | Implements and registers the pre-frozen `MeridianBus`. While `focus.kind === "ring"` (no `eventId`): capture-phase `wheel` listener maps `deltaY`/`deltaX` → `addScrubVelocity`; heavy brass momentum (exponential decay ~350 ms half-life) + soft 30-min detent (`easing.damp`); `snapToNow` = critically-damped spring to offset 0 (~700 ms). Offset clamped to loaded slab with rubber-band at edges. Self-invalidating frame loop (exits when settled → 1-frame/min idle regime). Reduced motion: discrete 1-hour steps, instant snap. | `useRingScrub()` (called once in `MeridianRing`) |
+| `panels/widgetTypes.ts` | Shared type surface | `WidgetId`, `BenchConfig`, `BenchSlot` — hoisted out of `WorldPanel.tsx`/`widgetLayout.ts` so the Wave-W1 units (`focusStack` amendment, the solver/registry/bus, the primitive) stay genuinely file-disjoint. The one place the bench roster's *type* grows. | `WidgetId`, `BenchConfig`, `BenchSlot` |
+| `panels/widgetLayout.ts` | Bench solver | Pure, deterministic arc math (zero `three` imports at runtime): `solveBenchLayout` (order → per-slot position/rotation/`cameraPose`), `neighborOf` (swipe prev/next, `null` past the arc's edge), `nearestSlotIndex` (drag drop-resolution from a yaw), `slotAngles`. Angle convention: signed offset from the aisle centerline, left wing negative, right wing positive. | `DEFAULT_BENCH_CONFIG`, `SLOT_STEP_RAD`, `solveBenchLayout()`, `neighborOf()`, `nearestSlotIndex()`, `slotAngles()` |
+| `panels/widgetRegistry.ts` | Widget registry | The single place the bench roster grows (§3.7 doctrine, mirrors `WorldScene.tsx`'s mount-list idiom): a `WidgetId → { title, component }` map, populated by the Conductor as each widget lands — **widget units never edit this file**. | `WIDGET_REGISTRY`, `WidgetSpec`, `WidgetComponentProps`, `getWidgetSpec()`, `isWidgetRegistered()`, `listWidgets()` |
+| `panels/widgetBus.ts` | Drag choreography bus | A tiny, `three`-free module-singleton pub/sub carrying ONLY the grab-and-move lifecycle (`drag-start` → `drag-move` → `drag-drop` → `docked`). Focus/navigation state does NOT live here — that stays in `focusStack`; the dock chime rides the existing `worldEvents("chime")` name, not a bus event. | `widgetBus`, `WidgetBus`, `WidgetBusEvent` |
+| `panels/widgetLayoutStore.ts` | Layout persistence | The bench remembers itself: a versioned `localStorage` blob (`world:widgetLayout@1`) holding the arc `order` + a `hidden` roster, exposed both imperatively (`loadWidgetLayout`/`saveWidgetLayout`) and reactively (`useWidgetLayout`, the `useFocusStack` `useSyncExternalStore` discipline). SSR-safe; unknown ids dropped, missing ids appended in `ROSTER` order, corrupt JSON falls back to `DEFAULT_LAYOUT` — never crashes the world. | `WidgetLayoutV1`, `DEFAULT_LAYOUT`, `WIDGET_LAYOUT_STORAGE_KEY`, `loadWidgetLayout()`, `saveWidgetLayout()`, `useWidgetLayout()` |
+| `panels/WorldPanel.tsx` | The panel primitive | THE keystone. Everything `TodayPanel` proved, generalized once: the deep-vellum uikit `<Root>` skin verbatim (opacity 0.7, brass border), ONE shared brass-rail frame geometry drawn with one of two module-singleton `makeHologramMaterial` instances (`frameIdle`/`frameFocused` — a prop-driven swap, never a recompile), the full/placard LOD split (§7.2 below), the §2.8 honesty states (`ready`/`empty`/`disconnected`), and the click-to-summon/click-to-swallow pick plumbing. Touches NO data — widgets supply `children` + their own wiring. | `WorldPanel()`, `WorldPanelProps`, `DragHandleProps`, `PANEL_ROW_CAP` |
+| `panels/WidgetRig.tsx` | Bench rig | Reads the persisted `order` (`useWidgetLayout`) + `useFocusStack()`, solves the arc once per reorder (`solveBenchLayout`, memoized on `order` identity), and renders each REGISTERED widget's self-contained component at its slot with `{ slot, focused, lod }`. Owns the wheel/trackpad swipe listener and the module-level `getBenchSlot()`/`swipeBench()` seam `CameraRig` and `useWorldKeys` read (no React import needed on their side — mirrors how lantern poses resolve). No `useFrame` in this file — the glide belongs to `cameraBus`. | `WidgetRig`, `getBenchSlot()`, `swipeBench()` |
+| `panels/useWidgetDrag.ts` | Grab-and-move | The crown jewel, and the phase's ONLY new `useFrame` consumer: self-invalidating while dragging/settling, early-exit to idle-zero the instant the bench stops moving. Ray→vertical-bench-cylinder intersection → signed yaw → live arc-following + preview-shift of displaced panels → drop resolves the nearest slot, persists via `useWidgetLayout().moveWidget()`, and eases every panel home with one `two-note` dock chime on settle. `Esc` mid-drag cancels without persisting. Reduced motion collapses lift/tilt/preview to a frame-only ghost outline + an instant cut on drop. | `useWidgetDrag()`, `WidgetDragApi`, `GHOST_GEOMETRY`, `GHOST_MATERIAL` |
+| `panels/FocusedPanelGlass.tsx` | Focused-panel hero glass | The one true glass moment (§7.1 below): a single `heroGlass` backplate mounted ~2 cm behind whichever panel is focused, swap-on-focus (the `Lanterns.tsx` idiom — a widget→widget swap re-positions the SAME mesh, never double-mounts), fading in/out via one damped `useFrame` that unmounts on full fade-out. Rendered as a sibling of `WidgetRig` in `WorldScene.tsx`. | `FocusedPanelGlass` |
+| `panels/TasksWidget.tsx` | Tasks panel | `TodayPanel`'s content reborn on the primitive: today+overdue tasks (overdue-first sort), the optimistic `checkedOff` Set, and the REAL `updateTaskStatus` completion → the same `tableKey("tasks", userId)` invalidation → the same ember-ascent loop. `TodayPanel.tsx` itself is deleted; nothing imports it. | `TasksWidget` |
+| `panels/CapturesWidget.tsx` | Captures panel | The inbox on the bench: newest-first captures (`useWorldData().captures`) with hashtag chips (`useWorldData().hashtags`), row delete via the same `deleteCapture` action + `tableKey("captures", userId)` invalidation as the 2D `CapturesClient`. No affordances invented beyond the 2D card's own. | `CapturesWidget` |
+| `panels/HabitsWidget.tsx` | Habits panel | Today's habit grid: one row per active habit, a trailing-7-day tick strip (copied verbatim from `HabitsClient`'s `ManageHabitRow`), today's cell an interactive `<Button>` wired to the same `toggleHabitCompletion` action + optimistic overlay as `/habits`. No streak caption (the 2D client computes none — nothing invented). | `HabitsWidget` |
+| `panels/JournalWidget.tsx` | Journal panel | Today's entry, read-only: a combined plain-text preview of `main_response`/`notes_section` (first ~12 lines / ~600 chars) + word count, and an "Open on the Page →" affordance that reuses `ModeToggle`'s ONE `Cmd+\` doorway (writes `sessionStorage['world:lastPageRoute']`, dispatches the same keydown) rather than inventing a second route. No in-world editing this phase. | `JournalWidget` |
+| `panels/agenda/AgendaWidget.tsx` | Agenda panel | The Ring's soul without its scaffolding: a flat, read-only Today/Tomorrow calendar built on `useWorldData().calendar`. Area-hue accent strip when `linkEventToProject` hits confidently, the calendar-source dot, `past`/`current`/`imminent` row treatment via `classifyEvent`, and a one-shot 600 ms shimmer on any event that `diffEventSnapshots` finds newly-appeared (a Jarvis-created event arriving live). Connection honesty per §2.8 — never OAuths. | `AgendaWidget` |
+| `panels/agenda/agendaLogic.ts` | Event grammar (survivor) | The Meridian Ring's pure event logic, extracted verbatim BEFORE `meridian/` was deleted: `classifyEvent` (was `classifyTablet`), `linkEventToProject`, `calendarDotColor`. Representation-agnostic (works off `{startMs,endMs}`, no tablet-slot coupling); zero `three` imports. | `classifyEvent()`, `linkEventToProject()`, `calendarDotColor()`, `EventTiming`, `PARCHMENT_HEX`, `IMMINENT_MS` |
 
 ---
 
-### The Dial Model
+### The Bench Spatial Model
 
-The ring is a **24-hour dial**; *now* is always at zenith. The dial group's y-rotation is:
+The bench is a **fixed arc of slots** around the standing point (the vestibule) — a generalization of `TodayPanel`'s single proven pose, multiplied and solved by `solveBenchLayout`. Panels are static world-anchored groups; the camera never carries them and they never track the camera (the "zero per-frame work" contract — see the idle rule below). A pure **central aisle** keeps the Tree (trunk at the origin) framed dead-ahead from the vestibule: **the bench wraps around YOU, not around the Tree**. Widget focus and bough focus are rank-1 siblings on the `focusStack`, so moving between "working at a bench" and "walking into the tree" is always one glide, and `Esc` always walks home.
 
-```ts
-ringRotationFor(nowMs, scrubOffsetMs, tz)
-// = ZENITH_ANGLE − timeToAngle(nowMs + scrubOffsetMs, tz)
-```
+Geometry defaults (`DEFAULT_BENCH_CONFIG` — tunable constants, not law):
 
-`timeToAngle` converts wall-clock time-of-day in the user's IANA timezone (via `TZDate`) to a dial angle: `0 = midnight, π = noon, 2π = next midnight`. Using wall-clock rather than elapsed-ms means a DST-transition day (a 23 h or 25 h day) never misplaces an afternoon event — 2pm is always `14/24` of the dial.
+| Constant | Value | Meaning |
+|---|---|---|
+| `center` | `[0, 0, 4.6]` | The arc center ≈ the standing point |
+| `eyeY` | `1.5` | Panel-center height (the `TodayPanel` precedent) |
+| `radius` | `3.0` | Slot distance from `center`, in meters |
+| `aisleRad` | `70°` | The central gap kept clear toward the Tree |
+| `maxSlots` | `7` | The hard live-panel cap (§7.2 below) |
+| `SLOT_STEP_RAD` | `28°` | Angular spacing between adjacent slots on the same wing |
+| `READ_DISTANCE` | `1.9 m` | Reading-eye distance from the panel along its radial |
 
-**Tablet placement convention:** tablets are placed on the dial's inner circle at `[R·sinβ, 0, R·cosβ]` in the dial group's local frame (β = dial angle after the dial has turned), where `β = 0` is the ring's top (zenith, i.e. toward the Vestibule camera azimuth). After canting the parent group `cantRad` about X (high side toward +Z), the world position of a tablet at angle β is:
-
-```
-tx = R·sinβ
-ty = height + R·cosβ·sin(cantRad)
-tz = R·cosβ·cos(cantRad)
-```
-
-**Scrubbing** advances `scrubOffsetMs`, rolling a ~28 h display window (zenith ±14 h) across the loaded ±7-day slab. The camera and the tablets never move — the dial re-orients and tablets enter/leave the freelist as the window rolls. Days "flicker past" at scrub speed.
-
-**The ≤3 transmission/heroGlass cap:** `heroGlass()` is limited to 3 live instances (the dev registry). They are now all consumed: (1) the focused lantern, (2) the Jarvis ribbon, (3) the zenith tablet (the `current | imminent` tablet nearest zenith). Only one of (1) and (3) is hero at a time in practice (ring focus and lantern focus are mutually exclusive stack levels), so swap-on-focus is idiomatic.
+**Angle convention:** every angle in `widgetLayout.ts` (and the drag hook's `yawRad`) is a **signed offset from the aisle centerline** — `α = 0` points straight down the aisle at the Tree (no slot ever sits there); `α < 0` is the viewer's left wing (index 0 = leftmost/outermost slot); `α > 0` is the right wing. Slots are ordered left→right by `α` ascending. An even-length order splits symmetrically; an odd one gives the extra slot to the right wing. This is the exact convention `useWidgetDrag`'s ray→yaw math inverts, so a drag and the static solve never drift apart.
 
 ---
 
-### Frozen Contracts (Phase 2 additions)
+### Navigation — Swipe, Summon, Grab-and-Move
 
-These are established at Phase-2 Wave M1 close. Changes require an orchestrator amendment commit.
+- **Swipe** — three equivalent inputs, all resolving through `neighborOf` + `focusStack.push({ kind:"widget", widgetId })` + `CameraRig`'s existing focus→pose effect (`cameraBus.flyTo`, ~700 ms glide, instant cut under reduced motion):
+  - **Wheel/trackpad:** a capture-phase `wheel` listener on the canvas (`WidgetRig`'s `useWheelSwipe`) treats a horizontal-dominant gesture (`|deltaX| > |deltaY|`) as one discrete swipe once it accumulates past ~60 px, debounced ~350 ms. Vertical wheel is left completely untouched (`CameraControls` dolly in open space; uikit's own scroll over a panel).
+  - **Keys:** `←`/`→` (prev/next panel via `swipeBench`); `C` summons the Agenda panel; `Esc` pops; `1–9` still fly to boughs — all inside the one `useWorldKeys` listener.
+  - **Click:** clicking any unfocused panel (full or placard) summons it — `WorldPanel`'s frame `onClick` (placard) or its SDF title `onClick`.
+  - At the vestibule (nothing focused), a swipe focuses the nearest panel on that side; swiping past the arc's end is a soft no-op — `neighborOf` returns `null`, nothing is pushed.
+- **Summon** — a placard click (or a swipe/key landing on it) is the only way a distant panel comes to reading pose; it is always `focusStack.push({ kind:"widget", widgetId })`, never a direct camera move.
+- **Grab-and-move** (`useWidgetDrag.ts` — MVP is **slot reordering**, not free placement):
+  1. **Grab** — `pointerdown` on a panel's frame grip: pointer capture, `widgetBus.emit({kind:"drag-start"})`, the panel lifts ~6 cm and tilts ~4° toward the camera, its frame blooms (the `focused` override the rig applies to the dragged id).
+  2. **Move** — `pointermove`: the pointer ray intersects the vertical bench cylinder → a signed yaw → `widgetBus.emit({kind:"drag-move", yawRad})`. The grabbed panel follows the yaw along the arc; every other panel **preview-shifts** toward its would-be slot (`nearestSlotIndex` against a precomputed `solveBenchLayout` per candidate index), damped over ~400 ms.
+  3. **Drop** — `pointerup`/`pointercancel`/pointer-leaves-canvas: `nearestSlotIndex` resolves the final index → `useWidgetLayout().moveWidget(id, toIndex)` (reorder + persist to `localStorage` + notify) → the rig re-solves and every panel eases to its final slot → on settle, one `worldEvents.emit("chime", {kind:"two-note"})` dock chime (the existing chime name — no amendment).
+  4. **Cancel** — `Esc` mid-drag aborts and eases the panel home without persisting and without a chime.
+  5. **Reduced motion** — no lift/tilt/preview animation at all; the drag ghost is a frame-only wireframe outline snapped to the candidate slot, and drop applies the new order as an instant cut (the dock chime still sounds — audio is not gated by motion preference).
 
-#### `worldEvents` — amended to 6 event names (source: `data/diffing.ts`)
+---
 
-```ts
-type WorldEventMap = {
-  // ...five Phase-1 names unchanged...
-  "meridian-toll": { eventId: string; title: string; startIso: string };
-  // emitted by TollScheduler.tsx; consumed by MeridianAudio + EventTablets lean-down
-};
-```
+### The Panel-LOD Law (§7.2)
 
-The `chime` kind union is NOT extended — the toll is positional audio and does NOT route through `audio/Chimes.tsx`.
+At most **3 panels render full uikit content** at once — the focused panel plus its two arc neighbors (index ±1 in the solved order); at the vestibule (nothing focused) the full trio is centered on the arc middle. Every other bench panel renders as a **placard**: the brass frame + one SDF `<Text>` title, nothing else (`WorldPanel`'s `lod === "placard"` branch — the `<Root>` simply does not mount). `WidgetRig` chooses LOD at render from focus/order state — a **mount change at interaction cadence, never per-frame**. The live-widget cap is **7** (`BenchConfig.maxSlots`); an `order` longer than that is silently clamped to its first 7 entries.
 
-#### `MeridianBus` / `meridianBus` (source: `meridian/meridianBus.ts`)
+---
 
-```ts
-export interface MeridianBus {
-  getScrubOffsetMs(): number;
-  addScrubVelocity(msPerSec: number): void;   // wheel deltas
-  snapToNow(ms?: number): Promise<void>;      // decelerating return; Esc path
-  subscribe(fn: (offsetMs: number) => void): () => void;  // day-change listeners
-}
-export const meridianBus: MeridianBus;        // facade; impl registered by useRingScrub
-export function __registerMeridianBusImpl(next: MeridianBus): () => void;
-// Called once by useRingScrub on mount; returns an unregister fn for HMR/unmount.
-// Pending subscribers are wired through automatically on registration.
-```
+### The Idle-rAF Rule (§7.3)
 
-Frame consumers read the offset via the getter inside `useFrame`; `subscribe` is for coarse listeners (e.g. the date line re-composing once per day-change, not per frame).
+Panels at rest are static world objects: `WorldPanel.tsx` has no `useFrame`, no ref mutation, and never calls `invalidate()`. The bench's only continuous frame-demand sources, both self-invalidating with an early exit at settle:
 
-#### `tabletHoverBus` (source: `meridian/meridianHover.ts`)
+- **`useWidgetDrag`'s one `useFrame`** — live only while a drag or its post-drop settle animation is in flight; the instant the bench stops moving it stops calling `invalidate()` and the world sleeps.
+- **`FocusedPanelGlass`'s opacity fade** — a short damped `useFrame` that runs only while the backplate is fading in or out, unmounting (and releasing its `heroGlass` registry slot) the moment a fade-out reaches zero.
 
-```ts
-export interface TabletHoverBus {
-  get(): string | null;           // currently-hovered eventId; null = nothing
-  set(eventId: string | null): void;  // M-06 only; dedupes repeated onPointerMove
-  subscribe(fn: (eventId: string | null) => void): () => void;  // M-11 consumer
-}
-export const tabletHoverBus: TabletHoverBus;
-```
+Outside an active drag or fade, the bench contributes nothing beyond the provider's existing once-a-minute `invalidate()` (the `todayYmd` clock that also drives Agenda reclassification and the habits window) — unchanged from the Phase-1/2 idle criterion: `idle 10 s → rAF → 0 (± firefly heartbeat ≤5 fps, ± minute-tick = 1 frame/min)`.
 
-#### `worldEvents "meridian-toll"` — T-15 signal
+---
 
-Emitted by `TollScheduler` exactly once per event per session. Payload: `{ eventId, title, startIso }`. Consumers: `MeridianAudio` (plays the toll from above), `EventTablets` (springs the lean-down).
+### The Transmission-Cap Resolution (§7.1)
+
+Panel **bodies** stay cheap uikit translucency — the `TodayPanel` skin verbatim, deep-vellum `opacity 0.7`, zero material budget. Panel **frames** use the fresnel-rim hologram recipe (`makeHologramMaterial`), shared as exactly **two** module-singleton material instances (`frameIdle` / `frameFocused` in `WorldPanel.tsx`) — the `focused` prop swaps between them, and because both pin the same `customProgramCacheKey`, the swap never recompiles a shader program and never mutates a per-frame uniform.
+
+True transmission (`heroGlass` / `MeshTransmissionMaterial`) is spent on exactly **one** moment in the bench layer: `FocusedPanelGlass`'s backplate, occupying the slot **freed by the Meridian zenith tablet's demolition**. The `heroGlass` dev registry after Phase 3 holds: the focused lantern (`Lanterns.tsx`), the Jarvis ribbon (`JarvisRibbon.tsx`), and the focused-panel backplate — **3/3**. Because lantern-focus and widget-focus are mutually exclusive `focusStack` levels, at most 2 of those + the ribbon are ever live simultaneously; the registry can never overflow.
+
+---
+
+### Frozen Contracts (Phase 3 additions)
+
+These are established at Wave W1 close. Changes require an orchestrator amendment commit.
+
+#### `worldEvents` — back to 5 event names (source: `data/diffing.ts`)
+
+`"meridian-toll"` is removed along with its emitter (`TollScheduler`) and consumers — the bus returns to the five Phase-1 names (`task-completed`, `capture-created`, `chime`, `jarvis-action`, `boot-complete`). No new names are added this phase; the drag choreography rides the separate `widgetBus` singleton instead (the audit's "not a 7th `worldEvents` name" rule).
 
 #### `focusStack` — amended `FocusLevel` (source: `camera/useFocusStack.ts`)
 
@@ -375,79 +373,163 @@ type FocusLevel =
   | { kind: "vestibule" }
   | { kind: "bough"; areaId: string }
   | { kind: "lantern"; projectId: string }
-  | { kind: "ring"; eventId?: string };   // NEW — rank 1 (sibling of bough) when no eventId,
-                                          //        rank 2 (sibling of lantern) when eventId present
+  | { kind: "widget"; widgetId: WidgetId };  // NEW — rank 1, sibling of bough
+// { kind: "ring" } and its rank cases are REMOVED with the Meridian demolition.
 ```
 
-`{ kind:"ring" }` = ring framed overhead (look-up); `{ kind:"ring", eventId }` = a specific tablet focused. Esc from ring pops to vestibule AND awaits `meridianBus.snapToNow()` before the camera glides home.
+Rank 1 means focusing a widget from a bough (or vice versa) is one truncate+glide with no phantom depth; `Esc` from a widget pops to vestibule. Push/pop/truncate semantics are byte-identical to Phase 1/2.
 
-#### `WorldData.meridian` / `MeridianData` (source: `data/useWorldData.ts`)
+#### `WorldData` — `meridian` renamed to `calendar`, plus two new slices (source: `data/useWorldData.ts`)
 
 ```ts
-interface MeridianData {
-  status: "connected" | "not_connected" | "expired";  // reuses GcalConnectionStatus
-  events: GcalEventDTO[];           // rolling ±7-day slab, raw DTOs from gcal
-  calendars: GcalCalendarMeta[];    // for hover-caption calendar-dot color
-  timezone: string;                 // users.timezone ?? "UTC"
-  windowStartMs: number;            // loaded slab start (inclusive)
-  windowEndMs: number;              // loaded slab end (exclusive)
+interface WorldData {
+  // ...Phase-1 fields byte-identical...
+  calendar: CalendarData;       // RENAMED from `meridian` (M-01); shape unchanged
+  habits: HabitsData;           // NEW
+  journal: JournalTodayData;    // NEW
+  hashtags: HashtagWithCount[]; // NEW — tag chips for the Captures panel
 }
-// WorldData.meridian is additive — all Phase-1 fields are byte-identical.
+interface HabitsData {
+  habits: HabitWithAreas[];           // tableKey("habits", userId)
+  completions: HabitCompletionRow[];  // [...tableKey("habit_completions"), windowStart, today]
+  windowStart: string;                // ymd, derived from the existing todayYmd clock
+}
+interface JournalTodayData {
+  entry: JournalEntry | null;         // ["journaling", userId, todayYmd]
+}
 ```
 
-`status` maps to the existing `useGcalConnectionStatus()` key (`["gcal-connection-status"]`). The world reuses this key so the Settings badge and the ring never disagree. Disconnected → ring renders quiet dark brass with one engraved nudge; never a crash, never OAuth from the world.
+`CalendarData` itself is byte-identical to the old `MeridianData` — only the name changed, top-to-bottom (`meridian` → `calendar`, `MeridianSeed` → `CalendarSeed`, `initialMeridian` → `initialCalendar`). `habits.windowStart` derives from the provider's existing minute clock — zero new intervals.
 
-#### `isAudioUnlocked()` / `isMuted()` seam (source: `audio/synth.ts`)
+#### `WidgetBus` / `widgetBus` (source: `panels/widgetBus.ts`)
 
 ```ts
-export function isAudioUnlocked(): boolean;  // true once the shared gesture has fired
-export function isMuted(): boolean;           // reads localStorage['world:muted']
+export type WidgetBusEvent =
+  | { kind: "drag-start"; widgetId: WidgetId }
+  | { kind: "drag-move"; widgetId: WidgetId; yawRad: number }
+  | { kind: "drag-drop"; widgetId: WidgetId; toIndex: number }
+  | { kind: "docked"; widgetId: WidgetId };
+export interface WidgetBus {
+  emit(e: WidgetBusEvent): void;
+  subscribe(fn: (e: WidgetBusEvent) => void): () => void;
+}
+export const widgetBus: WidgetBus;
 ```
 
-`MeridianAudio` reads these before calling `.play()` — the world has exactly ONE gesture-unlock path and ONE mute flag. Do not add a second.
+#### `WidgetLayoutV1` / `useWidgetLayout` (source: `panels/widgetLayoutStore.ts`)
+
+```ts
+export interface WidgetLayoutV1 {
+  v: 1;
+  order: WidgetId[];   // arc order, index 0 = leftmost slot
+  hidden: WidgetId[];  // dismissed from the bench (summonable later)
+}
+export const DEFAULT_LAYOUT: WidgetLayoutV1; // full roster, nothing hidden
+export function loadWidgetLayout(): WidgetLayoutV1;
+export function saveWidgetLayout(l: WidgetLayoutV1): void;
+export function useWidgetLayout(): {
+  layout: WidgetLayoutV1;
+  moveWidget(id: WidgetId, toIndex: number): void;
+};
+```
+
+Persisted under `localStorage["world:widgetLayout@1"]`. Gate-chosen default: localStorage only, this-device-only — the schema is deliberately shaped so a `users.world_layout` JSONB column is a drop-in upgrade later, touching only this file.
+
+#### `WidgetSpec` / `WIDGET_REGISTRY` (source: `panels/widgetRegistry.ts`)
+
+```ts
+export interface WidgetComponentProps {
+  slot: BenchSlot;
+  focused: boolean;
+  lod: "full" | "placard";
+  dragHandleProps?: DragHandleProps; // threaded by the rig; undefined pre-W-07
+}
+export interface WidgetSpec {
+  id: WidgetId;
+  title: string;
+  component: ComponentType<WidgetComponentProps>;
+}
+export const WIDGET_REGISTRY: Partial<Record<WidgetId, WidgetSpec>>;
+export function getWidgetSpec(id: WidgetId): WidgetSpec | undefined;
+export function listWidgets(): WidgetSpec[];
+```
+
+#### `WorldPanelProps` (source: `panels/WorldPanel.tsx`)
+
+```ts
+export interface WorldPanelProps {
+  widgetId: WidgetId;
+  title: string;
+  countChip?: string;
+  status?: "ready" | "empty" | "disconnected"; // default "ready"
+  emptyLine?: string;
+  disconnectedLine?: string;
+  focused: boolean;
+  lod: "full" | "placard";
+  slot: BenchSlot;
+  dragHandleProps?: DragHandleProps;
+  children: ReactNode; // uikit Container/Text/Button content ONLY
+}
+export function WorldPanel(props: WorldPanelProps): JSX.Element;
+export const PANEL_ROW_CAP = 12; // every widget caps rows, "and N more" footer
+```
+
+#### `BenchConfig` / `BenchSlot` / the solver (source: `panels/widgetTypes.ts`, `panels/widgetLayout.ts`)
+
+```ts
+export interface BenchConfig {
+  center: Vector3Tuple; eyeY: number; radius: number;
+  aisleRad: number; maxSlots: number;
+}
+export interface BenchSlot {
+  index: number; widgetId: WidgetId;
+  position: Vector3Tuple; rotation: Vector3Tuple; cameraPose: CameraPose;
+}
+export function solveBenchLayout(order: WidgetId[], cfg?: Partial<BenchConfig>): BenchSlot[];
+export function neighborOf(order: WidgetId[], current: WidgetId | null, dir: 1 | -1): WidgetId | null;
+export function nearestSlotIndex(order: WidgetId[], yawRad: number, cfg?: Partial<BenchConfig>): number;
+```
 
 ---
 
-### The Meridian Idle Rule (§4.1 — law)
+### Draw-Call Budget (Vestibule, bench in view ≤190)
 
-> The dial's rotation is a **pure function** `ringRotationFor(Date.now(), scrubOffsetMs, tz)` evaluated only on demanded frames. While idle, the ONLY meridian-originated frame demand is the world's existing **minute clock** calling `invalidate()` once — **one demanded frame per minute**, in which the dial advances ~0.25°, tablet states reclassify, and the world sleeps again.
->
-> Continuous frame demand is permitted ONLY while: (a) `focus.kind === "ring"` AND the camera is moving, (b) `|scrubVelocity| > ε` or a snap/rubber-band animation is live, (c) a lean-down/hero-swap/enter-leave spring is live (auto-invalidating via spring), or (d) the 4 s post-interaction breath window is open (god-ray breathe rides it). Outside these, meridian rAF contribution is exactly 1 frame/min.
-
-This amends the Phase-1 idle acceptance criterion to: `idle 10 s → rAF → 0 (± firefly heartbeat ≤5 fps, ± meridian minute-tick = 1 frame/min)`.
-
-The scrub hook (`useRingScrub`) is **self-invalidating with early exit**: each live frame calls `invalidate()` to demand the next; the moment the animation settles the loop exits without invalidating, and the world falls straight back to the idle regime.
-
----
-
-### Draw-Call Budget (Vestibule, ring in frame ≤170)
-
-| Meridian layer component | Budget |
+| Bench layer component | Budget |
 |---|---|
-| Ring structure (annulus + engraved strip + ticks `InstancedMesh` + zenith pointer) | ≤4 draw calls |
-| Event tablets (`InstancedMesh` cap 128) + all-day bands (`InstancedMesh` cap 8) | 2 |
-| Zenith hero tablet (`heroGlass` — the ≤3-cap reserve slot, now consumed) | 1 (+1 transmission pass) |
-| Plumb-line + god-ray cone | 2 |
-| Meridian SDF `<Text>` (8 numerals + date line + hover caption + zenith caption) | ≤11 |
-| **Meridian layer total** | **≤20** |
-| **New scene ceiling (Vestibule, ring in frame)** | **≤170** (was ≤150) |
+| Full panels (≤3 × ≤22, uikit batches + frame) | ≤66 |
+| Placards (≤4 × ≤4, frame + one SDF title) | ≤16 |
+| Focused-panel hero backplate (`FocusedPanelGlass`) | 1 (+1 transmission pass) |
+| Bench SDF `<Text>` (≤7 placard titles) | ≤7 |
+| **Bench layer total** | **≤90** |
+| **New scene ceiling (bench view)** | **≤190** (Meridian's ≤170 retires with it; base scene minus `TodayPanel`'s ~20 plus the bench) |
 
-Transmission registry status: **FULL** (focused lantern + Jarvis ribbon + zenith tablet = 3/3). Any later phase that wants a glass object must free one slot contextually (swap-on-focus is the idiomatic pattern).
+Transmission registry status: **3/3** (focused lantern + Jarvis ribbon + focused-panel backplate) — the slot the Meridian zenith tablet used to occupy now belongs to the bench.
 
 ---
 
-### How to Add a Ring Widget
+### The Meridian Demolition (changelog)
 
-A "moon-phase widget" — or any object that lives on or near the ring — follows this pattern:
+The Meridian Ring — the whole annulus, its 24-hour dial, its event tablets, its plumb-line, its T-15 toll — is **deleted at the file level**; the `meridian/` directory no longer exists in this repo. Git history is its archive.
 
-1. **Add a slot type** to `meridian/meridianLayout.ts` (mirror of `TabletSlot`). Keep it a pure type with angle-and-number math only (no `three` imports). `solveMeridianLayout` or a sibling solver computes positions.
-2. **Extend `MeridianData`** in `data/useWorldData.ts` additively. `WorldDataProvider` populates it from the same gcal query slice or a new shared-key query — never a parallel store.
-3. **Create the component** (e.g. `meridian/MoonPhaseWidget.tsx`) — imperative `InstancedMesh` if there are many; a single mesh if there is one. Consume `useWorldData()`. Read the scrub offset in `useFrame` via `meridianBus.getScrubOffsetMs()` (never React state).
-4. **Demand frames only during activity.** If the widget is decorative idle content, it should NOT call `invalidate()` — the minute-tick already demanded that frame. If it animates (e.g. a spring), use a self-invalidating loop (call `invalidate()` inside `useFrame`, early-return when settled).
-5. **Honor `prefers-reduced-motion`.** Read `worldPrefersReducedMotion()` at the top of your `useFrame` and collapse animations to instant states.
-6. **If the widget needs audio**, read `isAudioUnlocked()` + `isMuted()` from `audio/synth.ts`. No second `AudioContext`.
-7. **If a new event name is needed**, amend `WorldEventMap` in `data/diffing.ts` with an orchestrator amendment commit (bus has 6 names after Phase 2; grow it additively, never silently).
-8. **Mount in `WorldScene.tsx`** — a single-line insertion. Meridian components mount after `<Embers/>` and before `<CameraRig/>` for pickables; render-null systems after `<Chimes/>`. `JarvisRing` stays immediately before `PostFX`; `PostFX` stays last.
+**What died:** `meridian/MeridianRing.tsx`, `EventTablets.tsx`, `useRingScrub.ts`, `MeridianLabels.tsx`, `PlumbLine.tsx`, `TollScheduler.tsx`, `MeridianAudio.tsx`, `meridianPoses.ts`, `meridianHover.ts`, `meridianBus.ts`, `meridianGeometries.ts`, `meridianMaterials.ts`, `meridianMappings.ts`, `meridianLayout.ts`, and their tests — roughly 4,100 lines of dial/tablet presentation code, along with the `worldEvents "meridian-toll"` name, the `focusStack` `{kind:"ring"}` level, `CameraRig.setRingScrubActive`, and `MeridianBus`/`tabletHoverBus`.
+
+**What survived, extracted verbatim before the burn:** `classifyTablet` → `classifyEvent`, `linkEventToProject`, and `calendarDotColor` now live in `panels/agenda/agendaLogic.ts` and feed the Agenda panel's row grammar unchanged. The entire gcal data bridge — the provider slice, the SSR seed, `useGcalConnectionStatus`, `diffEventSnapshots` — survives wholesale, simply renamed `meridian` → `calendar` (§3.2 above). Nothing about how the world talks to Google Calendar changed; only the ring that displayed it is gone.
+
+**What's intentionally kept but currently unused:** `public/world/sfx/ring-toll.mp3` stays on disk. It is not wired to anything in Phase 3 — it is reserved for a future **generic reminder chime** (the T-15 "toll" concept, reborn without the ring it used to hang from). Do not delete it; do not re-wire it speculatively.
+
+---
+
+### How to Add a Widget
+
+A "Nutrition widget" — or any new bench citizen — follows this pattern. This is the litmus test the whole section above exists to pass: everything below is real, current code, not aspiration.
+
+1. **Create `panels/NutritionWidget.tsx`** implementing `WidgetComponentProps` (`{ slot, focused, lod, dragHandleProps? }` from `panels/widgetRegistry.ts`). Render your content into `<WorldPanel widgetId="nutrition" title="Nutrition" focused={focused} lod={lod} slot={slot} dragHandleProps={dragHandleProps}>…</WorldPanel>` — **forward `dragHandleProps` straight through** so the panel stays draggable. Cap rows at `PANEL_ROW_CAP` with an "and N more" footer; never render a blank slab — always a `status="empty"`/`"disconnected"` line (§2.8). Mirror `TasksWidget.tsx` for the shape.
+2. **Add its data to the provider + `WorldData`.** Extend the `WorldData` interface in `data/useWorldData.ts` additively (e.g. `nutrition: NutritionData`), and mount the read in `data/WorldDataProvider.tsx` using the SAME 2D query key/fn — never a parallel fetch layer. Seed it server-side in `app/(app)/world/page.tsx` and thread the prop through `WorldLoader.tsx` → `WorldCanvas.tsx` → `WorldScene.tsx`, mirroring exactly how the habits/journal slices were added.
+3. **Add `"nutrition"` to the `WidgetId` union** in `panels/widgetTypes.ts` — the one place the bench roster's *type* grows.
+4. **Register it in `panels/widgetRegistry.ts`** — import the component and add one entry: `nutrition: { id: "nutrition", title: "Nutrition", component: NutritionWidget }` to `WIDGET_REGISTRY`. This file is Conductor-owned (widget units don't edit it mid-wave), but the eventual change really is that one line.
+5. **Add `"nutrition"` to the `ROSTER`** array in `panels/widgetLayoutStore.ts` so `DEFAULT_LAYOUT` and the persistence validator both know about the new slot. (A widget added after a user's saved layout was written is handled automatically too — `normalizeLayout` appends any roster id that's neither ordered nor hidden.)
+6. **That's it.** `solveBenchLayout`, `WidgetRig`, the LOD law, the honesty states, and the drag/persistence machinery all generalize for free — you never touch `WidgetRig.tsx`, `useWidgetDrag.ts`, or `WorldPanel.tsx`.
+7. **Honor `prefers-reduced-motion`** if your widget adds any animation of its own (read `useWorldPrefs()`), and keep your data reads in `render`, memoized, never per-frame — the primitive's own perf discipline (§7.3) assumes every widget follows it.
 
 ---
 
