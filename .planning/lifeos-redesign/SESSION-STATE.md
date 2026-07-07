@@ -188,6 +188,18 @@ All 14 units (M-01→M-14) built, verified, committed on `lifeos-studiolo`; NOT 
 8. macOS Reduce Motion ON → scrub = discrete 1h steps, snap instant, no god-ray breathe, no leans/glides; everything legible.
 9. Perf (M-13 rows): idle 10s hands-off → 0 extra meridian frames/min; Vestibule gl.info.render.calls ≤170 & ≤300k tris; C-glide ≥58fps; 20s scrub ≥58fps no >33ms hitch; DPR ladder 2→1.5→1 with ring in frame.
 Then report to Filippo for review before any push/merge.
+
+---
+
+## PHASE 3 — THE BOTTEGA (the workbench of light) — PLAN READY, AWAITING GATE
+New direction (session "The Stark Makerspace Pivot", 2026-07-06): Filippo finds the Meridian cal view "a bit shit"; the true vision is a first-person **Stark makerspace** — LifeOS surfaces as **holographic drafting-vellum widgets** he can swipe/glide between, **grab and move**, and interact with, with the **areas/projects Tree** standing as the centerpiece. Build ON the foundation, do NOT rebuild.
+- Vision notes: `.planning/lifeos-redesign/PHASE-3-VISION-NOTES.md`.
+- Foundation audit (Opus, b4ecde15): `.planning/lifeos-redesign/PHASE-3-FOUNDATION-AUDIT.md` — verdict KEEP don't rebuild; TodayPanel IS the widget template; Meridian presentation (~4,100 LOC) is the demolition target but its M-01 gcal bridge + classifyTablet/linkEventToProject survive; ≤3 transmission cap is the headline constraint.
+- Fable plan (claude-fable-5, 44b10f20): `.planning/lifeos-redesign/PHASE-3-PLAN.md` — milestone "THE BOTTEGA"; `<WorldPanel>` primitive (TodayPanel generalized); workbench-arc layout (≤7 slots) with a 70° aisle keeping the Tree; swipe=camera-glide via focusStack `{kind:"widget"}` + freed wheel; grab-move=slot reorder persisted as versioned `order: WidgetId[]`; MVP = 5 widgets (Tasks/Captures/flat Agenda/Habits/Journal); 18 units / 4 waves + 1 stretch; transmission solved via uikit translucency bodies + makeHologramMaterial frames + the freed zenith heroGlass slot as a swap-on-focus backplate; ≤190 draw calls, idle-rAF unchanged.
+
+### ⏳ HARD GATE (Phase 3) — awaiting Filippo, no builders spawn until answered
+8 gate questions in PHASE-3-PLAN §9 (each with a Fable default): (1) layout persistence store [localStorage], (2) MVP widget count [5], (3) grab-move scope [slot reorder], (4) Tree as hub [untouched centerpiece + aisle], (5) flat Agenda in MVP [yes full], (6) hologram aesthetic [Leonardo drafting light], (7) freed transmission slot [focused-panel backplate], (8) Meridian disposal [delete, git is archive]. Presented via AskUserQuestion; on answers → freeze contracts → launch Wave B1.
+NOTE: Phase 2 (Meridian Ring) is code-complete on `lifeos-studiolo` but its in-browser human gate is now MOOT for the cal-view (being demolished); the reusable bridge/logic carries into Phase 3. Do not push/PR Phase 2's ring UI.
 ### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
 
 ### PENDING HUMAN GATE (Phase 2, before push/merge): in-browser smoke §6 (needs Filippo's gcal-connected auth session) — ring overhead matches /calendar, C look-up, scrub momentum, T-15 toll from above, Jarvis event rivets in, disconnect→petrified ring. Dev stack currently UP on :3000 (web shell) + local Supabase (Docker).
