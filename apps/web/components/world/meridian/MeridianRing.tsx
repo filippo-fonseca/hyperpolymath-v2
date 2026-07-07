@@ -71,6 +71,7 @@ import {
   makeRingBrassMaterial,
   makeEngravedStripMaterial,
 } from "./meridianMaterials";
+import { useRingScrub } from "./useRingScrub";
 
 // ── Dial subdivisions (§M-05) ────────────────────────────────────────────────
 const HOUR_TICKS = 24; // major marks, one per hour
@@ -163,6 +164,13 @@ export function MeridianRing(): React.ReactElement {
   const { meridian } = useWorldData();
   const tz = meridian.timezone;
   const cfg = MERIDIAN_CONFIG_DEFAULTS;
+
+  // M-10 · zoetrope-scrub: MeridianRing is the R3F host for the scrub runtime
+  // (§M-10). `useRingScrub` implements + registers the `meridianBus`, owns the
+  // capture-phase wheel listener, the brass-momentum loop, and the CameraRig
+  // scrub seam. Mounted FIRST so its `useFrame` (which advances the offset)
+  // runs before the dial `useFrame` below (which reads it) each demanded frame.
+  useRingScrub();
 
   const parts = useMemo(buildRing, []);
   const dialRef = useRef<THREE.Group>(null);
