@@ -80,7 +80,7 @@ import { worldEvents, diffEventSnapshots } from "../data/diffing";
 import { meridianBus } from "./meridianBus";
 import { tabletHoverBus } from "./meridianHover";
 import { focusStack } from "../camera/useFocusStack";
-import { worldPrefersReducedMotion } from "../prefs/useWorldPrefs";
+import { worldPrefersReducedMotion, useWorldPrefs } from "../prefs/useWorldPrefs";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 
 // ── Caps + geometry constants ───────────────────────────────────────────────
@@ -946,6 +946,7 @@ function stepFrame(
 export function EventTablets(): JSX.Element {
   const invalidate = useThree((s) => s.invalidate);
   const { tree, meridian } = useWorldData();
+  const { reducedMotion } = useWorldPrefs();
   // M-12 honesty: no tablets over a disconnected/expired sky. Feed the solver an
   // EMPTY event set whenever `status !== "connected"` so any resident tablets
   // leave (spring-out, or instant under reduced motion) — the ring goes dark and
@@ -989,6 +990,16 @@ export function EventTablets(): JSX.Element {
       tabletHoverBus.set(null);
     };
   }, [sys]);
+
+  // M-12: keep the runtime's reduced-motion flag LIVE. `useWorldPrefs` re-renders
+  // this consumer when the OS `prefers-reduced-motion` flips mid-session, so the
+  // enter/leave/lean/hover/pop springs collapse to instant state changes without
+  // a reload (the animation sweep reads `rt.reduced` each frame). One demanded
+  // frame settles the springs to their targets; then the world sleeps again.
+  useEffect(() => {
+    sys.tab.reduced = reducedMotion;
+    invalidate();
+  }, [sys, reducedMotion, invalidate]);
 
   // Data-change sync: stash solved slots + tz, flag a resync, mark rivet-ins.
   useEffect(() => {
