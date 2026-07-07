@@ -8,7 +8,8 @@
     "build": "tauri build",
     "build:bridge": "cd ../../tools/whatsapp-bridge && GOOS=darwin GOARCH=arm64 go build -o ../../apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin .",
     "tauri": "tauri",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hyperpolymath/jarvis-core": "workspace:*",
@@ -24,6 +25,7 @@
     "@tauri-apps/cli": "^2.11.2",
     "@types/qrcode": "^1.5.6",
     "typescript": "^5.6.0",
-    "vite": "^5"
+    "vite": "^5",
+    "vitest": "^3.0.0"
   }
 }
