@@ -21,15 +21,32 @@
 
 import {
   DEFAULT_ONE_EURO,
+  OneEuroFilter,
   OneEuroFilter2D,
   type OneEuroConfig,
 } from "../one-euro";
+import {
+  createOpenPalmHaltRecognizer,
+  type OpenPalmHaltRecognizer,
+} from "../open-palm-halt-recognizer";
+import {
+  createPinchDragRecognizer,
+  type PinchDragRecognizer,
+} from "../pinch-drag-recognizer";
+import {
+  createPinchHoldRecognizer,
+  type PinchHoldRecognizer,
+} from "../pinch-hold-recognizer";
+import {
+  createPinchPullRecognizer,
+  type PinchPullRecognizer,
+} from "../pinch-pull-recognizer";
 import {
   createSwipeRecognizer,
   type SwipeConfig,
   type SwipeRecognizer,
 } from "../swipe-recognizer";
-import type { StudioIntentInput } from "../types";
+import type { StudioIntentInput, StudioPhaseInput } from "../types";
 
 // ---- Geometry primitives ---------------------------------------------------
 
@@ -45,6 +62,8 @@ export const dist2d = (a: Pt, b: Pt): number => Math.hypot(a.x - b.x, a.y - b.y)
 
 // MediaPipe hand landmark indices we read.
 const WRIST = 0;
+const THUMB_TIP = 4;
+const INDEX_TIP = 8;
 const MIDDLE_MCP = 9;
 /** Fingertip landmarks for index, middle, ring, pinky (thumb ignored). */
 const FINGER_TIPS = [8, 12, 16, 20] as const;
@@ -78,6 +97,18 @@ export type HandGestureConfig = {
   holdMs: number;
   /** Max palm drift (normalized) between fist-origin and release to still expand. */
   maxClickDriftNx: number;
+  /** Pinch engages when the thumb-index ratio drops below this. */
+  pinchOnRatio: number;
+  /** Pinch releases when the thumb-index ratio rises above this (hysteresis). */
+  pinchOffRatio: number;
+  /** Continuous pinch-over-target dwell (ms) before a grab starts. */
+  grabHoldMs: number;
+  /** Still, flat open palm held this long ⇒ halt. */
+  haltHoldMs: number;
+  /** Palm drift (normalized) that re-anchors the halt dwell clock. */
+  haltMaxDriftNx: number;
+  /** 1-euro smoothing config for the pinch-drag palm centroid. */
+  dragOneEuro: OneEuroConfig;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -91,6 +122,12 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   lostGraceMs: 250,
   holdMs: 500,
   maxClickDriftNx: 0.06,
+  pinchOnRatio: 0.4,
+  pinchOffRatio: 0.55,
+  grabHoldMs: 250,
+  haltHoldMs: 1000,
+  haltMaxDriftNx: 0.05,
+  dragOneEuro: { ...DEFAULT_ONE_EURO },
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -159,12 +196,29 @@ export function computePalmCentroidNormalized(
   return { nx: remapInset(1 - c.x, config.inset), ny: remapInset(c.y, config.inset) };
 }
 
+/**
+ * Pinch ratio: thumb-tip↔index-tip distance normalized by palm size, so it is
+ * scale- and depth-invariant. Smaller ⇒ tighter pinch. Returns Infinity for a
+ * degenerate (zero-size) palm so a bad frame can never register as pinched.
+ */
+export function computePinchRatio(landmarks: Pt[]): number {
+  const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
+  if (palm <= 0) return Infinity;
+  return dist2d(landmarks[THUMB_TIP]!, landmarks[INDEX_TIP]!) / palm;
+}
+
+/** Raw apparent palm size (wrist↔middle-MCP) — a monotonic depth proxy. */
+export function computePalmSizeRaw(landmarks: Pt[]): number {
+  return dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
+}
+
 // ---- Interpreter ------------------------------------------------------------
 
 export type HandGestureCallbacks = {
   onCursorMove(nx: number, ny: number): void;
   onCursorActive(active: boolean): void;
   onIntent(intent: StudioIntentInput): void;
+  onPhase(phase: StudioPhaseInput): void;
 };
 
 export type HandGestureInterpreter = {
@@ -187,6 +241,8 @@ export function createHandGestureInterpreter(
   const cfg: HandGestureConfig = { ...DEFAULT_HAND_GESTURE, ...gestureConfig };
 
   let filter = new OneEuroFilter2D(cfg.oneEuro);
+  let palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
+  let sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
   let fingerExtended: boolean[] = [true, true, true, true];
   let pose: HandPose = "open";
   let candidatePose: HandPose | null = null;
@@ -201,13 +257,35 @@ export function createHandGestureInterpreter(
   let swipeFired = false;
   let collapseFired = false;
 
+  // Pinch mode (mutually exclusive with the fist family): hysteresis + debounce.
+  let pinchActive = false;
+  let pinchCandidate: boolean | null = null;
+  let pinchCandidateCount = 0;
+
   const swipe: SwipeRecognizer = createSwipeRecognizer((dir) => {
     swipeFired = true;
     callbacks.onIntent({ type: dir });
   }, swipeConfig);
 
+  const pinchDrag: PinchDragRecognizer = createPinchDragRecognizer((e) =>
+    callbacks.onPhase(e),
+  );
+  const pinchHold: PinchHoldRecognizer = createPinchHoldRecognizer(
+    (e) => callbacks.onPhase(e),
+    { holdMs: cfg.grabHoldMs },
+  );
+  const pinchPull: PinchPullRecognizer = createPinchPullRecognizer((e) =>
+    callbacks.onPhase(e),
+  );
+  const halt: OpenPalmHaltRecognizer = createOpenPalmHaltRecognizer(
+    () => callbacks.onIntent({ type: "halt" }),
+    { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx },
+  );
+
   function resetTransient(): void {
     filter = new OneEuroFilter2D(cfg.oneEuro);
+    palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
+    sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
     fingerExtended = [true, true, true, true];
     pose = "open";
     candidatePose = null;
@@ -216,7 +294,15 @@ export function createHandGestureInterpreter(
     fistOrigin = null;
     swipeFired = false;
     collapseFired = false;
+    pinchActive = false;
+    pinchCandidate = null;
+    pinchCandidateCount = 0;
     swipe.reset();
+    // Terminal events so a hand-lost gap never strands a consumer mid-gesture.
+    pinchDrag.reset();
+    pinchHold.reset();
+    pinchPull.reset();
+    halt.reset();
   }
 
   function push(tMs: number, landmarks: Pt[] | null): void {
@@ -265,7 +351,68 @@ export function createHandGestureInterpreter(
       candidateCount = 0;
     }
 
+    // --- Pinch classification: hysteresis (on/off ratios) + frame debounce. ---
+    const pinchRatio = computePinchRatio(landmarks);
+    const rawPinch = pinchActive
+      ? pinchRatio <= cfg.pinchOffRatio // stay pinched until it opens past off
+      : pinchRatio < cfg.pinchOnRatio; // engage only below the tighter on gate
+    if (rawPinch !== pinchActive) {
+      if (pinchCandidate === rawPinch) {
+        pinchCandidateCount += 1;
+      } else {
+        pinchCandidate = rawPinch;
+        pinchCandidateCount = 1;
+      }
+      if (pinchCandidateCount >= cfg.debounceFrames) {
+        pinchActive = rawPinch;
+        pinchCandidate = null;
+        pinchCandidateCount = 0;
+      }
+    } else {
+      pinchCandidate = null;
+      pinchCandidateCount = 0;
+    }
+
     const palm = computePalmCentroidNormalized(landmarks, cfg);
+    const sPalm = palmFilter.filter(tMs, palm.nx, palm.ny);
+    const sSize = sizeFilter.filter(tMs, computePalmSizeRaw(landmarks));
+
+    // --- Pinch mode (deviation D5): top-level, mutually exclusive with the fist
+    // family. While pinching we freeze the cursor, clear any fist anchors, and
+    // starve the swipe/collapse machinery (engaged=false) so a pinch can never
+    // masquerade as a fist gesture. The pinch recognizers run every frame. ---
+    if (pinchActive) {
+      fistStart = null;
+      fistOrigin = null;
+      swipeFired = false;
+      collapseFired = false;
+      candidatePose = null;
+      candidateCount = 0;
+    }
+
+    pinchDrag.push({
+      t: tMs,
+      nx: sPalm.x,
+      ny: sPalm.y,
+      // Floor the size before log so a degenerate/near-zero frame from the
+      // tracker can't emit a huge negative depth (matches pinch-pull's guard).
+      depth: Math.log(Math.max(sSize, 1e-4)),
+      engaged: pinchActive,
+    });
+    pinchHold.push({ t: tMs, nx: sPalm.x, ny: sPalm.y, engaged: pinchActive });
+    pinchPull.push({ t: tMs, size: sSize, engaged: pinchActive });
+    halt.push({
+      t: tMs,
+      open: pose === "open" && extendedCount === 4 && !pinchActive,
+      nx: sPalm.x,
+      ny: sPalm.y,
+    });
+
+    if (pinchActive) {
+      // Skip pose-edge / swipe / collapse / cursor entirely while pinching.
+      swipe.push({ t: tMs, nx: palm.nx, ny: palm.ny, engaged: false });
+      return;
+    }
 
     // --- Pose edges ---
     if (prevPose === "open" && pose === "fist") {

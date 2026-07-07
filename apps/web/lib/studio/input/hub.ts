@@ -22,6 +22,8 @@ import type {
   StudioInputSnapshot,
   StudioIntent,
   StudioIntentInput,
+  StudioPhaseEvent,
+  StudioPhaseInput,
   StudioStageRect,
 } from "./types";
 
@@ -60,7 +62,15 @@ export class StudioInputHub implements StudioInputBus {
 
   private readonly storeSubs = new Set<() => void>();
   private readonly intentSubs = new Set<(intent: StudioIntent) => void>();
+  private readonly phaseSubs = new Set<(phase: StudioPhaseEvent) => void>();
   private readonly providers = new Set<HoverProvider>();
+
+  /**
+   * When a `grabStart` is dropped for lack of a hover target, its orphaned
+   * `grabMove`/`grabEnd` must be dropped too (a grab lifecycle with no delivered
+   * start is a contract violation). Cleared on `grabEnd` or the next `grabStart`.
+   */
+  private grabSuppressed = false;
 
   /** Built-in rect-based DOM hover provider (priority 0). */
   private readonly domRects = new Map<string, () => DOMRect>();
@@ -99,6 +109,13 @@ export class StudioInputHub implements StudioInputBus {
     };
   }
 
+  subscribePhase(cb: (phase: StudioPhaseEvent) => void): () => void {
+    this.phaseSubs.add(cb);
+    return () => {
+      this.phaseSubs.delete(cb);
+    };
+  }
+
   registerHoverProvider(p: HoverProvider): () => void {
     this.providers.add(p);
     this.scheduleHoverResolve();
@@ -125,6 +142,7 @@ export class StudioInputHub implements StudioInputBus {
     moveCursor: (nx, ny) => this.moveCursor(nx, ny),
     setCursorActive: (active) => this.setCursorActive(active),
     emitIntent: (intent) => this.emitIntent(intent),
+    emitPhase: (phase) => this.emitPhase(phase),
   };
 
   // ---- DOM hover provider (used by useStudioDomTarget) --------------------
@@ -241,6 +259,34 @@ export class StudioInputHub implements StudioInputBus {
       intent = input;
     }
     for (const cb of this.intentSubs) cb(intent);
+  }
+
+  /**
+   * Upgrades a targetless `grabStart` with the current hover target (mirroring
+   * `emitIntent`'s expand upgrade). A grabStart with no hover is dropped, and its
+   * whole orphaned lifecycle (`grabMove`/`grabEnd`) is suppressed with it. All
+   * other phases (`drag*`, `pull*`) pass through unchanged.
+   */
+  private emitPhase(input: StudioPhaseInput): void {
+    let event: StudioPhaseEvent;
+    if (input.type === "grabStart") {
+      const targetId = this.snapshot.hoverTargetId;
+      if (targetId === null) {
+        this.grabSuppressed = true; // drop this grab's whole lifecycle
+        return;
+      }
+      this.grabSuppressed = false;
+      event = { type: "grabStart", targetId };
+    } else if (input.type === "grabMove" || input.type === "grabEnd") {
+      if (this.grabSuppressed) {
+        if (input.type === "grabEnd") this.grabSuppressed = false;
+        return; // orphaned lifecycle from a dropped grabStart
+      }
+      event = input;
+    } else {
+      event = input;
+    }
+    for (const cb of this.phaseSubs) cb(event);
   }
 
   // ---- Notification --------------------------------------------------------

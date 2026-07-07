@@ -8,12 +8,14 @@ import {
   useStudioDomTarget,
   useStudioIntent,
   useStudioIsHovered,
+  useStudioPhase,
 } from "@/lib/studio/input/react";
 import type {
   StudioDriverEnv,
   StudioInputDriver,
   StudioInputSink,
   StudioIntent,
+  StudioPhaseEvent,
 } from "@/lib/studio/input/types";
 
 /** Flush a requestAnimationFrame turn (hover resolution is rAF-coalesced). */
@@ -163,5 +165,45 @@ describe("StudioInputProvider + hooks", () => {
     });
 
     expect(received).toEqual([{ type: "expand", targetId: "w1" }]);
+  });
+
+  it("useStudioPhase receives the hub-upgraded grab lifecycle", async () => {
+    const driver = new FakeDriver();
+    const received: StudioPhaseEvent[] = [];
+
+    function PhaseSink() {
+      useStudioPhase((p) => received.push(p));
+      const ref = useRef<HTMLDivElement>(null);
+      useStudioDomTarget("w1", ref);
+      return <div ref={ref} data-testid="w1" />;
+    }
+
+    render(
+      <StudioInputProvider drivers={[driver]}>
+        <PhaseSink />
+      </StudioInputProvider>,
+    );
+
+    const el = screen.getByTestId("w1");
+    vi.spyOn(el, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight,
+      width: window.innerWidth, height: window.innerHeight, x: 0, y: 0, toJSON() {},
+    } as DOMRect);
+
+    act(() => {
+      driver.sink!.moveCursor(0.5, 0.5);
+    });
+    await flushRaf();
+    act(() => {
+      driver.sink!.emitPhase({ type: "grabStart" });
+      driver.sink!.emitPhase({ type: "grabMove", nx: 0.5, ny: 0.5 });
+      driver.sink!.emitPhase({ type: "grabEnd" });
+    });
+
+    expect(received).toEqual([
+      { type: "grabStart", targetId: "w1" },
+      { type: "grabMove", nx: 0.5, ny: 0.5 },
+      { type: "grabEnd" },
+    ]);
   });
 });

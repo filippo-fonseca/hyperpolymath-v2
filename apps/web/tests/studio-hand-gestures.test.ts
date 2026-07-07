@@ -6,12 +6,13 @@ import {
   computeFingerRatios,
   computePalmCentroid,
   computePalmCentroidNormalized,
+  computePinchRatio,
   createHandGestureInterpreter,
   DEFAULT_HAND_GESTURE,
   poseFromExtendedCount,
   type Pt,
 } from "@/lib/studio/input/hand/gesture-core";
-import type { StudioIntentInput } from "@/lib/studio/input/types";
+import type { StudioIntentInput, StudioPhaseInput } from "@/lib/studio/input/types";
 
 // ---- Synthetic hand builders ------------------------------------------------
 
@@ -43,6 +44,8 @@ function makeHand({
   lm[17] = { x: cx + 0.5 * s, y: cy + 0.1 * s, z: 0 }; // pinky MCP
   const tipY = cy + s - tipRatio * s; // dist(wrist, tip) = tipRatio * s
   for (const tip of [8, 12, 16, 20]) lm[tip] = { x: cx, y: tipY, z: 0 };
+  // Thumb tip held clear of the index tip so the pinch ratio stays open (> off).
+  lm[4] = { x: cx + 0.6 * s, y: cy, z: 0 };
   return lm;
 }
 
@@ -50,6 +53,16 @@ const makeOpenHand = (o: { cx?: number; cy?: number; scale?: number } = {}) =>
   makeHand({ ...o, tipRatio: 2.0 });
 const makeFist = (o: { cx?: number; cy?: number; scale?: number } = {}) =>
   makeHand({ ...o, tipRatio: 1.1 });
+
+/**
+ * A pinch: fingers extended (open pose) but the thumb tip laid onto the index
+ * tip, so the pinch ratio collapses toward zero (well under `pinchOnRatio`).
+ */
+const makePinchHand = (o: { cx?: number; cy?: number; scale?: number } = {}): Pt[] => {
+  const lm = makeHand({ ...o, tipRatio: 2.0 });
+  lm[4] = { ...lm[8]! }; // thumb tip onto index tip → ratio ≈ 0
+  return lm;
+};
 
 const handWithIndexTip = (x: number, y: number): Pt[] => {
   const lm = fill21({ x: 0.5, y: 0.5, z: 0 });
@@ -62,8 +75,12 @@ function makeCallbacks() {
     onCursorMove: vi.fn<(nx: number, ny: number) => void>(),
     onCursorActive: vi.fn<(active: boolean) => void>(),
     onIntent: vi.fn<(intent: StudioIntentInput) => void>(),
+    onPhase: vi.fn<(phase: StudioPhaseInput) => void>(),
   };
 }
+
+const phaseTypes = (cb: ReturnType<typeof makeCallbacks>): string[] =>
+  cb.onPhase.mock.calls.map(([p]) => p.type);
 
 const FPS = 1000 / 30;
 
@@ -103,6 +120,16 @@ describe("pose math", () => {
     // index tip x=0.9 → mirrored rawX = 0.1 < inset(0.15) → clamp to 0.
     const { nx } = computeCursorTarget(handWithIndexTip(0.9, 0.5), DEFAULT_HAND_GESTURE);
     expect(nx).toBe(0);
+  });
+
+  it("pinch ratio: thumb-on-index ≈ 0; thumb held clear stays open", () => {
+    expect(computePinchRatio(makePinchHand())).toBeLessThan(DEFAULT_HAND_GESTURE.pinchOnRatio);
+    expect(computePinchRatio(makeOpenHand())).toBeGreaterThan(DEFAULT_HAND_GESTURE.pinchOffRatio);
+    expect(computePinchRatio(makeFist())).toBeGreaterThan(DEFAULT_HAND_GESTURE.pinchOffRatio);
+  });
+
+  it("pinch ratio is Infinity for a degenerate (zero-size) palm", () => {
+    expect(computePinchRatio(fill21({ x: 0.5, y: 0.5, z: 0 }))).toBe(Infinity);
   });
 
   it("palm centroid is the mean of the five palm anchors", () => {
@@ -233,5 +260,79 @@ describe("hand gesture interpreter", () => {
     for (const cx of [0.53, 0.56, 0.57]) interp.push((t += FPS), makeFist({ cx }));
     for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.57 }));
     expect(cb.onIntent).not.toHaveBeenCalled();
+  });
+
+  it("10) committed pinch → dragStart + pullStart; cursor frozen; no fist intents", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    const phases = phaseTypes(cb);
+    expect(phases).toContain("dragStart");
+    expect(phases).toContain("pullStart");
+    expect(cb.onIntent).not.toHaveBeenCalled(); // no expand/collapse/swipe
+    // Now that the pinch is committed the cursor stays frozen even as it moves.
+    cb.onCursorMove.mockClear();
+    for (const cx of [0.55, 0.6, 0.65]) interp.push((t += FPS), makePinchHand({ cx }));
+    expect(cb.onCursorMove).not.toHaveBeenCalled();
+  });
+
+  it("11) pinch held past grabHoldMs → grabStart then grabMove", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 16; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 }));
+    const phases = phaseTypes(cb);
+    expect(phases).toContain("grabStart");
+    expect(phases.indexOf("grabMove")).toBeGreaterThan(phases.indexOf("grabStart"));
+  });
+
+  it("12) moving a committed pinch emits a nonzero dragMove", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    for (const cx of [0.56, 0.62, 0.68, 0.74]) interp.push((t += FPS), makePinchHand({ cx }));
+    const moves = cb.onPhase.mock.calls
+      .map(([p]) => p)
+      .filter((p): p is { type: "dragMove"; dx: number; dy: number; dz: number } => p.type === "dragMove");
+    expect(moves.some((m) => Math.abs(m.dx) > 0)).toBe(true);
+  });
+
+  it("13) releasing a pinch ends drag+pull; fist gestures work again after", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 16; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 }));
+    // Release: open the hand (thumb clears index) for enough frames to un-pinch.
+    for (let i = 0; i < 5; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
+    const phases = phaseTypes(cb);
+    expect(phases).toContain("dragEnd");
+    expect(phases).toContain("pullEnd");
+    expect(phases).toContain("grabEnd");
+    // A subsequent fist pulse still produces expand (fist family unbroken).
+    cb.onIntent.mockClear();
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeFist({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
+    expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["expand"]);
+  });
+
+  it("14) still flat open palm held ~1s → exactly one halt intent", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    for (; t <= DEFAULT_HAND_GESTURE.haltHoldMs + FPS; t += FPS) {
+      interp.push(t, makeOpenHand({ cx: 0.5 }));
+    }
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(1);
+  });
+
+  it("15) a pinch never fires halt (open gate excludes pinch)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (; t <= DEFAULT_HAND_GESTURE.haltHoldMs + 2 * FPS; t += FPS) {
+      interp.push(t, makePinchHand({ cx: 0.5 }));
+    }
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(0);
   });
 });

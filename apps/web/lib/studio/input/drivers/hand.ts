@@ -130,6 +130,7 @@ export class HandTrackingDriver implements StudioInputDriver {
         onCursorMove: (nx, ny) => this.sink?.moveCursor(nx, ny),
         onCursorActive: (active) => this.sink?.setCursorActive(active),
         onIntent: (intent) => this.sink?.emitIntent(intent),
+        onPhase: (phase) => this.sink?.emitPhase(phase),
       },
       this.options.gesture,
       this.options.swipe,
