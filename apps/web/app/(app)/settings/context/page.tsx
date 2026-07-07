@@ -108,7 +108,7 @@ export default async function ContextSettingsPage() {
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-              Settings · Personal Context
+              JARVIS · Personal Context
             </p>
             <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
               Personal context
@@ -121,10 +121,10 @@ export default async function ContextSettingsPage() {
             </p>
           </div>
           <Link
-            href="/settings"
+            href="/jarvis"
             className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
           >
-            ← settings
+            ← jarvis
           </Link>
         </header>
 
