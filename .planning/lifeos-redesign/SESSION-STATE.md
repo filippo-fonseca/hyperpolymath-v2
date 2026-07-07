@@ -139,3 +139,27 @@ WorldScene.tsx is the shared integration point — Conductor wires each wave's c
 3. Wave 2 (U-06,07*,08,09*,10), Wave 3 (U-11,12,13*,14*,15), Wave 4 (U-16*,17*,18,19), Wave 5 (U-20,21). * = Fable pre-plan (fresh Fable subagent, model pinned, docs only), then Opus exec.
 4. Per-unit verify; then MVP verification checklist (PLAN §11). Model: Opus code, Sonnet docs, Fable plans only.
 NOTE: never resume Fable agents (resume drops model to Opus) — always spawn fresh with model pinned.
+
+---
+
+## PHASE 2 — THE MERIDIAN RING (Google Calendar overhead) — IN PROGRESS
+Gate approved 2026-07-06 (defaults shipped: title→class tint heuristic ON; 60s stale + focus + 5-min poll; M-15 month-zoetrope DEFERRED to stretch; ring Litany swing-up DEFERRED; wheel-scrub claim focus-scoped; zenith tablet takes the 3rd/final heroGlass slot). Plan: `.planning/lifeos-redesign/PHASE-2-PLAN.md` (`e421b03`). 15 units / 5 waves. Fable plan is the ONLY pre-plan (no per-wave seeds). Opus=code, Sonnet=docs(M-14), Haiku UNAVAILABLE as subagent model → M-04 ran on Sonnet.
+
+### ✅ Wave M1 — DONE + integration-gate green (tsc: baseline-only, no new errors)
+- M-04 toll-asset 4558984 (Sonnet): ring-toll.mp3 13KB, 220Hz A3, CC0 ffmpeg synth.
+- M-03 meridian-materials (2 commits): meridian/{meridianMaterials,meridianGeometries}.ts. brass/strip/tablet(chain-ready)/god-ray + RING/TABLET(unit-arc)/TICK/BAND/SHAFT geoms.
+- M-01 data-bridge-amendment (6 commits; amendment **4e83131**): SSR gcal seed on /world, WorldDataProvider meridian query (key `["calendar-events",uid,calIds,tMin,tMax]`, stale60s/focus/5-min poll), worldEvents 5→6 (+meridian-toll), focusStack +{kind:"ring";eventId?}, WorldData.meridian, diffEventSnapshots (7/7). CameraRig `case "ring"` stub (M-08 fills).
+- M-02 meridian-solver (4 commits): meridian/{meridianLayout,meridianMappings,meridianBus}.ts + 31/31 tests (incl. NY DST). FROZEN contracts: §2.3 layout types + `meridianBus` (stub via `__registerMeridianBusImpl`, M-10 registers real impl). colorHex = area-hue-or-parchment, NEVER gcal bg (stricter per §5).
+
+### 🔄 Wave M2 — LAUNCHING (parallel, file-disjoint; deps = M1)
+- M-05 ring-structure → meridian/MeridianRing.tsx (canted brass annulus, instanced ticks, minute-tick rotation reading meridianBus offset).
+- M-06 tablet-system → meridian/EventTablets.tsx (ONE InstancedMesh, aTabletState |tablet@1 chunk on makeTabletMaterial, sepia/imminent/current grammar, zenith heroGlass swap = 3rd transmission slot, lean-down on meridian-toll, hover/pick).
+- M-07 plumb-line → meridian/PlumbLine.tsx (now-line zenith→trunk apex + additive god-ray cone).
+- M-08 lookup-camera → camera/{useWorldKeys.ts,CameraRig.tsx (owned this wave)} + meridian/meridianPoses.ts (C key, RING_VIEW_POSE/tabletFocusPose, Esc→snapToNow then home).
+- Conductor mounts at M2 close: `<MeridianRing/><EventTablets/><PlumbLine/>` after `<Embers/>` before `<CameraRig/>`. JarvisRing before PostFX; PostFX last.
+
+### Wave M3 (after M2): M-09 toll-scheduler, M-10 zoetrope-scrub (registers meridianBus impl), M-11 labels-ledger.
+### Wave M4: M-12 honesty-sweep, M-13 perf-hardening, M-14 docs (Sonnet).
+### Wave M5 (STRETCH, deferred): M-15 month-zoetrope.
+
+### PENDING HUMAN GATE (Phase 2, before push/merge): in-browser smoke §6 (needs Filippo's gcal-connected auth session) — ring overhead matches /calendar, C look-up, scrub momentum, T-15 toll from above, Jarvis event rivets in, disconnect→petrified ring. Dev stack currently UP on :3000 (web shell) + local Supabase (Docker).
