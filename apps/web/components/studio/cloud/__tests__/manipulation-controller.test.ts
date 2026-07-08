@@ -74,16 +74,18 @@ beforeEach(() => {
   __resetZoneAssignment();
 });
 
-describe("grab lift (visual, stripped on drop)", () => {
-  it("raises the grabbed card by LIFT on +Y and lands it back on its slot", () => {
+describe("grab lift (visual pickup, handed to the damp on drop)", () => {
+  it("raises the grabbed card by LIFT on +Y while held", () => {
     const h = makeHarness();
     expect(posOf(h, "tasks").y).toBe(0);
 
     h.send({ type: "grabStart", targetId: "tasks" });
     expect(posOf(h, "tasks").y).toBeCloseTo(LIFT, 10); // lifted while grabbed
 
-    h.send({ type: "grabEnd" }); // released on its own slot 0
-    expect(posOf(h, "tasks").y).toBeCloseTo(0, 10); // settled back, lift stripped
+    // grabEnd commits the reflow (none here — own slot) but no longer writes the
+    // resting position: the tile damp owns the glide home (stripping the lift as
+    // it eases to the slot), so the controller leaves the release point as-is.
+    h.send({ type: "grabEnd" });
     expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]); // no move
   });
 
@@ -113,8 +115,10 @@ describe("drop into the nearest zone with full-board reflow", () => {
       "areas",
       "people",
     ]);
-    // The dropped card lands on its resolved zone center (lift stripped).
-    expect(posOf(h, "tasks").toArray()).toEqual([6, 0, 0]);
+    // Single-owner landing: the controller commits the reflow but hands the glide
+    // to the tile damp, leaving the dropped group at its (lifted) release point
+    // rather than snapping it to the slot center. WidgetTile's damp glides it home.
+    expect(posOf(h, "tasks").toArray()).toEqual([6, LIFT, 0]);
   });
 
   it("shifts the intervening cards forward when a card moves backward", () => {

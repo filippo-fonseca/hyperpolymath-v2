@@ -70,7 +70,8 @@ export function createManipulationController(
 ): ManipulationController {
   let grab: GrabSession | null = null;
 
-  // Preallocated temps — freeform unprojection allocates nothing per frame.
+  // Preallocated temps for the per-frame unprojection (rayPoint): the frame loop
+  // allocates nothing. (grabStart still allocates one session object per grab.)
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const point = new THREE.Vector3();
@@ -147,13 +148,12 @@ export function createManipulationController(
         const zone = nearestZone(released, deps.slots);
         moveWidgetToZone(g.targetId, zone); // commit the drop; reflow the board
 
-        // Land the card on its resolved zone center (lift stripped). It is no
-        // longer the grabbed tile, so WidgetTile's damp is a no-op here; every
-        // OTHER displaced card glides to its new slot on the store re-render.
-        if (group && zone >= 0) {
-          const slot = deps.slots[zone]!.position;
-          group.position.set(slot[0], slot[1], slot[2]);
-        }
+        // Landing has a SINGLE owner: the reflow re-render hands the dropped tile
+        // its new slot as `position`, and `setDndState(null, null)` below un-grabs
+        // it, so its own damp glides it home from the release point — exactly like
+        // every other displaced card. No imperative position set here: two writers
+        // of the same landing point are only incidentally correct while the slot
+        // mapping is identity, whereas the damp glide stays authoritative.
 
         setDndState(null, null); // drag over → markers off
         grab = null;
