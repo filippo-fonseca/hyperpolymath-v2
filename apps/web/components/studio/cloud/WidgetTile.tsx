@@ -21,6 +21,7 @@ import { Float, RoundedBox, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 import { useStudioIsHovered } from "@/lib/studio/input/react";
+import { useWidgetTransform } from "@/lib/studio/state/widget-transforms";
 import type {
   StudioTileSummary,
   StudioWidgetId,
@@ -64,18 +65,32 @@ export interface WidgetTileProps {
   summary: StudioTileSummary;
   position: [number, number, number];
   registerMesh: (id: StudioWidgetId, mesh: THREE.Mesh | null) => void;
+  /**
+   * Register the tile's OUTER group so the manipulation controller can mutate
+   * its position/scale imperatively during a grab/pull gesture. The outer group
+   * is the controller's sole imperative write target — hover scale stays on the
+   * inner `orientRef`, so the two never collide.
+   */
+  registerGroup: (id: StudioWidgetId, group: THREE.Group | null) => void;
 }
 
 export function WidgetTile({
   summary,
   position,
   registerMesh,
+  registerGroup,
 }: WidgetTileProps): React.ReactElement {
   const invalidate = useThree((s) => s.invalidate);
   const orientRef = useRef<THREE.Group>(null);
   const hoverTRef = useRef(0);
 
   const hovered = useStudioIsHovered(summary.id);
+
+  // Committed manipulation override (position/scale). `null` fields fall back to
+  // the layout slot / natural scale. This re-renders only when the override is
+  // committed at gesture end — never per-frame — so the demand-frame doctrine
+  // holds. Live gesture updates arrive imperatively via the registered group.
+  const override = useWidgetTransform(summary.id);
 
   // One material instance per tile; recreated only if the widget flips into (or
   // out of) the "attention" state, which swaps the rim to the ember alarm.
@@ -122,6 +137,13 @@ export function WidgetTile({
     [registerMesh, summary.id],
   );
 
+  const registerGroupRef = useCallback(
+    (group: THREE.Group | null) => {
+      registerGroup(summary.id, group);
+    },
+    [registerGroup, summary.id],
+  );
+
   useFrame((_, dt) => {
     const target = hovered ? 1 : 0;
     // Exponential approach; settles in ~200ms so demand goes quiet quickly.
@@ -136,7 +158,11 @@ export function WidgetTile({
   });
 
   return (
-    <group position={position}>
+    <group
+      ref={registerGroupRef}
+      position={override.position ?? position}
+      scale={override.scale ?? 1}
+    >
       <Float
         speed={0.9}
         rotationIntensity={0.15}

@@ -25,6 +25,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 import { useStudioHoverProvider } from "@/lib/studio/input/react";
+import { subscribeWidgetTransforms } from "@/lib/studio/state/widget-transforms";
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
 import { fibonacciCapSlots } from "./layout";
@@ -64,6 +65,18 @@ export function WidgetCloud(): React.ReactElement {
     [],
   );
 
+  // Outer-group registry. The manipulation controller reads groups by id to
+  // mutate position/scale imperatively during a gesture; tiles register/unregister
+  // their outer group via `registerGroup`.
+  const groupsRef = useRef(new Map<StudioWidgetId, THREE.Group>());
+  const registerGroup = useCallback(
+    (id: StudioWidgetId, group: THREE.Group | null) => {
+      if (group) groupsRef.current.set(id, group);
+      else groupsRef.current.delete(id);
+    },
+    [],
+  );
+
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
 
@@ -85,6 +98,13 @@ export function WidgetCloud(): React.ReactElement {
   useEffect(() => {
     invalidate();
   }, [summaries, invalidate]);
+
+  // Channel 4 — transform commits: a committed override (grab/pull settle)
+  // re-renders one tile; nudge a frame so it actually draws under demand-frame.
+  useEffect(
+    () => subscribeWidgetTransforms(() => invalidate()),
+    [invalidate],
+  );
 
   // Channel 2 — Float drift: keep an active window open on any interaction, and
   // demand frames only while it lasts. When it closes the cloud freezes.
@@ -122,6 +142,7 @@ export function WidgetCloud(): React.ReactElement {
           summary={summary}
           position={slots[i]!.position}
           registerMesh={registerMesh}
+          registerGroup={registerGroup}
         />
       ))}
     </group>
