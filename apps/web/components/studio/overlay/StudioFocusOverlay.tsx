@@ -18,6 +18,9 @@ import { CapturesFocus } from "./widgets/CapturesFocus";
 import { AgendaFocus } from "./widgets/AgendaFocus";
 import { HabitsFocus } from "./widgets/HabitsFocus";
 import { JournalFocus } from "./widgets/JournalFocus";
+import { ProjectsFocus } from "./widgets/ProjectsFocus";
+import { AreasFocus } from "./widgets/AreasFocus";
+import { PeopleFocus } from "./widgets/PeopleFocus";
 
 /**
  * StudioFocusOverlay — the DOM layer that expands one ambient widget into a
@@ -47,6 +50,9 @@ const WIDGET_REGISTRY: Record<StudioWidgetId, WidgetDef> = {
   agenda: { title: "Agenda", Component: AgendaFocus },
   habits: { title: "Habits", Component: HabitsFocus },
   journal: { title: "Journal", Component: JournalFocus },
+  projects: { title: "Projects", Component: ProjectsFocus },
+  areas: { title: "Areas", Component: AreasFocus },
+  people: { title: "People", Component: PeopleFocus },
 };
 
 const WIDGET_IDS = new Set<string>(Object.keys(WIDGET_REGISTRY));

@@ -29,6 +29,9 @@ import {
 } from "@/app/actions/habits";
 import { getJournalEntry, type JournalEntry } from "@/app/actions/journal";
 import { getHashtagsForUserAction } from "@/app/actions/hashtags";
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { getAreasForCurrentUser } from "@/app/actions/areas";
+import { getPeopleForCurrentUser } from "@/app/actions/people";
 import { addDaysISO } from "@/components/habits/date-utils";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
 import { useGcalConnectionStatus } from "@/lib/gcal/useGcalConnectionStatus";
@@ -85,6 +88,17 @@ export function StudioDataProvider({
   useTableSubscription("habit_completions", userId);
   useTableSubscription("journal_entries", userId, {
     alsoInvalidate: [["journaling", userId]],
+  });
+  // Wave-5 ambient widgets. Projects/areas are subscribed directly here (the
+  // existing `tasks_projects`/`captures_projects` channels fan onto tasks/
+  // captures, never the `projects` table itself). People mirrors PeopleClient:
+  // the reference-junction channel fans onto the people slice so a mention
+  // change re-counts references.
+  useTableSubscription("projects", userId);
+  useTableSubscription("areas", userId);
+  useTableSubscription("people", userId);
+  useTableSubscription("people_references", userId, {
+    alsoInvalidate: [tableKey("people", userId)],
   });
 
   // ── Shared-cache reads (same keys/fns as the 2D app) ─────────────────────
@@ -215,6 +229,24 @@ export function StudioDataProvider({
     queryFn: () => getHashtagsForUserAction({ withCounts: true }),
   });
 
+  // ── Projects / Areas / People — same keys/fns as the 2D pages (Sidebar,
+  // ProjectDetailClient, PeopleClient). Hashtags precedent: no SSR seed, fetch
+  // on mount, `[]` until first paint. Tiles are pure summaries over these.
+  const { data: projects = [] } = useQuery({
+    queryKey: tableKey("projects", userId),
+    queryFn: () => getProjectsForCurrentUser(),
+  });
+
+  const { data: areas = [] } = useQuery({
+    queryKey: tableKey("areas", userId),
+    queryFn: getAreasForCurrentUser,
+  });
+
+  const { data: people = [] } = useQuery({
+    queryKey: tableKey("people", userId),
+    queryFn: getPeopleForCurrentUser,
+  });
+
   // ── Memoized slice identities on data inputs ─────────────────────────────
   const calendar = useMemo<CalendarData>(
     () => ({
@@ -252,8 +284,23 @@ export function StudioDataProvider({
       calendar,
       habits,
       journal,
+      projects,
+      areas,
+      people,
     }),
-    [userId, today, tasks, captures, hashtags, calendar, habits, journal],
+    [
+      userId,
+      today,
+      tasks,
+      captures,
+      hashtags,
+      calendar,
+      habits,
+      journal,
+      projects,
+      areas,
+      people,
+    ],
   );
 
   return (

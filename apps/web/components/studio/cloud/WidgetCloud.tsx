@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * WidgetCloud — the ambient 3D cloud of five glowing widget tiles.
+ * WidgetCloud — the ambient 3D cloud of eight glowing widget tiles.
  *
- * Purely positional: it maps `useStudioSummaries()` (five pre-truncated tile
+ * Purely positional: it maps `useStudioSummaries()` (eight pre-truncated tile
  * summaries, stable order) over a fibonacci-cap layout and renders one
  * `<WidgetTile>` each. It owns two seams:
  *
  *  1. The raycast HoverProvider (priority 10). The input hub calls `resolve`
- *     rAF-coalesced on every cursor move; we raycast the five panel meshes and
+ *     rAF-coalesced on every cursor move; we raycast the eight panel meshes and
  *     return the hovered widget id. Cursor coords are stage-normalized, and the
  *     stage div ≡ the Canvas rect (StudioLoader), so `nx/ny → NDC` is exact.
  *

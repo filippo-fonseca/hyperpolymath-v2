@@ -26,6 +26,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { HashtagWithCount } from "@/app/actions/hashtags";
+import type { ProjectRow } from "@/app/actions/projects";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import type { PersonWithStats } from "@/lib/db/queries/people";
 import {
   createEvent,
   updateEvent,
@@ -40,19 +43,28 @@ import type {
 } from "./useStudioData";
 import {
   summarizeAgenda,
+  summarizeAreas,
   summarizeCaptures,
   summarizeHabits,
   summarizeJournal,
+  summarizePeople,
+  summarizeProjects,
   summarizeTasks,
 } from "./summaries";
 import {
+  studioAreaActions,
   studioCaptureActions,
   studioHabitActions,
   studioJournalActions,
+  studioPersonActions,
+  studioProjectActions,
   studioTaskActions,
+  type StudioAreaActions,
   type StudioCaptureActions,
   type StudioHabitActions,
   type StudioJournalActions,
+  type StudioPersonActions,
+  type StudioProjectActions,
   type StudioTaskActions,
 } from "./actions";
 
@@ -175,10 +187,55 @@ export function useStudioJournal(): {
   return { journal, todayYmd, summary, actions: studioJournalActions };
 }
 
-// ── Widget-cloud convenience — five tiles, stable order ─────────────────────────
+// ── Projects ────────────────────────────────────────────────────────────────────
+export function useStudioProjects(): {
+  projects: ProjectRow[];
+  todayYmd: string;
+  summary: StudioTileSummary;
+  actions: StudioProjectActions;
+} {
+  const { projects, todayYmd } = useStudioData();
+  const summary = useMemo(() => summarizeProjects(projects), [projects]);
+  return { projects, todayYmd, summary, actions: studioProjectActions };
+}
+
+// ── Areas ─────────────────────────────────────────────────────────────────────
+export function useStudioAreas(): {
+  areas: SidebarArea[];
+  todayYmd: string;
+  summary: StudioTileSummary;
+  actions: StudioAreaActions;
+} {
+  const { areas, todayYmd } = useStudioData();
+  const summary = useMemo(() => summarizeAreas(areas), [areas]);
+  return { areas, todayYmd, summary, actions: studioAreaActions };
+}
+
+// ── People ────────────────────────────────────────────────────────────────────
+export function useStudioPeople(): {
+  people: PersonWithStats[];
+  todayYmd: string;
+  summary: StudioTileSummary;
+  actions: StudioPersonActions;
+} {
+  const { people, todayYmd } = useStudioData();
+  const summary = useMemo(() => summarizePeople(people), [people]);
+  return { people, todayYmd, summary, actions: studioPersonActions };
+}
+
+// ── Widget-cloud convenience — eight tiles, stable (canonical) order ─────────────
 export function useStudioSummaries(): StudioTileSummary[] {
-  const { tasks, captures, calendar, habits, journal, todayYmd } =
-    useStudioData();
+  const {
+    tasks,
+    captures,
+    calendar,
+    habits,
+    journal,
+    projects,
+    areas,
+    people,
+    todayYmd,
+  } = useStudioData();
 
   const nowMs = useMemo(() => Date.now(), [todayYmd]);
 
@@ -199,6 +256,12 @@ export function useStudioSummaries(): StudioTileSummary[] {
     [habits, todayYmd],
   );
   const journalSummary = useMemo(() => summarizeJournal(journal), [journal]);
+  const projectsSummary = useMemo(
+    () => summarizeProjects(projects),
+    [projects],
+  );
+  const areasSummary = useMemo(() => summarizeAreas(areas), [areas]);
+  const peopleSummary = useMemo(() => summarizePeople(people), [people]);
 
   return useMemo(
     () => [
@@ -207,6 +270,9 @@ export function useStudioSummaries(): StudioTileSummary[] {
       agendaSummary,
       habitsSummary,
       journalSummary,
+      projectsSummary,
+      areasSummary,
+      peopleSummary,
     ],
     [
       tasksSummary,
@@ -214,6 +280,9 @@ export function useStudioSummaries(): StudioTileSummary[] {
       agendaSummary,
       habitsSummary,
       journalSummary,
+      projectsSummary,
+      areasSummary,
+      peopleSummary,
     ],
   );
 }

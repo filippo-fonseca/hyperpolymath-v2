@@ -58,6 +58,9 @@ const TINTS: Record<StudioWidgetId, string> = {
   agenda: STUDIOLO.jarvisCyan,
   habits: STUDIOLO.verdigris,
   journal: STUDIOLO.moonlace,
+  projects: STUDIOLO.candleflame,
+  areas: STUDIOLO.sepiaInk,
+  people: STUDIOLO.parchment,
 };
 
 export interface WidgetTileProps {

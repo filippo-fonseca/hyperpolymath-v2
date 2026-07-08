@@ -48,6 +48,19 @@ describe("fibonacciCapSlots", () => {
     }
   });
 
+  it("holds all invariants for the eight-widget cloud", () => {
+    const slots = fibonacciCapSlots(8, OPTS);
+    expect(slots).toHaveLength(8);
+    for (const slot of slots) {
+      expect(slot.position[2]).toBeGreaterThan(OPTS.center[2]);
+    }
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        expect(dist(slots[i]!, slots[j]!)).toBeGreaterThanOrEqual(1.2);
+      }
+    }
+  });
+
   it("is deterministic across calls", () => {
     expect(fibonacciCapSlots(5, OPTS)).toEqual(fibonacciCapSlots(5, OPTS));
   });

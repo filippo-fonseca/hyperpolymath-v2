@@ -91,13 +91,13 @@ describe("pageActiveWidget", () => {
   });
 
   it("wraps at the ends (next from last, prev from first)", () => {
-    activateWidget("journal");
+    activateWidget("people");
     pageActiveWidget("next");
     expect(getActiveWidgets()).toEqual(["tasks"]);
 
     activateWidget("tasks");
     pageActiveWidget("prev");
-    expect(getActiveWidgets()).toEqual(["journal"]);
+    expect(getActiveWidgets()).toEqual(["people"]);
   });
 
   it("notifies subscribers exactly once per page", () => {
@@ -114,9 +114,9 @@ describe("pageActiveWidget", () => {
     expect(getActiveWidgets()).toEqual(["agenda"]);
   });
 
-  it("returns to the start after a full lap of five next pages", () => {
+  it("returns to the start after a full lap of eight next pages", () => {
     activateWidget("tasks");
-    for (let step = 0; step < 5; step += 1) pageActiveWidget("next");
+    for (let step = 0; step < 8; step += 1) pageActiveWidget("next");
     expect(getActiveWidgets()).toEqual(["tasks"]);
   });
 });

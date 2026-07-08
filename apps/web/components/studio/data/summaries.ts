@@ -8,7 +8,11 @@
  */
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import type { ProjectRow } from "@/app/actions/projects";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import type { PersonWithStats } from "@/lib/db/queries/people";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
+import { isProjectExpired } from "@/lib/projects/archive-status";
 import type {
   CalendarData,
   HabitsData,
@@ -223,5 +227,97 @@ export function summarizeJournal(journal: JournalTodayData): StudioTileSummary {
     headline: written ? truncate(firstLine) : "No entry yet",
     subline: written ? "Written" : null,
     state: written ? "ok" : "empty",
+  };
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+export function summarizeProjects(projects: ProjectRow[]): StudioTileSummary {
+  // Issue #55: a class past its semester, or a project past its end date, counts
+  // as archived even without an explicit archivedAt. getProjectsForCurrentUser
+  // returns unsynthesized rows, so mirror sidebar.ts and drop expired projects
+  // here — otherwise the badge over-counts and an expired project can become the
+  // "next-ending" headline.
+  const open = projects.filter(
+    (p) => p.archivedAt === null && !isProjectExpired(p),
+  );
+
+  // Next-ending open project: endDate asc (nulls last), then orderIndex, then
+  // name. `endDate` is a YYYY-MM-DD string (date column), so lexical compare is
+  // chronological.
+  const next = [...open].sort((a, b) => {
+    if (a.endDate !== b.endDate) {
+      if (a.endDate === null) return 1;
+      if (b.endDate === null) return -1;
+      return a.endDate < b.endDate ? -1 : 1;
+    }
+    if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
+    return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+  })[0];
+
+  const classCount = open.filter((p) => p.isClass).length;
+
+  return {
+    id: "projects",
+    label: "Projects",
+    badge: open.length,
+    headline: next ? truncate(next.name) : null,
+    subline:
+      classCount > 0
+        ? `${classCount} class${classCount === 1 ? "" : "es"}`
+        : null,
+    state: open.length === 0 ? "empty" : "ok",
+  };
+}
+
+// ── Areas ─────────────────────────────────────────────────────────────────────
+export function summarizeAreas(areas: SidebarArea[]): StudioTileSummary {
+  const active = areas.filter((a) => a.archivedAt === null);
+  const activeProjectCount = (area: SidebarArea): number =>
+    area.projects.filter((p) => p.archivedAt === null).length;
+
+  const totalActiveProjects = active.reduce(
+    (sum, a) => sum + activeProjectCount(a),
+    0,
+  );
+
+  // Headline: active area with the most active projects; ties → lower orderIndex.
+  const top = [...active].sort((a, b) => {
+    const diff = activeProjectCount(b) - activeProjectCount(a);
+    if (diff !== 0) return diff;
+    return a.orderIndex - b.orderIndex;
+  })[0];
+
+  return {
+    id: "areas",
+    label: "Areas",
+    badge: active.length,
+    headline: top ? truncate(top.name) : null,
+    subline:
+      totalActiveProjects > 0
+        ? `${totalActiveProjects} project${totalActiveProjects === 1 ? "" : "s"}`
+        : null,
+    state: active.length === 0 ? "empty" : "ok",
+  };
+}
+
+// ── People ────────────────────────────────────────────────────────────────────
+export function summarizePeople(people: PersonWithStats[]): StudioTileSummary {
+  // Most-referenced person; ties keep input order (server returns name-sorted),
+  // so a strict `>` leaves the first max in place.
+  const top = people.reduce<PersonWithStats | null>((best, p) => {
+    if (best === null || p.referenceCount > best.referenceCount) return p;
+    return best;
+  }, null);
+
+  return {
+    id: "people",
+    label: "People",
+    badge: people.length,
+    headline: top ? truncate(top.name) : null,
+    subline:
+      top && top.referenceCount > 0
+        ? `${top.referenceCount} reference${top.referenceCount === 1 ? "" : "s"}`
+        : null,
+    state: people.length === 0 ? "empty" : "ok",
   };
 }
