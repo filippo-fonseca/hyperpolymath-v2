@@ -28,14 +28,17 @@ import { useStudioHoverProvider } from "@/lib/studio/input/react";
 import { subscribeWidgetTransforms } from "@/lib/studio/state/widget-transforms";
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
-import { fibonacciCapSlots } from "./layout";
+import {
+  CLOUD_CAP_DEG,
+  CLOUD_CENTER,
+  CLOUD_RADIUS,
+  fibonacciCapSlots,
+} from "./layout";
 import { useWidgetManipulation } from "./useWidgetManipulation";
 import { WidgetTile } from "./WidgetTile";
 
-// Cap origin and radius (meters), and how long drift runs after interaction.
-const CENTER: [number, number, number] = [0, 1.8, 0];
-const RADIUS = 2.4;
-const CAP_DEG = 70;
+// How long drift runs after interaction. Cap origin/radius/spread now live in
+// layout.ts (CLOUD_CENTER/RADIUS/CAP_DEG) so framing math shares one source.
 const ACTIVE_MS = 4000;
 
 export function WidgetCloud(): React.ReactElement {
@@ -46,9 +49,9 @@ export function WidgetCloud(): React.ReactElement {
   const slots = useMemo(
     () =>
       fibonacciCapSlots(summaries.length, {
-        radius: RADIUS,
-        center: CENTER,
-        capDeg: CAP_DEG,
+        radius: CLOUD_RADIUS,
+        center: CLOUD_CENTER,
+        capDeg: CLOUD_CAP_DEG,
       }),
     [summaries.length],
   );
