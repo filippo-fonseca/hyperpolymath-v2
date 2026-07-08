@@ -127,7 +127,12 @@ export function createPinchDolly(config?: Partial<PinchDollyConfig>): PinchDolly
       ? clampAbs(Math.sign(c) * Math.max(0, mag - cfg.exitDeadzone) * cfg.gain, 1)
       : 0;
 
-    if (Math.abs(target - z) >= cfg.emitQuantum) z = target;
+    // emitQuantum gates MOTION, not the rest value: when the latch is inactive the
+    // dolly must return FULLY to neutral, so snap straight to 0 rather than
+    // quantum-holding a sub-quantum residual (which would otherwise trap a small
+    // permanent dolly offset for the rest of the pinch).
+    if (!active) z = 0;
+    else if (Math.abs(target - z) >= cfg.emitQuantum) z = target;
     return z;
   }
 

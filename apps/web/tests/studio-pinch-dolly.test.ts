@@ -63,6 +63,20 @@ describe("createPinchDolly", () => {
     expect(pd.push(3 * FPS, grow(0.3, 0.015), true, false)).toBe(0);
   });
 
+  it("disarm snaps z fully to 0 even from a sub-quantum residual (no trapped dolly)", () => {
+    const pd = createPinchDolly();
+    pd.push(0, 0.3, true, false); // baseline size0 = 0.3
+    pd.push(FPS, grow(0.3, 0.1), true, false); // arm high (z ≈ 0.16)
+    // Drop straight to a still-armed z whose distance from 0 is BELOW emitQuantum:
+    // target = (0.025 − exitDeadzone)·gain = (0.025 − 0.02)·2 = 0.01 < emitQuantum.
+    const zSmall = pd.push(2 * FPS, grow(0.3, 0.025), true, false);
+    expect(zSmall).toBeCloseTo(0.01, 6);
+    // Now fall below exitDeadzone ⇒ disarm. A quantum-gated update would leave z at
+    // 0.01 (|0 − 0.01| < emitQuantum) and trap a residual dolly for the rest of the
+    // pinch; the latch dropping must instead return the dolly fully to neutral.
+    expect(pd.push(3 * FPS, grow(0.3, 0.01), true, false)).toBe(0);
+  });
+
   it("a still pinched hand holds a steady z (emission quantum)", () => {
     const pd = createPinchDolly();
     pd.push(0, 0.3, true, false);
