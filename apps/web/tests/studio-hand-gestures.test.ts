@@ -342,8 +342,9 @@ describe("hand gesture interpreter", () => {
     let t = 0;
     interp.push(t, makeOpenHand({ cx: 0.5 }));
     for (let i = 0; i < 16; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 }));
-    // Release: open the hand (thumb clears index) for enough frames to un-pinch.
-    for (let i = 0; i < 5; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
+    // Release: open the hand (thumb clears index) and sustain it past the release
+    // grace (pinchReleaseGraceMs 150 ≈ 5 frames at 30fps) so the pinch truly ends.
+    for (let i = 0; i < 7; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
     const phases = phaseTypes(cb);
     expect(phases).toContain("dragEnd");
     expect(phases).toContain("pullEnd");

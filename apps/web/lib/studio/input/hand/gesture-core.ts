@@ -109,6 +109,14 @@ export type HandGestureConfig = {
   pinchOnRatio: number;
   /** Pinch releases when the thumb-index ratio rises above this (hysteresis). */
   pinchOffRatio: number;
+  /**
+   * Sustained ms the raw ratio must stay above `pinchOffRatio` before an engaged
+   * pinch actually releases. A shorter un-pinch blip (tracker landmark pop during
+   * a fast drag) is absorbed, so a continuously-held pinch never drops its drag
+   * anchor mid-gesture. Engage stays frame-debounced (deliberate gestures commit
+   * fast); only release is time-graced.
+   */
+  pinchReleaseGraceMs: number;
   /** Continuous pinch-over-target dwell (ms) before a grab starts. */
   grabHoldMs: number;
   /** Deliberate palm-push held this long ⇒ halt. */
@@ -136,6 +144,7 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pointJabDelta: 0.1,
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
+  pinchReleaseGraceMs: 150,
   grabHoldMs: 250,
   haltHoldMs: 1200,
   haltMaxDriftNx: 0.06,
@@ -286,10 +295,16 @@ export function createHandGestureInterpreter(
   let swipeFired = false;
   let collapseFired = false;
 
-  // Pinch mode (mutually exclusive with the fist family): hysteresis + debounce.
+  // Pinch mode (mutually exclusive with the fist family): engage is frame-
+  // debounced; release is time-graced (see `unpinchSince`) so a transient
+  // un-pinch blip never drops a held drag.
   let pinchActive = false;
   let pinchCandidate: boolean | null = null;
   let pinchCandidateCount = 0;
+  // Wall-clock ms at which the raw ratio first rose above `pinchOffRatio` while
+  // pinched; null while genuinely pinched. Release commits once the un-pinch has
+  // been sustained `pinchReleaseGraceMs`.
+  let unpinchSince: number | null = null;
 
   const swipe: SwipeRecognizer = createSwipeRecognizer((dir) => {
     swipeFired = true;
@@ -338,6 +353,7 @@ export function createHandGestureInterpreter(
     pinchActive = false;
     pinchCandidate = null;
     pinchCandidateCount = 0;
+    unpinchSince = null;
     swipe.reset();
     // Terminal events so a hand-lost gap never strands a consumer mid-gesture.
     pinchDrag.reset();
@@ -393,26 +409,44 @@ export function createHandGestureInterpreter(
       candidateCount = 0;
     }
 
-    // --- Pinch classification: hysteresis (on/off ratios) + frame debounce. ---
+    // --- Pinch classification: hysteresis (on/off ratios), asymmetric commit. ---
+    // Engage is frame-debounced (a deliberate pinch commits in a few frames);
+    // release is time-graced (a brief ratio pop above off, common when motion
+    // blur degrades the thumb/index landmarks during a fast drag, is absorbed so
+    // a continuously-held pinch never drops its drag anchor mid-gesture).
     const pinchRatio = computePinchRatio(landmarks);
-    const rawPinch = pinchActive
-      ? pinchRatio <= cfg.pinchOffRatio // stay pinched until it opens past off
-      : pinchRatio < cfg.pinchOnRatio; // engage only below the tighter on gate
-    if (rawPinch !== pinchActive) {
-      if (pinchCandidate === rawPinch) {
-        pinchCandidateCount += 1;
+    if (!pinchActive) {
+      unpinchSince = null;
+      const wantsEngage = pinchRatio < cfg.pinchOnRatio; // tighter on gate
+      if (wantsEngage) {
+        if (pinchCandidate === true) {
+          pinchCandidateCount += 1;
+        } else {
+          pinchCandidate = true;
+          pinchCandidateCount = 1;
+        }
+        if (pinchCandidateCount >= cfg.debounceFrames) {
+          pinchActive = true;
+          pinchCandidate = null;
+          pinchCandidateCount = 0;
+        }
       } else {
-        pinchCandidate = rawPinch;
-        pinchCandidateCount = 1;
-      }
-      if (pinchCandidateCount >= cfg.debounceFrames) {
-        pinchActive = rawPinch;
         pinchCandidate = null;
         pinchCandidateCount = 0;
       }
     } else {
       pinchCandidate = null;
       pinchCandidateCount = 0;
+      const stillPinched = pinchRatio <= cfg.pinchOffRatio; // hold past off gate
+      if (stillPinched) {
+        unpinchSince = null;
+      } else {
+        if (unpinchSince === null) unpinchSince = tMs;
+        if (tMs - unpinchSince >= cfg.pinchReleaseGraceMs) {
+          pinchActive = false;
+          unpinchSince = null;
+        }
+      }
     }
 
     const palm = computePalmCentroidNormalized(landmarks, cfg);
