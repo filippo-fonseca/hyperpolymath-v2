@@ -61,6 +61,20 @@ describe("classifyWhatsappSendError", () => {
     );
   });
 
+  it("maps a resolved-but-unreachable recipient to not_on_whatsapp", () => {
+    // Bridge is up, contact resolved, but the number/@lid can't receive on
+    // WhatsApp — must be its own category, never confused with connectivity or
+    // a lookup miss.
+    expect(
+      classifyWhatsappSendError("http_error", 400, { code: "not_on_whatsapp" }).category,
+    ).toBe("not_on_whatsapp");
+    expect(
+      classifyWhatsappSendError("http_error", 400, {
+        error: "12035085391 is not reachable on WhatsApp",
+      }).category,
+    ).toBe("not_on_whatsapp");
+  });
+
   it("never reports a live bridge's contact miss as a connection failure", () => {
     // The exact regression from the bug report: bridge UP (400), contact miss.
     const c = classifyWhatsappSendError("http_error", 400, {
@@ -92,5 +106,12 @@ describe("whatsappSendFailureLine", () => {
   it("degrades gracefully when ambiguous has no candidate list", () => {
     const amb = whatsappSendFailureLine({ category: "ambiguous" }, "Emir");
     expect(amb.toLowerCase()).toContain("which one");
+  });
+
+  it("speaks a distinct not_on_whatsapp line naming the contact", () => {
+    const line = whatsappSendFailureLine({ category: "not_on_whatsapp" }, "Emir");
+    expect(line).toContain("Emir");
+    expect(line.toLowerCase()).toContain("whatsapp");
+    expect(line.toLowerCase()).not.toContain("isn't connected");
   });
 });

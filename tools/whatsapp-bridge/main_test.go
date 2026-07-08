@@ -59,6 +59,19 @@ func TestScoreContactTier(t *testing.T) {
 	if got := scoreContactTier(resolvedContact{fullName: "Isabella"}, "mama"); got != matchNone {
 		t.Errorf("unrelated name should be matchNone, got %d", got)
 	}
+	// A contact's SELF-reported push_name matching exactly ranks BELOW a saved
+	// full/first-name token match. This is what breaks the real tie where "Emir"
+	// matched both your saved "Emir Ahmed" and a bare @lid whose push_name is
+	// also "Emir": the saved contact must win so the send resolves (not goes
+	// ambiguous) and reaches the right person.
+	if got := scoreContactTier(resolvedContact{pushName: "Emir"}, "emir"); got != matchPrefix {
+		t.Errorf("push_name exact should be matchPrefix (below saved names), got %d", got)
+	}
+	savedTier := scoreContactTier(resolvedContact{fullName: "Emir Ahmed"}, "emir")
+	pushTier := scoreContactTier(resolvedContact{pushName: "Emir"}, "emir")
+	if savedTier <= pushTier {
+		t.Errorf("saved-name match (%d) must outrank push-name match (%d)", savedTier, pushTier)
+	}
 }
 
 // --- alias expansion ---------------------------------------------------------
@@ -179,6 +192,26 @@ func TestResolveRecipient_PartialFirstName(t *testing.T) {
 	}
 	if jid.User != "1555" {
 		t.Errorf("wrong JID user %q", jid.User)
+	}
+}
+
+// The real-world Emir case: a contact YOU saved as "Emir Ahmed" (full_name)
+// plus a separate bare @lid entry whose WhatsApp push_name also happens to be
+// "Emir". Saying "Emir" must resolve UNIQUELY to the saved contact (not go
+// ambiguous, and not pick the unroutable @lid) — and report that full name.
+func TestResolveRecipient_PrefersSavedOverPush(t *testing.T) {
+	b := newTestBridge(t)
+	insertContact(t, b, "me@s.whatsapp.net", "12035085391@s.whatsapp.net", "Emir Ahmed", "", "Emir")
+	insertContact(t, b, "me@s.whatsapp.net", "115921939120202@lid", "", "", "Emir")
+	jid, name, err := b.resolveRecipientNamed(context.Background(), "Emir")
+	if err != nil {
+		t.Fatalf(`"Emir" should resolve to saved "Emir Ahmed", got %v`, err)
+	}
+	if jid.User != "12035085391" {
+		t.Errorf("should resolve to the saved phone JID, got %q", jid.String())
+	}
+	if name != "Emir Ahmed" {
+		t.Errorf("should report the saved full name for read-back, got %q", name)
 	}
 }
 

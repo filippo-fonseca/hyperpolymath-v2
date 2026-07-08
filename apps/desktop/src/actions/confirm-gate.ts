@@ -50,6 +50,12 @@ import { startTask, resolveTask } from "@/hud/background-tasks";
 interface SendResult {
   ok: boolean;
   reason?: string;
+  /** On success, the contact the send was actually delivered to, as resolved by
+   *  the transport (the WhatsApp bridge returns the matched contact's full name
+   *  — e.g. said "Emir", delivered to "Emir Ahmed"). Used to speak an honest
+   *  "Sent to <name>, sir" confirmation so the user is never left guessing
+   *  whether — and to whom — a message went. Falls back to what the user said. */
+  resolvedRecipient?: string;
   /** True when the failure line has ALREADY been spoken by executeSend itself
    *  (e.g. the iMessage recipient couldn't be resolved to a real contact, so a
    *  specific "I couldn't find Rohan, sir" line was said). dispatchAndReport
@@ -276,12 +282,25 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
       const body = await readBridgeErrorBody(res);
       return reportWhatsappFailure(action, "http_error", res.status, body);
     }
+    // Read the bridge's success body for the resolved contact name. The bridge
+    // returns { ok, recipient, jid }; `recipient` is the matched contact's full
+    // name (empty for raw JID/number sends). Never throw on a malformed body —
+    // fall back to what the user said.
+    let resolvedRecipient = action.recipient;
+    try {
+      const body = (await res.json()) as { recipient?: unknown };
+      if (typeof body?.recipient === "string" && body.recipient.trim()) {
+        resolvedRecipient = body.recipient.trim();
+      }
+    } catch {
+      // Non-JSON / empty success body — keep the spoken recipient.
+    }
     lastSent = { app: action.app, recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
-      `[confirm] whatsapp send dispatched to "${action.recipient}" (${action.text.length} chars) via ${target}`,
+      `[confirm] whatsapp send dispatched to "${action.recipient}" → "${resolvedRecipient}" (${action.text.length} chars) via ${target}`,
     );
-    return { ok: true };
+    return { ok: true, resolvedRecipient };
   } catch (err) {
     const aborted = ctrl.signal.aborted || (err as { name?: string })?.name === "AbortError";
     if (aborted) {
@@ -359,7 +378,7 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
     console.log(
       `[confirm] send_message dispatched to "${action.recipient}" (${action.text.length} chars)`,
     );
-    return { ok: true };
+    return { ok: true, resolvedRecipient: action.recipient };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[confirm] send_message to "${action.recipient}" failed`, err);
@@ -368,9 +387,11 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
 }
 
 /** Dispatch a confirmed send and speak the TRUE terminal outcome. On success,
- *  stay silent — the model already spoke the readback/hand-off. On failure,
- *  speak a short, user-appropriate correction (never a dev hint) so the user is
- *  never left believing a false success. */
+ *  speak a short confirmation naming the contact actually delivered to ("Sent to
+ *  Emir Ahmed, sir") — the read-back the user asked for, and the only signal
+ *  that distinguishes a real send from a silent non-delivery. On failure, speak
+ *  a category-appropriate correction (never a dev hint) so the user is never
+ *  left believing a false success. */
 async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   // Arm the text-independent dispatch latch the instant we commit to sending.
   // Set here (not at the call sites) so EVERY path that dispatches — the
@@ -392,7 +413,17 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   });
   const result = await executeSend(action);
   resolveTask(taskId, result.ok ? "done" : "failed");
-  if (result.ok) return;
+  if (result.ok) {
+    // Speak an honest, terminal delivery confirmation naming the contact the
+    // message ACTUALLY went to. Before this, success was silent — the user had
+    // no way to know a send succeeded (or, worse, that a resolved-but-wrong or
+    // undeliverable recipient had silently failed). Naming the resolved contact
+    // ("Sent to Emir Ahmed, sir") also confirms the RIGHT person was chosen
+    // when the spoken name was a partial/nickname.
+    const who = (result.resolvedRecipient ?? action.recipient).trim() || action.recipient;
+    ttsPlayer.speakNow(`Sent to ${who}, sir.`);
+    return;
+  }
   // executeSend already spoke a specific, category-appropriate line — for
   // WhatsApp: not-connected vs contact-not-found vs ambiguous (see
   // reportWhatsappFailure); for iMessage: resolution failures. Don't stack a

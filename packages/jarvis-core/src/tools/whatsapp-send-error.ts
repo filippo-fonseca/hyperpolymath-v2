@@ -19,7 +19,13 @@
 export type WhatsappSendErrorCategory =
   | "not_connected"
   | "not_found"
-  | "ambiguous";
+  | "ambiguous"
+  // The bridge is up and a contact resolved, but that recipient can't actually
+  // receive a WhatsApp message (number not registered, or an unroutable @lid).
+  // WhatsApp would otherwise ACCEPT the send and silently drop it — distinct
+  // from "couldn't find" so the user knows the person, not the lookup, is the
+  // problem.
+  | "not_on_whatsapp";
 
 /** The transport-level outcome the desktop observed BEFORE (or instead of)
  *  reading a response body. `ok` never reaches the classifier; the rest map to
@@ -58,6 +64,8 @@ function categoryFromCode(code: string | undefined): WhatsappSendErrorCategory |
       return "not_found";
     case "ambiguous":
       return "ambiguous";
+    case "not_on_whatsapp":
+      return "not_on_whatsapp";
     default:
       return null;
   }
@@ -70,6 +78,9 @@ function categoryFromMessage(message: string | undefined): WhatsappSendErrorCate
   const m = (message ?? "").toLowerCase();
   if (!m) return null;
   if (m.includes("ambiguous")) return "ambiguous";
+  if (m.includes("not reachable on whatsapp") || m.includes("not on whatsapp")) {
+    return "not_on_whatsapp";
+  }
   if (
     m.includes("no whatsapp contact") ||
     m.includes("contact matches") ||
@@ -144,6 +155,8 @@ export function whatsappSendFailureLine(
       return "WhatsApp isn't connected, sir — you'll need to re-link it before I can send that.";
     case "not_found":
       return `I couldn't find a contact matching ${who} on WhatsApp, sir.`;
+    case "not_on_whatsapp":
+      return `I found ${who}, sir, but that contact doesn't appear to be reachable on WhatsApp — the message wouldn't go through.`;
     case "ambiguous": {
       const cands = (classification.candidates ?? [])
         .map((c) => c.trim())

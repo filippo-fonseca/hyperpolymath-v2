@@ -529,10 +529,10 @@ type matchTier int
 const (
 	matchNone       matchTier = 0
 	matchFuzzy      matchTier = 1 // approximate (small edit-distance) match — "mama" ≈ "mamma"
-	matchContains   matchTier = 2 // query appears as an interior/last word
-	matchPrefix     matchTier = 3 // a name starts with query + boundary
-	matchFirstToken matchTier = 4 // query == first whitespace token of a name
-	matchExact      matchTier = 5 // query == full_name or first_name exactly
+	matchContains   matchTier = 2 // query is an interior/last word of any name
+	matchPrefix     matchTier = 3 // self-reported push/business name: exact, first-token, or prefix
+	matchFirstToken matchTier = 4 // saved full/first name: first-token or prefix ("emir" → "Emir Ahmed")
+	matchExact      matchTier = 5 // saved full/first name matched exactly
 )
 
 // levenshtein returns the edit distance between a and b (insert/delete/replace,
@@ -640,27 +640,36 @@ func scoreContactTier(c resolvedContact, q string) matchTier {
 		}
 	}
 
-	// Tier 4 — exact full_name / first_name.
-	if full == q || first == q {
-		bump(matchExact)
-	}
-	// Tier 3 — first token of full_name (then push_name) equals query.
-	if firstToken(full) == q || firstToken(push) == q {
-		bump(matchFirstToken)
-	}
-	// Tier 2 — a name starts with query followed by a word boundary (space)
-	// or is exactly the query. "emir" matches "Emir Ahmed".
 	hasPrefix := func(name string) bool {
 		return name == q || strings.HasPrefix(name, q+" ")
 	}
-	if hasPrefix(full) || hasPrefix(push) || hasPrefix(business) {
-		bump(matchPrefix)
-	}
-	// Tier 2 — query appears as a standalone interior/last word.
 	hasWord := func(name string) bool {
 		return strings.Contains(" "+name+" ", " "+q+" ")
 	}
-	if hasWord(full) || hasWord(push) || hasWord(business) {
+
+	// Tier 5 — exact match on a name YOU saved (full_name / first_name).
+	if full == q || first == q {
+		bump(matchExact)
+	}
+	// Tier 4 — first token or leading prefix of a name YOU saved. "emir" →
+	// "Emir Ahmed". Saved names rank ABOVE the contact's self-reported
+	// push/business name (tier 3): this is what breaks the real-world tie where
+	// "Emir" matched both your saved "Emir Ahmed" AND a bare @lid entry whose
+	// WhatsApp push-name also happens to be "Emir". The contact you saved wins,
+	// so the send resolves to a single, deliverable JID instead of going
+	// ambiguous (and never reaching the person).
+	if firstToken(full) == q || firstToken(first) == q || hasPrefix(full) || hasPrefix(first) {
+		bump(matchFirstToken)
+	}
+	// Tier 3 — the contact's SELF-reported name (push_name / business_name):
+	// exact, first token, or leading prefix. Deliberately below saved names.
+	if push == q || business == q ||
+		firstToken(push) == q || firstToken(business) == q ||
+		hasPrefix(push) || hasPrefix(business) {
+		bump(matchPrefix)
+	}
+	// Tier 2 — query appears as a standalone interior/last word in any name.
+	if hasWord(full) || hasWord(first) || hasWord(push) || hasWord(business) {
 		bump(matchContains)
 	}
 	// Tier 1 — approximate (edit-distance) match. Only consulted when no
@@ -680,6 +689,18 @@ func scoreContactTier(c resolvedContact, q string) matchTier {
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return r.Replace(s)
+}
+
+// bestName returns the cleanest human name for a resolved contact (no phone
+// suffix) for the send-confirmation read-back — "Emir Ahmed" rather than
+// "Emir Ahmed (+1 …)". Prefers the name YOU saved over the self-reported one.
+func (c resolvedContact) bestName() string {
+	for _, n := range []string{c.fullName, c.firstName, c.pushName, c.businessName} {
+		if strings.TrimSpace(n) != "" {
+			return strings.TrimSpace(n)
+		}
+	}
+	return ""
 }
 
 func (c resolvedContact) displayLabel() string {
@@ -730,6 +751,58 @@ func (e *errContactAmbiguous) Error() string {
 		labels = append(labels, c.displayLabel())
 	}
 	return fmt.Sprintf("ambiguous WhatsApp contact %q — matched: %s", e.query, strings.Join(labels, "; "))
+}
+
+// errNotOnWhatsApp is returned by the final deliverability gate when a resolved
+// recipient cannot actually receive a WhatsApp message (a bare @lid with no
+// phone mapping, or a number the server reports as not registered). WhatsApp
+// otherwise ACCEPTS such a send and silently never delivers it — this makes that
+// failure explicit so the desktop can tell the user instead of a false success.
+type errNotOnWhatsApp struct{ who string }
+
+func (e *errNotOnWhatsApp) Error() string {
+	return fmt.Sprintf("%s is not reachable on WhatsApp", e.who)
+}
+
+// ensureDeliverableJID is the last safety layer before SendMessage. WhatsApp
+// silently accepts a send to a JID it can't actually route to and reports
+// success while nothing arrives (the "sent to Emir but he never got it" bug).
+// So we verify, never assume:
+//   - a bare @lid is only routable via its phone mapping — swap to the PN JID,
+//     or refuse if we have no mapping;
+//   - a phone JID is probed with IsOnWhatsApp; if the number isn't registered
+//     we refuse, and if it is we adopt the server's canonical JID.
+// A probe that itself errors (transient/network) does NOT block the send — we
+// proceed with the resolved JID rather than punish the user for a flaky lookup.
+func (b *bridge) ensureDeliverableJID(ctx context.Context, jid types.JID) (types.JID, error) {
+	if jid.Server == types.HiddenUserServer {
+		if b.client != nil && b.client.Store != nil && b.client.Store.LIDs != nil {
+			if pn, err := b.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil && pn.User != "" {
+				jid = pn
+			} else {
+				return jid, &errNotOnWhatsApp{who: jid.String()}
+			}
+		} else {
+			return jid, &errNotOnWhatsApp{who: jid.String()}
+		}
+	}
+	if jid.Server == types.DefaultUserServer {
+		resp, err := b.client.IsOnWhatsApp(ctx, []string{"+" + jid.User})
+		if err != nil {
+			log.Printf("send: IsOnWhatsApp probe failed for %s: %v", jid.User, err)
+			return jid, nil
+		}
+		if len(resp) > 0 {
+			r := resp[0]
+			if !r.IsIn {
+				return jid, &errNotOnWhatsApp{who: jid.User}
+			}
+			if r.JID.User != "" {
+				return r.JID, nil
+			}
+		}
+	}
+	return jid, nil
 }
 
 // selfUser returns the account owner's phone-number user part (the "user" of
@@ -838,24 +911,35 @@ func chooseTopContact(seen map[string]resolvedContact, query string) (resolvedCo
 // so the contacts table lives alongside our capture tables — no second
 // connection.
 func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (types.JID, error) {
+	jid, _, err := b.resolveRecipientNamed(ctx, recipient)
+	return jid, err
+}
+
+// resolveRecipientNamed is resolveRecipientToJID plus the resolved contact's
+// display name (empty for raw JID / phone-number inputs, where there is no
+// contact record to name). The name feeds the send-confirmation read-back so
+// the desktop can say "Sent to Emir Ahmed, sir" — confirming WHO actually
+// received it, which was invisible before.
+func (b *bridge) resolveRecipientNamed(ctx context.Context, recipient string) (types.JID, string, error) {
 	recipient = strings.TrimSpace(recipient)
 	if recipient == "" {
-		return types.JID{}, fmt.Errorf("empty recipient")
+		return types.JID{}, "", fmt.Errorf("empty recipient")
 	}
 	if strings.Contains(recipient, "@") {
-		return types.ParseJID(recipient)
+		jid, err := types.ParseJID(recipient)
+		return jid, "", err
 	}
 	if looksLikePhoneNumber(recipient) {
 		// Preserve the original phone-number branch verbatim: only "+" is
 		// stripped. Separator normalization is out of scope for this unit.
 		number := strings.TrimPrefix(recipient, "+")
-		return types.NewJID(number, types.DefaultUserServer), nil
+		return types.NewJID(number, types.DefaultUserServer), "", nil
 	}
 	// Name path — query whatsmeow_contacts. Case-insensitive match against
 	// the four name-bearing columns. If msgDB is nil (defensive; shouldn't
 	// happen in bundled use) surface a clear error.
 	if b.msgDB == nil {
-		return types.JID{}, fmt.Errorf("contact lookup unavailable: no contacts database")
+		return types.JID{}, "", fmt.Errorf("contact lookup unavailable: no contacts database")
 	}
 	// Expand a remembered alias BEFORE matching, but keep the ORIGINAL spoken
 	// recipient for user-facing error text ("no WhatsApp contact matches
@@ -902,12 +986,12 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 		prefixPat, interiorPat, lastWordPat,
 	)
 	if err != nil {
-		return types.JID{}, fmt.Errorf("contact lookup failed: %w", err)
+		return types.JID{}, "", fmt.Errorf("contact lookup failed: %w", err)
 	}
 	seen, err := collectScoredContacts(rows, lowered, selfUser)
 	rows.Close()
 	if err != nil {
-		return types.JID{}, err
+		return types.JID{}, "", err
 	}
 
 	// Fuzzy fallback: LIKE is anchored on the query, so it cannot surface an
@@ -917,20 +1001,24 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 	if len(seen) == 0 {
 		fallbackRows, ferr := b.queryAllContacts(ctx)
 		if ferr != nil {
-			return types.JID{}, ferr
+			return types.JID{}, "", ferr
 		}
 		seen, ferr = collectScoredContacts(fallbackRows, lowered, selfUser)
 		fallbackRows.Close()
 		if ferr != nil {
-			return types.JID{}, ferr
+			return types.JID{}, "", ferr
 		}
 	}
 
 	chosen, err := chooseTopContact(seen, recipient)
 	if err != nil {
-		return types.JID{}, err
+		return types.JID{}, "", err
 	}
-	return types.ParseJID(chosen.jid)
+	jid, err := types.ParseJID(chosen.jid)
+	if err != nil {
+		return types.JID{}, "", err
+	}
+	return jid, chosen.bestName(), nil
 }
 
 // queryAllContacts returns every contact row for this account (scoped by
@@ -980,7 +1068,7 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	jid, err := b.resolveRecipientToJID(r.Context(), req.Recipient)
+	jid, resolvedName, err := b.resolveRecipientNamed(r.Context(), req.Recipient)
 	if err != nil {
 		// Contact-resolution failures are user-actionable and MUST be reported
 		// differently from a connectivity failure. Tag each with a machine
@@ -1020,11 +1108,35 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+	// Final deliverability gate: pin the recipient to a JID WhatsApp will
+	// actually route to before sending, so a resolved-but-unreachable contact
+	// surfaces as an honest error instead of a false success (see
+	// ensureDeliverableJID). This is the "make sure the proper WhatsApp contact
+	// is selected for the actual message" safety layer.
+	deliverJID, derr := b.ensureDeliverableJID(ctx, jid)
+	if derr != nil {
+		var notOnWA *errNotOnWhatsApp
+		if errors.As(derr, &notOnWA) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"ok":    false,
+				"code":  "not_on_whatsapp",
+				"error": derr.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"ok":    false,
+			"code":  "not_found",
+			"error": derr.Error(),
+		})
+		return
+	}
+	jid = deliverJID
 	resp, err := b.client.SendMessage(ctx, jid, &waE2E.Message{
 		Conversation: proto.String(req.Message),
 	})
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("send failed: %v", err)})
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "code": "send_failed", "error": fmt.Sprintf("send failed: %v", err)})
 		return
 	}
 	// Mirror the outgoing message into the capture store. SendMessage does not
@@ -1045,7 +1157,15 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 			log.Printf("capture(send): storeMessage %s/%s: %v", chatJID, resp.ID, err)
 		}
 	}(jid, resp, req.Message)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	// Return the resolved recipient + verified JID so the desktop can confirm
+	// out loud WHO actually received the message ("Sent to Emir Ahmed, sir"),
+	// closing the "did it send?" gap. `recipient` is "" for raw JID/number
+	// inputs, in which case the desktop falls back to what the user said.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":        true,
+		"recipient": resolvedName,
+		"jid":       jid.String(),
+	})
 }
 
 func (b *bridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
