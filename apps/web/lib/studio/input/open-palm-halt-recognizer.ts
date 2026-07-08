@@ -2,16 +2,24 @@
  * Open-palm-halt recognizer — a deliberate, debounced "halt" primitive, a pure
  * state machine mirroring `swipe-recognizer.ts`.
  *
- * A flat open palm held still for `holdMs` (~1s) fires a single `halt`. It must
- * NEVER fire on a transient or partial palm, so two gates guard it:
- *   1. Dwell — the palm must be continuously open for `holdMs`. Any non-open
- *      sample fully resets the clock (a flicker restarts from zero).
- *   2. Stillness — drifting more than `maxDriftNx` from the anchor re-anchors at
- *      the current sample, restarting the dwell clock. A moving palm never fires.
- * After firing, it latches until the palm closes, so one hold = one halt.
+ * A relaxed open palm is the resting/aiming pose, so a still open palm ALONE
+ * must never halt. The trigger is a deliberate "talk-to-the-hand" shove: the
+ * palm pushed toward the camera and held still for `holdMs` (~1.2s). Three gates
+ * guard it:
+ *   1. Push — the apparent palm size must exceed `pushRatio`× a baseline size
+ *      (captured when the palm first opens, i.e. the relaxed aiming distance).
+ *      A relaxed palm sits at ~baseline and never arms; only a shove forward,
+ *      which enlarges the palm, arms the dwell clock.
+ *   2. Dwell — the palm must stay pushed-and-open continuously for `holdMs`. Any
+ *      non-open sample fully resets (a flicker restarts from zero); dropping back
+ *      below the push threshold clears the dwell clock.
+ *   3. Stillness — drifting more than `maxDriftNx` from the hold anchor re-anchors
+ *      at the current sample, restarting the dwell clock. A moving palm never fires.
+ * After firing, it latches until the palm closes, so one shove = one halt.
  *
  * `open` is pre-computed by the caller (gesture-core: pose === open, all four
- * fingers extended, not pinching). Downstream this drives the kill-switch.
+ * fingers extended, not pinching). `size` is the apparent palm size (a monotonic
+ * depth proxy — bigger = closer). Downstream this drives the kill-switch.
  */
 
 export type OpenPalmSample = {
@@ -22,18 +30,23 @@ export type OpenPalmSample = {
   nx: number;
   /** Normalized cursor-space y (0..1) of the palm centroid. */
   ny: number;
+  /** Apparent palm size (monotonic depth proxy); grows as the palm nears the camera. */
+  size: number;
 };
 
 export type OpenPalmHaltConfig = {
-  /** Continuous still-open dwell (ms) before `halt` fires. */
+  /** Continuous still-pushed-open dwell (ms) before `halt` fires. */
   holdMs: number;
-  /** Drift (normalized) from the anchor that restarts the dwell clock. */
+  /** Drift (normalized) from the hold anchor that restarts the dwell clock. */
   maxDriftNx: number;
+  /** Palm size must exceed this ×baseline (relaxed open size) to arm the dwell. */
+  pushRatio: number;
 };
 
 export const DEFAULT_OPEN_PALM_HALT: OpenPalmHaltConfig = {
-  holdMs: 1000,
-  maxDriftNx: 0.05,
+  holdMs: 1200,
+  maxDriftNx: 0.06,
+  pushRatio: 1.28,
 };
 
 export type OpenPalmHaltRecognizer = {
@@ -51,37 +64,55 @@ export function createOpenPalmHaltRecognizer(
 ): OpenPalmHaltRecognizer {
   const cfg: OpenPalmHaltConfig = { ...DEFAULT_OPEN_PALM_HALT, ...config };
 
-  let anchor: { t: number; nx: number; ny: number } | null = null;
+  // Relaxed open-palm size, captured the frame the palm opens (aiming distance).
+  let baseline: number | null = null;
+  // Stillness clock for the pushed hold; null until the palm is pushed forward.
+  let holdAnchor: { t: number; nx: number; ny: number } | null = null;
   let fired = false;
 
   function reset(): void {
-    anchor = null;
+    baseline = null;
+    holdAnchor = null;
     fired = false;
   }
 
   function push(sample: OpenPalmSample): void {
     if (!sample.open) {
-      // Any non-open frame breaks the dwell entirely.
+      // Any non-open frame breaks the gesture entirely (palm closed / lost).
       reset();
       return;
     }
 
-    if (anchor === null) {
-      anchor = { t: sample.t, nx: sample.nx, ny: sample.ny };
+    if (baseline === null) {
+      // First open frame: anchor the relaxed baseline size, nothing armed yet.
+      baseline = sample.size;
+      holdAnchor = null;
       fired = false;
       return;
     }
 
     if (fired) return; // latched until the palm closes
 
-    const drift = Math.hypot(sample.nx - anchor.nx, sample.ny - anchor.ny);
-    if (drift > cfg.maxDriftNx) {
-      // Movement restarts the dwell clock from the current position.
-      anchor = { t: sample.t, nx: sample.nx, ny: sample.ny };
+    // Push gate: only a palm shoved toward the camera (enlarged past the relaxed
+    // baseline) accrues dwell. A still, relaxed aiming palm never arms.
+    if (sample.size < baseline * cfg.pushRatio) {
+      holdAnchor = null;
       return;
     }
 
-    if (sample.t - anchor.t >= cfg.holdMs) {
+    if (holdAnchor === null) {
+      holdAnchor = { t: sample.t, nx: sample.nx, ny: sample.ny };
+      return;
+    }
+
+    const drift = Math.hypot(sample.nx - holdAnchor.nx, sample.ny - holdAnchor.ny);
+    if (drift > cfg.maxDriftNx) {
+      // Movement restarts the dwell clock from the current position.
+      holdAnchor = { t: sample.t, nx: sample.nx, ny: sample.ny };
+      return;
+    }
+
+    if (sample.t - holdAnchor.t >= cfg.holdMs) {
       fired = true;
       onHalt();
     }

@@ -103,10 +103,12 @@ export type HandGestureConfig = {
   pinchOffRatio: number;
   /** Continuous pinch-over-target dwell (ms) before a grab starts. */
   grabHoldMs: number;
-  /** Still, flat open palm held this long ⇒ halt. */
+  /** Deliberate palm-push held this long ⇒ halt. */
   haltHoldMs: number;
   /** Palm drift (normalized) that re-anchors the halt dwell clock. */
   haltMaxDriftNx: number;
+  /** Palm size must exceed this ×baseline (a push toward the camera) to arm halt. */
+  haltPushRatio: number;
   /** 1-euro smoothing config for the pinch-drag palm centroid. */
   dragOneEuro: OneEuroConfig;
 };
@@ -125,8 +127,9 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
   grabHoldMs: 250,
-  haltHoldMs: 1000,
-  haltMaxDriftNx: 0.05,
+  haltHoldMs: 1200,
+  haltMaxDriftNx: 0.06,
+  haltPushRatio: 1.28,
   dragOneEuro: { ...DEFAULT_ONE_EURO },
 };
 
@@ -279,7 +282,7 @@ export function createHandGestureInterpreter(
   );
   const halt: OpenPalmHaltRecognizer = createOpenPalmHaltRecognizer(
     () => callbacks.onIntent({ type: "halt" }),
-    { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx },
+    { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx, pushRatio: cfg.haltPushRatio },
   );
 
   function resetTransient(): void {
@@ -406,6 +409,7 @@ export function createHandGestureInterpreter(
       open: pose === "open" && extendedCount === 4 && !pinchActive,
       nx: sPalm.x,
       ny: sPalm.y,
+      size: sSize,
     });
 
     if (pinchActive) {
