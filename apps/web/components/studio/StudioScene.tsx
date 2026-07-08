@@ -5,6 +5,7 @@ import { DustMotes } from "./env/DustMotes";
 import { PostFX } from "./env/PostFX";
 import { PerfGovernor } from "./perf/PerfGovernor";
 import { WidgetCloud } from "./cloud/WidgetCloud";
+import { CameraRig } from "./camera/CameraRig";
 
 /**
  * StudioScene — the composition root of The Studio (Wave-1 scaffold).
@@ -29,11 +30,12 @@ export function StudioScene(): React.ReactElement {
       <DustMotes /> {/* drifting motes (own draw call) */}
       {/* ── WAVE-2 MOUNT SLOTS — one-line insertions, keep this list current ──
           <WidgetCloud />    [widget-cloud]     — mounts here (owns demand-frame nudge)
-          input/camera rig   [studio-input-core] — mounts here
+          <CameraRig />      [studio-camera-traversal] — grab-the-world pan/dolly
           <PostFX/> MUST remain the LAST child (single EffectComposer wraps all).
           NB: the DOM focus-overlay is NOT mounted here — it lives outside the
           Canvas, as a sibling under <StudioDataProvider> in StudioLoader. */}
       <WidgetCloud /> {/* ambient cloud of five hologram tiles + raycast hover */}
+      <CameraRig /> {/* phase-driven camera traversal — 0 draw calls, 0 idle rAF */}
       <PerfGovernor /> {/* adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
       <PostFX /> {/* the ONLY EffectComposer — MUST stay last */}
     </>
