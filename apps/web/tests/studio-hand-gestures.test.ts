@@ -55,12 +55,24 @@ const makeFist = (o: { cx?: number; cy?: number; scale?: number } = {}) =>
   makeHand({ ...o, tipRatio: 1.1 });
 
 /**
- * A pinch: fingers extended (open pose) but the thumb tip laid onto the index
- * tip, so the pinch ratio collapses toward zero (well under `pinchOnRatio`).
+ * A pinch: fingers extended (open pose) but the thumb tip laid near the index
+ * tip, so the pinch ratio collapses under `pinchOnRatio`. With no `gap` the
+ * thumb sits ON the index tip (ratio ≈ 0). Pass `gap` to place the thumb a
+ * precise thumb-index distance away: palm size is `scale`, so the resulting
+ * pinch ratio equals `gap` exactly (drives the zoom scalar in the e2e tests).
  */
-const makePinchHand = (o: { cx?: number; cy?: number; scale?: number } = {}): Pt[] => {
-  const lm = makeHand({ ...o, tipRatio: 2.0 });
-  lm[4] = { ...lm[8]! }; // thumb tip onto index tip → ratio ≈ 0
+const makePinchHand = (
+  o: { cx?: number; cy?: number; scale?: number; gap?: number } = {},
+): Pt[] => {
+  const { gap, ...rest } = o;
+  const lm = makeHand({ ...rest, tipRatio: 2.0 });
+  if (gap === undefined) {
+    lm[4] = { ...lm[8]! }; // thumb tip onto index tip → ratio ≈ 0
+  } else {
+    const s = rest.scale ?? 0.2; // palm size = dist(wrist, middle-MCP) = scale
+    const tip = lm[8]!;
+    lm[4] = { x: tip.x + gap * s, y: tip.y, z: 0 }; // |thumb−index| = gap·s ⇒ ratio = gap
+  }
   return lm;
 };
 
@@ -97,6 +109,14 @@ function makeCallbacks() {
 
 const phaseTypes = (cb: ReturnType<typeof makeCallbacks>): string[] =>
   cb.onPhase.mock.calls.map(([p]) => p.type);
+
+type DragMove = { type: "dragMove"; dx: number; dy: number; dz: number };
+const dragMoves = (cb: ReturnType<typeof makeCallbacks>): DragMove[] =>
+  cb.onPhase.mock.calls
+    .map(([p]) => p)
+    .filter((p): p is DragMove => p.type === "dragMove");
+const lastDrag = (cb: ReturnType<typeof makeCallbacks>): DragMove | undefined =>
+  dragMoves(cb).at(-1);
 
 const FPS = 1000 / 30;
 
@@ -146,6 +166,11 @@ describe("pose math", () => {
 
   it("pinch ratio is Infinity for a degenerate (zero-size) palm", () => {
     expect(computePinchRatio(fill21({ x: 0.5, y: 0.5, z: 0 }))).toBe(Infinity);
+  });
+
+  it("pinch ratio equals the requested gap (the zoom driver's input)", () => {
+    expect(computePinchRatio(makePinchHand({ gap: 0.3 }))).toBeCloseTo(0.3, 6);
+    expect(computePinchRatio(makePinchHand({ gap: 0.1 }))).toBeCloseTo(0.1, 6);
   });
 
   it("palm centroid is the mean of the five palm anchors", () => {
@@ -342,8 +367,9 @@ describe("hand gesture interpreter", () => {
     let t = 0;
     interp.push(t, makeOpenHand({ cx: 0.5 }));
     for (let i = 0; i < 16; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 }));
-    // Release: open the hand (thumb clears index) for enough frames to un-pinch.
-    for (let i = 0; i < 5; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
+    // Release: open the hand (thumb clears index) and sustain it past the release
+    // grace (pinchReleaseGraceMs 150 ≈ 5 frames at 30fps) so the pinch truly ends.
+    for (let i = 0; i < 7; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
     const phases = phaseTypes(cb);
     expect(phases).toContain("dragEnd");
     expect(phases).toContain("pullEnd");
@@ -352,6 +378,58 @@ describe("hand gesture interpreter", () => {
     cb.onIntent.mockClear();
     for (let i = 0; i < 26; i++) interp.push((t += FPS), makeFist({ cx: 0.5 }));
     expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["collapse"]);
+  });
+
+  it("13b) a brief un-pinch blip mid-drag never drops the pan (no re-anchor)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    for (const cx of [0.56, 0.62]) interp.push((t += FPS), makePinchHand({ cx })); // drag
+    const before = lastDrag(cb)!;
+    // A 3-frame tracker un-pinch blip (~100ms < 150ms grace): the ratio pops open
+    // while the hand keeps translating. The pinch must survive it.
+    for (const cx of [0.66, 0.7, 0.74]) interp.push((t += FPS), makeOpenHand({ cx }));
+    for (const cx of [0.8, 0.86]) interp.push((t += FPS), makePinchHand({ cx })); // resume
+    const phases = phaseTypes(cb);
+    expect(phases.filter((p) => p === "dragEnd")).toHaveLength(0);
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1); // one origin, no re-anchor
+    const after = lastDrag(cb)!;
+    // Same direction, larger magnitude ⇒ cumulative from the ORIGINAL origin.
+    expect(Math.sign(after.dx)).toBe(Math.sign(before.dx));
+    expect(Math.abs(after.dx)).toBeGreaterThan(Math.abs(before.dx));
+  });
+
+  it("13c) a short hand-lost gap mid-pinch keeps the drag alive (soft reacquire)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    for (const cx of [0.56, 0.62]) interp.push((t += FPS), makePinchHand({ cx }));
+    const before = lastDrag(cb)!;
+    interp.push((t += FPS), null); // a single dropped frame (~33ms < 200ms grace)
+    for (const cx of [0.68, 0.74]) interp.push((t += FPS), makePinchHand({ cx })); // resume
+    const phases = phaseTypes(cb);
+    expect(phases.filter((p) => p === "dragEnd")).toHaveLength(0);
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1); // one origin
+    const after = lastDrag(cb)!;
+    expect(Math.abs(after.dx)).toBeGreaterThan(Math.abs(before.dx));
+  });
+
+  it("13d) a hand loss past the pinch-lost grace ends the drag and fully resets", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    interp.push((t += FPS), makePinchHand({ cx: 0.56 }));
+    interp.push((t += FPS), null); // nullSince anchored here
+    t += 9 * FPS; // ~300ms > pinchLostGraceMs (200) — a genuine long loss
+    interp.push(t, makePinchHand({ cx: 0.62 }));
+    const phases = phaseTypes(cb);
+    expect(phases).toContain("dragEnd"); // reset fired on reacquire
+    // The reset cleared pinchActive, so the resumed frame must re-debounce the
+    // pinch rather than instantly re-opening a drag from the reset origin.
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1);
   });
 
   it("14) open palm PUSHED toward the camera and held → exactly one halt intent", () => {
@@ -385,5 +463,67 @@ describe("hand gesture interpreter", () => {
       interp.push(t, makePinchHand({ cx: 0.5 }));
     }
     expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(0);
+  });
+
+  it("16) tightening the thumb-index gap dollies in; widening dollies out", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    // Engage + settle the smoothed ratio at a moderate gap (baseline for zoom).
+    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.3 }));
+    // Squeeze tighter and hold: closer than the baseline ⇒ dolly IN (dz > 0).
+    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.1 }));
+    const zoomedIn = lastDrag(cb)!.dz;
+    expect(zoomedIn).toBeGreaterThan(0);
+    // Widen well past the baseline (still inside the pinch band, gap < offRatio)
+    // and hold: wider than the baseline ⇒ dolly OUT relative to the squeeze.
+    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.5 }));
+    const widened = lastDrag(cb)!.dz;
+    expect(widened).toBeLessThan(zoomedIn);
+  });
+
+  it("17) panning at a constant gap dollies nothing (pan/zoom decoupled)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    // Hold long enough that the smoothed ratio settles and the dolly stops moving.
+    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.2 }));
+    const settled = lastDrag(cb)!;
+    // Translate the whole hand across frame while the gap is held fixed. The
+    // thumb tip is not a palm anchor, so the pan can't leak into the dolly.
+    for (const cx of [0.56, 0.62, 0.68, 0.74]) {
+      interp.push((t += FPS), makePinchHand({ cx, gap: 0.2 }));
+    }
+    const panned = lastDrag(cb)!;
+    expect(Math.abs(panned.dx)).toBeGreaterThan(Math.abs(settled.dx)); // pan grows
+    expect(panned.dz).toBe(settled.dz); // dolly untouched by the pan
+  });
+
+  it("18) modulating the gap in place dollies without panning (decoupled)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 20; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.35 }));
+    const settled = lastDrag(cb)!;
+    // Squeeze in place (cx fixed): only the thumb/index gap changes, and neither
+    // point is a palm anchor, so the centroid — and thus dx/dy — never moves.
+    for (let i = 0; i < 20; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.1 }));
+    const squeezed = lastDrag(cb)!;
+    expect(squeezed.dz).toBeGreaterThan(settled.dz); // dolly moved
+    expect(squeezed.dx).toBe(settled.dx); // no pan
+    expect(squeezed.dy).toBe(settled.dy);
+  });
+
+  it("19) a still, steadily-held pinch holds a steady dolly (emit quantum)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    // Settle the smoothed ratio, then sample two late frames: once the dolly
+    // target stops moving, the emit quantum holds z constant frame-to-frame.
+    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.15 }));
+    const first = lastDrag(cb)!.dz;
+    for (let i = 0; i < 8; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.15 }));
+    const later = lastDrag(cb)!.dz;
+    expect(later).toBe(first); // identical gap ⇒ identical target ⇒ camera settles
   });
 });

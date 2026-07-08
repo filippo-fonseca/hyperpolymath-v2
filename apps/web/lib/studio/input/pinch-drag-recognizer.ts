@@ -4,9 +4,10 @@
  * While a pinch is engaged it emits a continuous drag vector: on the rising edge
  * it anchors an origin and emits `dragStart`; each subsequent engaged sample
  * emits `dragMove` with the CUMULATIVE delta from that origin (`dx`, `dy` in
- * normalized cursor space, `dz` a depth proxy — see gesture-core's `ln(size)`);
- * the falling edge emits `dragEnd`. Depth is pre-computed by the caller and
- * handed in as `depth`; the recognizer only diffs the scalar it's given.
+ * normalized cursor space, `dz` a depth proxy — the thumb-index zoom scalar the
+ * caller computes in gesture-core); the falling edge emits `dragEnd`. Depth is
+ * pre-computed by the caller and handed in as `depth`; the recognizer only diffs
+ * the scalar it's given.
  *
  * Downstream (a later wave) turns this into grab-the-world camera pan/dolly.
  * DOM-free and framework-free so it is unit-testable with synthetic samples.
@@ -20,7 +21,7 @@ export type PinchDragSample = {
   nx: number;
   /** Normalized cursor-space y (0..1). */
   ny: number;
-  /** A monotonic depth proxy (e.g. ln of palm size). Diffed against the origin. */
+  /** A depth proxy (the thumb-index zoom scalar). Diffed against the origin. */
   depth: number;
   /** True while the pinch is held. */
   engaged: boolean;

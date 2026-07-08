@@ -41,6 +41,7 @@ import {
   createPinchPullRecognizer,
   type PinchPullRecognizer,
 } from "../pinch-pull-recognizer";
+import { createPinchZoom, type PinchZoom } from "../pinch-zoom";
 import {
   createPointOpenRecognizer,
   type PointOpenRecognizer,
@@ -109,6 +110,22 @@ export type HandGestureConfig = {
   pinchOnRatio: number;
   /** Pinch releases when the thumb-index ratio rises above this (hysteresis). */
   pinchOffRatio: number;
+  /**
+   * Sustained ms the raw ratio must stay above `pinchOffRatio` before an engaged
+   * pinch actually releases. A shorter un-pinch blip (tracker landmark pop during
+   * a fast drag) is absorbed, so a continuously-held pinch never drops its drag
+   * anchor mid-gesture. Engage stays frame-debounced (deliberate gestures commit
+   * fast); only release is time-graced.
+   */
+  pinchReleaseGraceMs: number;
+  /**
+   * Max hand-lost gap (ms) that a held pinch survives. When landmarks return
+   * within this window while `pinchActive`, the reacquire-reset is skipped so the
+   * drag anchor + filters live on across a single MediaPipe dropout (≤ this many
+   * ms). Kept ≤ `lostGraceMs` so the cursor never de-activates first. A longer
+   * loss still does the full transient reset.
+   */
+  pinchLostGraceMs: number;
   /** Continuous pinch-over-target dwell (ms) before a grab starts. */
   grabHoldMs: number;
   /** Deliberate palm-push held this long ⇒ halt. */
@@ -136,6 +153,8 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pointJabDelta: 0.1,
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
+  pinchReleaseGraceMs: 150,
+  pinchLostGraceMs: 200,
   grabHoldMs: 250,
   haltHoldMs: 1200,
   haltMaxDriftNx: 0.06,
@@ -272,6 +291,8 @@ export function createHandGestureInterpreter(
   let palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
   let sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
   let depthFilter = new OneEuroFilter(cfg.dragOneEuro);
+  // Smooths the raw thumb-index pinch ratio before it drives camera zoom.
+  let zoomFilter = new OneEuroFilter(cfg.dragOneEuro);
   let fingerExtended: boolean[] = [true, true, true, true];
   let pose: HandPose = "open";
   let candidatePose: HandPose | null = null;
@@ -286,10 +307,16 @@ export function createHandGestureInterpreter(
   let swipeFired = false;
   let collapseFired = false;
 
-  // Pinch mode (mutually exclusive with the fist family): hysteresis + debounce.
+  // Pinch mode (mutually exclusive with the fist family): engage is frame-
+  // debounced; release is time-graced (see `unpinchSince`) so a transient
+  // un-pinch blip never drops a held drag.
   let pinchActive = false;
   let pinchCandidate: boolean | null = null;
   let pinchCandidateCount = 0;
+  // Wall-clock ms at which the raw ratio first rose above `pinchOffRatio` while
+  // pinched; null while genuinely pinched. Release commits once the un-pinch has
+  // been sustained `pinchReleaseGraceMs`.
+  let unpinchSince: number | null = null;
 
   const swipe: SwipeRecognizer = createSwipeRecognizer((dir) => {
     swipeFired = true;
@@ -306,6 +333,14 @@ export function createHandGestureInterpreter(
   const pinchPull: PinchPullRecognizer = createPinchPullRecognizer((e) =>
     callbacks.onPhase(e),
   );
+  // Turns the smoothed thumb-index gap into an absolute zoom scalar z ∈ [-1, +1]
+  // fed straight into pinch-drag's `depth` channel (replacing the palm-size `ln`
+  // depth proxy). `offRatio`/`r0Max` mirror the pinch gates so the zoom baseline
+  // and its release-freeze track the same thumb-index geometry the latch uses.
+  const pinchZoom: PinchZoom = createPinchZoom({
+    offRatio: cfg.pinchOffRatio,
+    r0Max: cfg.pinchOnRatio,
+  });
   const halt: OpenPalmHaltRecognizer = createOpenPalmHaltRecognizer(
     () => callbacks.onIntent({ type: "halt" }),
     { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx, pushRatio: cfg.haltPushRatio },
@@ -327,6 +362,7 @@ export function createHandGestureInterpreter(
     palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
     sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
     depthFilter = new OneEuroFilter(cfg.dragOneEuro);
+    zoomFilter = new OneEuroFilter(cfg.dragOneEuro);
     fingerExtended = [true, true, true, true];
     pose = "open";
     candidatePose = null;
@@ -338,11 +374,13 @@ export function createHandGestureInterpreter(
     pinchActive = false;
     pinchCandidate = null;
     pinchCandidateCount = 0;
+    unpinchSince = null;
     swipe.reset();
     // Terminal events so a hand-lost gap never strands a consumer mid-gesture.
     pinchDrag.reset();
     pinchHold.reset();
     pinchPull.reset();
+    pinchZoom.reset();
     halt.reset();
     pointOpen.reset();
   }
@@ -359,8 +397,13 @@ export function createHandGestureInterpreter(
 
     // Reacquired after a null gap: reset transient state so no stale fist/filter
     // leaks across the gap (deviation: filters + fist state reset on reacquire).
+    // Exception — a held pinch survives a short dropout: if we were pinching and
+    // landmarks returned within `pinchLostGraceMs`, skip the reset so the drag
+    // anchor, filters, and pinch latch carry across the gap (the one-euro filters
+    // absorb the large dt) and the pan resumes without a stall or re-anchor.
     if (nullSince !== null) {
-      resetTransient();
+      const softReacquire = pinchActive && tMs - nullSince < cfg.pinchLostGraceMs;
+      if (!softReacquire) resetTransient();
       nullSince = null;
     }
 
@@ -393,31 +436,59 @@ export function createHandGestureInterpreter(
       candidateCount = 0;
     }
 
-    // --- Pinch classification: hysteresis (on/off ratios) + frame debounce. ---
+    // --- Pinch classification: hysteresis (on/off ratios), asymmetric commit. ---
+    // Engage is frame-debounced (a deliberate pinch commits in a few frames);
+    // release is time-graced (a brief ratio pop above off, common when motion
+    // blur degrades the thumb/index landmarks during a fast drag, is absorbed so
+    // a continuously-held pinch never drops its drag anchor mid-gesture).
     const pinchRatio = computePinchRatio(landmarks);
-    const rawPinch = pinchActive
-      ? pinchRatio <= cfg.pinchOffRatio // stay pinched until it opens past off
-      : pinchRatio < cfg.pinchOnRatio; // engage only below the tighter on gate
-    if (rawPinch !== pinchActive) {
-      if (pinchCandidate === rawPinch) {
-        pinchCandidateCount += 1;
+    if (!pinchActive) {
+      unpinchSince = null;
+      const wantsEngage = pinchRatio < cfg.pinchOnRatio; // tighter on gate
+      if (wantsEngage) {
+        if (pinchCandidate === true) {
+          pinchCandidateCount += 1;
+        } else {
+          pinchCandidate = true;
+          pinchCandidateCount = 1;
+        }
+        if (pinchCandidateCount >= cfg.debounceFrames) {
+          pinchActive = true;
+          pinchCandidate = null;
+          pinchCandidateCount = 0;
+        }
       } else {
-        pinchCandidate = rawPinch;
-        pinchCandidateCount = 1;
-      }
-      if (pinchCandidateCount >= cfg.debounceFrames) {
-        pinchActive = rawPinch;
         pinchCandidate = null;
         pinchCandidateCount = 0;
       }
     } else {
       pinchCandidate = null;
       pinchCandidateCount = 0;
+      const stillPinched = pinchRatio <= cfg.pinchOffRatio; // hold past off gate
+      if (stillPinched) {
+        unpinchSince = null;
+      } else {
+        if (unpinchSince === null) unpinchSince = tMs;
+        if (tMs - unpinchSince >= cfg.pinchReleaseGraceMs) {
+          pinchActive = false;
+          unpinchSince = null;
+        }
+      }
     }
 
     const palm = computePalmCentroidNormalized(landmarks, cfg);
     const sPalm = palmFilter.filter(tMs, palm.nx, palm.ny);
     const sSize = sizeFilter.filter(tMs, computePalmSizeRaw(landmarks));
+
+    // Camera zoom rides the thumb-index gap (scale/depth-invariant), not palm
+    // size. Smooth the raw ratio first (guarding the degenerate Infinity so the
+    // filter never latches a bad frame), then map it to an absolute scalar the
+    // pinch-drag `depth` channel dollies against. Because the thumb tip is not a
+    // palm anchor, this is decoupled from pan by construction.
+    const sRatio = Number.isFinite(pinchRatio)
+      ? zoomFilter.filter(tMs, pinchRatio)
+      : pinchRatio;
+    const zoom = pinchZoom.push(tMs, sRatio, pinchActive);
 
     // --- Pinch mode (deviation D5): top-level, mutually exclusive with the fist
     // family. While pinching we freeze the cursor, clear any fist anchors, and
@@ -436,9 +507,9 @@ export function createHandGestureInterpreter(
       t: tMs,
       nx: sPalm.x,
       ny: sPalm.y,
-      // Floor the size before log so a degenerate/near-zero frame from the
-      // tracker can't emit a huge negative depth (matches pinch-pull's guard).
-      depth: Math.log(Math.max(sSize, 1e-4)),
+      // Absolute thumb-index zoom scalar (z ∈ [-1, +1]); pinch-drag diffs it
+      // against its engage origin, so dz = z flows to the camera dolly directly.
+      depth: zoom,
       engaged: pinchActive,
     });
     pinchHold.push({ t: tMs, nx: sPalm.x, ny: sPalm.y, engaged: pinchActive });
