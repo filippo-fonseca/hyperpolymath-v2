@@ -42,6 +42,10 @@ import {
   type PinchPullRecognizer,
 } from "../pinch-pull-recognizer";
 import {
+  createPointOpenRecognizer,
+  type PointOpenRecognizer,
+} from "../point-open-recognizer";
+import {
   createSwipeRecognizer,
   type SwipeConfig,
   type SwipeRecognizer,
@@ -53,7 +57,7 @@ import type { StudioIntentInput, StudioPhaseInput } from "../types";
 /** A landmark point. `z` is carried for shape-compat with MediaPipe but unused. */
 export type Pt = { x: number; y: number; z: number };
 
-export type HandPose = "open" | "fist";
+export type HandPose = "open" | "fist" | "point";
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -95,8 +99,12 @@ export type HandGestureConfig = {
   lostGraceMs: number;
   /** Fist held at least this long (no swipe) ⇒ collapse. */
   holdMs: number;
-  /** Max palm drift (normalized) between fist-origin and release to still expand. */
-  maxClickDriftNx: number;
+  /** Still-point dwell (ms) that opens a widget without a forward tap. */
+  pointDwellMs: number;
+  /** Reticle drift (normalized) that restarts the point-open dwell clock. */
+  pointMaxDriftNx: number;
+  /** Fingertip forward-depth rise past its baseline that counts as an open tap. */
+  pointJabDelta: number;
   /** Pinch engages when the thumb-index ratio drops below this. */
   pinchOnRatio: number;
   /** Pinch releases when the thumb-index ratio rises above this (hysteresis). */
@@ -123,7 +131,9 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   openMinExtended: 3,
   lostGraceMs: 250,
   holdMs: 500,
-  maxClickDriftNx: 0.06,
+  pointDwellMs: 500,
+  pointMaxDriftNx: 0.06,
+  pointJabDelta: 0.1,
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
   grabHoldMs: 250,
@@ -165,6 +175,21 @@ export function poseFromExtendedCount(
   if (count <= config.fistMaxExtended) return "fist";
   if (count >= config.openMinExtended) return "open";
   return null;
+}
+
+/**
+ * Pose from the per-finger extended pattern (index, middle, ring, pinky). An
+ * index-only point is disambiguated FIRST so it never reads as a fist (which,
+ * by count alone, it would). `null` means ambiguous — keep the prior pose.
+ */
+export function poseFromFingers(
+  extended: boolean[],
+  config: HandGestureConfig,
+): HandPose | null {
+  const [index = false, middle = false, ring = false, pinky = false] = extended;
+  if (index && !middle && !ring && !pinky) return "point";
+  const count = extended.reduce((n, e) => n + (e ? 1 : 0), 0);
+  return poseFromExtendedCount(count, config);
 }
 
 /** Raw (unfiltered) cursor target from the index fingertip: mirror x, remap. */
@@ -246,6 +271,7 @@ export function createHandGestureInterpreter(
   let filter = new OneEuroFilter2D(cfg.oneEuro);
   let palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
   let sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
+  let depthFilter = new OneEuroFilter(cfg.dragOneEuro);
   let fingerExtended: boolean[] = [true, true, true, true];
   let pose: HandPose = "open";
   let candidatePose: HandPose | null = null;
@@ -285,10 +311,22 @@ export function createHandGestureInterpreter(
     { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx, pushRatio: cfg.haltPushRatio },
   );
 
+  // Point-tap opens a widget (replaces the drift-prone fist pulse). The reticle
+  // is already over the target via the point's cursor, so the hub attaches it.
+  const pointOpen: PointOpenRecognizer = createPointOpenRecognizer(
+    () => callbacks.onIntent({ type: "expand" }),
+    {
+      dwellMs: cfg.pointDwellMs,
+      maxDriftNx: cfg.pointMaxDriftNx,
+      jabDelta: cfg.pointJabDelta,
+    },
+  );
+
   function resetTransient(): void {
     filter = new OneEuroFilter2D(cfg.oneEuro);
     palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
     sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
+    depthFilter = new OneEuroFilter(cfg.dragOneEuro);
     fingerExtended = [true, true, true, true];
     pose = "open";
     candidatePose = null;
@@ -306,6 +344,7 @@ export function createHandGestureInterpreter(
     pinchHold.reset();
     pinchPull.reset();
     halt.reset();
+    pointOpen.reset();
   }
 
   function push(tMs: number, landmarks: Pt[] | null): void {
@@ -334,7 +373,7 @@ export function createHandGestureInterpreter(
     const ratios = computeFingerRatios(landmarks);
     fingerExtended = ratios.map((r, i) => classifyFinger(r, fingerExtended[i]!, cfg));
     const extendedCount = fingerExtended.reduce((n, e) => n + (e ? 1 : 0), 0);
-    const rawPose = poseFromExtendedCount(extendedCount, cfg);
+    const rawPose = poseFromFingers(fingerExtended, cfg);
 
     const prevPose = pose;
     if (rawPose !== null && rawPose !== pose) {
@@ -412,27 +451,35 @@ export function createHandGestureInterpreter(
       size: sSize,
     });
 
+    // Point-open: aim the index at a widget, then tap forward or hold to open.
+    // `forward` = -z (bigger ⇒ nearer the camera); smoothed to tame tracker jitter.
+    const pointTarget = computeCursorTarget(landmarks, cfg);
+    const sForward = depthFilter.filter(tMs, -landmarks[INDEX_TIP]!.z);
+    pointOpen.push({
+      t: tMs,
+      pointing: pose === "point" && !pinchActive,
+      nx: pointTarget.nx,
+      ny: pointTarget.ny,
+      forward: sForward,
+    });
+
     if (pinchActive) {
       // Skip pose-edge / swipe / collapse / cursor entirely while pinching.
       swipe.push({ t: tMs, nx: palm.nx, ny: palm.ny, engaged: false });
       return;
     }
 
-    // --- Pose edges ---
-    if (prevPose === "open" && pose === "fist") {
+    // --- Pose edges. A fist now only closes (collapse) / swipes; opening is the
+    // point-tap above. Edges fire on any non-fist⇄fist transition so entering a
+    // fist from a point (not just open) still anchors the gesture. ---
+    if (prevPose !== "fist" && pose === "fist") {
       // Rising edge: anchor the fist gesture and freeze the cursor.
       fistStart = tMs;
       fistOrigin = { nx: palm.nx, ny: palm.ny };
       swipeFired = false;
       collapseFired = false;
-    } else if (prevPose === "fist" && pose === "open") {
-      // Falling edge: a stationary, swipe-less, collapse-less pulse = expand.
-      if (!swipeFired && !collapseFired && fistOrigin) {
-        const drift = Math.hypot(palm.nx - fistOrigin.nx, palm.ny - fistOrigin.ny);
-        if (drift < cfg.maxClickDriftNx) {
-          callbacks.onIntent({ type: "expand" });
-        }
-      }
+    } else if (prevPose === "fist" && pose !== "fist") {
+      // Falling edge: clear the fist anchors so no stale swipe/collapse leaks past.
       fistStart = null;
       fistOrigin = null;
       swipeFired = false;
@@ -455,8 +502,8 @@ export function createHandGestureInterpreter(
       collapseFired = true;
     }
 
-    // --- Cursor: emit only while open; frozen (silent) while fist held. ---
-    if (pose === "open") {
+    // --- Cursor: emit while open OR pointing (both aim); frozen while fist held. ---
+    if (pose === "open" || pose === "point") {
       const target = computeCursorTarget(landmarks, cfg);
       const sm = filter.filter(tMs, target.nx, target.ny);
       callbacks.onCursorMove(sm.x, sm.y);
