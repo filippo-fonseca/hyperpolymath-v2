@@ -60,3 +60,78 @@ export function fibonacciCapSlots(
   }
   return slots;
 }
+
+// ── Soft-snap ────────────────────────────────────────────────────────────────
+
+type Vec3 = readonly [number, number, number];
+
+/** A released widget within this distance of an anchor soft-snaps to it. */
+export const SNAP_RADIUS = 0.45;
+/** An anchor with another widget within this distance is ineligible (overlap). */
+export const BLOCK_RADIUS = 0.9;
+
+export interface SnapOptions {
+  /** Override {@link SNAP_RADIUS}. */
+  snapRadius?: number;
+  /** Override {@link BLOCK_RADIUS}. */
+  blockRadius?: number;
+}
+
+function distSq(a: Vec3, b: Vec3): number {
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  const dz = a[2] - b[2];
+  return dx * dx + dy * dy + dz * dz;
+}
+
+/**
+ * Resolve the soft-snap target for a released widget. Returns the index (into
+ * `anchors`) of the nearest anchor within `snapRadius` that is NOT blocked by
+ * another widget — i.e. no position in `others` lies within `blockRadius` of
+ * that anchor — or `null` to settle freeform where released.
+ *
+ * `others` are the *effective* positions of the OTHER widgets (override or
+ * layout slot), excluding the released one. Blocking prevents a snap from
+ * stacking two tiles on the same anchor (an overlap regression). "Prefer the
+ * widget's own slot" falls out of "nearest": the released widget usually sits
+ * closest to its own anchor, and its own slot is never in `others`, so it is
+ * never self-blocked.
+ *
+ * Pure — no THREE, no allocation beyond primitives; mirrors the rest of the
+ * module so it stays framework-free and directly unit-testable.
+ */
+export function resolveSnap(
+  released: Vec3,
+  anchors: readonly Vec3[],
+  others: readonly Vec3[],
+  opts: SnapOptions = {},
+): number | null {
+  const snapRadius = opts.snapRadius ?? SNAP_RADIUS;
+  const blockRadius = opts.blockRadius ?? BLOCK_RADIUS;
+  const snapSq = snapRadius * snapRadius;
+  const blockSq = blockRadius * blockRadius;
+
+  let best: number | null = null;
+  let bestSq = snapSq;
+
+  for (let i = 0; i < anchors.length; i++) {
+    const anchor = anchors[i]!;
+    const d = distSq(released, anchor);
+    if (d > bestSq) continue; // too far, or not nearer than the current best
+
+    // Blocked if another widget's effective position sits on this anchor.
+    let blocked = false;
+    for (const other of others) {
+      if (distSq(anchor, other) <= blockSq) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+
+    best = i;
+    bestSq = d;
+  }
+
+  return best;
+}
