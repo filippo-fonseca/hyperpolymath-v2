@@ -15,6 +15,11 @@
  *    rest — the sanctioned demand-frame shape, adding no idle rAF.
  *  - Reset-to-home: an imperative subscription to the camera store (no re-render)
  *    plus an `h`/`Home` keydown affordance guarded against editable targets.
+ *  - Focus auto-center: an imperative subscription to the active-widget store
+ *    (READ-ONLY — `StudioFocusOverlay` stays the sole writer). Expanding a widget
+ *    frames it via the pure framing math; collapsing eases back to the prior
+ *    vantage. Manual grab-the-world panning interrupts an in-flight focus tween
+ *    (the `dragStart` below re-anchors the controller at the live camera).
  *
  * Mounted in `StudioScene` at the Wave-2 slot, before `<PostFX/>` (which must
  * stay the last child). It never resets the camera on mount — the controller
@@ -29,7 +34,15 @@ import {
   createCameraTraversal,
   type CameraTraversal,
 } from "@/lib/studio/camera/traversal";
+import {
+  frameWidgetCamera,
+  resolveWidgetWorldPosition,
+} from "@/lib/studio/camera/framing";
 import { requestCameraHome, subscribeCameraHome } from "@/lib/studio/state/camera";
+import {
+  getActiveWidgets,
+  subscribeActiveWidgets,
+} from "@/lib/studio/state/active-widget";
 import { useStudioPhase } from "@/lib/studio/input/react";
 
 // Damping rate (higher = snappier ease) and the settle epsilon (meters). Below
@@ -48,11 +61,18 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
 
 export function CameraRig(): null {
   const invalidate = useThree((s) => s.invalidate);
+  const camera = useThree((s) => s.camera);
   const controller = useMemo<CameraTraversal>(() => createCameraTraversal(), []);
 
   // Feed the controller from the phase bus (zero re-renders); demand a frame per
-  // consumed event so the damp loop below chases the freshly-moved target.
+  // consumed event so the damp loop below chases the freshly-moved target. A
+  // `dragStart` while focused is the user taking over an auto-center tween: abandon
+  // it at the live camera position BEFORE the normal drag re-anchoring runs.
+  // `interruptAt` is a no-op when unfocused, so plain manual panning is untouched.
   useStudioPhase((phase) => {
+    if (phase.type === "dragStart") {
+      controller.interruptAt([camera.position.x, camera.position.y, camera.position.z]);
+    }
     controller.push(phase);
     invalidate();
   });
@@ -67,6 +87,24 @@ export function CameraRig(): null {
       }),
     [controller, invalidate],
   );
+
+  // Focus auto-center, imperative (no re-render). On any change to the focused
+  // set: frame the first focused widget, or ease back on collapse. Read the store
+  // once on mount too, so a focus that landed before this effect attached (or a
+  // hot-reload) is honored. `StudioFocusOverlay` remains the sole writer.
+  useEffect(() => {
+    const apply = (): void => {
+      const id = getActiveWidgets()[0];
+      if (id !== undefined) {
+        controller.focusOn(frameWidgetCamera(resolveWidgetWorldPosition(id)));
+      } else {
+        controller.endFocus();
+      }
+      invalidate();
+    };
+    apply();
+    return subscribeActiveWidgets(apply);
+  }, [controller, invalidate]);
 
   // Keyboard affordance: `h` / `Home` returns the camera to its spawn vantage.
   // Discrete (fires only on those keys), so it is not an idle invalidation channel.
