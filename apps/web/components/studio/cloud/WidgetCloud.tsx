@@ -85,12 +85,6 @@ export function WidgetCloud(): React.ReactElement {
     [],
   );
 
-  // Widget ids in slot order (slots are indexed to match `summaries`).
-  const widgetIds = useMemo(
-    () => summaries.map((s) => s.id),
-    [summaries],
-  );
-
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
 
@@ -108,9 +102,9 @@ export function WidgetCloud(): React.ReactElement {
     },
   });
 
-  // Grab-drag + pinch-pull manipulation. Sole writer of the transform store; it
-  // mutates the registered outer groups imperatively and self-invalidates.
-  useWidgetManipulation({ slots, widgetIds, getGroup, camera, invalidate });
+  // Grab-drag manipulation. Sole writer of the zone-assignment store; it mutates
+  // the registered outer groups imperatively during a drag and self-invalidates.
+  useWidgetManipulation({ slots, getGroup, camera, invalidate });
 
   // Channel 1 — data changes: nudge a frame (hooks.ts contract).
   useEffect(() => {

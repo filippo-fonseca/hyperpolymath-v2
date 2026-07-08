@@ -4,29 +4,31 @@
  * React, no jsdom/WebGL). `useWidgetManipulation` is now a thin shell that
  * builds one of these and feeds it the phase bus.
  *
- * It is the SOLE writer of the `widget-transforms` store. During a grab it
- * mutates the tile's OUTER `THREE.Group` imperatively — the demand-frame
- * doctrine forbids per-frame React re-renders — and commits the settled
- * position to the store exactly once, on `grabEnd`. Every mutation calls
- * `deps.invalidate()` itself, because hand input dispatches no window events for
- * WidgetCloud's wake listeners to see.
+ * It is the SOLE writer of the `zone-assignment` store, on both channels:
+ *  - DnD (`setDndState`) — updated through the drag as the nearest zone flips
+ *    (change-gated), and cleared to idle on drop/reset. Drives ZoneMarkers.
+ *  - ASSIGNMENT (`moveWidgetToZone`) — committed once, on `grabEnd`: the held
+ *    card drops into the nearest zone slot and every other card reflows via
+ *    insert-and-shift.
  *
- * Widgets render at ONE fixed uniform size — a grab moves a card, it never
- * resizes it. While grabbed the card is lifted by {@link LIFT} on +Y so it
- * reads as picked up; the lift is purely visual (stripped before the snap and
- * before the committed position), so the settled slot never carries it.
+ * During a grab it mutates the tile's OUTER `THREE.Group` imperatively — the
+ * demand-frame doctrine forbids per-frame React re-renders — and every mutation
+ * calls `deps.invalidate()` itself, because hand input dispatches no window
+ * events for WidgetCloud's wake listeners to see.
+ *
+ * Widgets render at ONE fixed uniform size — a grab moves a card between zones,
+ * it never resizes it. While grabbed the card is lifted by {@link LIFT} on +Y so
+ * it reads as picked up; the lift is purely visual (stripped before the nearest-
+ * zone test and before the card lands), so the settled slot never carries it.
  */
 
 import * as THREE from "three";
 
-import {
-  getWidgetTransform,
-  setWidgetTransform,
-} from "@/lib/studio/state/widget-transforms";
+import { moveWidgetToZone, setDndState } from "@/lib/studio/state/zone-assignment";
 import { type StudioWidgetId } from "../data/useStudioData";
 import type { StudioPhaseEvent } from "@/lib/studio/input/types";
-import { resolveSnap, type TileSlot } from "./layout";
-import { LIFT, snapToCommit } from "./manipulation-math";
+import { nearestZone, type TileSlot } from "./layout";
+import { LIFT } from "./manipulation-math";
 
 /**
  * Live inputs the controller reads on every phase event. The hook mutates this
@@ -35,10 +37,8 @@ import { LIFT, snapToCommit } from "./manipulation-math";
  * latest props" semantics. Read fields via `deps.x`, never destructured.
  */
 export interface ManipulationControllerDeps {
-  /** Default layout slots, in the same order as {@link ManipulationControllerDeps.widgetIds}. */
+  /** Zone slot centers, indexed by zone. The drop target is the nearest of these. */
   slots: readonly TileSlot[];
-  /** Widget ids in slot order. */
-  widgetIds: readonly StudioWidgetId[];
   /** Resolve a tile's registered OUTER group (the imperative write target). */
   getGroup: (id: StudioWidgetId) => THREE.Group | null;
   /** The fixed scene camera (for freeform unprojection). */
@@ -99,6 +99,14 @@ export function createManipulationController(
           anchored: false,
         };
         group.position.y += LIFT; // read as picked up (purely visual)
+        // Light the markers immediately, highlighting the card's current zone.
+        setDndState(
+          id,
+          nearestZone(
+            [grab.startPos.x, grab.startPos.y, grab.startPos.z],
+            deps.slots,
+          ),
+        );
         deps.invalidate();
         return;
       }
@@ -113,9 +121,15 @@ export function createManipulationController(
         }
         const group = deps.getGroup(grab.targetId);
         if (group) {
-          // newPos = startPos + (now − firstPoint), plus the visual lift.
+          // newPos = startPos + (now − firstPoint); the visual lift is added
+          // AFTER the nearest-zone test so +Y lift never biases the row choice.
           group.position.copy(grab.startPos).add(now).sub(grab.firstPoint);
+          const zone = nearestZone(
+            [group.position.x, group.position.y, group.position.z],
+            deps.slots,
+          );
           group.position.y += LIFT;
+          setDndState(grab.targetId, zone); // change-gated inside the store
         }
         deps.invalidate();
         return;
@@ -125,31 +139,23 @@ export function createManipulationController(
         const g = grab;
         if (!g) return;
         const group = deps.getGroup(g.targetId);
-        const ownIdx = deps.widgetIds.indexOf(g.targetId);
-        const anchors = deps.slots.map((s) => s.position);
-        // Strip the visual lift so the snap works on the true resting position.
+        // Strip the visual lift so the drop lands on the true resting position.
         const released: [number, number, number] = group
           ? [group.position.x, group.position.y - LIFT, group.position.z]
           : [g.startPos.x, g.startPos.y, g.startPos.z];
 
-        // Other widgets' effective positions (override ?? slot) — snap must not
-        // stack onto an occupied anchor.
-        const others: [number, number, number][] = [];
-        for (let i = 0; i < deps.widgetIds.length; i++) {
-          if (i === ownIdx) continue;
-          const wid = deps.widgetIds[i]!;
-          others.push(getWidgetTransform(wid).position ?? anchors[i]!);
+        const zone = nearestZone(released, deps.slots);
+        moveWidgetToZone(g.targetId, zone); // commit the drop; reflow the board
+
+        // Land the card on its resolved zone center (lift stripped). It is no
+        // longer the grabbed tile, so WidgetTile's damp is a no-op here; every
+        // OTHER displaced card glides to its new slot on the store re-render.
+        if (group && zone >= 0) {
+          const slot = deps.slots[zone]!.position;
+          group.position.set(slot[0], slot[1], slot[2]);
         }
 
-        const snapIdx = resolveSnap(released, anchors, others);
-        const commitPos = snapToCommit(snapIdx, ownIdx, anchors, released);
-
-        if (group) {
-          const applied = commitPos ?? anchors[ownIdx]!;
-          group.position.set(applied[0], applied[1], applied[2]);
-        }
-        setWidgetTransform(g.targetId, commitPos);
-
+        setDndState(null, null); // drag over → markers off
         grab = null;
         deps.invalidate();
         return;
@@ -164,6 +170,7 @@ export function createManipulationController(
   };
 
   const reset = (): void => {
+    if (grab) setDndState(null, null); // clear a dangling highlight on unmount
     grab = null;
   };
 

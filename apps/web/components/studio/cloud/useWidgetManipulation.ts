@@ -29,10 +29,8 @@ import {
 } from "./manipulation-controller";
 
 export interface WidgetManipulationParams {
-  /** Default layout slots, in the same order as {@link widgetIds}. */
+  /** Zone slot centers, indexed by zone (the drop target is the nearest one). */
   slots: readonly TileSlot[];
-  /** Widget ids in slot order. */
-  widgetIds: readonly StudioWidgetId[];
   /** Resolve a tile's registered OUTER group (the imperative write target). */
   getGroup: (id: StudioWidgetId) => THREE.Group | null;
   /** The fixed scene camera (for freeform unprojection). */
@@ -43,7 +41,6 @@ export interface WidgetManipulationParams {
 
 export function useWidgetManipulation({
   slots,
-  widgetIds,
   getGroup,
   camera,
   invalidate,
@@ -54,14 +51,12 @@ export function useWidgetManipulation({
   if (depsRef.current === null) {
     depsRef.current = {
       slots,
-      widgetIds,
       getGroup,
       camera,
       invalidate,
     };
   } else {
     depsRef.current.slots = slots;
-    depsRef.current.widgetIds = widgetIds;
     depsRef.current.getGroup = getGroup;
     depsRef.current.camera = camera;
     depsRef.current.invalidate = invalidate;
