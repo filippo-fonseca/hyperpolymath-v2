@@ -1,5 +1,5 @@
 /**
- * framing.ts — pure focus-framing math for the auto-center camera move.
+ * framing.ts — focus-framing math for the auto-center camera move.
  *
  * When a widget is expanded, the camera should center and frame THAT widget.
  * The studio camera never rotates (it looks straight down −Z from the
@@ -9,27 +9,25 @@
  * the single owner of the rails, so this module returns an UNclamped target and
  * lets the controller clamp it.
  *
- * Framework-free (no THREE, no React, no `"use client"`), exactly like
- * {@link ./traversal}, so every export is a plain unit test.
+ * `frameWidgetCamera` is pure (no THREE, no React). `resolveWidgetWorldPosition`
+ * reads the zone-assignment store singleton to find where a widget currently
+ * sits — its assigned arc zone slot — so a reflow re-frames the widget at its new
+ * zone. Both stay plain unit tests (the store exposes `moveWidgetToZone` +
+ * `__resetZoneAssignment`).
  */
 
-import {
-  CLOUD_CAP_DEG,
-  CLOUD_CENTER,
-  CLOUD_RADIUS,
-  fibonacciCapSlots,
-} from "@/components/studio/cloud/layout";
+import { arcZoneSlots } from "@/components/studio/cloud/layout";
 import {
   STUDIO_WIDGET_ORDER,
   type StudioWidgetId,
 } from "@/components/studio/data/useStudioData";
-import { getWidgetTransform } from "@/lib/studio/state/widget-transforms";
+import { getZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import type { Vec3 } from "./traversal";
 
 /**
  * Camera standoff (meters) in front of a focused widget along +Z. A principled
- * starting value: cap widgets sit at z ≈ 0.82–2.4, so the framed camera z lands
- * in ≈ 3.42–5.0 — inside the controller's `boundsZ [3.2, 9]` and clear of the
+ * starting value: arc slots sit at z ≈ 0.4–2.0, so the framed camera z lands
+ * in ≈ 3.0–4.6 — inside the controller's `boundsZ [3.2, 9]` and clear of the
  * nearest tile face. Exported so it stays a single tunable feel parameter.
  */
 export const FOCUS_STANDOFF = 2.6;
@@ -44,24 +42,20 @@ export function frameWidgetCamera(widgetPos: Vec3): Vec3 {
 }
 
 /**
- * The canonical layout slots, memoized at module load. Deterministic and cheap;
- * matches exactly what {@link WidgetCloud} renders because both read the shared
- * `CLOUD_*` constants.
+ * The eight fixed amphitheater zone slots (index = zone), memoized at module
+ * load. Deterministic and cheap; matches exactly what {@link WidgetCloud}
+ * renders because both resolve positions from `arcZoneSlots`.
  */
-const CANONICAL_SLOTS = fibonacciCapSlots(STUDIO_WIDGET_ORDER.length, {
-  radius: CLOUD_RADIUS,
-  center: CLOUD_CENTER,
-  capDeg: CLOUD_CAP_DEG,
-});
+const ZONE_SLOTS = arcZoneSlots(STUDIO_WIDGET_ORDER.length);
 
 /**
- * A widget's EFFECTIVE world position: its committed U2 drag/pull override if
- * one exists, otherwise its canonical cap slot. This is the point the camera
- * frames, so a widget dragged elsewhere is framed where it actually sits.
+ * A widget's world position: the center of its currently-assigned arc zone. The
+ * assignment is a permutation of every widget id, so `indexOf` always resolves to
+ * a valid zone; a drop reflows the assignment and this returns the NEW slot, so
+ * the camera frames the widget wherever the reflow moved it.
  */
 export function resolveWidgetWorldPosition(id: StudioWidgetId): Vec3 {
-  const override = getWidgetTransform(id).position;
-  if (override) return [override[0], override[1], override[2]];
-  const slot = CANONICAL_SLOTS[STUDIO_WIDGET_ORDER.indexOf(id)]!.position;
+  const zone = getZoneAssignment().indexOf(id);
+  const slot = ZONE_SLOTS[zone]!.position;
   return [slot[0], slot[1], slot[2]];
 }
