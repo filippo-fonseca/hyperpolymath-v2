@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { fireRoutineOverBus } from "@/lib/jarvis/routine-fire";
+import { fireRoutineOverBus, resolveUserTimezone } from "@/lib/jarvis/routine-fire";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { validateDesktopBearerIdentity } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
@@ -153,6 +153,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     process.env.ANTHROPIC_API_KEY ??
     "";
 
+  // Local timezone for the opener / filler greeting contract — sourced the same
+  // way run-turn.ts sources it (users.timezone, fallback America/New_York).
+  const timezone = await resolveUserTimezone(userId);
+
   // Fire-and-forget: stream the whole run over the physical SSE bus (each block
   // = one turnId, so the desktop segments + speaks a multi-block run with no
   // protocol change). Shared with the voice-transcript utterance interception.
@@ -165,6 +169,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     parallel: parallel === true,
     routineName,
     loadingInstruction,
+    timezone,
     abortSignal: req.signal,
   });
 

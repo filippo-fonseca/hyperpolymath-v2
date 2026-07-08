@@ -98,6 +98,14 @@ export interface RoutineRunContext {
   /** Human name of the routine — used for the synthesized block id prefix. */
   routineName: string;
   /**
+   * User's IANA timezone (e.g. "America/New_York"). Threaded into the opener /
+   * per-block filler generation so any time-of-day greeting they emit matches
+   * the user's LOCAL clock (bgsd/briefing-opener-greeting). Resolved by the
+   * caller the same way run-turn.ts sources it (`users.timezone`, fallback
+   * "America/New_York"). Undefined = no greeting contract on the fillers.
+   */
+  timezone?: string;
+  /**
    * Optional ROUTINE-LEVEL loading instruction. When a non-empty string, the
    * runner interprets it (via the same prose-only Anthropic call the per-block
    * fillers use) into a fresh spoken opener line that REPLACES the default
@@ -370,6 +378,7 @@ async function runBlock(
         loadingInstruction: block.loadingInstruction,
         tool: String(block.tool),
         routineName: ctx.routineName,
+        timezone: ctx.timezone,
         abortSignal: ctx.abortSignal,
       });
       if (line) {
@@ -504,6 +513,7 @@ export async function runRoutine(
             loadingInstruction: instruction,
             tool: "routine",
             routineName: ctx.routineName,
+            timezone: ctx.timezone,
             abortSignal: ctx.abortSignal,
           });
           if (line) opener = line;

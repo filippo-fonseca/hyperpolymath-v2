@@ -94,6 +94,14 @@ async function queryContacts(
   // JSON.stringify yields a safe double-quoted JS string literal for the name;
   // it is the ONLY interpolation, so the query text can never break out into
   // executable JXA code.
+  //
+  // Matching mirrors the WhatsApp bridge resolver (main.go) for cross-source
+  // parity: case-insensitive exact / first-token / prefix / interior-word, PLUS
+  // a length-scaled edit-distance FUZZY tier so a contact saved as "MAMMA"
+  // still resolves when the user says "mama". Because fuzzy cannot be expressed
+  // as a Contacts `whose({name:{_contains}})` prefilter, we scan the whole
+  // address book (bulk name read) and score each person in JS — fine for a
+  // personal address book, and only matched people have their handles read.
   const nameLiteral = JSON.stringify(name);
   const script = `
 const Contacts = Application("Contacts");
@@ -101,25 +109,51 @@ const query = ${nameLiteral}.trim().toLowerCase();
 function tokenKey(s) {
   return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\\s+/g, " ").trim();
 }
+function firstToken(s) { const t = tokenKey(s).split(" "); return t.length ? t[0] : ""; }
+function lev(a, b) {
+  a = String(a); b = String(b);
+  const la = a.length, lb = b.length;
+  if (!la) return lb; if (!lb) return la;
+  let prev = []; for (let j = 0; j <= lb; j++) prev[j] = j;
+  for (let i = 1; i <= la; i++) {
+    let cur = [i];
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[lb];
+}
+function fuzzyThreshold(q) { const n = q.length; if (n <= 2) return 0; if (n <= 7) return 1; return 2; }
+function isFuzzy(nameKey, q) {
+  const th = fuzzyThreshold(q);
+  if (th === 0 || !nameKey || !q) return false;
+  if (lev(nameKey, q) <= th) return true;
+  const ft = firstToken(nameKey);
+  return ft && ft !== nameKey && lev(ft, q) <= th;
+}
 const queryKey = tokenKey(query);
-const matched = Contacts.people.whose({ name: { _contains: ${nameLiteral} } })()
-  .filter((p) => {
-    const n = String(p.name() || "").trim().toLowerCase();
-    const key = tokenKey(n);
-    return key === queryKey || key.startsWith(queryKey + " ") || (" " + key + " ").indexOf(" " + queryKey + " ") !== -1;
-  });
+const all = Contacts.people();
+let names;
+try { names = Contacts.people.name(); } catch (e) { names = null; }
+function scoreMatch(key) {
+  if (!key) return false;
+  if (key === queryKey) return true;                                   // exact
+  if (key.startsWith(queryKey + " ")) return true;                     // prefix
+  if ((" " + key + " ").indexOf(" " + queryKey + " ") !== -1) return true; // word
+  return isFuzzy(key, queryKey);                                       // fuzzy
+}
 const out = [];
-for (const p of matched) {
+for (let i = 0; i < all.length; i++) {
+  const rawName = names && names[i] != null ? names[i] : all[i].name();
+  const key = tokenKey(rawName);
+  if (!scoreMatch(key)) continue;
+  const p = all[i];
   const phones = p.phones();
-  for (const ph of phones) {
-    const v = ph.value();
-    if (v) out.push(v);
-  }
+  for (const ph of phones) { const v = ph.value(); if (v) out.push(v); }
   const emails = p.emails();
-  for (const em of emails) {
-    const v = em.value();
-    if (v) out.push(v);
-  }
+  for (const em of emails) { const v = em.value(); if (v) out.push(v); }
 }
 out.join("\\n");
 `.trim();

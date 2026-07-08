@@ -295,7 +295,7 @@ export function Sidebar({
           )}
           {!effectiveCollapsed && (
             <nav aria-label="JARVIS navigation" className="px-2">
-              <SidebarSectionLink href="/jarvis" label="Personality & Startup" />
+              <SidebarSectionLink href="/jarvis" label="Command" />
               <SidebarSectionLink href="/settings/memory" label="Memory" />
             </nav>
           )}
