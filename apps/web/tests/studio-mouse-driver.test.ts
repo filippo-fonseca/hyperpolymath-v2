@@ -116,3 +116,67 @@ describe("MouseKeyboardDriver", () => {
     expect(sink.emitIntent).not.toHaveBeenCalled();
   });
 });
+
+describe("MouseKeyboardDriver — camera-traversal emulation (Alt-drag)", () => {
+  let et: ReturnType<typeof makeEventTarget>;
+  let sink: ReturnType<typeof makeSink>;
+  let driver: MouseKeyboardDriver;
+
+  beforeEach(() => {
+    et = makeEventTarget();
+    sink = makeSink();
+    const env: StudioDriverEnv = { getStageRect: () => STAGE, eventTarget: et.target };
+    driver = new MouseKeyboardDriver();
+    driver.start(sink, env);
+  });
+
+  it("Alt+left-drag streams dragStart → cumulative dragMove → dragEnd", () => {
+    // Alt+left down at nx=(400-100)/1000=0.3, ny=(300-50)/500=0.5.
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    expect(sink.emitPhase).toHaveBeenNthCalledWith(1, { type: "dragStart" });
+
+    // Move right to nx=0.8 → dx=0.5, dy=0 (cumulative from origin).
+    et.emit("pointermove", { clientX: 900, clientY: 300, timeStamp: 50 });
+    expect(sink.emitPhase).toHaveBeenLastCalledWith({ type: "dragMove", dx: 0.5, dy: 0, dz: 0 });
+
+    et.emit("pointerup", { button: 0, timeStamp: 60 });
+    expect(sink.emitPhase).toHaveBeenLastCalledWith({ type: "dragEnd" });
+  });
+
+  it("cumulative dragMove deltas are measured from the drag origin, not the last frame", () => {
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    et.emit("pointermove", { clientX: 600, clientY: 400, timeStamp: 10 }); // nx 0.5, ny 0.7
+    et.emit("pointermove", { clientX: 900, clientY: 300, timeStamp: 20 }); // nx 0.8, ny 0.5
+    // From origin (0.3, 0.5): dx=0.5, dy=0 — NOT integrated across the two moves.
+    expect(sink.emitPhase).toHaveBeenLastCalledWith({ type: "dragMove", dx: 0.5, dy: 0, dz: 0 });
+  });
+
+  it("Alt+wheel accumulates the dz (dolly) component; scroll up ⇒ dz>0", () => {
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    sink.emitPhase.mockClear();
+    et.emit("wheel", { deltaY: -100, cancelable: false }); // scroll up → dolly in
+    const call = sink.emitPhase.mock.calls.at(-1)![0] as { type: string; dz: number };
+    expect(call.type).toBe("dragMove");
+    expect(call.dz).toBeGreaterThan(0);
+  });
+
+  it("does not fire a swipe intent during an Alt-drag (no collision with Shift-swipe)", () => {
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    et.emit("pointermove", { clientX: 900, clientY: 300, timeStamp: 50 });
+    et.emit("pointerup", { button: 0, timeStamp: 60 });
+    expect(sink.emitIntent).not.toHaveBeenCalled();
+  });
+
+  it("suppresses the trailing click that terminates an Alt-drag", () => {
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    et.emit("pointermove", { clientX: 900, clientY: 300, timeStamp: 50 });
+    et.emit("pointerup", { button: 0, timeStamp: 60 });
+    et.emit("click", { button: 0, shiftKey: false, altKey: true });
+    expect(sink.emitIntent).not.toHaveBeenCalledWith({ type: "expand" });
+  });
+
+  it("ignores a wheel with no active camera drag (never touches the phase bus)", () => {
+    et.emit("wheel", { deltaY: -100, cancelable: false });
+    expect(sink.emitPhase).not.toHaveBeenCalled();
+  });
+});
