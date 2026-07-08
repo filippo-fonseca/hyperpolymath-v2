@@ -29,6 +29,7 @@ import { subscribeWidgetTransforms } from "@/lib/studio/state/widget-transforms"
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
 import { fibonacciCapSlots } from "./layout";
+import { useWidgetManipulation } from "./useWidgetManipulation";
 import { WidgetTile } from "./WidgetTile";
 
 // Cap origin and radius (meters), and how long drift runs after interaction.
@@ -76,6 +77,16 @@ export function WidgetCloud(): React.ReactElement {
     },
     [],
   );
+  const getGroup = useCallback(
+    (id: StudioWidgetId) => groupsRef.current.get(id) ?? null,
+    [],
+  );
+
+  // Widget ids in slot order (slots are indexed to match `summaries`).
+  const widgetIds = useMemo(
+    () => summaries.map((s) => s.id),
+    [summaries],
+  );
 
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
@@ -93,6 +104,10 @@ export function WidgetCloud(): React.ReactElement {
         : null;
     },
   });
+
+  // Grab-drag + pinch-pull manipulation. Sole writer of the transform store; it
+  // mutates the registered outer groups imperatively and self-invalidates.
+  useWidgetManipulation({ slots, widgetIds, getGroup, camera, invalidate });
 
   // Channel 1 — data changes: nudge a frame (hooks.ts contract).
   useEffect(() => {
