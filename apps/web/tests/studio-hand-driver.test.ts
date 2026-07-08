@@ -247,6 +247,47 @@ describe("HandTrackingDriver", () => {
     expect(driver.getStatus()).toEqual({ state: "idle" });
   });
 
+  it("does not reschedule the loop when an intent stops the driver mid-frame", async () => {
+    // A still open palm firing `halt` is the real reentrancy: its intent
+    // subscriber calls stop() synchronously, from inside `interpreter.push`,
+    // while `loop` is still on the stack. The loop must not resurrect itself.
+    const { landmarker, close } = makeFakeLandmarker([openHand(), openHand()]);
+    const fake = makeFakeWebcam();
+    const sched = makeScheduler();
+
+    const driver = new HandTrackingDriver({
+      // holdMs 0 + generous drift ⇒ halt fires on the second still-open frame.
+      gesture: { haltHoldMs: 0, haltMaxDriftNx: 1 },
+      loadLandmarker: () => Promise.resolve(landmarker),
+      acquireWebcam: () => Promise.resolve(fake.handle),
+      now: () => 0,
+      scheduleFrame: sched.scheduleFrame,
+      cancelFrame: sched.cancelFrame,
+    });
+
+    // The halt consumer: stop the driver synchronously when any intent fires.
+    sink.emitIntent.mockImplementation(() => driver.stop());
+
+    driver.start(sink, ENV);
+    await flush();
+
+    fake.advance();
+    sched.tick(); // frame 1: anchors the halt dwell, reschedules normally
+
+    expect(sink.emitIntent).not.toHaveBeenCalled();
+    const scheduledBefore = sched.scheduleFrame.mock.calls.length;
+
+    fake.advance();
+    sched.tick(); // frame 2: halt fires → stop() mid-push → must NOT reschedule
+
+    expect(sink.emitIntent).toHaveBeenCalledWith({ type: "halt" });
+    // No frame scheduled after the mid-frame stop — the dead loop stays dead.
+    expect(sched.scheduleFrame.mock.calls.length).toBe(scheduledBefore);
+    expect(fake.stop).toHaveBeenCalledTimes(1); // stream released exactly once
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(driver.getStatus()).toEqual({ state: "idle" });
+  });
+
   it("errors with insecure-context on the default path in a non-secure environment", () => {
     const original = Object.getOwnPropertyDescriptor(window, "isSecureContext");
     Object.defineProperty(window, "isSecureContext", { value: false, configurable: true });

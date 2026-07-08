@@ -16,7 +16,8 @@
  *
  * Ownership (reconciled by the Conductor for Wave 3):
  * - WRITER: `useHandControl` ONLY — it publishes at its status funnel points
- *   (the driver's `onStatusChange`, `disable()`, and mount-effect teardown).
+ *   (the driver's `onStatusChange`, `disable()` — reached by both the pill's
+ *   "Turn off" and the open-palm halt intent — and mount-effect teardown).
  * - READERS: `StudioHandReticle` (visibility gate), and future HUD chrome.
  *
  * The type import from `drivers/hand` is type-only (erased at compile time), so

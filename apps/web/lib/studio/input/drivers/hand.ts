@@ -179,6 +179,11 @@ export class HandTrackingDriver implements StudioInputDriver {
   private readonly loop = (): void => {
     if (!this.webcam || !this.landmarker || !this.interpreter) return;
     const video = this.webcam.video;
+    // Snapshot the generation: `interpreter.push` can emit an intent whose
+    // subscriber calls `stop()` synchronously (e.g. open-palm halt disabling
+    // hand control mid-frame). If it does, `stop()` bumps `generation` and nulls
+    // `frameId`; rescheduling below would resurrect a dead loop and leak a frame.
+    const generation = this.generation;
 
     // Only run detection on a fresh frame (currentTime advances per decoded frame).
     if (video.currentTime !== this.lastVideoTime) {
@@ -187,6 +192,8 @@ export class HandTrackingDriver implements StudioInputDriver {
       const result = this.landmarker.detectForVideo(video, t);
       const landmarks = result.landmarks[0] ?? null;
       this.interpreter.push(t, landmarks);
+
+      if (generation !== this.generation) return; // stopped mid-frame; do not reschedule
 
       const handVisible = landmarks !== null;
       if (this.status.state === "running" && this.status.handVisible !== handVisible) {
