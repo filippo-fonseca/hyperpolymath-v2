@@ -383,6 +383,38 @@ describe("hand gesture interpreter", () => {
     expect(Math.abs(after.dx)).toBeGreaterThan(Math.abs(before.dx));
   });
 
+  it("13c) a short hand-lost gap mid-pinch keeps the drag alive (soft reacquire)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    for (const cx of [0.56, 0.62]) interp.push((t += FPS), makePinchHand({ cx }));
+    const before = lastDrag(cb)!;
+    interp.push((t += FPS), null); // a single dropped frame (~33ms < 200ms grace)
+    for (const cx of [0.68, 0.74]) interp.push((t += FPS), makePinchHand({ cx })); // resume
+    const phases = phaseTypes(cb);
+    expect(phases.filter((p) => p === "dragEnd")).toHaveLength(0);
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1); // one origin
+    const after = lastDrag(cb)!;
+    expect(Math.abs(after.dx)).toBeGreaterThan(Math.abs(before.dx));
+  });
+
+  it("13d) a hand loss past the pinch-lost grace ends the drag and fully resets", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    interp.push((t += FPS), makePinchHand({ cx: 0.56 }));
+    interp.push((t += FPS), null); // nullSince anchored here
+    t += 9 * FPS; // ~300ms > pinchLostGraceMs (200) — a genuine long loss
+    interp.push(t, makePinchHand({ cx: 0.62 }));
+    const phases = phaseTypes(cb);
+    expect(phases).toContain("dragEnd"); // reset fired on reacquire
+    // The reset cleared pinchActive, so the resumed frame must re-debounce the
+    // pinch rather than instantly re-opening a drag from the reset origin.
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1);
+  });
+
   it("14) open palm PUSHED toward the camera and held → exactly one halt intent", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
