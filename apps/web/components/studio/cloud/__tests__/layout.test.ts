@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { fibonacciCapSlots, type TileSlot } from "../layout";
+import {
+  BLOCK_RADIUS,
+  fibonacciCapSlots,
+  resolveSnap,
+  SNAP_RADIUS,
+  type TileSlot,
+} from "../layout";
+
+type Vec3 = [number, number, number];
 
 const OPTS = {
   radius: 2.4,
@@ -50,5 +58,67 @@ describe("fibonacciCapSlots", () => {
 
   it("is deterministic across calls", () => {
     expect(fibonacciCapSlots(5, OPTS)).toEqual(fibonacciCapSlots(5, OPTS));
+  });
+});
+
+describe("resolveSnap", () => {
+  // Three well-separated anchors on a line (spacing 2 ≫ BLOCK_RADIUS).
+  const anchors: Vec3[] = [
+    [0, 0, 0],
+    [2, 0, 0],
+    [4, 0, 0],
+  ];
+
+  it("snaps to the nearest anchor when released within snapRadius", () => {
+    const released: Vec3 = [2 + SNAP_RADIUS * 0.5, 0, 0];
+    expect(resolveSnap(released, anchors, [])).toBe(1);
+  });
+
+  it("returns null when released outside every anchor's snapRadius", () => {
+    const released: Vec3 = [1, 0, 0]; // 1.0 from anchors 0 and 1, both > SNAP_RADIUS
+    expect(resolveSnap(released, anchors, [])).toBeNull();
+  });
+
+  it("treats the snapRadius boundary as inclusive", () => {
+    const released: Vec3 = [SNAP_RADIUS, 0, 0]; // exactly SNAP_RADIUS from anchor 0
+    expect(resolveSnap(released, anchors, [])).toBe(0);
+  });
+
+  it("skips a blocked anchor and picks the next eligible in range", () => {
+    // Released is nearest anchor 1, but a widget occupies anchor 1 → blocked;
+    // anchor 0 is still in range and clear. Explicit opts isolate the branch
+    // (with default radii two in-range anchors always cross-block each other).
+    const line: Vec3[] = [
+      [0, 0, 0],
+      [1, 0, 0],
+    ];
+    const released: Vec3 = [0.6, 0, 0]; // nearest anchor 1 (0.4) then anchor 0 (0.6)
+    const others: Vec3[] = [[1, 0, 0]]; // occupies anchor 1
+    expect(
+      resolveSnap(released, line, others, { snapRadius: 1, blockRadius: 0.3 }),
+    ).toBe(0);
+  });
+
+  it("returns null when the only in-range anchor is blocked", () => {
+    const released: Vec3 = [2 + SNAP_RADIUS * 0.4, 0, 0];
+    const others: Vec3[] = [[2, 0, 0]]; // a widget on anchor 1
+    expect(resolveSnap(released, anchors, others)).toBeNull();
+  });
+
+  it("prefers the widget's own slot when released near it (nearest, and never self-blocked)", () => {
+    // Widget released just off its own slot (anchor 2); the OTHER widgets sit on
+    // their slots (0 and 1) — far enough not to block anchor 2.
+    const released: Vec3 = [4 - SNAP_RADIUS * 0.3, 0, 0];
+    const others: Vec3[] = [
+      [0, 0, 0],
+      [2, 0, 0],
+    ];
+    expect(resolveSnap(released, anchors, others)).toBe(2);
+  });
+
+  it("does not block on a far widget (beyond blockRadius)", () => {
+    const released: Vec3 = [SNAP_RADIUS * 0.3, 0, 0];
+    const others: Vec3[] = [[BLOCK_RADIUS + 0.5, 0, 0]]; // clearly beyond blockRadius
+    expect(resolveSnap(released, anchors, others)).toBe(0);
   });
 });
