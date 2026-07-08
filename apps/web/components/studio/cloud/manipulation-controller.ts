@@ -1,48 +1,34 @@
 /**
- * manipulation-controller — the widget grab-drag + pinch-pull STATE MACHINE,
- * extracted from the React hook so it is directly unit-testable (pure closure +
- * three, no React, no jsdom/WebGL). `useWidgetManipulation` is now a thin shell
- * that builds one of these and feeds it the phase bus.
+ * manipulation-controller — the widget grab-drag STATE MACHINE, extracted from
+ * the React hook so it is directly unit-testable (pure closure + three, no
+ * React, no jsdom/WebGL). `useWidgetManipulation` is now a thin shell that
+ * builds one of these and feeds it the phase bus.
  *
- * It is the SOLE writer of the `widget-transforms` store. During a gesture it
- * mutates the tile's OUTER `THREE.Group` imperatively — the demand-frame
- * doctrine forbids per-frame React re-renders — and commits to the store exactly
- * once per channel, on `grabEnd` / `pullEnd`. Every mutation calls
- * `deps.invalidate()` itself, because hand input dispatches no window events for
- * WidgetCloud's wake listeners to see.
+ * It is the SOLE writer of the `zone-assignment` store, on both channels:
+ *  - DnD (`setDndState`) — updated through the drag as the nearest zone flips
+ *    (change-gated), and cleared to idle on drop/reset. Drives ZoneMarkers.
+ *  - ASSIGNMENT (`moveWidgetToZone`) — committed once, on `grabEnd`: the held
+ *    card drops into the nearest zone slot and every other card reflows via
+ *    insert-and-shift.
  *
- * Concurrency (see `gesture-core.ts`): the pinch-hold and pinch-pull recognizers
- * are driven from the SAME `pinchActive` signal and reset in lockstep, so on a
- * pinch `pullStart` leads and `grabStart` follows ~250ms later, and on release
- * `grabEnd` and `pullEnd` co-fire in one synchronous tick (hold first). Two
- * invariants fall out and are enforced here by construction rather than trusted:
+ * During a grab it mutates the tile's OUTER `THREE.Group` imperatively — the
+ * demand-frame doctrine forbids per-frame React re-renders — and every mutation
+ * calls `deps.invalidate()` itself, because hand input dispatches no window
+ * events for WidgetCloud's wake listeners to see.
  *
- *  - A grab OWNS the pull. `grabStart` (re)binds the pull session onto the
- *    grabbed widget at the live delta so a pull already in flight retargets
- *    without popping (see `effectiveScale`). A late `pullStart` must therefore
- *    NOT clobber that binding — it is guarded to no-op while a grab is live.
- *  - `grabEnd` commits the current resize alongside the position, so a settle
- *    render can never orphan a scale that lived only on the group. The co-firing
- *    `pullEnd` re-commits the identical value; the double-settle is idempotent.
+ * Widgets render at ONE fixed uniform size — a grab moves a card between zones,
+ * it never resizes it. While grabbed the card is lifted by {@link LIFT} on +Y so
+ * it reads as picked up; the lift is purely visual (stripped before the nearest-
+ * zone test and before the card lands), so the settled slot never carries it.
  */
 
 import * as THREE from "three";
 
-import { getActiveWidgets } from "@/lib/studio/state/active-widget";
-import {
-  getWidgetTransform,
-  setWidgetTransform,
-} from "@/lib/studio/state/widget-transforms";
+import { moveWidgetToZone, setDndState } from "@/lib/studio/state/zone-assignment";
 import { type StudioWidgetId } from "../data/useStudioData";
 import type { StudioPhaseEvent } from "@/lib/studio/input/types";
-import { resolveSnap, type TileSlot } from "./layout";
-import {
-  commitScaleValue,
-  effectiveScale,
-  LIFT,
-  resolvePullTarget,
-  snapToCommit,
-} from "./manipulation-math";
+import { nearestZone, type TileSlot } from "./layout";
+import { LIFT } from "./manipulation-math";
 
 /**
  * Live inputs the controller reads on every phase event. The hook mutates this
@@ -51,21 +37,14 @@ import {
  * latest props" semantics. Read fields via `deps.x`, never destructured.
  */
 export interface ManipulationControllerDeps {
-  /** Default layout slots, in the same order as {@link ManipulationControllerDeps.widgetIds}. */
+  /** Zone slot centers, indexed by zone. The drop target is the nearest of these. */
   slots: readonly TileSlot[];
-  /** Widget ids in slot order. */
-  widgetIds: readonly StudioWidgetId[];
   /** Resolve a tile's registered OUTER group (the imperative write target). */
   getGroup: (id: StudioWidgetId) => THREE.Group | null;
   /** The fixed scene camera (for freeform unprojection). */
   camera: THREE.Camera;
   /** Demand a frame. */
   invalidate: () => void;
-  /**
-   * The current focus head — the pull's fallback target when no grab owns it.
-   * Injected (default reads {@link getActiveWidgets}) so tests stay hermetic.
-   */
-  getActiveHead: () => StudioWidgetId | null;
 }
 
 export interface ManipulationController {
@@ -77,7 +56,7 @@ export interface ManipulationController {
 
 interface GrabSession {
   targetId: StudioWidgetId;
-  /** Widget world position at grab start. */
+  /** Widget world position at grab start (unlifted). */
   startPos: THREE.Vector3;
   /** Camera→widget distance, held constant during the drag (depth stable). */
   camDist: number;
@@ -86,46 +65,16 @@ interface GrabSession {
   anchored: boolean;
 }
 
-interface PullSession {
-  targetId: StudioWidgetId;
-  baseScale: number;
-  deltaOffset: number;
-}
-
-/** Default {@link ManipulationControllerDeps.getActiveHead}. */
-export function activeHead(): StudioWidgetId | null {
-  return getActiveWidgets()[0] ?? null;
-}
-
 export function createManipulationController(
   deps: ManipulationControllerDeps,
 ): ManipulationController {
   let grab: GrabSession | null = null;
-  let pull: PullSession | null = null;
-  let lastPullDelta = 0;
 
-  // Preallocated temps — freeform unprojection allocates nothing per frame.
+  // Preallocated temps for the per-frame unprojection (rayPoint): the frame loop
+  // allocates nothing. (grabStart still allocates one session object per grab.)
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const point = new THREE.Vector3();
-
-  // Committed scale for a target (store override, else natural 1).
-  const committedScale = (id: StudioWidgetId): number =>
-    getWidgetTransform(id).scale ?? 1;
-
-  // Apply a target's current effective scale to its group, folding in the grab
-  // lift while it is grabbed. Pull-driven if a pull owns this target, else the
-  // committed base.
-  const applyScale = (id: StudioWidgetId): void => {
-    const group = deps.getGroup(id);
-    if (!group) return;
-    let s =
-      pull && pull.targetId === id
-        ? effectiveScale(pull.baseScale, lastPullDelta, pull.deltaOffset)
-        : committedScale(id);
-    if (grab && grab.targetId === id) s *= LIFT;
-    group.scale.setScalar(s);
-  };
 
   // Palm NDC → world point at the drag's held camera distance.
   const rayPoint = (nx: number, ny: number, dist: number): THREE.Vector3 => {
@@ -150,14 +99,15 @@ export function createManipulationController(
           firstPoint: new THREE.Vector3(),
           anchored: false,
         };
-        // (Re)bind the pull onto the grabbed widget at the current delta so a
-        // pull already in flight retargets without popping.
-        pull = {
-          targetId: id,
-          baseScale: committedScale(id),
-          deltaOffset: lastPullDelta,
-        };
-        applyScale(id); // lift reads immediately
+        group.position.y += LIFT; // read as picked up (purely visual)
+        // Light the markers immediately, highlighting the card's current zone.
+        setDndState(
+          id,
+          nearestZone(
+            [grab.startPos.x, grab.startPos.y, grab.startPos.z],
+            deps.slots,
+          ),
+        );
         deps.invalidate();
         return;
       }
@@ -172,8 +122,15 @@ export function createManipulationController(
         }
         const group = deps.getGroup(grab.targetId);
         if (group) {
-          // newPos = startPos + (now − firstPoint)
+          // newPos = startPos + (now − firstPoint); the visual lift is added
+          // AFTER the nearest-zone test so +Y lift never biases the row choice.
           group.position.copy(grab.startPos).add(now).sub(grab.firstPoint);
+          const zone = nearestZone(
+            [group.position.x, group.position.y, group.position.z],
+            deps.slots,
+          );
+          group.position.y += LIFT;
+          setDndState(grab.targetId, zone); // change-gated inside the store
         }
         deps.invalidate();
         return;
@@ -183,93 +140,28 @@ export function createManipulationController(
         const g = grab;
         if (!g) return;
         const group = deps.getGroup(g.targetId);
-        const ownIdx = deps.widgetIds.indexOf(g.targetId);
-        const anchors = deps.slots.map((s) => s.position);
+        // Strip the visual lift so the drop lands on the true resting position.
         const released: [number, number, number] = group
-          ? [group.position.x, group.position.y, group.position.z]
+          ? [group.position.x, group.position.y - LIFT, group.position.z]
           : [g.startPos.x, g.startPos.y, g.startPos.z];
 
-        // Other widgets' effective positions (override ?? slot) — snap must not
-        // stack onto an occupied anchor.
-        const others: [number, number, number][] = [];
-        for (let i = 0; i < deps.widgetIds.length; i++) {
-          if (i === ownIdx) continue;
-          const wid = deps.widgetIds[i]!;
-          others.push(getWidgetTransform(wid).position ?? anchors[i]!);
-        }
+        const zone = nearestZone(released, deps.slots);
+        moveWidgetToZone(g.targetId, zone); // commit the drop; reflow the board
 
-        const snapIdx = resolveSnap(released, anchors, others);
-        const commitPos = snapToCommit(snapIdx, ownIdx, anchors, released);
+        // Landing has a SINGLE owner: the reflow re-render hands the dropped tile
+        // its new slot as `position`, and `setDndState(null, null)` below un-grabs
+        // it, so its own damp glides it home from the release point — exactly like
+        // every other displaced card. No imperative position set here: two writers
+        // of the same landing point are only incidentally correct while the slot
+        // mapping is identity, whereas the damp glide stays authoritative.
 
-        // A grab owns its widget's pull; the live resize exists only on the
-        // group. Fold it into the SAME store write as the position so a settle
-        // render can't reset scale to the base. The co-firing pullEnd re-commits
-        // the identical value (idempotent), and if it never arrives the resize
-        // is still safe here. `pull` is left intact so a genuinely-continuing
-        // pull keeps driving until its own end.
-        const scaleCommit =
-          pull && pull.targetId === g.targetId
-            ? commitScaleValue(
-                effectiveScale(pull.baseScale, lastPullDelta, pull.deltaOffset),
-              )
-            : undefined;
-
-        if (group) {
-          const applied = commitPos ?? anchors[ownIdx]!;
-          group.position.set(applied[0], applied[1], applied[2]);
-        }
-        setWidgetTransform(g.targetId, {
-          position: commitPos,
-          ...(scaleCommit !== undefined ? { scale: scaleCommit } : {}),
-        });
-
+        setDndState(null, null); // drag over → markers off
         grab = null;
-        applyScale(g.targetId); // drop the lift
         deps.invalidate();
         return;
       }
 
-      case "pullStart": {
-        // A grab, once begun, OWNS the pull (bound onto the grabbed widget at
-        // grabStart). A late pullStart must not clobber that binding or reset
-        // the ramp — repointing onto the active widget would pop the scale.
-        // Precedence is grabbed-wins; with a grab in flight there is nothing to
-        // bind here.
-        if (grab) return;
-        lastPullDelta = 0;
-        const target = resolvePullTarget(null, deps.getActiveHead());
-        pull = target
-          ? { targetId: target, baseScale: committedScale(target), deltaOffset: 0 }
-          : null;
-        return;
-      }
-
-      case "pullDelta": {
-        lastPullDelta = phase.delta; // track even with no target
-        if (!pull) return; // no target → no-op
-        applyScale(pull.targetId);
-        deps.invalidate();
-        return;
-      }
-
-      case "pullEnd": {
-        const p = pull;
-        if (p) {
-          const effective = effectiveScale(
-            p.baseScale,
-            lastPullDelta,
-            p.deltaOffset,
-          );
-          setWidgetTransform(p.targetId, { scale: commitScaleValue(effective) });
-          pull = null;
-          applyScale(p.targetId); // settle to committed (drops the lift factor)
-          deps.invalidate();
-        }
-        lastPullDelta = 0;
-        return;
-      }
-
-      // drag* is reserved for a future free-camera rig — ignored here.
+      // drag* is reserved for the free-camera rig — ignored here.
       case "dragStart":
       case "dragMove":
       case "dragEnd":
@@ -278,9 +170,8 @@ export function createManipulationController(
   };
 
   const reset = (): void => {
+    if (grab) setDndState(null, null); // clear a dangling highlight on unmount
     grab = null;
-    pull = null;
-    lastPullDelta = 0;
   };
 
   return { handlePhase, reset };

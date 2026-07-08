@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * useWidgetManipulation — grab-drag reposition + pinch-pull resize for the cloud
- * tiles, driven by the U0 phase bus.
+ * useWidgetManipulation — grab-drag reposition for the cloud tiles, driven by
+ * the U0 phase bus.
  *
  * A thin React shell around {@link createManipulationController}: the gesture
  * state machine (and all the non-trivial concurrency reasoning) lives in that
@@ -23,17 +23,14 @@ import { useStudioPhase } from "@/lib/studio/input/react";
 import { type StudioWidgetId } from "../data/useStudioData";
 import { type TileSlot } from "./layout";
 import {
-  activeHead,
   createManipulationController,
   type ManipulationController,
   type ManipulationControllerDeps,
 } from "./manipulation-controller";
 
 export interface WidgetManipulationParams {
-  /** Default layout slots, in the same order as {@link widgetIds}. */
+  /** Zone slot centers, indexed by zone (the drop target is the nearest one). */
   slots: readonly TileSlot[];
-  /** Widget ids in slot order. */
-  widgetIds: readonly StudioWidgetId[];
   /** Resolve a tile's registered OUTER group (the imperative write target). */
   getGroup: (id: StudioWidgetId) => THREE.Group | null;
   /** The fixed scene camera (for freeform unprojection). */
@@ -44,27 +41,22 @@ export interface WidgetManipulationParams {
 
 export function useWidgetManipulation({
   slots,
-  widgetIds,
   getGroup,
   camera,
   invalidate,
 }: WidgetManipulationParams): void {
   // A stable deps object, mutated in place so the controller always reads the
-  // latest props without being rebuilt. `getActiveHead` is stable (a module
-  // singleton read), so it is set once.
+  // latest props without being rebuilt.
   const depsRef = useRef<ManipulationControllerDeps | null>(null);
   if (depsRef.current === null) {
     depsRef.current = {
       slots,
-      widgetIds,
       getGroup,
       camera,
       invalidate,
-      getActiveHead: activeHead,
     };
   } else {
     depsRef.current.slots = slots;
-    depsRef.current.widgetIds = widgetIds;
     depsRef.current.getGroup = getGroup;
     depsRef.current.camera = camera;
     depsRef.current.invalidate = invalidate;

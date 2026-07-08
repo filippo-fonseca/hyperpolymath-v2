@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 
 import {
-  __resetWidgetTransforms,
-  getWidgetTransform,
-  SCALE_MAX,
-} from "@/lib/studio/state/widget-transforms";
-import type { StudioWidgetId } from "@/components/studio/data/useStudioData";
+  __resetZoneAssignment,
+  getDndState,
+  getZoneAssignment,
+} from "@/lib/studio/state/zone-assignment";
+import {
+  STUDIO_WIDGET_ORDER,
+  type StudioWidgetId,
+} from "@/components/studio/data/useStudioData";
 import type { StudioPhaseEvent } from "@/lib/studio/input/types";
 import { LIFT } from "../manipulation-math";
 import {
@@ -15,21 +18,18 @@ import {
 } from "../manipulation-controller";
 import type { TileSlot } from "../layout";
 
-// Three widgets on the X axis, spaced 3 apart — well beyond BLOCK_RADIUS (0.9),
-// so no anchor ever blocks another and snapping stays deterministic.
-const SLOTS: TileSlot[] = [
-  { position: [0, 0, 0] },
-  { position: [3, 0, 0] },
-  { position: [6, 0, 0] },
-];
-const IDS: StudioWidgetId[] = ["tasks", "captures", "agenda"];
+// Eight zone slots on the X axis, spaced 3 apart, one per widget id. Wide
+// spacing makes the nearest-zone test deterministic: a card released near a
+// slot's X lands unambiguously in that zone.
+const SLOTS: TileSlot[] = STUDIO_WIDGET_ORDER.map((_, i) => ({
+  position: [i * 3, 0, 0] as [number, number, number],
+}));
+const IDS: readonly StudioWidgetId[] = STUDIO_WIDGET_ORDER;
 
 interface Harness {
   controller: ManipulationController;
   groups: Map<StudioWidgetId, THREE.Group>;
   invalidate: ReturnType<typeof vi.fn>;
-  /** Set the injected focus head the pull falls back to. */
-  setActive: (id: StudioWidgetId | null) => void;
   /** Move a widget's group to a world position (before a grab, to seed it). */
   place: (id: StudioWidgetId, p: [number, number, number]) => void;
   send: (phase: StudioPhaseEvent) => void;
@@ -48,24 +48,18 @@ function makeHarness(): Harness {
   camera.position.set(0, 1.6, 6);
 
   const invalidate = vi.fn();
-  let active: StudioWidgetId | null = null;
 
   const controller = createManipulationController({
     slots: SLOTS,
-    widgetIds: IDS,
     getGroup: (id) => groups.get(id) ?? null,
     camera,
     invalidate,
-    getActiveHead: () => active,
   });
 
   return {
     controller,
     groups,
     invalidate,
-    setActive: (id) => {
-      active = id;
-    },
     place: (id, p) => {
       groups.get(id)!.position.set(p[0], p[1], p[2]);
     },
@@ -73,123 +67,123 @@ function makeHarness(): Harness {
   };
 }
 
-const scaleOf = (h: Harness, id: StudioWidgetId): number =>
-  h.groups.get(id)!.scale.x;
+const posOf = (h: Harness, id: StudioWidgetId): THREE.Vector3 =>
+  h.groups.get(id)!.position;
 
 beforeEach(() => {
-  __resetWidgetTransforms();
+  __resetZoneAssignment();
 });
 
-describe("pull on the active widget", () => {
-  it("commits the resized scale, clamped to the ceiling", () => {
+describe("grab lift (visual pickup, handed to the damp on drop)", () => {
+  it("raises the grabbed card by LIFT on +Y while held", () => {
     const h = makeHarness();
-    h.setActive("tasks");
-
-    h.send({ type: "pullStart" });
-    h.send({ type: "pullDelta", delta: 5 }); // 2^5 → clamps to SCALE_MAX
-    expect(scaleOf(h, "tasks")).toBeCloseTo(SCALE_MAX, 6);
-
-    h.send({ type: "pullEnd" });
-    expect(getWidgetTransform("tasks").scale).toBe(SCALE_MAX);
-  });
-
-  it("is an inert no-op when neither a grab nor an active head exists", () => {
-    const h = makeHarness();
-    h.setActive(null);
-
-    expect(() => {
-      h.send({ type: "pullStart" });
-      h.send({ type: "pullDelta", delta: 0.5 });
-      h.send({ type: "pullEnd" });
-    }).not.toThrow();
-
-    for (const id of IDS) {
-      expect(getWidgetTransform(id).scale).toBeNull();
-      expect(getWidgetTransform(id).position).toBeNull();
-    }
-  });
-});
-
-describe("CR-01 — grabEnd commits an in-flight resize (no orphaned scale)", () => {
-  it("persists the pulled scale on grabEnd even if pullEnd never arrives", () => {
-    const h = makeHarness();
-    // tasks sits on its own slot, so the position settles to null and the scale
-    // is what we isolate.
-    h.send({ type: "grabStart", targetId: "tasks" });
-    h.send({ type: "pullDelta", delta: 0.5 }); // grab owns the pull → 2^0.5
-
-    // grabEnd WITHOUT a following pullEnd. The store must still carry the scale.
-    h.send({ type: "grabEnd" });
-
-    expect(getWidgetTransform("tasks").scale).toBeCloseTo(Math.SQRT2, 10);
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2, 10); // lift dropped
-    expect(getWidgetTransform("tasks").position).toBeNull(); // snapped to own slot
-  });
-});
-
-describe("CR-02 — a grab owns the pull (late pullStart cannot steal it)", () => {
-  it("ignores a pullStart fired mid-grab and never repoints onto the active head", () => {
-    const h = makeHarness();
-    h.setActive("captures"); // the head a stray pullStart would wrongly grab
+    expect(posOf(h, "tasks").y).toBe(0);
 
     h.send({ type: "grabStart", targetId: "tasks" });
-    h.send({ type: "pullStart" }); // must no-op: grab owns the pull
-    h.send({ type: "pullDelta", delta: 0.5 });
+    expect(posOf(h, "tasks").y).toBeCloseTo(LIFT, 10); // lifted while grabbed
 
-    // The grabbed widget grows; the active head is never touched.
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2 * LIFT, 6);
-    expect(scaleOf(h, "captures")).toBe(1);
-  });
-});
-
-describe("no-pop rebase when a grab retargets mid-pull", () => {
-  it("starts the grabbed widget at its base (× lift), not the ramped delta", () => {
-    const h = makeHarness();
-    h.setActive("tasks");
-
-    h.send({ type: "pullStart" }); // pull owns the active head (tasks)
-    h.send({ type: "pullDelta", delta: 0.5 }); // tasks ramps to 2^0.5
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2, 6);
-
-    // Grab retargets to captures at the live delta: it must NOT pop to 2^0.5.
-    h.send({ type: "grabStart", targetId: "captures" });
-    expect(scaleOf(h, "captures")).toBeCloseTo(LIFT, 6); // base 1 × lift, no pop
-
-    // Continuing the pull grows captures from its base (delta − offset).
-    h.send({ type: "pullDelta", delta: 0.8 });
-    expect(scaleOf(h, "captures")).toBeCloseTo(Math.pow(2, 0.3) * LIFT, 6);
-  });
-});
-
-describe("grabEnd position settle", () => {
-  it("clears the override when released on the widget's own slot", () => {
-    const h = makeHarness();
-    h.send({ type: "grabStart", targetId: "tasks" }); // tasks already on slot 0
+    // grabEnd commits the reflow (none here — own slot) but no longer writes the
+    // resting position: the tile damp owns the glide home (stripping the lift as
+    // it eases to the slot), so the controller leaves the release point as-is.
     h.send({ type: "grabEnd" });
-
-    expect(getWidgetTransform("tasks").position).toBeNull();
-    expect(getWidgetTransform("tasks").scale).toBeNull();
+    expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]); // no move
   });
 
-  it("commits the released point when it snaps to nothing (freeform)", () => {
+  it("never writes a scale — the group scale stays uniform through a grab", () => {
     const h = makeHarness();
-    h.place("tasks", [10, 10, 0]); // far from every anchor
+    h.send({ type: "grabStart", targetId: "tasks" });
+    expect(h.groups.get("tasks")!.scale.x).toBe(1);
+    h.send({ type: "grabEnd" });
+    expect(h.groups.get("tasks")!.scale.x).toBe(1);
+  });
+});
+
+describe("drop into the nearest zone with full-board reflow", () => {
+  it("shifts the intervening cards back when a card moves forward", () => {
+    const h = makeHarness();
+    h.place("tasks", [6, 0, 0]); // over zone-2's slot
     h.send({ type: "grabStart", targetId: "tasks" });
     h.send({ type: "grabEnd" });
 
-    expect(getWidgetTransform("tasks").position).toEqual([10, 10, 0]);
+    expect(getZoneAssignment()).toEqual([
+      "captures",
+      "agenda",
+      "tasks",
+      "habits",
+      "journal",
+      "projects",
+      "areas",
+      "people",
+    ]);
+    // Single-owner landing: the controller commits the reflow but hands the glide
+    // to the tile damp, leaving the dropped group at its (lifted) release point
+    // rather than snapping it to the slot center. WidgetTile's damp glides it home.
+    expect(posOf(h, "tasks").toArray()).toEqual([6, LIFT, 0]);
+  });
+
+  it("shifts the intervening cards forward when a card moves backward", () => {
+    const h = makeHarness();
+    h.place("people", [6, 0, 0]); // people (zone 7) dragged over zone 2
+    h.send({ type: "grabStart", targetId: "people" });
+    h.send({ type: "grabEnd" });
+
+    expect(getZoneAssignment()).toEqual([
+      "tasks",
+      "captures",
+      "people",
+      "agenda",
+      "habits",
+      "journal",
+      "projects",
+      "areas",
+    ]);
+  });
+
+  it("is a no-op when the card is released on its own zone", () => {
+    const h = makeHarness();
+    h.send({ type: "grabStart", targetId: "agenda" }); // agenda sits on zone 2
+    h.send({ type: "grabEnd" });
+    expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]);
+  });
+});
+
+describe("DnD state transitions", () => {
+  it("sets the grabbed id + start zone on grabStart and clears to idle on grabEnd", () => {
+    const h = makeHarness();
+    expect(getDndState()).toEqual({ grabbedId: null, nearestZone: null });
+
+    h.send({ type: "grabStart", targetId: "agenda" }); // agenda on zone 2
+    expect(getDndState()).toEqual({ grabbedId: "agenda", nearestZone: 2 });
+
+    h.send({ type: "grabEnd" });
+    expect(getDndState()).toEqual({ grabbedId: null, nearestZone: null });
+  });
+
+  it("keeps publishing a valid zone as the card is dragged", () => {
+    const h = makeHarness();
+    h.send({ type: "grabStart", targetId: "tasks" });
+    h.send({ type: "grabMove", nx: 0.5, ny: 0.5 }); // anchor (no jump)
+    h.send({ type: "grabMove", nx: 0.7, ny: 0.5 }); // real move
+
+    const dnd = getDndState();
+    expect(dnd.grabbedId).toBe("tasks");
+    expect(typeof dnd.nearestZone).toBe("number");
+    expect(dnd.nearestZone).toBeGreaterThanOrEqual(0);
+    expect(dnd.nearestZone).toBeLessThan(SLOTS.length);
   });
 });
 
 describe("reset drops an in-flight session", () => {
-  it("makes a subsequent grabEnd a no-op (nothing committed)", () => {
+  it("commits nothing on a subsequent grabEnd and clears the DnD highlight", () => {
     const h = makeHarness();
-    h.place("tasks", [10, 10, 0]);
+    h.place("tasks", [6, 0, 0]);
     h.send({ type: "grabStart", targetId: "tasks" });
+    expect(getDndState().grabbedId).toBe("tasks");
 
     h.controller.reset();
-    h.send({ type: "grabEnd" }); // orphaned end → must not commit
+    expect(getDndState()).toEqual({ grabbedId: null, nearestZone: null });
 
-    expect(getWidgetTransform("tasks").position).toBeNull();
+    h.send({ type: "grabEnd" }); // orphaned end → must not reflow
+    expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]);
   });
 });

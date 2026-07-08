@@ -11,17 +11,12 @@ import {
   frameWidgetCamera,
   resolveWidgetWorldPosition,
 } from "@/lib/studio/camera/framing";
-import {
-  CLOUD_CAP_DEG,
-  CLOUD_CENTER,
-  CLOUD_RADIUS,
-  fibonacciCapSlots,
-} from "@/components/studio/cloud/layout";
+import { arcZoneSlots } from "@/components/studio/cloud/layout";
 import { STUDIO_WIDGET_ORDER } from "@/components/studio/data/useStudioData";
 import {
-  __resetWidgetTransforms,
-  setWidgetTransform,
-} from "@/lib/studio/state/widget-transforms";
+  __resetZoneAssignment,
+  moveWidgetToZone,
+} from "@/lib/studio/state/zone-assignment";
 
 /** Roomy rails so framing/pan math is un-clamped and easy to reason about. */
 const wideConfig: CameraTraversalConfig = {
@@ -35,7 +30,7 @@ const wideConfig: CameraTraversalConfig = {
 };
 
 afterEach(() => {
-  __resetWidgetTransforms();
+  __resetZoneAssignment();
 });
 
 describe("frameWidgetCamera — framing math", () => {
@@ -50,24 +45,27 @@ describe("frameWidgetCamera — framing math", () => {
   });
 });
 
-describe("resolveWidgetWorldPosition — effective widget position", () => {
-  const canonicalSlots = fibonacciCapSlots(STUDIO_WIDGET_ORDER.length, {
-    radius: CLOUD_RADIUS,
-    center: CLOUD_CENTER,
-    capDeg: CLOUD_CAP_DEG,
-  });
+describe("resolveWidgetWorldPosition — the widget's current arc zone", () => {
+  const ZONE_SLOTS = arcZoneSlots(STUDIO_WIDGET_ORDER.length);
 
-  it("falls back to the canonical cap slot when there is no override", () => {
+  it("targets the arc slot of the widget's current zone", () => {
+    // Initial assignment is identity: widget `i` sits in zone `i`.
     for (const id of ["tasks", "people"] as const) {
-      const slot = canonicalSlots[STUDIO_WIDGET_ORDER.indexOf(id)]!.position;
-      expect(resolveWidgetWorldPosition(id)).toEqual([...slot]);
+      const zone = STUDIO_WIDGET_ORDER.indexOf(id);
+      expect(resolveWidgetWorldPosition(id)).toEqual([
+        ...ZONE_SLOTS[zone]!.position,
+      ]);
     }
   });
 
-  it("prefers a committed U2 transform override over the layout slot", () => {
-    const moved: [number, number, number] = [3.1, 0.7, 1.4];
-    setWidgetTransform("tasks", { position: moved });
-    expect(resolveWidgetWorldPosition("tasks")).toEqual(moved);
+  it("follows a reflow — after a drop moves a widget, framing targets its NEW slot", () => {
+    // "tasks" starts in zone 0; move it to the last zone. The insert-and-shift
+    // reflow leaves it resting there, so framing must aim at that slot now.
+    const last = STUDIO_WIDGET_ORDER.length - 1;
+    moveWidgetToZone("tasks", last);
+    expect(resolveWidgetWorldPosition("tasks")).toEqual([
+      ...ZONE_SLOTS[last]!.position,
+    ]);
   });
 });
 

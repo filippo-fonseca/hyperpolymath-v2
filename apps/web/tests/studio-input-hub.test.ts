@@ -258,23 +258,81 @@ describe("StudioInputHub — phase bus", () => {
     ]);
   });
 
-  it("passes drag and pull phases through untouched", () => {
+  it("passes a drag begun over empty space through untouched (camera pan)", () => {
     const hub = makeHub();
+    hub.sink.moveCursor(0.5, 0.5); // only the empty DOM provider → null hover
     const got: StudioPhaseEvent[] = [];
     hub.subscribePhase((e) => got.push(e));
     hub.sink.emitPhase({ type: "dragStart" });
     hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 });
     hub.sink.emitPhase({ type: "dragEnd" });
-    hub.sink.emitPhase({ type: "pullStart" });
-    hub.sink.emitPhase({ type: "pullDelta", delta: 0.3 });
-    hub.sink.emitPhase({ type: "pullEnd" });
     expect(got).toEqual([
       { type: "dragStart" },
       { type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 },
       { type: "dragEnd" },
-      { type: "pullStart" },
-      { type: "pullDelta", delta: 0.3 },
-      { type: "pullEnd" },
+    ]);
+  });
+
+  it("suppresses the whole drag lifecycle when the pinch begins over a widget", () => {
+    const hub = makeHub();
+    hub.registerHoverProvider({ id: "p", priority: 5, resolve: () => "widget-4" });
+    hub.sink.moveCursor(0.5, 0.5); // hover resolves to widget-4
+    const cb = vi.fn();
+    hub.subscribePhase(cb);
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: 0.1, dz: 0 });
+    hub.sink.emitPhase({ type: "dragEnd" });
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("re-delivers a fresh drag over empty space after a suppressed one ends", () => {
+    const hub = makeHub();
+    const provider = { id: "p", priority: 5, resolve: (): string | null => "widget-9" };
+    hub.registerHoverProvider(provider);
+    hub.sink.moveCursor(0.5, 0.5); // hover → widget-9
+    const got: StudioPhaseEvent[] = [];
+    hub.subscribePhase((e) => got.push(e));
+
+    // First drag begins over a widget → whole lifecycle suppressed.
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: 0.1, dz: 0 });
+    hub.sink.emitPhase({ type: "dragEnd" });
+    expect(got).toEqual([]);
+
+    // Hover clears (pinch over empty space); a new drag must pan normally.
+    (provider as { resolve: () => string | null }).resolve = () => null;
+    hub.sink.moveCursor(0.51, 0.51); // re-resolve hover → null
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.2, dy: 0, dz: 0.1 });
+    hub.sink.emitPhase({ type: "dragEnd" });
+    expect(got).toEqual([
+      { type: "dragStart" },
+      { type: "dragMove", dx: 0.2, dy: 0, dz: 0.1 },
+      { type: "dragEnd" },
+    ]);
+  });
+
+  it("clears suppression on the next dragStart even if the suppressed drag never ended", () => {
+    const hub = makeHub();
+    const provider = { id: "p", priority: 5, resolve: (): string | null => "widget-1" };
+    hub.registerHoverProvider(provider);
+    hub.sink.moveCursor(0.5, 0.5); // hover → widget-1
+    const got: StudioPhaseEvent[] = [];
+    hub.subscribePhase((e) => got.push(e));
+
+    // Suppressed drag begins over a widget; no dragEnd arrives.
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: 0.1, dz: 0 });
+    expect(got).toEqual([]);
+
+    // Hover clears; the NEXT dragStart re-evaluates and pans normally.
+    (provider as { resolve: () => string | null }).resolve = () => null;
+    hub.sink.moveCursor(0.51, 0.51);
+    hub.sink.emitPhase({ type: "dragStart" });
+    hub.sink.emitPhase({ type: "dragMove", dx: 0.2, dy: 0, dz: 0 });
+    expect(got).toEqual([
+      { type: "dragStart" },
+      { type: "dragMove", dx: 0.2, dy: 0, dz: 0 },
     ]);
   });
 
