@@ -24,7 +24,7 @@
  * upgrades to `grabStart` ~250 ms later once it knows the pinch began over a
  * widget. On `grabStart` the controller reverts the accidental pan and suppresses
  * the rest of that drag lifecycle, keeping camera traversal and widget grabs
- * mutually exclusive without forking the U0 intent contract. `pull*` is ignored.
+ * mutually exclusive without forking the U0 intent contract.
  */
 
 import type { StudioPhaseEvent } from "@/lib/studio/input/types";
@@ -74,7 +74,7 @@ export const DEFAULT_CAMERA_TRAVERSAL_CONFIG: CameraTraversalConfig = {
 
 export interface CameraTraversal {
   /** Feed one phase-bus event. Only `drag*` moves the camera; `grabStart`
-   *  yields; `grabMove`/`grabEnd`/`pull*` are ignored. */
+   *  yields; `grabMove`/`grabEnd` are ignored. */
   push(phase: StudioPhaseEvent): void;
   /** The current clamped target `[x,y,z]`. Read-only; the rig damps toward it. */
   getTarget(): Readonly<Vec3>;
