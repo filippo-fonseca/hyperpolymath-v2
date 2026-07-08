@@ -4,7 +4,6 @@ import * as THREE from "three";
 import {
   __resetWidgetTransforms,
   getWidgetTransform,
-  SCALE_MAX,
 } from "@/lib/studio/state/widget-transforms";
 import type { StudioWidgetId } from "@/components/studio/data/useStudioData";
 import type { StudioPhaseEvent } from "@/lib/studio/input/types";
@@ -28,8 +27,6 @@ interface Harness {
   controller: ManipulationController;
   groups: Map<StudioWidgetId, THREE.Group>;
   invalidate: ReturnType<typeof vi.fn>;
-  /** Set the injected focus head the pull falls back to. */
-  setActive: (id: StudioWidgetId | null) => void;
   /** Move a widget's group to a world position (before a grab, to seed it). */
   place: (id: StudioWidgetId, p: [number, number, number]) => void;
   send: (phase: StudioPhaseEvent) => void;
@@ -48,7 +45,6 @@ function makeHarness(): Harness {
   camera.position.set(0, 1.6, 6);
 
   const invalidate = vi.fn();
-  let active: StudioWidgetId | null = null;
 
   const controller = createManipulationController({
     slots: SLOTS,
@@ -56,16 +52,12 @@ function makeHarness(): Harness {
     getGroup: (id) => groups.get(id) ?? null,
     camera,
     invalidate,
-    getActiveHead: () => active,
   });
 
   return {
     controller,
     groups,
     invalidate,
-    setActive: (id) => {
-      active = id;
-    },
     place: (id, p) => {
       groups.get(id)!.position.set(p[0], p[1], p[2]);
     },
@@ -73,91 +65,32 @@ function makeHarness(): Harness {
   };
 }
 
-const scaleOf = (h: Harness, id: StudioWidgetId): number =>
-  h.groups.get(id)!.scale.x;
+const posOf = (h: Harness, id: StudioWidgetId): THREE.Vector3 =>
+  h.groups.get(id)!.position;
 
 beforeEach(() => {
   __resetWidgetTransforms();
 });
 
-describe("pull on the active widget", () => {
-  it("commits the resized scale, clamped to the ceiling", () => {
+describe("grab lift (visual, stripped on commit)", () => {
+  it("raises the grabbed card by LIFT on +Y and removes it on settle", () => {
     const h = makeHarness();
-    h.setActive("tasks");
+    expect(posOf(h, "tasks").y).toBe(0);
 
-    h.send({ type: "pullStart" });
-    h.send({ type: "pullDelta", delta: 5 }); // 2^5 → clamps to SCALE_MAX
-    expect(scaleOf(h, "tasks")).toBeCloseTo(SCALE_MAX, 6);
-
-    h.send({ type: "pullEnd" });
-    expect(getWidgetTransform("tasks").scale).toBe(SCALE_MAX);
-  });
-
-  it("is an inert no-op when neither a grab nor an active head exists", () => {
-    const h = makeHarness();
-    h.setActive(null);
-
-    expect(() => {
-      h.send({ type: "pullStart" });
-      h.send({ type: "pullDelta", delta: 0.5 });
-      h.send({ type: "pullEnd" });
-    }).not.toThrow();
-
-    for (const id of IDS) {
-      expect(getWidgetTransform(id).scale).toBeNull();
-      expect(getWidgetTransform(id).position).toBeNull();
-    }
-  });
-});
-
-describe("CR-01 — grabEnd commits an in-flight resize (no orphaned scale)", () => {
-  it("persists the pulled scale on grabEnd even if pullEnd never arrives", () => {
-    const h = makeHarness();
-    // tasks sits on its own slot, so the position settles to null and the scale
-    // is what we isolate.
     h.send({ type: "grabStart", targetId: "tasks" });
-    h.send({ type: "pullDelta", delta: 0.5 }); // grab owns the pull → 2^0.5
+    expect(posOf(h, "tasks").y).toBeCloseTo(LIFT, 10); // lifted while grabbed
 
-    // grabEnd WITHOUT a following pullEnd. The store must still carry the scale.
     h.send({ type: "grabEnd" });
-
-    expect(getWidgetTransform("tasks").scale).toBeCloseTo(Math.SQRT2, 10);
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2, 10); // lift dropped
-    expect(getWidgetTransform("tasks").position).toBeNull(); // snapped to own slot
+    expect(posOf(h, "tasks").y).toBeCloseTo(0, 10); // settled back onto the slot
+    expect(getWidgetTransform("tasks").position).toBeNull(); // own slot → no override
   });
-});
 
-describe("CR-02 — a grab owns the pull (late pullStart cannot steal it)", () => {
-  it("ignores a pullStart fired mid-grab and never repoints onto the active head", () => {
+  it("never writes a scale — the group scale stays uniform through a grab", () => {
     const h = makeHarness();
-    h.setActive("captures"); // the head a stray pullStart would wrongly grab
-
     h.send({ type: "grabStart", targetId: "tasks" });
-    h.send({ type: "pullStart" }); // must no-op: grab owns the pull
-    h.send({ type: "pullDelta", delta: 0.5 });
-
-    // The grabbed widget grows; the active head is never touched.
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2 * LIFT, 6);
-    expect(scaleOf(h, "captures")).toBe(1);
-  });
-});
-
-describe("no-pop rebase when a grab retargets mid-pull", () => {
-  it("starts the grabbed widget at its base (× lift), not the ramped delta", () => {
-    const h = makeHarness();
-    h.setActive("tasks");
-
-    h.send({ type: "pullStart" }); // pull owns the active head (tasks)
-    h.send({ type: "pullDelta", delta: 0.5 }); // tasks ramps to 2^0.5
-    expect(scaleOf(h, "tasks")).toBeCloseTo(Math.SQRT2, 6);
-
-    // Grab retargets to captures at the live delta: it must NOT pop to 2^0.5.
-    h.send({ type: "grabStart", targetId: "captures" });
-    expect(scaleOf(h, "captures")).toBeCloseTo(LIFT, 6); // base 1 × lift, no pop
-
-    // Continuing the pull grows captures from its base (delta − offset).
-    h.send({ type: "pullDelta", delta: 0.8 });
-    expect(scaleOf(h, "captures")).toBeCloseTo(Math.pow(2, 0.3) * LIFT, 6);
+    expect(h.groups.get("tasks")!.scale.x).toBe(1);
+    h.send({ type: "grabEnd" });
+    expect(h.groups.get("tasks")!.scale.x).toBe(1);
   });
 });
 
@@ -168,7 +101,6 @@ describe("grabEnd position settle", () => {
     h.send({ type: "grabEnd" });
 
     expect(getWidgetTransform("tasks").position).toBeNull();
-    expect(getWidgetTransform("tasks").scale).toBeNull();
   });
 
   it("commits the released point when it snaps to nothing (freeform)", () => {

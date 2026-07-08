@@ -325,14 +325,13 @@ describe("hand gesture interpreter", () => {
     expect(cb.onIntent).not.toHaveBeenCalled();
   });
 
-  it("10) committed pinch → dragStart + pullStart; cursor frozen; no fist intents", () => {
+  it("10) committed pinch → dragStart; cursor frozen; no fist intents", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
     interp.push(t, makeOpenHand({ cx: 0.5 }));
     for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
     const phases = phaseTypes(cb);
     expect(phases).toContain("dragStart");
-    expect(phases).toContain("pullStart");
     expect(cb.onIntent).not.toHaveBeenCalled(); // no expand/collapse/swipe
     // Now that the pinch is committed the cursor stays frozen even as it moves.
     cb.onCursorMove.mockClear();
@@ -362,7 +361,7 @@ describe("hand gesture interpreter", () => {
     expect(moves.some((m) => Math.abs(m.dx) > 0)).toBe(true);
   });
 
-  it("13) releasing a pinch ends drag+pull; fist gestures work again after", () => {
+  it("13) releasing a pinch ends drag; fist gestures work again after", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
     interp.push(t, makeOpenHand({ cx: 0.5 }));
@@ -372,7 +371,6 @@ describe("hand gesture interpreter", () => {
     for (let i = 0; i < 7; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
     const phases = phaseTypes(cb);
     expect(phases).toContain("dragEnd");
-    expect(phases).toContain("pullEnd");
     expect(phases).toContain("grabEnd");
     // A subsequent held fist still collapses (fist family unbroken after a pinch).
     cb.onIntent.mockClear();

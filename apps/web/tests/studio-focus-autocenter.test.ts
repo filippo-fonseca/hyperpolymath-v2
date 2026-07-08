@@ -66,7 +66,7 @@ describe("resolveWidgetWorldPosition — effective widget position", () => {
 
   it("prefers a committed U2 transform override over the layout slot", () => {
     const moved: [number, number, number] = [3.1, 0.7, 1.4];
-    setWidgetTransform("tasks", { position: moved });
+    setWidgetTransform("tasks", moved);
     expect(resolveWidgetWorldPosition("tasks")).toEqual(moved);
   });
 });

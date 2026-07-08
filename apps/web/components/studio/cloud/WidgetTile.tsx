@@ -70,9 +70,9 @@ export interface WidgetTileProps {
   registerMesh: (id: StudioWidgetId, mesh: THREE.Mesh | null) => void;
   /**
    * Register the tile's OUTER group so the manipulation controller can mutate
-   * its position/scale imperatively during a grab/pull gesture. The outer group
-   * is the controller's sole imperative write target — hover scale stays on the
-   * inner `orientRef`, so the two never collide.
+   * its position imperatively during a grab gesture. The outer group is the
+   * controller's sole imperative write target — hover scale stays on the inner
+   * `orientRef`, so the two never collide.
    */
   registerGroup: (id: StudioWidgetId, group: THREE.Group | null) => void;
 }
@@ -161,11 +161,7 @@ export function WidgetTile({
   });
 
   return (
-    <group
-      ref={registerGroupRef}
-      position={override.position ?? position}
-      scale={override.scale ?? 1}
-    >
+    <group ref={registerGroupRef} position={override.position ?? position}>
       <Float
         speed={0.9}
         rotationIntensity={0.15}

@@ -185,7 +185,7 @@ export function createCameraTraversal(
           break;
         }
         default:
-          // grabMove / grabEnd / pullStart / pullDelta / pullEnd — not ours.
+          // grabMove / grabEnd — not ours.
           break;
       }
     },

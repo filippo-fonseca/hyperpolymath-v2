@@ -37,10 +37,6 @@ import {
   createPinchHoldRecognizer,
   type PinchHoldRecognizer,
 } from "../pinch-hold-recognizer";
-import {
-  createPinchPullRecognizer,
-  type PinchPullRecognizer,
-} from "../pinch-pull-recognizer";
 import { createPinchZoom, type PinchZoom } from "../pinch-zoom";
 import {
   createPointOpenRecognizer,
@@ -330,9 +326,6 @@ export function createHandGestureInterpreter(
     (e) => callbacks.onPhase(e),
     { holdMs: cfg.grabHoldMs },
   );
-  const pinchPull: PinchPullRecognizer = createPinchPullRecognizer((e) =>
-    callbacks.onPhase(e),
-  );
   // Turns the smoothed thumb-index gap into an absolute zoom scalar z ∈ [-1, +1]
   // fed straight into pinch-drag's `depth` channel (replacing the palm-size `ln`
   // depth proxy). `offRatio`/`r0Max` mirror the pinch gates so the zoom baseline
@@ -379,7 +372,6 @@ export function createHandGestureInterpreter(
     // Terminal events so a hand-lost gap never strands a consumer mid-gesture.
     pinchDrag.reset();
     pinchHold.reset();
-    pinchPull.reset();
     pinchZoom.reset();
     halt.reset();
     pointOpen.reset();
@@ -513,7 +505,6 @@ export function createHandGestureInterpreter(
       engaged: pinchActive,
     });
     pinchHold.push({ t: tMs, nx: sPalm.x, ny: sPalm.y, engaged: pinchActive });
-    pinchPull.push({ t: tMs, size: sSize, engaged: pinchActive });
     halt.push({
       t: tMs,
       open: pose === "open" && extendedCount === 4 && !pinchActive,

@@ -46,11 +46,11 @@ export type StudioIntent =
 
 /**
  * Continuous interaction phases, delivered on a separate bus from discrete
- * {@link StudioIntent}s so a 30fps stream never re-runs intent consumers. Three
- * families: `grab*` (a pinch that began over a widget — carries the target),
- * `drag*` (a free pinch drag vector, cumulative from drag start), and `pull*`
- * (a normalized, clamped resize scalar, cumulative from pull start). The three
- * `grab*` variants keep their originally-reserved shapes byte-identical.
+ * {@link StudioIntent}s so a 30fps stream never re-runs intent consumers. Two
+ * families: `grab*` (a pinch that began over a widget — carries the target and
+ * drives drag-and-drop into a zone), and `drag*` (a free pinch drag vector,
+ * cumulative from drag start, driving 3D camera navigation). The three `grab*`
+ * variants keep their originally-reserved shapes byte-identical.
  */
 export type StudioPhaseEvent =
   | { type: "grabStart"; targetId: string }
@@ -58,10 +58,7 @@ export type StudioPhaseEvent =
   | { type: "grabEnd" }
   | { type: "dragStart" }
   | { type: "dragMove"; dx: number; dy: number; dz: number }
-  | { type: "dragEnd" }
-  | { type: "pullStart" }
-  | { type: "pullDelta"; delta: number }
-  | { type: "pullEnd" };
+  | { type: "dragEnd" };
 
 /**
  * What drivers are allowed to emit on the phase bus. Drivers never resolve
@@ -118,7 +115,7 @@ export type StudioInputSink = {
   moveCursor(nx: number, ny: number): void;
   setCursorActive(active: boolean): void;
   emitIntent(intent: StudioIntentInput): void;
-  /** Continuous grab/drag/pull phases. Hub injects the grab target. */
+  /** Continuous grab/drag phases. Hub injects the grab target. */
   emitPhase(phase: StudioPhaseInput): void;
 };
 
@@ -140,7 +137,7 @@ export interface StudioInputBus {
   /** Store-change subscription (fires when cursor OR hover changes). */
   subscribe(cb: () => void): () => void;
   subscribeIntent(cb: (intent: StudioIntent) => void): () => void;
-  /** Continuous-phase subscription (grab/drag/pull streams). Zero re-render. */
+  /** Continuous-phase subscription (grab/drag streams). Zero re-render. */
   subscribePhase(cb: (phase: StudioPhaseEvent) => void): () => void;
   registerHoverProvider(p: HoverProvider): () => void;
   /** Registers and starts a driver; the returned fn stops + unregisters it. */

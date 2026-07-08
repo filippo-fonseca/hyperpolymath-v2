@@ -258,23 +258,17 @@ describe("StudioInputHub — phase bus", () => {
     ]);
   });
 
-  it("passes drag and pull phases through untouched", () => {
+  it("passes drag phases through untouched", () => {
     const hub = makeHub();
     const got: StudioPhaseEvent[] = [];
     hub.subscribePhase((e) => got.push(e));
     hub.sink.emitPhase({ type: "dragStart" });
     hub.sink.emitPhase({ type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 });
     hub.sink.emitPhase({ type: "dragEnd" });
-    hub.sink.emitPhase({ type: "pullStart" });
-    hub.sink.emitPhase({ type: "pullDelta", delta: 0.3 });
-    hub.sink.emitPhase({ type: "pullEnd" });
     expect(got).toEqual([
       { type: "dragStart" },
       { type: "dragMove", dx: 0.1, dy: -0.2, dz: 0.05 },
       { type: "dragEnd" },
-      { type: "pullStart" },
-      { type: "pullDelta", delta: 0.3 },
-      { type: "pullEnd" },
     ]);
   });
 

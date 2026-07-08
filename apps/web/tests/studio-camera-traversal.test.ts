@@ -199,17 +199,6 @@ describe("createCameraTraversal — grab yield", () => {
   });
 });
 
-describe("createCameraTraversal — pull events are ignored", () => {
-  it("pullStart / pullDelta / pullEnd never move the camera", () => {
-    const c = createCameraTraversal(wideConfig);
-    c.push({ type: "dragStart" });
-    c.push({ type: "pullStart" });
-    c.push({ type: "pullDelta", delta: 0.9 });
-    c.push({ type: "pullEnd" });
-    expect([...c.getTarget()]).toEqual([...wideConfig.home]);
-  });
-});
-
 describe("createCameraTraversal — home & reset", () => {
   it("goHome returns the target to home", () => {
     const c = createCameraTraversal(wideConfig);
