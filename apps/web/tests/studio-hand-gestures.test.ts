@@ -98,6 +98,14 @@ function makeCallbacks() {
 const phaseTypes = (cb: ReturnType<typeof makeCallbacks>): string[] =>
   cb.onPhase.mock.calls.map(([p]) => p.type);
 
+type DragMove = { type: "dragMove"; dx: number; dy: number; dz: number };
+const dragMoves = (cb: ReturnType<typeof makeCallbacks>): DragMove[] =>
+  cb.onPhase.mock.calls
+    .map(([p]) => p)
+    .filter((p): p is DragMove => p.type === "dragMove");
+const lastDrag = (cb: ReturnType<typeof makeCallbacks>): DragMove | undefined =>
+  dragMoves(cb).at(-1);
+
 const FPS = 1000 / 30;
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -353,6 +361,26 @@ describe("hand gesture interpreter", () => {
     cb.onIntent.mockClear();
     for (let i = 0; i < 26; i++) interp.push((t += FPS), makeFist({ cx: 0.5 }));
     expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["collapse"]);
+  });
+
+  it("13b) a brief un-pinch blip mid-drag never drops the pan (no re-anchor)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    interp.push(t, makeOpenHand({ cx: 0.5 }));
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // commit
+    for (const cx of [0.56, 0.62]) interp.push((t += FPS), makePinchHand({ cx })); // drag
+    const before = lastDrag(cb)!;
+    // A 3-frame tracker un-pinch blip (~100ms < 150ms grace): the ratio pops open
+    // while the hand keeps translating. The pinch must survive it.
+    for (const cx of [0.66, 0.7, 0.74]) interp.push((t += FPS), makeOpenHand({ cx }));
+    for (const cx of [0.8, 0.86]) interp.push((t += FPS), makePinchHand({ cx })); // resume
+    const phases = phaseTypes(cb);
+    expect(phases.filter((p) => p === "dragEnd")).toHaveLength(0);
+    expect(phases.filter((p) => p === "dragStart")).toHaveLength(1); // one origin, no re-anchor
+    const after = lastDrag(cb)!;
+    // Same direction, larger magnitude ⇒ cumulative from the ORIGINAL origin.
+    expect(Math.sign(after.dx)).toBe(Math.sign(before.dx));
+    expect(Math.abs(after.dx)).toBeGreaterThan(Math.abs(before.dx));
   });
 
   it("14) open palm PUSHED toward the camera and held → exactly one halt intent", () => {
