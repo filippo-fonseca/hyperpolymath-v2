@@ -63,6 +63,11 @@ import {
   startConversationMachine,
   type JarvisState,
 } from "@/conversation/state-machine";
+import {
+  createEchoDedupeState,
+  decidePaintEcho,
+  type EchoInput,
+} from "@/conversation/echo-dedupe";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { mountOrb } from "@/hud/orb";
 import { startRoutineLoader } from "@/hud/routine-loader";
@@ -318,38 +323,28 @@ function appendJarvisDelta(delta: string): void {
 }
 
 // Dedupe the user-echo paint across its two sources: the early `transcript`
-// SSE event (paints at ~STT time, the common/fast path) and the capture-POST
-// resolution (onTranscriptReceived, now a fallback). Whichever fires first
-// paints the bubble; the later one for the same utterance is a no-op so we
-// never append a duplicate bubble. Keyed on the normalized transcript text
-// within a short recency window (a genuine repeat utterance after the window
-// paints again as expected).
-const ECHO_DEDUPE_WINDOW_MS = 15_000;
-let lastPaintedEcho: { text: string; at: number } | null = null;
-
-function normalizeEcho(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, " ");
-}
+// SSE event (paints at ~STT time, the common/fast path — always carries an
+// sttDoneAt identity) and the capture-POST resolution (onTranscriptReceived, a
+// fallback that currently arrives text-only). Whichever fires first paints the
+// bubble; the OTHER source's echo of the SAME utterance is suppressed so we
+// never append a duplicate. The decision lives in the pure decidePaintEcho:
+// it dedupes on the per-utterance sttDoneAt identity when present (exact,
+// time-independent — so a genuine REPEAT utterance, which carries a fresh id,
+// always paints), and falls back to a short text+recency window only for the
+// id-less source. Ties break toward painting so a recognised utterance is
+// never silently dropped.
+const echoDedupeState = createEchoDedupeState();
 
 /**
  * Deduped entry point for the user-echo paint. Both the SSE `transcript` event
- * and the POST-driven onTranscriptReceived call route through here; the second
- * caller for the same utterance (within the window) is dropped.
+ * (with its sttDoneAt) and the POST-driven onTranscriptReceived call route
+ * through here; decidePaintEcho drops only a true second echo of the same
+ * utterance, never a legitimately new one.
  */
-function paintTranscriptDeduped(text: string): void {
-  const norm = normalizeEcho(text);
-  const now = Date.now();
-  if (
-    norm &&
-    lastPaintedEcho &&
-    lastPaintedEcho.text === norm &&
-    now - lastPaintedEcho.at < ECHO_DEDUPE_WINDOW_MS
-  ) {
-    // Same utterance already painted by the other source — no-op.
-    return;
+function paintTranscriptDeduped(input: EchoInput): void {
+  if (decidePaintEcho(input, echoDedupeState)) {
+    paintTranscript(input.text);
   }
-  lastPaintedEcho = { text: norm, at: now };
-  paintTranscript(text);
 }
 
 function paintTranscript(text: string): void {
@@ -843,8 +838,18 @@ async function boot(): Promise<void> {
   // when the POST response flushes. The POST-driven onTranscriptReceived below
   // stays as a fallback; paintTranscriptDeduped drops whichever fires second so
   // the same utterance never double-paints.
-  onPhysicalTranscript((p) => paintTranscriptDeduped(p.transcript));
-  onTranscriptReceived(paintTranscriptDeduped);
+  onPhysicalTranscript((p) => paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }));
+  // POST fallback. Threads the response's sttDoneAt through when the server
+  // provides it so identity dedupe works from both sources.
+  //
+  // WEB FOLLOW-UP (not fixed here — apps/web is owned by another agent): the
+  // normal-turn response of app/api/jarvis/voice/transcript/route.ts returns
+  // `{ transcript, turnId }` and omits `sttDoneAt` (the SSE `transcript` event
+  // and the empty/probe responses DO include it). Adding `sttDoneAt` to that
+  // final `Response.json` would give the POST fallback a shared identity too,
+  // making the dedupe fully identity-based. Until then the desktop dedupe stays
+  // correct via the SSE identity + short-window race guard below.
+  onTranscriptReceived((text, sttDoneAt) => paintTranscriptDeduped({ text, sttDoneAt }));
   // Empty / failed STT → flash a butler line through the acknowledge strip so
   // the user gets immediate feedback instead of a silent stall. The strip's
   // own guard keeps this from clobbering a live streaming response.

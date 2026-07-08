@@ -149,7 +149,12 @@ export type CaptureState = "idle" | "recording" | "uploading";
 // the right butler line ("Didn't catch that" vs "transcription failed").
 export type NoSpeechReason = "empty" | "stt-failed";
 type StateListener = (state: CaptureState) => void;
-type TranscriptListener = (text: string) => void;
+// The optional sttDoneAt is the server's STT-completion stamp — a per-utterance
+// identity the HUD echo-dedupe keys on. Present when the server returns it (the
+// SSE `transcript` event always does; the normal-turn POST response currently
+// omits it). Listeners that only want the text (e.g. the FSM end-phrase check)
+// simply ignore the second argument.
+type TranscriptListener = (text: string, sttDoneAt?: number) => void;
 type NoSpeechListener = (reason: NoSpeechReason) => void;
 type ExtendedListener = (active: boolean) => void;
 
@@ -418,7 +423,13 @@ async function finishTurn(vad: VadSilenceDetector): Promise<void> {
     console.log(
       `[capture] transcript received (sttDoneAt=${result.sttDoneAt}): ${result.transcript.slice(0, 80)}`,
     );
-    for (const fn of transcriptListeners) fn(result.transcript);
+    // Forward the STT identity when present so the HUD echo-dedupe can match the
+    // SSE and POST echoes of this utterance by id (not just by text).
+    const sttDoneAt =
+      typeof result.sttDoneAt === "number" && Number.isFinite(result.sttDoneAt)
+        ? result.sttDoneAt
+        : undefined;
+    for (const fn of transcriptListeners) fn(result.transcript, sttDoneAt);
   }
 
   activeVad = null;
