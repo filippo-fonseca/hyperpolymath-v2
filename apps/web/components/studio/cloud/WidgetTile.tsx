@@ -21,6 +21,7 @@ import { Float, RoundedBox, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 import { useStudioIsHovered } from "@/lib/studio/input/react";
+import { CAMERA_HOME } from "@/lib/studio/camera/traversal";
 import { getDndState } from "@/lib/studio/state/zone-assignment";
 import type {
   StudioTileSummary,
@@ -34,9 +35,10 @@ import { STUDIOLO } from "../materials/tokens";
 import { STUDIO_RIM } from "../env/postfx.params";
 import { depthFade } from "./layout";
 
-// The camera is fixed (StudioCanvas: position [0, 1.6, 6]); tiles orient to it
-// once on mount rather than billboarding per frame.
-const CAMERA_POS = new THREE.Vector3(0, 1.6, 6);
+// The camera is fixed at CAMERA_HOME (StudioCanvas); tiles orient to it once on
+// mount rather than billboarding per frame. Sourced from the shared home so the
+// orientation math can never drift from the actual spawn vantage.
+const CAMERA_POS = new THREE.Vector3(...CAMERA_HOME);
 
 // Reflow glide toward the assigned zone slot. Rate + settle epsilon mirror
 // CameraRig so the tile ease matches the camera and the loop sleeps once landed.

@@ -24,14 +24,16 @@ import { useEffect, useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
+import { CAMERA_HOME } from "@/lib/studio/camera/traversal";
 import { useDndState } from "@/lib/studio/state/zone-assignment";
 import { STUDIO_WIDGET_ORDER } from "../data/useStudioData";
 import { makeHologramMaterial } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
 import { arcZoneSlots } from "./layout";
 
-// Markers orient to the fixed camera, same as WidgetTile.
-const CAMERA_POS = new THREE.Vector3(0, 1.6, 6);
+// Markers orient to the fixed camera (CAMERA_HOME), same as WidgetTile — sourced
+// from the shared home so marker orientation never drifts from the tiles'.
+const CAMERA_POS = new THREE.Vector3(...CAMERA_HOME);
 
 // A hair larger than a tile (TILE_W 1.4 × TILE_H 0.9) so a marker frames the
 // slot it belongs to rather than reading as a second card; equally thin.
