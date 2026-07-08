@@ -64,6 +64,22 @@ const makePinchHand = (o: { cx?: number; cy?: number; scale?: number } = {}): Pt
   return lm;
 };
 
+/**
+ * A point: index extended (ratio ≈ 2) with middle/ring/pinky curled (ratio ≈ 1.1),
+ * so the finger pattern is index-only → pose "point". `forward` sets index-tip z
+ * (negative ⇒ nearer the camera) so a forward tap can be simulated.
+ */
+const makePoint = (
+  o: { cx?: number; cy?: number; scale?: number; forward?: number } = {},
+): Pt[] => {
+  const { cx = 0.5, cy = 0.5, scale = 0.2, forward = 0 } = o;
+  const lm = makeHand({ cx, cy, scale, tipRatio: 2.0 });
+  const curlY = cy + scale - 1.1 * scale; // dist(wrist,tip) = 1.1·scale ⇒ curled
+  for (const tip of [12, 16, 20]) lm[tip] = { x: cx, y: curlY, z: 0 };
+  lm[8] = { ...lm[8]!, z: -forward }; // forward>0 ⇒ nearer camera (z<0)
+  return lm;
+};
+
 const handWithIndexTip = (x: number, y: number): Pt[] => {
   const lm = fill21({ x: 0.5, y: 0.5, z: 0 });
   lm[8] = { x, y, z: 0 };
@@ -185,14 +201,33 @@ describe("hand gesture interpreter", () => {
     expect(cb.onIntent).not.toHaveBeenCalled();
   });
 
-  it("4) quick stationary fist pulse → exactly one expand, no collapse/swipe", () => {
+  it("4) a quick fist pulse no longer opens — the fist is close-only now", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
     interp.push(t, makeOpenHand()); // establish open
     for (let i = 0; i < 4; i++) interp.push((t += FPS), makeFist()); // commit fist (~<200ms)
-    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand()); // commit open → expand
-    const intents = cb.onIntent.mock.calls.map(([i]) => i.type);
-    expect(intents).toEqual(["expand"]);
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand()); // release
+    expect(cb.onIntent).not.toHaveBeenCalled();
+  });
+
+  it("4b) a steady index point held past the dwell → exactly one expand", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    for (; t <= 2 * DEFAULT_HAND_GESTURE.pointDwellMs; t += FPS) {
+      interp.push(t, makePoint({ cx: 0.5 }));
+    }
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "expand")).toHaveLength(1);
+  });
+
+  it("4c) a forward index TAP opens immediately, before the dwell elapses", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    // Commit the point at rest, then a quick forward poke (rising -z) — fires well
+    // under the dwell window, so it's the tap path, not the hold path.
+    for (let i = 0; i < 5; i++) interp.push((t += FPS), makePoint({ cx: 0.5, forward: 0 }));
+    for (let i = 0; i < 6; i++) interp.push((t += FPS), makePoint({ cx: 0.5, forward: 0.8 }));
+    expect(t).toBeLessThan(DEFAULT_HAND_GESTURE.pointDwellMs);
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "expand")).toHaveLength(1);
   });
 
   it("5) fist held past holdMs → exactly one collapse; release → no expand", () => {
@@ -251,14 +286,17 @@ describe("hand gesture interpreter", () => {
     expect(cb.onCursorMove).not.toHaveBeenCalled();
   });
 
-  it("9) expand suppressed when the palm drifted past the click threshold", () => {
+  it("9) a wandering point never opens — only a still (or tapped) point does", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
-    interp.push(t, makeOpenHand({ cx: 0.5 }));
-    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeFist({ cx: 0.5 })); // commit fist at cx 0.5
-    // Drift the palm ~0.1 in nx (> 0.06 click drift, < 0.18 swipe threshold).
-    for (const cx of [0.53, 0.56, 0.57]) interp.push((t += FPS), makeFist({ cx }));
-    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.57 }));
+    // Keep the point sliding sideways past the drift gate every frame: the dwell
+    // clock re-anchors constantly and never matures, so no expand for 2× the dwell.
+    let cx = 0.3;
+    for (; t <= 2 * DEFAULT_HAND_GESTURE.pointDwellMs; t += FPS) {
+      cx += 0.08; // > pointMaxDriftNx once remapped
+      if (cx > 0.7) cx = 0.3;
+      interp.push(t, makePoint({ cx }));
+    }
     expect(cb.onIntent).not.toHaveBeenCalled();
   });
 
@@ -310,11 +348,10 @@ describe("hand gesture interpreter", () => {
     expect(phases).toContain("dragEnd");
     expect(phases).toContain("pullEnd");
     expect(phases).toContain("grabEnd");
-    // A subsequent fist pulse still produces expand (fist family unbroken).
+    // A subsequent held fist still collapses (fist family unbroken after a pinch).
     cb.onIntent.mockClear();
-    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeFist({ cx: 0.5 }));
-    for (let i = 0; i < 4; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
-    expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["expand"]);
+    for (let i = 0; i < 26; i++) interp.push((t += FPS), makeFist({ cx: 0.5 }));
+    expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["collapse"]);
   });
 
   it("14) open palm PUSHED toward the camera and held → exactly one halt intent", () => {

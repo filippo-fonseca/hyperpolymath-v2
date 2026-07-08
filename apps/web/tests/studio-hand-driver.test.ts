@@ -251,13 +251,16 @@ describe("HandTrackingDriver", () => {
     // A still open palm firing `halt` is the real reentrancy: its intent
     // subscriber calls stop() synchronously, from inside `interpreter.push`,
     // while `loop` is still on the stack. The loop must not resurrect itself.
-    const { landmarker, close } = makeFakeLandmarker([openHand(), openHand()]);
+    const { landmarker, close } = makeFakeLandmarker([openHand(), openHand(), openHand()]);
     const fake = makeFakeWebcam();
     const sched = makeScheduler();
 
     const driver = new HandTrackingDriver({
-      // holdMs 0 + generous drift ⇒ halt fires on the second still-open frame.
-      gesture: { haltHoldMs: 0, haltMaxDriftNx: 1 },
+      // holdMs 0 + generous drift + pushRatio 1 (push gate off) ⇒ halt arms over
+      // the still-open frames (frame 1 baselines size, frame 2 anchors the pushed
+      // dwell) and fires on frame 3. This test exercises stop() reentrancy, not
+      // the palm-push halt gate.
+      gesture: { haltHoldMs: 0, haltMaxDriftNx: 1, haltPushRatio: 1 },
       loadLandmarker: () => Promise.resolve(landmarker),
       acquireWebcam: () => Promise.resolve(fake.handle),
       now: () => 0,
@@ -272,13 +275,15 @@ describe("HandTrackingDriver", () => {
     await flush();
 
     fake.advance();
-    sched.tick(); // frame 1: anchors the halt dwell, reschedules normally
+    sched.tick(); // frame 1: baselines the palm size, reschedules normally
+    fake.advance();
+    sched.tick(); // frame 2: anchors the pushed dwell, reschedules normally
 
     expect(sink.emitIntent).not.toHaveBeenCalled();
     const scheduledBefore = sched.scheduleFrame.mock.calls.length;
 
     fake.advance();
-    sched.tick(); // frame 2: halt fires → stop() mid-push → must NOT reschedule
+    sched.tick(); // frame 3: halt fires → stop() mid-push → must NOT reschedule
 
     expect(sink.emitIntent).toHaveBeenCalledWith({ type: "halt" });
     // No frame scheduled after the mid-frame stop — the dead loop stays dead.
