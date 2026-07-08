@@ -179,4 +179,13 @@ describe("MouseKeyboardDriver — camera-traversal emulation (Alt-drag)", () => 
     et.emit("wheel", { deltaY: -100, cancelable: false });
     expect(sink.emitPhase).not.toHaveBeenCalled();
   });
+
+  it("a no-op Alt press leaves no stale click-suppression latch", () => {
+    // Alt down then up with NO movement and no wheel: not a real manipulation.
+    et.emit("pointerdown", { button: 0, altKey: true, clientX: 400, clientY: 300, timeStamp: 0 });
+    et.emit("pointerup", { button: 0, timeStamp: 5 });
+    // A later, unrelated plain click must still expand — the latch is not stuck.
+    et.emit("click", { button: 0, shiftKey: false });
+    expect(sink.emitIntent).toHaveBeenCalledWith({ type: "expand" });
+  });
 });

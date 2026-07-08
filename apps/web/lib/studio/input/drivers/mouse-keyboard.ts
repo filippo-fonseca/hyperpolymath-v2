@@ -45,6 +45,8 @@ export class MouseKeyboardDriver implements StudioInputDriver {
 
   /** True while an Alt+left-button camera drag is in progress. */
   private camDragging = false;
+  /** Whether the current camera drag actually moved (gates click suppression). */
+  private camMoved = false;
   /** Drag-origin (stage-normalized) so `dragMove` deltas are cumulative. */
   private camOriginNx = 0;
   private camOriginNy = 0;
@@ -88,6 +90,7 @@ export class MouseKeyboardDriver implements StudioInputDriver {
     if (this.camDragging) {
       this.camLastNx = nx;
       this.camLastNy = ny;
+      this.camMoved = true;
       this.emitCamDragMove();
     }
   };
@@ -100,6 +103,7 @@ export class MouseKeyboardDriver implements StudioInputDriver {
       const nx = rect && rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
       const ny = rect && rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
       this.camDragging = true;
+      this.camMoved = false;
       this.camOriginNx = nx;
       this.camOriginNy = ny;
       this.camLastNx = nx;
@@ -124,7 +128,9 @@ export class MouseKeyboardDriver implements StudioInputDriver {
     if (e.button !== 0) return;
     if (this.camDragging) {
       this.camDragging = false;
-      this.swipeFired = true; // swallow the click that terminates the drag
+      // Swallow the click that terminates a REAL manipulation only; a no-op
+      // Alt+click leaves no latch behind to swallow an unrelated later click.
+      if (this.camMoved) this.swipeFired = true;
       this.sink?.emitPhase({ type: "dragEnd" });
     }
     if (this.dragging) {
@@ -137,6 +143,7 @@ export class MouseKeyboardDriver implements StudioInputDriver {
     if (!this.camDragging) return;
     // Scroll up (deltaY < 0) ⇒ dolly IN ⇒ dz > 0.
     this.camDz += -e.deltaY * WHEEL_TO_DZ;
+    this.camMoved = true; // a dolly is a real manipulation too
     if (e.cancelable) e.preventDefault();
     this.emitCamDragMove();
   };

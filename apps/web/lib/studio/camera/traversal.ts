@@ -153,7 +153,9 @@ export function createCameraTraversal(
       }
     },
     getTarget(): Readonly<Vec3> {
-      return target;
+      // Defensive copy: never hand out the live anchor array, so a consumer can
+      // never alias-corrupt `target` (the `Readonly` is compile-time only).
+      return [target[0], target[1], target[2]];
     },
     goHome(): void {
       toHome();
