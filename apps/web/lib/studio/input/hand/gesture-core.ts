@@ -117,6 +117,14 @@ export type HandGestureConfig = {
    * fast); only release is time-graced.
    */
   pinchReleaseGraceMs: number;
+  /**
+   * Max hand-lost gap (ms) that a held pinch survives. When landmarks return
+   * within this window while `pinchActive`, the reacquire-reset is skipped so the
+   * drag anchor + filters live on across a single MediaPipe dropout (≤ this many
+   * ms). Kept ≤ `lostGraceMs` so the cursor never de-activates first. A longer
+   * loss still does the full transient reset.
+   */
+  pinchLostGraceMs: number;
   /** Continuous pinch-over-target dwell (ms) before a grab starts. */
   grabHoldMs: number;
   /** Deliberate palm-push held this long ⇒ halt. */
@@ -145,6 +153,7 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
   pinchReleaseGraceMs: 150,
+  pinchLostGraceMs: 200,
   grabHoldMs: 250,
   haltHoldMs: 1200,
   haltMaxDriftNx: 0.06,
@@ -375,8 +384,13 @@ export function createHandGestureInterpreter(
 
     // Reacquired after a null gap: reset transient state so no stale fist/filter
     // leaks across the gap (deviation: filters + fist state reset on reacquire).
+    // Exception — a held pinch survives a short dropout: if we were pinching and
+    // landmarks returned within `pinchLostGraceMs`, skip the reset so the drag
+    // anchor, filters, and pinch latch carry across the gap (the one-euro filters
+    // absorb the large dt) and the pan resumes without a stall or re-anchor.
     if (nullSince !== null) {
-      resetTransient();
+      const softReacquire = pinchActive && tMs - nullSince < cfg.pinchLostGraceMs;
+      if (!softReacquire) resetTransient();
       nullSince = null;
     }
 
