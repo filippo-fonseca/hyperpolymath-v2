@@ -317,13 +317,27 @@ describe("hand gesture interpreter", () => {
     expect(cb.onIntent.mock.calls.map(([i]) => i.type)).toEqual(["expand"]);
   });
 
-  it("14) still flat open palm held ~1s → exactly one halt intent", () => {
+  it("14) open palm PUSHED toward the camera and held → exactly one halt intent", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
-    for (; t <= DEFAULT_HAND_GESTURE.haltHoldMs + FPS; t += FPS) {
-      interp.push(t, makeOpenHand({ cx: 0.5 }));
+    // Baseline: a relaxed open palm at aiming distance sets the reference size.
+    interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.2 }));
+    // Then shove it toward the camera (larger apparent palm) and hold still. Give
+    // ample time for the smoothed size to clear the push gate + the dwell window.
+    for (t = FPS; t <= 3 * DEFAULT_HAND_GESTURE.haltHoldMs; t += FPS) {
+      interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.34 }));
     }
     expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(1);
+  });
+
+  it("14b) REGRESSION: a relaxed, still open palm (no push) never halts", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    // The natural aiming pose: open palm held steady at a constant distance.
+    for (; t <= 3 * DEFAULT_HAND_GESTURE.haltHoldMs; t += FPS) {
+      interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.2 }));
+    }
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(0);
   });
 
   it("15) a pinch never fires halt (open gate excludes pinch)", () => {
