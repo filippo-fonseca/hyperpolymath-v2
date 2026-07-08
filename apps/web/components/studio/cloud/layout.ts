@@ -13,6 +13,16 @@
 /** Golden angle in radians: π · (3 − √5). */
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // 2.399963229728653…
 
+/**
+ * Shared cloud layout constants — the single source of truth for tile placement.
+ * `WidgetCloud` renders the cap from these, and the focus-framing math resolves a
+ * widget's world position from the same values, so the visual layout and the
+ * camera framing can never drift apart.
+ */
+export const CLOUD_CENTER: readonly [number, number, number] = [0, 1.8, 0];
+export const CLOUD_RADIUS = 2.4;
+export const CLOUD_CAP_DEG = 70;
+
 export interface TileSlot {
   position: [number, number, number];
 }
@@ -21,7 +31,7 @@ export interface FibonacciCapOptions {
   /** Distance of each tile from `center` (meters). */
   radius: number;
   /** Cap origin in world space. */
-  center: [number, number, number];
+  center: readonly [number, number, number];
   /** Half-angle of the camera-facing cap, in degrees. */
   capDeg: number;
 }

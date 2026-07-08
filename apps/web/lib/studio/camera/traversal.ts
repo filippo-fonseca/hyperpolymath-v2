@@ -79,6 +79,29 @@ export interface CameraTraversal {
   goHome(): void;
   /** Full reset to home, clearing any in-progress drag (test/re-init hook). */
   reset(): void;
+  /**
+   * Auto-center focus: aim the camera at a framed widget position (clamped to
+   * the rails). The first `focusOn` snapshots the pre-focus vantage as the
+   * return target; a subsequent `focusOn` while already focused (paging to a
+   * neighbor widget) keeps that ORIGINAL return vantage, so a later `endFocus`
+   * always eases back to where focus began, not to an intermediate frame.
+   */
+  focusOn(camPos: Vec3): void;
+  /**
+   * Leave focus: ease back to the snapshotted pre-focus vantage. No-op when not
+   * focused (so a collapse after a manual takeover does nothing).
+   */
+  endFocus(): void;
+  /**
+   * Manual takeover of an in-flight focus tween. Abandons the tween at the live
+   * camera position (`camPos`, clamped) and drops focus memory, so a later
+   * `endFocus` will not yank the camera away from where the user panned. A
+   * strict no-op when not focused — the rig calls it unconditionally on every
+   * `dragStart`, and plain manual panning must be left untouched.
+   */
+  interruptAt(camPos: Vec3): void;
+  /** Whether an auto-center focus is currently active. */
+  isFocused(): boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number): number =>
@@ -101,12 +124,24 @@ export function createCameraTraversal(
   // Set when a widget grab is detected mid-drag; the rest of that drag is the
   // hub's grab, not a camera pan. Cleared on the terminal `dragEnd`.
   let suppressed = false;
+  // Auto-center focus state. `focused` is true while framing an expanded widget;
+  // `returnTarget` is the vantage held just before focus began (restored on blur).
+  let focused = false;
+  let returnTarget: Vec3 | null = null;
+
+  const clampTarget = (pos: Vec3): Vec3 => [
+    clamp(pos[0], config.boundsX[0], config.boundsX[1]),
+    clamp(pos[1], config.boundsY[0], config.boundsY[1]),
+    clamp(pos[2], config.boundsZ[0], config.boundsZ[1]),
+  ];
 
   const toHome = (): void => {
     target = [home[0], home[1], home[2]];
     base = [home[0], home[1], home[2]];
     dragging = false;
     suppressed = false;
+    focused = false;
+    returnTarget = null;
   };
 
   return {
@@ -162,6 +197,34 @@ export function createCameraTraversal(
     },
     reset(): void {
       toHome();
+    },
+    focusOn(camPos: Vec3): void {
+      // Snapshot the pre-focus vantage only on the FIRST focus; paging between
+      // widgets keeps the original return target.
+      if (!focused) {
+        returnTarget = [target[0], target[1], target[2]];
+        focused = true;
+      }
+      target = clampTarget(camPos);
+      base = [target[0], target[1], target[2]];
+    },
+    endFocus(): void {
+      if (!focused) return;
+      const back = returnTarget ?? [home[0], home[1], home[2]];
+      target = [back[0], back[1], back[2]];
+      base = [back[0], back[1], back[2]];
+      focused = false;
+      returnTarget = null;
+    },
+    interruptAt(camPos: Vec3): void {
+      if (!focused) return; // manual panning is untouched
+      target = clampTarget(camPos);
+      base = [target[0], target[1], target[2]];
+      focused = false;
+      returnTarget = null;
+    },
+    isFocused(): boolean {
+      return focused;
     },
   };
 }
