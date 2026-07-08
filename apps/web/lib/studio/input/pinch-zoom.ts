@@ -17,10 +17,11 @@
  *
  * Robustness is the whole point (hand jitter must never cause runaway zoom):
  *  - the caller feeds a one-euro-smoothed ratio;
- *  - a `deadzone` around the baseline maps to z = 0, with the shaping curve
- *    subtracting the deadzone so z is continuous at the knee (no jump);
- *  - a hysteresis latch (enter at `deadzone`, exit at the smaller `exitDeadzone`)
- *    stops ratio noise at the knee from toggle-chattering the active state;
+ *  - a `deadzone` around the baseline maps to z = 0 (jitter never zooms);
+ *  - a hysteresis latch (arm at `deadzone`, disarm at the smaller `exitDeadzone`)
+ *    stops ratio noise at the knee from toggle-chattering the active state; the
+ *    shaping curve subtracts `exitDeadzone` while armed so z eases continuously
+ *    to zero at deactivation and never sign-flips inside the hysteresis band;
  *  - an `emitQuantum` holds the previous z for sub-quantum changes, so a still
  *    pinched hand yields a constant z ⇒ a constant camera target ⇒ the rig
  *    settles (the demand-frame loop is preserved);
@@ -121,16 +122,21 @@ export function createPinchZoom(config?: Partial<PinchZoomConfig>): PinchZoom {
     const c = r0 - ratio; // positive ⇒ tighter than baseline ⇒ zoom in
     const mag = Math.abs(c);
 
+    // Hysteresis latch: arm only once closedness clears the (larger) deadzone;
+    // stay armed until it falls back below the (smaller) exitDeadzone. Jitter
+    // that never clears the deadzone can't arm it; noise at the knee can't
+    // toggle-chatter it back off.
     if (active) {
       if (mag < cfg.exitDeadzone) active = false;
     } else if (mag > cfg.deadzone) {
       active = true;
     }
 
-    // Subtract the deadzone from the shaped magnitude so z is continuous at the
-    // knee (no jump when the latch first engages).
+    // While armed, shape from the exitDeadzone floor: the magnitude there is
+    // always ≥ 0 (we disarm at exactly that floor), so z is continuous down to
+    // zero at deactivation and never sign-flips inside the hysteresis band.
     const target = active
-      ? clampAbs(Math.sign(c) * (mag - cfg.deadzone) * cfg.gain, 1)
+      ? clampAbs(Math.sign(c) * Math.max(0, mag - cfg.exitDeadzone) * cfg.gain, 1)
       : 0;
 
     if (Math.abs(target - z) >= cfg.emitQuantum) z = target;
