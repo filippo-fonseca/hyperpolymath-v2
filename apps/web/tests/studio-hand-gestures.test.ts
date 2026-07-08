@@ -235,26 +235,6 @@ describe("hand gesture interpreter", () => {
     expect(cb.onIntent).not.toHaveBeenCalled();
   });
 
-  it("4b) a steady index point held past the dwell → exactly one expand", () => {
-    const interp = createHandGestureInterpreter(cb);
-    let t = 0;
-    for (; t <= 2 * DEFAULT_HAND_GESTURE.pointDwellMs; t += FPS) {
-      interp.push(t, makePoint({ cx: 0.5 }));
-    }
-    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "expand")).toHaveLength(1);
-  });
-
-  it("4c) a forward index TAP opens immediately, before the dwell elapses", () => {
-    const interp = createHandGestureInterpreter(cb);
-    let t = 0;
-    // Commit the point at rest, then a quick forward poke (rising -z) — fires well
-    // under the dwell window, so it's the tap path, not the hold path.
-    for (let i = 0; i < 5; i++) interp.push((t += FPS), makePoint({ cx: 0.5, forward: 0 }));
-    for (let i = 0; i < 6; i++) interp.push((t += FPS), makePoint({ cx: 0.5, forward: 0.8 }));
-    expect(t).toBeLessThan(DEFAULT_HAND_GESTURE.pointDwellMs);
-    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "expand")).toHaveLength(1);
-  });
-
   it("5) fist held past holdMs → exactly one collapse; release → no expand", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
@@ -309,20 +289,6 @@ describe("hand gesture interpreter", () => {
     // Palm keeps moving during the fist; cursor must NOT emit new coordinates.
     for (const cx of [0.55, 0.6, 0.65]) interp.push((t += FPS), makeFist({ cx }));
     expect(cb.onCursorMove).not.toHaveBeenCalled();
-  });
-
-  it("9) a wandering point never opens — only a still (or tapped) point does", () => {
-    const interp = createHandGestureInterpreter(cb);
-    let t = 0;
-    // Keep the point sliding sideways past the drift gate every frame: the dwell
-    // clock re-anchors constantly and never matures, so no expand for 2× the dwell.
-    let cx = 0.3;
-    for (; t <= 2 * DEFAULT_HAND_GESTURE.pointDwellMs; t += FPS) {
-      cx += 0.08; // > pointMaxDriftNx once remapped
-      if (cx > 0.7) cx = 0.3;
-      interp.push(t, makePoint({ cx }));
-    }
-    expect(cb.onIntent).not.toHaveBeenCalled();
   });
 
   it("10) committed pinch → dragStart; cursor frozen; no fist intents", () => {
@@ -463,65 +429,78 @@ describe("hand gesture interpreter", () => {
     expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "halt")).toHaveLength(0);
   });
 
-  it("16) tightening the thumb-index gap dollies in; widening dollies out", () => {
+  it("16) a growing palm (hand approaching) dollies in; a shrinking palm dollies out", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
-    interp.push(t, makeOpenHand({ cx: 0.5 }));
-    // Engage + settle the smoothed ratio at a moderate gap (baseline for zoom).
-    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.3 }));
-    // Squeeze tighter and hold: closer than the baseline ⇒ dolly IN (dz > 0).
-    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.1 }));
-    const zoomedIn = lastDrag(cb)!.dz;
-    expect(zoomedIn).toBeGreaterThan(0);
-    // Widen well past the baseline (still inside the pinch band, gap < offRatio)
-    // and hold: wider than the baseline ⇒ dolly OUT relative to the squeeze.
-    for (let i = 0; i < 10; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.5 }));
-    const widened = lastDrag(cb)!.dz;
-    expect(widened).toBeLessThan(zoomedIn);
+    interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.2 }));
+    // Engage the pinch and settle at the baseline palm size (dolly ≈ 0 here).
+    for (let i = 0; i < 6; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.2 }));
+    // Grow the palm (hand moves toward the camera): bigger than baseline ⇒ dolly IN.
+    for (let i = 0; i < 15; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.3 }));
+    const approached = lastDrag(cb)!.dz;
+    expect(approached).toBeGreaterThan(0);
+    // Shrink well below the baseline (hand recedes): smaller ⇒ dolly OUT (dz < 0).
+    for (let i = 0; i < 15; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.14 }));
+    const receded = lastDrag(cb)!.dz;
+    expect(receded).toBeLessThan(0);
+    expect(receded).toBeLessThan(approached);
   });
 
-  it("17) panning at a constant gap dollies nothing (pan/zoom decoupled)", () => {
+  it("17) panning at a constant palm size dollies nothing (pan/dolly decoupled)", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
-    interp.push(t, makeOpenHand({ cx: 0.5 }));
-    // Hold long enough that the smoothed ratio settles and the dolly stops moving.
-    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.2 }));
+    interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.2 }));
+    // Hold at the baseline size long enough that pan and dolly both settle.
+    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.2 }));
     const settled = lastDrag(cb)!;
-    // Translate the whole hand across frame while the gap is held fixed. The
-    // thumb tip is not a palm anchor, so the pan can't leak into the dolly.
+    // Translate the hand across frame at a FIXED palm size. Pan reads the palm
+    // centroid; dolly reads palm size — a constant size can't leak into the dolly.
     for (const cx of [0.56, 0.62, 0.68, 0.74]) {
-      interp.push((t += FPS), makePinchHand({ cx, gap: 0.2 }));
+      interp.push((t += FPS), makePinchHand({ cx, scale: 0.2 }));
     }
     const panned = lastDrag(cb)!;
     expect(Math.abs(panned.dx)).toBeGreaterThan(Math.abs(settled.dx)); // pan grows
     expect(panned.dz).toBe(settled.dz); // dolly untouched by the pan
   });
 
-  it("18) modulating the gap in place dollies without panning (decoupled)", () => {
+  it("18) a still, steadily-held pinch holds a steady dolly (emit quantum)", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
-    interp.push(t, makeOpenHand({ cx: 0.5 }));
-    for (let i = 0; i < 20; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.35 }));
-    const settled = lastDrag(cb)!;
-    // Squeeze in place (cx fixed): only the thumb/index gap changes, and neither
-    // point is a palm anchor, so the centroid — and thus dx/dy — never moves.
-    for (let i = 0; i < 20; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.1 }));
-    const squeezed = lastDrag(cb)!;
-    expect(squeezed.dz).toBeGreaterThan(settled.dz); // dolly moved
-    expect(squeezed.dx).toBe(settled.dx); // no pan
-    expect(squeezed.dy).toBe(settled.dy);
+    interp.push(t, makeOpenHand({ cx: 0.5, scale: 0.2 }));
+    // Engage at the baseline, then approach and hold: once the dolly target stops
+    // moving, the emit quantum pins z constant frame-to-frame (rig settles).
+    for (let i = 0; i < 6; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.2 }));
+    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.3 }));
+    const first = lastDrag(cb)!.dz;
+    expect(first).toBeGreaterThan(0);
+    for (let i = 0; i < 8; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, scale: 0.3 }));
+    const later = lastDrag(cb)!.dz;
+    expect(later).toBe(first); // identical size ⇒ identical target ⇒ camera settles
   });
 
-  it("19) a still, steadily-held pinch holds a steady dolly (emit quantum)", () => {
+  it("19) bloom-open: a quick pinch sprung open emits one expand; cursor frozen while pinched", () => {
     const interp = createHandGestureInterpreter(cb);
     let t = 0;
     interp.push(t, makeOpenHand({ cx: 0.5 }));
-    // Settle the smoothed ratio, then sample two late frames: once the dolly
-    // target stops moving, the emit quantum holds z constant frame-to-frame.
-    for (let i = 0; i < 50; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.15 }));
-    const first = lastDrag(cb)!.dz;
-    for (let i = 0; i < 8; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5, gap: 0.15 }));
-    const later = lastDrag(cb)!.dz;
-    expect(later).toBe(first); // identical gap ⇒ identical target ⇒ camera settles
+    // Commit a pinch and hold it briefly, well under grabHoldMs (350) ⇒ a bloom.
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePinchHand({ cx: 0.5 }));
+    cb.onCursorMove.mockClear();
+    interp.push((t += FPS), makePinchHand({ cx: 0.5 })); // still pinched
+    expect(cb.onCursorMove).not.toHaveBeenCalled(); // cursor frozen while pinched
+    // Spring the hand open and sustain past the release grace so the latch falls.
+    for (let i = 0; i < 8; i++) interp.push((t += FPS), makeOpenHand({ cx: 0.5 }));
+    expect(cb.onIntent.mock.calls.filter(([i]) => i.type === "expand")).toHaveLength(1);
+    expect(phaseTypes(cb)).not.toContain("grabStart"); // released before the grab threshold
+  });
+
+  it("20) a point pose still steers the cursor (open||point steering preserved)", () => {
+    const interp = createHandGestureInterpreter(cb);
+    let t = 0;
+    for (let i = 0; i < 4; i++) interp.push((t += FPS), makePoint({ cx: 0.5 })); // commit point
+    cb.onCursorMove.mockClear();
+    // Unlike a fist or a pinch (both freeze the cursor), a moving point tracks it.
+    for (const cx of [0.55, 0.6, 0.65]) interp.push((t += FPS), makePoint({ cx }));
+    expect(cb.onCursorMove).toHaveBeenCalled();
+    expect(cb.onIntent).not.toHaveBeenCalled(); // steering only — a point never opens
   });
 });

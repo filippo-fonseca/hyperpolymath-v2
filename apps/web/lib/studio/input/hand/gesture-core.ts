@@ -8,15 +8,22 @@
  * Keeping it MediaPipe-free means the whole thing is unit-testable with synthetic
  * hands and zero browser/GPU dependencies.
  *
- * Gesture disambiguation (deviation 1) — the three fist-family gestures are made
- * mutually exclusive:
- *   - fist + lateral palm motion  → swipe (shared recognizer), latches.
- *   - quick fist pulse (close→open, stationary, < holdMs) → `expand` (air-click).
+ * Three non-colliding gesture families:
+ *   - open OR point hand: the cursor tracks the index fingertip (steering).
+ *   - pinch (thumb-index): camera navigation. A moving pinch pans (palm centroid)
+ *     and dollies (palm-depth via pinch-dolly); the cursor is FROZEN throughout,
+ *     and a pinch held over a widget past `grabHoldMs` becomes a grab (pinch-hold).
+ *   - pinch-bloom: a quick pinch that springs back open under `grabHoldMs` emits
+ *     `expand` (pinch-bloom recognizer). The exact `grabHoldMs` split gives grab
+ *     and bloom mutual exclusion: still pinched at T ⇒ grab, released before ⇒ bloom.
+ *
+ * The fist family stays close-only, mutually exclusive with the above:
+ *   - fist + lateral palm motion → swipe (shared recognizer), latches.
  *   - fist held >= holdMs (no swipe) → `collapse`, fired once at the threshold.
  *
- * Cursor freeze (deviation 2) — the cursor tracks the index fingertip, which
- * curls into the palm as a fist closes; so while a fist is held the cursor is
- * frozen (no moves emitted) and swipe samples come from the palm centroid.
+ * Cursor freeze — the cursor tracks the index fingertip, which curls into the
+ * palm as a fist closes; so while a fist is held (or a pinch is engaged) the
+ * cursor is frozen (no moves emitted) and swipe samples come from the palm centroid.
  */
 
 import {
@@ -30,6 +37,11 @@ import {
   type OpenPalmHaltRecognizer,
 } from "../open-palm-halt-recognizer";
 import {
+  createPinchBloomRecognizer,
+  type PinchBloomRecognizer,
+} from "../pinch-bloom-recognizer";
+import { createPinchDolly, type PinchDolly } from "../pinch-dolly";
+import {
   createPinchDragRecognizer,
   type PinchDragRecognizer,
 } from "../pinch-drag-recognizer";
@@ -37,11 +49,6 @@ import {
   createPinchHoldRecognizer,
   type PinchHoldRecognizer,
 } from "../pinch-hold-recognizer";
-import { createPinchZoom, type PinchZoom } from "../pinch-zoom";
-import {
-  createPointOpenRecognizer,
-  type PointOpenRecognizer,
-} from "../point-open-recognizer";
 import {
   createSwipeRecognizer,
   type SwipeConfig,
@@ -96,12 +103,6 @@ export type HandGestureConfig = {
   lostGraceMs: number;
   /** Fist held at least this long (no swipe) ⇒ collapse. */
   holdMs: number;
-  /** Still-point dwell (ms) that opens a widget without a forward tap. */
-  pointDwellMs: number;
-  /** Reticle drift (normalized) that restarts the point-open dwell clock. */
-  pointMaxDriftNx: number;
-  /** Fingertip forward-depth rise past its baseline that counts as an open tap. */
-  pointJabDelta: number;
   /** Pinch engages when the thumb-index ratio drops below this. */
   pinchOnRatio: number;
   /** Pinch releases when the thumb-index ratio rises above this (hysteresis). */
@@ -122,8 +123,14 @@ export type HandGestureConfig = {
    * loss still does the full transient reset.
    */
   pinchLostGraceMs: number;
-  /** Continuous pinch-over-target dwell (ms) before a grab starts. */
+  /**
+   * Continuous pinch dwell (ms) that separates a grab from a bloom. Pinch-hold
+   * and pinch-bloom SHARE this threshold, so they are mutually exclusive: still
+   * pinched at T ⇒ grab, released before T ⇒ bloom-open.
+   */
   grabHoldMs: number;
+  /** Grace (ms) after a bloom release for the open pose to catch up (debounce lag). */
+  bloomWindowMs: number;
   /** Deliberate palm-push held this long ⇒ halt. */
   haltHoldMs: number;
   /** Palm drift (normalized) that re-anchors the halt dwell clock. */
@@ -144,14 +151,12 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   openMinExtended: 3,
   lostGraceMs: 250,
   holdMs: 500,
-  pointDwellMs: 500,
-  pointMaxDriftNx: 0.06,
-  pointJabDelta: 0.1,
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
   pinchReleaseGraceMs: 150,
   pinchLostGraceMs: 200,
-  grabHoldMs: 250,
+  grabHoldMs: 350,
+  bloomWindowMs: 150,
   haltHoldMs: 1200,
   haltMaxDriftNx: 0.06,
   haltPushRatio: 1.28,
@@ -285,10 +290,8 @@ export function createHandGestureInterpreter(
 
   let filter = new OneEuroFilter2D(cfg.oneEuro);
   let palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
+  // Smooths the raw palm size (wrist↔middle-MCP), the pinch-dolly depth signal.
   let sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
-  let depthFilter = new OneEuroFilter(cfg.dragOneEuro);
-  // Smooths the raw thumb-index pinch ratio before it drives camera zoom.
-  let zoomFilter = new OneEuroFilter(cfg.dragOneEuro);
   let fingerExtended: boolean[] = [true, true, true, true];
   let pose: HandPose = "open";
   let candidatePose: HandPose | null = null;
@@ -326,36 +329,30 @@ export function createHandGestureInterpreter(
     (e) => callbacks.onPhase(e),
     { holdMs: cfg.grabHoldMs },
   );
-  // Turns the smoothed thumb-index gap into an absolute zoom scalar z ∈ [-1, +1]
-  // fed straight into pinch-drag's `depth` channel (replacing the palm-size `ln`
-  // depth proxy). `offRatio`/`r0Max` mirror the pinch gates so the zoom baseline
-  // and its release-freeze track the same thumb-index geometry the latch uses.
-  const pinchZoom: PinchZoom = createPinchZoom({
-    offRatio: cfg.pinchOffRatio,
-    r0Max: cfg.pinchOnRatio,
-  });
+  // Turns the smoothed palm size (a monotonic depth proxy) into an absolute dolly
+  // scalar z ∈ [-1, +1] fed straight into pinch-drag's `depth` channel. Baselined
+  // on engage (z = 0 there by construction, so no engage lurch), and frozen while
+  // the pinch is releasing so opening the hand never emits a dolly spurt.
+  const pinchDolly: PinchDolly = createPinchDolly();
   const halt: OpenPalmHaltRecognizer = createOpenPalmHaltRecognizer(
     () => callbacks.onIntent({ type: "halt" }),
     { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx, pushRatio: cfg.haltPushRatio },
   );
 
-  // Point-tap opens a widget (replaces the drift-prone fist pulse). The reticle
-  // is already over the target via the point's cursor, so the hub attaches it.
-  const pointOpen: PointOpenRecognizer = createPointOpenRecognizer(
+  // Pinch-bloom opens a widget: a quick pinch released into an open hand under
+  // `grabHoldMs`. The cursor is FROZEN while pinched, so hover stays pinned to
+  // whatever the reticle was over at pinch-start; the hub upgrades the targetless
+  // `expand` from that pinned hover. Shares `grabHoldMs` with pinch-hold, so grab
+  // and bloom are mutually exclusive (held past T ⇒ grab, released before ⇒ bloom).
+  const pinchBloom: PinchBloomRecognizer = createPinchBloomRecognizer(
     () => callbacks.onIntent({ type: "expand" }),
-    {
-      dwellMs: cfg.pointDwellMs,
-      maxDriftNx: cfg.pointMaxDriftNx,
-      jabDelta: cfg.pointJabDelta,
-    },
+    { holdMs: cfg.grabHoldMs, bloomWindowMs: cfg.bloomWindowMs },
   );
 
   function resetTransient(): void {
     filter = new OneEuroFilter2D(cfg.oneEuro);
     palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
     sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
-    depthFilter = new OneEuroFilter(cfg.dragOneEuro);
-    zoomFilter = new OneEuroFilter(cfg.dragOneEuro);
     fingerExtended = [true, true, true, true];
     pose = "open";
     candidatePose = null;
@@ -372,9 +369,9 @@ export function createHandGestureInterpreter(
     // Terminal events so a hand-lost gap never strands a consumer mid-gesture.
     pinchDrag.reset();
     pinchHold.reset();
-    pinchZoom.reset();
+    pinchDolly.reset();
     halt.reset();
-    pointOpen.reset();
+    pinchBloom.reset();
   }
 
   function push(tMs: number, landmarks: Pt[] | null): void {
@@ -472,15 +469,14 @@ export function createHandGestureInterpreter(
     const sPalm = palmFilter.filter(tMs, palm.nx, palm.ny);
     const sSize = sizeFilter.filter(tMs, computePalmSizeRaw(landmarks));
 
-    // Camera zoom rides the thumb-index gap (scale/depth-invariant), not palm
-    // size. Smooth the raw ratio first (guarding the degenerate Infinity so the
-    // filter never latches a bad frame), then map it to an absolute scalar the
-    // pinch-drag `depth` channel dollies against. Because the thumb tip is not a
-    // palm anchor, this is decoupled from pan by construction.
-    const sRatio = Number.isFinite(pinchRatio)
-      ? zoomFilter.filter(tMs, pinchRatio)
-      : pinchRatio;
-    const zoom = pinchZoom.push(tMs, sRatio, pinchActive);
+    // Camera dolly rides the smoothed palm size (a monotonic depth proxy): a hand
+    // approaching the camera grows the palm ⇒ dolly in. pinch-dolly baselines on
+    // engage (z = 0 there, so no lurch) and freezes while the pinch is releasing
+    // (`unpinchSince` set) so opening the hand never emits a spurious dolly. The
+    // scalar feeds pinch-drag's `depth` channel, which diffs it against its engage
+    // origin, so dz = z flows to the camera. Pan reads the palm centroid and dolly
+    // reads palm size, so the two are decoupled.
+    const dolly = pinchDolly.push(tMs, sSize, pinchActive, unpinchSince !== null);
 
     // --- Pinch mode (deviation D5): top-level, mutually exclusive with the fist
     // family. While pinching we freeze the cursor, clear any fist anchors, and
@@ -499,9 +495,9 @@ export function createHandGestureInterpreter(
       t: tMs,
       nx: sPalm.x,
       ny: sPalm.y,
-      // Absolute thumb-index zoom scalar (z ∈ [-1, +1]); pinch-drag diffs it
+      // Absolute palm-depth dolly scalar (z ∈ [-1, +1]); pinch-drag diffs it
       // against its engage origin, so dz = z flows to the camera dolly directly.
-      depth: zoom,
+      depth: dolly,
       engaged: pinchActive,
     });
     pinchHold.push({ t: tMs, nx: sPalm.x, ny: sPalm.y, engaged: pinchActive });
@@ -513,17 +509,13 @@ export function createHandGestureInterpreter(
       size: sSize,
     });
 
-    // Point-open: aim the index at a widget, then tap forward or hold to open.
-    // `forward` = -z (bigger ⇒ nearer the camera); smoothed to tame tracker jitter.
-    const pointTarget = computeCursorTarget(landmarks, cfg);
-    const sForward = depthFilter.filter(tMs, -landmarks[INDEX_TIP]!.z);
-    pointOpen.push({
-      t: tMs,
-      pointing: pose === "point" && !pinchActive,
-      nx: pointTarget.nx,
-      ny: pointTarget.ny,
-      forward: sForward,
-    });
+    // Pinch-bloom: a quick pinch released into an open hand emits `expand`. It
+    // runs every frame (before the pinch early-return below) so it observes both
+    // the engaged frames and the release edge. `openPose` gates the release: a
+    // pinch that springs open blooms; a pinch that curls into a fist never does.
+    // The cursor is frozen while pinched, so hover stays pinned to pinch-start and
+    // the hub upgrades the targetless `expand` from that pinned hover.
+    pinchBloom.push({ t: tMs, engaged: pinchActive, openPose: pose === "open" });
 
     if (pinchActive) {
       // Skip pose-edge / swipe / collapse / cursor entirely while pinching.
@@ -531,9 +523,9 @@ export function createHandGestureInterpreter(
       return;
     }
 
-    // --- Pose edges. A fist now only closes (collapse) / swipes; opening is the
-    // point-tap above. Edges fire on any non-fist⇄fist transition so entering a
-    // fist from a point (not just open) still anchors the gesture. ---
+    // --- Pose edges. A fist only closes (collapse) / swipes; opening a widget is
+    // the pinch-bloom above. Edges fire on any non-fist⇄fist transition so entering
+    // a fist from a point (not just open) still anchors the gesture. ---
     if (prevPose !== "fist" && pose === "fist") {
       // Rising edge: anchor the fist gesture and freeze the cursor.
       fistStart = tMs;
