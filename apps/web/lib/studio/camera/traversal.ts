@@ -11,10 +11,11 @@
  * opposite along pan and dollies with palm depth):
  *  - `dx,dy` are CUMULATIVE normalized cursor deltas from the drag origin (U0
  *    contract). `ny` grows downward, so a downward hand yields `dy > 0`.
- *  - `dz` is the cumulative thumb-index zoom-scalar delta (`z ∈ [-1, +1]`, +1 =
- *    fully squeezed): a tighter pinch than the drag origin ⇒ `dz > 0` ⇒ dolly IN,
- *    a widening pinch ⇒ `dz < 0` ⇒ dolly OUT. (This replaced the old palm-size
- *    `ln` depth proxy, which coupled zoom to pan as the hand translated.)
+ *  - `dz` is the cumulative palm-depth dolly-scalar delta (`z ∈ [-1, +1]`, +1 =
+ *    palm fully grown, i.e. the hand pushed toward the camera): a hand nearer than
+ *    the drag origin ⇒ `dz > 0` ⇒ dolly IN, a hand withdrawn ⇒ `dz < 0` ⇒ dolly
+ *    OUT. (The palm-size signal from pinch-dolly.ts; it replaced the thumb-index
+ *    gap zoom, which fought the pinch latch as the gap squeezed toward threshold.)
  *  - Because deltas are cumulative, the target is recomputed from a snapshotted
  *    baseline each move (anchoring, not integration) — drift-free, and a dropped
  *    frame costs nothing.
@@ -41,7 +42,7 @@ export interface CameraTraversalConfig {
   panGainX: number;
   /** Meters of camera pan per unit of cumulative normalized drag (Y axis). */
   panGainY: number;
-  /** Meters of dolly per unit of cumulative thumb-index zoom-scalar delta. */
+  /** Meters of dolly per unit of cumulative palm-depth dolly-scalar delta. */
   dollyGain: number;
   /** Inclusive AABB rail for camera X (meters). */
   boundsX: [number, number];
@@ -56,10 +57,10 @@ export interface CameraTraversalConfig {
 /**
  * Principled starting constants (tunable live by the rig owner):
  *  - `panGain ≈ 6` ⇒ a full-stage drag pans ~6 m.
- *  - `dollyGain ≈ 4` ⇒ a full squeeze (zoom scalar 1) dollies ~4 m.
- *  - `z ∈ [3.2, 9]` keeps the camera ≥0.8 m clear of the nearest tile face
- *    (cap radius 2.4 around `[0,1.8,0]`) and on the +Z side the cap layout
- *    assumes; `y ≥ 0.6` stays above any future floor; the rails prevent runaway.
+ *  - `dollyGain ≈ 4` ⇒ a full palm-depth push (dolly scalar 1) dollies ~4 m.
+ *  - `z ∈ [3.2, 9]` keeps the camera clear of the tiles (every arc slot sits
+ *    ahead of z = 3.2, the nearest bound) on the +Z side the layout assumes;
+ *    `y ≥ 0.6` stays above any future floor; the rails prevent runaway.
  */
 export const DEFAULT_CAMERA_TRAVERSAL_CONFIG: CameraTraversalConfig = {
   panGainX: 6,
@@ -158,7 +159,7 @@ export function createCameraTraversal(
         case "dragMove": {
           if (!dragging || suppressed) break;
           // Grab-the-world signs: hand right (dx>0) ⇒ camera LEFT; hand down
-          // (dy>0, ny grows down) ⇒ camera UP; tighter pinch (dz>0) ⇒ dolly IN.
+          // (dy>0, ny grows down) ⇒ camera UP; hand toward camera (dz>0) ⇒ dolly IN.
           // Per-axis clamp so a railed axis never poisons the others.
           target = [
             clamp(base[0] - phase.dx * config.panGainX, config.boundsX[0], config.boundsX[1]),
