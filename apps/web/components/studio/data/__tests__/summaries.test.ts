@@ -422,6 +422,23 @@ describe("summarizeProjects", () => {
     expect(s.state).toBe("ok");
   });
 
+  it("excludes expired projects/classes even without an explicit archivedAt", () => {
+    const s = summarizeProjects([
+      project({ id: "open", name: "Open", endDate: "2999-01-01" }),
+      project({ id: "past", name: "Past", endDate: "2020-01-01" }),
+      project({
+        id: "oldClass",
+        name: "Old Class",
+        isClass: true,
+        semesterTerm: "spring",
+        semesterYear: 2020,
+      }),
+    ]);
+    expect(s.badge).toBe(1);
+    expect(s.headline).toBe("Open");
+    expect(s.subline).toBeNull();
+  });
+
   it("headline picks next-ending: endDate asc, then orderIndex, then name", () => {
     const s = summarizeProjects([
       project({ id: "far", name: "Far", endDate: "2026-12-01" }),

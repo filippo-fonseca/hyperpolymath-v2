@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useStudioProjects } from "@/components/studio/data/hooks";
 import type { ProjectRow } from "@/app/actions/projects";
+import { isProjectExpired } from "@/lib/projects/archive-status";
 
 /**
  * ProjectsFocus — a read-only roster of open projects REBUILT for the overlay
@@ -17,7 +18,7 @@ import type { ProjectRow } from "@/app/actions/projects";
 /** Open projects, next-ending first — mirrors summarizeProjects' ordering. */
 function orderOpen(projects: ProjectRow[]): ProjectRow[] {
   return projects
-    .filter((p) => p.archivedAt === null)
+    .filter((p) => p.archivedAt === null && !isProjectExpired(p))
     .sort((a, b) => {
       if (a.endDate !== b.endDate) {
         if (a.endDate === null) return 1;

@@ -12,6 +12,7 @@ import type { ProjectRow } from "@/app/actions/projects";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import type { PersonWithStats } from "@/lib/db/queries/people";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
+import { isProjectExpired } from "@/lib/projects/archive-status";
 import type {
   CalendarData,
   HabitsData,
@@ -231,7 +232,14 @@ export function summarizeJournal(journal: JournalTodayData): StudioTileSummary {
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 export function summarizeProjects(projects: ProjectRow[]): StudioTileSummary {
-  const open = projects.filter((p) => p.archivedAt === null);
+  // Issue #55: a class past its semester, or a project past its end date, counts
+  // as archived even without an explicit archivedAt. getProjectsForCurrentUser
+  // returns unsynthesized rows, so mirror sidebar.ts and drop expired projects
+  // here — otherwise the badge over-counts and an expired project can become the
+  // "next-ending" headline.
+  const open = projects.filter(
+    (p) => p.archivedAt === null && !isProjectExpired(p),
+  );
 
   // Next-ending open project: endDate asc (nulls last), then orderIndex, then
   // name. `endDate` is a YYYY-MM-DD string (date column), so lexical compare is
