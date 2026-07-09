@@ -8,8 +8,13 @@ import {
   __resetZoneAssignment,
   getDndState,
   getZoneAssignment,
+  insertWidgetAtZone,
+  insertWidgetIntoAssignment,
   moveWidgetToZone,
   reflowAssignment,
+  removeWidget,
+  removeWidgetFromAssignment,
+  replaceAssignment,
   setDndState,
   subscribeDndState,
   subscribeZoneAssignment,
@@ -158,6 +163,109 @@ describe("zone-assignment store", () => {
 
       setDndState("tasks", 4);
       expect(getDndState()).not.toBe(s);
+    });
+  });
+
+  describe("removeWidgetFromAssignment (pure)", () => {
+    it("drops the id and closes the gap", () => {
+      const next = removeWidgetFromAssignment([...STUDIO_WIDGET_ORDER], "agenda");
+      expect(next).toEqual([
+        "tasks",
+        "captures",
+        "habits",
+        "journal",
+        "projects",
+        "areas",
+        "people",
+      ]);
+      expect(next).toHaveLength(STUDIO_WIDGET_ORDER.length - 1);
+    });
+
+    it("returns the same reference for an absent id", () => {
+      const start = [...STUDIO_WIDGET_ORDER];
+      expect(removeWidgetFromAssignment(start, "nope" as StudioWidgetId)).toBe(start);
+    });
+  });
+
+  describe("insertWidgetIntoAssignment (pure)", () => {
+    it("splices the id in at the target zone", () => {
+      const base: StudioWidgetId[] = ["tasks", "captures", "agenda"];
+      expect(insertWidgetIntoAssignment(base, "habits", 0)).toEqual([
+        "habits",
+        "tasks",
+        "captures",
+        "agenda",
+      ]);
+    });
+
+    it("clamps an out-of-range zone to the end (append)", () => {
+      const base: StudioWidgetId[] = ["tasks", "captures"];
+      expect(insertWidgetIntoAssignment(base, "habits", 99)).toEqual([
+        "tasks",
+        "captures",
+        "habits",
+      ]);
+    });
+
+    it("returns the same reference when the id is already present", () => {
+      const base: StudioWidgetId[] = ["tasks", "captures"];
+      expect(insertWidgetIntoAssignment(base, "tasks", 0)).toBe(base);
+    });
+  });
+
+  describe("removeWidget / insertWidgetAtZone (store writers)", () => {
+    it("removeWidget drops the id and emits once, then no-ops when absent", () => {
+      let calls = 0;
+      const unsub = subscribeZoneAssignment(() => {
+        calls += 1;
+      });
+
+      removeWidget("tasks"); // present → emit
+      removeWidget("tasks"); // now absent → no-op
+
+      expect(getZoneAssignment()).not.toContain("tasks");
+      expect(calls).toBe(1);
+      unsub();
+    });
+
+    it("insertWidgetAtZone appends and is idempotent for an owned id", () => {
+      replaceAssignment(["tasks", "captures"]);
+      insertWidgetAtZone("habits", 2); // append
+      expect(getZoneAssignment()).toEqual(["tasks", "captures", "habits"]);
+
+      const before = getZoneAssignment();
+      insertWidgetAtZone("habits", 0); // already owned → no-op, stable ref
+      expect(getZoneAssignment()).toBe(before);
+    });
+
+    it("insertWidgetAtZone(0) lands at the leftmost slot", () => {
+      replaceAssignment(["tasks", "captures"]);
+      insertWidgetAtZone("habits", 0);
+      expect(getZoneAssignment()).toEqual(["habits", "tasks", "captures"]);
+    });
+  });
+
+  describe("replaceAssignment (store writer)", () => {
+    it("replaces the owned set and emits", () => {
+      let calls = 0;
+      const unsub = subscribeZoneAssignment(() => {
+        calls += 1;
+      });
+
+      replaceAssignment([]); // relinquish
+      expect(getZoneAssignment()).toEqual([]);
+      replaceAssignment(["tasks"]); // adopt one
+      expect(getZoneAssignment()).toEqual(["tasks"]);
+
+      expect(calls).toBe(2);
+      unsub();
+    });
+
+    it("is a stable-reference no-op for a shallow-equal replace", () => {
+      moveWidgetToZone("tasks", 0); // ensure a known state
+      const before = getZoneAssignment();
+      replaceAssignment([...STUDIO_WIDGET_ORDER]); // shallow-equal to initial
+      expect(getZoneAssignment()).toBe(before);
     });
   });
 

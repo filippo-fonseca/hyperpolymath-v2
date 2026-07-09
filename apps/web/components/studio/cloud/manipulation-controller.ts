@@ -20,6 +20,14 @@
  * it never resizes it. While grabbed the card is lifted by {@link LIFT} on +Y so
  * it reads as picked up; the lift is purely visual (stripped before the nearest-
  * zone test and before the card lands), so the settled slot never carries it.
+ *
+ * MULTI-WINDOW EDGE HAND-OFF. The controller tracks the last `grabMove` nx (the
+ * palm's normalized 0..1 X in stage space). If a grab is RELEASED past a screen
+ * margin ({@link EDGE_MARGIN}) and the window registry resolves a peer window in
+ * that direction, the card is handed off to that window instead of dropping
+ * locally: `deps.sendHandoff` removes it here and the receiver lands it on its
+ * own drop zones. With no peer in that direction the normal local drop runs, so
+ * single-window behavior is untouched.
  */
 
 import * as THREE from "three";
@@ -45,7 +53,25 @@ export interface ManipulationControllerDeps {
   camera: THREE.Camera;
   /** Demand a frame. */
   invalidate: () => void;
+  /**
+   * The peer window to receive a card released past the margin in `direction`,
+   * or `null` for none (⇒ normal local drop). Backed by the window registry.
+   */
+  resolveHandoffTarget: (direction: "left" | "right") => string | null;
+  /** Hand a widget to `toWindowId`, crossing the `direction` margin. */
+  sendHandoff: (
+    widgetId: StudioWidgetId,
+    toWindowId: string,
+    direction: "left" | "right",
+  ) => void;
 }
+
+/**
+ * Normalized stage-space margin (0..1 X) within which a release triggers a
+ * cross-window hand-off instead of a local drop. A single feel tunable; tests use
+ * it symbolically.
+ */
+export const EDGE_MARGIN = 0.04;
 
 export interface ManipulationController {
   /** Feed one continuous-phase event through the state machine. */
@@ -63,6 +89,8 @@ interface GrabSession {
   /** Palm ray point at the first grabMove — the drag anchor. */
   firstPoint: THREE.Vector3;
   anchored: boolean;
+  /** Normalized stage X (0..1) of the last grabMove — drives edge hand-off. */
+  lastNx: number | null;
 }
 
 export function createManipulationController(
@@ -98,6 +126,7 @@ export function createManipulationController(
           camDist: deps.camera.position.distanceTo(group.position),
           firstPoint: new THREE.Vector3(),
           anchored: false,
+          lastNx: null,
         };
         group.position.y += LIFT; // read as picked up (purely visual)
         // Light the markers immediately, highlighting the card's current zone.
@@ -114,6 +143,7 @@ export function createManipulationController(
 
       case "grabMove": {
         if (!grab) return; // orphan move → no-op
+        grab.lastNx = phase.nx; // track for the edge hand-off test on release
         const now = rayPoint(phase.nx, phase.ny, grab.camDist);
         if (!grab.anchored) {
           grab.firstPoint.copy(now); // anchor the first move; no jump at grab start
@@ -139,6 +169,29 @@ export function createManipulationController(
       case "grabEnd": {
         const g = grab;
         if (!g) return;
+
+        // Edge hand-off: released past a screen margin with a peer window in that
+        // direction ⇒ send the card there instead of dropping locally. The
+        // registry removes it here; the receiver lands it on its own drop zones.
+        const edge: "left" | "right" | null =
+          g.lastNx === null
+            ? null
+            : g.lastNx <= EDGE_MARGIN
+              ? "left"
+              : g.lastNx >= 1 - EDGE_MARGIN
+                ? "right"
+                : null;
+        if (edge) {
+          const target = deps.resolveHandoffTarget(edge);
+          if (target) {
+            deps.sendHandoff(g.targetId, target, edge);
+            setDndState(null, null); // drag over → markers off
+            grab = null;
+            deps.invalidate();
+            return; // skip the local drop entirely
+          }
+        }
+
         const group = deps.getGroup(g.targetId);
         // Strip the visual lift so the drop lands on the true resting position.
         const released: [number, number, number] = group

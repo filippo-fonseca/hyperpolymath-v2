@@ -19,10 +19,20 @@
  *    nearest zone flips. Readers: ZoneMarkers (which zone to highlight).
  *
  * Ownership:
- * - WRITER: the manipulation controller (`useWidgetManipulation`) is the SINGLE
- *   writer of both channels — `setDndState` during a drag, `moveWidgetToZone` on
- *   drop.
+ * - WRITERS: two, with disjoint responsibilities.
+ *   - The manipulation controller (`useWidgetManipulation`) writes LOCAL GESTURE
+ *     mutations — `setDndState` during a drag, `moveWidgetToZone` on drop.
+ *   - The window registry (`window-registry.ts`) writes REMOTE-SYNC mutations —
+ *     `removeWidget` / `insertWidgetAtZone` / `replaceAssignment` when a peer
+ *     hands off a widget, a window joins and relinquishes, or an orphan is
+ *     adopted. It never touches the DnD channel.
  * - READERS: as above; all read-only.
+ *
+ * The ASSIGNMENT is this window's OWNED SUBSET of widgets (zone idx → widget id).
+ * With no peers it is the full `INITIAL_ASSIGNMENT` and nothing ever mutates
+ * ownership, so single-window behavior is byte-identical to before multi-window.
+ * The reflow / nearest-zone / DnD machinery is length-agnostic and operates on
+ * this subset unchanged — a window owning 3 widgets simply renders a 3-slot arc.
  *
  * In-memory only (same persistence level as the transforms it replaces). Both
  * getters return referentially-stable snapshots so `useSyncExternalStore` never
@@ -86,13 +96,85 @@ export function reflowAssignment(
 }
 
 /**
- * Move `id` into `zoneIdx`, reflowing the rest. Single writer: the manipulation
- * controller, on drop. Only notifies when the assignment actually changes.
+ * Move `id` into `zoneIdx`, reflowing the rest. Local-gesture writer: the
+ * manipulation controller, on drop. Only notifies when the assignment actually
+ * changes.
  */
 export function moveWidgetToZone(id: StudioWidgetId, zoneIdx: number): void {
   const next = reflowAssignment(assignment, id, zoneIdx);
   if (next === assignment) return; // no-op (unknown id or same zone)
   assignment = next;
+  emitAssignment();
+}
+
+/**
+ * Pure removal: drop `id` from `assignment`, closing the gap so the result stays
+ * dense (no holes). Returns the SAME reference when `id` is absent, so callers
+ * can gate emits on identity.
+ */
+export function removeWidgetFromAssignment(
+  assignment: readonly StudioWidgetId[],
+  id: StudioWidgetId,
+): readonly StudioWidgetId[] {
+  const at = assignment.indexOf(id);
+  if (at === -1) return assignment; // absent → unchanged
+  const next = assignment.slice();
+  next.splice(at, 1);
+  return next;
+}
+
+/**
+ * Pure insert: splice `id` in at `zoneIdx` (clamped to `0..length`). Returns the
+ * SAME reference when `id` is already present (membership is what matters; a
+ * remote sync never reorders an id that's already owned).
+ */
+export function insertWidgetIntoAssignment(
+  assignment: readonly StudioWidgetId[],
+  id: StudioWidgetId,
+  zoneIdx: number,
+): readonly StudioWidgetId[] {
+  if (assignment.indexOf(id) !== -1) return assignment; // already owned → unchanged
+  const to = Math.max(0, Math.min(zoneIdx, assignment.length));
+  const next = assignment.slice();
+  next.splice(to, 0, id);
+  return next;
+}
+
+/**
+ * Remote-sync writer (window registry): remove `id` from this window's owned set,
+ * reflowing the gap closed. Emits only on a real change.
+ */
+export function removeWidget(id: StudioWidgetId): void {
+  const next = removeWidgetFromAssignment(assignment, id);
+  if (next === assignment) return;
+  assignment = next;
+  emitAssignment();
+}
+
+/**
+ * Remote-sync writer (window registry): add `id` to this window's owned set at
+ * `zoneIdx` (clamped). No-op if already owned. Emits only on a real change.
+ */
+export function insertWidgetAtZone(id: StudioWidgetId, zoneIdx: number): void {
+  const next = insertWidgetIntoAssignment(assignment, id, zoneIdx);
+  if (next === assignment) return;
+  assignment = next;
+  emitAssignment();
+}
+
+/**
+ * Remote-sync writer (window registry): replace the whole owned set (used by the
+ * join-relinquish and adoption flows). Change-gated by shallow equality so an
+ * idempotent replace emits nothing.
+ */
+export function replaceAssignment(next: readonly StudioWidgetId[]): void {
+  if (
+    next.length === assignment.length &&
+    next.every((id, i) => id === assignment[i])
+  ) {
+    return; // shallow-equal → no change
+  }
+  assignment = next.slice();
   emitAssignment();
 }
 

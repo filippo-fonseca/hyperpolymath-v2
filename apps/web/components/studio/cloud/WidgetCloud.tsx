@@ -43,14 +43,25 @@ export function WidgetCloud(): React.ReactElement {
   const invalidate = useThree((s) => s.invalidate);
   const camera = useThree((s) => s.camera);
 
-  // The eight fixed amphitheater zone slots (index = zone). The tile renderer and
-  // the manipulation controller both resolve positions from this one array, so
-  // the visual layout and the drop math can never drift apart.
-  const slots = useMemo(() => arcZoneSlots(summaries.length), [summaries.length]);
-
-  // Zone assignment (index = zone → widget id). A tile renders at the slot of its
-  // current zone; a drop reflows this array and every displaced tile glides.
+  // Zone assignment (index = zone → widget id) — THIS window's owned subset.
+  // A tile renders at the slot of its current zone; a drop reflows this array and
+  // every displaced tile glides. Under multi-window ownership its length is the
+  // owned count (≤ 8), not necessarily all eight.
   const assignment = useZoneAssignment();
+
+  // Arc zone slots sized to the OWNED count (index = zone). The tile renderer and
+  // the manipulation controller both resolve positions from this one array, so
+  // the visual layout and the drop math can never drift apart. A window owning 3
+  // widgets shows a 3-slot arc.
+  const slots = useMemo(() => arcZoneSlots(assignment.length), [assignment.length]);
+
+  // Summaries keyed by id so the owned-assignment iteration can look each up
+  // without scanning. Rebuilt only when the summary set changes.
+  const summaryById = useMemo(() => {
+    const map = new Map<StudioWidgetId, (typeof summaries)[number]>();
+    for (const summary of summaries) map.set(summary.id, summary);
+    return map;
+  }, [summaries]);
 
   // Panel-mesh registry. A stable array is kept alongside the map so the
   // per-resolve raycast allocates nothing.
@@ -144,11 +155,15 @@ export function WidgetCloud(): React.ReactElement {
 
   return (
     <group>
-      {summaries.map((summary) => {
-        const zone = assignment.indexOf(summary.id);
+      {/* Iterate the OWNED assignment (zone → id), not the full summary set, so a
+          window renders only the widgets it currently owns. A missing summary is
+          skipped defensively (should not happen). */}
+      {assignment.map((id, zone) => {
+        const summary = summaryById.get(id);
+        if (!summary) return null;
         return (
           <WidgetTile
-            key={summary.id}
+            key={id}
             summary={summary}
             position={slots[zone]!.position}
             registerMesh={registerMesh}

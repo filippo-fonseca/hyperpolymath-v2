@@ -95,8 +95,12 @@ export function CameraRig(): null {
   useEffect(() => {
     const apply = (): void => {
       const id = getActiveWidgets()[0];
-      if (id !== undefined) {
-        controller.focusOn(frameWidgetCamera(resolveWidgetWorldPosition(id)));
+      // Under multi-window ownership the focused widget may not live in THIS
+      // window (owned by a peer, or mid-handoff) — resolve returns null then, so
+      // we skip framing rather than crash on a missing zone.
+      const pos = id !== undefined ? resolveWidgetWorldPosition(id) : null;
+      if (pos) {
+        controller.focusOn(frameWidgetCamera(pos));
       } else {
         controller.endFocus();
       }
