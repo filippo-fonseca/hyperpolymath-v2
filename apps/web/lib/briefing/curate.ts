@@ -28,7 +28,7 @@ import {
 } from "@/lib/briefing/types";
 
 /** Cap on how many raw items we feed the model, newest-first bias. */
-const MAX_ITEMS_SENT = 80;
+const MAX_ITEMS_SENT = 110;
 /** Snippet truncation to keep the prompt bounded. */
 const MAX_SNIPPET_CHARS = 400;
 
@@ -90,6 +90,12 @@ const SYSTEM_PROMPT = [
   "5. Pick exactly ONE clear top_story: the single most important story of the day. It should also appear as its own item.",
   "6. Populate meta where relevant: for upcoming_models set meta.rumored (true if speculative/leaked, false if officially confirmed but not yet released); for creators set meta.creator to the person/handle; for benchmarks set meta.benchmark to a short score note (e.g. \"DeepSWE 59% on SWE-bench\"); add short meta.tags where useful.",
   "7. Write an overall one-line `headline` and a 2-3 sentence editor's-note `summary` for the whole edition.",
+  "",
+  "CRITICAL COVERAGE RULES — these are the ones people notice when you miss them:",
+  "- MODEL LAUNCHES ARE THE HEADLINE BEAT. Aggressively scan every item for any new or newly-available AI model — from ANY lab: OpenAI (GPT), Anthropic (Claude), Google (Gemini), xAI (Grok), Meta (Llama), Mistral, DeepSeek, Qwen/Alibaba, Cohere, and open-weight releases. If an item announces, benchmarks, previews, or even discusses a specific named model, it MUST go in `model_launches` (if shipped/available) or `upcoming_models` (if rumored/teased/leaked). Never leave `model_launches` empty when any launch-like item exists, and put the specific model NAME and version in the title (e.g. \"xAI ships Grok 4.5\", not \"new model released\").",
+  "- Do NOT bury a model launch under `general`, `ai_research`, or `creators`. A creator VIDEO about a launch can go under creators, but the launch itself is its own `model_launches` story.",
+  "- The `upcoming_models` watchlist should always try to include the current rumored/expected frontier models people are anticipating, drawn from the rumor-beat sources (Reddit, tech press). Mark each with meta.rumored=true.",
+  "- Prefer specificity: real model names, version numbers, benchmark scores, and dates over vague phrasing.",
   "",
   "Respond with ONLY a JSON object of this exact shape:",
   "{",

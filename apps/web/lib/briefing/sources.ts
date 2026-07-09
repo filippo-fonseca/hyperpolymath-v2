@@ -23,20 +23,60 @@ export interface FeedSource {
   sourceCategory: BriefingSection;
 }
 
-/** Curated frontier-tech feeds. A few may 404; allSettled tolerates it. */
+/** Curated frontier-tech feeds. A few may 404/429; allSettled tolerates it. */
 export const SOURCES: readonly FeedSource[] = [
   // Frontier AI research
   { sourceName: "arXiv cs.AI", url: "http://export.arxiv.org/rss/cs.AI", sourceCategory: "ai_research" },
   { sourceName: "arXiv cs.LG", url: "http://export.arxiv.org/rss/cs.LG", sourceCategory: "ai_research" },
   { sourceName: "arXiv cs.CL", url: "http://export.arxiv.org/rss/cs.CL", sourceCategory: "ai_research" },
   { sourceName: "BAIR Blog", url: "https://bair.berkeley.edu/blog/feed.xml", sourceCategory: "ai_research" },
+  { sourceName: "Google Research", url: "https://research.google/blog/rss/", sourceCategory: "ai_research" },
+
+  // Model launches — first-party vendor feeds (the ones that publish one)
+  { sourceName: "OpenAI", url: "https://openai.com/news/rss.xml", sourceCategory: "model_launches" },
+  { sourceName: "Mistral AI", url: "https://mistral.ai/rss.xml", sourceCategory: "model_launches" },
+  { sourceName: "Qwen", url: "https://qwenlm.github.io/blog/index.xml", sourceCategory: "model_launches" },
+  { sourceName: "Stability AI", url: "https://stability.ai/news-updates?format=rss", sourceCategory: "model_launches" },
+  { sourceName: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", sourceCategory: "model_launches" },
+
+  // Model launches / upcoming — tech press AI desks (cover xAI/Grok, Anthropic,
+  // Meta, DeepSeek — none of which expose a usable first-party feed)
+  { sourceName: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", sourceCategory: "model_launches" },
+  { sourceName: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/", sourceCategory: "model_launches" },
+  { sourceName: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/", sourceCategory: "model_launches" },
+  { sourceName: "AINews (smol.ai)", url: "https://news.smol.ai/rss.xml", sourceCategory: "model_launches" },
 
   // Lab / company announcements
   { sourceName: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml", sourceCategory: "lab_announcements" },
   { sourceName: "Google AI", url: "https://blog.google/technology/ai/rss/", sourceCategory: "lab_announcements" },
-  { sourceName: "Hugging Face", url: "https://huggingface.co/blog/feed.xml", sourceCategory: "lab_announcements" },
   { sourceName: "MIT News AI", url: "https://news.mit.edu/rss/topic/artificial-intelligence2", sourceCategory: "lab_announcements" },
+  { sourceName: "MIT Tech Review AI", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/", sourceCategory: "lab_announcements" },
+  { sourceName: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/technology-lab", sourceCategory: "lab_announcements" },
   { sourceName: "Import AI", url: "https://importai.substack.com/feed", sourceCategory: "lab_announcements" },
+
+  // Upcoming & rumored models — community launch/rumor beat (Reddit .rss is
+  // keyless but aggressively rate-limited; allSettled tolerates the 429s)
+  { sourceName: "r/LocalLLaMA", url: "https://www.reddit.com/r/LocalLLaMA/new/.rss", sourceCategory: "upcoming_models" },
+  { sourceName: "r/singularity", url: "https://www.reddit.com/r/singularity/new/.rss", sourceCategory: "upcoming_models" },
+  { sourceName: "r/OpenAI", url: "https://www.reddit.com/r/OpenAI/new/.rss", sourceCategory: "upcoming_models" },
+
+  // What creators are saying — YouTube per-channel Atom feeds (keyless)
+  { sourceName: "Theo (t3.gg)", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCbRP3c757lWg9M-U7TyEkXA", sourceCategory: "creators" },
+  { sourceName: "Andrej Karpathy", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ", sourceCategory: "creators" },
+  { sourceName: "Fireship", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCsBjURrPoezykLs9EqgamOA", sourceCategory: "creators" },
+  { sourceName: "Two Minute Papers", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg", sourceCategory: "creators" },
+  { sourceName: "bycloud", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCgfe2ooZD3VJPB6aJAnuQng", sourceCategory: "creators" },
+  { sourceName: "Yannic Kilcher", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCZHmQk67mSJgfCCTn7xBfew", sourceCategory: "creators" },
+  { sourceName: "Matthew Berman", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCawZsQWqfGSbCI5yjkdVkTA", sourceCategory: "creators" },
+  { sourceName: "AI Explained", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCNJ1Ymd5yFuUPtn21xtRbbw", sourceCategory: "creators" },
+  { sourceName: "Wes Roth", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCqcbQf6yw5KzRoDDcZ_wBSw", sourceCategory: "creators" },
+
+  // What creators are saying — high-signal blogs/newsletters (keyless RSS)
+  { sourceName: "Simon Willison", url: "https://simonwillison.net/atom/everything/", sourceCategory: "creators" },
+  { sourceName: "Interconnects", url: "https://www.interconnects.ai/feed", sourceCategory: "creators" },
+  { sourceName: "Latent Space", url: "https://www.latent.space/feed", sourceCategory: "creators" },
+
+  // Benchmarks — HuggingFace models firehose is a JSON endpoint, handled separately
 
   // Semiconductors & hardware
   { sourceName: "AnandTech", url: "https://www.anandtech.com/rss/", sourceCategory: "semiconductors" },
@@ -53,13 +93,30 @@ export const SOURCES: readonly FeedSource[] = [
   { sourceName: "Fierce Biotech", url: "https://www.fiercebiotech.com/rss/xml", sourceCategory: "bio" },
 ];
 
-/** AI/tech queries fanned out against the keyless HN Algolia search API. */
-const HN_QUERIES: readonly string[] = ["AI", "GPT", "LLM", "semiconductor", "Nvidia"];
+/**
+ * AI/tech queries fanned out against the keyless HN Algolia search API, widened
+ * to catch model launches by name (Grok fell through the old net entirely).
+ */
+const HN_QUERIES: readonly string[] = [
+  "AI model",
+  "GPT",
+  "Grok",
+  "Gemini",
+  "Claude",
+  "LLM",
+  "open weights",
+  "benchmark",
+  "semiconductor",
+  "Nvidia",
+];
 
 const REQUEST_TIMEOUT_MS = 8_000;
 const SNIPPET_MAX_CHARS = 500;
 const HN_HITS_PER_QUERY = 15;
-const MAX_ITEMS = 120;
+const MAX_ITEMS = 160;
+
+/** Descriptive UA — Reddit and some CDNs 429/403 the default rss-parser UA. */
+const FEED_USER_AGENT = "web:hyperpolymath-briefing:v1.0 (frontier-tech digest)";
 
 /** Minimal shape of the RSS parser output we consume. */
 interface ParsedFeedItem {
@@ -83,7 +140,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Respon
     return await fetch(url, {
       ...init,
       signal: controller.signal,
-      headers: { "User-Agent": "hyperpolymath-briefing", ...(init?.headers ?? {}) },
+      headers: { "User-Agent": FEED_USER_AGENT, ...(init?.headers ?? {}) },
     });
   } finally {
     clearTimeout(timer);
