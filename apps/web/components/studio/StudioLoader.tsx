@@ -11,7 +11,9 @@ import { DebugDomTiles } from "./overlay/DebugDomTiles";
 import { HandControlOnboarding } from "./onboarding/HandControlOnboarding";
 import { StudioHandReticle } from "./cursor/StudioHandReticle";
 import { StudioActiveRowToggle } from "./settings/StudioActiveRowToggle";
+import { StudioMuteToggle } from "./settings/StudioMuteToggle";
 import { StudioWindowSettings } from "./settings/StudioWindowSettings";
+import { StudioAudioFx } from "@/lib/studio/audio/useStudioAudio";
 import { startWindowRegistry } from "@/lib/studio/state/window-registry";
 
 /**
@@ -169,6 +171,11 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
               that brings the far arc row forward so its zones become grabbable.
               A DOM control; hides itself when the arc is a single row. */}
           <StudioActiveRowToggle />
+          {/* Synthesized HUD sound-fx layer: a render-nothing hook host that
+              plays short Web Audio cues on studio interactions, plus its z-30
+              mute toggle (below the active-row toggle). Event-driven only. */}
+          <StudioAudioFx />
+          <StudioMuteToggle />
           {/* Camera-consent gate for the additive hand driver. Renders its own
               chrome at z-30 (below the focus overlay); constructs the
               HandTrackingDriver only after an explicit opt-in. */}
