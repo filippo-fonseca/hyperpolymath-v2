@@ -90,6 +90,75 @@ describe("arcZoneSlots", () => {
 
   it("is deterministic across calls", () => {
     expect(arcZoneSlots(8, Z)).toEqual(arcZoneSlots(8, Z));
+    expect(arcZoneSlots(5, Z, 1)).toEqual(arcZoneSlots(5, Z, 1));
+  });
+});
+
+describe("arcZoneSlots frontRow swap", () => {
+  const Z = DEFAULT_ARC_ZONES;
+
+  const planarRadius = (s: TileSlot): number => {
+    const dx = s.position[0] - Z.pivot[0];
+    const dz = s.position[2] - Z.pivot[2];
+    return Math.sqrt(dx * dx + dz * dz);
+  };
+
+  it("defaults frontRow to 0 — identical to the two-arg call", () => {
+    expect(arcZoneSlots(8, Z, 0)).toEqual(arcZoneSlots(8, Z));
+    expect(arcZoneSlots(5, Z, 0)).toEqual(arcZoneSlots(5, Z));
+  });
+
+  it("frontRow 1 at count 8 renders zones 0..3 at the far row and 4..7 at the near row", () => {
+    const slots = arcZoneSlots(8, Z, 1);
+    for (const s of slots.slice(0, 4)) {
+      expect(s.position[1]).toBeCloseTo(Z.farY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.farRadius, 6);
+    }
+    for (const s of slots.slice(4)) {
+      expect(s.position[1]).toBeCloseTo(Z.nearY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.nearRadius, 6);
+    }
+  });
+
+  it("frontRow 1 at count 5 (3+2) brings the 2-group to the near geometry", () => {
+    const slots = arcZoneSlots(5, Z, 1);
+    // group 0 = zones 0..2 → far; group 1 = zones 3..4 → near.
+    for (const s of slots.slice(0, 3)) {
+      expect(s.position[1]).toBeCloseTo(Z.farY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.farRadius, 6);
+    }
+    for (const s of slots.slice(3)) {
+      expect(s.position[1]).toBeCloseTo(Z.nearY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.nearRadius, 6);
+    }
+  });
+
+  it("ignores frontRow when the second group is empty (count 0 and 1)", () => {
+    expect(arcZoneSlots(0, Z, 1)).toEqual([]);
+    const one = arcZoneSlots(1, Z, 1);
+    expect(one).toHaveLength(1);
+    // Lone group always sits at the near geometry regardless of frontRow.
+    expect(one[0]!.position[1]).toBeCloseTo(Z.nearY, 6);
+    expect(planarRadius(one[0]!)).toBeCloseTo(Z.nearRadius, 6);
+    expect(one).toEqual(arcZoneSlots(1, Z, 0));
+  });
+
+  it("keeps slots non-overlapping and in front of the camera for BOTH frontRow values (counts 8 and 5)", () => {
+    for (const count of [8, 5]) {
+      for (const fr of [0, 1] as const) {
+        const slots = arcZoneSlots(count, Z, fr);
+        for (const s of slots) {
+          expect(s.position[2]).toBeLessThan(3.2);
+        }
+        let min = Infinity;
+        for (let i = 0; i < slots.length; i++) {
+          for (let j = i + 1; j < slots.length; j++) {
+            min = Math.min(min, dist(slots[i]!, slots[j]!));
+          }
+        }
+        expect(min).toBeGreaterThan(TILE_W);
+      }
+    }
   });
 });
 

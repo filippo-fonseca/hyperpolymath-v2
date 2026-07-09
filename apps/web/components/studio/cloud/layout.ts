@@ -98,21 +98,38 @@ function arcRow(
 }
 
 /**
- * Two concentric camera-facing zone rows. The first `ceil(count/2)` slots are the
- * near row (indices 0..), the rest the far row — the canonical `0..count-1`
- * ordering the reflow math operates on directly (near L→R, then far L→R). Pure
- * and deterministic.
+ * Two concentric camera-facing zone rows. Zones `0..ceil(count/2)-1` form
+ * row-group 0, the rest row-group 1 — the canonical `0..count-1` ordering the
+ * reflow math operates on directly (group 0 L→R, then group 1 L→R). Row-group
+ * MEMBERSHIP is fixed; `frontRow` only chooses which group renders at the near
+ * (front, DnD-reachable) geometry and which at the far geometry:
+ *  - `frontRow 0` (default): group 0 → near, group 1 → far (original behavior).
+ *  - `frontRow 1`: group 0 → far, group 1 → near (the back row comes forward).
+ * When group 1 is empty (`count <= 1`) there is only one group and it always
+ * sits at the near geometry, so `frontRow` is ignored. The returned array order
+ * is unchanged either way, so `nearestZone`, `reflowAssignment`, and the
+ * manipulation controller keep operating on stable zone indices. Pure and
+ * deterministic.
  */
 export function arcZoneSlots(
   count: number,
   config: ArcZonesConfig = DEFAULT_ARC_ZONES,
+  frontRow: 0 | 1 = 0,
 ): TileSlot[] {
   if (count <= 0) return [];
-  const nearCount = Math.ceil(count / 2);
-  const farCount = count - nearCount;
+  const group0Count = Math.ceil(count / 2);
+  const group1Count = count - group0Count;
+
+  // Geometry tuples: [radius, y, spanDeg]. Which group gets NEAR is `frontRow`,
+  // unless group 1 is empty (then the lone group 0 is always near).
+  const NEAR = [config.nearRadius, config.nearY, config.nearSpanDeg] as const;
+  const FAR = [config.farRadius, config.farY, config.farSpanDeg] as const;
+  const group0 = group1Count === 0 || frontRow === 0 ? NEAR : FAR;
+  const group1 = frontRow === 0 ? FAR : NEAR;
+
   return [
-    ...arcRow(nearCount, config.nearRadius, config.nearY, config.nearSpanDeg, config.pivot),
-    ...arcRow(farCount, config.farRadius, config.farY, config.farSpanDeg, config.pivot),
+    ...arcRow(group0Count, group0[0], group0[1], group0[2], config.pivot),
+    ...arcRow(group1Count, group1[0], group1[1], group1[2], config.pivot),
   ];
 }
 
