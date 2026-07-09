@@ -6,13 +6,11 @@ import {
   DEFAULT_ARC_ZONES,
   depthFade,
   nearestZone,
+  TILE_W,
   type TileSlot,
 } from "../layout";
 
 type Vec3 = [number, number, number];
-
-// Mirror of WidgetTile's private TILE_W (tile slab width, meters).
-const TILE_W = 1.4;
 
 function dist(a: TileSlot, b: TileSlot): number {
   const dx = a.position[0] - b.position[0];
@@ -65,7 +63,7 @@ describe("arcZoneSlots", () => {
     }
   });
 
-  it("spaces all eight slots so 1.4-wide slabs never overlap (min center distance > TILE_W)", () => {
+  it("spaces all eight slots so the slabs never overlap (min center distance > TILE_W)", () => {
     const slots = arcZoneSlots(8, Z);
     let min = Infinity;
     for (let i = 0; i < slots.length; i++) {
@@ -181,10 +179,11 @@ describe("nearestZone", () => {
   });
 
   it("resolves an exact tie to the lower index", () => {
-    const a = slots[2]!.position;
-    const b = slots[3]!.position;
-    const mid: Vec3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-    expect(nearestZone(mid, slots)).toBe(2);
+    // Two slots symmetric about the origin: the origin is EXACTLY equidistant
+    // (a real arc midpoint is only equidistant up to float rounding, which would
+    // make this a coin-flip). The tie must resolve to the lower index.
+    const tie: TileSlot[] = [{ position: [-1, 0, 0] }, { position: [1, 0, 0] }];
+    expect(nearestZone([0, 0, 0], tie)).toBe(0);
   });
 
   it("returns -1 for an empty slot list", () => {

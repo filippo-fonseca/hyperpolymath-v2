@@ -29,16 +29,17 @@ import { useFrontRow } from "@/lib/studio/state/active-row";
 import { useDndState, useZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import { makeHologramMaterial } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
-import { arcZoneSlots, DEFAULT_ARC_ZONES } from "./layout";
+import { arcZoneSlots, DEFAULT_ARC_ZONES, TILE_H, TILE_W } from "./layout";
 
 // Markers orient to the fixed camera (CAMERA_HOME), same as WidgetTile — sourced
 // from the shared home so marker orientation never drifts from the tiles'.
 const CAMERA_POS = new THREE.Vector3(...CAMERA_HOME);
 
-// A hair larger than a tile (TILE_W 1.4 × TILE_H 0.9) so a marker frames the
-// slot it belongs to rather than reading as a second card; equally thin.
-const MARK_W = 1.52;
-const MARK_H = 1.02;
+// A hair larger than a tile so a marker frames the slot it belongs to rather
+// than reading as a second card; equally thin. Derived from the shared TILE_*
+// so the frame tracks any tile-size change.
+const MARK_W = TILE_W + 0.12;
+const MARK_H = TILE_H + 0.12;
 const MARK_D = 0.05;
 const MARK_RADIUS = 0.06;
 

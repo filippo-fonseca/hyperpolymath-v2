@@ -33,7 +33,13 @@ import {
 } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
 import { STUDIO_RIM } from "../env/postfx.params";
-import { depthFade } from "./layout";
+import {
+  depthFade,
+  TILE_D,
+  TILE_H,
+  TILE_RADIUS,
+  TILE_W,
+} from "./layout";
 
 // The camera is fixed at CAMERA_HOME (StudioCanvas); tiles orient to it once on
 // mount rather than billboarding per frame. Sourced from the shared home so the
@@ -46,17 +52,15 @@ const DAMP_LAMBDA = 8;
 const SETTLE_EPS = 1e-3;
 const SETTLE_EPS_SQ = SETTLE_EPS * SETTLE_EPS;
 
-// Slab dimensions (meters). Depth is thin; the rounded edges are what glow.
-const TILE_W = 1.4;
-const TILE_H = 0.9;
-const TILE_D = 0.07;
-const TILE_RADIUS = 0.06;
+// Slab dimensions (TILE_*) are exported from layout.ts — they are layout
+// constraints shared with the non-overlap test and ZoneMarkers. Text insets are
+// derived from them here so the padding tracks any tile-size change.
 
 // Text sits just in front of the panel's front face (z = +TILE_D/2) to avoid
 // z-fighting; the panel is depthWrite:false so ordering is stable regardless.
 const TEXT_Z = 0.045;
-const PAD_X = 0.58;
-const TOP_Y = 0.36;
+const PAD_X = TILE_W / 2 - 0.12;
+const TOP_Y = TILE_H / 2 - 0.09;
 
 const PARCHMENT = "#F2E9D8";
 const FONT = "/fonts/eb-garamond-latin-600.woff";
@@ -241,7 +245,7 @@ export function WidgetTile({
 
           <Text
             font={FONT}
-            fontSize={0.14}
+            fontSize={0.19}
             color={PARCHMENT}
             fillOpacity={fade}
             anchorX="left"
@@ -254,7 +258,7 @@ export function WidgetTile({
           {summary.badge !== null ? (
             <Text
               font={FONT}
-              fontSize={0.12}
+              fontSize={0.16}
               color={STUDIOLO.brass}
               fillOpacity={fade}
               anchorX="right"
@@ -268,7 +272,7 @@ export function WidgetTile({
           {summary.headline !== null ? (
             <Text
               font={FONT}
-              fontSize={0.09}
+              fontSize={0.125}
               color={PARCHMENT}
               fillOpacity={fade}
               anchorX="left"
@@ -283,7 +287,7 @@ export function WidgetTile({
           {summary.subline !== null ? (
             <Text
               font={FONT}
-              fontSize={0.07}
+              fontSize={0.1}
               color={PARCHMENT}
               fillOpacity={0.6 * fade}
               anchorX="left"

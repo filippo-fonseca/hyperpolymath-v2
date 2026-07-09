@@ -16,6 +16,17 @@ export interface TileSlot {
   position: [number, number, number];
 }
 
+// ── Tile dimensions (meters) ────────────────────────────────────────────────
+// The slab is thin; its rounded edges are what catch the fresnel rim and glow.
+// These live here (not in WidgetTile) because they are layout CONSTRAINTS: the
+// non-overlap invariant and the ZoneMarkers frame size both derive from them, so
+// there must be one source of truth. Size is UNIFORM across every widget —
+// per-widget scale is forbidden (depth reads as fog, never as size).
+export const TILE_W = 1.9;
+export const TILE_H = 1.2;
+export const TILE_D = 0.07;
+export const TILE_RADIUS = 0.06;
+
 type Vec3 = readonly [number, number, number];
 
 function distSq(a: Vec3, b: Vec3): number {
@@ -57,12 +68,12 @@ export interface ArcZonesConfig {
  */
 export const DEFAULT_ARC_ZONES: ArcZonesConfig = {
   pivot: [0, 1.55, 4.2],
-  nearRadius: 3.1,
-  farRadius: 4.6,
-  nearY: 1.35,
-  farY: 2.05,
-  nearSpanDeg: 100,
-  farSpanDeg: 110,
+  nearRadius: 3.4,
+  farRadius: 5.3,
+  nearY: 1.25,
+  farY: 2.4,
+  nearSpanDeg: 112,
+  farSpanDeg: 126,
   fadeNear: 4.0,
   fadeFar: 7.5,
   fadeMinOpacity: 0.55,
