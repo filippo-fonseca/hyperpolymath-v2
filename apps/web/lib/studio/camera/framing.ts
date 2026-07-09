@@ -22,8 +22,9 @@
  * simply skips framing instead of crashing.
  */
 
-import { arcZoneSlots } from "@/components/studio/cloud/layout";
+import { arcZoneSlots, DEFAULT_ARC_ZONES } from "@/components/studio/cloud/layout";
 import { type StudioWidgetId } from "@/components/studio/data/useStudioData";
+import { getFrontRow } from "@/lib/studio/state/active-row";
 import { getZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import type { Vec3 } from "./traversal";
 
@@ -56,6 +57,10 @@ export function resolveWidgetWorldPosition(id: StudioWidgetId): Vec3 | null {
   const assignment = getZoneAssignment();
   const zone = assignment.indexOf(id);
   if (zone === -1) return null; // not owned here → caller skips framing
-  const slot = arcZoneSlots(assignment.length)[zone]!.position;
+  // Resolve at the active front row so a focus move after a row swap frames the
+  // widget at its post-swap slot, not the pre-swap one.
+  const slot = arcZoneSlots(assignment.length, DEFAULT_ARC_ZONES, getFrontRow())[
+    zone
+  ]!.position;
   return [slot[0], slot[1], slot[2]];
 }

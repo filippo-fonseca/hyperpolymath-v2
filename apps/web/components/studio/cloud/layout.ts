@@ -16,6 +16,17 @@ export interface TileSlot {
   position: [number, number, number];
 }
 
+// ── Tile dimensions (meters) ────────────────────────────────────────────────
+// The slab is thin; its rounded edges are what catch the fresnel rim and glow.
+// These live here (not in WidgetTile) because they are layout CONSTRAINTS: the
+// non-overlap invariant and the ZoneMarkers frame size both derive from them, so
+// there must be one source of truth. Size is UNIFORM across every widget —
+// per-widget scale is forbidden (depth reads as fog, never as size).
+export const TILE_W = 1.9;
+export const TILE_H = 1.2;
+export const TILE_D = 0.07;
+export const TILE_RADIUS = 0.06;
+
 type Vec3 = readonly [number, number, number];
 
 function distSq(a: Vec3, b: Vec3): number {
@@ -57,15 +68,15 @@ export interface ArcZonesConfig {
  */
 export const DEFAULT_ARC_ZONES: ArcZonesConfig = {
   pivot: [0, 1.55, 4.2],
-  nearRadius: 3.1,
-  farRadius: 4.6,
-  nearY: 1.35,
-  farY: 2.05,
-  nearSpanDeg: 100,
-  farSpanDeg: 110,
+  nearRadius: 3.4,
+  farRadius: 5.3,
+  nearY: 1.25,
+  farY: 2.4,
+  nearSpanDeg: 112,
+  farSpanDeg: 126,
   fadeNear: 4.0,
   fadeFar: 7.5,
-  fadeMinOpacity: 0.55,
+  fadeMinOpacity: 0.7,
 };
 
 /**
@@ -98,21 +109,38 @@ function arcRow(
 }
 
 /**
- * Two concentric camera-facing zone rows. The first `ceil(count/2)` slots are the
- * near row (indices 0..), the rest the far row — the canonical `0..count-1`
- * ordering the reflow math operates on directly (near L→R, then far L→R). Pure
- * and deterministic.
+ * Two concentric camera-facing zone rows. Zones `0..ceil(count/2)-1` form
+ * row-group 0, the rest row-group 1 — the canonical `0..count-1` ordering the
+ * reflow math operates on directly (group 0 L→R, then group 1 L→R). Row-group
+ * MEMBERSHIP is fixed; `frontRow` only chooses which group renders at the near
+ * (front, DnD-reachable) geometry and which at the far geometry:
+ *  - `frontRow 0` (default): group 0 → near, group 1 → far (original behavior).
+ *  - `frontRow 1`: group 0 → far, group 1 → near (the back row comes forward).
+ * When group 1 is empty (`count <= 1`) there is only one group and it always
+ * sits at the near geometry, so `frontRow` is ignored. The returned array order
+ * is unchanged either way, so `nearestZone`, `reflowAssignment`, and the
+ * manipulation controller keep operating on stable zone indices. Pure and
+ * deterministic.
  */
 export function arcZoneSlots(
   count: number,
   config: ArcZonesConfig = DEFAULT_ARC_ZONES,
+  frontRow: 0 | 1 = 0,
 ): TileSlot[] {
   if (count <= 0) return [];
-  const nearCount = Math.ceil(count / 2);
-  const farCount = count - nearCount;
+  const group0Count = Math.ceil(count / 2);
+  const group1Count = count - group0Count;
+
+  // Geometry tuples: [radius, y, spanDeg]. Which group gets NEAR is `frontRow`,
+  // unless group 1 is empty (then the lone group 0 is always near).
+  const NEAR = [config.nearRadius, config.nearY, config.nearSpanDeg] as const;
+  const FAR = [config.farRadius, config.farY, config.farSpanDeg] as const;
+  const group0 = group1Count === 0 || frontRow === 0 ? NEAR : FAR;
+  const group1 = frontRow === 0 ? FAR : NEAR;
+
   return [
-    ...arcRow(nearCount, config.nearRadius, config.nearY, config.nearSpanDeg, config.pivot),
-    ...arcRow(farCount, config.farRadius, config.farY, config.farSpanDeg, config.pivot),
+    ...arcRow(group0Count, group0[0], group0[1], group0[2], config.pivot),
+    ...arcRow(group1Count, group1[0], group1[1], group1[2], config.pivot),
   ];
 }
 

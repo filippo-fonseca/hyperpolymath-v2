@@ -10,6 +10,7 @@ import { StudioFocusOverlay } from "./overlay/StudioFocusOverlay";
 import { DebugDomTiles } from "./overlay/DebugDomTiles";
 import { HandControlOnboarding } from "./onboarding/HandControlOnboarding";
 import { StudioHandReticle } from "./cursor/StudioHandReticle";
+import { StudioActiveRowToggle } from "./settings/StudioActiveRowToggle";
 import { StudioWindowSettings } from "./settings/StudioWindowSettings";
 import { startWindowRegistry } from "@/lib/studio/state/window-registry";
 
@@ -164,6 +165,10 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
           {/* Multi-window registry pane — a z-30 monitor affordance that lists
               the open Studio windows and assigns each a position. */}
           <StudioWindowSettings />
+          {/* Active-row swap — a z-30 HUD toggle (below the settings trigger)
+              that brings the far arc row forward so its zones become grabbable.
+              A DOM control; hides itself when the arc is a single row. */}
+          <StudioActiveRowToggle />
           {/* Camera-consent gate for the additive hand driver. Renders its own
               chrome at z-30 (below the focus overlay); constructs the
               HandTrackingDriver only after an explicit opt-in. */}

@@ -6,13 +6,11 @@ import {
   DEFAULT_ARC_ZONES,
   depthFade,
   nearestZone,
+  TILE_W,
   type TileSlot,
 } from "../layout";
 
 type Vec3 = [number, number, number];
-
-// Mirror of WidgetTile's private TILE_W (tile slab width, meters).
-const TILE_W = 1.4;
 
 function dist(a: TileSlot, b: TileSlot): number {
   const dx = a.position[0] - b.position[0];
@@ -65,7 +63,7 @@ describe("arcZoneSlots", () => {
     }
   });
 
-  it("spaces all eight slots so 1.4-wide slabs never overlap (min center distance > TILE_W)", () => {
+  it("spaces all eight slots so the slabs never overlap (min center distance > TILE_W)", () => {
     const slots = arcZoneSlots(8, Z);
     let min = Infinity;
     for (let i = 0; i < slots.length; i++) {
@@ -90,6 +88,75 @@ describe("arcZoneSlots", () => {
 
   it("is deterministic across calls", () => {
     expect(arcZoneSlots(8, Z)).toEqual(arcZoneSlots(8, Z));
+    expect(arcZoneSlots(5, Z, 1)).toEqual(arcZoneSlots(5, Z, 1));
+  });
+});
+
+describe("arcZoneSlots frontRow swap", () => {
+  const Z = DEFAULT_ARC_ZONES;
+
+  const planarRadius = (s: TileSlot): number => {
+    const dx = s.position[0] - Z.pivot[0];
+    const dz = s.position[2] - Z.pivot[2];
+    return Math.sqrt(dx * dx + dz * dz);
+  };
+
+  it("defaults frontRow to 0 — identical to the two-arg call", () => {
+    expect(arcZoneSlots(8, Z, 0)).toEqual(arcZoneSlots(8, Z));
+    expect(arcZoneSlots(5, Z, 0)).toEqual(arcZoneSlots(5, Z));
+  });
+
+  it("frontRow 1 at count 8 renders zones 0..3 at the far row and 4..7 at the near row", () => {
+    const slots = arcZoneSlots(8, Z, 1);
+    for (const s of slots.slice(0, 4)) {
+      expect(s.position[1]).toBeCloseTo(Z.farY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.farRadius, 6);
+    }
+    for (const s of slots.slice(4)) {
+      expect(s.position[1]).toBeCloseTo(Z.nearY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.nearRadius, 6);
+    }
+  });
+
+  it("frontRow 1 at count 5 (3+2) brings the 2-group to the near geometry", () => {
+    const slots = arcZoneSlots(5, Z, 1);
+    // group 0 = zones 0..2 → far; group 1 = zones 3..4 → near.
+    for (const s of slots.slice(0, 3)) {
+      expect(s.position[1]).toBeCloseTo(Z.farY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.farRadius, 6);
+    }
+    for (const s of slots.slice(3)) {
+      expect(s.position[1]).toBeCloseTo(Z.nearY, 6);
+      expect(planarRadius(s)).toBeCloseTo(Z.nearRadius, 6);
+    }
+  });
+
+  it("ignores frontRow when the second group is empty (count 0 and 1)", () => {
+    expect(arcZoneSlots(0, Z, 1)).toEqual([]);
+    const one = arcZoneSlots(1, Z, 1);
+    expect(one).toHaveLength(1);
+    // Lone group always sits at the near geometry regardless of frontRow.
+    expect(one[0]!.position[1]).toBeCloseTo(Z.nearY, 6);
+    expect(planarRadius(one[0]!)).toBeCloseTo(Z.nearRadius, 6);
+    expect(one).toEqual(arcZoneSlots(1, Z, 0));
+  });
+
+  it("keeps slots non-overlapping and in front of the camera for BOTH frontRow values (counts 8 and 5)", () => {
+    for (const count of [8, 5]) {
+      for (const fr of [0, 1] as const) {
+        const slots = arcZoneSlots(count, Z, fr);
+        for (const s of slots) {
+          expect(s.position[2]).toBeLessThan(3.2);
+        }
+        let min = Infinity;
+        for (let i = 0; i < slots.length; i++) {
+          for (let j = i + 1; j < slots.length; j++) {
+            min = Math.min(min, dist(slots[i]!, slots[j]!));
+          }
+        }
+        expect(min).toBeGreaterThan(TILE_W);
+      }
+    }
   });
 });
 
@@ -112,10 +179,11 @@ describe("nearestZone", () => {
   });
 
   it("resolves an exact tie to the lower index", () => {
-    const a = slots[2]!.position;
-    const b = slots[3]!.position;
-    const mid: Vec3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-    expect(nearestZone(mid, slots)).toBe(2);
+    // Two slots symmetric about the origin: the origin is EXACTLY equidistant
+    // (a real arc midpoint is only equidistant up to float rounding, which would
+    // make this a coin-flip). The tie must resolve to the lower index.
+    const tie: TileSlot[] = [{ position: [-1, 0, 0] }, { position: [1, 0, 0] }];
+    expect(nearestZone([0, 0, 0], tie)).toBe(0);
   });
 
   it("returns -1 for an empty slot list", () => {
@@ -126,6 +194,10 @@ describe("nearestZone", () => {
 describe("depthFade", () => {
   const Z = DEFAULT_ARC_ZONES;
   const atDist = (d: number): Vec3 => [CAMERA_HOME[0], CAMERA_HOME[1], CAMERA_HOME[2] - d];
+
+  it("keeps a legible depth-fade floor for back-row tiles (>= 0.7)", () => {
+    expect(DEFAULT_ARC_ZONES.fadeMinOpacity).toBeGreaterThanOrEqual(0.7);
+  });
 
   it("is 1 within fadeNear and floors at fadeMinOpacity beyond fadeFar", () => {
     expect(depthFade(atDist(Z.fadeNear - 0.5), Z)).toBe(1);

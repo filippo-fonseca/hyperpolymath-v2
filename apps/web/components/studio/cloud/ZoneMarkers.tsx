@@ -25,31 +25,36 @@ import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
 import { CAMERA_HOME } from "@/lib/studio/camera/traversal";
-import { useDndState } from "@/lib/studio/state/zone-assignment";
-import { STUDIO_WIDGET_ORDER } from "../data/useStudioData";
+import { useFrontRow } from "@/lib/studio/state/active-row";
+import { useDndState, useZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import { makeHologramMaterial } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
-import { arcZoneSlots } from "./layout";
+import { arcZoneSlots, DEFAULT_ARC_ZONES, TILE_H, TILE_W } from "./layout";
 
 // Markers orient to the fixed camera (CAMERA_HOME), same as WidgetTile — sourced
 // from the shared home so marker orientation never drifts from the tiles'.
 const CAMERA_POS = new THREE.Vector3(...CAMERA_HOME);
 
-// A hair larger than a tile (TILE_W 1.4 × TILE_H 0.9) so a marker frames the
-// slot it belongs to rather than reading as a second card; equally thin.
-const MARK_W = 1.52;
-const MARK_H = 1.02;
+// A hair larger than a tile so a marker frames the slot it belongs to rather
+// than reading as a second card; equally thin. Derived from the shared TILE_*
+// so the frame tracks any tile-size change.
+const MARK_W = TILE_W + 0.12;
+const MARK_H = TILE_H + 0.12;
 const MARK_D = 0.05;
 const MARK_RADIUS = 0.06;
 
 export function ZoneMarkers(): React.ReactElement | null {
   const { grabbedId, nearestZone } = useDndState();
+  const assignment = useZoneAssignment();
+  const frontRow = useFrontRow();
 
-  // The fixed zone slots (position + camera-facing orientation), computed once.
-  // Count is the canonical widget count, so the markers match the zone indices
-  // the reflow math operates on.
+  // Zone slots (position + camera-facing orientation) for THIS window's owned
+  // count at the active front row. Derived from the live assignment length (not a
+  // fixed 8) so the markers match the drop math under multi-window ownership, and
+  // re-derived on a row swap so the outlines follow the tiles forward. Markers
+  // mount only during a grab, so recomputing here is cheap.
   const slots = useMemo(() => {
-    const raw = arcZoneSlots(STUDIO_WIDGET_ORDER.length);
+    const raw = arcZoneSlots(assignment.length, DEFAULT_ARC_ZONES, frontRow);
     return raw.map((s) => {
       const toCamera = new THREE.Vector3()
         .subVectors(CAMERA_POS, new THREE.Vector3(...s.position))
@@ -60,7 +65,7 @@ export function ZoneMarkers(): React.ReactElement | null {
       );
       return { position: s.position, quaternion };
     });
-  }, []);
+  }, [assignment.length, frontRow]);
 
   // Two shared materials: a faint resting frame and the bright nearest-zone
   // highlight. Created once; disposed on unmount (grab end unmounts this tree).
