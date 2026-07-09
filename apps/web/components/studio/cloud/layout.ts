@@ -76,7 +76,7 @@ export const DEFAULT_ARC_ZONES: ArcZonesConfig = {
   farSpanDeg: 126,
   fadeNear: 4.0,
   fadeFar: 7.5,
-  fadeMinOpacity: 0.55,
+  fadeMinOpacity: 0.7,
 };
 
 /**

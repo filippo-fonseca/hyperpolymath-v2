@@ -195,6 +195,10 @@ describe("depthFade", () => {
   const Z = DEFAULT_ARC_ZONES;
   const atDist = (d: number): Vec3 => [CAMERA_HOME[0], CAMERA_HOME[1], CAMERA_HOME[2] - d];
 
+  it("keeps a legible depth-fade floor for back-row tiles (>= 0.7)", () => {
+    expect(DEFAULT_ARC_ZONES.fadeMinOpacity).toBeGreaterThanOrEqual(0.7);
+  });
+
   it("is 1 within fadeNear and floors at fadeMinOpacity beyond fadeFar", () => {
     expect(depthFade(atDist(Z.fadeNear - 0.5), Z)).toBe(1);
     expect(depthFade(atDist(Z.fadeFar + 2), Z)).toBe(Z.fadeMinOpacity);

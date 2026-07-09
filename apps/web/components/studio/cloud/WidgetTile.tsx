@@ -246,6 +246,7 @@ export function WidgetTile({
           <Text
             font={FONT}
             fontSize={0.19}
+            sdfGlyphSize={128}
             color={PARCHMENT}
             fillOpacity={fade}
             anchorX="left"
@@ -259,6 +260,7 @@ export function WidgetTile({
             <Text
               font={FONT}
               fontSize={0.16}
+              sdfGlyphSize={128}
               color={STUDIOLO.brass}
               fillOpacity={fade}
               anchorX="right"
@@ -273,6 +275,7 @@ export function WidgetTile({
             <Text
               font={FONT}
               fontSize={0.125}
+              sdfGlyphSize={128}
               color={PARCHMENT}
               fillOpacity={fade}
               anchorX="left"
@@ -288,8 +291,9 @@ export function WidgetTile({
             <Text
               font={FONT}
               fontSize={0.1}
+              sdfGlyphSize={128}
               color={PARCHMENT}
-              fillOpacity={0.6 * fade}
+              fillOpacity={0.7 * fade}
               anchorX="left"
               anchorY="top"
               maxWidth={TILE_W - 0.24}
