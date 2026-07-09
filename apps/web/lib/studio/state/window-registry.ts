@@ -239,9 +239,24 @@ export function createWindowRegistry(
   const subscribers = new Set<() => void>();
   let snapshot: StudioWindow[] = [];
 
+  // The self entry is cached and rebuilt ONLY when a self field changes, so
+  // `getSelf()` stays referentially stable across peer-only churn (a peer
+  // joining/leaving must not re-render a settings row bound to this window).
+  let selfSnapshot: StudioWindow;
+  const rebuildSelfSnapshot = (): void => {
+    selfSnapshot = {
+      id: self.id,
+      label: self.label,
+      position: self.position,
+      bornAt: self.bornAt,
+      isSelf: true,
+    };
+  };
+  rebuildSelfSnapshot();
+
   const rebuildSnapshot = (): void => {
     snapshot = [
-      { id: self.id, label: self.label, position: self.position, bornAt: self.bornAt, isSelf: true },
+      selfSnapshot,
       ...[...peers.values()].map((p) => ({
         id: p.id,
         label: p.label,
@@ -286,8 +301,9 @@ export function createWindowRegistry(
       { id: self.id, bornAt: self.bornAt },
       ...[...peers.values()].map((p) => ({ id: p.id, bornAt: p.bornAt })),
     ];
-    if (chooseAdopter(windows) === self.id && dead.widgets.length > 0) {
-      for (const w of dead.widgets) assignment.insertAt(w, assignment.get().length);
+    const orphans = Array.isArray(dead.widgets) ? dead.widgets : [];
+    if (chooseAdopter(windows) === self.id && orphans.length > 0) {
+      for (const w of orphans) assignment.insertAt(w, assignment.get().length);
       post({ type: "ownership-update", id: self.id, widgets: [...assignment.get()] });
     }
   };
@@ -317,7 +333,7 @@ export function createWindowRegistry(
         upsertPeer(message.id, {
           bornAt: message.bornAt,
           position: message.position,
-          widgets: message.widgets,
+          widgets: Array.isArray(message.widgets) ? message.widgets : [],
           lastSeen: clock(),
         });
         // Only the newcomer this ack addresses runs the relinquish check.
@@ -347,13 +363,23 @@ export function createWindowRegistry(
         return;
       }
       case "position-set": {
-        if (message.id === self.id) self.position = message.position;
-        else upsertPeer(message.id, { position: message.position, lastSeen: clock() });
+        if (message.id === self.id) {
+          self.position = message.position;
+          rebuildSelfSnapshot();
+        } else {
+          upsertPeer(message.id, { position: message.position, lastSeen: clock() });
+        }
         emit();
         return;
       }
       case "ownership-update": {
-        upsertPeer(message.id, { widgets: message.widgets, lastSeen: clock() });
+        // Coerce defensively: a version-skewed peer could send a non-array
+        // `widgets`, which would later throw as `dead.widgets.length` inside the
+        // heartbeat interval and kill liveness for the whole session.
+        upsertPeer(message.id, {
+          widgets: Array.isArray(message.widgets) ? message.widgets : [],
+          lastSeen: clock(),
+        });
         return;
       }
       case "handoff": {
@@ -369,6 +395,10 @@ export function createWindowRegistry(
   };
 
   const heartbeat = (): void => {
+    // Truly-alone windows stay silent: with no peers there is nothing to keep
+    // alive or prune, and a joining peer triggers fresh heartbeats within ≤2s
+    // (well under the TTL), so liveness still converges once a second window opens.
+    if (peers.size === 0) return;
     post({ type: "window-heartbeat", id: self.id });
     const { pruned } = prunePeers([...peers.values()], clock(), ttlMs);
     if (pruned.length > 0) {
@@ -410,8 +440,10 @@ export function createWindowRegistry(
   };
 
   const setPosition = (id: string, position: StudioWindowPosition): void => {
-    if (id === self.id) self.position = position;
-    else upsertPeer(id, { position, lastSeen: clock() });
+    if (id === self.id) {
+      self.position = position;
+      rebuildSelfSnapshot();
+    } else upsertPeer(id, { position, lastSeen: clock() });
     post({ type: "position-set", id, position });
     emit();
   };
