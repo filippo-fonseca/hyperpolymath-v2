@@ -22,6 +22,7 @@ import {
   Info,
   LayoutDashboard,
   MessageSquare,
+  Newspaper,
   Repeat,
   Search,
   Settings,
@@ -61,6 +62,13 @@ import { KiwiAboutDialog } from "./KiwiAboutDialog";
 // pill), so duplicating it in the sidebar rail was redundant.
 const items = [
   { href: "/search", label: "Search", icon: Search, disabled: false, tooltip: undefined },
+  {
+    href: "/briefing",
+    label: "Briefing",
+    icon: Newspaper,
+    disabled: false,
+    tooltip: undefined,
+  },
   { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard, disabled: false, tooltip: undefined },
   { href: "/tasks", label: "Tasks", icon: CheckSquare, disabled: false, tooltip: undefined },
   { href: "/habits", label: "Habits", icon: Repeat, disabled: false, tooltip: undefined },
