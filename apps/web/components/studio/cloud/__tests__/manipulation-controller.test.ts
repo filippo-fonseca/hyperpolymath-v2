@@ -14,6 +14,7 @@ import type { StudioPhaseEvent } from "@/lib/studio/input/types";
 import { LIFT } from "../manipulation-math";
 import {
   createManipulationController,
+  EDGE_MARGIN,
   type ManipulationController,
 } from "../manipulation-controller";
 import type { TileSlot } from "../layout";
@@ -30,12 +31,15 @@ interface Harness {
   controller: ManipulationController;
   groups: Map<StudioWidgetId, THREE.Group>;
   invalidate: ReturnType<typeof vi.fn>;
+  resolveHandoffTarget: ReturnType<typeof vi.fn>;
+  sendHandoff: ReturnType<typeof vi.fn>;
   /** Move a widget's group to a world position (before a grab, to seed it). */
   place: (id: StudioWidgetId, p: [number, number, number]) => void;
   send: (phase: StudioPhaseEvent) => void;
 }
 
-function makeHarness(): Harness {
+/** By default no peer window exists → hand-off resolves null (single-window). */
+function makeHarness(handoffTarget: string | null = null): Harness {
   const groups = new Map<StudioWidgetId, THREE.Group>();
   for (let i = 0; i < IDS.length; i++) {
     const g = new THREE.Group();
@@ -48,18 +52,24 @@ function makeHarness(): Harness {
   camera.position.set(0, 1.6, 6);
 
   const invalidate = vi.fn();
+  const resolveHandoffTarget = vi.fn(() => handoffTarget);
+  const sendHandoff = vi.fn();
 
   const controller = createManipulationController({
     slots: SLOTS,
     getGroup: (id) => groups.get(id) ?? null,
     camera,
     invalidate,
+    resolveHandoffTarget,
+    sendHandoff,
   });
 
   return {
     controller,
     groups,
     invalidate,
+    resolveHandoffTarget,
+    sendHandoff,
     place: (id, p) => {
       groups.get(id)!.position.set(p[0], p[1], p[2]);
     },
@@ -170,6 +180,63 @@ describe("DnD state transitions", () => {
     expect(typeof dnd.nearestZone).toBe("number");
     expect(dnd.nearestZone).toBeGreaterThanOrEqual(0);
     expect(dnd.nearestZone).toBeLessThan(SLOTS.length);
+  });
+});
+
+describe("edge hand-off on release past a screen margin", () => {
+  it("hands the card to the peer window when released past the RIGHT margin", () => {
+    const h = makeHarness("peer-right");
+    h.send({ type: "grabStart", targetId: "tasks" });
+    h.send({ type: "grabMove", nx: 1 - EDGE_MARGIN, ny: 0.5 }); // at the right edge
+    h.send({ type: "grabEnd" });
+
+    expect(h.resolveHandoffTarget).toHaveBeenCalledWith("right");
+    expect(h.sendHandoff).toHaveBeenCalledWith("tasks", "peer-right", "right");
+    // No local drop happened: the registry removes it, so the assignment here is
+    // untouched by moveWidgetToZone.
+    expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]);
+    expect(getDndState()).toEqual({ grabbedId: null, nearestZone: null });
+  });
+
+  it("hands the card left when released past the LEFT margin", () => {
+    const h = makeHarness("peer-left");
+    h.send({ type: "grabStart", targetId: "people" });
+    h.send({ type: "grabMove", nx: EDGE_MARGIN, ny: 0.5 }); // at the left edge
+    h.send({ type: "grabEnd" });
+
+    expect(h.resolveHandoffTarget).toHaveBeenCalledWith("left");
+    expect(h.sendHandoff).toHaveBeenCalledWith("people", "peer-left", "left");
+    expect(getZoneAssignment()).toEqual([...STUDIO_WIDGET_ORDER]);
+  });
+
+  it("falls back to a normal local drop when NO peer is in that direction", () => {
+    const h = makeHarness(null); // resolveHandoffTarget → null
+    h.place("tasks", [6, 0, 0]); // over zone 2
+    h.send({ type: "grabStart", targetId: "tasks" });
+    h.send({ type: "grabMove", nx: 1 - EDGE_MARGIN, ny: 0.5 }); // at the edge…
+    h.send({ type: "grabEnd" }); // …but no target → local drop
+
+    expect(h.sendHandoff).not.toHaveBeenCalled();
+    expect(getZoneAssignment()).toEqual([
+      "captures",
+      "agenda",
+      "tasks",
+      "habits",
+      "journal",
+      "projects",
+      "areas",
+      "people",
+    ]);
+  });
+
+  it("never hands off when the grab produced no move (lastNx null)", () => {
+    const h = makeHarness("peer-right");
+    h.place("tasks", [6, 0, 0]); // over zone 2
+    h.send({ type: "grabStart", targetId: "tasks" });
+    h.send({ type: "grabEnd" }); // no grabMove → lastNx null → local drop
+
+    expect(h.sendHandoff).not.toHaveBeenCalled();
+    expect(getZoneAssignment()[2]).toBe("tasks"); // normal reflow landed it
   });
 });
 

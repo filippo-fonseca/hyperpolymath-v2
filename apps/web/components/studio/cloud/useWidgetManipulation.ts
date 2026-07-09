@@ -20,6 +20,10 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { useStudioPhase } from "@/lib/studio/input/react";
+import {
+  resolveDefaultHandoffTarget,
+  sendHandoff,
+} from "@/lib/studio/state/window-registry";
 import { type StudioWidgetId } from "../data/useStudioData";
 import { type TileSlot } from "./layout";
 import {
@@ -54,6 +58,10 @@ export function useWidgetManipulation({
       getGroup,
       camera,
       invalidate,
+      // Cross-window hand-off, backed by the window registry. Stable module
+      // functions — no need to re-set them each render.
+      resolveHandoffTarget: resolveDefaultHandoffTarget,
+      sendHandoff,
     };
   } else {
     depsRef.current.slots = slots;
