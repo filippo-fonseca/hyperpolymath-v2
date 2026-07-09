@@ -1,12 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
-import type {
-  BriefingItem,
-  BriefingModelWatch,
-  BriefingSection,
-  BriefingSynthesis,
-} from "./types";
+import type { BriefingItem, BriefingModelWatch, BriefingSection, BriefingSynthesis } from "./types";
 
 const PLANNER_MODEL = process.env.BRIEFING_PLANNER_MODEL || "gpt-5.5";
 const PLANNER_EFFORT = process.env.BRIEFING_PLANNER_EFFORT || "high";
@@ -53,7 +48,11 @@ export async function synthesizeBriefing(items: BriefingItem[]): Promise<Briefin
     .slice(0, 40)
     .map((item) => `${item.id}:${item.score}`)
     .join("|");
-  if (synthesisCache && synthesisCache.key === key && Date.now() - synthesisCache.at < SYNTHESIS_CACHE_TTL_MS) {
+  if (
+    synthesisCache &&
+    synthesisCache.key === key &&
+    Date.now() - synthesisCache.at < SYNTHESIS_CACHE_TTL_MS
+  ) {
     return synthesisCache.value;
   }
 
@@ -264,9 +263,7 @@ function byCategory(
 }
 
 function take(items: BriefingItem[], limit: number): BriefingItem[] {
-  return [...items]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  return [...items].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 function inferUpcomingModels(items: BriefingItem[]): BriefingModelWatch[] {
@@ -279,7 +276,8 @@ function inferUpcomingModels(items: BriefingItem[]): BriefingModelWatch[] {
     /deepseek[-\s]?[a-z0-9.]+/gi,
     /qwen[-\s]?[a-z0-9.]+/gi,
   ];
-  const statusWords = /launch|release|ship|preview|upcoming|rumor|rumour|leak|benchmark|leaderboard/i;
+  const statusWords =
+    /launch|release|ship|preview|upcoming|rumor|rumour|leak|benchmark|leaderboard/i;
   const found = new Map<string, BriefingModelWatch>();
 
   for (const item of items) {

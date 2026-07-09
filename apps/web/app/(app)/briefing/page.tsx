@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { BriefingPage } from "@/components/briefing/BriefingPage";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { getBriefingData } from "@/lib/briefing";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 

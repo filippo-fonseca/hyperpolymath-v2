@@ -1,4 +1,9 @@
-import type { BriefingData, BriefingItem, BriefingModelWatch, BriefingSection } from "@/lib/briefing";
+import type {
+  BriefingData,
+  BriefingItem,
+  BriefingModelWatch,
+  BriefingSection,
+} from "@/lib/briefing";
 import { cn } from "@/lib/utils";
 import {
   Activity,
@@ -58,8 +63,8 @@ export function BriefingPage({ data }: { data: BriefingData }) {
               Briefing
             </h1>
             <p className="max-w-3xl font-serif text-base leading-7 text-[var(--ink-muted)]">
-              Frontier AI, research, policy, top labs, semiconductors, bio, creator discourse,
-              model rumors, and benchmark motion from public feeds.
+              Frontier AI, research, policy, top labs, semiconductors, bio, creator discourse, model
+              rumors, and benchmark motion from public feeds.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-left sm:grid-cols-4 lg:min-w-[520px]">
@@ -140,7 +145,10 @@ export function BriefingPage({ data }: { data: BriefingData }) {
               {data.failedSources.length > 0 ? (
                 <div className="space-y-2">
                   {data.failedSources.map((failure) => (
-                    <div key={failure.source} className="rounded-md border border-[var(--edge)] p-3">
+                    <div
+                      key={failure.source}
+                      className="rounded-md border border-[var(--edge)] p-3"
+                    >
                       <div className="font-serif text-sm text-[var(--ink)]">{failure.source}</div>
                       <div className="mt-1 font-mono text-[11px] text-[var(--ink-muted)]">
                         {failure.error}
@@ -273,7 +281,12 @@ function SourceRow({ item }: { item: BriefingItem }) {
   return (
     <article className="grid gap-3 py-4 md:grid-cols-[140px_1fr]">
       <div className="space-y-1">
-        <div className={cn("font-mono text-[10px] uppercase tracking-[0.1em]", categoryClass[item.category])}>
+        <div
+          className={cn(
+            "font-mono text-[10px] uppercase tracking-[0.1em]",
+            categoryClass[item.category]
+          )}
+        >
           {categoryLabels[item.category]}
         </div>
         <div className="font-mono text-[11px] text-[var(--ink-muted)]">{date.long}</div>

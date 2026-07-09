@@ -122,9 +122,7 @@ async function fetchSource(source: BriefingSource): Promise<BriefingItem[]> {
 async function fetchFeed(source: BriefingSource): Promise<BriefingItem[]> {
   const xml = await fetchText(source.url);
   const entries =
-    source.kind === "atom" || xml.includes("<feed")
-      ? parseAtomEntries(xml)
-      : parseRssItems(xml);
+    source.kind === "atom" || xml.includes("<feed") ? parseAtomEntries(xml) : parseRssItems(xml);
   return entries
     .map((entry) => normalizeFeedEntry(source, entry))
     .filter((item): item is BriefingItem => item !== null)
@@ -145,7 +143,8 @@ async function fetchHn(source: BriefingSource): Promise<BriefingItem[]> {
   return parsed.hits
     .map((hit) => {
       const title = hit.title ?? hit.story_title ?? "";
-      const url = hit.url ?? hit.story_url ?? `https://news.ycombinator.com/item?id=${hit.objectID}`;
+      const url =
+        hit.url ?? hit.story_url ?? `https://news.ycombinator.com/item?id=${hit.objectID}`;
       const summary = [
         hit.author ? `HN by ${hit.author}` : null,
         hit.points != null ? `${hit.points} points` : null,
@@ -243,7 +242,9 @@ function buildItem(input: {
   const publishedAt = normalizeDate(input.publishedAt);
   const text = `${title} ${cleanText(input.summary)}`;
   const tags = inferTags(text, input.source.category);
-  const recent = publishedAt ? Math.max(0, 1 - (Date.now() - dateMs(publishedAt)) / LOOKBACK_MS) : 0.25;
+  const recent = publishedAt
+    ? Math.max(0, 1 - (Date.now() - dateMs(publishedAt)) / LOOKBACK_MS)
+    : 0.25;
   const relevance = tags.length / 5;
   const score = Number(
     (input.source.weight * 2 + recent * 2 + relevance + (input.nativeScore ?? 0)).toFixed(3)
@@ -291,7 +292,10 @@ function canonicalKey(item: BriefingItem): string {
     const url = new URL(item.url);
     return `${url.hostname}${url.pathname}`.toLowerCase().replace(/\/$/, "");
   } catch {
-    return item.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    return item.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
   }
 }
 
@@ -302,7 +306,9 @@ function getTag(block: string, tag: string): string {
 }
 
 function getAtomLink(block: string): string {
-  const alternate = block.match(/<link\b[^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["'][^>]*\/?>/i);
+  const alternate = block.match(
+    /<link\b[^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["'][^>]*\/?>/i
+  );
   if (alternate?.[1]) return alternate[1];
   const any = block.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*\/?>/i);
   return any?.[1] ?? "";
@@ -313,7 +319,9 @@ function stripCdata(text: string): string {
 }
 
 function cleanText(text: string): string {
-  return decodeEntities(stripHtml(stripCdata(text))).replace(/\s+/g, " ").trim();
+  return decodeEntities(stripHtml(stripCdata(text)))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function stripHtml(text: string): string {
