@@ -21,8 +21,8 @@
 
 ## Verification
 
-- `pnpm --filter web typecheck`: blocked by existing baseline
-  `tests/api-jarvis-tts.test.ts` `Request` vs `NextRequest` errors.
+- `pnpm --filter web typecheck`: green after rebasing onto current
+  `origin/main` and refreshing locked dependencies.
 - `pnpm --filter web exec biome check lib/briefing components/briefing 'app/(app)/briefing/page.tsx' .env.example`: green.
 - `pnpm --filter web build`: green with existing warnings in
   `components/pages/page-block-editor.css` and landing NFT trace.
@@ -30,3 +30,10 @@
   Supabase green.
 - `curl -I http://localhost:3000/briefing`: `307` to `/sign-in`, expected for
   an unauthenticated protected app route.
+- Local ignored env files were corrected from the repo root `.env.local` plus
+  `supabase status -o env`: `NEXT_PUBLIC_SUPABASE_URL`, Supabase anon/service
+  keys, `DATABASE_URL`, and Supabase Google-provider envs now point at the
+  running local Supabase stack instead of placeholder hosted URLs.
+- Direct local Supabase OAuth check:
+  `GET http://127.0.0.1:54321/auth/v1/authorize?provider=google...` returns
+  `302` to Google with `redirect_uri=http://127.0.0.1:54321/auth/v1/callback`.
