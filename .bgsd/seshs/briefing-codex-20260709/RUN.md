@@ -21,4 +21,12 @@
 
 ## Verification
 
-- Pending at creation: typecheck/build after docs commit.
+- `pnpm --filter web typecheck`: blocked by existing baseline
+  `tests/api-jarvis-tts.test.ts` `Request` vs `NextRequest` errors.
+- `pnpm --filter web exec biome check lib/briefing components/briefing 'app/(app)/briefing/page.tsx' .env.example`: green.
+- `pnpm --filter web build`: green with existing warnings in
+  `components/pages/page-block-editor.css` and landing NFT trace.
+- `node tools/hyperpolymath/hyperpolymath.mjs --only=web,supabase`: web and
+  Supabase green.
+- `curl -I http://localhost:3000/briefing`: `307` to `/sign-in`, expected for
+  an unauthenticated protected app route.
