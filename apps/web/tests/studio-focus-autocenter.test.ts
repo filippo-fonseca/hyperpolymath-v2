@@ -16,6 +16,8 @@ import { STUDIO_WIDGET_ORDER } from "@/components/studio/data/useStudioData";
 import {
   __resetZoneAssignment,
   moveWidgetToZone,
+  removeWidget,
+  replaceAssignment,
 } from "@/lib/studio/state/zone-assignment";
 
 /** Roomy rails so framing/pan math is un-clamped and easy to reason about. */
@@ -65,6 +67,25 @@ describe("resolveWidgetWorldPosition — the widget's current arc zone", () => {
     moveWidgetToZone("tasks", last);
     expect(resolveWidgetWorldPosition("tasks")).toEqual([
       ...ZONE_SLOTS[last]!.position,
+    ]);
+  });
+
+  it("returns null for a widget this window does not own (subset ownership)", () => {
+    // A peer owns "tasks" — it isn't in this window's assignment anymore.
+    removeWidget("tasks");
+    expect(resolveWidgetWorldPosition("tasks")).toBeNull();
+  });
+
+  it("resolves slots from the OWNED subset length, not the full 8", () => {
+    // This window owns just three widgets → a 3-slot arc; each resolves to its
+    // slot within that arc.
+    replaceAssignment(["tasks", "captures", "agenda"]);
+    const subsetSlots = arcZoneSlots(3);
+    expect(resolveWidgetWorldPosition("captures")).toEqual([
+      ...subsetSlots[1]!.position,
+    ]);
+    expect(resolveWidgetWorldPosition("agenda")).toEqual([
+      ...subsetSlots[2]!.position,
     ]);
   });
 });

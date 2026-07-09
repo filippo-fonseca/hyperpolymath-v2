@@ -14,13 +14,16 @@
  * sits — its assigned arc zone slot — so a reflow re-frames the widget at its new
  * zone. Both stay plain unit tests (the store exposes `moveWidgetToZone` +
  * `__resetZoneAssignment`).
+ *
+ * Under multi-window ownership the assignment is only THIS window's owned subset,
+ * so its length varies and a widget may not be present at all (owned by a peer,
+ * or in flight during a handoff). The slots are therefore resolved per call from
+ * the live assignment length, and an unowned id resolves to `null` so the caller
+ * simply skips framing instead of crashing.
  */
 
 import { arcZoneSlots } from "@/components/studio/cloud/layout";
-import {
-  STUDIO_WIDGET_ORDER,
-  type StudioWidgetId,
-} from "@/components/studio/data/useStudioData";
+import { type StudioWidgetId } from "@/components/studio/data/useStudioData";
 import { getZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import type { Vec3 } from "./traversal";
 
@@ -42,20 +45,17 @@ export function frameWidgetCamera(widgetPos: Vec3): Vec3 {
 }
 
 /**
- * The eight fixed amphitheater zone slots (index = zone), memoized at module
- * load. Deterministic and cheap; matches exactly what {@link WidgetCloud}
- * renders because both resolve positions from `arcZoneSlots`.
+ * A widget's world position: the center of its currently-assigned arc zone, or
+ * `null` when this window does not own the widget (owned by a peer window, or in
+ * flight during a cross-window handoff). Slots are resolved per call from the
+ * live owned assignment (length ≤ 8, called on focus transitions only), matching
+ * exactly what {@link WidgetCloud} renders. A reflow returns the widget's NEW
+ * slot, so the camera frames it wherever the reflow moved it.
  */
-const ZONE_SLOTS = arcZoneSlots(STUDIO_WIDGET_ORDER.length);
-
-/**
- * A widget's world position: the center of its currently-assigned arc zone. The
- * assignment is a permutation of every widget id, so `indexOf` always resolves to
- * a valid zone; a drop reflows the assignment and this returns the NEW slot, so
- * the camera frames the widget wherever the reflow moved it.
- */
-export function resolveWidgetWorldPosition(id: StudioWidgetId): Vec3 {
-  const zone = getZoneAssignment().indexOf(id);
-  const slot = ZONE_SLOTS[zone]!.position;
+export function resolveWidgetWorldPosition(id: StudioWidgetId): Vec3 | null {
+  const assignment = getZoneAssignment();
+  const zone = assignment.indexOf(id);
+  if (zone === -1) return null; // not owned here → caller skips framing
+  const slot = arcZoneSlots(assignment.length)[zone]!.position;
   return [slot[0], slot[1], slot[2]];
 }
