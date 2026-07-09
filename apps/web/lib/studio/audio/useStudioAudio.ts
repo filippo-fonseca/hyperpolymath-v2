@@ -89,11 +89,13 @@ export function useStudioAudio(): void {
     const unsub = channel.subscribe((message) => {
       if (message.type !== "handoff") return;
       // Read self id at event time — the registry assigns it lazily client-side.
+      // Only cue when this window is actually a party to the hand-off (sender or
+      // receiver); an unresolved id ("") never matches, so a bystander window
+      // stays silent for unrelated peer-to-peer hand-offs.
       const selfId = getSelfWindow().id;
       if (
-        !selfId ||
-        message.fromWindowId === selfId ||
-        message.toWindowId === selfId
+        selfId &&
+        (message.fromWindowId === selfId || message.toWindowId === selfId)
       ) {
         playCue(engine, "handoff");
       }
