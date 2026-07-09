@@ -36,6 +36,9 @@ import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 // JARVIS routines — spec shape single-sourced in jarvis-core; imported type-only
 // so the routines.spec jsonb column is typed without duplicating the contract.
 import type { RoutineSpec } from "@hyperpolymath/jarvis-core/routines";
+// Briefing — per-item meta shape single-sourced in lib/briefing/types; imported
+// type-only so the briefing_items.meta jsonb column is typed without duplication.
+import type { BriefingItemMeta } from "@/lib/briefing/types";
 
 // tsvector type for Postgres full-text search (used on captures.content_search).
 // Pattern 7 from 02-RESEARCH.md.
@@ -1552,5 +1555,77 @@ export const routines = pgTable(
     index("routines_user_updated_idx").on(t.userId, t.updatedAt.desc()),
     index("routines_next_run_idx").on(t.enabled, t.nextRunAt),
     index("routines_trigger_types_gin").using("gin", t.triggerTypes),
+  ],
+);
+
+// briefing_editions — one curated daily digest per user per day. The curator
+// (gpt-4o-mini) writes a headline + intro summary; the constituent stories live
+// in briefing_items. UNIQUE(user_id, edition_date) makes the daily refresh an
+// idempotent upsert (re-running a day replaces, never duplicates).
+export const briefingEditions = pgTable(
+  "briefing_editions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    editionDate: date("edition_date").notNull(),
+    headline: text("headline").notNull().default(""),
+    summary: text("summary").notNull().default(""),
+    model: text("model").notNull().default("gpt-4o-mini"),
+    itemCount: integer("item_count").notNull().default(0),
+    rawSourceCount: integer("raw_source_count").notNull().default(0),
+    status: text("status").notNull().default("ready"),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("briefing_editions_user_date_key").on(t.userId, t.editionDate),
+    index("briefing_editions_user_generated_idx").on(
+      t.userId,
+      t.generatedAt.desc(),
+    ),
+  ],
+);
+
+// briefing_items — the individual curated stories that make up an edition.
+// `section` is stored as text (not an enum) so the LLM curator can evolve the
+// taxonomy without a migration; the app validates against BRIEFING_SECTIONS.
+export const briefingItems = pgTable(
+  "briefing_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => briefingEditions.id, { onDelete: "cascade" }),
+    section: text("section").notNull().default("general"),
+    title: text("title").notNull(),
+    summary: text("summary").notNull().default(""),
+    url: text("url"),
+    sourceName: text("source_name").notNull().default(""),
+    score: integer("score").notNull().default(0),
+    orderIndex: integer("order_index").notNull().default(0),
+    meta: jsonb("meta").$type<BriefingItemMeta>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("briefing_items_edition_idx").on(
+      t.editionId,
+      t.section,
+      t.orderIndex,
+    ),
+    index("briefing_items_user_idx").on(t.userId),
   ],
 );
