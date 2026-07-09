@@ -4,6 +4,9 @@ import {
   type BriefingItemMeta,
   type BriefingSection,
 } from "@/lib/briefing/types";
+import { deriveMedia } from "@/lib/briefing/media";
+import { VideoEmbed } from "@/components/briefing/VideoEmbed";
+import { TweetEmbed } from "@/components/briefing/TweetEmbed";
 import { cn } from "@/lib/utils";
 
 /**
@@ -54,10 +57,29 @@ function MetaChip({
 }
 
 /** Renders the footer chip row for a single item from its meta. */
-function ItemMeta({ meta, sourceName }: { meta: BriefingItemMeta | null; sourceName: string }) {
+function ItemMeta({
+  meta,
+  sourceName,
+  faviconUrl,
+}: {
+  meta: BriefingItemMeta | null;
+  sourceName: string;
+  faviconUrl?: string;
+}) {
   const tags = meta?.tags ?? [];
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {faviconUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={faviconUrl}
+          alt=""
+          width={14}
+          height={14}
+          className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
+          loading="lazy"
+        />
+      )}
       <span className="font-mono text-[11px] tracking-tight text-[var(--ink-muted)]">
         {sourceName}
       </span>
@@ -80,6 +102,7 @@ function ItemMeta({ meta, sourceName }: { meta: BriefingItemMeta | null; sourceN
 
 /** A single item row. `featured` gives the top story larger typography. */
 function BriefingItem({ item, featured }: { item: BriefingItemRow; featured: boolean }) {
+  const media = item.url ? deriveMedia(item.url) : null;
   const titleNode = item.url ? (
     <a
       href={item.url}
@@ -123,7 +146,19 @@ function BriefingItem({ item, featured }: { item: BriefingItemRow; featured: boo
           {item.summary}
         </p>
       )}
-      <ItemMeta meta={item.meta} sourceName={item.sourceName} />
+      {media?.kind === "video" && media.youtubeEmbedUrl && media.youtubeThumb && (
+        <VideoEmbed
+          embedUrl={media.youtubeEmbedUrl}
+          thumbUrl={media.youtubeThumb}
+          title={item.title}
+        />
+      )}
+      {media?.kind === "tweet" && media.tweetId && <TweetEmbed id={media.tweetId} />}
+      <ItemMeta
+        meta={item.meta}
+        sourceName={item.sourceName}
+        faviconUrl={media?.faviconUrl}
+      />
     </article>
   );
 }
