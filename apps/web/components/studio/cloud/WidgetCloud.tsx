@@ -26,10 +26,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 import { useStudioHoverProvider } from "@/lib/studio/input/react";
+import { useFrontRow } from "@/lib/studio/state/active-row";
 import { useZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
-import { arcZoneSlots } from "./layout";
+import { arcZoneSlots, DEFAULT_ARC_ZONES } from "./layout";
 import { useWidgetManipulation } from "./useWidgetManipulation";
 import { WidgetTile } from "./WidgetTile";
 import { ZoneMarkers } from "./ZoneMarkers";
@@ -49,11 +50,19 @@ export function WidgetCloud(): React.ReactElement {
   // owned count (≤ 8), not necessarily all eight.
   const assignment = useZoneAssignment();
 
-  // Arc zone slots sized to the OWNED count (index = zone). The tile renderer and
-  // the manipulation controller both resolve positions from this one array, so
-  // the visual layout and the drop math can never drift apart. A window owning 3
-  // widgets shows a 3-slot arc.
-  const slots = useMemo(() => arcZoneSlots(assignment.length), [assignment.length]);
+  // Which row-group renders at the near (front, DnD-reachable) geometry. The HUD
+  // toggle flips this; a flip re-derives `slots`, the tiles re-render with new
+  // targets, and each tile's damp-to-slot glides the swap for free.
+  const frontRow = useFrontRow();
+
+  // Arc zone slots sized to the OWNED count (index = zone) at the active front
+  // row. The tile renderer and the manipulation controller both resolve positions
+  // from this one array, so the visual layout and the drop math can never drift
+  // apart. A window owning 3 widgets shows a 3-slot arc.
+  const slots = useMemo(
+    () => arcZoneSlots(assignment.length, DEFAULT_ARC_ZONES, frontRow),
+    [assignment.length, frontRow],
+  );
 
   // Summaries keyed by id so the owned-assignment iteration can look each up
   // without scanning. Rebuilt only when the summary set changes.
