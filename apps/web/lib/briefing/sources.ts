@@ -195,6 +195,47 @@ async function ingestHnQuery(query: string): Promise<RawItem[]> {
   return items;
 }
 
+/**
+ * Known X/Twitter mirror front-ends (Nitter and friends). These proxy real
+ * tweets but wrap them in untrusted third-party pages (ads, NSFW interstitials),
+ * so we never surface or fetch them directly. A mirror URL mirrors X's path
+ * shape (`/user/status/id`), so we rewrite it back to the canonical x.com URL,
+ * which is safe and oEmbed-able. Non-tweet mirror pages are dropped upstream.
+ */
+const X_MIRROR_HOSTS = new Set([
+  "xcancel.com",
+  "nitter.net",
+  "nitter.poast.org",
+  "nitter.privacydev.net",
+  "nitter.1d4.us",
+  "nitter.kavin.rocks",
+  "nitter.unixfox.eu",
+  "twstalker.com",
+  "nitter.lucabased.xyz",
+]);
+
+function isXMirrorHost(host: string): boolean {
+  return X_MIRROR_HOSTS.has(host) || host.startsWith("nitter.");
+}
+
+/**
+ * Rewrite an X-mirror URL to the canonical x.com URL. Returns null if the URL
+ * is a mirror page but not an individual tweet (e.g. a bare profile), so the
+ * caller can drop it rather than link somewhere unsafe.
+ */
+function canonicalizeUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!isXMirrorHost(u.hostname.toLowerCase())) return url;
+    if (/^\/[^/]+\/status\/\d+/.test(u.pathname)) {
+      return `https://x.com${u.pathname.replace(/\/$/, "")}`;
+    }
+    return null;
+  } catch {
+    return url;
+  }
+}
+
 /** Normalize a URL for dedup: lowercase host, drop trailing slash + hash. */
 function normalizeUrl(url: string): string {
   try {
@@ -240,10 +281,12 @@ export async function ingestAllSources(): Promise<RawItem[]> {
   const seen = new Set<string>();
   const deduped: RawItem[] = [];
   for (const item of all) {
-    const key = normalizeUrl(item.url);
+    const safeUrl = canonicalizeUrl(item.url);
+    if (safeUrl === null) continue; // untrusted mirror, non-tweet page — drop it
+    const key = normalizeUrl(safeUrl);
     if (seen.has(key)) continue;
     seen.add(key);
-    deduped.push(item);
+    deduped.push({ ...item, url: safeUrl });
   }
 
   deduped.sort((a, b) => {
