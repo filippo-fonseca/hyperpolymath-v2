@@ -229,22 +229,24 @@ export function StudioDataProvider({
     queryFn: () => getHashtagsForUserAction({ withCounts: true }),
   });
 
-  // ── Projects / Areas / People — same keys/fns as the 2D pages (Sidebar,
-  // ProjectDetailClient, PeopleClient). Hashtags precedent: no SSR seed, fetch
-  // on mount, `[]` until first paint. Tiles are pure summaries over these.
-  const { data: projects = [] } = useQuery({
+  // ── Projects / Areas / People — same keys/fns as the 2D pages. SSR-seeded
+  // so ambient tiles paint real content on first frame (no empty flash).
+  const { data: projects = seed.projects } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
+    initialData: seed.projects,
   });
 
-  const { data: areas = [] } = useQuery({
+  const { data: areas = seed.areas } = useQuery({
     queryKey: tableKey("areas", userId),
     queryFn: getAreasForCurrentUser,
+    initialData: seed.areas,
   });
 
-  const { data: people = [] } = useQuery({
+  const { data: people = seed.people } = useQuery({
     queryKey: tableKey("people", userId),
     queryFn: getPeopleForCurrentUser,
+    initialData: seed.people,
   });
 
   // ── Memoized slice identities on data inputs ─────────────────────────────

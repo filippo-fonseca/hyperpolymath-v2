@@ -13,6 +13,9 @@ import {
   getHabitCompletionsInRange,
 } from "@/app/actions/habits";
 import { getJournalEntry } from "@/app/actions/journal";
+import { getProjectsForCurrentUser } from "@/app/actions/projects";
+import { getAreasForCurrentUser } from "@/app/actions/areas";
+import { getPeopleForCurrentUser } from "@/app/actions/people";
 import {
   getGcalConnectionStatus,
   type GcalConnectionStatus,
@@ -64,6 +67,9 @@ export async function loadStudioSeed(userId: string): Promise<StudioSeed> {
     habits,
     habitCompletions,
     journalResult,
+    projects,
+    areas,
+    people,
   ] = await Promise.all([
     getAllTasksForUser(userId),
     getCapturesForUser(userId),
@@ -79,6 +85,9 @@ export async function loadStudioSeed(userId: string): Promise<StudioSeed> {
     getHabitsForCurrentUser(),
     getHabitCompletionsInRange(habitsWindowStartYmd, localTodayYmd),
     getJournalEntry({ date: localTodayYmd }),
+    getProjectsForCurrentUser(),
+    getAreasForCurrentUser(),
+    getPeopleForCurrentUser(),
   ]);
 
   const journal = journalResult.success ? journalResult.data : null;
@@ -151,5 +160,15 @@ export async function loadStudioSeed(userId: string): Promise<StudioSeed> {
     visibleCalendarIds,
   };
 
-  return { tasks, captures, calendar, habits, habitCompletions, journal };
+  return {
+    tasks,
+    captures,
+    calendar,
+    habits,
+    habitCompletions,
+    journal,
+    projects,
+    areas,
+    people,
+  };
 }
