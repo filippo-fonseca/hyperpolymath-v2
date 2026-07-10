@@ -18,6 +18,7 @@ export interface FolderRow {
   parentId: string | null;
   name: string;
   orderIndex: number;
+  positionKey?: string | null;
 }
 
 /** A folder plus the project ids it directly links to (its OWN links, not inherited). */
