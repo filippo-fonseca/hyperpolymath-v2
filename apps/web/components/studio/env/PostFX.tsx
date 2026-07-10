@@ -1,38 +1,33 @@
 "use client";
 
 /**
- * PostFX.tsx — U-08 · The Studiolo · atmosphere-post
+ * PostFX.tsx — THE ONLY <EffectComposer> in the studio (§7 doctrine).
  *
- * THE ONLY <EffectComposer> in the entire app (§7 doctrine: one composer).
- * Every glow in the world is produced here, by Bloom, and only objects that
- * opt in glow:
- *
- *   - Bloom uses `mipmapBlur` (the cheapest high-quality blur) with
- *     `luminanceThreshold={1}`, so ONLY pixels whose luminance exceeds 1 bleed.
- *     A plain lit material (tone-mapped into [0,1]) can never cross that
- *     threshold — it will NOT glow. To bloom, an object must set
- *     `toneMapped:false` AND drive its color/emissive above 1 (the embers,
- *     lanterns, ring, fireflies, and ignited inlays all do this deliberately).
- *     `luminanceSmoothing` only feathers the knee AT the threshold (a soft
- *     candlelit edge instead of a ringy hard cut) — it does NOT grant
- *     tone-mapped content bloom; the HDR opt-in contract holds.
- *   - Vignette darkens the frame edges for the candle-lit, inward focus.
- *
- * Tuned params live in `postfx.params.ts` (pure, tested) so the doctrine
- * invariants (threshold === 1) are locked without brittle snapshots.
- *
- * Mounted once by the orchestrator inside <WorldScene/>. Runs at the composer's
- * default resolution — no custom render targets, no second pass. `multisampling`
- * is trimmed 8 → 4: a free per-frame bandwidth win, invisible on soft slabs at
- * dpr ≤ 2.
+ * Glow is Bloom with luminanceThreshold === 1 (HDR opt-in only). N8AO adds soft
+ * contact between slabs and the floor without fighting the candlelight. Fine
+ * film grain + vignette finish the chamber. Tuned params live in postfx.params.
  */
-import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
+import {
+  Bloom,
+  EffectComposer,
+  N8AO,
+  Noise,
+  Vignette,
+} from "@react-three/postprocessing";
 
-import { STUDIO_BLOOM } from "./postfx.params";
+import { STUDIO_BLOOM, STUDIO_N8AO, STUDIO_NOISE, STUDIO_VIGNETTE } from "./postfx.params";
 
 export function PostFX(): React.ReactElement {
   return (
-    <EffectComposer multisampling={4}>
+    <EffectComposer multisampling={4} enableNormalPass>
+      <N8AO
+        aoRadius={STUDIO_N8AO.aoRadius}
+        distanceFalloff={STUDIO_N8AO.distanceFalloff}
+        intensity={STUDIO_N8AO.intensity}
+        quality={STUDIO_N8AO.quality}
+        halfRes={STUDIO_N8AO.halfRes}
+        color={STUDIO_N8AO.color}
+      />
       <Bloom
         mipmapBlur
         luminanceThreshold={STUDIO_BLOOM.luminanceThreshold}
@@ -41,7 +36,11 @@ export function PostFX(): React.ReactElement {
         radius={STUDIO_BLOOM.radius}
         levels={STUDIO_BLOOM.levels}
       />
-      <Vignette offset={0.35} darkness={0.72} />
+      <Noise opacity={STUDIO_NOISE.opacity} />
+      <Vignette
+        offset={STUDIO_VIGNETTE.offset}
+        darkness={STUDIO_VIGNETTE.darkness}
+      />
     </EffectComposer>
   );
 }

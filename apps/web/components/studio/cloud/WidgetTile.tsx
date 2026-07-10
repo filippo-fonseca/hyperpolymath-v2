@@ -26,6 +26,7 @@ import type {
   StudioWidgetId,
 } from "../data/useStudioData";
 import {
+  heroGlass,
   makeHologramMaterial,
   type HologramUniforms,
 } from "../materials/hologram";
@@ -76,6 +77,10 @@ const _pos: [number, number, number] = [0, 0, 0];
 export interface WidgetTileProps {
   summary: StudioTileSummary;
   position: [number, number, number];
+  /** This tile is the expanded focus target — thicker glass, hero transmission. */
+  focused?: boolean;
+  /** Another tile is focused — dim this one so the focus reads as the hero. */
+  dimmed?: boolean;
   registerMesh: (id: StudioWidgetId, mesh: THREE.Mesh | null) => void;
   registerGroup: (id: StudioWidgetId, group: THREE.Group | null) => void;
 }
@@ -83,6 +88,8 @@ export interface WidgetTileProps {
 export function WidgetTile({
   summary,
   position,
+  focused = false,
+  dimmed = false,
   registerMesh,
   registerGroup,
 }: WidgetTileProps): React.ReactElement {
@@ -91,19 +98,20 @@ export function WidgetTile({
   const orientRef = useRef<THREE.Group>(null);
   const hoverTRef = useRef(0);
   const fadeRef = useRef(1);
+  const focusTRef = useRef(focused ? 1 : 0);
 
   const outerRef = useRef<THREE.Group | null>(null);
   const targetRef = useRef(position);
   targetRef.current = position;
 
   const hovered = useStudioIsHovered(summary.id);
+  const tint = TINTS[summary.id] ?? PARCHMENT;
 
   // Initial fade from assigned slot vs spawn camera (live eye updates in useFrame).
   const initialFade = useMemo(() => depthFade(position), [position]);
   fadeRef.current = initialFade;
 
   const material = useMemo(() => {
-    const tint = TINTS[summary.id] ?? PARCHMENT;
     const attention = summary.state === "attention";
     return makeHologramMaterial({
       tint,
@@ -113,7 +121,11 @@ export function WidgetTile({
       rimPower: 2.2,
       rimAlphaBoost: 0.42,
     });
-  }, [summary.id, summary.state]);
+  }, [summary.id, summary.state, tint]);
+
+  useEffect(() => {
+    invalidate();
+  }, [focused, dimmed, invalidate]);
 
   // Dark backplate — gives the slab mass and readable contrast behind text.
   const backMaterial = useMemo(
@@ -200,14 +212,25 @@ export function WidgetTile({
   );
 
   useFrame((_, dt) => {
-    const target = hovered ? 1 : 0;
-    hoverTRef.current += (target - hoverTRef.current) * Math.min(1, dt * 12);
+    const hoverTarget = hovered ? 1 : 0;
+    hoverTRef.current +=
+      (hoverTarget - hoverTRef.current) * Math.min(1, dt * 12);
     const t = hoverTRef.current;
 
-    if (orientRef.current) orientRef.current.scale.setScalar(1 + 0.055 * t);
+    const focusTarget = focused ? 1 : 0;
+    focusTRef.current +=
+      (focusTarget - focusTRef.current) * Math.min(1, dt * 6);
+    const f = focusTRef.current;
+
+    const dimMul = dimmed ? 0.45 : 1;
+    // Focus blooms the slab slightly larger; hover still adds a small lift.
+    if (orientRef.current) {
+      orientRef.current.scale.setScalar(1 + 0.055 * t + 0.12 * f);
+    }
 
     const group = outerRef.current;
-    let needsFrame = Math.abs(target - t) > 0.001;
+    let needsFrame =
+      Math.abs(hoverTarget - t) > 0.001 || Math.abs(focusTarget - f) > 0.001;
 
     // Soft face-camera: slerp toward the live eye so pan never leaves cards
     // edge-on. Uses the outer group's world position (slot + grab offset).
@@ -235,11 +258,12 @@ export function WidgetTile({
       _pos[1] = group.position.y;
       _pos[2] = group.position.z;
       const nextFade = depthFade(_pos, undefined, _eye);
-      if (Math.abs(nextFade - fadeRef.current) > 0.002) {
-        fadeRef.current = nextFade;
-        material.opacity = 0.22 * nextFade;
-        backMaterial.opacity = 0.55 * nextFade;
-        ruleMaterial.opacity = 0.35 * nextFade;
+      const applied = nextFade * dimMul;
+      if (Math.abs(applied - fadeRef.current) > 0.002) {
+        fadeRef.current = applied;
+        material.opacity = 0.22 * applied * (1 - 0.35 * f);
+        backMaterial.opacity = 0.55 * applied;
+        ruleMaterial.opacity = 0.35 * applied;
         needsFrame = true;
       }
     }
@@ -247,7 +271,7 @@ export function WidgetTile({
     const fade = fadeRef.current;
     const uniforms = material.userData.rimUniforms as HologramUniforms;
     uniforms.uRimIntensity.value =
-      (STUDIO_RIM.rest + STUDIO_RIM.hoverBoost * t) * fade;
+      (STUDIO_RIM.rest + STUDIO_RIM.hoverBoost * t + 1.1 * f) * fade;
 
     // Reflow glide toward assigned slot unless this tile is grabbed.
     if (group && getDndState().grabbedId !== summary.id) {
@@ -287,13 +311,25 @@ export function WidgetTile({
             <planeGeometry args={[TILE_W - 0.06, TILE_H - 0.06]} />
           </mesh>
 
-          <RoundedBox
-            ref={registerRef}
-            args={[TILE_W, TILE_H, TILE_D]}
-            radius={TILE_RADIUS}
-            smoothness={4}
-            material={material}
-          />
+          {focused ? (
+            // Hero transmission glass while focused (cap 3 live — we mount at most 1).
+            <RoundedBox
+              ref={registerRef}
+              args={[TILE_W, TILE_H, TILE_D * 1.35]}
+              radius={TILE_RADIUS}
+              smoothness={4}
+            >
+              {heroGlass({ tint })}
+            </RoundedBox>
+          ) : (
+            <RoundedBox
+              ref={registerRef}
+              args={[TILE_W, TILE_H, TILE_D]}
+              radius={TILE_RADIUS}
+              smoothness={4}
+              material={material}
+            />
+          )}
 
           {/* Header brass hairline. */}
           <mesh
