@@ -56,7 +56,8 @@ async function getUserTimezone(userId: string): Promise<string> {
   return row?.timezone ?? "UTC";
 }
 
-const ROUTINES_PATH = "/settings/routines";
+// Routines authoring now lives in the centralized JARVIS tab.
+const ROUTINES_PATH = "/jarvis";
 
 // ---------------------------------------------------------------------------
 // Row → API shape

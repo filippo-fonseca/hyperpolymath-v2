@@ -21,8 +21,12 @@ import { stripMarkdownForSpeech } from "@/lib/voice/strip-markdown-for-speech";
 import {
   buildSystemPrompt,
   buildToolDefinitions,
+  correctLeadingGreeting,
+  greetingForTimeOfDay,
   type PersonalityConfig,
   type ProjectSummary,
+  type TimeOfDay,
+  timeOfDayForHour,
   zAskClarificationFor,
   zCreateCaptureFor,
   zCreateEventFor,
@@ -223,10 +227,32 @@ function formatTodayDateInTimezone(tz: string): string {
   }).format(new Date());
 }
 
+// Current wall-clock hour (0–23) in the given IANA timezone. Uses hourCycle
+// "h23" so midnight is 0 (not the "24" some Intl outputs produce), keeping the
+// value safe to feed into timeOfDayForHour.
+function currentHourInTimezone(tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  return Number.isFinite(h) ? ((h % 24) + 24) % 24 : 0;
+}
+
 // Uncached temporal-context block (appended after all cache breakpoints, like
 // the session-entities scratchpad). Without this the model has no idea what
 // time it is locally and guesses UTC offsets — "tonight 11pm" landed on the
 // next calendar day.
+//
+// It also carries the TIME-OF-DAY + GREETING contract (bgsd/time-aware-greeting):
+// the model previously greeted "Good morning, sir." at 1:35 PM because it was
+// given a bare 24h timestamp with no derived part-of-day and no instruction to
+// match its greeting to the clock. We now inject the human-readable clock
+// ("1:35 PM"), the derived bucket (morning/afternoon/evening/night), the exact
+// greeting phrase, and an explicit instruction so any briefing/opener greets
+// correctly. This block is uncached (it changes every minute) so a Date read
+// here is safe — unlike the cache-critical prompt-builder.
 function buildTemporalContextBlock(tz: string): string {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -243,11 +269,24 @@ function buildTemporalContextBlock(tz: string): string {
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   const offset = get("timeZoneName").replace("GMT", "") || "+00:00";
   const local = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+
+  // Human-readable 12h clock (e.g. "1:35 PM") for the greeting contract.
+  const clock = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(now);
+
+  const timeOfDay = timeOfDayForHour(currentHourInTimezone(tz));
+  const greeting = greetingForTimeOfDay(timeOfDay);
+
   return [
     "CURRENT USER TIME:",
-    `- Local now: ${local} (${get("weekday")})`,
+    `- Local now: ${local} (${get("weekday")}) — ${clock} local, which is the ${timeOfDay}.`,
     `- Timezone: ${tz} (UTC${offset})`,
     `- When emitting due/start/end timestamps, ALWAYS use this UTC offset (e.g. ${local}:00${offset}) — never a bare Z/UTC timestamp. "tonight", "today", "tomorrow" are relative to the local time above.`,
+    `- GREETING: it is currently the ${timeOfDay} (${clock}). Whenever you open with a time-of-day greeting — a briefing, a "daddy's home" welcome, a morning dump, or any greeting opener — it MUST match the local time: say "${greeting}". Never greet with a different part of the day (e.g. never "Good morning" when it is the ${timeOfDay}).`,
   ].join("\n");
 }
 
@@ -275,7 +314,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   // and only flush it once the boundary is unambiguous. On text-only turns this
   // is a passthrough — the on-screen transcript stays rich.
   let sanitizeCarry = "";
-  const emitTextDelta = (delta: string): void => {
+  const emitSanitized = (delta: string): void => {
     if (!speakingTurn) {
       opts.onTextDelta(delta);
       return;
@@ -290,7 +329,47 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     sanitizeCarry = holdLen > 0 ? combined.slice(combined.length - holdLen) : "";
     if (toEmit) opts.onTextDelta(stripMarkdownForSpeech(toEmit));
   };
+
+  // Deterministic leading-greeting guard (bgsd/time-aware-greeting). The prompt
+  // now tells the model the correct time-of-day + greeting, but as belt-and-
+  // braces we also correct a contradicting LEADING greeting on the wire (e.g.
+  // a streamed "Good morning, sir." at 1:35 PM → "Good afternoon, sir."). We
+  // buffer only the opener — up to the length of "Good afternoon" — until we
+  // can tell whether it is a time-of-day greeting, then correct + release and
+  // stop guarding for the rest of the turn. Non-greeting openers ("Noted,
+  // sir.") resolve after the first word and pass straight through.
+  const GREETING_PREFIXES = ["good morning", "good afternoon", "good evening", "good night"];
+  let expectedTimeOfDay: TimeOfDay | null = null;
+  let greetingGuardDone = false;
+  let greetingBuf = "";
+  const emitTextDelta = (delta: string): void => {
+    if (greetingGuardDone || expectedTimeOfDay === null) {
+      emitSanitized(delta);
+      return;
+    }
+    greetingBuf += delta;
+    const trimmed = greetingBuf.replace(/^\s+/, "");
+    if (trimmed.length === 0) return; // still only whitespace — keep buffering
+    const lower = trimmed.toLowerCase();
+    // Keep buffering while the opener is still a STRICT prefix of some greeting
+    // (more chars could complete it), bounded so a long non-greeting opener
+    // can't stall the stream.
+    const stillPrefix = GREETING_PREFIXES.some(
+      (p) => p.startsWith(lower) && p.length > lower.length,
+    );
+    if (stillPrefix && greetingBuf.length < 24) return;
+    greetingGuardDone = true;
+    const out = correctLeadingGreeting(greetingBuf, expectedTimeOfDay);
+    greetingBuf = "";
+    if (out) emitSanitized(out);
+  };
   const flushTextCarry = (): void => {
+    if (!greetingGuardDone && greetingBuf) {
+      greetingGuardDone = true;
+      const buf = greetingBuf;
+      greetingBuf = "";
+      emitSanitized(expectedTimeOfDay ? correctLeadingGreeting(buf, expectedTimeOfDay) : buf);
+    }
     if (speakingTurn && sanitizeCarry) {
       opts.onTextDelta(stripMarkdownForSpeech(sanitizeCarry));
       sanitizeCarry = "";
@@ -376,6 +455,13 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   ]);
 
   const userRow = userRows[0];
+
+  // Resolve the time-of-day bucket for the greeting guard from the user's tz.
+  // Set here (before the stream starts) so the guard can correct a
+  // contradicting leading greeting on the wire (bgsd/time-aware-greeting).
+  expectedTimeOfDay = timeOfDayForHour(
+    currentHourInTimezone(userRow?.timezone ?? "America/New_York"),
+  );
 
   // Map the loaded row into the jarvis-core PersonalityConfig contract, or
   // leave undefined when no row exists (buildSystemPrompt → today's voice).
@@ -970,7 +1056,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       // splitter always sees a terminator between fallback blocks and never
       // glues two utterances into one run-on (defect 3a).
       const fallbackText = finalTextBlocks.join("\n\n");
-      opts.onTextDelta(speakingTurn ? stripMarkdownForSpeech(fallbackText) : fallbackText);
+      // Deterministic greeting guard also covers the non-streamed fallback path.
+      const guardedFallback = expectedTimeOfDay
+        ? correctLeadingGreeting(fallbackText, expectedTimeOfDay)
+        : fallbackText;
+      opts.onTextDelta(speakingTurn ? stripMarkdownForSpeech(guardedFallback) : guardedFallback);
       anyTextEmitted = true;
     }
 

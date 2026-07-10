@@ -50,10 +50,10 @@ export default async function MemoryPage() {
             </p>
           </div>
           <Link
-            href="/settings"
+            href="/jarvis"
             className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out shrink-0 mt-2"
           >
-            ← settings
+            ← jarvis
           </Link>
         </header>
 

@@ -51,6 +51,9 @@ importers:
       vite:
         specifier: ^5
         version: 5.4.21(@types/node@22.19.18)(lightningcss@1.32.0)(terser@5.48.0)
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.18)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.48.0)(yaml@2.9.0)
 
   apps/mobile:
     dependencies:

@@ -27,6 +27,12 @@
 // arrives, and that affirmative must still release the send.
 
 import { fetch } from "@tauri-apps/plugin-http";
+import {
+  classifyWhatsappSendError,
+  whatsappSendFailureLine,
+  type WhatsappBridgeErrorBody,
+  type WhatsappSendTransport,
+} from "@hyperpolymath/jarvis-core";
 
 import { onTranscriptReceived } from "@/audio/capture";
 import { onJarvisResponseStart } from "@/physical-extender/sse-client";
@@ -44,6 +50,12 @@ import { startTask, resolveTask } from "@/hud/background-tasks";
 interface SendResult {
   ok: boolean;
   reason?: string;
+  /** On success, the contact the send was actually delivered to, as resolved by
+   *  the transport (the WhatsApp bridge returns the matched contact's full name
+   *  — e.g. said "Emir", delivered to "Emir Ahmed"). Used to speak an honest
+   *  "Sent to <name>, sir" confirmation so the user is never left guessing
+   *  whether — and to whom — a message went. Falls back to what the user said. */
+  resolvedRecipient?: string;
   /** True when the failure line has ALREADY been spoken by executeSend itself
    *  (e.g. the iMessage recipient couldn't be resolved to a real contact, so a
    *  specific "I couldn't find Rohan, sir" line was said). dispatchAndReport
@@ -198,12 +210,48 @@ function discardPending(reason: string): void {
   clearPendingState();
 }
 
+/** Best-effort parse of the bridge's JSON error body (it always writes JSON via
+ *  writeJSON, but a wedged proxy could return something else — never throw). */
+async function readBridgeErrorBody(res: Response): Promise<WhatsappBridgeErrorBody> {
+  try {
+    const parsed = (await res.json()) as unknown;
+    if (parsed && typeof parsed === "object") return parsed as WhatsappBridgeErrorBody;
+  } catch {
+    // Non-JSON / empty body — fall through to an empty classification input.
+  }
+  return {};
+}
+
+/** Speak the honest, category-specific failure line for a WhatsApp send that
+ *  did not go through, and return a spoken:true SendResult so dispatchAndReport
+ *  does not stack a generic "couldn't reach WhatsApp" line on top. This is the
+ *  crux of the bug fix: a contact-resolution failure (not_found / ambiguous)
+ *  from a LIVE bridge is NEVER reported as "WhatsApp not connected". */
+function reportWhatsappFailure(
+  action: SendMessageAction,
+  transport: WhatsappSendTransport,
+  status: number | undefined,
+  body: WhatsappBridgeErrorBody | undefined,
+): SendResult {
+  const classification = classifyWhatsappSendError(transport, status, body);
+  const line = whatsappSendFailureLine(classification, action.recipient);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[confirm] whatsapp send to "${action.recipient}" failed — category=${classification.category}` +
+      ` transport=${transport}${status ? ` status=${status}` : ""}` +
+      `${body?.error ? ` bridgeError="${body.error}"` : ""}`,
+  );
+  ttsPlayer.speakNow(line);
+  return { ok: false, reason: classification.category, spoken: true };
+}
+
 /** Send via WhatsApp: POST to the local whatsapp bridge's /api/send endpoint
  *  (default localhost:8080). Body shape is fixed by the bridge:
- *  { recipient, message }. `recipient` accepts an international-format phone
- *  number OR a chat JID (…@s.whatsapp.net / …@g.us). Returns the true outcome
- *  so the caller can speak an honest terminal line — the send is user-visible,
- *  so silently swallowing a failure would be misleading. */
+ *  { recipient, message }. `recipient` accepts a contact NAME, an
+ *  international-format phone number, OR a chat JID (…@s.whatsapp.net / …@g.us);
+ *  the bridge resolves names (fuzzy/partial/alias) server-side. Returns the
+ *  true outcome so the caller can speak an honest terminal line — the send is
+ *  user-visible, so silently swallowing a failure would be misleading. */
 async function executeWhatsappSend(action: SendMessageAction): Promise<SendResult> {
   let bridgeUrl = "http://localhost:8080";
   try {
@@ -216,9 +264,8 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
   const target = `${bridgeUrl}/api/send`;
   // Bound the request so a dead/hung bridge can never wedge the UI. The
   // AbortController fires at WHATSAPP_SEND_TIMEOUT_MS; on abort the fetch
-  // rejects with an AbortError we tag as `reason: "timeout"` so the caller can
-  // speak a distinct "may be disconnected" line for it (versus the plain
-  // unreachable/HTTP-error cases).
+  // rejects with an AbortError classified as a connectivity failure (the
+  // bridge is unreachable/wedged), distinct from a resolution failure.
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), WHATSAPP_SEND_TIMEOUT_MS);
   try {
@@ -229,33 +276,37 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
       signal: ctrl.signal,
     });
     if (!res.ok) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[confirm] whatsapp send to "${action.recipient}" failed — bridge returned ${res.status} at ${target}. Is the whatsapp bridge running? See tools/whatsapp-sync/README.md.`,
-      );
-      return { ok: false, reason: `http ${res.status}` };
+      // A non-2xx from a LIVE bridge: read the tagged body and classify. A
+      // 400 not_found/ambiguous stays a resolution failure; only 5xx / a
+      // not_connected code becomes a connectivity line.
+      const body = await readBridgeErrorBody(res);
+      return reportWhatsappFailure(action, "http_error", res.status, body);
+    }
+    // Read the bridge's success body for the resolved contact name. The bridge
+    // returns { ok, recipient, jid }; `recipient` is the matched contact's full
+    // name (empty for raw JID/number sends). Never throw on a malformed body —
+    // fall back to what the user said.
+    let resolvedRecipient = action.recipient;
+    try {
+      const body = (await res.json()) as { recipient?: unknown };
+      if (typeof body?.recipient === "string" && body.recipient.trim()) {
+        resolvedRecipient = body.recipient.trim();
+      }
+    } catch {
+      // Non-JSON / empty success body — keep the spoken recipient.
     }
     lastSent = { app: action.app, recipient: action.recipient, text: action.text, at: Date.now() };
     // eslint-disable-next-line no-console
     console.log(
-      `[confirm] whatsapp send dispatched to "${action.recipient}" (${action.text.length} chars) via ${target}`,
+      `[confirm] whatsapp send dispatched to "${action.recipient}" → "${resolvedRecipient}" (${action.text.length} chars) via ${target}`,
     );
-    return { ok: true };
+    return { ok: true, resolvedRecipient };
   } catch (err) {
     const aborted = ctrl.signal.aborted || (err as { name?: string })?.name === "AbortError";
     if (aborted) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[confirm] whatsapp send to "${action.recipient}" timed out after ${WHATSAPP_SEND_TIMEOUT_MS}ms at ${target}. Bridge is likely wedged or unpaired. See tools/whatsapp-sync/README.md.`,
-      );
-      return { ok: false, reason: "timeout" };
+      return reportWhatsappFailure(action, "timeout", undefined, undefined);
     }
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[confirm] whatsapp send to "${action.recipient}" failed — could not reach bridge at ${target}. Is the whatsapp bridge running? See tools/whatsapp-sync/README.md.`,
-      err,
-    );
-    return { ok: false, reason: "unreachable" };
+    return reportWhatsappFailure(action, "unreachable", undefined, undefined);
   } finally {
     clearTimeout(timer);
   }
@@ -327,7 +378,7 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
     console.log(
       `[confirm] send_message dispatched to "${action.recipient}" (${action.text.length} chars)`,
     );
-    return { ok: true };
+    return { ok: true, resolvedRecipient: action.recipient };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(`[confirm] send_message to "${action.recipient}" failed`, err);
@@ -336,9 +387,11 @@ async function executeSend(action: SendMessageAction): Promise<SendResult> {
 }
 
 /** Dispatch a confirmed send and speak the TRUE terminal outcome. On success,
- *  stay silent — the model already spoke the readback/hand-off. On failure,
- *  speak a short, user-appropriate correction (never a dev hint) so the user is
- *  never left believing a false success. */
+ *  speak a short confirmation naming the contact actually delivered to ("Sent to
+ *  Emir Ahmed, sir") — the read-back the user asked for, and the only signal
+ *  that distinguishes a real send from a silent non-delivery. On failure, speak
+ *  a category-appropriate correction (never a dev hint) so the user is never
+ *  left believing a false success. */
 async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   // Arm the text-independent dispatch latch the instant we commit to sending.
   // Set here (not at the call sites) so EVERY path that dispatches — the
@@ -360,29 +413,26 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   });
   const result = await executeSend(action);
   resolveTask(taskId, result.ok ? "done" : "failed");
-  if (result.ok) return;
-  // executeSend already spoke a specific line (e.g. couldn't resolve the
-  // recipient to a real contact) — don't stack a generic failure on top.
-  if (result.spoken) return;
-  // A timeout is qualitatively different from "unreachable": the bridge process
-  // is up enough to accept a TCP connection but is not answering — almost
-  // always a wedged bridge or an unpaired WhatsApp session. Speak a slightly
-  // more specific line so the user knows to check pairing/logs rather than
-  // assume the bridge is off entirely.
-  let failureLine: string;
-  if (action.app === "whatsapp") {
-    failureLine =
-      result.reason === "timeout"
-        ? "I couldn't reach WhatsApp, sir. The bridge may be disconnected."
-        : "I couldn't reach WhatsApp, sir.";
-  } else {
-    failureLine = "I couldn't send that, sir.";
+  if (result.ok) {
+    // Speak an honest, terminal delivery confirmation naming the contact the
+    // message ACTUALLY went to. Before this, success was silent — the user had
+    // no way to know a send succeeded (or, worse, that a resolved-but-wrong or
+    // undeliverable recipient had silently failed). Naming the resolved contact
+    // ("Sent to Emir Ahmed, sir") also confirms the RIGHT person was chosen
+    // when the spoken name was a partial/nickname.
+    const who = (result.resolvedRecipient ?? action.recipient).trim() || action.recipient;
+    ttsPlayer.speakNow(`Sent to ${who}, sir.`);
+    return;
   }
-  // speakNow synthesizes a one-shot turnId and ends it immediately, so the line
-  // is guaranteed to play (previously we passed Date.now() as a "seq" against a
-  // global counter that started at 0 — the sentence never matched the expected
-  // seq and silently wedged the queue).
-  ttsPlayer.speakNow(failureLine);
+  // executeSend already spoke a specific, category-appropriate line — for
+  // WhatsApp: not-connected vs contact-not-found vs ambiguous (see
+  // reportWhatsappFailure); for iMessage: resolution failures. Don't stack a
+  // generic failure on top.
+  if (result.spoken) return;
+  // Only reached for an iMessage transport failure that wasn't already spoken
+  // (the AppleScript send itself threw). speakNow synthesizes a one-shot turnId
+  // and ends it immediately, so the line is guaranteed to play.
+  ttsPlayer.speakNow("I couldn't send that, sir.");
 }
 
 /**

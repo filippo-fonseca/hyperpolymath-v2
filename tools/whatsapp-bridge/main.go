@@ -74,11 +74,75 @@ type bridge struct {
 
 	msgDB *sql.DB
 
+	// aliases maps a lowercased nickname/alias the user speaks ("mama") to the
+	// canonical contact name saved in their address book ("MAMMA"). Consulted
+	// before contact resolution so a remembered alias (see loadContactAliases)
+	// feeds the resolver. Read-only after startup; no lock needed.
+	aliases map[string]string
+
 	// Cached group names so we make at most one GetGroupInfo call per group
 	// per process lifetime. Miss on rename is acceptable; the LEFT JOIN in
 	// sync.mjs tolerates NULL/stale names.
 	groupMu    sync.Mutex
 	groupNames map[types.JID]string
+}
+
+// loadContactAliases builds the alias→canonical-name map the resolver consults
+// before matching. Two sources, merged (env wins on key collision):
+//
+//  1. <storeDir>/contact-aliases.json — a persisted JSON object the desktop can
+//     write when the user asks JARVIS to "remember mama = MAMMA in contacts".
+//  2. WA_CONTACT_ALIASES — a JSON object in the environment, handy for tests
+//     and headless runs.
+//
+// Both are `{"alias":"Canonical Name"}`. Keys are lowercased/trimmed so lookups
+// are case-insensitive. A missing/malformed source is non-fatal (logged, then
+// skipped) — aliases are an enhancement, never a hard dependency.
+func loadContactAliases(storeDir string) map[string]string {
+	out := map[string]string{}
+	merge := func(raw []byte, origin string) {
+		if len(raw) == 0 {
+			return
+		}
+		var m map[string]string
+		if err := json.Unmarshal(raw, &m); err != nil {
+			log.Printf("aliases: ignoring malformed %s: %v", origin, err)
+			return
+		}
+		for k, v := range m {
+			key := strings.ToLower(strings.TrimSpace(k))
+			val := strings.TrimSpace(v)
+			if key == "" || val == "" {
+				continue
+			}
+			out[key] = val
+		}
+	}
+	if storeDir != "" {
+		if raw, err := os.ReadFile(filepath.Join(storeDir, "contact-aliases.json")); err == nil {
+			merge(raw, "contact-aliases.json")
+		} else if !os.IsNotExist(err) {
+			log.Printf("aliases: could not read contact-aliases.json: %v", err)
+		}
+	}
+	merge([]byte(strings.TrimSpace(os.Getenv("WA_CONTACT_ALIASES"))), "WA_CONTACT_ALIASES")
+	if len(out) > 0 {
+		log.Printf("aliases: loaded %d contact alias(es)", len(out))
+	}
+	return out
+}
+
+// expandAlias maps a spoken recipient through the alias table (case-insensitive)
+// to the canonical contact name, or returns it unchanged. Only bare names are
+// expanded — a phone number or JID passes straight through.
+func expandAlias(aliases map[string]string, recipient string) string {
+	if len(aliases) == 0 {
+		return recipient
+	}
+	if canonical, ok := aliases[strings.ToLower(strings.TrimSpace(recipient))]; ok {
+		return canonical
+	}
+	return recipient
 }
 
 // extractContent pulls a text body out of a whatsmeow message, or classifies
@@ -458,17 +522,97 @@ type resolvedContact struct {
 
 // matchTier ranks how confidently a contact row matches the query name. Higher
 // is more confident. resolveRecipientToJID gathers candidates with a broad
-// LIKE query, scores each in Go, then sends only when a single distinct JID
+// LIKE query, scores each in Go, then resolves when a single distinct JID
 // occupies the top tier present (else ambiguous).
 type matchTier int
 
 const (
 	matchNone       matchTier = 0
-	matchContains   matchTier = 1 // query appears as an interior/last word
-	matchPrefix     matchTier = 2 // a name starts with query + boundary
-	matchFirstToken matchTier = 3 // query == first whitespace token of a name
-	matchExact      matchTier = 4 // query == full_name or first_name exactly
+	matchFuzzy      matchTier = 1 // approximate (small edit-distance) match — "mama" ≈ "mamma"
+	matchContains   matchTier = 2 // query is an interior/last word of any name
+	matchPrefix     matchTier = 3 // self-reported push/business name: exact, first-token, or prefix
+	matchFirstToken matchTier = 4 // saved full/first name: first-token or prefix ("emir" → "Emir Ahmed")
+	matchExact      matchTier = 5 // saved full/first name matched exactly
 )
+
+// levenshtein returns the edit distance between a and b (insert/delete/replace,
+// each cost 1). Used for the fuzzy tier so a saved contact "MAMMA" still
+// resolves when the user says "mama" (distance 1). Iterative two-row DP.
+func levenshtein(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	la, lb := len(ra), len(rb)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+	prev := make([]int, lb+1)
+	curr := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+	for i := 1; i <= la; i++ {
+		curr[0] = i
+		for j := 1; j <= lb; j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			del := prev[j] + 1
+			ins := curr[j-1] + 1
+			sub := prev[j-1] + cost
+			m := del
+			if ins < m {
+				m = ins
+			}
+			if sub < m {
+				m = sub
+			}
+			curr[j] = m
+		}
+		prev, curr = curr, prev
+	}
+	return prev[lb]
+}
+
+// fuzzyThreshold is the max edit distance for a fuzzy match given the query
+// length. Short queries allow at most 1 edit (so "mama"→"mamma" matches while
+// unrelated short names don't); longer queries allow 2. Empty/1-char queries
+// never fuzzy-match (too noisy).
+func fuzzyThreshold(q string) int {
+	n := len([]rune(q))
+	switch {
+	case n <= 2:
+		return 0
+	case n <= 7:
+		return 1
+	default:
+		return 2
+	}
+}
+
+// isFuzzyMatch reports whether query q is within the length-scaled edit-distance
+// threshold of the candidate name (compared whole, and against the name's first
+// token so "mama" still fuzzes against "mamma rossi").
+func isFuzzyMatch(name, q string) bool {
+	if name == "" || q == "" {
+		return false
+	}
+	th := fuzzyThreshold(q)
+	if th == 0 {
+		return false
+	}
+	if levenshtein(name, q) <= th {
+		return true
+	}
+	if ft := firstToken(name); ft != "" && ft != name {
+		if levenshtein(ft, q) <= th {
+			return true
+		}
+	}
+	return false
+}
 
 // firstToken returns the first whitespace-separated token of s, lower-cased.
 func firstToken(s string) string {
@@ -496,28 +640,46 @@ func scoreContactTier(c resolvedContact, q string) matchTier {
 		}
 	}
 
-	// Tier 4 — exact full_name / first_name.
-	if full == q || first == q {
-		bump(matchExact)
-	}
-	// Tier 3 — first token of full_name (then push_name) equals query.
-	if firstToken(full) == q || firstToken(push) == q {
-		bump(matchFirstToken)
-	}
-	// Tier 2 — a name starts with query followed by a word boundary (space)
-	// or is exactly the query. "emir" matches "Emir Ahmed".
 	hasPrefix := func(name string) bool {
 		return name == q || strings.HasPrefix(name, q+" ")
 	}
-	if hasPrefix(full) || hasPrefix(push) || hasPrefix(business) {
-		bump(matchPrefix)
-	}
-	// Tier 1 — query appears as a standalone interior/last word.
 	hasWord := func(name string) bool {
 		return strings.Contains(" "+name+" ", " "+q+" ")
 	}
-	if hasWord(full) || hasWord(push) || hasWord(business) {
+
+	// Tier 5 — exact match on a name YOU saved (full_name / first_name).
+	if full == q || first == q {
+		bump(matchExact)
+	}
+	// Tier 4 — first token or leading prefix of a name YOU saved. "emir" →
+	// "Emir Ahmed". Saved names rank ABOVE the contact's self-reported
+	// push/business name (tier 3): this is what breaks the real-world tie where
+	// "Emir" matched both your saved "Emir Ahmed" AND a bare @lid entry whose
+	// WhatsApp push-name also happens to be "Emir". The contact you saved wins,
+	// so the send resolves to a single, deliverable JID instead of going
+	// ambiguous (and never reaching the person).
+	if firstToken(full) == q || firstToken(first) == q || hasPrefix(full) || hasPrefix(first) {
+		bump(matchFirstToken)
+	}
+	// Tier 3 — the contact's SELF-reported name (push_name / business_name):
+	// exact, first token, or leading prefix. Deliberately below saved names.
+	if push == q || business == q ||
+		firstToken(push) == q || firstToken(business) == q ||
+		hasPrefix(push) || hasPrefix(business) {
+		bump(matchPrefix)
+	}
+	// Tier 2 — query appears as a standalone interior/last word in any name.
+	if hasWord(full) || hasWord(first) || hasWord(push) || hasWord(business) {
 		bump(matchContains)
+	}
+	// Tier 1 — approximate (edit-distance) match. Only consulted when no
+	// stronger tier fired; this is what lets "mama" resolve to a contact saved
+	// as "MAMMA" (all-caps Italian for mom) without an exact/prefix/word hit.
+	if best == matchNone {
+		if isFuzzyMatch(full, q) || isFuzzyMatch(first, q) ||
+			isFuzzyMatch(push, q) || isFuzzyMatch(business, q) {
+			bump(matchFuzzy)
+		}
 	}
 	return best
 }
@@ -527,6 +689,18 @@ func scoreContactTier(c resolvedContact, q string) matchTier {
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return r.Replace(s)
+}
+
+// bestName returns the cleanest human name for a resolved contact (no phone
+// suffix) for the send-confirmation read-back — "Emir Ahmed" rather than
+// "Emir Ahmed (+1 …)". Prefers the name YOU saved over the self-reported one.
+func (c resolvedContact) bestName() string {
+	for _, n := range []string{c.fullName, c.firstName, c.pushName, c.businessName} {
+		if strings.TrimSpace(n) != "" {
+			return strings.TrimSpace(n)
+		}
+	}
+	return ""
 }
 
 func (c resolvedContact) displayLabel() string {
@@ -579,40 +753,200 @@ func (e *errContactAmbiguous) Error() string {
 	return fmt.Sprintf("ambiguous WhatsApp contact %q — matched: %s", e.query, strings.Join(labels, "; "))
 }
 
+// errNotOnWhatsApp is returned by the final deliverability gate when a resolved
+// recipient cannot actually receive a WhatsApp message (a bare @lid with no
+// phone mapping, or a number the server reports as not registered). WhatsApp
+// otherwise ACCEPTS such a send and silently never delivers it — this makes that
+// failure explicit so the desktop can tell the user instead of a false success.
+type errNotOnWhatsApp struct{ who string }
+
+func (e *errNotOnWhatsApp) Error() string {
+	return fmt.Sprintf("%s is not reachable on WhatsApp", e.who)
+}
+
+// ensureDeliverableJID is the last safety layer before SendMessage. WhatsApp
+// silently accepts a send to a JID it can't actually route to and reports
+// success while nothing arrives (the "sent to Emir but he never got it" bug).
+// So we verify, never assume:
+//   - a bare @lid is only routable via its phone mapping — swap to the PN JID,
+//     or refuse if we have no mapping;
+//   - a phone JID is probed with IsOnWhatsApp; if the number isn't registered
+//     we refuse, and if it is we adopt the server's canonical JID.
+// A probe that itself errors (transient/network) does NOT block the send — we
+// proceed with the resolved JID rather than punish the user for a flaky lookup.
+func (b *bridge) ensureDeliverableJID(ctx context.Context, jid types.JID) (types.JID, error) {
+	if jid.Server == types.HiddenUserServer {
+		if b.client != nil && b.client.Store != nil && b.client.Store.LIDs != nil {
+			if pn, err := b.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil && pn.User != "" {
+				jid = pn
+			} else {
+				return jid, &errNotOnWhatsApp{who: jid.String()}
+			}
+		} else {
+			return jid, &errNotOnWhatsApp{who: jid.String()}
+		}
+	}
+	if jid.Server == types.DefaultUserServer {
+		resp, err := b.client.IsOnWhatsApp(ctx, []string{"+" + jid.User})
+		if err != nil {
+			log.Printf("send: IsOnWhatsApp probe failed for %s: %v", jid.User, err)
+			return jid, nil
+		}
+		if len(resp) > 0 {
+			r := resp[0]
+			if !r.IsIn {
+				return jid, &errNotOnWhatsApp{who: jid.User}
+			}
+			if r.JID.User != "" {
+				return r.JID, nil
+			}
+		}
+	}
+	return jid, nil
+}
+
+// selfUser returns the account owner's phone-number user part (the "user" of
+// our own JID), or "" if unpaired. Used to never resolve a recipient to the
+// owner's own contact entry (the "mama → Isabella (my own name)" bug).
+func (b *bridge) selfUser() string {
+	if b.client == nil || b.client.Store == nil || b.client.Store.ID == nil {
+		return ""
+	}
+	return b.client.Store.ID.User
+}
+
+// ourJID returns the account owner's full JID string (the our_jid FK in
+// whatsmeow_contacts), or "" if unpaired — used to scope the fuzzy fallback
+// scan to this account's contacts.
+func (b *bridge) ourJID() string {
+	if b.client == nil || b.client.Store == nil || b.client.Store.ID == nil {
+		return ""
+	}
+	return b.client.Store.ID.String()
+}
+
+const contactSelectCols = `their_jid,
+		       COALESCE(full_name, ''),
+		       COALESCE(first_name, ''),
+		       COALESCE(push_name, ''),
+		       COALESCE(business_name, ''),
+		       COALESCE(redacted_phone, '')`
+
+// collectScoredContacts scans candidate rows, drops the account owner's own
+// entry (selfUser), scores each against the lowered query, and collapses to one
+// entry per distinct their_jid keeping its best tier. Rows that score matchNone
+// are ignored.
+func collectScoredContacts(rows *sql.Rows, loweredQuery, selfUser string) (map[string]resolvedContact, error) {
+	seen := map[string]resolvedContact{}
+	for rows.Next() {
+		var c resolvedContact
+		if err := rows.Scan(&c.jid, &c.fullName, &c.firstName, &c.pushName, &c.businessName, &c.redactedPhone); err != nil {
+			return nil, fmt.Errorf("contact scan failed: %w", err)
+		}
+		if selfUser != "" {
+			if pj, err := types.ParseJID(c.jid); err == nil && pj.User == selfUser {
+				// Never resolve a named recipient to the owner's own entry.
+				continue
+			}
+		}
+		c.tier = scoreContactTier(c, loweredQuery)
+		if c.tier == matchNone {
+			continue
+		}
+		if existing, ok := seen[c.jid]; ok {
+			if c.tier > existing.tier {
+				seen[c.jid] = c
+			}
+			continue
+		}
+		seen[c.jid] = c
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("contact lookup iteration failed: %w", err)
+	}
+	return seen, nil
+}
+
+// chooseTopContact reduces scored candidates to a decision: the distinct JIDs
+// occupying the highest tier present. Exactly one → resolve (even for a
+// sub-exact partial/first-name/fuzzy hit, so "Emir"→"Emir Ahmed" and
+// "mama"→"MAMMA" both go through and the confirm gate reads back the full
+// name). More than one → ambiguous (ask, never guess). None → not found.
+func chooseTopContact(seen map[string]resolvedContact, query string) (resolvedContact, error) {
+	if len(seen) == 0 {
+		return resolvedContact{}, &errContactNotFound{query: query}
+	}
+	topTier := matchNone
+	for _, c := range seen {
+		if c.tier > topTier {
+			topTier = c.tier
+		}
+	}
+	top := make([]resolvedContact, 0, len(seen))
+	for _, c := range seen {
+		if c.tier == topTier {
+			top = append(top, c)
+		}
+	}
+	if len(top) == 1 {
+		return top[0], nil
+	}
+	return resolvedContact{}, &errContactAmbiguous{query: query, candidates: top}
+}
+
 // resolveRecipientToJID is the send-path recipient resolver. It preserves the
 // two existing recipient forms (raw '@'-JID, bare intl phone number) and adds
 // a smart, tiered name → JID lookup against whatsmeow_contacts.
 //
-// The name path gathers candidates with a broad LIKE query (exact + first-token
-// + prefix + interior-word patterns), then ranks each distinct their_jid by its
-// best match tier in Go: exact > first-token > prefix > contains. We take the
-// set of distinct JIDs at the highest tier present; exactly one → send, more
-// than one → errContactAmbiguous (ask the user, never guess), zero rows →
-// errContactNotFound. This makes "Emir" resolve to "Emir Ahmed" (a first-token
-// match) while still surfacing genuine ambiguity. The bridge's msgDB handle
-// points at the same SQLite file whatsmeow uses for its session store, so the
-// contacts table lives alongside our capture tables — no second connection.
+// The name path first expands the spoken recipient through the user's alias map
+// (so a remembered "mama = MAMMA" feeds resolution), then gathers candidates
+// with a broad LIKE query and ranks each distinct their_jid by its best tier:
+// exact > first-token > prefix > contains > fuzzy. Exactly one distinct JID at
+// the top tier → resolve; more than one → errContactAmbiguous (ask, never
+// guess); zero → a fuzzy fallback scan over the account's contacts catches
+// approximate spellings ("mama"≈"MAMMA") that LIKE cannot; still zero →
+// errContactNotFound. The account owner's own entry is always excluded so a
+// named recipient never resolves to the user themselves. The bridge's msgDB
+// handle points at the same SQLite file whatsmeow uses for its session store,
+// so the contacts table lives alongside our capture tables — no second
+// connection.
 func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (types.JID, error) {
+	jid, _, err := b.resolveRecipientNamed(ctx, recipient)
+	return jid, err
+}
+
+// resolveRecipientNamed is resolveRecipientToJID plus the resolved contact's
+// display name (empty for raw JID / phone-number inputs, where there is no
+// contact record to name). The name feeds the send-confirmation read-back so
+// the desktop can say "Sent to Emir Ahmed, sir" — confirming WHO actually
+// received it, which was invisible before.
+func (b *bridge) resolveRecipientNamed(ctx context.Context, recipient string) (types.JID, string, error) {
 	recipient = strings.TrimSpace(recipient)
 	if recipient == "" {
-		return types.JID{}, fmt.Errorf("empty recipient")
+		return types.JID{}, "", fmt.Errorf("empty recipient")
 	}
 	if strings.Contains(recipient, "@") {
-		return types.ParseJID(recipient)
+		jid, err := types.ParseJID(recipient)
+		return jid, "", err
 	}
 	if looksLikePhoneNumber(recipient) {
 		// Preserve the original phone-number branch verbatim: only "+" is
 		// stripped. Separator normalization is out of scope for this unit.
 		number := strings.TrimPrefix(recipient, "+")
-		return types.NewJID(number, types.DefaultUserServer), nil
+		return types.NewJID(number, types.DefaultUserServer), "", nil
 	}
 	// Name path — query whatsmeow_contacts. Case-insensitive match against
 	// the four name-bearing columns. If msgDB is nil (defensive; shouldn't
 	// happen in bundled use) surface a clear error.
 	if b.msgDB == nil {
-		return types.JID{}, fmt.Errorf("contact lookup unavailable: no contacts database")
+		return types.JID{}, "", fmt.Errorf("contact lookup unavailable: no contacts database")
 	}
-	lowered := strings.ToLower(recipient)
+	// Expand a remembered alias BEFORE matching, but keep the ORIGINAL spoken
+	// recipient for user-facing error text ("no WhatsApp contact matches
+	// \"mama\"" reads better than the canonical form the alias mapped to).
+	searchName := expandAlias(b.aliases, recipient)
+	selfUser := b.selfUser()
+	lowered := strings.ToLower(searchName)
 	esc := escapeLike(lowered)
 	// LIKE patterns feeding the broad candidate fetch (all matched against the
 	// lowered column, ESCAPE '\'):
@@ -628,12 +962,7 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 	interiorPat := "% " + esc + " %"
 	lastWordPat := "% " + esc
 	rows, err := b.msgDB.QueryContext(ctx, `
-		SELECT their_jid,
-		       COALESCE(full_name, ''),
-		       COALESCE(first_name, ''),
-		       COALESCE(push_name, ''),
-		       COALESCE(business_name, ''),
-		       COALESCE(redacted_phone, '')
+		SELECT `+contactSelectCols+`
 		FROM whatsmeow_contacts
 		WHERE LOWER(COALESCE(full_name, '')) = ?
 		   OR LOWER(COALESCE(first_name, '')) = ?
@@ -657,60 +986,50 @@ func (b *bridge) resolveRecipientToJID(ctx context.Context, recipient string) (t
 		prefixPat, interiorPat, lastWordPat,
 	)
 	if err != nil {
-		return types.JID{}, fmt.Errorf("contact lookup failed: %w", err)
+		return types.JID{}, "", fmt.Errorf("contact lookup failed: %w", err)
 	}
-	defer rows.Close()
+	seen, err := collectScoredContacts(rows, lowered, selfUser)
+	rows.Close()
+	if err != nil {
+		return types.JID{}, "", err
+	}
 
-	// Collapse to one entry per distinct their_jid, keeping the row that
-	// achieved the highest match tier for that JID.
-	seen := map[string]resolvedContact{}
-	for rows.Next() {
-		var c resolvedContact
-		if err := rows.Scan(&c.jid, &c.fullName, &c.firstName, &c.pushName, &c.businessName, &c.redactedPhone); err != nil {
-			return types.JID{}, fmt.Errorf("contact scan failed: %w", err)
-		}
-		c.tier = scoreContactTier(c, lowered)
-		if c.tier == matchNone {
-			// LIKE over-matched (shouldn't normally happen given the
-			// patterns), but never treat a non-scoring row as a candidate.
-			continue
-		}
-		if existing, ok := seen[c.jid]; ok {
-			if c.tier > existing.tier {
-				seen[c.jid] = c
-			}
-			continue
-		}
-		seen[c.jid] = c
-	}
-	if err := rows.Err(); err != nil {
-		return types.JID{}, fmt.Errorf("contact lookup iteration failed: %w", err)
-	}
+	// Fuzzy fallback: LIKE is anchored on the query, so it cannot surface an
+	// approximate spelling like "MAMMA" for "mama". When the anchored pass
+	// found nothing, scan this account's contacts and let the fuzzy tier in
+	// scoreContactTier catch the near-miss. Bounded to a personal address book.
 	if len(seen) == 0 {
-		return types.JID{}, &errContactNotFound{query: recipient}
+		fallbackRows, ferr := b.queryAllContacts(ctx)
+		if ferr != nil {
+			return types.JID{}, "", ferr
+		}
+		seen, ferr = collectScoredContacts(fallbackRows, lowered, selfUser)
+		fallbackRows.Close()
+		if ferr != nil {
+			return types.JID{}, "", ferr
+		}
 	}
 
-	// Find the highest tier present, then collect the distinct JIDs at it.
-	topTier := matchNone
-	for _, c := range seen {
-		if c.tier > topTier {
-			topTier = c.tier
-		}
+	chosen, err := chooseTopContact(seen, recipient)
+	if err != nil {
+		return types.JID{}, "", err
 	}
-	top := make([]resolvedContact, 0, len(seen))
-	for _, c := range seen {
-		if c.tier == topTier {
-			top = append(top, c)
-		}
+	jid, err := types.ParseJID(chosen.jid)
+	if err != nil {
+		return types.JID{}, "", err
 	}
-	if len(top) == 1 && topTier == matchExact {
-		return types.ParseJID(top[0].jid)
+	return jid, chosen.bestName(), nil
+}
+
+// queryAllContacts returns every contact row for this account (scoped by
+// our_jid when paired) for the fuzzy fallback scan.
+func (b *bridge) queryAllContacts(ctx context.Context) (*sql.Rows, error) {
+	our := b.ourJID()
+	if our != "" {
+		return b.msgDB.QueryContext(ctx,
+			`SELECT `+contactSelectCols+` FROM whatsmeow_contacts WHERE our_jid = ?`, our)
 	}
-	// Multiple distinct JIDs share the top tier, or the only top-tier match is
-	// sub-exact (first-token/prefix/contains). Do not silently send a bare name
-	// to a guessed handle; ask the user to disambiguate / provide the exact
-	// contact instead.
-	return types.JID{}, &errContactAmbiguous{query: recipient, candidates: top}
+	return b.msgDB.QueryContext(ctx, `SELECT `+contactSelectCols+` FROM whatsmeow_contacts`)
 }
 
 type sendRequest struct {
@@ -739,30 +1058,85 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !b.client.IsLoggedIn() {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": "not logged in — scan the QR to pair WhatsApp"})
+		// Connectivity failure — distinct from any contact-resolution problem.
+		// The `code` field lets the desktop speak an honest "WhatsApp isn't
+		// connected" line instead of conflating it with "couldn't find X".
+		writeJSON(w, http.StatusBadGateway, map[string]any{
+			"ok":    false,
+			"code":  "not_connected",
+			"error": "not logged in — scan the QR to pair WhatsApp",
+		})
 		return
 	}
-	jid, err := b.resolveRecipientToJID(r.Context(), req.Recipient)
+	jid, resolvedName, err := b.resolveRecipientNamed(r.Context(), req.Recipient)
 	if err != nil {
-		// Not-found and ambiguous are user-actionable — surface their
-		// error text verbatim so the desktop confirm-gate / JARVIS can
-		// tell the user what went wrong instead of a false success.
+		// Contact-resolution failures are user-actionable and MUST be reported
+		// differently from a connectivity failure. Tag each with a machine
+		// `code` (not-found vs ambiguous) and, for ambiguous, the candidate
+		// labels so the desktop can offer a disambiguation prompt.
 		var notFound *errContactNotFound
 		var ambiguous *errContactAmbiguous
-		if errors.As(err, &notFound) || errors.As(err, &ambiguous) {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+		if errors.As(err, &ambiguous) {
+			labels := make([]string, 0, len(ambiguous.candidates))
+			for _, c := range ambiguous.candidates {
+				labels = append(labels, c.displayLabel())
+			}
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"ok":         false,
+				"code":       "ambiguous",
+				"error":      err.Error(),
+				"query":      ambiguous.query,
+				"candidates": labels,
+			})
 			return
 		}
-		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": fmt.Sprintf("invalid recipient: %v", err)})
+		if errors.As(err, &notFound) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"ok":    false,
+				"code":  "not_found",
+				"error": err.Error(),
+				"query": notFound.query,
+			})
+			return
+		}
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"ok":    false,
+			"code":  "invalid_recipient",
+			"error": fmt.Sprintf("invalid recipient: %v", err),
+		})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+	// Final deliverability gate: pin the recipient to a JID WhatsApp will
+	// actually route to before sending, so a resolved-but-unreachable contact
+	// surfaces as an honest error instead of a false success (see
+	// ensureDeliverableJID). This is the "make sure the proper WhatsApp contact
+	// is selected for the actual message" safety layer.
+	deliverJID, derr := b.ensureDeliverableJID(ctx, jid)
+	if derr != nil {
+		var notOnWA *errNotOnWhatsApp
+		if errors.As(derr, &notOnWA) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"ok":    false,
+				"code":  "not_on_whatsapp",
+				"error": derr.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusBadRequest, map[string]any{
+			"ok":    false,
+			"code":  "not_found",
+			"error": derr.Error(),
+		})
+		return
+	}
+	jid = deliverJID
 	resp, err := b.client.SendMessage(ctx, jid, &waE2E.Message{
 		Conversation: proto.String(req.Message),
 	})
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "error": fmt.Sprintf("send failed: %v", err)})
+		writeJSON(w, http.StatusBadGateway, map[string]any{"ok": false, "code": "send_failed", "error": fmt.Sprintf("send failed: %v", err)})
 		return
 	}
 	// Mirror the outgoing message into the capture store. SendMessage does not
@@ -783,7 +1157,15 @@ func (b *bridge) handleSend(w http.ResponseWriter, r *http.Request) {
 			log.Printf("capture(send): storeMessage %s/%s: %v", chatJID, resp.ID, err)
 		}
 	}(jid, resp, req.Message)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	// Return the resolved recipient + verified JID so the desktop can confirm
+	// out loud WHO actually received the message ("Sent to Emir Ahmed, sir"),
+	// closing the "did it send?" gap. `recipient` is "" for raw JID/number
+	// inputs, in which case the desktop falls back to what the user said.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":        true,
+		"recipient": resolvedName,
+		"jid":       jid.String(),
+	})
 }
 
 func (b *bridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -937,6 +1319,7 @@ func main() {
 	b := &bridge{
 		client:     client,
 		msgDB:      msgDB,
+		aliases:    loadContactAliases(storeDir),
 		groupNames: make(map[types.JID]string),
 		state:      "connecting",
 	}
