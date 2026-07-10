@@ -1357,3 +1357,34 @@ select:focus-visible,
   padding: 0 2px;
   text-decoration: none;
 }
+
+/* Explorer (Spacedrive) tokens */
+:root {
+  --sd-app: hsl(235 15% 87%);
+  --sd-box: hsl(235 15% 82%);
+  --sd-dark-box: hsl(235 15% 85%);
+  --sd-darker-box: hsl(235 16% 89%);
+  --sd-input: hsl(235 15% 80%);
+  --sd-line: hsl(235 15% 77%);
+  --sd-divider: hsl(235 15% 95%);
+  --sd-hover: hsl(235 15% 81%);
+  --sd-selected: hsl(235 15% 76%);
+  --sd-active: hsl(235 15% 70%);
+  --sd-menu: hsl(235 15% 90%);
+  --sd-menu-hover: hsl(235 15% 70%);
+}
+
+.dark {
+  --sd-app: hsl(235 15% 13%);
+  --sd-box: hsl(235 15% 18%);
+  --sd-dark-box: hsl(235 15% 15%);
+  --sd-darker-box: hsl(235 16% 11%);
+  --sd-input: hsl(235 15% 20%);
+  --sd-line: hsl(235 15% 23%);
+  --sd-divider: hsl(235 15% 5%);
+  --sd-hover: hsl(235 15% 19%);
+  --sd-selected: hsl(235 15% 24%);
+  --sd-active: hsl(235 15% 30%);
+  --sd-menu: hsl(235 15% 10%);
+  --sd-menu-hover: hsl(235 15% 30%);
+}
