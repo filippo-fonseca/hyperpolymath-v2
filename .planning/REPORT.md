@@ -100,3 +100,23 @@ mirror the dark ladder; new surfaces read in both themes.
 2. `0194572c` refactor(wiki): page detail widens to max-w-4xl + chrome-coherent header
 3. `24c68335` polish(wiki): focus-visible cyan rings across explorer chrome
 4. `8f05c39a` chore(wiki): delete wave-1 dev-scaffold preview routes
+
+## Follow-up: WikiExplorer split
+
+Split `apps/web/components/wiki/WikiExplorer.tsx` (was 785 LOC) into two co-located
+sub-components + three hooks, zero behavior change (same props, same exports, same
+`DndContext` structure):
+
+- `explorer-parts/ExplorerHeaderControls.tsx` (139 LOC) — topbar, breadcrumbs, search,
+  view toggle, sort select, inspector toggle, plus the `BreadcrumbDroppable` wrapper.
+- `explorer-parts/ExplorerCanvasBody.tsx` (196 LOC) — canvas div, rubber-band overlay,
+  search/empty/grid/list branches, plus the `ReorderPageWrapper` droppable.
+- `explorer-hooks/useExplorerActions.ts` — open/create/delete/rename handlers +
+  rename & new-folder dialog state.
+- `explorer-hooks/useExplorerDnd.ts` — dnd active id, drag bag, active label, and
+  drag start/end/cancel handlers.
+- `explorer-hooks/useExplorerKeyboard.ts` — `/`, `Cmd+A`, `Cmd+I`, `Esc`, `Enter`,
+  and arrow-nav effect (owns `gridColumnCount`).
+
+Result: `WikiExplorer.tsx` = 372 LOC, both subs < 400 LOC. `pnpm --filter web
+typecheck` clean; `tests/wiki-explorer-helpers.test.ts` 17/17 green.
