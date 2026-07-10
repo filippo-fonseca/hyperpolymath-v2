@@ -53,6 +53,7 @@ function ViewToggleButton({
         "transition-[background-color,border-color,color] duration-180 ease-out",
         active && "bg-[var(--sd-selected)] text-[var(--hud-cyan)] shadow-[0_0_0_1px_var(--hud-cyan)_inset]",
         !active && "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
+        "focus-visible:outline-none focus-visible:shadow-[0_0_0_1px_var(--hud-cyan)_inset] focus-visible:text-[var(--ink)]",
       )}
     >
       {children}
