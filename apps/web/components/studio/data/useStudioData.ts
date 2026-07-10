@@ -55,6 +55,9 @@ export type StudioWidgetId = (typeof STUDIO_WIDGET_ORDER)[number];
  * generically. Each field is pre-computed/pre-truncated so a tile is a dumb
  * renderer of strings + a badge + a state token. A pure `useMemo` selector over
  * the same context produces this (never a second query).
+ *
+ * `lines` is a short glance list (up to 4) under the headline — next tasks,
+ * upcoming events, open habits, etc. Empty when the widget has nothing extra.
  */
 export interface StudioTileSummary {
   id: StudioWidgetId;
@@ -62,6 +65,8 @@ export interface StudioTileSummary {
   badge: number | null; // count chip; null = no badge
   headline: string | null; // next/latest item, pre-truncated
   subline: string | null; // secondary line, e.g. "3 due today", "2/5 done"
+  /** Glance body under the subline (max 4, pre-truncated). */
+  lines: string[];
   state: "ok" | "empty" | "attention"; // attention: gcal expired/not_connected
 }
 
@@ -125,6 +130,10 @@ export interface StudioSeed {
   habits: HabitWithAreas[];
   habitCompletions: HabitCompletionRow[];
   journal: JournalEntry | null;
+  /** Wave-5 ambient widgets — SSR-seeded so tiles never flash empty. */
+  projects: ProjectRow[];
+  areas: SidebarArea[];
+  people: PersonWithStats[];
 }
 
 export interface StudioData {
