@@ -22,6 +22,7 @@ import {
   Info,
   LayoutDashboard,
   MessageSquare,
+  Newspaper,
   Repeat,
   Search,
   Settings,
@@ -86,6 +87,7 @@ const items = [
     disabled: false,
     tooltip: undefined,
   },
+  { href: "/briefing", label: "Briefing", icon: Newspaper, disabled: false, tooltip: undefined },
   {
     href: "/people",
     label: "People",
