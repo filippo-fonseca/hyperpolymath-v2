@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The five widget adapters wrap real app components that statically import
+// The eight widget adapters wrap real app components that statically import
 // server actions (`"use server"`), which don't belong in jsdom. Mock them with
 // trivial identifiable bodies so this suite exercises the overlay's OWN
 // swipe-paging job: the single-writer swipe→store wiring, the wrap-around
@@ -22,6 +22,15 @@ vi.mock("@/components/studio/overlay/widgets/HabitsFocus", () => ({
 }));
 vi.mock("@/components/studio/overlay/widgets/JournalFocus", () => ({
   JournalFocus: () => <div data-testid="journal-focus">journal body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/ProjectsFocus", () => ({
+  ProjectsFocus: () => <div data-testid="projects-focus">projects body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/AreasFocus", () => ({
+  AreasFocus: () => <div data-testid="areas-focus">areas body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/PeopleFocus", () => ({
+  PeopleFocus: () => <div data-testid="people-focus">people body</div>,
 }));
 
 import { StudioInputProvider } from "@/lib/studio/input/react";
@@ -205,12 +214,12 @@ describe("StudioFocusOverlay — swipe paging", () => {
     const driver = renderStudio();
     await expandTasks(driver);
 
-    // prev from the first widget wraps to the last (journal).
+    // prev from the first widget wraps to the last (people).
     act(() => {
       driver.sink!.emitIntent({ type: "swipeLeft" });
     });
-    expect(await screen.findByTestId("journal-focus")).toBeInTheDocument();
-    expect(getActiveWidgets()).toEqual(["journal"]);
+    expect(await screen.findByTestId("people-focus")).toBeInTheDocument();
+    expect(getActiveWidgets()).toEqual(["people"]);
 
     // next from the last widget wraps back to the first (tasks).
     act(() => {
@@ -220,11 +229,11 @@ describe("StudioFocusOverlay — swipe paging", () => {
     expect(getActiveWidgets()).toEqual(["tasks"]);
   });
 
-  it("stays open across a full lap of five next pages", async () => {
+  it("stays open across a full lap of eight next pages", async () => {
     const driver = renderStudio();
     await expandTasks(driver);
 
-    for (let step = 0; step < 5; step += 1) {
+    for (let step = 0; step < 8; step += 1) {
       act(() => {
         driver.sink!.emitIntent({ type: "swipeRight" });
       });

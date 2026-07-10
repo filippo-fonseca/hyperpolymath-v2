@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The five widget adapters wrap real app components that statically import
+// The eight widget adapters wrap real app components that statically import
 // server actions (`"use server"`), which don't belong in jsdom. Mock them with
 // trivial identifiable bodies so this test exercises the overlay's OWN job:
 // the single-writer intent→store wiring, open/switch/close, panel chrome, and
@@ -21,6 +21,15 @@ vi.mock("@/components/studio/overlay/widgets/HabitsFocus", () => ({
 }));
 vi.mock("@/components/studio/overlay/widgets/JournalFocus", () => ({
   JournalFocus: () => <div data-testid="journal-focus">journal body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/ProjectsFocus", () => ({
+  ProjectsFocus: () => <div data-testid="projects-focus">projects body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/AreasFocus", () => ({
+  AreasFocus: () => <div data-testid="areas-focus">areas body</div>,
+}));
+vi.mock("@/components/studio/overlay/widgets/PeopleFocus", () => ({
+  PeopleFocus: () => <div data-testid="people-focus">people body</div>,
 }));
 
 import { StudioInputProvider } from "@/lib/studio/input/react";

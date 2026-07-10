@@ -138,6 +138,24 @@ export function useHandControl(createDriver: CreateDriver): UseHandControl {
     publishHandStatus(null);
   }, [teardown]);
 
+  // Open-palm halt = the gesture kill switch. Consuming it here (the sole
+  // hand-status writer) routes it through `disable()` — persisting `"off"` like
+  // the pill's "Turn off", so a deliberate stop gesture doesn't silently come
+  // back on next visit. Held in a ref so the subscription effect stays keyed on
+  // `bus` alone (no churn as `disable`'s identity changes).
+  const disableRef = useRef(disable);
+  disableRef.current = disable;
+  useEffect(
+    () =>
+      bus.subscribeIntent((intent) => {
+        // No-op unless a driver is actually live: a stray halt in mouse-only
+        // mode (or after teardown) must do nothing. Only the hand driver emits
+        // halt, so mouse mode can never trigger this.
+        if (intent.type === "halt" && unregisterRef.current) disableRef.current();
+      }),
+    [bus],
+  );
+
   const retry = useCallback(() => {
     register(); // unregisters the failed instance first, then starts fresh (D3)
   }, [register]);

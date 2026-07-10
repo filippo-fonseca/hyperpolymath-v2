@@ -4,6 +4,9 @@ import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import type { HabitWithAreas } from "@/app/actions/habits";
 import type { JournalEntry } from "@/app/actions/journal";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
+import type { ProjectRow } from "@/app/actions/projects";
+import type { SidebarArea, SidebarProject } from "@/lib/db/queries/sidebar";
+import type { PersonWithStats } from "@/lib/db/queries/people";
 import type {
   CalendarData,
   HabitsData,
@@ -11,9 +14,12 @@ import type {
 } from "../useStudioData";
 import {
   summarizeAgenda,
+  summarizeAreas,
   summarizeCaptures,
   summarizeHabits,
   summarizeJournal,
+  summarizePeople,
+  summarizeProjects,
   summarizeTasks,
 } from "../summaries";
 
@@ -97,6 +103,51 @@ function calendar(over: Partial<CalendarData> = {}): CalendarData {
 
 function journal(entry: JournalEntry | null): JournalTodayData {
   return { entry };
+}
+
+function project(over: Partial<ProjectRow> = {}): ProjectRow {
+  return {
+    id: over.id ?? "p1",
+    name: "Project",
+    endDate: null,
+    archivedAt: null,
+    orderIndex: 0,
+    isClass: false,
+    ...over,
+  } as ProjectRow;
+}
+
+function sidebarProject(over: Partial<SidebarProject> = {}): SidebarProject {
+  return {
+    id: over.id ?? "sp1",
+    name: "Proj",
+    icon: null,
+    orderIndex: 0,
+    isClass: false,
+    archivedAt: null,
+    ...over,
+  };
+}
+
+function sidebarArea(over: Partial<SidebarArea> = {}): SidebarArea {
+  return {
+    id: over.id ?? "ar1",
+    name: "Area",
+    emoji: null,
+    orderIndex: 0,
+    archivedAt: null,
+    projects: [],
+    ...over,
+  };
+}
+
+function person(over: Partial<PersonWithStats> = {}): PersonWithStats {
+  return {
+    id: over.id ?? "pe1",
+    name: "Person",
+    referenceCount: 0,
+    ...over,
+  } as PersonWithStats;
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -347,5 +398,191 @@ describe("summarizeJournal", () => {
     );
     expect(s.state).toBe("empty");
     expect(s.headline).toBe("No entry yet");
+  });
+});
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+describe("summarizeProjects", () => {
+  it("empty state when no open projects", () => {
+    const s = summarizeProjects([
+      project({ archivedAt: new Date("2026-01-01T00:00:00Z") }),
+    ]);
+    expect(s.badge).toBe(0);
+    expect(s.headline).toBeNull();
+    expect(s.state).toBe("empty");
+  });
+
+  it("badge counts open projects, excludes archived", () => {
+    const s = summarizeProjects([
+      project({ id: "a" }),
+      project({ id: "b" }),
+      project({ id: "c", archivedAt: new Date("2026-01-01T00:00:00Z") }),
+    ]);
+    expect(s.badge).toBe(2);
+    expect(s.state).toBe("ok");
+  });
+
+  it("excludes expired projects/classes even without an explicit archivedAt", () => {
+    const s = summarizeProjects([
+      project({ id: "open", name: "Open", endDate: "2999-01-01" }),
+      project({ id: "past", name: "Past", endDate: "2020-01-01" }),
+      project({
+        id: "oldClass",
+        name: "Old Class",
+        isClass: true,
+        semesterTerm: "spring",
+        semesterYear: 2020,
+      }),
+    ]);
+    expect(s.badge).toBe(1);
+    expect(s.headline).toBe("Open");
+    expect(s.subline).toBeNull();
+  });
+
+  it("headline picks next-ending: endDate asc, then orderIndex, then name", () => {
+    const s = summarizeProjects([
+      project({ id: "far", name: "Far", endDate: "2026-12-01" }),
+      project({ id: "soon", name: "Soon", endDate: "2026-07-10" }),
+      project({ id: "undated", name: "Undated", endDate: null }),
+    ]);
+    expect(s.headline).toBe("Soon");
+  });
+
+  it("nulls-last: a dated project beats an undated one for headline", () => {
+    const s = summarizeProjects([
+      project({ id: "u", name: "Undated", endDate: null, orderIndex: 0 }),
+      project({ id: "d", name: "Dated", endDate: "2026-08-01", orderIndex: 9 }),
+    ]);
+    expect(s.headline).toBe("Dated");
+  });
+
+  it("subline pluralizes open class count, null when none are classes", () => {
+    expect(
+      summarizeProjects([project({ isClass: true }), project({ id: "b" })])
+        .subline,
+    ).toBe("1 class");
+    expect(
+      summarizeProjects([
+        project({ id: "a", isClass: true }),
+        project({ id: "b", isClass: true }),
+      ]).subline,
+    ).toBe("2 classes");
+    expect(summarizeProjects([project()]).subline).toBeNull();
+  });
+
+  it("truncates a long project name", () => {
+    const s = summarizeProjects([project({ name: "x".repeat(200) })]);
+    expect(s.headline!.length).toBeLessThanOrEqual(60);
+    expect(s.headline!.endsWith("…")).toBe(true);
+  });
+});
+
+// ── Areas ─────────────────────────────────────────────────────────────────────
+describe("summarizeAreas", () => {
+  it("empty state when no active areas", () => {
+    const s = summarizeAreas([
+      sidebarArea({ archivedAt: new Date("2026-01-01T00:00:00Z") }),
+    ]);
+    expect(s.badge).toBe(0);
+    expect(s.headline).toBeNull();
+    expect(s.state).toBe("empty");
+  });
+
+  it("badge counts active areas, excludes archived", () => {
+    const s = summarizeAreas([
+      sidebarArea({ id: "a" }),
+      sidebarArea({ id: "b" }),
+      sidebarArea({ id: "c", archivedAt: new Date("2026-01-01T00:00:00Z") }),
+    ]);
+    expect(s.badge).toBe(2);
+    expect(s.state).toBe("ok");
+  });
+
+  it("headline is the active area with the most active projects", () => {
+    const s = summarizeAreas([
+      sidebarArea({
+        id: "light",
+        name: "Light",
+        projects: [sidebarProject({ id: "1" })],
+      }),
+      sidebarArea({
+        id: "heavy",
+        name: "Heavy",
+        projects: [sidebarProject({ id: "2" }), sidebarProject({ id: "3" })],
+      }),
+    ]);
+    expect(s.headline).toBe("Heavy");
+  });
+
+  it("ties on project count resolve to the lower orderIndex", () => {
+    const s = summarizeAreas([
+      sidebarArea({ id: "b", name: "Beta", orderIndex: 1 }),
+      sidebarArea({ id: "a", name: "Alpha", orderIndex: 0 }),
+    ]);
+    expect(s.headline).toBe("Alpha");
+  });
+
+  it("subline sums active projects and excludes archived ones", () => {
+    const s = summarizeAreas([
+      sidebarArea({
+        id: "a",
+        projects: [
+          sidebarProject({ id: "1" }),
+          sidebarProject({
+            id: "2",
+            archivedAt: new Date("2026-01-01T00:00:00Z"),
+          }),
+        ],
+      }),
+      sidebarArea({ id: "b", projects: [sidebarProject({ id: "3" })] }),
+    ]);
+    expect(s.subline).toBe("2 projects");
+  });
+
+  it("null subline when no active projects; singular pluralization", () => {
+    expect(summarizeAreas([sidebarArea()]).subline).toBeNull();
+    expect(
+      summarizeAreas([
+        sidebarArea({ projects: [sidebarProject({ id: "1" })] }),
+      ]).subline,
+    ).toBe("1 project");
+  });
+});
+
+// ── People ────────────────────────────────────────────────────────────────────
+describe("summarizePeople", () => {
+  it("empty state when no people", () => {
+    const s = summarizePeople([]);
+    expect(s.badge).toBe(0);
+    expect(s.headline).toBeNull();
+    expect(s.state).toBe("empty");
+  });
+
+  it("badge counts people; headline is the most-referenced", () => {
+    const s = summarizePeople([
+      person({ id: "a", name: "Ada", referenceCount: 2 }),
+      person({ id: "b", name: "Bo", referenceCount: 5 }),
+      person({ id: "c", name: "Cy", referenceCount: 1 }),
+    ]);
+    expect(s.badge).toBe(3);
+    expect(s.headline).toBe("Bo");
+    expect(s.subline).toBe("5 references");
+  });
+
+  it("ties on reference count keep input (name-sorted) order", () => {
+    const s = summarizePeople([
+      person({ id: "a", name: "Ada", referenceCount: 3 }),
+      person({ id: "b", name: "Bo", referenceCount: 3 }),
+    ]);
+    expect(s.headline).toBe("Ada");
+  });
+
+  it("singular reference pluralization; null subline at zero refs", () => {
+    expect(
+      summarizePeople([person({ name: "Solo", referenceCount: 1 })]).subline,
+    ).toBe("1 reference");
+    expect(
+      summarizePeople([person({ name: "Nobody", referenceCount: 0 })]).subline,
+    ).toBeNull();
   });
 });

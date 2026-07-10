@@ -29,27 +29,46 @@ export type StudioCursor = {
 
 // ---- Intents ---------------------------------------------------------------
 
-export type StudioIntentType = "expand" | "collapse" | "swipeLeft" | "swipeRight";
+export type StudioIntentType = "expand" | "collapse" | "swipeLeft" | "swipeRight" | "halt";
 
 /**
  * What consumers receive on the intent bus. `expand` always carries the
  * hovered target the hub injected; a targetless `expand` is never delivered.
+ * `halt` is a deliberate one-shot (a ~1s open-palm hold) — targetless, used by
+ * the kill-switch downstream; it passes through the hub unchanged.
  */
 export type StudioIntent =
   | { type: "expand"; targetId: string }
   | { type: "collapse" }
   | { type: "swipeLeft" }
-  | { type: "swipeRight" };
+  | { type: "swipeRight" }
+  | { type: "halt" };
 
 /**
- * Reserved for a future grab/move interaction — continuous phases, not discrete
- * intents. Declared now so consumers can exhaustively switch without the
- * contract churning when `move` lands. No implementation in this unit.
+ * Continuous interaction phases, delivered on a separate bus from discrete
+ * {@link StudioIntent}s so a 30fps stream never re-runs intent consumers. Two
+ * families: `grab*` (a pinch that began over a widget — carries the target and
+ * drives drag-and-drop into a zone), and `drag*` (a free pinch drag vector,
+ * cumulative from drag start, driving 3D camera navigation). The three `grab*`
+ * variants keep their originally-reserved shapes byte-identical.
  */
 export type StudioPhaseEvent =
   | { type: "grabStart"; targetId: string }
   | { type: "grabMove"; nx: number; ny: number }
-  | { type: "grabEnd" };
+  | { type: "grabEnd" }
+  | { type: "dragStart" }
+  | { type: "dragMove"; dx: number; dy: number; dz: number }
+  | { type: "dragEnd" };
+
+/**
+ * What drivers are allowed to emit on the phase bus. Drivers never resolve
+ * hover, so `grabStart` carries no target — the hub upgrades it from the
+ * current hover (and drops the whole grab lifecycle when there is none), exactly
+ * as it upgrades `expand`. Everything else passes through unchanged.
+ */
+export type StudioPhaseInput =
+  | { type: "grabStart" }
+  | Exclude<StudioPhaseEvent, { type: "grabStart" }>;
 
 /**
  * What drivers are allowed to emit. Drivers never resolve hover, so `expand`
@@ -59,7 +78,8 @@ export type StudioIntentInput =
   | { type: "expand" }
   | { type: "collapse" }
   | { type: "swipeLeft" }
-  | { type: "swipeRight" };
+  | { type: "swipeRight" }
+  | { type: "halt" };
 
 // ---- Hover providers (THE seam for 3D + DOM) -------------------------------
 
@@ -95,6 +115,8 @@ export type StudioInputSink = {
   moveCursor(nx: number, ny: number): void;
   setCursorActive(active: boolean): void;
   emitIntent(intent: StudioIntentInput): void;
+  /** Continuous grab/drag phases. Hub injects the grab target. */
+  emitPhase(phase: StudioPhaseInput): void;
 };
 
 export interface StudioInputDriver {
@@ -115,6 +137,8 @@ export interface StudioInputBus {
   /** Store-change subscription (fires when cursor OR hover changes). */
   subscribe(cb: () => void): () => void;
   subscribeIntent(cb: (intent: StudioIntent) => void): () => void;
+  /** Continuous-phase subscription (grab/drag streams). Zero re-render. */
+  subscribePhase(cb: (phase: StudioPhaseEvent) => void): () => void;
   registerHoverProvider(p: HoverProvider): () => void;
   /** Registers and starts a driver; the returned fn stops + unregisters it. */
   registerDriver(d: StudioInputDriver): () => void;

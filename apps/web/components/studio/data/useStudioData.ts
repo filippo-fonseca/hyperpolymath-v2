@@ -27,32 +27,38 @@ import type {
 } from "@/app/actions/habits";
 import type { JournalEntry } from "@/app/actions/journal";
 import type { HashtagWithCount } from "@/app/actions/hashtags";
+import type { ProjectRow } from "@/app/actions/projects";
+import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import type { PersonWithStats } from "@/lib/db/queries/people";
 
-/** The five studio widgets, in canonical tile order. */
+/** The eight studio widgets, in canonical tile order. */
 export const STUDIO_WIDGET_ORDER = [
   "tasks",
   "captures",
   "agenda",
   "habits",
   "journal",
+  "projects",
+  "areas",
+  "people",
 ] as const satisfies readonly string[];
 
 /**
- * The five studio widget ids, derived from the canonical order above so the
- * order is the single source of truth. The resulting union is identical to the
- * former hand-written one (`tasks | captures | agenda | habits | journal`).
+ * The eight studio widget ids, derived from the canonical order above so the
+ * order is the single source of truth. Appending an id here automatically
+ * extends every exhaustive consumer (`TINTS`, `WIDGET_REGISTRY`, paging).
  */
 export type StudioWidgetId = (typeof STUDIO_WIDGET_ORDER)[number];
 
 /**
- * Uniform tile projection — `widget-cloud` maps five tiles off this
+ * Uniform tile projection — `widget-cloud` maps all tiles off this
  * generically. Each field is pre-computed/pre-truncated so a tile is a dumb
  * renderer of strings + a badge + a state token. A pure `useMemo` selector over
  * the same context produces this (never a second query).
  */
 export interface StudioTileSummary {
   id: StudioWidgetId;
-  label: string; // "Tasks", "Captures", "Agenda", "Habits", "Journal"
+  label: string; // "Tasks", "Captures", "Agenda", "Habits", "Journal", …
   badge: number | null; // count chip; null = no badge
   headline: string | null; // next/latest item, pre-truncated
   subline: string | null; // secondary line, e.g. "3 due today", "2/5 done"
@@ -130,6 +136,11 @@ export interface StudioData {
   calendar: CalendarData;
   habits: HabitsData;
   journal: JournalTodayData;
+  // Wave-5 ambient widgets — plain real-data slices keyed off the same
+  // TanStack Query caches the 2D pages use (no SSR seed; hashtags precedent).
+  projects: ProjectRow[]; // tableKey("projects", userId)
+  areas: SidebarArea[]; // tableKey("areas", userId), active-only
+  people: PersonWithStats[]; // tableKey("people", userId)
 }
 
 export const StudioDataContext = createContext<StudioData | null>(null);

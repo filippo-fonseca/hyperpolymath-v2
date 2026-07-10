@@ -20,6 +20,7 @@
 import { Loader2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { TrackingToggle } from "@/components/studio/controls/TrackingToggle";
 import type { HandDriverStatus } from "@/lib/studio/input/drivers/hand";
 import {
   type CreateDriver,
@@ -215,10 +216,12 @@ function Frame({
   placement: "center" | "corner";
   children: React.ReactNode;
 }): React.ReactElement {
+  // The persistent TrackingToggle owns the bottom-right corner (bottom-6 right-6),
+  // so the status pill stacks just above it to avoid overlap while tracking is on.
   const position =
     placement === "center"
       ? "bottom-6 left-1/2 -translate-x-1/2"
-      : "bottom-6 right-6";
+      : "bottom-[4.25rem] right-6";
   return (
     <motion.div
       className={`pointer-events-none absolute z-30 ${position}`}
@@ -245,12 +248,29 @@ export function HandControlOnboarding({
   const { pref, status, enable, disable, retry, dismiss } =
     useHandControl(createDriver);
 
-  // Pre-hydration and dormant (opted-out) → render nothing.
-  if (pref === undefined || pref === "off") return null;
+  // Pre-hydration → render nothing (avoid a wrong-state toggle flash before the
+  // stored pref is known).
+  if (pref === undefined) return null;
+
+  // The persistent kill switch is ALWAYS present past hydration — even when the
+  // rest of the onboarding chrome is dormant (opted-out) — so tracking can be
+  // toggled back on at any time. Clicking it while off runs the same enable()
+  // path as consent, so the camera gate is preserved.
+  const toggle = (
+    <TrackingToggle on={pref === "on"} onEnable={enable} onDisable={disable} />
+  );
+
+  // Dormant (opted-out) → just the toggle.
+  if (pref === "off") return toggle;
 
   // First visit — no stored preference → consent card, driver NOT constructed.
   if (pref === null) {
-    return <ConsentCard reduced={reduced} onEnable={enable} onDismiss={dismiss} />;
+    return (
+      <>
+        {toggle}
+        <ConsentCard reduced={reduced} onEnable={enable} onDismiss={dismiss} />
+      </>
+    );
   }
 
   // pref === "on" — enabled. Errors render a recovery card; everything else a pill.
@@ -267,17 +287,25 @@ export function HandControlOnboarding({
             ? COPY.errPermissionDenied
             : COPY.errModelLoadFailed;
     return (
-      <ErrorCard
-        reduced={reduced}
-        message={message}
-        retryable={retryable}
-        onRetry={retry}
-        onDisable={disable}
-      />
+      <>
+        {toggle}
+        <ErrorCard
+          reduced={reduced}
+          message={message}
+          retryable={retryable}
+          onRetry={retry}
+          onDisable={disable}
+        />
+      </>
     );
   }
 
-  return <StatusPill reduced={reduced} status={status} onDisable={disable} />;
+  return (
+    <>
+      {toggle}
+      <StatusPill reduced={reduced} status={status} onDisable={disable} />
+    </>
+  );
 }
 
 export default HandControlOnboarding;

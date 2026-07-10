@@ -10,6 +10,11 @@ import { StudioFocusOverlay } from "./overlay/StudioFocusOverlay";
 import { DebugDomTiles } from "./overlay/DebugDomTiles";
 import { HandControlOnboarding } from "./onboarding/HandControlOnboarding";
 import { StudioHandReticle } from "./cursor/StudioHandReticle";
+import { StudioActiveRowToggle } from "./settings/StudioActiveRowToggle";
+import { StudioMuteToggle } from "./settings/StudioMuteToggle";
+import { StudioWindowSettings } from "./settings/StudioWindowSettings";
+import { StudioAudioFx } from "@/lib/studio/audio/useStudioAudio";
+import { startWindowRegistry } from "@/lib/studio/state/window-registry";
 
 /**
  * StudioLoader — the client boundary that owns BOTH the data bridge and the
@@ -120,6 +125,12 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
     setDecision(hasWebGL2() ? "canvas" : "fallback");
   }, []);
 
+  // Join the cross-window registry for this session: announces this window on
+  // the BroadcastChannel, heartbeats it, and prunes/adopts on peer close. The
+  // returned stop fn tears it down (bye + timers) when the Studio unmounts. In a
+  // lone window this is inert beyond a self-record, so single-window is unchanged.
+  useEffect(() => startWindowRegistry(), []);
+
   // The stage element anchors cursor coordinates for the input core. It is the
   // absolute-inset-0 box that contains both the Canvas and the DOM overlay, so
   // stage space ≡ canvas space — the raycast HoverProvider's NDC math depends on
@@ -153,6 +164,18 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
               dev-only geometric hover substrate (?studioDomTiles=1). */}
           <StudioFocusOverlay />
           <DebugDomTiles />
+          {/* Multi-window registry pane — a z-30 monitor affordance that lists
+              the open Studio windows and assigns each a position. */}
+          <StudioWindowSettings />
+          {/* Active-row swap — a z-30 HUD toggle (below the settings trigger)
+              that brings the far arc row forward so its zones become grabbable.
+              A DOM control; hides itself when the arc is a single row. */}
+          <StudioActiveRowToggle />
+          {/* Synthesized HUD sound-fx layer: a render-nothing hook host that
+              plays short Web Audio cues on studio interactions, plus its z-30
+              mute toggle (below the active-row toggle). Event-driven only. */}
+          <StudioAudioFx />
+          <StudioMuteToggle />
           {/* Camera-consent gate for the additive hand driver. Renders its own
               chrome at z-30 (below the focus overlay); constructs the
               HandTrackingDriver only after an explicit opt-in. */}

@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * WidgetCloud — the ambient 3D cloud of five glowing widget tiles.
+ * WidgetCloud — the ambient 3D cloud of eight glowing widget tiles.
  *
- * Purely positional: it maps `useStudioSummaries()` (five pre-truncated tile
- * summaries, stable order) over a fibonacci-cap layout and renders one
- * `<WidgetTile>` each. It owns two seams:
+ * Purely positional: it maps `useStudioSummaries()` (eight pre-truncated tile
+ * summaries, stable order) onto the fixed amphitheater arc zones (`arcZoneSlots`)
+ * by way of the zone assignment, and renders one `<WidgetTile>` each plus the
+ * grab-time `<ZoneMarkers/>`. It owns two seams:
  *
  *  1. The raycast HoverProvider (priority 10). The input hub calls `resolve`
- *     rAF-coalesced on every cursor move; we raycast the five panel meshes and
+ *     rAF-coalesced on every cursor move; we raycast the eight panel meshes and
  *     return the hovered widget id. Cursor coords are stage-normalized, and the
  *     stage div ≡ the Canvas rect (StudioLoader), so `nx/ny → NDC` is exact.
  *
@@ -25,15 +26,17 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 import { useStudioHoverProvider } from "@/lib/studio/input/react";
+import { useFrontRow } from "@/lib/studio/state/active-row";
+import { useZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
-import { fibonacciCapSlots } from "./layout";
+import { arcZoneSlots, DEFAULT_ARC_ZONES } from "./layout";
+import { useWidgetManipulation } from "./useWidgetManipulation";
 import { WidgetTile } from "./WidgetTile";
+import { ZoneMarkers } from "./ZoneMarkers";
 
-// Cap origin and radius (meters), and how long drift runs after interaction.
-const CENTER: [number, number, number] = [0, 1.8, 0];
-const RADIUS = 2.4;
-const CAP_DEG = 70;
+// How long drift runs after interaction. The eight fixed zone slots live in
+// layout.ts (arcZoneSlots) so the renderer and the framing math share one source.
 const ACTIVE_MS = 4000;
 
 export function WidgetCloud(): React.ReactElement {
@@ -41,15 +44,33 @@ export function WidgetCloud(): React.ReactElement {
   const invalidate = useThree((s) => s.invalidate);
   const camera = useThree((s) => s.camera);
 
+  // Zone assignment (index = zone → widget id) — THIS window's owned subset.
+  // A tile renders at the slot of its current zone; a drop reflows this array and
+  // every displaced tile glides. Under multi-window ownership its length is the
+  // owned count (≤ 8), not necessarily all eight.
+  const assignment = useZoneAssignment();
+
+  // Which row-group renders at the near (front, DnD-reachable) geometry. The HUD
+  // toggle flips this; a flip re-derives `slots`, the tiles re-render with new
+  // targets, and each tile's damp-to-slot glides the swap for free.
+  const frontRow = useFrontRow();
+
+  // Arc zone slots sized to the OWNED count (index = zone) at the active front
+  // row. The tile renderer and the manipulation controller both resolve positions
+  // from this one array, so the visual layout and the drop math can never drift
+  // apart. A window owning 3 widgets shows a 3-slot arc.
   const slots = useMemo(
-    () =>
-      fibonacciCapSlots(summaries.length, {
-        radius: RADIUS,
-        center: CENTER,
-        capDeg: CAP_DEG,
-      }),
-    [summaries.length],
+    () => arcZoneSlots(assignment.length, DEFAULT_ARC_ZONES, frontRow),
+    [assignment.length, frontRow],
   );
+
+  // Summaries keyed by id so the owned-assignment iteration can look each up
+  // without scanning. Rebuilt only when the summary set changes.
+  const summaryById = useMemo(() => {
+    const map = new Map<StudioWidgetId, (typeof summaries)[number]>();
+    for (const summary of summaries) map.set(summary.id, summary);
+    return map;
+  }, [summaries]);
 
   // Panel-mesh registry. A stable array is kept alongside the map so the
   // per-resolve raycast allocates nothing.
@@ -61,6 +82,22 @@ export function WidgetCloud(): React.ReactElement {
       else meshesRef.current.delete(id);
       meshArrayRef.current = [...meshesRef.current.values()];
     },
+    [],
+  );
+
+  // Outer-group registry. The manipulation controller reads groups by id to
+  // mutate position/scale imperatively during a gesture; tiles register/unregister
+  // their outer group via `registerGroup`.
+  const groupsRef = useRef(new Map<StudioWidgetId, THREE.Group>());
+  const registerGroup = useCallback(
+    (id: StudioWidgetId, group: THREE.Group | null) => {
+      if (group) groupsRef.current.set(id, group);
+      else groupsRef.current.delete(id);
+    },
+    [],
+  );
+  const getGroup = useCallback(
+    (id: StudioWidgetId) => groupsRef.current.get(id) ?? null,
     [],
   );
 
@@ -81,10 +118,21 @@ export function WidgetCloud(): React.ReactElement {
     },
   });
 
+  // Grab-drag manipulation. Sole writer of the zone-assignment store; it mutates
+  // the registered outer groups imperatively during a drag and self-invalidates.
+  useWidgetManipulation({ slots, getGroup, camera, invalidate });
+
   // Channel 1 — data changes: nudge a frame (hooks.ts contract).
   useEffect(() => {
     invalidate();
   }, [summaries, invalidate]);
+
+  // Channel 4 — zone reflow: a drop reflows the assignment and re-renders the
+  // displaced tiles with new slot targets; nudge a frame so their damp loops
+  // wake and glide under demand-frame.
+  useEffect(() => {
+    invalidate();
+  }, [assignment, invalidate]);
 
   // Channel 2 — Float drift: keep an active window open on any interaction, and
   // demand frames only while it lasts. When it closes the cloud freezes.
@@ -116,14 +164,24 @@ export function WidgetCloud(): React.ReactElement {
 
   return (
     <group>
-      {summaries.map((summary, i) => (
-        <WidgetTile
-          key={summary.id}
-          summary={summary}
-          position={slots[i]!.position}
-          registerMesh={registerMesh}
-        />
-      ))}
+      {/* Iterate the OWNED assignment (zone → id), not the full summary set, so a
+          window renders only the widgets it currently owns. A missing summary is
+          skipped defensively (should not happen). */}
+      {assignment.map((id, zone) => {
+        const summary = summaryById.get(id);
+        if (!summary) return null;
+        return (
+          <WidgetTile
+            key={id}
+            summary={summary}
+            position={slots[zone]!.position}
+            registerMesh={registerMesh}
+            registerGroup={registerGroup}
+          />
+        );
+      })}
+      {/* Drop-zone outlines: rendered only during a grab, before PostFX. */}
+      <ZoneMarkers />
     </group>
   );
 }
