@@ -67,6 +67,7 @@ function ExplorerNavButton({
         "flex size-7 items-center justify-center rounded-[6px] border border-transparent text-[var(--ink-muted)]",
         "transition-[background-color,border-color,color] duration-[120ms] ease-out",
         "hover:border-[var(--sd-line)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
+        "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)] focus-visible:text-[var(--ink)]",
         "disabled:pointer-events-none disabled:opacity-35",
       )}
     >

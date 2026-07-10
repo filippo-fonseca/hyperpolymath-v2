@@ -130,6 +130,7 @@ function ExplorerGridTile({
           "border-[var(--sd-line)] bg-[var(--sd-box)]",
           "transition-[background-color,border-color] duration-[120ms] ease-out",
           "hover:bg-[var(--sd-hover)]",
+          "focus-visible:border-[var(--hud-cyan)]",
           selected && "border-[var(--hud-cyan)] bg-[var(--sd-selected)]",
           isOver && "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--sd-box))]",
         )}

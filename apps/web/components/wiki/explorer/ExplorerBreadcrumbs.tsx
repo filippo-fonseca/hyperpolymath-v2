@@ -39,7 +39,7 @@ export function ExplorerBreadcrumbs({
                 "transition-[background-color,color] duration-[120ms] ease-out",
                 isLast
                   ? "pointer-events-none text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
+                  : "text-[var(--ink-muted)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:bg-[var(--sd-hover)] focus-visible:text-[var(--ink)] focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]",
                 segment.buttonProps?.className,
               )}
             >

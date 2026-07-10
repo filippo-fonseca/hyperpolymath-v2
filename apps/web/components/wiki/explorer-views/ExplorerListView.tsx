@@ -126,6 +126,7 @@ function ExplorerListRow({
       className={cn(
         "relative grid h-8 items-center gap-3 px-3 text-[var(--ink)] outline-none",
         "transition-[background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
+        "focus-visible:bg-[var(--sd-hover)] focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]",
         selected && "bg-[var(--sd-selected)]",
         isOver && "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--sd-box))]",
       )}
