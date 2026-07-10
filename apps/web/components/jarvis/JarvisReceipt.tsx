@@ -233,6 +233,36 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
     return String(value);
   }
 
+  function normalizeForCompare(value: unknown): unknown {
+    if (value == null) return null;
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === "string") {
+      const d = new Date(value);
+      if (/^\d{4}-\d{2}-\d{2}/.test(value) && !Number.isNaN(d.getTime())) {
+        return d.getTime();
+      }
+      return value;
+    }
+    if (Array.isArray(value)) return value.map(normalizeForCompare);
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const k of Object.keys(obj).sort()) out[k] = normalizeForCompare(obj[k]);
+      return out;
+    }
+    return value;
+  }
+
+  function isSameValue(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (a == null && b == null) return true;
+    try {
+      return JSON.stringify(normalizeForCompare(a)) === JSON.stringify(normalizeForCompare(b));
+    } catch {
+      return false;
+    }
+  }
+
   function prettifyFieldName(key: string): string {
     // camelCase / snake_case → Sentence case
     const spaced = key
@@ -448,7 +478,14 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             // churn, not a change the user asked for. Surface it once as a
             // human-readable footer instead.
             const { updatedAt, ...visibleChanges } = rawChanges;
-            const visibleEntries = Object.entries(visibleChanges);
+            // Drop entries whose after-value equals the before-value: those
+            // are fields the executor wrote through (e.g. re-derived url/urls
+            // on a content edit) that didn't actually change. Showing them
+            // as "X → X" is noise per issue #247.
+            const changedEntries = Object.entries(visibleChanges).filter(
+              ([field, value]) => !isSameValue(before[field], value)
+            );
+            const visibleEntries = changedEntries;
             return (
               <>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mt-1">
