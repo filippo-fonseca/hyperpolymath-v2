@@ -11,29 +11,20 @@ import {
 } from "@/app/actions/pages";
 import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
-import { JournalCalendar } from "@/components/journaling/JournalCalendar";
 import { PropertiesManagerModal } from "./PropertiesManagerModal";
+import { JournalRail } from "@/components/wiki/journal/JournalRail";
 import { WikiExplorer } from "@/components/wiki/WikiExplorer";
 import { buildTreeZip, downloadZipFiles } from "@/lib/pages/markdown-export";
 import { buildPagesTree } from "@/lib/pages/tree";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
-import { dailyDayClickAction, dailyPageTitle } from "@/lib/pages/daily-page";
+import { useEnsureTodayDailyPage } from "@/lib/pages/useEnsureTodayDailyPage";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import {
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Loader2,
-  Plus,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Download, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 interface Props {
   userId: string;
@@ -99,17 +90,19 @@ export function PagesListClient({
     queryKey: fieldDefsKey,
     queryFn: () => getFieldDefinitionsForCurrentUser(),
   });
-  const { data: dailyPages = [] } = useQuery<DailyPageRef[]>({
+  const { data: dailyPages = [], isSuccess: dailyFetched } = useQuery<
+    DailyPageRef[]
+  >({
     queryKey: ["daily-pages", userId],
     queryFn: () => getDailyPagesForCurrentUser(),
     initialData: initialDailyPages,
   });
 
-  const [dailyOpen, setDailyOpen] = useState(true);
-  const [openingDay, setOpeningDay] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    format(new Date(), "yyyy-MM-dd"),
-  );
+  // Wave-3: ensure today's Daily Page exists without navigating. Coordinates
+  // with the app-shell `DailyAutoOpen` via the shared partial unique index.
+  useEnsureTodayDailyPage(userId, dailyPages, dailyFetched);
+
+  const [openingDate, setOpeningDate] = useState<string | null>(null);
   const [wikiManagerOpen, setWikiManagerOpen] = useState(false);
 
   const handleFieldsChanged = useCallback(() => {
@@ -118,34 +111,26 @@ export function PagesListClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient, userId]);
 
-  const dailyByDate = useMemo(
-    () => new Map(dailyPages.map((d) => [d.dailyDate, d] as const)),
-    [dailyPages],
+  const handleOpenPage = useCallback(
+    (pageId: string) => {
+      router.push(`/wiki/${pageId}`);
+    },
+    [router],
   );
-  const markedDays = useMemo(
-    () => new Set(dailyPages.map((d) => d.dailyDate)),
-    [dailyPages],
+
+  const handleCreateForDate = useCallback(
+    async (iso: string) => {
+      if (openingDate) return;
+      setOpeningDate(iso);
+      try {
+        const result = await openDailyPage({ date: iso });
+        if (result.success) router.push(`/wiki/${result.data.id}`);
+      } finally {
+        setOpeningDate(null);
+      }
+    },
+    [openingDate, router],
   );
-  const todayIso = format(new Date(), "yyyy-MM-dd");
-
-  async function createAndOpen(iso: string) {
-    if (openingDay) return;
-    setOpeningDay(true);
-    try {
-      const result = await openDailyPage({ date: iso });
-      if (result.success) router.push(`/wiki/${result.data.id}`);
-    } finally {
-      setOpeningDay(false);
-    }
-  }
-
-  function handleSelectDay(iso: string) {
-    setSelectedDate(iso);
-    const action = dailyDayClickAction(iso, dailyByDate.get(iso)?.id);
-    if (action.kind === "route") router.push(`/wiki/${action.pageId}`);
-  }
-
-  const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;
 
   function handleExportAll() {
     const tree = buildPagesTree(folders, folderProjects, allPages);
@@ -183,88 +168,14 @@ export function PagesListClient({
         </div>
       </div>
 
-      {/* Daily Pages — collapsible calendar section (wave 3 owns the rebuild). */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setDailyOpen((o) => !o)}
-            className="flex cursor-pointer items-center gap-1.5 text-left"
-            aria-expanded={dailyOpen}
-          >
-            <span className="flex-shrink-0 text-[var(--ink-muted)]">
-              {dailyOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </span>
-            <CalendarDays
-              size={13}
-              strokeWidth={1.5}
-              className="flex-shrink-0 text-[var(--ink-muted)]"
-            />
-            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-              Daily Pages
-            </span>
-            {dailyPages.length > 0 && (
-              <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
-                {dailyPages.length}
-              </span>
-            )}
-          </button>
-          {dailyOpen && (
-            <button
-              type="button"
-              onClick={() =>
-                markedDays.has(todayIso)
-                  ? handleSelectDay(todayIso)
-                  : void createAndOpen(todayIso)
-              }
-              disabled={openingDay}
-              className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-[var(--edge)] px-2.5 py-1 font-serif text-[12px] text-[var(--hud-cyan)] transition-colors duration-150 ease-out hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {openingDay ? (
-                <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-              ) : (
-                <CalendarDays size={12} strokeWidth={1.5} />
-              )}
-              <span>Today</span>
-            </button>
-          )}
-        </div>
-        {dailyOpen && (
-          <>
-            <JournalCalendar
-              selectedDate={selectedDate}
-              markedDates={markedDays}
-              onSelectDate={handleSelectDay}
-              ariaLabel="Daily Pages calendar"
-            />
-            {!selectedDailyPage && (
-              <div className="glass-tile flex items-center justify-between gap-3 rounded-md px-3 py-2.5">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                    No daily page
-                  </span>
-                  <span className="truncate font-serif text-[13px] text-[var(--ink)]">
-                    {dailyPageTitle(selectedDate)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void createAndOpen(selectedDate)}
-                  disabled={openingDay}
-                  className="glass-button flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-sm px-2.5 py-1 font-serif text-[12px] text-[var(--hud-cyan)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {openingDay ? (
-                    <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-                  ) : (
-                    <Plus size={12} strokeWidth={1.5} />
-                  )}
-                  <span>Create daily page</span>
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Wave-3: the editorial Journal rail (today card + 7-day trail + calendar). */}
+      <JournalRail
+        allPages={allPages}
+        dailyPages={dailyPages}
+        onOpenPage={handleOpenPage}
+        onCreateForDate={handleCreateForDate}
+        openingDate={openingDate}
+      />
 
       <WikiExplorer userId={userId} pages={allPages} folders={folders} />
 
