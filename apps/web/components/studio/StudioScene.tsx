@@ -1,6 +1,7 @@
 "use client";
 
 import { StudioAtmosphere } from "./env/StudioAtmosphere";
+import { StudioRoom } from "./env/StudioRoom";
 import { DustMotes } from "./env/DustMotes";
 import { PostFX } from "./env/PostFX";
 import { PerfGovernor } from "./perf/PerfGovernor";
@@ -8,35 +9,23 @@ import { WidgetCloud } from "./cloud/WidgetCloud";
 import { CameraRig } from "./camera/CameraRig";
 
 /**
- * StudioScene — the composition root of The Studio (Wave-1 scaffold).
+ * StudioScene — the composition root of The Studio.
  *
- * The shared integration point: each Wave-2 in-Canvas system mounts here as a
- * single-line insertion at the marked slot below. Keep it minimal — no logic
- * lives in this file, only composition.
+ * Keep it minimal: no logic, only composition. Data lives above the Canvas
+ * (`StudioDataProvider` in StudioLoader); R3F v9 bridges parent React context.
  *
- * Data note: the data bridge (`StudioDataProvider`) lives ABOVE the <Canvas>
- * (see StudioLoader). On R3F v9 parent React context is bridged into the Canvas
- * automatically, so any in-Canvas system reads the shared TanStack Query caches
- * via `useStudioData()` / the per-widget hooks with no provider inside here.
- *
- * Wave 1 wires only the empty room: atmosphere, dust, the perf governor, and the
- * single PostFX composer. The widget cloud, focus overlay, and input/camera rig
- * are hung by later waves.
+ * Mount order matters: room/atmosphere first, cloud + camera next, PostFX last
+ * (sole EffectComposer). Focus overlay is a DOM sibling outside the Canvas.
  */
 export function StudioScene(): React.ReactElement {
   return (
     <>
-      <StudioAtmosphere /> {/* night IBL · candle key · moon fill */}
+      <StudioAtmosphere /> {/* night IBL · multi-light candlelit rig */}
+      <StudioRoom /> {/* floor · brass arc rings · contact shadows */}
       <DustMotes /> {/* drifting motes (own draw call) */}
-      {/* ── WAVE-2 MOUNT SLOTS — one-line insertions, keep this list current ──
-          <WidgetCloud />    [widget-cloud]     — mounts here (owns demand-frame nudge)
-          <CameraRig />      [studio-camera-traversal] — grab-the-world pan/dolly
-          <PostFX/> MUST remain the LAST child (single EffectComposer wraps all).
-          NB: the DOM focus-overlay is NOT mounted here — it lives outside the
-          Canvas, as a sibling under <StudioDataProvider> in StudioLoader. */}
-      <WidgetCloud /> {/* ambient cloud of five hologram tiles + raycast hover */}
-      <CameraRig /> {/* phase-driven camera traversal — 0 draw calls, 0 idle rAF */}
-      <PerfGovernor /> {/* adaptive-resolution governor — 0 draw calls, 0 idle rAF */}
+      <WidgetCloud /> {/* amphitheater hologram tiles + raycast hover */}
+      <CameraRig /> {/* phase-driven camera traversal */}
+      <PerfGovernor /> {/* adaptive-resolution governor */}
       <PostFX /> {/* the ONLY EffectComposer — MUST stay last */}
     </>
   );

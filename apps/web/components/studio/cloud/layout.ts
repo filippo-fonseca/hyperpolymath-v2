@@ -17,15 +17,16 @@ export interface TileSlot {
 }
 
 // ── Tile dimensions (meters) ────────────────────────────────────────────────
-// The slab is thin; its rounded edges are what catch the fresnel rim and glow.
-// These live here (not in WidgetTile) because they are layout CONSTRAINTS: the
-// non-overlap invariant and the ZoneMarkers frame size both derive from them, so
-// there must be one source of truth. Size is UNIFORM across every widget —
-// per-widget scale is forbidden (depth reads as fog, never as size).
-export const TILE_W = 1.9;
-export const TILE_H = 1.2;
-export const TILE_D = 0.07;
-export const TILE_RADIUS = 0.06;
+// The slab has enough thickness for a readable glass edge (fresnel rim) and a
+// backplate plane. These live here (not in WidgetTile) because they are layout
+// CONSTRAINTS: the non-overlap invariant and the ZoneMarkers frame size both
+// derive from them, so there must be one source of truth. Size is UNIFORM
+// across every widget — per-widget scale is forbidden (depth reads as fog,
+// never as size). Height is tall enough for a multi-line glance body.
+export const TILE_W = 1.88;
+export const TILE_H = 1.42;
+export const TILE_D = 0.13;
+export const TILE_RADIUS = 0.07;
 
 type Vec3 = readonly [number, number, number];
 
@@ -62,21 +63,22 @@ export interface ArcZonesConfig {
 }
 
 /**
- * Amphitheater zone geometry. Starting values tuned by eye; the pivot sits on the
- * camera axis between the cloud and {@link CAMERA_HOME} so both rows fall in front
- * of the camera's nearest travel bound.
+ * Amphitheater zone geometry. Pivot sits on the camera axis between the cloud
+ * and {@link CAMERA_HOME} so both rows fall in front of the camera's nearest
+ * travel bound. Far row is higher/deeper and more fogged so depth reads as a
+ * theatre, not a second toolbar.
  */
 export const DEFAULT_ARC_ZONES: ArcZonesConfig = {
-  pivot: [0, 1.55, 4.2],
-  nearRadius: 3.4,
-  farRadius: 5.3,
-  nearY: 1.25,
-  farY: 2.4,
-  nearSpanDeg: 112,
-  farSpanDeg: 126,
-  fadeNear: 4.0,
-  fadeFar: 7.5,
-  fadeMinOpacity: 0.7,
+  pivot: [0, 1.45, 4.0],
+  nearRadius: 3.45,
+  farRadius: 5.7,
+  nearY: 1.18,
+  farY: 2.62,
+  nearSpanDeg: 108,
+  farSpanDeg: 130,
+  fadeNear: 3.6,
+  fadeFar: 8.2,
+  fadeMinOpacity: 0.4,
 };
 
 /**
@@ -164,20 +166,24 @@ export function nearestZone(pos: Vec3, slots: readonly TileSlot[]): number {
 }
 
 /**
- * Depth-fade multiplier for a slot at `pos`: 1 within `fadeNear` of
- * {@link CAMERA_HOME}, easing linearly to `fadeMinOpacity` at/beyond `fadeFar`.
- * Multiplied into a tile's hologram opacity, rim intensity, and text fillOpacity
- * so distance reads as fog (perspective already handles apparent size; per-widget
- * scale is forbidden). Monotone non-increasing in distance; clamped to
- * `[fadeMinOpacity, 1]`.
+ * Depth-fade multiplier for a slot at `pos` relative to an eye point (defaults
+ * to {@link CAMERA_HOME}). Eases linearly from 1 within `fadeNear` to
+ * `fadeMinOpacity` at/beyond `fadeFar`. Multiplied into hologram opacity, rim
+ * intensity, and text fillOpacity so distance reads as fog (perspective already
+ * handles apparent size; per-widget scale is forbidden). Monotone non-increasing
+ * in distance; clamped to `[fadeMinOpacity, 1]`.
+ *
+ * Pass the live camera position when the viewer has panned/dolied so fog tracks
+ * the seat, not just the spawn vantage.
  */
 export function depthFade(
   pos: Vec3,
   config: ArcZonesConfig = DEFAULT_ARC_ZONES,
+  eye: Vec3 = CAMERA_HOME,
 ): number {
-  const dx = pos[0] - CAMERA_HOME[0];
-  const dy = pos[1] - CAMERA_HOME[1];
-  const dz = pos[2] - CAMERA_HOME[2];
+  const dx = pos[0] - eye[0];
+  const dy = pos[1] - eye[1];
+  const dz = pos[2] - eye[2];
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
   const { fadeNear, fadeFar, fadeMinOpacity } = config;
   if (dist <= fadeNear) return 1;

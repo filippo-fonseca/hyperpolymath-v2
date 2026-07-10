@@ -41,7 +41,7 @@ export function PostFX(): React.ReactElement {
         radius={STUDIO_BLOOM.radius}
         levels={STUDIO_BLOOM.levels}
       />
-      <Vignette offset={0.4} darkness={0.62} />
+      <Vignette offset={0.35} darkness={0.72} />
     </EffectComposer>
   );
 }

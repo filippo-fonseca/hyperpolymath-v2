@@ -195,8 +195,11 @@ describe("depthFade", () => {
   const Z = DEFAULT_ARC_ZONES;
   const atDist = (d: number): Vec3 => [CAMERA_HOME[0], CAMERA_HOME[1], CAMERA_HOME[2] - d];
 
-  it("keeps a legible depth-fade floor for back-row tiles (>= 0.7)", () => {
-    expect(DEFAULT_ARC_ZONES.fadeMinOpacity).toBeGreaterThanOrEqual(0.7);
+  it("keeps a legible depth-fade floor for back-row tiles (0.35–0.55 amphitheater fog)", () => {
+    // Stronger fog than the original 0.7 "toolbar" floor so the far row reads
+    // as depth, not a second dock. Still ≥ 0.35 so labels stay readable.
+    expect(DEFAULT_ARC_ZONES.fadeMinOpacity).toBeGreaterThanOrEqual(0.35);
+    expect(DEFAULT_ARC_ZONES.fadeMinOpacity).toBeLessThanOrEqual(0.55);
   });
 
   it("is 1 within fadeNear and floors at fadeMinOpacity beyond fadeFar", () => {
