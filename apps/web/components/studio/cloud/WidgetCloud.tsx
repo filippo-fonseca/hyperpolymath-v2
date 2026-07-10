@@ -27,6 +27,7 @@ import * as THREE from "three";
 
 import { useStudioHoverProvider } from "@/lib/studio/input/react";
 import { useFrontRow } from "@/lib/studio/state/active-row";
+import { useActiveWidget } from "@/lib/studio/state/active-widget";
 import { useZoneAssignment } from "@/lib/studio/state/zone-assignment";
 import { useStudioSummaries } from "../data/hooks";
 import type { StudioWidgetId } from "../data/useStudioData";
@@ -35,12 +36,12 @@ import { useWidgetManipulation } from "./useWidgetManipulation";
 import { WidgetTile } from "./WidgetTile";
 import { ZoneMarkers } from "./ZoneMarkers";
 
-// How long drift runs after interaction. The eight fixed zone slots live in
-// layout.ts (arcZoneSlots) so the renderer and the framing math share one source.
-const ACTIVE_MS = 4000;
+// How long Float drift runs after interaction. Longer = living chamber feel.
+const ACTIVE_MS = 7000;
 
 export function WidgetCloud(): React.ReactElement {
   const summaries = useStudioSummaries();
+  const focusedId = useActiveWidget();
   const invalidate = useThree((s) => s.invalidate);
   const camera = useThree((s) => s.camera);
 
@@ -175,6 +176,8 @@ export function WidgetCloud(): React.ReactElement {
             key={id}
             summary={summary}
             position={slots[zone]!.position}
+            focused={focusedId === id}
+            dimmed={focusedId !== null && focusedId !== id}
             registerMesh={registerMesh}
             registerGroup={registerGroup}
           />
