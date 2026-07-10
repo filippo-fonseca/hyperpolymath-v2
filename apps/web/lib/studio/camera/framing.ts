@@ -2,12 +2,11 @@
  * framing.ts — focus-framing math for the auto-center camera move.
  *
  * When a widget is expanded, the camera should center and frame THAT widget.
- * The studio camera never rotates (it looks straight down −Z from the
- * `<Canvas camera>` spawn — see {@link CameraRig}), so "framing" a widget at
- * world `[wx, wy, wz]` is simply matching its x/y and standing off in +Z by a
- * fixed distance. No clamping happens here: the camera-traversal controller is
- * the single owner of the rails, so this module returns an UNclamped target and
- * lets the controller clamp it.
+ * Position framing still stands the camera off in +Z of the widget (matching
+ * x/y). The live {@link CameraRig} then soft look-ats the widget (or the
+ * amphitheater pivot when nothing is focused) so the seat reads as a theatre,
+ * not an orthographic slide. No clamping here: the traversal controller owns
+ * the rails; this module returns an UNclamped target.
  *
  * `frameWidgetCamera` is pure (no THREE, no React). `resolveWidgetWorldPosition`
  * reads the zone-assignment store singleton to find where a widget currently
@@ -37,12 +36,12 @@ import type { Vec3 } from "./traversal";
 export const FOCUS_STANDOFF = 2.6;
 
 /**
- * The camera target that frames a widget sitting at `widgetPos`. Because the
- * camera looks down −Z, framing is "match x/y, stand off in +Z". UNclamped —
- * the controller applies the rails.
+ * The camera *position* target that frames a widget sitting at `widgetPos`:
+ * match x/y, stand off in +Z. Orientation is handled separately by CameraRig's
+ * soft look-at. UNclamped — the controller applies the rails.
  */
 export function frameWidgetCamera(widgetPos: Vec3): Vec3 {
-  return [widgetPos[0], widgetPos[1], widgetPos[2] + FOCUS_STANDOFF];
+  return [widgetPos[0], widgetPos[1] + 0.08, widgetPos[2] + FOCUS_STANDOFF];
 }
 
 /**
