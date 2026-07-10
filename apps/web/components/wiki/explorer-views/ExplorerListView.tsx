@@ -113,6 +113,9 @@ function ExplorerListRow({
   return (
     <div
       ref={setRef}
+      {...attributes}
+      {...listeners}
+      data-explorer-id={id}
       role="button"
       tabIndex={0}
       aria-selected={selected}
@@ -126,8 +129,6 @@ function ExplorerListRow({
         selected && "bg-[var(--sd-selected)]",
         isOver && "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--sd-box))]",
       )}
-      {...attributes}
-      {...listeners}
     >
       {selected ? (
         <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[var(--hud-cyan)]" />

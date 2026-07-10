@@ -115,6 +115,9 @@ function ExplorerGridTile({
     return (
       <div
         ref={setRef}
+        {...attributes}
+        {...listeners}
+        data-explorer-id={id}
         role="button"
         tabIndex={0}
         aria-selected={selected}
@@ -130,8 +133,6 @@ function ExplorerGridTile({
           selected && "border-[var(--hud-cyan)] bg-[var(--sd-selected)]",
           isOver && "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--sd-box))]",
         )}
-        {...attributes}
-        {...listeners}
       >
         <FolderIcon size={72} variant="closed" dropTarget={isOver} />
         <div className="min-w-0 space-y-0.5">
@@ -151,6 +152,9 @@ function ExplorerGridTile({
   return (
     <div
       ref={setRef}
+      {...attributes}
+      {...listeners}
+      data-explorer-id={id}
       role="button"
       tabIndex={0}
       aria-selected={selected}
@@ -159,8 +163,6 @@ function ExplorerGridTile({
       onContextMenu={onContextMenu}
       style={style}
       className="outline-none"
-      {...attributes}
-      {...listeners}
     >
       <PagePreviewCard
         page={item.page}
