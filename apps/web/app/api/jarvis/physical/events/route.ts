@@ -180,7 +180,14 @@ export async function GET(req: Request): Promise<Response> {
         }
       }, HEARTBEAT_MS);
 
+      // MINOR-5 — cleanup is called from three paths (enqueue failure,
+      // heartbeat failure, req.signal abort). Guard so listener detach and
+      // controller.close() run at most once, avoiding a benign but noisy
+      // double-cleanup on graceful disconnect.
+      let closed = false;
       const cleanup = () => {
+        if (closed) return;
+        closed = true;
         physicalBus.off("trigger", triggerHandler);
         physicalBus.off("transcript", transcriptHandler);
         physicalBus.off("jarvis-response-start", responseStartHandler);
