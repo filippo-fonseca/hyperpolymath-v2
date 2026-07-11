@@ -38,20 +38,12 @@ afterEach(() => {
 describe("frameWidgetCamera — framing math", () => {
   it("stands off along +Z only; x/y pass through untouched", () => {
     const widget: Vec3 = [1.2, 2.3, 0.9];
-    expect(frameWidgetCamera(widget)).toEqual([
-      1.2,
-      2.3 + 0.08,
-      0.9 + FOCUS_STANDOFF,
-    ]);
+    expect(frameWidgetCamera(widget)).toEqual([1.2, 2.3, 0.9 + FOCUS_STANDOFF]);
   });
 
   it("does not clamp — clamping is the controller's job", () => {
     const far: Vec3 = [999, -999, 999];
-    expect(frameWidgetCamera(far)).toEqual([
-      999,
-      -999 + 0.08,
-      999 + FOCUS_STANDOFF,
-    ]);
+    expect(frameWidgetCamera(far)).toEqual([999, -999, 999 + FOCUS_STANDOFF]);
   });
 });
 
