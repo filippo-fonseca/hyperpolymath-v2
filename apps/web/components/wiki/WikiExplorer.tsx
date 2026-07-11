@@ -53,6 +53,8 @@ interface WikiExplorerProps {
   folders: FolderRow[];
 }
 
+const EXPLORER_DRAG_ACTIVATION_DISTANCE = 6;
+
 /**
  * The wiki home surface. Owns folder drill-down, dnd, selection, keyboard,
  * inspector, search, and view rendering. Reads pages+folders from its parent
@@ -142,7 +144,9 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
 
   // ─── Dnd. ────────────────────────────────────────────────────────────
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: EXPLORER_DRAG_ACTIVATION_DISTANCE },
+    }),
     useSensor(KeyboardSensor)
   );
   const childrenOf = useMemo(() => buildChildrenMap(folders), [folders]);
