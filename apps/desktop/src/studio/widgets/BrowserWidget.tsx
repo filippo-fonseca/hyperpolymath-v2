@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RotateCw } from "lucide-react";
 
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { studioFetch } from "../studio-fetch";
 import type { WidgetContentProps } from "../windows/catalog";
 import {
   classifyLinkEmbed,
@@ -20,7 +21,7 @@ interface LinkPreviewResult {
 }
 
 async function loadPreview(url: string): Promise<LinkPreviewResult> {
-  const response = await fetch("/api/studio/link-preview", {
+  const response = await studioFetch("/api/studio/link-preview", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ url }),

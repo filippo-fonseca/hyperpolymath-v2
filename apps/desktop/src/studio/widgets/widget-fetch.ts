@@ -1,3 +1,5 @@
+import { studioFetch } from "../studio-fetch";
+
 export interface ExecutorSuccess<T extends Record<string, unknown>> {
   ok: true;
   id: string;
@@ -16,7 +18,7 @@ export type ExecutorResponse<T extends Record<string, unknown>> =
 export async function fetchStudioWidget<T extends Record<string, unknown>>(
   endpoint: string,
 ): Promise<T> {
-  const response = await fetch(endpoint);
+  const response = await studioFetch(endpoint);
   if (!response.ok) {
     throw new Error(`Widget request failed (${response.status})`);
   }
