@@ -1,3 +1,86 @@
+# Verification — drawer lifecycle
+
+Date: 2026-07-11
+Branch: `bgsd/drawer-lifecycle`
+Base: `bgsd/studio-native`
+
+## Acceptance criteria
+
+### 1. Summon every widget kind from the drawer; respect singletons — PASS
+
+- `apps/desktop/src/studio/drawer/Drawer.tsx` derives its Catalog tiles from
+  `catalogEntries()`, so every registered/summonable `WidgetKind` receives an
+  icon-and-label tile without duplicating the registry.
+- Catalog tiles use captured pointer sessions and normalize releases inside
+  `[data-studio-stage]` to canvas coordinates before calling `summonWidget`.
+  Plain click calls the same catalog-aware summon path at the normal spawn
+  position.
+- The drawer passes each entry's `defaultSize` and `singleton` flag. The store
+  focuses an existing live singleton and restores/focuses an existing stowed
+  singleton instead of creating a duplicate.
+- Store unit coverage includes singleton reuse and a stowed-singleton summon;
+  all six lifecycle-store tests passed.
+
+### 2. Stow, chip hint, restore, and persistence — PASS
+
+- Live window header drags use the existing captured-pointer pattern. Entering
+  the generous drawer zone opens/highlights the drawer; releasing there calls
+  `stowWidget` instead of committing the move.
+- Each non-permanent header has one `Stow window` minimize control between Pin
+  and Close. It reveals the drawer before stowing so the frame and chip share
+  Motion `layoutId="widget:<id>"` for the shrink transition. Close remains the
+  existing destructive `closeWidget` action.
+- Stowed chips show the widget icon and a props hint. Browser URLs are rendered
+  as their hostname; city/title/name/query values are used when available.
+- Chip drag-out restores at the normalized canvas drop point. Chip click uses
+  `restoreWidget(id)` and the normal available spawn-position selection.
+- Stowing only toggles the additive `stowed` field, retaining kind, props,
+  geometry, size, creation time, and identity in
+  `studio:widget-windows:v1`. Restore changes only geometry/stack order and
+  clears `stowed`.
+- Unit tests prove a browser URL survives stow/restore, explicit-position
+  restore, automatic spawn restore, persistence, and full rehydration.
+
+### 3. Orb/permanent safety and legacy records — PASS
+
+- The store rejects stow for catalog entries with `permanent: true` and also
+  rejects kind `orb` defensively when the sibling field/kind is absent.
+- The header omits minimize and the drawer omits chips for permanent entries;
+  both also exclude kind `orb` defensively.
+- Rehydration treats only literal `stowed: true` as stowed, so records written
+  before the additive field load as live windows. A dedicated legacy-record
+  test passed.
+- `WidgetWindowLayer` renders only records where `stowed` is false.
+
+### 4. Typecheck, tests, Vite build, and native dev launch — PASS
+
+- `pnpm --filter desktop test`: 3 files passed, 19 tests passed.
+- `pnpm --filter desktop typecheck`: passed (`tsc --noEmit`).
+- `pnpm --filter desktop exec vite build`: passed; 2,527 modules transformed
+  and production assets emitted in 1.88s.
+- `pnpm tauri dev`: Vite became ready on port 1420; the cold native build
+  finished and launched `target/debug/jarvis-desktop` in 1m16s. After the final
+  minimize polish, the incremental native build finished in 6.15s and launched
+  the same binary successfully. Both dev processes were stopped cleanly with
+  Ctrl+C after verification.
+- Observed warnings are pre-existing: duplicate `jsx` in the desktop tsconfig,
+  the `env.ts` static/dynamic import notice, and Vite's large-chunk advisory.
+
+## Commit and repository hygiene
+
+- Implementation history is atomic and ordered:
+  `b96301bb` store/persistence, `d9353e9b` drawer/catalog,
+  `2ddeac11` stow interactions, `8c75c4e1` restore interactions, and
+  `fd98dd00` minimize-transition polish.
+- Every commit used explicit pathspecs. No push was performed and no protected
+  branch was touched.
+- The pre-existing user modification to `.planning/fable-plan.md` was
+  preserved and excluded from implementation commits.
+- Cargo's incidental lockfile rewrite from `tauri dev` was removed.
+- `.planning/BLOCKED.md` was not created because no blocking condition remains.
+
+---
+
 # Verification — desktop React shell
 
 Date: 2026-07-11

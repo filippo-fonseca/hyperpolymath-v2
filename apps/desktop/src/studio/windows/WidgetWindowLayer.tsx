@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
+import { Drawer } from "../drawer/Drawer";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
   rehydrateWidgetWindows,
@@ -37,6 +38,8 @@ function summon(kind: WidgetKind): void {
 function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): React.ReactElement {
   const windows = useWidgetWindows();
   const reduced = useReducedMotion();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTargetId, setDrawerTargetId] = useState<string | null>(null);
   const [glints, setGlints] = useState<
     Array<{ id: string; x: number; y: number }>
   >([]);
@@ -80,6 +83,14 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
     [],
   );
 
+  const onDrawerTargetChange = useCallback(
+    (id: string, targeted: boolean) => {
+      setDrawerTargetId((current) => (targeted ? id : current === id ? null : current));
+      if (targeted) setDrawerOpen(true);
+    },
+    [],
+  );
+
   return (
     <>
       <div data-widget-window-layer style={layerStyle}>
@@ -105,11 +116,23 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
           ))}
         </AnimatePresence>
         <AnimatePresence>
-          {windows.map((item) => (
-            <WidgetWindow key={item.id} window={item} onElement={onElement} />
+          {windows.filter((item) => !item.stowed).map((item) => (
+            <WidgetWindow
+              key={item.id}
+              window={item}
+              onElement={onElement}
+              onDrawerTargetChange={onDrawerTargetChange}
+            />
           ))}
         </AnimatePresence>
       </div>
+
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        targeted={drawerTargetId !== null}
+        windows={windows}
+      />
 
       {/* TEMP: replaced by desktop-react-shell at merge. */}
       {debugSummon ? (

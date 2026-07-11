@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 import type { WidgetKind } from "../windows/catalog";
+import { WIDGET_CATALOG } from "../windows/catalog";
 import {
   clampToStage,
   nextStackOrder,
@@ -17,6 +18,7 @@ export interface WidgetWindowInstance {
   h: number;
   z: number;
   createdAt: number;
+  stowed: boolean;
 }
 
 const STORAGE_KEY = "studio:widget-windows:v1";
@@ -82,6 +84,7 @@ export function rehydrateWidgetWindows(): void {
         ...item,
         ...clampToStage(item),
         props: item.props ?? {},
+        stowed: item.stowed === true,
       }));
     emit();
   } catch {
@@ -102,11 +105,13 @@ export function summonWidget(
     ? windows.find((item) => item.kind === kind)
     : undefined;
   if (existing) {
+    if (existing.stowed) restoreWidget(existing.id, at);
     focusWidget(existing.id);
     return existing.id;
   }
   const size = options?.defaultSize ?? { w: 0.34, h: 0.38 };
-  const spawn = at ?? pickSpawnPosition(windows, size);
+  const spawn =
+    at ?? pickSpawnPosition(windows.filter((item) => !item.stowed), size);
   const rect = clampToStage({ ...spawn, ...size });
   const id = crypto.randomUUID();
   write([
@@ -118,6 +123,7 @@ export function summonWidget(
       ...rect,
       z: nextStackOrder(windows),
       createdAt: Date.now(),
+      stowed: false,
     },
   ]);
   return id;
@@ -156,11 +162,51 @@ export function updateWidgetProps(
 
 export function focusWidget(id: string): void {
   const item = windows.find((candidate) => candidate.id === id);
-  if (!item || item.z === nextStackOrder(windows) - 1) return;
+  if (!item || item.stowed || item.z === nextStackOrder(windows) - 1) return;
   const z = nextStackOrder(windows);
   write(
     windows.map((candidate) =>
       candidate.id === id ? { ...candidate, z } : candidate,
+    ),
+  );
+}
+
+function isPermanentWidget(item: WidgetWindowInstance): boolean {
+  const entry = WIDGET_CATALOG[item.kind] as
+    | ({ permanent?: boolean } & object)
+    | undefined;
+  return item.kind === ("orb" as WidgetKind) || entry?.permanent === true;
+}
+
+export function stowWidget(id: string): void {
+  const item = windows.find((candidate) => candidate.id === id);
+  if (!item || item.stowed || isPermanentWidget(item)) return;
+  write(
+    windows.map((candidate) =>
+      candidate.id === id ? { ...candidate, stowed: true } : candidate,
+    ),
+  );
+}
+
+export function restoreWidget(
+  id: string,
+  position?: { x: number; y: number },
+): void {
+  const item = windows.find((candidate) => candidate.id === id);
+  if (!item || !item.stowed) return;
+  const spawn =
+    position ??
+    pickSpawnPosition(
+      windows.filter((candidate) => !candidate.stowed),
+      item,
+    );
+  const rect = clampToStage({ ...item, ...spawn });
+  const z = nextStackOrder(windows);
+  write(
+    windows.map((candidate) =>
+      candidate.id === id
+        ? { ...candidate, ...rect, z, stowed: false }
+        : candidate,
     ),
   );
 }
