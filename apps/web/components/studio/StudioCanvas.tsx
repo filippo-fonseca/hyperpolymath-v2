@@ -2,6 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import { StudioScene } from "./StudioScene";
+import { STUDIOLO } from "./materials/tokens";
 
 /**
  * StudioCanvas — the single R3F <Canvas> boundary for The Studio.
@@ -23,11 +24,11 @@ export function StudioCanvas(): React.ReactElement {
     <Canvas
       frameloop="demand"
       dpr={[1, 2]}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       camera={{ position: [0, 1.6, 6], fov: 55 }}
       onCreated={({ gl }) => {
         // Nightwalnut clear — the chamber at night.
-        gl.setClearColor("#120E0B", 1);
+        gl.setClearColor(STUDIOLO.nightwalnut, 0);
       }}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
     >

@@ -71,6 +71,8 @@ import {
   RunShortcutInputSchema,
   PlayMusicInputSchema,
   GetWeatherInputSchema,
+  StudioOpenWidgetInputSchema,
+  StudioCloseWidgetInputSchema,
   // Server-side data tools (Gmail read + Guardian news)
   ReadGmailInputSchema,
   GetNewsInputSchema,
@@ -202,6 +204,8 @@ function buildToolValidators(voiceActive: boolean) {
     run_shortcut: RunShortcutInputSchema,
     play_music: PlayMusicInputSchema,
     get_weather: GetWeatherInputSchema,
+    studio_open_widget: StudioOpenWidgetInputSchema,
+    studio_close_widget: StudioCloseWidgetInputSchema,
     // Server-side data tools (Gmail read + Guardian news)
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
@@ -874,6 +878,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             } else if (toolName === "get_weather") {
               result = await executor.getWeather(
                 parsed.data as Parameters<typeof executor.getWeather>[0],
+                ctx,
+              );
+            } else if (toolName === "studio_open_widget") {
+              result = await executor.studioOpenWidget(
+                parsed.data as Parameters<typeof executor.studioOpenWidget>[0],
+                ctx,
+              );
+            } else if (toolName === "studio_close_widget") {
+              result = await executor.studioCloseWidget(
+                parsed.data as Parameters<typeof executor.studioCloseWidget>[0],
                 ctx,
               );
             } else if (toolName === "read_gmail") {

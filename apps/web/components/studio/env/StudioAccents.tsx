@@ -19,6 +19,7 @@ import {
 import { makeHologramMaterial } from "../materials/hologram";
 import { STUDIOLO } from "../materials/tokens";
 import { DEFAULT_ARC_ZONES } from "../cloud/layout";
+import { useStudioPerfTier } from "@/lib/studio/state/perf-tier";
 
 const ACTIVE_MS = 7000;
 
@@ -62,6 +63,7 @@ function makeRing(
 }
 
 export function StudioAccents(): React.ReactElement {
+  const perfTier = useStudioPerfTier();
   const invalidate = useThree((s) => s.invalidate);
   const activeUntilRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null);
@@ -74,12 +76,12 @@ export function StudioAccents(): React.ReactElement {
     [farRadius, pivot],
   );
   const embers = useMemo(
-    () => makeRing(14, nearRadius * 0.7, 0.35, pivot[2], 2.4),
-    [nearRadius, pivot],
+    () => makeRing(perfTier === "high" ? 20 : 14, nearRadius * 0.7, 0.35, pivot[2], 2.4),
+    [nearRadius, pivot, perfTier],
   );
   const fireflies = useMemo(
-    () => makeRing(10, (nearRadius + farRadius) * 0.45, 1.8, pivot[2], 3.7),
-    [nearRadius, farRadius, pivot],
+    () => makeRing(perfTier === "high" ? 16 : 10, (nearRadius + farRadius) * 0.45, 1.8, pivot[2], 3.7),
+    [nearRadius, farRadius, pivot, perfTier],
   );
 
   const lanternMat = useMemo(

@@ -41,6 +41,8 @@ export const JARVIS_TOOL_NAMES = [
   "run_shortcut",
   "play_music",
   "get_weather",
+  "studio_open_widget",
+  "studio_close_widget",
   "read_gmail",
   "get_news",
   "read_whatsapp",

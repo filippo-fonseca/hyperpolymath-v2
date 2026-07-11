@@ -15,6 +15,8 @@ import { StudioMuteToggle } from "./settings/StudioMuteToggle";
 import { StudioWindowSettings } from "./settings/StudioWindowSettings";
 import { StudioAudioFx } from "@/lib/studio/audio/useStudioAudio";
 import { startWindowRegistry } from "@/lib/studio/state/window-registry";
+import { WidgetWindowLayer } from "./windows/WidgetWindowLayer";
+import { STUDIOLO } from "./materials/tokens";
 
 /**
  * StudioLoader — the client boundary that owns BOTH the data bridge and the
@@ -157,12 +159,19 @@ export function StudioLoader(props: StudioLoaderProps): React.ReactElement {
   return (
     <StudioDataProvider userId={props.userId} seed={props.seed}>
       <StudioInputProvider stageRef={stageRef}>
-        <div ref={stageRef} className="absolute inset-0">
+        <div
+          ref={stageRef}
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(ellipse at 50% 42%, color-mix(in srgb, ${STUDIOLO.deepVellum} 92%, ${STUDIOLO.jarvisCyan}) 0%, ${STUDIOLO.deepVellum} 48%, ${STUDIOLO.nightwalnut} 100%)`,
+          }}
+        >
           {body}
           {/* DOM siblings of the Canvas, inside both providers + the stage:
               the crisp expand overlay (single writer of the focus store) and a
               dev-only geometric hover substrate (?studioDomTiles=1). */}
           <StudioFocusOverlay />
+          <WidgetWindowLayer />
           <DebugDomTiles />
           {/* Multi-window registry pane — a z-30 monitor affordance that lists
               the open Studio windows and assigns each a position. */}

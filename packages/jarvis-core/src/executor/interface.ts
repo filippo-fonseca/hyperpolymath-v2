@@ -35,6 +35,8 @@ import type {
   RunShortcutAction,
   SendMessageAction,
   SystemControlAction,
+  StudioCloseWidgetAction,
+  StudioOpenWidgetAction,
   TakeScreenshotAction,
   TypeTextAction,
   UpdateCaptureAction,
@@ -148,6 +150,8 @@ export interface ActionExecutor {
   runShortcut(input: RunShortcutAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   playMusic(input: PlayMusicAction, ctx: ExecutionContext): Promise<ExecutorResult>;
   getWeather(input: GetWeatherAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  studioOpenWidget(input: StudioOpenWidgetAction, ctx: ExecutionContext): Promise<ExecutorResult>;
+  studioCloseWidget(input: StudioCloseWidgetAction, ctx: ExecutionContext): Promise<ExecutorResult>;
 
   // Server-side data tools — fully server-side fetches; data rides back in
   // `receipt` for the model to narrate. No DesktopAction is emitted.

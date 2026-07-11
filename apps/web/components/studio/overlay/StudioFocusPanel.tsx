@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
+import { STUDIOLO } from "../materials/tokens";
 
 interface Props {
   /** Panel title, rendered in EB Garamond. */
@@ -45,16 +46,17 @@ export function StudioFocusPanel({ title, onClose, children }: Props): React.Rea
           ? { duration: 0 }
           : { type: "spring", stiffness: 320, damping: 30 }
       }
-      className="relative z-50 flex max-h-[82vh] w-[min(860px,92vw)] flex-col overflow-hidden rounded-2xl border border-[color:rgba(201,162,39,0.28)] bg-[#120E0B]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+      className="relative z-50 flex max-h-[82vh] w-[min(860px,92vw)] flex-col overflow-hidden rounded-[10px] border backdrop-blur-xl"
       style={{
-        // Faint brass inset glow — echoes the 3D world's candlelit chrome.
-        boxShadow:
-          "0 24px 80px rgba(0,0,0,0.6), inset 0 0 32px rgba(201,162,39,0.06)",
+        color: STUDIOLO.parchment,
+        background: `color-mix(in srgb, ${STUDIOLO.deepVellum} 94%, transparent)`,
+        borderColor: `color-mix(in srgb, ${STUDIOLO.brass} 36%, transparent)`,
+        boxShadow: `0 0 30px color-mix(in srgb, ${STUDIOLO.jarvisCyan} 10%, transparent), 0 24px 80px color-mix(in srgb, ${STUDIOLO.nightwalnut} 72%, transparent), inset 0 0 32px color-mix(in srgb, ${STUDIOLO.brass} 6%, transparent)`,
       }}
     >
-      <header className="flex shrink-0 items-center justify-between border-b border-[color:rgba(201,162,39,0.18)] px-6 py-4">
+      <header className="flex shrink-0 items-center justify-between border-b px-6 py-4" style={{ borderColor: `color-mix(in srgb, ${STUDIOLO.brass} 18%, transparent)` }}>
         <h2
-          className="text-[22px] font-semibold text-[#F2E9D8]"
+          className="text-[22px] font-semibold"
           style={{ fontFamily: "var(--font-eb-garamond, Georgia, serif)" }}
         >
           {title}
@@ -63,7 +65,8 @@ export function StudioFocusPanel({ title, onClose, children }: Props): React.Rea
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="cursor-pointer-always -mr-1.5 flex h-8 w-8 items-center justify-center rounded-full text-[#8FA8C7] transition-colors duration-100 hover:bg-white/5 hover:text-[#F2E9D8]"
+          className="cursor-pointer-always -mr-1.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-100 hover:bg-white/5"
+          style={{ color: STUDIOLO.moonlace }}
         >
           <X size={18} strokeWidth={1.75} aria-hidden />
         </button>

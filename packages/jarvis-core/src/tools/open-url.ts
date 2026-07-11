@@ -26,6 +26,6 @@ export type OpenUrlInput = z.infer<typeof OpenUrlInputSchema>;
 export const openUrlTool = {
   name: "open_url" as const,
   description:
-    "Open a URL in the user's default browser via the desktop client. Use for any http:// or https:// link the user wants to visit. The `label` field is an optional human-readable name for the URL (e.g. 'Google Maps', 'the article'). Always announce the action before calling this tool: emit a short butler text block first, then this tool_use block.",
+    "Open a URL in the user's external default browser via the desktop client. Use when they explicitly want the external browser or when no Studio canvas is implied. When they say 'pull up a website', 'show it on screen', or ask for an in-Studio widget, prefer studio_open_widget instead. The `label` field is an optional human-readable name. Always announce the action before calling this tool.",
   input_schema: toJsonSchema(OpenUrlInputSchema),
 };
