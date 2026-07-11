@@ -14,6 +14,7 @@ import {
   type StudioCloseWidgetInput,
   type StudioOpenWidgetInput,
 } from "@/lib/jarvis/studio-widget-tools";
+import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -1080,6 +1081,26 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
     if (!anyTextEmitted && actionTypes.length === 0) {
       opts.onTextDelta("I didn't quite catch that, sir — try rephrasing as a thing to file.");
+    }
+
+    // U1 jarvis-web-brain — deterministic studio-widget backstop. The model is
+    // told to pair ambient-data answers with the matching widget (weather →
+    // weather widget, news → news widget), but sometimes answers without
+    // opening one. If the raw utterance obviously asks for weather/news AND no
+    // studio_open_widget fired this turn, nudge the widget open server-side so
+    // "answer AND show" holds. Conservative matcher; live-web scores/prices are
+    // NOT backstopped (they need a real result URL only the model has).
+    {
+      const alreadyOpenedWidget = actionTypes.includes("studio_open_widget");
+      const backstopKind = detectStudioBackstop(opts.input ?? "", alreadyOpenedWidget);
+      if (backstopKind) {
+        try {
+          await executeStudioOpenWidget({ kind: backstopKind }, opts.userId);
+          actionTypes.push("studio_open_widget");
+        } catch {
+          // Never let the backstop break the turn — the answer already streamed.
+        }
+      }
     }
 
     opts.onDone(totalUsage);
