@@ -1,5 +1,11 @@
 import * as React from "react";
-import { Suspense, useRef, type CSSProperties, type PointerEvent } from "react";
+import {
+  Suspense,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+} from "react";
 import { Minus, Pin, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
@@ -14,6 +20,19 @@ import {
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
 import { clampToStage } from "./layout";
+import { BurstBubble } from "./BurstBubble";
+import {
+  edgeOutwardDirection,
+  shouldBurst,
+  widgetEdgeProgress,
+} from "./edge-burst";
+
+/** Transient edge-burst state while a stowable widget is dragged near a border. */
+interface BurstState {
+  progress: number;
+  direction: { x: number; y: number };
+  popping: boolean;
+}
 
 interface Props {
   window: WidgetWindowInstance;
@@ -86,6 +105,8 @@ export function WidgetWindow({
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<PointerSession | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [burst, setBurst] = useState<BurstState | null>(null);
   const entry = WIDGET_CATALOG[item.kind];
   const catalogEntry = entry as typeof entry & { permanent?: boolean };
   const stowable =
@@ -141,13 +162,20 @@ export function WidgetWindow({
     const dyPx = event.clientY - session.startClientY;
     if (!session.moved && Math.hypot(dxPx, dyPx) < 4) return;
     session.moved = true;
-    const rect =
+    if (!dragging) setDragging(true);
+    // The RAW (unclamped) center drives the edge-burst affordance so pushing
+    // a widget INTO / past the border is expressible even though the applied
+    // geometry is clamped to stay on-stage.
+    const rawCenter =
       session.mode === "move"
-        ? clampToStage({
-            ...session.start,
+        ? {
             x: session.start.x + dxPx / stage.width,
             y: session.start.y + dyPx / stage.height,
-          })
+          }
+        : { x: session.start.x, y: session.start.y };
+    const rect =
+      session.mode === "move"
+        ? clampToStage({ ...session.start, x: rawCenter.x, y: rawCenter.y })
         : clampToStage({
             ...session.start,
             w: session.start.w + dxPx / stage.width,
@@ -155,7 +183,22 @@ export function WidgetWindow({
           });
     applyWindowGeometry(root, rect);
     if (session.mode === "move" && stowable) {
-      onDrawerTargetChange(item.id, isNearDrawer(event.clientX, event.clientY));
+      const progress = widgetEdgeProgress(rawCenter);
+      setBurst(
+        progress > 0
+          ? {
+              progress,
+              direction: edgeOutwardDirection(rawCenter),
+              popping: false,
+            }
+          : null,
+      );
+      // While the burst affordance is armed, the near-border pull owns the
+      // gesture; don't also flag the drawer as a target (avoids a double cue).
+      onDrawerTargetChange(
+        item.id,
+        progress <= 0 && isNearDrawer(event.clientX, event.clientY),
+      );
     }
   };
 
@@ -167,6 +210,7 @@ export function WidgetWindow({
     const root = rootRef.current;
     const stage = root?.parentElement?.getBoundingClientRect();
     sessionRef.current = null;
+    setDragging(false);
     onDrawerTargetChange(item.id, false);
     if (
       !session?.moved ||
@@ -174,16 +218,36 @@ export function WidgetWindow({
       !stage?.width ||
       !stage.height
     ) {
+      setBurst(null);
       return;
     }
     const dx = (event.clientX - session.startClientX) / stage.width;
     const dy = (event.clientY - session.startClientY) / stage.height;
     if (session.mode === "move") {
+      const rawCenter = { x: session.start.x + dx, y: session.start.y + dy };
+      // Past the burst threshold → pop and stow (drawer-stow lifecycle: a chip
+      // appears in the drawer, restorable). The pop plays, then we stow.
+      if (!cancelled && stowable && shouldBurst(widgetEdgeProgress(rawCenter))) {
+        setBurst((current) =>
+          current
+            ? { ...current, progress: 1, popping: true }
+            : {
+                progress: 1,
+                direction: edgeOutwardDirection(rawCenter),
+                popping: true,
+              },
+        );
+        window.setTimeout(() => stowWidget(item.id), reduced ? 0 : 220);
+        return;
+      }
+      // Released before the threshold → deflate the bubble and let the widget
+      // spring back to its clamped, safe position (the forgiving escape).
+      setBurst(null);
       if (!cancelled && stowable && isNearDrawer(event.clientX, event.clientY)) {
         stowWidget(item.id);
         return;
       }
-      moveWidget(item.id, session.start.x + dx, session.start.y + dy);
+      moveWidget(item.id, rawCenter.x, rawCenter.y);
     } else {
       resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
     }
@@ -214,7 +278,17 @@ export function WidgetWindow({
               width: `${item.w * 100}%`,
               height: `${item.h * 100}%`,
             }
-          : { opacity: 1, scale: 1 }
+          : {
+              opacity: 1,
+              // Drag-feel: a subtle lift while grabbed, and the widget deflates
+              // INTO the bubble skin as burst progress rises (the "shrinking
+              // into a bubble about to pop" affordance).
+              scale: reduced
+                ? 1
+                : dragging
+                  ? 1.02 - (burst?.progress ?? 0) * 0.16
+                  : 1,
+            }
       }
       exit={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
       transition={
@@ -222,7 +296,11 @@ export function WidgetWindow({
           ? reduced
             ? { duration: 0 }
             : { type: "spring", stiffness: 82, damping: 20, mass: 0.9 }
-          : { duration: reduced ? 0 : 0.18 }
+          : dragging || burst
+            ? reduced
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 300, damping: 26, mass: 0.7 }
+            : { duration: reduced ? 0 : 0.18 }
       }
       style={{
         ...frameStyle,
@@ -237,13 +315,26 @@ export function WidgetWindow({
               touchAction: "none",
             }
           : null),
+        ...(!permanent && dragging
+          ? {
+              boxShadow: `0 34px 84px color-mix(in srgb, ${STUDIO_COLORS.shadow} 86%, transparent)`,
+              cursor: "grabbing",
+            }
+          : null),
         left: `${(item.x - item.w / 2) * 100}%`,
         top: `${(item.y - item.h / 2) * 100}%`,
         width: `${item.w * 100}%`,
         height: `${item.h * 100}%`,
-        zIndex: item.z,
+        zIndex: dragging && !permanent ? 9_000 : item.z,
       }}
     >
+      {burst ? (
+        <BurstBubble
+          progress={burst.progress}
+          popping={burst.popping}
+          direction={burst.direction}
+        />
+      ) : null}
       {permanent ? null : (
         <header
           style={{
