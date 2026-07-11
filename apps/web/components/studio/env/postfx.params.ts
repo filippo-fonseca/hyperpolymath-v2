@@ -1,13 +1,18 @@
 /**
- * postfx.params.ts — tuned constants for the Studio's single EffectComposer
- * (Bloom + N8AO + grain + vignette) and the WidgetTile fresnel rim.
+ * postfx.params.ts — tuned constants for the Studio's single Bloom composer and
+ * the WidgetTile fresnel rim (Wave 3: "warm holographic glass, not neon").
  *
- * Pure module: NO React / three imports. Both PostFX and WidgetTile import from
- * here so the tile hover ramp and the invariant test share one source of truth.
+ * Pure module: NO React / three imports. Both `PostFX.tsx` and `WidgetTile.tsx`
+ * import from here so the tile's hover ramp and the invariant test share one
+ * source of truth. The companion test (`__tests__/postfx.params.test.ts`) locks
+ * the two doctrine invariants these numbers must never violate:
  *
- * Doctrine invariants (locked by tests):
- *   1. HDR opt-in — luminanceThreshold === 1
- *   2. Hover rim is a clear state change (> 2× rest)
+ *   1. HDR opt-in contract — `luminanceThreshold === 1`, so only `toneMapped:false`
+ *      content driven above luminance 1.0 blooms. Parchment text and dust are
+ *      tone-mapped into [0,1] and must never haze. `luminanceSmoothing` only
+ *      feathers the knee AT the threshold; it does not lower it.
+ *   2. Hover reads as a clear state change — the rest rim still blooms (> 1) and
+ *      the full-hover rim is more than 2× the rest rim.
  */
 
 export const STUDIO_BLOOM = {
@@ -15,11 +20,11 @@ export const STUDIO_BLOOM = {
   luminanceThreshold: 1.0,
   /** Feathers the knee at the threshold; small enough that ~0.9 text ≈ no bloom. */
   luminanceSmoothing: 0.2,
-  /** Warm aura that stays subordinate to the scene. */
-  intensity: 0.9,
-  /** Tighter halo: candle glow hugs the source. */
-  radius: 0.55,
-  /** Drop the two largest screen-scale mips (whole-frame haze) + small GPU win. */
+  /** The single biggest de-neon lever: a visible warm aura that stays subordinate. */
+  intensity: 0.85,
+  /** Tighter halo (mipmapBlur): candle glow hugs the source; neon spreads. */
+  radius: 0.6,
+  /** Drops the two largest screen-scale mips (the whole-frame haze) + small GPU win. */
   levels: 6,
 } as const;
 
@@ -28,24 +33,4 @@ export const STUDIO_RIM = {
   rest: 1.35,
   /** Added at full hover → peak 3.2 (rest→hover ≈ 2.4×). */
   hoverBoost: 1.85,
-} as const;
-
-/** Soft ambient occlusion between tiles and the floor. */
-export const STUDIO_N8AO = {
-  aoRadius: 0.55,
-  distanceFalloff: 0.65,
-  intensity: 1.35,
-  quality: "performance" as const,
-  halfRes: true,
-  color: "#0a0806",
-} as const;
-
-/** Subtle film grain — never loud enough to read as noise on parchment text. */
-export const STUDIO_NOISE = {
-  opacity: 0.028,
-} as const;
-
-export const STUDIO_VIGNETTE = {
-  offset: 0.32,
-  darkness: 0.75,
 } as const;
