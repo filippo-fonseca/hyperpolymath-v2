@@ -109,19 +109,12 @@ export function AgendaFocus(): React.ReactElement {
   const calColor = (id: string): string =>
     calendar.calendars.find((c) => c.id === id)?.backgroundColor ?? "#C9A227";
 
-  const totalEvents = groups.reduce((n, g) => n + g.events.length, 0);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8FA8C7]">
-            Agenda
-          </span>
-          <span className="font-mono text-[10px] tabular-nums text-[#C9A227]/80">
-            {totalEvents} event{totalEvents === 1 ? "" : "s"} in window
-          </span>
-        </div>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8FA8C7]">
+          Agenda
+        </span>
         {OPEN_LINK}
       </div>
       {groups.map((group) => (
@@ -135,51 +128,29 @@ export function AgendaFocus(): React.ReactElement {
             {group.key === todayYmd ? `Today · ${group.label}` : group.label}
           </h3>
           <ul className="flex flex-col">
-            {group.events.map((ev) => {
-              const desc = (ev.description ?? "").trim();
-              return (
-                <li
-                  key={`${ev.calendarId}:${ev.id}`}
-                  className="flex flex-col gap-0.5 border-b border-[color:rgba(201,162,39,0.1)] py-2.5 last:border-b-0"
+            {group.events.map((ev) => (
+              <li
+                key={`${ev.calendarId}:${ev.id}`}
+                className="flex items-center gap-3 border-b border-[color:rgba(201,162,39,0.1)] py-2.5 last:border-b-0"
+              >
+                <span
+                  aria-hidden
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: calColor(ev.calendarId) }}
+                />
+                <span
+                  className="w-[72px] shrink-0 font-mono text-[11px] tabular-nums text-[#8FA8C7]"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      aria-hidden
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: calColor(ev.calendarId) }}
-                    />
-                    <span className="w-[72px] shrink-0 font-mono text-[11px] tabular-nums text-[#8FA8C7]">
-                      {ev.allDay
-                        ? "all-day"
-                        : format(new Date(ev.start), "h:mm a")}
-                    </span>
-                    <span
-                      className="min-w-0 flex-1 truncate text-[15px] text-[#F2E9D8]"
-                      style={{
-                        fontFamily: "var(--font-eb-garamond, Georgia, serif)",
-                      }}
-                    >
-                      {ev.title}
-                    </span>
-                    {!ev.allDay ? (
-                      <span className="shrink-0 font-mono text-[10px] tabular-nums text-[#8FA8C7]/70">
-                        {format(new Date(ev.end), "h:mm a")}
-                      </span>
-                    ) : null}
-                  </div>
-                  {desc ? (
-                    <p
-                      className="line-clamp-2 pl-[92px] text-[12px] text-[#F2E9D8]/50"
-                      style={{
-                        fontFamily: "var(--font-eb-garamond, Georgia, serif)",
-                      }}
-                    >
-                      {desc}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
+                  {ev.allDay ? "all-day" : format(new Date(ev.start), "h:mm a")}
+                </span>
+                <span
+                  className="min-w-0 flex-1 truncate text-[15px] text-[#F2E9D8]"
+                  style={{ fontFamily: "var(--font-eb-garamond, Georgia, serif)" }}
+                >
+                  {ev.title}
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
       ))}

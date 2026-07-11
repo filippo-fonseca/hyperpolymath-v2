@@ -8,9 +8,6 @@ const mocks = vi.hoisted(() => ({
   getHabitsForCurrentUser: vi.fn(),
   getHabitCompletionsInRange: vi.fn(),
   getJournalEntry: vi.fn(),
-  getProjectsForCurrentUser: vi.fn(),
-  getAreasForCurrentUser: vi.fn(),
-  getPeopleForCurrentUser: vi.fn(),
   getValidGcalToken: vi.fn(),
   listCalendars: vi.fn(),
   dbLimit: vi.fn(),
@@ -42,15 +39,6 @@ vi.mock("@/app/actions/habits", () => ({
 }));
 vi.mock("@/app/actions/journal", () => ({
   getJournalEntry: mocks.getJournalEntry,
-}));
-vi.mock("@/app/actions/projects", () => ({
-  getProjectsForCurrentUser: mocks.getProjectsForCurrentUser,
-}));
-vi.mock("@/app/actions/areas", () => ({
-  getAreasForCurrentUser: mocks.getAreasForCurrentUser,
-}));
-vi.mock("@/app/actions/people", () => ({
-  getPeopleForCurrentUser: mocks.getPeopleForCurrentUser,
 }));
 vi.mock("@/lib/db/queries/gcal-connection", () => ({
   getGcalConnectionStatus: mocks.getGcalConnectionStatus,
@@ -91,9 +79,6 @@ describe("loadStudioSeed", () => {
       success: true,
       data: { id: "j1", mainResponse: "hi" },
     });
-    mocks.getProjectsForCurrentUser.mockResolvedValue([{ id: "p1" }]);
-    mocks.getAreasForCurrentUser.mockResolvedValue([{ id: "a1" }]);
-    mocks.getPeopleForCurrentUser.mockResolvedValue([{ id: "pe1" }]);
     mocks.dbLimit.mockResolvedValue([
       { tz: "America/New_York", visibleCals: null },
     ]);
@@ -110,9 +95,6 @@ describe("loadStudioSeed", () => {
       habits: [{ id: "h1" }],
       habitCompletions: [{ habitId: "h1", completedDate: "2026-07-07" }],
       journal: { id: "j1", mainResponse: "hi" },
-      projects: [{ id: "p1" }],
-      areas: [{ id: "a1" }],
-      people: [{ id: "pe1" }],
     });
     expect(seed.calendar).toMatchObject({
       status: "not_connected",

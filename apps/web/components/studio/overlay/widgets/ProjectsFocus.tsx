@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useStudioProjects, useStudioAreas, useStudioTasks } from "@/components/studio/data/hooks";
+import { useStudioProjects } from "@/components/studio/data/hooks";
 import type { ProjectRow } from "@/app/actions/projects";
 import { isProjectExpired } from "@/lib/projects/archive-status";
 
 /**
- * ProjectsFocus — open projects with area context and open-task counts.
+ * ProjectsFocus — a read-only roster of open projects REBUILT for the overlay
+ * (same rationale as AgendaFocus: the 2D project surfaces own their own router +
+ * query state, so a thin projection over the studio projects slice is far
+ * cheaper than extracting them). Rows deep-link to each project's detail page.
+ * There is no flat `/projects` index (projects live under areas), so the header
+ * carries no link-out — the rows are the navigation.
  */
 
+/** Open projects, next-ending first — mirrors summarizeProjects' ordering. */
 function orderOpen(projects: ProjectRow[]): ProjectRow[] {
   return projects
     .filter((p) => p.archivedAt === null && !isProjectExpired(p))
@@ -24,6 +30,7 @@ function orderOpen(projects: ProjectRow[]): ProjectRow[] {
     });
 }
 
+/** `YYYY-MM-DD` → short local "Mon D" label; null passes through. */
 function endLabel(endDate: string | null): string | null {
   if (endDate === null) return null;
   const [y, mo, d] = endDate.split("-").map(Number);
@@ -33,26 +40,7 @@ function endLabel(endDate: string | null): string | null {
 
 export function ProjectsFocus(): React.ReactElement {
   const { projects } = useStudioProjects();
-  const { areas } = useStudioAreas();
-  const { tasks } = useStudioTasks();
   const open = useMemo(() => orderOpen(projects), [projects]);
-
-  const areaNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const a of areas) map.set(a.id, a.name);
-    return map;
-  }, [areas]);
-
-  const openTaskCountByProject = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of tasks) {
-      if (t.status === "lesno") continue;
-      for (const p of t.projects ?? []) {
-        map.set(p.id, (map.get(p.id) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [tasks]);
 
   if (open.length === 0) {
     return (
@@ -60,29 +48,19 @@ export function ProjectsFocus(): React.ReactElement {
         className="text-[15px] italic text-[#F2E9D8]/70"
         style={{ fontFamily: "var(--font-eb-garamond, Georgia, serif)" }}
       >
-        No open projects. Spin one up under an area and it will show here.
+        No open projects.
       </p>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8FA8C7]">
-          Projects
-        </span>
-        <span className="font-mono text-[10px] tabular-nums text-[#C9A227]/80">
-          {open.length} open
-        </span>
-      </div>
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8FA8C7]">
+        Projects
+      </span>
       <ul className="flex flex-col">
         {open.map((p) => {
           const ends = endLabel(p.endDate);
-          const areaName =
-            p.areaId && areaNameById.has(p.areaId)
-              ? areaNameById.get(p.areaId)!
-              : null;
-          const taskCount = openTaskCountByProject.get(p.id) ?? 0;
           return (
             <li
               key={p.id}
@@ -90,59 +68,29 @@ export function ProjectsFocus(): React.ReactElement {
             >
               <Link
                 href={`/projects/${p.id}`}
-                className="cursor-pointer-always flex flex-col gap-1 py-3 transition-colors duration-100 hover:bg-white/[0.03]"
+                className="cursor-pointer-always flex items-center gap-3 py-2.5 transition-colors duration-100 hover:bg-white/[0.03]"
               >
-                <div className="flex items-center gap-3">
-                  {p.icon ? (
-                    <span aria-hidden className="w-5 shrink-0 text-center text-[15px]">
-                      {p.icon}
-                    </span>
-                  ) : null}
-                  <span
-                    className="min-w-0 flex-1 truncate text-[15px] text-[#F2E9D8]"
-                    style={{
-                      fontFamily: "var(--font-eb-garamond, Georgia, serif)",
-                    }}
-                  >
-                    {p.name}
+                {p.icon ? (
+                  <span aria-hidden className="w-5 shrink-0 text-center text-[15px]">
+                    {p.icon}
                   </span>
-                  {p.isClass && p.courseCode ? (
-                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-[#C9A227]">
-                      {p.courseCode}
-                    </span>
-                  ) : null}
-                  {ends ? (
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-[#8FA8C7]">
-                      {ends}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-0 sm:pl-8">
-                  {areaName ? (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#8FA8C7]/80">
-                      {areaName}
-                    </span>
-                  ) : null}
-                  {taskCount > 0 ? (
-                    <span className="font-mono text-[10px] tabular-nums text-[#E8C46B]/85">
-                      {taskCount} open task{taskCount === 1 ? "" : "s"}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[10px] text-[#8FA8C7]/50">
-                      no open tasks
-                    </span>
-                  )}
-                  {p.description ? (
-                    <span
-                      className="min-w-0 flex-1 truncate text-[12px] text-[#F2E9D8]/50"
-                      style={{
-                        fontFamily: "var(--font-eb-garamond, Georgia, serif)",
-                      }}
-                    >
-                      {p.description}
-                    </span>
-                  ) : null}
-                </div>
+                ) : null}
+                <span
+                  className="min-w-0 flex-1 truncate text-[15px] text-[#F2E9D8]"
+                  style={{ fontFamily: "var(--font-eb-garamond, Georgia, serif)" }}
+                >
+                  {p.name}
+                </span>
+                {p.isClass && p.courseCode ? (
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-[#C9A227]">
+                    {p.courseCode}
+                  </span>
+                ) : null}
+                {ends ? (
+                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-[#8FA8C7]">
+                    {ends}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
