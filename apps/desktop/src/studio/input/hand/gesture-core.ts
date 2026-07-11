@@ -33,6 +33,14 @@ import {
   type OneEuroConfig,
 } from "../one-euro";
 import {
+  createIndexScrollRecognizer,
+  type IndexScrollRecognizer,
+} from "../index-scroll-recognizer";
+import {
+  createOpenHandResizeRecognizer,
+  type OpenHandResizeRecognizer,
+} from "../open-hand-resize-recognizer";
+import {
   createOpenPalmHaltRecognizer,
   type OpenPalmHaltRecognizer,
 } from "../open-palm-halt-recognizer";
@@ -139,6 +147,13 @@ export type HandGestureConfig = {
   haltPushRatio: number;
   /** 1-euro smoothing config for the pinch-drag palm centroid. */
   dragOneEuro: OneEuroConfig;
+  /**
+   * 1-euro smoothing config for the whole-hand openness signal that drives the
+   * open-hand resize gesture. Deliberately LOWER minCutoff/beta than the cursor
+   * so openness lags a touch and rejects jitter hard — a resize should feel
+   * smooth and unhurried, never twitchy, at the cost of a little latency.
+   */
+  opennessOneEuro: OneEuroConfig;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -161,6 +176,9 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   haltMaxDriftNx: 0.06,
   haltPushRatio: 1.28,
   dragOneEuro: { ...DEFAULT_ONE_EURO },
+  // Heavier smoothing than the cursor: lower minCutoff = calmer at rest, tiny
+  // beta = little speed-up on fast opens. Resize should never feel jumpy.
+  opennessOneEuro: { minCutoff: 0.6, beta: 0.008, dCutoff: 1.0 },
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -260,6 +278,23 @@ export function computePalmSizeRaw(landmarks: Pt[]): number {
   return dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
 }
 
+/**
+ * Whole-hand openness scalar: the mean of the four per-finger tip/palm ratios
+ * ({@link computeFingerRatios}). Because each ratio is palm-normalized
+ * (wrist↔middle-MCP), the mean is inherently scale- and depth-invariant, exactly
+ * like the pinch ratio. A closed fist reads ≈ 1.0-1.3; a fully open hand ≈
+ * 1.7-2.1. This is the signal the open-hand resize gesture watches: not an
+ * absolute pose test but a DELTA from a captured baseline, so the user resizes by
+ * *changing* how open their hand is, not by matching a fixed openness. Returns 0
+ * for a degenerate (zero-size) palm (all ratios are then 0).
+ */
+export function computeHandOpenness(landmarks: Pt[]): number {
+  const ratios = computeFingerRatios(landmarks);
+  let sum = 0;
+  for (const r of ratios) sum += r;
+  return sum / ratios.length;
+}
+
 // ---- Interpreter ------------------------------------------------------------
 
 export type HandGestureCallbacks = {
@@ -292,6 +327,9 @@ export function createHandGestureInterpreter(
   let palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
   // Smooths the raw palm size (wrist↔middle-MCP), the pinch-dolly depth signal.
   let sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
+  // Smooths the whole-hand openness scalar that drives open-hand resize. Heavier
+  // (lower cutoff/beta) than the cursor so resize is calm, never twitchy.
+  let opennessFilter = new OneEuroFilter(cfg.opennessOneEuro);
   let fingerExtended: boolean[] = [true, true, true, true];
   let pose: HandPose = "open";
   let candidatePose: HandPose | null = null;
@@ -349,10 +387,23 @@ export function createHandGestureInterpreter(
     { holdMs: cfg.grabHoldMs, bloomWindowMs: cfg.bloomWindowMs },
   );
 
+  // Open-hand resize: an open hand held over a widget arms, then the openness
+  // delta scales it. Targetless `resize*` phases — the hub injects the hovered
+  // widget and drops the lifecycle when the reticle is over empty space.
+  const openHandResize: OpenHandResizeRecognizer = createOpenHandResizeRecognizer(
+    (e) => callbacks.onPhase(e),
+  );
+  // Index-finger scroll: a point pose over a scrollable surface, fingertip
+  // velocity → wheel deltas. Also targetless; the hub gates it on hover.
+  const indexScroll: IndexScrollRecognizer = createIndexScrollRecognizer((e) =>
+    callbacks.onPhase(e),
+  );
+
   function resetTransient(): void {
     filter = new OneEuroFilter2D(cfg.oneEuro);
     palmFilter = new OneEuroFilter2D(cfg.dragOneEuro);
     sizeFilter = new OneEuroFilter(cfg.dragOneEuro);
+    opennessFilter = new OneEuroFilter(cfg.opennessOneEuro);
     fingerExtended = [true, true, true, true];
     pose = "open";
     candidatePose = null;
@@ -372,6 +423,8 @@ export function createHandGestureInterpreter(
     pinchDolly.reset();
     halt.reset();
     pinchBloom.reset();
+    openHandResize.reset();
+    indexScroll.reset();
   }
 
   function push(tMs: number, landmarks: Pt[] | null): void {
@@ -516,6 +569,26 @@ export function createHandGestureInterpreter(
     // The cursor is frozen while pinched, so hover stays pinned to pinch-start and
     // the hub upgrades the targetless `expand` from that pinned hover.
     pinchBloom.push({ t: tMs, engaged: pinchActive, openPose: pose === "open" });
+
+    // Open-hand resize + index-finger scroll run every frame (before the pinch
+    // early-return) so their falling edges always fire. Both are gated OFF while
+    // pinching (pinch stays reserved for drag/dolly). The openness signal is
+    // heavily smoothed; the cursor ny drives scroll. Both emit TARGETLESS start
+    // phases — the hub injects the hovered widget/surface and drops the whole
+    // lifecycle over empty space, so "resize/scroll only over a widget" falls out
+    // of the same hover gate that grab already uses.
+    const sOpenness = opennessFilter.filter(tMs, computeHandOpenness(landmarks));
+    openHandResize.push({
+      t: tMs,
+      openness: sOpenness,
+      engaged: pose === "open" && !pinchActive,
+    });
+    const scrollTarget = computeCursorTarget(landmarks, cfg);
+    indexScroll.push({
+      t: tMs,
+      ny: scrollTarget.ny,
+      engaged: pose === "point" && !pinchActive,
+    });
 
     if (pinchActive) {
       // Skip pose-edge / swipe / collapse / cursor entirely while pinching.
