@@ -1,4 +1,4 @@
--- 0048 — Wiki Renaissance: fractional position keys for manual ordering.
+-- 0031 — Wiki Renaissance: fractional position keys for manual ordering.
 --
 -- Adds a nullable `position_key text` to public.pages AND public.page_folders.
 -- It holds a base-62 fractional index (see apps/web/lib/pages/position.ts) that
