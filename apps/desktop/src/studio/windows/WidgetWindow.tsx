@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Suspense, useRef, type CSSProperties, type PointerEvent } from "react";
 import { Pin, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";

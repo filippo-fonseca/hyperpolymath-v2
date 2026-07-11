@@ -1,5 +1,6 @@
 // TEMP: replaced by desktop-react-shell at merge.
 // Bare Vite mount used to exercise summon, drag, resize, focus, pin, and close.
+import * as React from "react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
