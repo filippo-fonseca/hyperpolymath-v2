@@ -123,30 +123,45 @@
   height: 15px;
 }
 
-/* ---- Slash ("/") suggestion menu: neumorphic glass dropdown, tight rows. ---- */
+/* ---- Slash, @, and [ suggestion menus: Spacedrive-clean floating chrome. ---- */
 .bn-suggestion-menu {
   min-width: 248px;
   padding: 5px;
-  border-radius: 12px;
-  background: color-mix(in oklch, var(--surface-raised) 92%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi);
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-box);
+  box-shadow: 0 10px 28px hsl(235 15% 0% / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.04);
   display: flex;
   flex-direction: column;
   gap: 1px;
-  max-height: 340px;
+  max-height: 320px;
   overflow-y: auto;
+  scrollbar-color: var(--sd-line) transparent;
+  scrollbar-width: thin;
+  font-family: inherit;
+  color: var(--ink);
+}
+.bn-suggestion-menu::-webkit-scrollbar {
+  width: 5px;
+}
+.bn-suggestion-menu::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--sd-line);
 }
 
 .bn-suggestion-menu-label {
-  padding: 8px 10px 4px;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  margin: 2px 3px 0;
+  padding: 6px 7px 3px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-muted);
+  color: var(--sd-ink-faint);
+}
+.bn-suggestion-menu-label:not(:first-child) {
+  border-top: 1px solid var(--sd-line);
+  margin-top: 4px;
+  padding-top: 7px;
 }
 
 /* The shadcn item renders its own inner DOM (Tailwind utilities): a `p-3`
@@ -158,17 +173,18 @@
   align-items: center;
   gap: 8px !important;
   padding: 5px 7px !important;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 100ms var(--ease-out-quart);
+  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
 }
 .bn-suggestion-menu-item:hover,
 .bn-suggestion-menu-item[aria-selected="true"],
 .bn-suggestion-menu-item[data-selected="true"] {
-  background-color: color-mix(in oklch, var(--ink) 7%, transparent) !important;
+  background-color: var(--sd-hover) !important;
   color: var(--ink) !important;
   outline: none;
+  box-shadow: inset 2px 0 0 var(--sd-accent);
 }
 
 /* Leading icon chip: drop the 12px p-3, give it a tidy fixed box. */
@@ -180,7 +196,7 @@
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--ink-muted);
+  color: var(--sd-ink-dull);
 }
 .bn-suggestion-menu-item [data-position="left"] svg {
   width: 15px;
@@ -195,8 +211,13 @@
 }
 .bn-suggestion-menu-item .flex-1 > div:last-child:not(:first-child) {
   font-size: 11px !important;
-  color: var(--ink-muted);
+  color: var(--sd-ink-faint);
   line-height: 1.2;
+}
+.bn-suggestion-menu-item [data-position="right"] {
+  margin-left: auto;
+  color: var(--sd-ink-faint);
+  font-size: 0.7rem;
 }
 
 /* ---- Placeholder ("Type '/' for commands") — quieter. ---- */
