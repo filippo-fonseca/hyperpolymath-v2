@@ -94,6 +94,8 @@ import {
 } from "@/routines/registry";
 import { syncHotkeys } from "@/routines/hotkeys";
 import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
+import { startStudioBridge } from "@studio/bridge";
+import { mountStudio } from "@studio/StudioApp";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -1065,6 +1067,12 @@ async function boot(): Promise<void> {
     "[boot] JARVIS Desktop ready",
     settings.physicalExtenderEnabled ? "— Physical Extender mode" : "— Hotkey mode (Cmd+Shift+J)",
   );
+}
+
+const studioRoot = document.getElementById("studio-root");
+if (studioRoot) {
+  startStudioBridge();
+  mountStudio(studioRoot);
 }
 
 boot().catch((err) => {

@@ -1,0 +1,71 @@
+#studio-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.studio-shell {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--studio-text);
+  background-color: var(--studio-canvas);
+  background-image:
+    radial-gradient(circle at center, var(--studio-grid) 0 1px, transparent 1.25px),
+    radial-gradient(ellipse at 50% 8%, var(--studio-canvas-raised) 0%, transparent 62%);
+  background-position: 0 0, center;
+  background-size: 24px 24px, 100% 100%;
+}
+
+.studio-shell::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.48) 100%);
+}
+
+.studio-rulers {
+  position: absolute;
+  z-index: 1;
+  inset: 8px;
+  opacity: 0.72;
+  background:
+    repeating-linear-gradient(90deg, var(--studio-rule) 0 1px, transparent 1px 24px) top / 100% 7px no-repeat,
+    repeating-linear-gradient(90deg, var(--studio-rule) 0 1px, transparent 1px 24px) bottom / 100% 7px no-repeat,
+    repeating-linear-gradient(0deg, var(--studio-rule) 0 1px, transparent 1px 24px) left / 7px 100% no-repeat,
+    repeating-linear-gradient(0deg, var(--studio-rule) 0 1px, transparent 1px 24px) right / 7px 100% no-repeat;
+}
+
+.studio-widget-stage {
+  position: absolute;
+  z-index: 2;
+  inset: 24px;
+}
+
+.studio-state-chip {
+  position: absolute;
+  z-index: 3;
+  left: 24px;
+  bottom: 20px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 30%, transparent);
+  border-radius: 3px;
+  color: var(--studio-accent-high);
+  background: color-mix(in srgb, var(--studio-canvas-raised) 88%, transparent);
+  font: 10px/1.1 var(--mono, ui-monospace, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--studio-accent) 8%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-shell *,
+  .studio-shell *::before,
+  .studio-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

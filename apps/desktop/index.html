@@ -47,6 +47,7 @@
          window resize because every dimension is relative / clamped. */
       .stage {
         position: relative;
+        z-index: 1;
         height: 100vh;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
@@ -726,6 +727,9 @@
     </style>
   </head>
   <body data-jarvis-state="idle">
+    <!-- React-owned full-window studio canvas. Legacy HUD controls and overlays
+         stay later in the DOM so they remain interactive above this layer. -->
+    <div id="studio-root"></div>
     <button class="disconnect-banner" id="disconnect-banner" type="button">
       ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
     </button>
