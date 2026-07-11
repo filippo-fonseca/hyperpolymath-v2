@@ -1,0 +1,210 @@
+.bn-link-embed-input,
+.bn-link-embed-plain {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-darker-box);
+  color: var(--sd-ink-dull);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+}
+
+.bn-link-embed-input input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+}
+.bn-link-embed-input button {
+  border-radius: 6px;
+  background: var(--sd-accent);
+  color: white;
+  padding: 4px 10px;
+}
+.bn-link-embed-input:focus-within {
+  box-shadow: 0 0 0 2px var(--sd-accent);
+}
+.bn-link-embed-plain {
+  text-decoration: none;
+}
+.bn-link-embed-plain:hover {
+  background: var(--sd-hover);
+}
+
+.bn-link-bookmark {
+  display: flex;
+  min-height: 108px;
+  overflow: hidden;
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-darker-box);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  text-decoration: none;
+  transition: background-color 140ms ease-out;
+}
+.bn-link-bookmark:hover {
+  background: var(--sd-hover);
+}
+.bn-link-bookmark-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+}
+.bn-link-bookmark-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bn-link-bookmark-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sd-ink-dull);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.bn-link-bookmark-domain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  color: var(--sd-ink-faint);
+  font-size: 0.7rem;
+}
+.bn-link-bookmark-domain img {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+.bn-link-bookmark-image {
+  width: 180px;
+  flex: 0 0 180px;
+  object-fit: cover;
+}
+
+.bn-link-embed-frame {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-darker-box);
+}
+.bn-link-embed-frame iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 0;
+}
+.bn-link-embed-youtube iframe {
+  aspect-ratio: 16 / 9;
+}
+.bn-link-embed-twitter {
+  max-width: 550px;
+}
+.bn-link-embed-twitter iframe {
+  min-height: 320px;
+}
+.bn-link-embed-frame figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--sd-line);
+  padding: 6px 8px;
+  color: var(--sd-ink-faint);
+  font: 0.7rem var(--font-sans);
+}
+.bn-link-embed-frame figcaption a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--sd-ink-dull);
+  text-decoration: none;
+}
+
+.bn-link-embed-skeleton {
+  display: flex;
+  min-height: 108px;
+  flex-direction: column;
+  gap: 9px;
+  justify-content: center;
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-darker-box);
+  padding: 12px;
+}
+.bn-link-embed-skeleton span {
+  height: 9px;
+  width: 60%;
+  border-radius: 4px;
+  background: var(--sd-box);
+  animation: bn-link-pulse 1.2s ease-in-out infinite alternate;
+}
+.bn-link-embed-skeleton span:nth-child(2) {
+  width: 84%;
+}
+.bn-link-embed-skeleton span:nth-child(3) {
+  width: 35%;
+}
+@keyframes bn-link-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bn-link-embed-skeleton span {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  .bn-link-bookmark-image {
+    display: none;
+  }
+}
+
+.bn-link-paste-menu {
+  position: fixed;
+  z-index: 100;
+  width: 230px;
+  border: 1px solid var(--sd-line);
+  border-radius: 8px;
+  background: var(--sd-box);
+  padding: 4px;
+  color: var(--ink);
+  box-shadow: 0 10px 28px hsl(235 15% 0% / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  font-family: inherit;
+}
+.bn-link-paste-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 13px;
+  text-align: left;
+}
+.bn-link-paste-menu button:hover,
+.bn-link-paste-menu button:focus-visible {
+  background: var(--sd-hover);
+  outline: none;
+  box-shadow: inset 2px 0 0 var(--sd-accent);
+}
+.bn-link-paste-menu button span {
+  flex: 1;
+}
+.bn-link-paste-menu kbd {
+  color: var(--sd-ink-faint);
+  font-size: 0.7rem;
+}
