@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { studioBridge } from "@studio/bridge";
 import { HUD_COLORS } from "@studio/tokens";
+import { WidgetWindowLayer } from "@studio/windows/WidgetWindowLayer";
 
 import "@studio/studio.css";
 
@@ -62,7 +63,9 @@ export function StudioApp() {
   return (
     <div className="studio-shell" style={colors}>
       <div className="studio-rulers" aria-hidden="true" />
-      <div className="studio-widget-stage" data-studio-stage />
+      <div className="studio-widget-stage" data-studio-stage>
+        <WidgetWindowLayer />
+      </div>
       {import.meta.env.DEV ? (
         <output className="studio-state-chip" aria-live="polite">
           FSM&nbsp;·&nbsp;{jarvisState}
