@@ -1,5 +1,13 @@
 import * as React from "react";
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RotateCw } from "lucide-react";
 
@@ -7,13 +15,20 @@ import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { studioFetch } from "../studio-fetch";
 import type { WidgetContentProps } from "../windows/catalog";
 import {
+  createNativeWebview,
+  destroyNativeWebview,
+  navigateNativeWebview,
+  physicalWebviewBounds,
+  useNativeWebviewSync,
+} from "../windows/native-webview";
+import { subscribeWidgetWindows, updateWidgetProps } from "../state/widget-windows";
+import {
   classifyLinkEmbed,
   isKnownFrameBlocker,
   linkDomain,
   normalizeBrowserUrl,
   twitterStatusId,
 } from "../windows/browser-embed";
-import { updateWidgetProps } from "../state/widget-windows";
 
 interface LinkPreviewResult {
   title: string | null;
@@ -102,15 +117,55 @@ export default function BrowserWidget({
   const [reloadKey, setReloadKey] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(null);
+  const [contentRect, setContentRect] = useState<DOMRectReadOnly | null>(null);
+  const [nativeStatus, setNativeStatus] = useState<
+    "idle" | "creating" | "active" | "failed"
+  >("idle");
+  const nativeGeneration = useRef(0);
   const classification = classifyLinkEmbed(url);
   const tweetId =
     classification.mediaType === "twitter" ? twitterStatusId(url) : null;
   const knownBlocker =
     classification.mediaType === "generic" && isKnownFrameBlocker(url);
-  const fallback =
-    knownBlocker ||
-    timedOut ||
-    (classification.mediaType === "twitter" && !tweetId);
+  const shouldPromote = knownBlocker || timedOut;
+  const contentReady = contentRect !== null;
+  const invalidTweet = classification.mediaType === "twitter" && !tweetId;
+  const fallback = invalidTweet || (shouldPromote && nativeStatus === "failed");
+
+  const measureContent = useCallback(() => {
+    if (!contentElement) return;
+    const next = contentElement.getBoundingClientRect();
+    setContentRect((current) =>
+      current &&
+      current.left === next.left &&
+      current.top === next.top &&
+      current.width === next.width &&
+      current.height === next.height
+        ? current
+        : next,
+    );
+  }, [contentElement]);
+
+  useLayoutEffect(() => {
+    if (!contentElement) return;
+    let animationFrame = 0;
+    const scheduleMeasure = (): void => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(measureContent);
+    };
+    measureContent();
+    const observer = new ResizeObserver(scheduleMeasure);
+    observer.observe(contentElement);
+    const unsubscribe = subscribeWidgetWindows(scheduleMeasure);
+    window.addEventListener("resize", scheduleMeasure);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      observer.disconnect();
+      unsubscribe();
+      window.removeEventListener("resize", scheduleMeasure);
+    };
+  }, [contentElement, measureContent]);
 
   useEffect(() => {
     setLoaded(false);
@@ -122,6 +177,46 @@ export default function BrowserWidget({
     );
     return () => window.clearTimeout(timer);
   }, [url, reloadKey, knownBlocker, loaded]);
+
+  useEffect(() => {
+    if (!shouldPromote || !contentRect) {
+      setNativeStatus("idle");
+      return;
+    }
+    const generation = ++nativeGeneration.current;
+    setNativeStatus("creating");
+    const creation = physicalWebviewBounds(contentRect)
+      .then((bounds) => createNativeWebview(id, url, bounds))
+      .then(() => {
+        if (nativeGeneration.current === generation) setNativeStatus("active");
+      })
+      .catch(() => {
+        if (nativeGeneration.current === generation) {
+          void destroyNativeWebview(id).catch(() => undefined);
+          setNativeStatus("failed");
+        }
+      });
+    return () => {
+      const cleanupGeneration = ++nativeGeneration.current;
+      void creation.finally(() => {
+        queueMicrotask(() => {
+          if (nativeGeneration.current === cleanupGeneration) {
+            void destroyNativeWebview(id).catch(() => undefined);
+          }
+        });
+      });
+    };
+  }, [id, shouldPromote, contentReady]);
+
+  useEffect(() => {
+    if (nativeStatus !== "active" || !shouldPromote) return;
+    void navigateNativeWebview(id, url).catch(() => {
+      void destroyNativeWebview(id).catch(() => undefined);
+      setNativeStatus("failed");
+    });
+  }, [id, nativeStatus, reloadKey, shouldPromote, url]);
+
+  useNativeWebviewSync(id, contentRect, nativeStatus === "active");
 
   const navigate = (event: FormEvent): void => {
     event.preventDefault();
@@ -186,9 +281,21 @@ export default function BrowserWidget({
           <ExternalLink size={12} aria-hidden />
         </a>
       </form>
-      <div style={{ position: "relative", minHeight: 0, flex: 1, overflow: "hidden" }}>
+      <div
+        ref={setContentElement}
+        style={{ position: "relative", minHeight: 0, flex: 1, overflow: "hidden" }}
+      >
         {fallback ? (
           <Bookmark url={url} />
+        ) : shouldPromote ? (
+          <div
+            aria-label={
+              nativeStatus === "active"
+                ? "Native website content"
+                : "Opening website"
+            }
+            style={{ position: "absolute", inset: 0, background: STUDIO_COLORS.surface }}
+          />
         ) : (
           <>
             {!loaded ? (
