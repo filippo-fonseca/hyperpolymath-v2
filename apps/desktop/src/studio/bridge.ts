@@ -13,7 +13,9 @@ import {
   onJarvisResponseStart,
   onJarvisToolCall,
   onPhysicalTranscript,
+  onStudioAction,
 } from "@/physical-extender/sse-client";
+import { routeStudioAction } from "@studio/actions/studio-action-router";
 
 export interface StudioTranscriptEvent {
   text: string;
@@ -97,6 +99,7 @@ export function startStudioBridge(): void {
     emit("response", { phase: "end", turnId: payload.turnId, at: payload.at });
   });
   onJarvisToolCall((payload) => emit("toolCall", payload));
+  onStudioAction(routeStudioAction);
 }
 
 export const studioBridge = {
