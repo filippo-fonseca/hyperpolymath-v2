@@ -138,12 +138,11 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
         aria-hidden="true"
         style={{
           position: "absolute",
-          top: "50%",
-          left: "50%",
+          inset: 0,
           height: "100%",
           maxWidth: "100%",
           aspectRatio: "1",
-          transform: "translate(-50%, -50%)",
+          margin: "auto",
           filter: `drop-shadow(0 0 ${isListening ? 26 : 18}px color-mix(in srgb, ${CYAN_HIGH} ${isListening ? 48 : 32}%, transparent))`,
         }}
         animate={

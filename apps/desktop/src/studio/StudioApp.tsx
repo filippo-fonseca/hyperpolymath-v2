@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 
 import { studioBridge } from "@studio/bridge";
 import { HUD_COLORS } from "@studio/tokens";
@@ -28,7 +29,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function StudioApp() {
+interface StudioAppProps {
+  widgetHost: HTMLElement;
+}
+
+export function StudioApp({ widgetHost }: StudioAppProps) {
   const jarvisState = useJarvisState();
 
   useEffect(() => {
@@ -63,9 +68,12 @@ export function StudioApp() {
   return (
     <div className="studio-shell" style={colors}>
       <div className="studio-rulers" aria-hidden="true" />
-      <div className="studio-widget-stage" data-studio-stage>
-        <WidgetWindowLayer />
-      </div>
+      {createPortal(
+        <div className="studio-widget-stage" data-studio-stage>
+          <WidgetWindowLayer />
+        </div>,
+        widgetHost,
+      )}
       {import.meta.env.DEV ? (
         <output className="studio-state-chip" aria-live="polite">
           FSM&nbsp;·&nbsp;{jarvisState}
@@ -76,5 +84,8 @@ export function StudioApp() {
 }
 
 export function mountStudio(container: HTMLElement): void {
-  createRoot(container).render(<StudioApp />);
+  const widgetHost = document.createElement("div");
+  widgetHost.id = "studio-widget-root";
+  container.after(widgetHost);
+  createRoot(container).render(<StudioApp widgetHost={widgetHost} />);
 }
