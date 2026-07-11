@@ -5,7 +5,7 @@
 
 ## 1. The register in one paragraph
 
-Dense, calm, tool-like. A near-black canvas built on a single hue family (HSL 235, 15% saturation) with a strict lightness ladder; hairline borders instead of shadows for structure; ONE accent blue (#2599FF) spent only on selection, focus, primary actions, and drop targets; small type with tight leading; flat 6–8px radii; motion that is quick, subtle, and never springy. It should feel like a precision instrument, not a website. The Journal rail is the one sanctioned exception (editorial glass, Garamond) — deliberate contrast, reading room vs. workshop.
+Dense, calm, tool-like. A near-black canvas built on a single hue family (HSL 235, 15% saturation) with a strict lightness ladder; hairline borders instead of shadows for structure; ONE accent blue (#2599FF) spent only on selection, focus, primary actions, and drop targets; small type with tight leading; flat 6–8px radii; motion that is quick, subtle, and never springy. It should feel like a precision instrument, not a website. The Journal rail uses the same chrome; its editorial character lives only in date typography inside the cards.
 
 ## 2. The token ladder (use the CSS variables, never raw values)
 
@@ -64,7 +64,7 @@ Tiny synthesized WebAudio cues (no audio assets): drag pickup tick, drop-success
 
 ## 8. The exception zones
 
-- **Journal rail / reading content:** editorial glass + Garamond stays. The contrast is intentional.
+- **Journal rail / reading content:** the rail chrome follows the `--sd-*` ladder. Editorial serif survives only as content typography inside its cards (dates and reading excerpts), never as tool chrome.
 - Anything terminal/HUD-flavored elsewhere in the app migrates *toward* this register as surfaces are touched (backlog: briefing + tasks first, then captures, projects, settings, dialogs).
 
 ## 9. Definition of done for any restyle

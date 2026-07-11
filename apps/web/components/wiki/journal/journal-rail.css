@@ -1,0 +1,43 @@
+.journal-calendar-popover {
+  border: 1px solid var(--sd-line) !important;
+  border-radius: 8px !important;
+  background: var(--sd-box) !important;
+  box-shadow: 0 10px 28px hsl(235 15% 0% / 0.4), inset 0 0 0 1px rgb(255 255 255 / 0.04) !important;
+  font-family: inherit;
+}
+.journal-calendar-popover aside {
+  position: static;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
+}
+.journal-calendar-popover aside > div:first-child {
+  border-color: var(--sd-line);
+}
+.journal-calendar-popover button {
+  border-radius: 6px;
+  font-family: inherit;
+  transition-duration: 140ms;
+}
+.journal-calendar-popover button:hover {
+  background: var(--sd-hover) !important;
+}
+.journal-calendar-popover button[aria-current="date"] {
+  background: var(--sd-selected) !important;
+  color: var(--ink) !important;
+  box-shadow: inset 0 0 0 1px var(--sd-accent);
+}
+.journal-calendar-popover .glass-button,
+.journal-calendar-popover .glass-pressed,
+.journal-calendar-popover .glass-tile {
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .journal-calendar-popover * {
+    transition-duration: 0ms !important;
+  }
+}
