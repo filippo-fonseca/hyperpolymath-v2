@@ -23,9 +23,12 @@ export interface UseExplorerFolderResult {
 export function useExplorerFolder(
   folders: FolderRow[],
 ): UseExplorerFolderResult {
+  // `history: "push"` so every folder navigation adds a browser history entry
+  // (nuqs default is replaceState). Without it, drilling into a folder
+  // overwrites the /wiki root entry and browser Back skips past the wiki.
   const [raw, setRaw] = useQueryState(
     "folder",
-    parseAsString.withDefault(""),
+    parseAsString.withDefault("").withOptions({ history: "push" }),
   );
   const currentRaw = raw && raw.length > 0 ? raw : null;
 
