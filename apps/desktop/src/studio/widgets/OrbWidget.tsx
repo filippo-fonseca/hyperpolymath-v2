@@ -47,6 +47,10 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const manualDrag = useRef(false);
   const dragStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  // MAJOR-4 — track the drag session's detach fn so it survives unmount and
+  // any superseded pointerId session. If a new drag starts while one is live
+  // (state churn, pointer stolen, etc.), we detach the old listeners first.
+  const dragDetach = useRef<(() => void) | null>(null);
   const reduced = useReducedMotion();
   const state = useJarvisState();
 
@@ -58,6 +62,17 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
       getMicLevel: () => 0.42,
       getSpeakingLevel: () => 0.55,
     });
+  }, []);
+
+  // MAJOR-4 — guarantee the pointer listeners come off on unmount even if
+  // the pointerup / pointercancel that would normally clear them never
+  // fires (component tears down mid-drag).
+  useEffect(() => {
+    return () => {
+      dragDetach.current?.();
+      dragDetach.current = null;
+      dragStart.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -84,6 +99,12 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
 
   const beginManualDrag = (event: PointerEvent<HTMLDivElement>): void => {
     if (state === "idle" || event.button !== 0) return;
+    // If an earlier drag session's listeners never got their pointerup (e.g.
+    // pointer capture was stolen by another target), detach them before
+    // opening a new session — otherwise the old listener set leaks and both
+    // sessions race on dragStart.
+    dragDetach.current?.();
+
     dragStart.current = {
       pointerId: event.pointerId,
       x: event.clientX,
@@ -99,16 +120,23 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
         manualDrag.current = true;
       }
     };
-    const onEnd = (endEvent: globalThis.PointerEvent): void => {
-      if (dragStart.current?.pointerId !== endEvent.pointerId) return;
-      dragStart.current = null;
+    const detach = (): void => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onEnd);
       window.removeEventListener("pointercancel", onEnd);
+      // Only clear the ref if it still points at THIS session — a fresh
+      // beginManualDrag may have replaced it already.
+      if (dragDetach.current === detach) dragDetach.current = null;
+    };
+    const onEnd = (endEvent: globalThis.PointerEvent): void => {
+      if (dragStart.current?.pointerId !== endEvent.pointerId) return;
+      dragStart.current = null;
+      detach();
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onEnd);
     window.addEventListener("pointercancel", onEnd);
+    dragDetach.current = detach;
   };
 
   const isListening = state === "listening";
