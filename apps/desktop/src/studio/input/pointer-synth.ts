@@ -71,9 +71,16 @@ function installPointerCaptureShim(): void {
   };
 }
 
-/** Live stage rect (viewport coords) for stage-normalized ↔ viewport conversion. */
+/**
+ * Live stage rect (viewport coords) for stage-normalized ↔ viewport conversion.
+ * Prefers `[data-studio-stage]`; falls back to the widget layer (inset:0 of the
+ * stage — identical rect in the real app) so bare hosts (the debug harness) still
+ * hit-test.
+ */
 function stageRect(): DOMRect | null {
-  const el = document.querySelector<HTMLElement>("[data-studio-stage]");
+  const el =
+    document.querySelector<HTMLElement>("[data-studio-stage]") ??
+    document.querySelector<HTMLElement>("[data-widget-window-layer]");
   return el ? el.getBoundingClientRect() : null;
 }
 
