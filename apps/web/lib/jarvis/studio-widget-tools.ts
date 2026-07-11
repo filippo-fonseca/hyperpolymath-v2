@@ -37,7 +37,7 @@ export const STUDIO_WIDGET_TOOL_DEFINITIONS = [
   {
     name: "studio_open_widget" as const,
     description:
-      "Materialize a widget inside the Studio canvas. Use this when the user asks to show or open a browser, WhatsApp, weather, or news widget. Browser widgets require a full URL. This request is safe when Studio is not connected; report that the request was sent, not that a visible window is guaranteed.",
+      "Materialize a widget inside the Studio canvas. Use this when the user asks to show or open a browser, WhatsApp, weather, or news widget. Browser widgets require a full URL. This request is safe when Studio is not connected; report that the request was sent, not that a visible window is guaranteed. ANSWER-AND-SHOW: never open a widget INSTEAD of answering — always do both in the same turn. For a live/current-web question (scores, prices, 'is X winning', latest news on a topic), first call web_search, ANSWER from the results in your reply, AND open kind:\"browser\" on the receipt's top_url (a real article/result page, never a search-engine landing page). For a weather/temperature question, answer the number AND open kind:\"weather\". For a news/headlines question, give the butler read AND open kind:\"news\".",
     input_schema: inputSchema(StudioOpenWidgetInputSchema),
   },
   {
