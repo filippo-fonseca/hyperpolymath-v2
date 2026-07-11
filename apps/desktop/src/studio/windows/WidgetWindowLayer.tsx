@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Drawer } from "../drawer/Drawer";
+import { HandTrackingLayer } from "../input/HandTrackingLayer";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
   getWidgetWindows,
@@ -188,7 +189,9 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
         </nav>
       ) : null}
 
-      {/* SEAM: hand gesture and voice-bridge wiring lands in later units. */}
+      {/* Hand-cursor surface: opt-in webcam gesture tracking → reticle + pointer
+          synthesis over the widget DOM. Inert until toggled on. */}
+      <HandTrackingLayer />
     </>
   );
 }
