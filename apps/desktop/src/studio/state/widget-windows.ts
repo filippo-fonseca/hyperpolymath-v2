@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import type { WidgetKind } from "../windows/catalog";
+import { WIDGET_CATALOG, type WidgetKind } from "../windows/catalog";
 import {
   clampToStage,
   nextStackOrder,
@@ -166,17 +166,21 @@ export function focusWidget(id: string): void {
 }
 
 export function closeWidget(id: string): void {
-  const next = windows.filter((item) => item.id !== id);
+  const next = windows.filter(
+    (item) => item.id !== id || WIDGET_CATALOG[item.kind].permanent,
+  );
   if (next.length !== windows.length) write(next);
 }
 
 export function closeWidgetsByKind(kind: WidgetKind): void {
+  if (WIDGET_CATALOG[kind].permanent) return;
   const next = windows.filter((item) => item.kind !== kind);
   if (next.length !== windows.length) write(next);
 }
 
 export function closeAll(): void {
-  if (windows.length > 0) write(EMPTY);
+  const next = windows.filter((item) => WIDGET_CATALOG[item.kind].permanent);
+  if (next.length !== windows.length) write(next);
 }
 
 export function __resetWidgetWindows(): void {

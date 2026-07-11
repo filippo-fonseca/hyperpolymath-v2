@@ -71,6 +71,7 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
   const sessionRef = useRef<PointerSession | null>(null);
   const entry = WIDGET_CATALOG[item.kind];
   const Content = entry.component;
+  const permanent = entry.permanent === true;
 
   const setRoot = (element: HTMLDivElement | null): void => {
     rootRef.current = element;
@@ -154,13 +155,30 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
       data-widget-window={item.id}
       role="dialog"
       aria-label={entry.label}
-      onPointerDown={() => focusWidget(item.id)}
+      onPointerDown={(event) => {
+        if (permanent) startPointer("move", event);
+        else focusWidget(item.id);
+      }}
+      onPointerMove={permanent ? movePointer : undefined}
+      onPointerUp={permanent ? endPointer : undefined}
+      onPointerCancel={permanent ? endPointer : undefined}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
       transition={{ duration: reduced ? 0 : 0.18 }}
       style={{
         ...frameStyle,
+        ...(permanent
+          ? {
+              border: 0,
+              borderRadius: "50%",
+              background: "transparent",
+              boxShadow: "none",
+              backdropFilter: "none",
+              cursor: "grab",
+              touchAction: "none",
+            }
+          : null),
         left: `${(item.x - item.w / 2) * 100}%`,
         top: `${(item.y - item.h / 2) * 100}%`,
         width: `${item.w * 100}%`,
@@ -168,61 +186,63 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
         zIndex: item.z,
       }}
     >
-      <header
-        style={{
-          display: "flex",
-          height: 32,
-          flexShrink: 0,
-          touchAction: "none",
-          alignItems: "center",
-          gap: 8,
-          padding: "0 8px 0 10px",
-          borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
-          cursor: "grab",
-        }}
-        onPointerDown={(event) => startPointer("move", event)}
-        onPointerMove={movePointer}
-        onPointerUp={endPointer}
-        onPointerCancel={endPointer}
-      >
-        <span
+      {permanent ? null : (
+        <header
           style={{
-            minWidth: 0,
-            flex: 1,
-            overflow: "hidden",
-            color: STUDIO_COLORS.muted,
-            fontFamily: STUDIO_MONO,
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: "0.18em",
-            textOverflow: "ellipsis",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
+            display: "flex",
+            height: 32,
+            flexShrink: 0,
+            touchAction: "none",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 8px 0 10px",
+            borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
+            cursor: "grab",
           }}
+          onPointerDown={(event) => startPointer("move", event)}
+          onPointerMove={movePointer}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
         >
-          {entry.label}
-        </span>
-        <button
-          type="button"
-          aria-label="Pin window to front"
-          title="Pin to front"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => focusWidget(item.id)}
-          style={chromeButtonStyle}
-        >
-          <Pin size={12} aria-hidden />
-        </button>
-        <button
-          type="button"
-          aria-label="Close window"
-          title="Close"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => closeWidget(item.id)}
-          style={chromeButtonStyle}
-        >
-          <X size={13} aria-hidden />
-        </button>
-      </header>
+          <span
+            style={{
+              minWidth: 0,
+              flex: 1,
+              overflow: "hidden",
+              color: STUDIO_COLORS.muted,
+              fontFamily: STUDIO_MONO,
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: "0.18em",
+              textOverflow: "ellipsis",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {entry.label}
+          </span>
+          <button
+            type="button"
+            aria-label="Pin window to front"
+            title="Pin to front"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => focusWidget(item.id)}
+            style={chromeButtonStyle}
+          >
+            <Pin size={12} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Close window"
+            title="Close"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => closeWidget(item.id)}
+            style={chromeButtonStyle}
+          >
+            <X size={13} aria-hidden />
+          </button>
+        </header>
+      )}
 
       <div style={{ minHeight: 0, flex: 1, overflow: "hidden" }}>
         <Suspense
@@ -237,28 +257,30 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
         </Suspense>
       </div>
 
-      <button
-        type="button"
-        aria-label="Resize window"
-        title="Resize"
-        style={{
-          position: "absolute",
-          right: 0,
-          bottom: 0,
-          width: 20,
-          height: 20,
-          touchAction: "none",
-          border: 0,
-          borderRight: `2px solid ${STUDIO_COLORS.accent}`,
-          borderBottom: `2px solid ${STUDIO_COLORS.accent}`,
-          background: "transparent",
-          cursor: "nwse-resize",
-        }}
-        onPointerDown={(event) => startPointer("resize", event)}
-        onPointerMove={movePointer}
-        onPointerUp={endPointer}
-        onPointerCancel={endPointer}
-      />
+      {permanent ? null : (
+        <button
+          type="button"
+          aria-label="Resize window"
+          title="Resize"
+          style={{
+            position: "absolute",
+            right: 0,
+            bottom: 0,
+            width: 20,
+            height: 20,
+            touchAction: "none",
+            border: 0,
+            borderRight: `2px solid ${STUDIO_COLORS.accent}`,
+            borderBottom: `2px solid ${STUDIO_COLORS.accent}`,
+            background: "transparent",
+            cursor: "nwse-resize",
+          }}
+          onPointerDown={(event) => startPointer("resize", event)}
+          onPointerMove={movePointer}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+        />
+      )}
     </motion.div>
   );
 }
