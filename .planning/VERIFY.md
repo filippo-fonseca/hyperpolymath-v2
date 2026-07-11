@@ -203,3 +203,100 @@ process was restored to its prior visibility.
 - No sibling-owned widget store, catalog, or `WidgetWindow` source was edited.
 - Pre-existing non-failing warnings: duplicate `jsx` key, Vite import/chunk
   notices, and chunk-size notice.
+
+---
+
+# Verification — showcase-widgets
+
+Date: 2026-07-11
+Branch: `bgsd/showcase-widgets`
+Base: `bgsd/studio-native`
+
+Clock, camera, and polished news/weather. Sibling contract honored: `catalog.tsx`
+got exactly two new entries (clock, camera) and nothing else; no `WidgetWindow`
+or store (`state/widget-windows.ts`) edits; the idle composition fires only on a
+genuinely empty persisted state.
+
+## Atomic commits (plan order)
+
+| # | Commit | Scope |
+|---|--------|-------|
+| 1 | `a0ca3e76` feat(studio): idle-home clock widget with seconds sweep | `ClockWidget.tsx` + clock catalog entry |
+| 2 | `150561dd` feat(studio): camera widget with getUserMedia preview | `CameraWidget.tsx` + camera catalog entry |
+| 3 | `05d04f5a` polish(studio): showcase-quality news widget | `NewsWidget.tsx` |
+| 4 | `f498331e` polish(studio): showcase-quality weather widget | `WeatherWidget.tsx` |
+| 5 | `143ebd3b` feat(studio): idle-home default composition on fresh boot | `WidgetWindowLayer.tsx` |
+
+## Live verification method
+
+Full `pnpm tauri dev` against a real `localhost:3000` is not runnable in this
+headless worktree (no Rust GUI display; no authed web backend; the Playwright MCP
+browser can't set fake-media-device launch flags). Instead I drove the four
+widgets in a **real Chromium** via the Playwright MCP against a throwaway Vite
+harness (mounted each widget standalone; query cache seeded with sample receipts;
+a real `canvas.captureStream()` track stood in for the webcam). The harness files,
+screenshot, `dist/`, and `.playwright-mcp/` were all removed and never committed —
+final `git status` is clean apart from the pre-existing `fable-plan.md` edit.
+
+## Acceptance criteria
+
+### 1. Fresh boot: orb + clock compose an idle-home; clock ticks — PASS
+
+- `WidgetWindowLayer.tsx` captures `freshBoot = getWidgetWindows().length === 0`
+  right after `rehydrateWidgetWindows()`, ensures the orb unconditionally, and
+  summons the clock (`x:0.5, y:0.15`, upper-area, clear of the idle orb which
+  centers at 0.5/0.5 per `orb-geometry`) **only** on a fresh boot. Any persisted
+  layout skips composition, so a user-closed clock stays closed.
+- Browser: clock rendered `15:31`, date line `SATURDAY, JULY 11`; seconds read
+  `19` then `21` over a 2.1s wait (advances). Cyan seconds-sweep ring + firefly
+  tip dot + `07` seconds label visible in the captured screenshot.
+
+### 2. Camera live; close/stow releases the camera (LED off) — PASS
+
+- Live: `LIVE` badge (pulsing ember dot), slim cyan HUD frame corners, video
+  opacity 1.
+- Release: `cameraRoot.unmount()` — exactly what close (removed) and stow
+  (filtered out of the render tree) both do — transitions the stream track
+  `readyState` `live → "ended"`, the browser-level LED-off signal. Verified:
+  `before.trackState === "live"`, `after.trackStateAfterUnmount === "ended"`,
+  video gone from DOM. The unmount cleanup also stops a stream that resolves
+  after cancel (acquire-before-unmount race).
+
+### 3. News + weather polished layouts, clean loading + error states — PASS
+
+- News success: 5 rows `source · age · headline` (`BUSINESS · 4m`,
+  `ENVIRONMENT · 47m`, `SCIENCE · 3h`, `MEDIA · 1d`); relative ages correct;
+  two-line headline clamp. Hover applied cyan left-rule `rgba(47,168,255,0.95)` +
+  tinted bg, fading on leave (focus shares the path). Animated skeleton while
+  loading; empty state for zero articles.
+- News error: titled `News unavailable` + message beneath (not a raw red string).
+- Weather success: hero `75°` (mono thin) + condition glyph from the phrase
+  (`raining` → CloudRain, cyan glow) + condition line. Forecast strip with a
+  cyan-accented `NOW` column when the receipt carries `forecast`
+  (`NOW / SUN / MON / TUE`); degrades to a mono `wind km/h · °C` stats strip when
+  it doesn't — the live endpoint's actual shape (the previous `weather.forecast.map`
+  would have crashed on it).
+- Weather error: titled `Weather unavailable` + message beneath.
+- Real end-to-end data through `studioFetch → /api/studio/{news,weather}` was not
+  exercised (needs the Tauri `invoke` bridge + authed :3000); receipt contracts
+  were read from `apps/web/lib/jarvis/executor.ts` and the widgets degrade around
+  them without any `apps/web` edits.
+
+### 4. Typecheck + vite build green; verified live — PASS
+
+```text
+pnpm typecheck (apps/desktop)      PASS — exit 0
+pnpm vite build                    PASS — new ClockWidget/CameraWidget chunks
+pnpm test                          PASS — 7 files, 30 tests
+```
+
+Live browser smoke of all four widgets passed (screenshot captured during the
+run). Full `tauri dev` deferred to a machine with a display + backend.
+
+## Constraint notes
+
+- No new endpoints; no `apps/web` edits; weather degrades around the missing
+  `forecast` field.
+- No new heavy deps: clock sweep and camera frame are hand-drawn SVG/CSS; glyphs
+  reuse the already-present `lucide-react`.
+- Widget-frame contract (drag/resize/pin/close/stow) untouched.
