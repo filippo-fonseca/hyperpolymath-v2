@@ -163,9 +163,26 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
       onPointerUp={permanent ? endPointer : undefined}
       onPointerCancel={permanent ? endPointer : undefined}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
+      animate={
+        permanent
+          ? {
+              opacity: 1,
+              scale: 1,
+              left: `${(item.x - item.w / 2) * 100}%`,
+              top: `${(item.y - item.h / 2) * 100}%`,
+              width: `${item.w * 100}%`,
+              height: `${item.h * 100}%`,
+            }
+          : { opacity: 1, scale: 1 }
+      }
       exit={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
-      transition={{ duration: reduced ? 0 : 0.18 }}
+      transition={
+        permanent
+          ? reduced
+            ? { duration: 0 }
+            : { type: "spring", stiffness: 82, damping: 20, mass: 0.9 }
+          : { duration: reduced ? 0 : 0.18 }
+      }
       style={{
         ...frameStyle,
         ...(permanent

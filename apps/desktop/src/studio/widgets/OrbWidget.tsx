@@ -1,8 +1,16 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type CSSProperties,
+  type PointerEvent,
+} from "react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { mountOrb } from "@/hud/orb";
 import { studioBridge } from "@studio/bridge";
+import { moveWidget, resizeWidget } from "@studio/state/widget-windows";
+import type { WidgetContentProps } from "@studio/windows/catalog";
 
 const CYAN = "#2fa8ff";
 const CYAN_HIGH = "#3bd6ff";
@@ -22,9 +30,24 @@ const particles = [
   { cx: 88, cy: 58, r: 0.45, delay: 3.5 },
 ] as const;
 
-export default function OrbWidget(): React.ReactElement {
+function subscribeToJarvisState(onStoreChange: () => void): () => void {
+  return studioBridge.on("jarvisState", onStoreChange);
+}
+
+function useJarvisState() {
+  return useSyncExternalStore(
+    subscribeToJarvisState,
+    studioBridge.getJarvisState,
+    studioBridge.getJarvisState,
+  );
+}
+
+export default function OrbWidget({ id }: WidgetContentProps): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const manualDrag = useRef(false);
+  const dragStart = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const reduced = useReducedMotion();
+  const state = useJarvisState();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -36,6 +59,67 @@ export default function OrbWidget(): React.ReactElement {
     });
   }, []);
 
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const windowElement = canvasRef.current?.closest("[data-widget-window]");
+      const stage = windowElement?.parentElement?.getBoundingClientRect();
+      if (!stage?.width || !stage.height) return;
+
+      if (state === "idle") {
+        manualDrag.current = false;
+        const diameter = Math.min(300, stage.height * 0.42, stage.width * 0.28);
+        resizeWidget(id, diameter / stage.width, diameter / stage.height);
+        moveWidget(id, 0.5, 0.5);
+        return;
+      }
+
+      if (manualDrag.current) return;
+      const diameter = Math.min(124, stage.height * 0.2, stage.width * 0.12);
+      const w = Math.max(0.16, diameter / stage.width);
+      const h = Math.max(0.16, diameter / stage.height);
+      const edgeX = 32 / stage.width;
+      const edgeY = 32 / stage.height;
+      resizeWidget(id, w, h);
+      moveWidget(id, 1 - w / 2 - edgeX, 1 - h / 2 - edgeY);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [id, state]);
+
+  const beginManualDrag = (event: PointerEvent<HTMLDivElement>): void => {
+    if (state === "idle" || event.button !== 0) return;
+    dragStart.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    const onMove = (moveEvent: globalThis.PointerEvent): void => {
+      const start = dragStart.current;
+      if (
+        start?.pointerId === moveEvent.pointerId &&
+        Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y) >= 4
+      ) {
+        manualDrag.current = true;
+      }
+    };
+    const onEnd = (endEvent: globalThis.PointerEvent): void => {
+      if (dragStart.current?.pointerId !== endEvent.pointerId) return;
+      dragStart.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+  };
+
+  const isListening = state === "listening";
+  const isThinking = state === "thinking";
+  const isSpeaking = state === "speaking";
+  const ornamentScale = isListening ? 0.91 : 1;
+  const ornamentOpacity = isListening ? 1 : isThinking ? 0.92 : 0.78;
+
   return (
     <div
       data-orb-widget
@@ -46,10 +130,11 @@ export default function OrbWidget(): React.ReactElement {
         width: "100%",
         height: "100%",
         overflow: "hidden",
-        pointerEvents: "none",
+        pointerEvents: "auto",
       }}
+      onPointerDown={beginManualDrag}
     >
-      <div
+      <motion.div
         aria-hidden="true"
         style={{
           position: "absolute",
@@ -59,8 +144,23 @@ export default function OrbWidget(): React.ReactElement {
           maxWidth: "100%",
           aspectRatio: "1",
           transform: "translate(-50%, -50%)",
-          filter: `drop-shadow(0 0 18px color-mix(in srgb, ${CYAN_HIGH} 32%, transparent))`,
+          filter: `drop-shadow(0 0 ${isListening ? 26 : 18}px color-mix(in srgb, ${CYAN_HIGH} ${isListening ? 48 : 32}%, transparent))`,
         }}
+        animate={
+          reduced
+            ? { scale: ornamentScale, opacity: ornamentOpacity }
+            : isSpeaking
+              ? {
+                  scale: [ornamentScale, ornamentScale * 1.035, ornamentScale],
+                  opacity: [ornamentOpacity, 1, ornamentOpacity],
+                }
+              : { scale: ornamentScale, opacity: ornamentOpacity }
+        }
+        transition={
+          isSpeaking && !reduced
+            ? { duration: 1.15, ease: "easeInOut", repeat: Infinity }
+            : { duration: reduced ? 0 : 0.35, ease: "easeOut" }
+        }
       >
         <div
           style={{
@@ -76,7 +176,11 @@ export default function OrbWidget(): React.ReactElement {
           viewBox="0 0 100 100"
           style={fillStyle}
           animate={reduced ? undefined : { rotate: 360 }}
-          transition={{ duration: 34, ease: "linear", repeat: Infinity }}
+          transition={{
+            duration: isThinking ? 8 : isListening ? 19 : 34,
+            ease: "linear",
+            repeat: Infinity,
+          }}
         >
           <circle
             cx="50"
@@ -104,7 +208,11 @@ export default function OrbWidget(): React.ReactElement {
           viewBox="0 0 100 100"
           style={fillStyle}
           animate={reduced ? undefined : { rotate: -360 }}
-          transition={{ duration: 49, ease: "linear", repeat: Infinity }}
+          transition={{
+            duration: isThinking ? 12 : isListening ? 25 : 49,
+            ease: "linear",
+            repeat: Infinity,
+          }}
         >
           <circle
             cx="50"
@@ -159,7 +267,7 @@ export default function OrbWidget(): React.ReactElement {
         </svg>
 
         <canvas ref={canvasRef} aria-hidden="true" style={fillStyle} />
-      </div>
+      </motion.div>
     </div>
   );
 }
