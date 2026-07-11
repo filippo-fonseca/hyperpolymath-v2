@@ -6,6 +6,10 @@ export interface WindowRect {
 }
 
 const MARGIN = 0.012;
+// MINOR-2 — the stage's usable vertical center biases slightly UP (0.48
+// vs 0.5) to leave breathing room for the bottom dock strip. Named so the
+// intent is legible and the three call sites stay in sync.
+const STAGE_VERTICAL_CENTER = 0.48;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -42,7 +46,7 @@ export function pickSpawnPosition(
   for (const offset of SPAWN_OFFSETS) {
     const candidate = clampToStage({
       x: 0.5 + offset[0],
-      y: 0.48 + offset[1],
+      y: STAGE_VERTICAL_CENTER + offset[1],
       ...size,
     });
     const nearest = existing.reduce(
@@ -52,10 +56,10 @@ export function pickSpawnPosition(
     );
     if (nearest > bestDistance) {
       bestDistance = nearest;
-      best = [candidate.x - 0.5, candidate.y - 0.48];
+      best = [candidate.x - 0.5, candidate.y - STAGE_VERTICAL_CENTER];
     }
   }
-  return { x: 0.5 + best[0], y: 0.48 + best[1] };
+  return { x: 0.5 + best[0], y: STAGE_VERTICAL_CENTER + best[1] };
 }
 
 /** Next stack value, independent of array order. */
