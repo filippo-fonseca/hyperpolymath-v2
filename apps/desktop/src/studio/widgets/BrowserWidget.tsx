@@ -122,6 +122,7 @@ export default function BrowserWidget({
   const [nativeStatus, setNativeStatus] = useState<
     "idle" | "creating" | "active" | "failed"
   >("idle");
+  const loadedRef = useRef(false);
   const nativeGeneration = useRef(0);
   const classification = classifyLinkEmbed(url);
   const tweetId =
@@ -168,15 +169,15 @@ export default function BrowserWidget({
   }, [contentElement, measureContent]);
 
   useEffect(() => {
+    loadedRef.current = false;
     setLoaded(false);
     setTimedOut(false);
     if (knownBlocker) return;
-    const timer = window.setTimeout(
-      () => setTimedOut((value) => value || !loaded),
-      4_000,
-    );
+    const timer = window.setTimeout(() => {
+      if (!loadedRef.current) setTimedOut(true);
+    }, 4_000);
     return () => window.clearTimeout(timer);
-  }, [url, reloadKey, knownBlocker, loaded]);
+  }, [url, reloadKey, knownBlocker]);
 
   useEffect(() => {
     if (!shouldPromote || !contentRect) {
@@ -308,7 +309,10 @@ export default function BrowserWidget({
               key={`${src}:${reloadKey}`}
               src={src}
               title={linkDomain(url)}
-              onLoad={() => setLoaded(true)}
+              onLoad={() => {
+                loadedRef.current = true;
+                setLoaded(true);
+              }}
               style={{ width: "100%", height: "100%", border: 0, background: "transparent" }}
               sandbox={
                 classification.mediaType === "generic"
