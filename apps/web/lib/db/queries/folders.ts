@@ -25,6 +25,8 @@ const FOLDER_COLS = {
   name: pageFolders.name,
   orderIndex: pageFolders.orderIndex,
   positionKey: pageFolders.positionKey,
+  createdAt: pageFolders.createdAt,
+  updatedAt: pageFolders.updatedAt,
 } as const;
 
 /** All wiki folders for a user, ordered for stable tree rendering. */
@@ -108,11 +110,13 @@ export async function getFoldersByEffectiveProject(
 
   return folders
     .filter((f) => getEffectiveProjectIds(f.id, folderMap).includes(projectId))
-    .map(({ id, parentId, name, orderIndex, positionKey }) => ({
+    .map(({ id, parentId, name, orderIndex, positionKey, createdAt, updatedAt }) => ({
       id,
       parentId,
       name,
       orderIndex,
       positionKey,
+      createdAt,
+      updatedAt,
     }));
 }

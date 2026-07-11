@@ -1,20 +1,17 @@
 "use client";
 
-import {
-  EmptyState,
-  SelectionRubberBand,
-} from "@/components/wiki/explorer";
+import { EmptyState, SelectionRubberBand } from "@/components/wiki/explorer";
+import type { ExplorerViewMode } from "@/components/wiki/explorer";
 import { ExplorerEmptySpaceMenu } from "@/components/wiki/explorer-parts/ExplorerEmptySpaceMenu";
+import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { ExplorerGridView } from "@/components/wiki/explorer-views/ExplorerGridView";
 import { ExplorerListView } from "@/components/wiki/explorer-views/ExplorerListView";
 import { ExplorerSearchResults } from "@/components/wiki/explorer-views/ExplorerSearchResults";
-import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import type { ExplorerSearchHit } from "@/components/wiki/explorer-views/ExplorerSearchResults";
-import type { ExplorerViewMode } from "@/components/wiki/explorer";
+import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
 import { Plus, Search } from "lucide-react";
-import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { ReactNode, RefObject } from "react";
 
 interface RubberBandRect {
@@ -40,14 +37,17 @@ interface ExplorerCanvasBodyProps {
   isSelected: (id: string) => boolean;
   onItemClick: (
     id: string,
-    modifiers: { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean },
+    modifiers: { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean }
   ) => void;
   cursor: string | null;
+  rejectedDragId: string | null;
+  successfulDropId: string | null;
   onItemOpen: (item: ExplorerItem) => void;
   onSearchPageOpen: (page: PageWithProjects) => void;
 
   renderItemChromeGrid: (item: ExplorerItem, node: ReactNode) => ReactNode;
   renderItemChromeList: (item: ExplorerItem, node: ReactNode) => ReactNode;
+  folderProjectNames: Map<string, string[]>;
 
   onCreatePage: () => void;
   onOpenNewFolder: () => void;
@@ -66,10 +66,13 @@ export function ExplorerCanvasBody({
   isSelected,
   onItemClick,
   cursor,
+  rejectedDragId,
+  successfulDropId,
   onItemOpen,
   onSearchPageOpen,
   renderItemChromeGrid,
   renderItemChromeList,
+  folderProjectNames,
   onCreatePage,
   onOpenNewFolder,
 }: ExplorerCanvasBodyProps) {
@@ -77,7 +80,7 @@ export function ExplorerCanvasBody({
     <ExplorerEmptySpaceMenu onNewPage={onCreatePage} onNewFolder={onOpenNewFolder}>
       <div
         ref={canvasRef}
-        className="relative min-h-[420px] p-4"
+        className="relative isolate z-10 h-full min-h-0 overflow-y-auto bg-[var(--sd-app)] p-4"
         onPointerDown={onCanvasPointerDown}
       >
         {searchActive ? (
@@ -112,7 +115,7 @@ export function ExplorerCanvasBody({
                   onClick={onCreatePage}
                   className={cn(
                     "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                    "hover:bg-[var(--sd-hover)]",
+                    "hover:bg-[var(--sd-hover)]"
                   )}
                 >
                   <Plus size={12} strokeWidth={1.8} />
@@ -123,7 +126,7 @@ export function ExplorerCanvasBody({
                   onClick={onOpenNewFolder}
                   className={cn(
                     "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                    "hover:bg-[var(--sd-hover)]",
+                    "hover:bg-[var(--sd-hover)]"
                   )}
                 >
                   <Plus size={12} strokeWidth={1.8} />
@@ -142,7 +145,7 @@ export function ExplorerCanvasBody({
                 onClick={onCreatePage}
                 className={cn(
                   "flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] px-3 py-1.5 text-[0.78rem] text-[var(--ink)]",
-                  "hover:bg-[var(--sd-hover)]",
+                  "hover:bg-[var(--sd-hover)]"
                 )}
               >
                 <Plus size={12} strokeWidth={1.8} />
@@ -156,6 +159,8 @@ export function ExplorerCanvasBody({
             isSelected={isSelected}
             onItemClick={onItemClick}
             onItemOpen={onItemOpen}
+            rejectedDragId={rejectedDragId}
+            successfulDropId={successfulDropId}
             renderItemChrome={renderItemChromeGrid}
           />
         ) : (
@@ -164,7 +169,10 @@ export function ExplorerCanvasBody({
             isSelected={isSelected}
             onItemClick={onItemClick}
             onItemOpen={onItemOpen}
+            rejectedDragId={rejectedDragId}
+            successfulDropId={successfulDropId}
             renderItemChrome={renderItemChromeList}
+            folderProjectNames={folderProjectNames}
           />
         )}
         {rubberBandRect ? (
@@ -185,10 +193,7 @@ export function ReorderPageWrapper({ id, children }: { id: string; children: Rea
   return (
     <div
       ref={setNodeRef}
-      className={cn(
-        "relative",
-        isOver && "shadow-[inset_0_-2px_0_var(--hud-cyan)]",
-      )}
+      className={cn("relative", isOver && "shadow-[inset_0_-2px_0_var(--sd-accent)]")}
     >
       {children}
     </div>

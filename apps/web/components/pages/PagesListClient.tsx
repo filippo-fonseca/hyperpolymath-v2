@@ -82,7 +82,7 @@ export function PagesListClient({
   });
   // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
   // the global QueryClient runs refetchOnMount:false, so a seed sticks.
-  useQuery({
+  const { data: projects = [] } = useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
   });
@@ -141,7 +141,7 @@ export function PagesListClient({
   const isEmpty = allPages.length === 0 && folders.length === 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-6 overflow-hidden p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-serif text-3xl leading-none text-[var(--ink)]">Wiki</h1>
@@ -177,7 +177,13 @@ export function PagesListClient({
         openingDate={openingDate}
       />
 
-      <WikiExplorer userId={userId} pages={allPages} folders={folders} />
+      <WikiExplorer
+        userId={userId}
+        pages={allPages}
+        folders={folders}
+        folderProjects={folderProjects}
+        projects={projects}
+      />
 
       <PropertiesManagerModal
         open={wikiManagerOpen}

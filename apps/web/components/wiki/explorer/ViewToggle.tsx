@@ -16,18 +16,20 @@ export function ViewToggle({
   className?: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="View mode"
-      className={cn("flex h-8 items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] p-0.5 font-sans", className)}
+    <fieldset
+      className={cn(
+        "flex h-8 items-center overflow-hidden rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans",
+        className
+      )}
     >
+      <legend className="sr-only">View mode</legend>
       <ViewToggleButton label="Grid" active={value === "grid"} onClick={() => onChange("grid")}>
         <Grid2X2 size={14} strokeWidth={1.8} />
       </ViewToggleButton>
       <ViewToggleButton label="List" active={value === "list"} onClick={() => onChange("list")}>
         <List size={15} strokeWidth={1.8} />
       </ViewToggleButton>
-    </div>
+    </fieldset>
   );
 }
 
@@ -49,11 +51,11 @@ function ViewToggleButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "flex h-7 min-w-8 items-center justify-center rounded-full px-2 text-[var(--ink-muted)]",
+        "flex h-full min-w-8 items-center justify-center border-r border-r-[var(--sd-line)] px-2 text-[var(--sd-ink-dull)] last:border-r-0",
         "transition-[background-color,border-color,color] duration-180 ease-out",
-        active && "bg-[var(--sd-selected)] text-[var(--hud-cyan)] shadow-[0_0_0_1px_var(--hud-cyan)_inset]",
+        active && "bg-[var(--sd-selected)] text-[var(--sd-accent)]",
         !active && "hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
-        "focus-visible:outline-none focus-visible:shadow-[0_0_0_1px_var(--hud-cyan)_inset] focus-visible:text-[var(--ink)]",
+        "focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)] focus-visible:text-[var(--sd-ink)]"
       )}
     >
       {children}

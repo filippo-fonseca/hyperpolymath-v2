@@ -1,23 +1,24 @@
 "use client";
 
+import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
 import {
   type ExplorerBreadcrumbSegment,
-  InspectorShell,
   type ExplorerSortValue,
   type ExplorerViewMode,
+  InspectorShell,
 } from "@/components/wiki/explorer";
-import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import { useExplorerActions } from "@/components/wiki/explorer-hooks/useExplorerActions";
-import { useExplorerDnd } from "@/components/wiki/explorer-hooks/useExplorerDnd";
-import { useExplorerFolder } from "@/components/wiki/explorer-hooks/useExplorerFolder";
 import {
   ancestryLabelFor,
   buildExplorerItems,
   computeFolderItemCounts,
   computeSearchHits,
 } from "@/components/wiki/explorer-hooks/explorer-items";
+import { useExplorerActions } from "@/components/wiki/explorer-hooks/useExplorerActions";
+import { useExplorerDnd } from "@/components/wiki/explorer-hooks/useExplorerDnd";
+import { useExplorerFolder } from "@/components/wiki/explorer-hooks/useExplorerFolder";
 import { useExplorerKeyboard } from "@/components/wiki/explorer-hooks/useExplorerKeyboard";
 import { useExplorerMutations } from "@/components/wiki/explorer-hooks/useExplorerMutations";
+import { useExplorerProjectNames } from "@/components/wiki/explorer-hooks/useExplorerProjectNames";
 import { useExplorerSelection } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import { useRubberBandSelection } from "@/components/wiki/explorer-hooks/useRubberBandSelection";
 import { DragCountBadge } from "@/components/wiki/explorer-parts/DragCountBadge";
@@ -31,8 +32,8 @@ import { ExplorerItemContextMenu } from "@/components/wiki/explorer-parts/Explor
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
-import type { FolderRow } from "@/lib/pages/folder-projects";
 import { buildChildrenMap } from "@/lib/pages/folder-dnd";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import {
   DndContext,
   DragOverlay,
@@ -40,24 +41,22 @@ import {
   MeasuringStrategy,
   PointerSensor,
   pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface WikiExplorerProps {
   userId: string;
   pages: PageWithProjects[];
   folders: FolderRow[];
+  folderProjects: FolderProjectLink[];
+  projects: { id: string; name: string }[];
 }
+
+const EXPLORER_DRAG_ACTIVATION_DISTANCE = 6;
 
 /**
  * The wiki home surface. Owns folder drill-down, dnd, selection, keyboard,
@@ -65,7 +64,13 @@ interface WikiExplorerProps {
  * (which has the TanStack queries + realtime subscriptions wired) and fires the
  * server actions via {@link useExplorerMutations} for optimistic patches.
  */
-export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
+export function WikiExplorer({
+  userId,
+  pages,
+  folders,
+  folderProjects,
+  projects,
+}: WikiExplorerProps) {
   const router = useRouter();
   const mutations = useExplorerMutations(userId);
 
@@ -110,8 +115,9 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   const counts = useMemo(() => computeFolderItemCounts(folders, pages), [folders, pages]);
   const currentItems = useMemo(
     () => buildExplorerItems(folders, pages, folderId, sort, counts),
-    [folders, pages, folderId, sort, counts],
+    [folders, pages, folderId, sort, counts]
   );
+  const folderProjectNames = useExplorerProjectNames(folders, folderProjects, projects);
   const visibleItems = useMemo(() => {
     if (!searchActive) return currentItems;
     const q = search.trim().toLowerCase();
@@ -122,7 +128,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   }, [currentItems, search, searchActive]);
   const searchHits = useMemo(
     () => (searchActive ? computeSearchHits(pages, folders, search) : []),
-    [pages, folders, search, searchActive],
+    [pages, folders, search, searchActive]
   );
 
   const itemOrder = useMemo(() => visibleItems.map(explorerItemId), [visibleItems]);
@@ -132,11 +138,10 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   useEffect(() => {
     selection.setOrder(itemOrder);
   }, [itemOrder, selection]);
+  const clearSelection = selection.clear;
   useEffect(() => {
-    selection.clear();
-    // Only when the folder changes, not on every itemOrder tweak.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folderId]);
+    if (folderId !== undefined) clearSelection();
+  }, [clearSelection, folderId]);
 
   // ─── Rubber-band on empty canvas. ────────────────────────────────────
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -149,8 +154,10 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
 
   // ─── Dnd. ────────────────────────────────────────────────────────────
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: EXPLORER_DRAG_ACTIVATION_DISTANCE },
+    }),
+    useSensor(KeyboardSensor)
   );
   const childrenOf = useMemo(() => buildChildrenMap(folders), [folders]);
   const dnd = useExplorerDnd({
@@ -197,7 +204,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   // ─── Inspector content. ──────────────────────────────────────────────
   const selectedItems = useMemo(
     () => visibleItems.filter((it) => selection.isSelected(explorerItemId(it))),
-    [selection, visibleItems],
+    [selection, visibleItems]
   );
   const inspectorAncestry = useMemo(() => {
     if (selectedItems.length !== 1) return ancestryLabelFor(folderId, folders);
@@ -252,7 +259,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
         {node}
       </ExplorerItemContextMenu>
     ),
-    [handleDelete, openItem, setRenameTarget],
+    [handleDelete, openItem, setRenameTarget]
   );
 
   const wrapItemForListView = useCallback(
@@ -261,24 +268,27 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
       if (sort !== "manual" || item.kind !== "page") return wrapped;
       return <ReorderPageWrapper id={item.id}>{wrapped}</ReorderPageWrapper>;
     },
-    [sort, wrapItemForContextMenu],
+    [sort, wrapItemForContextMenu]
   );
 
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+    <div className="wiki-explorer mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
       <DndContext
         id="wiki-explorer-dnd"
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={(args) => {
+          const pointerHits = pointerWithin(args);
+          return pointerHits.length > 0 ? pointerHits : rectIntersection(args);
+        }}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={dnd.handleDragStart}
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
       >
-        <div className="flex overflow-hidden rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)]">
-          <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px_hsl(235_15%_0%_/_0.18)]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ExplorerHeaderControls
               canGoBack={canGoBack}
               canGoForward={canGoForward}
@@ -289,6 +299,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
               onSearchChange={setSearch}
               searchInputRef={searchInputRef}
               onCreatePage={handleCreatePage}
+              onCreateFolder={() => setNewFolderOpen(true)}
               view={view}
               onViewChange={setViewMode}
               sort={sort}
@@ -310,10 +321,13 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
               isSelected={selection.isSelected}
               onItemClick={selection.onItemClick}
               cursor={selection.cursor}
+              rejectedDragId={dnd.rejectedDragId}
+              successfulDropId={dnd.successfulDropId}
               onItemOpen={openItem}
               onSearchPageOpen={(page) => router.push(`/wiki/${page.id}`)}
               renderItemChromeGrid={wrapItemForContextMenu}
               renderItemChromeList={wrapItemForListView}
+              folderProjectNames={folderProjectNames}
               onCreatePage={handleCreatePage}
               onOpenNewFolder={() => setNewFolderOpen(true)}
             />
@@ -322,7 +336,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
           <InspectorShell
             open={inspectorOpen}
             header={
-              <div className="font-mono text-[0.68rem] uppercase tracking-[0.09em] text-[var(--ink-muted)]">
+              <div className="font-sans text-[0.7rem] font-bold uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
                 Inspector
               </div>
             }
@@ -337,9 +351,13 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
           </InspectorShell>
         </div>
 
-        <DragOverlay dropAnimation={null}>
+        <DragOverlay style={{ width: "max-content", height: "auto" }}>
           {dnd.activeDrag ? (
-            <DragCountBadge label={dnd.activeLabel} count={dnd.dragBag.length} />
+            <DragCountBadge
+              kind={dnd.activeDrag.kind}
+              label={dnd.activeLabel}
+              count={dnd.dragBag.length}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>

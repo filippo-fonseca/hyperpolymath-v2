@@ -610,6 +610,35 @@ html::-webkit-scrollbar-thumb:hover,
   --glass-drop-sm: 3px 3px 10px oklch(0% 0 0 / 0.5);
 }
 
+@keyframes explorer-drop-denied {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-5px);
+  }
+  70% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes explorer-folder-swallow {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiki-explorer * {
+    scroll-behavior: auto !important;
+  }
+}
+
 .glass-tile {
   background: var(--glass-bg);
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
@@ -669,14 +698,14 @@ html::-webkit-scrollbar-thumb:hover,
 .sidebar-row-active,
 .sidebar-row-active:hover {
   background: color-mix(in oklch, var(--surface-raised) 82%, transparent);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
-    0 0 1px color-mix(in oklch, var(--edge) 55%, transparent);
+  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
+    0 1px color-mix(in oklch, var(--edge) 55%, transparent);
 }
 /* Area whose detail page is open — same soft pill with a whisper of cyan. */
 .sidebar-row-active-area,
 .sidebar-row-active-area:hover {
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
-    0 0 1px color-mix(in oklch, var(--hud-cyan) 26%, transparent), inset 0 0 18px
+  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
+    0 1px color-mix(in oklch, var(--hud-cyan) 26%, transparent), inset 0 0 18px
     color-mix(in oklch, var(--hud-cyan) 5%, transparent);
 }
 
@@ -781,34 +810,21 @@ html::-webkit-scrollbar-thumb:hover,
   backdrop-filter: blur(14px);
   border: 1px solid color-mix(in oklch, var(--edge) 65%, transparent);
   border-radius: 14px;
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo);
-  transition:
-    border-color 220ms var(--ease-out-quart),
-    box-shadow 220ms var(--ease-out-quart),
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo);
+  transition: border-color 220ms var(--ease-out-quart), box-shadow 220ms var(--ease-out-quart),
     background-color 220ms var(--ease-out-quart);
 }
 .receipt-card:hover {
   border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--edge));
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    0 0 22px var(--hud-cyan-glow-soft);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), 0 0 22px var(--hud-cyan-glow-soft);
 }
 .receipt-card:focus-visible {
   outline: none;
   border-color: color-mix(in oklch, var(--hud-cyan) 55%, var(--edge));
-  box-shadow:
-    var(--glass-raise),
-    var(--glass-drop),
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 var(--glass-lo),
-    0 0 0 3px var(--hud-cyan-glow);
+  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
+    var(--glass-lo), 0 0 0 3px var(--hud-cyan-glow);
 }
 
 .receipt-card[data-status="queued"] {
@@ -859,16 +875,14 @@ html::-webkit-scrollbar-thumb:hover,
   text-transform: uppercase;
   color: color-mix(in oklch, var(--chip-ink) 88%, var(--ink));
   background: color-mix(in oklch, var(--chip-ink) 12%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklch, white 30%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 28%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 30%, transparent), inset 0 0 0 1px
+    color-mix(in oklch, var(--chip-ink) 28%, transparent);
 }
 .dark .receipt-chip {
   color: color-mix(in oklch, var(--chip-ink) 92%, var(--ink));
   background: color-mix(in oklch, var(--chip-ink) 16%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklch, white 6%, transparent),
-    inset 0 0 0 1px color-mix(in oklch, var(--chip-ink) 34%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 6%, transparent), inset 0 0 0 1px
+    color-mix(in oklch, var(--chip-ink) 34%, transparent);
 }
 .receipt-chip svg {
   width: 12px;
@@ -895,9 +909,7 @@ html::-webkit-scrollbar-thumb:hover,
   color: var(--hud-cyan);
   background: color-mix(in oklch, var(--hud-cyan) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 24%, transparent);
-  transition:
-    background-color 160ms var(--ease-out-quart),
-    color 160ms var(--ease-out-quart),
+  transition: background-color 160ms var(--ease-out-quart), color 160ms var(--ease-out-quart),
     opacity 220ms var(--ease-out-quart);
 }
 .receipt-undo-pill:hover {
@@ -1372,6 +1384,8 @@ select:focus-visible,
   --sd-active: hsl(235 15% 70%);
   --sd-menu: hsl(235 15% 90%);
   --sd-menu-hover: hsl(235 15% 70%);
+  --sd-icon-shadow: hsl(235 15% 0%);
+  --sd-icon-shadow-opacity: 0.18;
 }
 
 .dark {
@@ -1382,9 +1396,43 @@ select:focus-visible,
   --sd-input: hsl(235 15% 20%);
   --sd-line: hsl(235 15% 23%);
   --sd-divider: hsl(235 15% 5%);
+  --sd-sidebar-divider: hsl(235 15% 17%);
   --sd-hover: hsl(235 15% 19%);
   --sd-selected: hsl(235 15% 24%);
   --sd-active: hsl(235 15% 30%);
   --sd-menu: hsl(235 15% 10%);
   --sd-menu-hover: hsl(235 15% 30%);
+  --sd-icon-shadow-opacity: 0.28;
+}
+
+/* Authentic Spacedrive v1 palette, intentionally scoped so the editorial
+   Journal rail and the rest of the application retain their own register. */
+.wiki-explorer {
+  color-scheme: dark;
+  --sd-accent: #2599ff;
+  --sd-accent-faint: #47a9ff;
+  --sd-accent-deep: #0080f0;
+  --sd-ink: hsl(235 35% 92%);
+  --sd-ink-dull: hsl(235 10% 70%);
+  --sd-ink-faint: hsl(235 10% 55%);
+  --sd-app: hsl(235 15% 13%);
+  --sd-box: hsl(235 15% 18%);
+  --sd-dark-box: hsl(235 15% 15%);
+  --sd-darker-box: hsl(235 16% 11%);
+  --sd-input: hsl(235 15% 20%);
+  --sd-line: hsl(235 15% 23%);
+  --sd-divider: hsl(235 15% 5%);
+  --sd-hover: hsl(235 15% 25%);
+  --sd-selected: hsl(235 15% 26%);
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-active: hsl(235 15% 30%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu: hsl(235 15% 10%);
+  --sd-menu-line: hsl(235 15% 14%);
+  --sd-menu-hover: hsl(235 15% 30%);
+  --sd-icon-shadow: hsl(235 15% 0%);
+  --sd-icon-shadow-opacity: 0.28;
+  --ink: var(--sd-ink);
+  --ink-muted: var(--sd-ink-dull);
+  scrollbar-color: hsl(235 20% 25%) transparent;
 }

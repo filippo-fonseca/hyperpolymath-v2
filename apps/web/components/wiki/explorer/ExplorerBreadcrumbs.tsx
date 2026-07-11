@@ -39,8 +39,8 @@ export function ExplorerBreadcrumbs({
                 "transition-[background-color,color] duration-[120ms] ease-out",
                 isLast
                   ? "pointer-events-none text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:bg-[var(--sd-hover)] focus-visible:text-[var(--ink)] focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]",
-                segment.buttonProps?.className,
+                  : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] focus-visible:outline-none focus-visible:bg-[var(--sd-hover)] focus-visible:text-[var(--sd-ink)] focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+                segment.buttonProps?.className
               )}
             >
               {segment.label}

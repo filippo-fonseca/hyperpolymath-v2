@@ -1,17 +1,20 @@
 "use client";
 
 import {
-  ExplorerBreadcrumbs,
   type ExplorerBreadcrumbSegment,
-  ExplorerTopBar,
-  SortSelect,
+  ExplorerBreadcrumbs,
   type ExplorerSortValue,
-  ViewToggle,
+  ExplorerTopBar,
   type ExplorerViewMode,
+  SortSelect,
+  ViewToggle,
 } from "@/components/wiki/explorer";
+import { ExplorerNewMenu } from "@/components/wiki/explorer-parts/ExplorerNewMenu";
+import { ExplorerSfxToggle } from "@/components/wiki/explorer-parts/ExplorerSfxToggle";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
-import { PanelRightClose, PanelRightOpen, Plus, Search } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Search } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import type { ReactNode, RefObject } from "react";
 
 interface ExplorerHeaderControlsProps {
@@ -24,6 +27,7 @@ interface ExplorerHeaderControlsProps {
   onSearchChange: (value: string) => void;
   searchInputRef: RefObject<HTMLInputElement | null>;
   onCreatePage: () => void;
+  onCreateFolder: () => void;
   view: ExplorerViewMode;
   onViewChange: (v: ExplorerViewMode) => void;
   sort: ExplorerSortValue;
@@ -42,6 +46,7 @@ export function ExplorerHeaderControls({
   onSearchChange,
   searchInputRef,
   onCreatePage,
+  onCreateFolder,
   view,
   onViewChange,
   sort,
@@ -58,9 +63,7 @@ export function ExplorerHeaderControls({
       breadcrumbs={
         <ExplorerBreadcrumbs
           segments={breadcrumbSegments}
-          renderSegment={(seg, def) => (
-            <BreadcrumbDroppable id={seg.id}>{def}</BreadcrumbDroppable>
-          )}
+          renderSegment={(seg, def) => <BreadcrumbDroppable id={seg.id}>{def}</BreadcrumbDroppable>}
         />
       }
       search={
@@ -77,29 +80,19 @@ export function ExplorerHeaderControls({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search wiki (press /)"
             className={cn(
-              "h-7 w-full rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] pl-7 pr-2 text-[0.78rem] text-[var(--ink)] outline-none",
+              "h-8 w-full rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] pl-7 pr-2 text-[0.78rem] text-[var(--sd-ink)] outline-none",
               "transition-[border-color] duration-[120ms] ease-out",
-              "placeholder:text-[var(--ink-muted)] focus:border-[var(--hud-cyan)]",
+              "placeholder:text-[var(--sd-ink-faint)] focus:border-[var(--sd-accent)]"
             )}
           />
         </div>
       }
       controls={
         <>
-          <button
-            type="button"
-            onClick={onCreatePage}
-            title="New page here"
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 text-[0.75rem] text-[var(--ink)]",
-              "transition-[background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
-            )}
-          >
-            <Plus size={12} strokeWidth={1.8} />
-            New page
-          </button>
+          <ExplorerNewMenu onNewFolder={onCreateFolder} onNewPage={onCreatePage} />
           <ViewToggle value={view} onChange={onViewChange} />
           <SortSelect value={sort} onValueChange={onSortChange} />
+          <ExplorerSfxToggle />
           <button
             type="button"
             onClick={onToggleInspector}
@@ -108,7 +101,7 @@ export function ExplorerHeaderControls({
             className={cn(
               "flex size-8 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--ink-muted)]",
               "transition-[background-color,color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)]",
-              inspectorOpen && "text-[var(--hud-cyan)]",
+              inspectorOpen && "bg-[var(--sd-selected)] text-[var(--sd-accent)]"
             )}
           >
             {inspectorOpen ? (
@@ -125,12 +118,15 @@ export function ExplorerHeaderControls({
 
 function BreadcrumbDroppable({ id, children }: { id: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const reduceMotion = useReducedMotion();
   return (
     <span
       ref={setNodeRef}
       className={cn(
-        "inline-flex rounded-[6px]",
-        isOver && "bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--hud-cyan)]",
+        "inline-flex rounded-[6px] transition-[background-color,box-shadow,transform] duration-[140ms] ease-out",
+        isOver &&
+          "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+        isOver && !reduceMotion && "scale-[1.02]"
       )}
     >
       {children}
