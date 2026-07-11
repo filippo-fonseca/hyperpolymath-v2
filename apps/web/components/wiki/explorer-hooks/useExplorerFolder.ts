@@ -20,6 +20,48 @@ export interface UseExplorerFolderResult {
   ancestry: FolderRow[];
 }
 
+/**
+ * In-memory chevron history. `last` mirrors the folder id we believe the URL
+ * holds; `past`/`future` back the top-bar back/forward chevrons.
+ */
+export interface ExplorerHistoryStack {
+  past: (string | null)[];
+  future: (string | null)[];
+  last: string | null;
+}
+
+/**
+ * Re-sync the in-memory chevron stack with the URL-derived folder id after an
+ * EXTERNAL history change (browser Back/Forward, manual URL edit). nuqs syncs
+ * the `?folder` param on popstate, but the stack would otherwise keep trusting
+ * its own bookkeeping — leaving `last` stale so the "already at this folder"
+ * guard in `setFolderId` rejects the next click (drill-down goes inert).
+ *
+ * Pure and exported for unit tests. Mutates `s` in place; no-op when already
+ * in sync (including echoes of our own `setFolderId`/`goBack`/`goForward`,
+ * which update `last` before the URL round-trips).
+ */
+export function syncExplorerHistory(
+  s: ExplorerHistoryStack,
+  folderId: string | null,
+): void {
+  if (s.last === folderId) return;
+  if (s.past.length > 0 && s.past[s.past.length - 1] === folderId) {
+    // Looks like a browser Back: mirror goBack so the forward chevron works.
+    s.past.pop();
+    s.future.push(s.last);
+  } else if (s.future.length > 0 && s.future[s.future.length - 1] === folderId) {
+    // Looks like a browser Forward: mirror goForward.
+    s.future.pop();
+    s.past.push(s.last);
+  } else {
+    // Arbitrary jump (multi-step Back, manual URL edit): treat as a push.
+    s.past.push(s.last);
+    s.future = [];
+  }
+  s.last = folderId;
+}
+
 export function useExplorerFolder(
   folders: FolderRow[],
 ): UseExplorerFolderResult {
@@ -41,17 +83,22 @@ export function useExplorerFolder(
   // History stack: past + future, keyed by the same value we write to the URL
   // (null for the top level). We MUST NOT re-push on nuqs echoes, so we compare
   // against the last-pushed id via a ref rather than triggering an effect chain.
-  const stackRef = useRef<{
-    past: (string | null)[];
-    future: (string | null)[];
-    last: string | null;
-    initialized: boolean;
-  }>({ past: [], future: [], last: folderId, initialized: false });
+  const stackRef = useRef<ExplorerHistoryStack & { initialized: boolean }>({
+    past: [],
+    future: [],
+    last: folderId,
+    initialized: false,
+  });
 
   if (!stackRef.current.initialized) {
     stackRef.current.last = folderId;
     stackRef.current.initialized = true;
   }
+
+  // Browser Back/Forward (popstate) changes the URL param without going
+  // through setFolderId/goBack/goForward. Re-sync the stack from the URL so
+  // `last` never goes stale (a stale `last` made drill-down inert after Back).
+  syncExplorerHistory(stackRef.current, folderId);
 
   const setFolderId = useCallback(
     (next: string | null) => {

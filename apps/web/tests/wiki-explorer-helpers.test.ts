@@ -15,6 +15,10 @@ import {
   parseExplorerDragId,
   parseExplorerDropId,
 } from "@/components/wiki/explorer-hooks/explorer-items";
+import {
+  type ExplorerHistoryStack,
+  syncExplorerHistory,
+} from "@/components/wiki/explorer-hooks/useExplorerFolder";
 import { rangeBetween } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { FolderRow } from "@/lib/pages/folder-projects";
@@ -189,5 +193,51 @@ describe("computeSearchHits", () => {
   });
   it("empty query short-circuits", () => {
     expect(computeSearchHits(pages, folders, "  ")).toEqual([]);
+  });
+});
+
+describe("syncExplorerHistory", () => {
+  const stack = (
+    past: (string | null)[],
+    future: (string | null)[],
+    last: string | null,
+  ): ExplorerHistoryStack => ({ past, future, last });
+
+  it("no-ops when already in sync (own setFolderId echo)", () => {
+    const s = stack([null], [], "a");
+    syncExplorerHistory(s, "a");
+    expect(s).toEqual(stack([null], [], "a"));
+  });
+
+  it("browser Back re-syncs like goBack, enabling forward chevron", () => {
+    // Drilled root -> a, then browser Back to root.
+    const s = stack([null], [], "a");
+    syncExplorerHistory(s, null);
+    expect(s).toEqual(stack([], [ "a" ], null));
+  });
+
+  it("drill-down stays live after browser Back (regression)", () => {
+    // root -> a, browser Back, then double-click folder a again.
+    const s = stack([null], [], "a");
+    syncExplorerHistory(s, null); // popstate: URL back to root
+    // The setFolderId guard `s.last === next` must NOT fire now:
+    expect(s.last).toBe(null);
+    // Simulate the setFolderId push that follows the click.
+    s.past.push(s.last);
+    s.future = [];
+    s.last = "a";
+    expect(s).toEqual(stack([null], [], "a"));
+  });
+
+  it("browser Forward re-syncs like goForward", () => {
+    const s = stack([], ["a"], null);
+    syncExplorerHistory(s, "a");
+    expect(s).toEqual(stack([null], [], "a"));
+  });
+
+  it("arbitrary jump (manual URL edit) is treated as a push and clears future", () => {
+    const s = stack([null], ["c"], "a");
+    syncExplorerHistory(s, "b");
+    expect(s).toEqual(stack([null, "a"], [], "b"));
   });
 });
