@@ -448,7 +448,23 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
             // churn, not a change the user asked for. Surface it once as a
             // human-readable footer instead.
             const { updatedAt, ...visibleChanges } = rawChanges;
-            const visibleEntries = Object.entries(visibleChanges);
+            // Drop fields whose after-value matches the before snapshot — Jarvis
+            // may re-send the current value verbatim (or the executor may write
+            // a normalized form of an unchanged field), and those aren't real
+            // edits from the user's perspective. Issue #248.
+            const normalizeForCompare = (key: string, value: unknown): string => {
+              if (value == null || value === "") return "";
+              if (isTimestampValue(key, value)) {
+                const d = value instanceof Date ? value : new Date(String(value));
+                return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
+              }
+              if (typeof value === "object") return JSON.stringify(value);
+              return String(value);
+            };
+            const visibleEntries = Object.entries(visibleChanges).filter(
+              ([field, value]) =>
+                normalizeForCompare(field, value) !== normalizeForCompare(field, before[field])
+            );
             return (
               <>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mt-1">
@@ -492,6 +508,12 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                       >
                         {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
                       </dt>
+                      <dd
+                        className="font-mono text-[11px] col-span-2 italic"
+                        style={{ color: "var(--ink-muted)" }}
+                      >
+                        no changes
+                      </dd>
                     </Fragment>
                   ) : null}
                 </dl>
