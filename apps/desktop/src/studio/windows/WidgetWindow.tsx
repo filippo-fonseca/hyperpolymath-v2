@@ -98,6 +98,14 @@ export function WidgetWindow({
     onElement(item.id, element);
   };
 
+  const stowFromHeader = (): void => {
+    onDrawerTargetChange(item.id, true);
+    requestAnimationFrame(() => {
+      stowWidget(item.id);
+      onDrawerTargetChange(item.id, false);
+    });
+  };
+
   const startPointer = (
     mode: PointerSession["mode"],
     event: PointerEvent<HTMLElement>,
@@ -251,7 +259,7 @@ export function WidgetWindow({
             aria-label="Stow window"
             title="Stow"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => stowWidget(item.id)}
+            onClick={stowFromHeader}
             style={chromeButtonStyle}
           >
             <Minus size={13} aria-hidden />
