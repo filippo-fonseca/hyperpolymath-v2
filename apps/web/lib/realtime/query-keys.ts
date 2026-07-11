@@ -42,7 +42,8 @@ export type RealtimeTable =
   | "folder_projects"
   // Phase People — first-class person entity + mention references
   | "people"
-  | "people_references";
+  | "people_references"
+  | "whatsapp_messages";
 
 export function tableKey(
   table: RealtimeTable,
