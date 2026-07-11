@@ -8,7 +8,7 @@
 // synthesis turn streams, and clears on `done`.
 //
 // It is purely presentational and owns no conversation state. It lives OUTSIDE
-// the transcript scroll region (a ring overlay on the orb-wrap + a fixed card
+// the transcript scroll region (a compact progress ring + a fixed card
 // anchored to the top-right rail), so the spoken brief's transcript is never
 // covered. The brief arrives as a normal jarvis-response cycle in parallel —
 // this loader is additive, correlated only by runId.
@@ -149,7 +149,7 @@ function onStart(p: JarvisRoutineProgressPayload): void {
 
   paintRing(0);
   els.root.classList.add("visible");
-  // Reveal the orb ring (a sibling element inside orb-wrap) via a body flag so
+  // Reveal the compact progress ring via a body flag so
   // it can style off ancestor state without extra JS per frame.
   document.body.dataset.routine = "active";
   armStallTimeout();

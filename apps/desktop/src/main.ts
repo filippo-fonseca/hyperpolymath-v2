@@ -22,7 +22,6 @@ import {
   onCaptureState,
   onExtendedChange,
   onManualModeChange,
-  onMicAmplitude,
   onNoSpeechDetected,
   onTranscriptReceived,
   setManualMode,
@@ -69,7 +68,6 @@ import {
   type EchoInput,
 } from "@/conversation/echo-dedupe";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
-import { mountOrb } from "@/hud/orb";
 import { startRoutineLoader } from "@/hud/routine-loader";
 import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
@@ -941,28 +939,13 @@ async function boot(): Promise<void> {
   });
   startConfirmGate();
 
-  // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
-  //     live amplitude: mic RMS while listening, TTS output while speaking.
-  let latestMicLevel = 0;
-  onMicAmplitude((level) => {
-    latestMicLevel = level;
-  });
-  const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement | null;
-  if (orbCanvas) {
-    mountOrb(orbCanvas, {
-      getState: () => getJarvisState(),
-      getMicLevel: () => latestMicLevel,
-      getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
-    });
-  }
-
-  // 5c-bis. Acknowledge strip: auto-fading first-clause echo of each JARVIS
+  // 5c. Acknowledge strip: auto-fading first-clause echo of each JARVIS
   // utterance under the status line. Subscribes to the same SSE response
   // events painted above; purely presentational.
   startAckStrip();
 
   // 5c-ter. Routine HUD loader: on a synthesize(+parallel) voice routine ("I'm
-  // back home"), render the live progress ring around the orb + a ticking source
+  // back home"), render the live progress ring + a ticking source
   // checklist, driven by the jarvis-routine-progress SSE stream. Coexists with
   // the spoken brief (a normal response cycle) without overlapping the transcript.
   startRoutineLoader();

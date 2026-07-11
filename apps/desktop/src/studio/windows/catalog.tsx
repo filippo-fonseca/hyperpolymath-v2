@@ -1,5 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import {
+  CircleDotDashed,
   CloudSun,
   FileText,
   Globe2,
@@ -7,7 +8,13 @@ import {
   Newspaper,
 } from "lucide-react";
 
-export type WidgetKind = "browser" | "whatsapp" | "weather" | "news" | "card";
+export type WidgetKind =
+  | "browser"
+  | "whatsapp"
+  | "weather"
+  | "news"
+  | "card"
+  | "orb";
 
 export interface WidgetContentProps {
   id: string;
@@ -20,6 +27,7 @@ export interface WidgetCatalogEntry {
   component: LazyExoticComponent<ComponentType<WidgetContentProps>>;
   defaultSize: { w: number; h: number };
   singleton?: boolean;
+  permanent?: boolean;
 }
 
 export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
@@ -55,6 +63,14 @@ export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
     icon: FileText,
     component: lazy(() => import("../widgets/CardWidget")),
     defaultSize: { w: 0.27, h: 0.25 },
+  },
+  orb: {
+    label: "JARVIS Orb",
+    icon: CircleDotDashed,
+    component: lazy(() => import("../widgets/OrbWidget")),
+    defaultSize: { w: 0.25, h: 0.4 },
+    singleton: true,
+    permanent: true,
   },
 };
 

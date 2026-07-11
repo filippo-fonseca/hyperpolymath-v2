@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   __resetWidgetWindows,
+  closeAll,
   closeWidget,
+  closeWidgetsByKind,
   focusWidget,
   getWidgetWindows,
   moveWidget,
@@ -186,5 +188,23 @@ describe("widget window store", () => {
     expect(restored.z).toBeGreaterThan(
       getWidgetWindows().find((item) => item.id === first)!.z,
     );
+  });
+
+  it("refuses every close path for permanent widgets", () => {
+    const orbId = summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
+      singleton: true,
+      defaultSize: { w: 0.25, h: 0.4 },
+    });
+    const browserId = summonWidget("browser");
+
+    closeWidget(orbId);
+    closeWidgetsByKind("orb");
+    expect(getWidgetWindows().some((item) => item.id === orbId)).toBe(true);
+
+    closeAll();
+    expect(getWidgetWindows()).toEqual([
+      expect.objectContaining({ id: orbId, kind: "orb" }),
+    ]);
+    expect(getWidgetWindows().some((item) => item.id === browserId)).toBe(false);
   });
 });

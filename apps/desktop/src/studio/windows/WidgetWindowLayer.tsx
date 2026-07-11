@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { Drawer } from "../drawer/Drawer";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
+  getWidgetWindows,
   rehydrateWidgetWindows,
   summonWidget,
   useWidgetWindows,
@@ -47,7 +48,16 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
   const glintTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const elements = useRef(new Map<string, HTMLDivElement>());
 
-  useEffect(() => rehydrateWidgetWindows(), []);
+  useEffect(() => {
+    rehydrateWidgetWindows();
+    if (!getWidgetWindows().some((item) => item.kind === "orb")) {
+      const entry = WIDGET_CATALOG.orb;
+      summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
+        defaultSize: entry.defaultSize,
+        singleton: entry.singleton,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     for (const item of windows) {
