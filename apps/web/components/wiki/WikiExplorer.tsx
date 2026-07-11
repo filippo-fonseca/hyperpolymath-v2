@@ -269,6 +269,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
       <DndContext
+        id="wiki-explorer-dnd"
         sensors={sensors}
         collisionDetection={pointerWithin}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
