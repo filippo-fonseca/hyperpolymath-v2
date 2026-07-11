@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod computer;
+mod studio_webview;
 mod whatsapp;
 
 use tauri::{
@@ -191,6 +192,12 @@ pub fn run() {
             computer::take_screenshot_to_file,
             computer::system_control,
             computer::accessibility_trusted,
+            studio_webview::studio_webview_create,
+            studio_webview::studio_webview_set_bounds,
+            studio_webview::studio_webview_show,
+            studio_webview::studio_webview_hide,
+            studio_webview::studio_webview_destroy,
+            studio_webview::studio_webview_navigate,
             whatsapp::whatsapp_reconnect,
         ])
         .build(tauri::generate_context!())
