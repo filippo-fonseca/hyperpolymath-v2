@@ -19,6 +19,8 @@ export interface FolderRow {
   name: string;
   orderIndex: number;
   positionKey?: string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 /** A folder plus the project ids it directly links to (its OWN links, not inherited). */
