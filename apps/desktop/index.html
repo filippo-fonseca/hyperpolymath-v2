@@ -8,9 +8,7 @@
         color-scheme: dark;
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         /* Locked HUD palette (p2 design spec). Near-black base, cyan as the
-           canonical Stark signature (#00d4ff — also hardcoded in hud/orb.ts
-           for the canvas orb; keep the two in sync), amber reserved for the
-           guarded-confirm state. */
+           canonical Stark signature, amber reserved for guarded confirmation. */
         --bg: #050608;
         --surface: #0b1018;
         --fg: #dce8ee;
@@ -39,7 +37,7 @@
       }
 
       /* ── Stage: three fixed regions in a column grid ───────────────────────
-         [header/orb]  auto — never scrolls, never shrinks
+         [header]      auto — never scrolls, never shrinks
          [transcript]  1fr  — the ONLY scroll region; text can never overlap
          [footer/btn]  auto — pinned to the bottom
          The min-height:0 on the middle row is what lets it scroll instead of
@@ -55,7 +53,7 @@
         padding: 16px 18px 18px;
       }
 
-      /* ── Header: orb + status, centered, fixed height ── */
+      /* ── Header: compact status and optional routine progress ── */
       .hud-header {
         display: flex;
         flex-direction: column;
@@ -63,51 +61,18 @@
         gap: 8px;
         padding-top: 4px;
       }
-      .orb-wrap {
+      .routine-ring-slot {
         position: relative;
-        width: clamp(128px, 36vh, 220px);
-        height: clamp(128px, 36vh, 220px);
+        width: 112px;
+        height: 0;
         display: grid; place-items: center;
+        opacity: 0;
+        transition: height 0.3s ease, opacity 0.3s ease;
       }
-      #orb-canvas { width: 100%; height: 100%; display: block; }
-
-      /* 4 tick marks at 0/90/180/270° just outside the canvas ring (Stark
-         targeting feel) — a CSS-only overlay so hud/orb.ts stays untouched.
-         The canvas ring radius is 0.28 × the box; this overlay's circle sits
-         at 0.33 × so ticks ride just outside the stroke + glow.
-         Guarded confirm: while a send_message is held awaiting a spoken
-         confirmation (body[data-confirm-pending="true"], driven by
-         actions/confirm-gate.ts via main.ts), the ticks cross-fade cyan →
-         amber and a thin amber guard ring appears. That fade and the
-         acknowledge strip are the only new motion — nothing else animates. */
-      .orb-ticks {
-        position: absolute;
-        width: 66%; height: 66%;
-        left: 50%; top: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        border: 1px solid transparent;
-        transition: border-color 0.35s ease;
-        pointer-events: none;
+      body[data-routine="active"] .routine-ring-slot {
+        height: 112px;
+        opacity: 1;
       }
-      body[data-confirm-pending="true"] .orb-ticks {
-        border-color: color-mix(in srgb, var(--amber) 40%, transparent);
-      }
-      .orb-ticks::before,
-      .orb-ticks::after {
-        content: "";
-        position: absolute; inset: -1px; /* cover the border box so ticks sit on the guard ring */
-        background:
-          linear-gradient(currentColor, currentColor) center top    / 1.5px 7px no-repeat,
-          linear-gradient(currentColor, currentColor) center bottom / 1.5px 7px no-repeat,
-          linear-gradient(currentColor, currentColor) left   center / 7px 1.5px no-repeat,
-          linear-gradient(currentColor, currentColor) right  center / 7px 1.5px no-repeat;
-        transition: opacity 0.35s ease;
-      }
-      .orb-ticks::before { color: color-mix(in srgb, var(--accent) 50%, transparent); }
-      .orb-ticks::after  { color: color-mix(in srgb, var(--amber) 80%, transparent); opacity: 0; }
-      body[data-confirm-pending="true"] .orb-ticks::before { opacity: 0; }
-      body[data-confirm-pending="true"] .orb-ticks::after  { opacity: 1; }
 
       /* Status glyph — tiny mono line under the orb (font-mono-stats). */
       .status-line {
@@ -174,10 +139,8 @@
       }
       .ack-strip.visible { opacity: 1; }
 
-      /* ── Routine progress ring — a conic-gradient arc that fills around the
-         orb as a synthesize routine's sources settle (src/hud/routine-loader.ts).
-         Sits just outside the canvas ring / tick overlay (orb ring = 0.28 of the
-         box, ticks = 0.33; this ring rides at ~0.40 so it frames both). The fill
+      /* ── Routine progress ring — a conic-gradient arc that fills as a
+         synthesize routine's sources settle (src/hud/routine-loader.ts). The fill
          is driven by a single CSS custom property, --progress (an angle 0→360deg),
          so advancing a source is one cheap GPU transition — no rAF loop (the orb
          already owns one). The track is a faint full circle; the arc is the cyan
@@ -743,15 +706,11 @@
       </div>
     </div>
     <main class="stage">
-      <!-- Region 1: fixed orb header + status. Never scrolls. -->
+      <!-- Region 1: compact status and routine progress. Never scrolls. -->
       <header class="hud-header">
-        <div class="orb-wrap">
-          <canvas id="orb-canvas" aria-hidden="true"></canvas>
-          <div class="orb-ticks" aria-hidden="true"></div>
-          <!-- Routine progress ring (src/hud/routine-loader.ts). A conic-gradient
-               arc that fills around the orb as a synthesize routine's sources
-               settle. Hidden until the loader is visible; the center label reads
-               "3/5" then "✓". CSS-only fill via the --progress angle var. -->
+        <div class="routine-ring-slot">
+          <!-- Hidden until the loader is visible; the label reads "3/5" then
+               "✓". CSS-only fill via the --progress angle var. -->
           <div class="routine-ring" id="routine-ring" aria-hidden="true">
             <span class="routine-ring-label" id="routine-ring-label"></span>
           </div>
@@ -765,8 +724,8 @@
       <!-- Routine loader card (src/hud/routine-loader.ts). A fixed glassy panel
            on the top-left rail, clear of the transcript scroll region, that
            lists every source of a synthesize routine and ticks each as it
-           settles. Visible only while a routine is in flight; the ring around
-           the orb is its sibling. Never overlaps the transcript. -->
+           settles. Visible only while a routine is in flight; its compact ring
+           appears above the status line. Never overlaps the transcript. -->
       <aside class="routine-loader" id="routine-loader" aria-live="polite">
         <div class="routine-loader-head">
           <span class="routine-loader-dot" aria-hidden="true"></span>
