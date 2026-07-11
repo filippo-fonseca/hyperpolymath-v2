@@ -10,9 +10,11 @@ import {
   ViewToggle,
 } from "@/components/wiki/explorer";
 import { ExplorerNewMenu } from "@/components/wiki/explorer-parts/ExplorerNewMenu";
+import { ExplorerSfxToggle } from "@/components/wiki/explorer-parts/ExplorerSfxToggle";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
 import { PanelRightClose, PanelRightOpen, Search } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import type { ReactNode, RefObject } from "react";
 
 interface ExplorerHeaderControlsProps {
@@ -90,6 +92,7 @@ export function ExplorerHeaderControls({
           <ExplorerNewMenu onNewFolder={onCreateFolder} onNewPage={onCreatePage} />
           <ViewToggle value={view} onChange={onViewChange} />
           <SortSelect value={sort} onValueChange={onSortChange} />
+          <ExplorerSfxToggle />
           <button
             type="button"
             onClick={onToggleInspector}
@@ -115,13 +118,15 @@ export function ExplorerHeaderControls({
 
 function BreadcrumbDroppable({ id, children }: { id: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const reduceMotion = useReducedMotion();
   return (
     <span
       ref={setNodeRef}
       className={cn(
-        "inline-flex rounded-[6px]",
+        "inline-flex rounded-[6px] transition-[background-color,box-shadow,transform] duration-[140ms] ease-out",
         isOver &&
-          "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]"
+          "bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+        isOver && !reduceMotion && "scale-[1.02]"
       )}
     >
       {children}

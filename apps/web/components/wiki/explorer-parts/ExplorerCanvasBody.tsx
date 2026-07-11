@@ -41,11 +41,13 @@ interface ExplorerCanvasBodyProps {
   ) => void;
   cursor: string | null;
   rejectedDragId: string | null;
+  successfulDropId: string | null;
   onItemOpen: (item: ExplorerItem) => void;
   onSearchPageOpen: (page: PageWithProjects) => void;
 
   renderItemChromeGrid: (item: ExplorerItem, node: ReactNode) => ReactNode;
   renderItemChromeList: (item: ExplorerItem, node: ReactNode) => ReactNode;
+  folderProjectNames: Map<string, string[]>;
 
   onCreatePage: () => void;
   onOpenNewFolder: () => void;
@@ -65,10 +67,12 @@ export function ExplorerCanvasBody({
   onItemClick,
   cursor,
   rejectedDragId,
+  successfulDropId,
   onItemOpen,
   onSearchPageOpen,
   renderItemChromeGrid,
   renderItemChromeList,
+  folderProjectNames,
   onCreatePage,
   onOpenNewFolder,
 }: ExplorerCanvasBodyProps) {
@@ -76,7 +80,7 @@ export function ExplorerCanvasBody({
     <ExplorerEmptySpaceMenu onNewPage={onCreatePage} onNewFolder={onOpenNewFolder}>
       <div
         ref={canvasRef}
-        className="relative isolate z-10 min-h-[clamp(520px,62vh,760px)] bg-[var(--sd-app)] p-4"
+        className="relative isolate z-10 h-full min-h-0 overflow-y-auto bg-[var(--sd-app)] p-4"
         onPointerDown={onCanvasPointerDown}
       >
         {searchActive ? (
@@ -156,6 +160,7 @@ export function ExplorerCanvasBody({
             onItemClick={onItemClick}
             onItemOpen={onItemOpen}
             rejectedDragId={rejectedDragId}
+            successfulDropId={successfulDropId}
             renderItemChrome={renderItemChromeGrid}
           />
         ) : (
@@ -165,7 +170,9 @@ export function ExplorerCanvasBody({
             onItemClick={onItemClick}
             onItemOpen={onItemOpen}
             rejectedDragId={rejectedDragId}
+            successfulDropId={successfulDropId}
             renderItemChrome={renderItemChromeList}
+            folderProjectNames={folderProjectNames}
           />
         )}
         {rubberBandRect ? (

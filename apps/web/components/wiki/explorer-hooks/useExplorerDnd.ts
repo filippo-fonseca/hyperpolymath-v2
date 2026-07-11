@@ -9,6 +9,7 @@ import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { isSelfOrDescendant } from "@/lib/pages/folder-dnd";
 import type { FolderRow } from "@/lib/pages/folder-projects";
 import { compareExplorerItems, withPinnedFirst } from "@/lib/pages/position";
+import { playSfx } from "@/lib/sound/ui-sfx";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -33,7 +34,9 @@ export function useExplorerDnd({
 }: UseExplorerDndArgs) {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [rejectedDragId, setRejectedDragId] = useState<string | null>(null);
+  const [successfulDropId, setSuccessfulDropId] = useState<string | null>(null);
   const rejectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeDrag = activeDragId ? parseExplorerDragId(activeDragId) : null;
 
   // Multi-item drag: if the primary drag id is inside the current selection,
@@ -56,6 +59,7 @@ export function useExplorerDnd({
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
+    playSfx("pickup");
   }, []);
 
   const handleDragCancel = useCallback(() => {
@@ -65,8 +69,17 @@ export function useExplorerDnd({
   const rejectDrop = useCallback((id: string, message: string) => {
     if (rejectionTimer.current) clearTimeout(rejectionTimer.current);
     setRejectedDragId(id);
+    playSfx("dropDenied");
     toast.error(message);
     rejectionTimer.current = setTimeout(() => setRejectedDragId(null), 420);
+  }, []);
+
+  const acceptDrop = useCallback((targetFolderId?: string | null) => {
+    playSfx("dropSuccess");
+    if (!targetFolderId) return;
+    if (successTimer.current) clearTimeout(successTimer.current);
+    setSuccessfulDropId(`folder:${targetFolderId}`);
+    successTimer.current = setTimeout(() => setSuccessfulDropId(null), 180);
   }, []);
 
   const handleDragEnd = useCallback(
@@ -79,7 +92,10 @@ export function useExplorerDnd({
         return;
       }
       const drag = parseExplorerDragId(activeId);
-      if (!drag) return;
+      if (!drag) {
+        rejectDrop(activeId, "Not moved — that item can’t be dragged.");
+        return;
+      }
       const dropId = String(over.id);
       // Reorder: `reorder-page:<targetId>` — insert dragged page after target.
       if (dropId.startsWith("reorder-page:")) {
@@ -88,9 +104,15 @@ export function useExplorerDnd({
           return;
         }
         const targetId = dropId.slice("reorder-page:".length);
-        if (targetId === drag.id) return;
+        if (targetId === drag.id) {
+          rejectDrop(activeId, "Not moved — choose a different position.");
+          return;
+        }
         const target = pages.find((p) => p.id === targetId);
-        if (!target) return;
+        if (!target) {
+          rejectDrop(activeId, "Not moved — the target no longer exists.");
+          return;
+        }
         // If dragged is in a different folder, first move it to the target's
         // folder so reorder has a common parent to work in.
         const draggedPage = pages.find((p) => p.id === drag.id);
@@ -121,6 +143,7 @@ export function useExplorerDnd({
           beforeId,
           parentId: target.folderId ?? null,
         });
+        acceptDrop();
         return;
       }
       const drop = parseExplorerDropId(dropId);
@@ -148,8 +171,9 @@ export function useExplorerDnd({
         pageIds.length > 0 ? mutations.bulkMovePages(pageIds, targetFolderId) : Promise.resolve(),
         ...draggedFolders.map((item) => mutations.moveFolderTo(item.id, targetFolderId)),
       ]);
+      acceptDrop(targetFolderId);
     },
-    [childrenOf, dragBag, mutations, pages, rejectDrop]
+    [acceptDrop, childrenOf, dragBag, mutations, pages, rejectDrop]
   );
 
   return {
@@ -157,6 +181,7 @@ export function useExplorerDnd({
     activeLabel,
     dragBag,
     rejectedDragId,
+    successfulDropId,
     handleDragStart,
     handleDragCancel,
     handleDragEnd,

@@ -19,6 +19,7 @@ export interface ExplorerGridViewProps {
   onItemClick: (id: string, mods: SelectionClickModifiers) => void;
   onItemOpen: (item: ExplorerItem) => void;
   rejectedDragId?: string | null;
+  successfulDropId?: string | null;
   onItemContextMenu?: (event: MouseEvent, item: ExplorerItem) => void;
   renderItemChrome?: (item: ExplorerItem, node: ReactNode) => ReactNode;
 }
@@ -30,6 +31,7 @@ export function ExplorerGridView({
   onItemClick,
   onItemOpen,
   rejectedDragId,
+  successfulDropId,
   onItemContextMenu,
   renderItemChrome,
 }: ExplorerGridViewProps) {
@@ -47,6 +49,7 @@ export function ExplorerGridView({
           reduceMotion={Boolean(reduceMotion)}
           isSelected={isSelected}
           rejectedDragId={rejectedDragId}
+          successfulDropId={successfulDropId}
           onItemClick={onItemClick}
           onItemOpen={onItemOpen}
           onItemContextMenu={onItemContextMenu}
@@ -60,6 +63,7 @@ export function ExplorerGridView({
           reduceMotion={Boolean(reduceMotion)}
           isSelected={isSelected}
           rejectedDragId={rejectedDragId}
+          successfulDropId={successfulDropId}
           onItemClick={onItemClick}
           onItemOpen={onItemOpen}
           onItemContextMenu={onItemContextMenu}
@@ -77,6 +81,7 @@ function ExplorerGridBand({
   reduceMotion,
   isSelected,
   rejectedDragId,
+  successfulDropId,
   onItemClick,
   onItemOpen,
   onItemContextMenu,
@@ -103,6 +108,8 @@ function ExplorerGridBand({
               item={item}
               selected={selected}
               rejected={rejectedDragId === id}
+              dropSucceeded={successfulDropId === id}
+              reduceMotion={reduceMotion}
               onClick={(event) =>
                 onItemClick(id, {
                   metaKey: event.metaKey,
@@ -138,6 +145,8 @@ function ExplorerGridTile({
   item,
   selected,
   rejected,
+  dropSucceeded,
+  reduceMotion,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -145,6 +154,8 @@ function ExplorerGridTile({
   item: ExplorerItem;
   selected: boolean;
   rejected: boolean;
+  dropSucceeded: boolean;
+  reduceMotion: boolean;
   onClick: (event: MouseEvent) => void;
   onDoubleClick: () => void;
   onContextMenu: (event: MouseEvent) => void;
@@ -198,12 +209,13 @@ function ExplorerGridTile({
       style={style}
       className={cn(
         "group flex min-h-[154px] flex-col items-center rounded-[8px] border border-transparent p-1.5 text-center outline-none",
-        "transition-colors duration-[120ms] hover:bg-[var(--sd-box)] focus-visible:border-[var(--sd-accent)]",
+        "transition-[background-color,border-color,transform] duration-[140ms] ease-out hover:bg-[var(--sd-box)] focus-visible:border-[var(--sd-accent)]",
         selected &&
           "border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_8%,var(--sd-selected-item))]",
         isOver &&
           "border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_12%,var(--sd-selected-item))]",
-        rejected && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
+        isOver && !reduceMotion && "scale-[1.02]",
+        rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
     >
       <div
@@ -213,7 +225,14 @@ function ExplorerGridTile({
         )}
       >
         {item.kind === "folder" ? (
-          <FolderIcon size={78} variant={isOver ? "open" : "closed"} dropTarget={isOver} />
+          <FolderIcon
+            size={78}
+            variant={isOver ? "open" : "closed"}
+            dropTarget={isOver}
+            className={cn(
+              dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
+            )}
+          />
         ) : (
           <>
             <PageIcon size={74} kind="note" />

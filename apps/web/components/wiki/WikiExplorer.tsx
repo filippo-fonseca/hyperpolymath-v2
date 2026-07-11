@@ -18,6 +18,7 @@ import { useExplorerDnd } from "@/components/wiki/explorer-hooks/useExplorerDnd"
 import { useExplorerFolder } from "@/components/wiki/explorer-hooks/useExplorerFolder";
 import { useExplorerKeyboard } from "@/components/wiki/explorer-hooks/useExplorerKeyboard";
 import { useExplorerMutations } from "@/components/wiki/explorer-hooks/useExplorerMutations";
+import { useExplorerProjectNames } from "@/components/wiki/explorer-hooks/useExplorerProjectNames";
 import { useExplorerSelection } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import { useRubberBandSelection } from "@/components/wiki/explorer-hooks/useRubberBandSelection";
 import { DragCountBadge } from "@/components/wiki/explorer-parts/DragCountBadge";
@@ -32,7 +33,7 @@ import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import { buildChildrenMap } from "@/lib/pages/folder-dnd";
-import type { FolderRow } from "@/lib/pages/folder-projects";
+import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import {
   DndContext,
   DragOverlay,
@@ -51,6 +52,8 @@ interface WikiExplorerProps {
   userId: string;
   pages: PageWithProjects[];
   folders: FolderRow[];
+  folderProjects: FolderProjectLink[];
+  projects: { id: string; name: string }[];
 }
 
 const EXPLORER_DRAG_ACTIVATION_DISTANCE = 6;
@@ -61,7 +64,13 @@ const EXPLORER_DRAG_ACTIVATION_DISTANCE = 6;
  * (which has the TanStack queries + realtime subscriptions wired) and fires the
  * server actions via {@link useExplorerMutations} for optimistic patches.
  */
-export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
+export function WikiExplorer({
+  userId,
+  pages,
+  folders,
+  folderProjects,
+  projects,
+}: WikiExplorerProps) {
   const router = useRouter();
   const mutations = useExplorerMutations(userId);
 
@@ -108,6 +117,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
     () => buildExplorerItems(folders, pages, folderId, sort, counts),
     [folders, pages, folderId, sort, counts]
   );
+  const folderProjectNames = useExplorerProjectNames(folders, folderProjects, projects);
   const visibleItems = useMemo(() => {
     if (!searchActive) return currentItems;
     const q = search.trim().toLowerCase();
@@ -264,7 +274,7 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
   const isEmptyWiki = pages.length === 0 && folders.length === 0;
 
   return (
-    <div className="wiki-explorer mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+    <div className="wiki-explorer mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-4">
       <DndContext
         id="wiki-explorer-dnd"
         sensors={sensors}
@@ -277,8 +287,8 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
         onDragEnd={dnd.handleDragEnd}
         onDragCancel={dnd.handleDragCancel}
       >
-        <div className="flex overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px_hsl(235_15%_0%_/_0.18)]">
-          <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-[10px] border border-[var(--sd-line)] bg-[var(--sd-app)] shadow-[0_12px_32px_hsl(235_15%_0%_/_0.18)]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <ExplorerHeaderControls
               canGoBack={canGoBack}
               canGoForward={canGoForward}
@@ -312,10 +322,12 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
               onItemClick={selection.onItemClick}
               cursor={selection.cursor}
               rejectedDragId={dnd.rejectedDragId}
+              successfulDropId={dnd.successfulDropId}
               onItemOpen={openItem}
               onSearchPageOpen={(page) => router.push(`/wiki/${page.id}`)}
               renderItemChromeGrid={wrapItemForContextMenu}
               renderItemChromeList={wrapItemForListView}
+              folderProjectNames={folderProjectNames}
               onCreatePage={handleCreatePage}
               onOpenNewFolder={() => setNewFolderOpen(true)}
             />

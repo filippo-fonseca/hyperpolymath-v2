@@ -9,6 +9,7 @@ import { PageIcon } from "@/components/wiki/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
+import { useReducedMotion } from "motion/react";
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
 
 export interface ExplorerListViewProps {
@@ -19,7 +20,11 @@ export interface ExplorerListViewProps {
   rejectedDragId?: string | null;
   onItemContextMenu?: (event: MouseEvent, item: ExplorerItem) => void;
   renderItemChrome?: (item: ExplorerItem, node: ReactNode) => ReactNode;
+  folderProjectNames: Map<string, string[]>;
+  successfulDropId?: string | null;
 }
+
+const LIST_GRID_TEMPLATE = "minmax(0,1fr) 110px 160px minmax(0,220px)";
 
 export function ExplorerListView({
   items,
@@ -29,7 +34,10 @@ export function ExplorerListView({
   rejectedDragId,
   onItemContextMenu,
   renderItemChrome,
+  folderProjectNames,
+  successfulDropId,
 }: ExplorerListViewProps) {
+  const reduceMotion = Boolean(useReducedMotion());
   const bands = partitionExplorerItems(items);
   return (
     <div
@@ -46,6 +54,9 @@ export function ExplorerListView({
         onItemOpen={onItemOpen}
         onItemContextMenu={onItemContextMenu}
         renderItemChrome={renderItemChrome}
+        folderProjectNames={folderProjectNames}
+        successfulDropId={successfulDropId}
+        reduceMotion={reduceMotion}
       />
       <ExplorerListBand
         label="Files"
@@ -56,6 +67,9 @@ export function ExplorerListView({
         onItemOpen={onItemOpen}
         onItemContextMenu={onItemContextMenu}
         renderItemChrome={renderItemChrome}
+        folderProjectNames={folderProjectNames}
+        successfulDropId={successfulDropId}
+        reduceMotion={reduceMotion}
       />
     </div>
   );
@@ -70,7 +84,10 @@ function ExplorerListBand({
   onItemOpen,
   onItemContextMenu,
   renderItemChrome,
-}: ExplorerListViewProps & { label: string }) {
+  folderProjectNames,
+  successfulDropId,
+  reduceMotion,
+}: ExplorerListViewProps & { label: string; reduceMotion: boolean }) {
   if (items.length === 0) return null;
   return (
     <section>
@@ -95,6 +112,9 @@ function ExplorerListBand({
               }
               onDoubleClick={() => onItemOpen(item)}
               onContextMenu={(event) => onItemContextMenu?.(event, item)}
+              folderProjectNames={folderProjectNames}
+              dropSucceeded={successfulDropId === id}
+              reduceMotion={reduceMotion}
             />
           );
           const wrapped = renderItemChrome ? renderItemChrome(item, row) : row;
@@ -109,7 +129,7 @@ function ExplorerListHeaderRow() {
   return (
     <div
       className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-sans text-[0.65rem] font-semibold text-[var(--sd-ink-dull)]"
-      style={{ gridTemplateColumns: "minmax(0,2fr) 96px 128px minmax(0,1.2fr)" }}
+      style={{ gridTemplateColumns: LIST_GRID_TEMPLATE }}
     >
       <span>Name</span>
       <span>Kind</span>
@@ -126,6 +146,9 @@ function ExplorerListRow({
   onClick,
   onDoubleClick,
   onContextMenu,
+  folderProjectNames,
+  dropSucceeded,
+  reduceMotion,
 }: {
   item: ExplorerItem;
   selected: boolean;
@@ -133,6 +156,9 @@ function ExplorerListRow({
   onClick: (event: MouseEvent) => void;
   onDoubleClick: () => void;
   onContextMenu: (event: MouseEvent) => void;
+  folderProjectNames: Map<string, string[]>;
+  dropSucceeded: boolean;
+  reduceMotion: boolean;
 }) {
   const id = explorerItemId(item);
   const droppableId = item.kind === "folder" ? `folder:${item.id}` : undefined;
@@ -162,8 +188,13 @@ function ExplorerListRow({
   const updated =
     item.kind === "page"
       ? formatDistanceToNow(new Date(item.page.updatedAt), { addSuffix: true })
-      : "";
-  const projects = item.kind === "page" ? item.page.projects : [];
+      : item.folder.updatedAt
+        ? formatDistanceToNow(new Date(item.folder.updatedAt), { addSuffix: true })
+        : "—";
+  const projectNames =
+    item.kind === "page"
+      ? item.page.projects.map((project) => project.name)
+      : (folderProjectNames.get(item.id) ?? []);
 
   return (
     <button
@@ -177,38 +208,63 @@ function ExplorerListRow({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      style={style}
       className={cn(
-        "relative grid h-8 items-center gap-3 px-3 text-[var(--ink)] outline-none",
-        "transition-[background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
+        "relative grid h-10 w-full items-center gap-3 px-3 text-left text-[var(--ink)] outline-none",
+        "transition-[background-color,transform] duration-[140ms] ease-out hover:bg-[var(--sd-hover)]",
         "focus-visible:bg-[var(--sd-hover)] focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)]",
         selected && "bg-[var(--sd-selected-item)]",
         isOver &&
           "bg-[color-mix(in_srgb,var(--sd-accent)_10%,var(--sd-box))] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
-        rejected && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
+        isOver && !reduceMotion && "scale-[1.02]",
+        rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
+      style={{ ...style, gridTemplateColumns: LIST_GRID_TEMPLATE }}
     >
       {selected ? (
         <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[var(--sd-accent)]" />
       ) : null}
-      <div
-        className="grid min-w-0 items-center gap-3"
-        style={{ gridTemplateColumns: "minmax(0,2fr) 96px 128px minmax(0,1.2fr)" }}
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          {item.kind === "folder" ? (
-            <FolderIcon size={20} variant="closed" dropTarget={isOver} />
-          ) : (
-            <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
-          )}
-          <span className="truncate">{name}</span>
-        </span>
-        <span className="text-[0.7rem] text-[var(--sd-ink-dull)]">{kindLabel}</span>
-        <span className="truncate text-[0.7rem] text-[var(--sd-ink-dull)]">{updated}</span>
-        <span className="min-w-0 truncate text-[0.75rem] text-[var(--ink-muted)]">
-          {projects.length > 0 ? projects.map((p) => p.name).join(", ") : ""}
-        </span>
-      </div>
+      <span className="flex min-w-0 items-center gap-2">
+        {item.kind === "folder" ? (
+          <FolderIcon
+            size={20}
+            variant="closed"
+            dropTarget={isOver}
+            className={cn(
+              dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
+            )}
+          />
+        ) : (
+          <PageIcon size={20} kind={item.page.dailyDate ? "daily" : "note"} />
+        )}
+        <span className="truncate">{name}</span>
+      </span>
+      <span className="text-[0.7rem] text-[var(--sd-ink-dull)]">{kindLabel}</span>
+      <span className="truncate text-[0.7rem] text-[var(--sd-ink-dull)]">{updated}</span>
+      <ProjectChips names={projectNames} />
     </button>
+  );
+}
+
+function ProjectChips({ names }: { names: string[] }) {
+  if (names.length === 0) {
+    return <span className="text-[0.7rem] text-[var(--sd-ink-faint)]">—</span>;
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+      {names.slice(0, 2).map((name) => (
+        <span
+          key={name}
+          className="max-w-[90px] truncate rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-0.5 text-[0.7rem] leading-none text-[var(--sd-ink-dull)]"
+          title={name}
+        >
+          {name}
+        </span>
+      ))}
+      {names.length > 2 ? (
+        <span className="shrink-0 rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-0.5 text-[0.7rem] leading-none text-[var(--sd-ink-dull)]">
+          +{names.length - 2}
+        </span>
+      ) : null}
+    </span>
   );
 }
