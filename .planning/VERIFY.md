@@ -81,8 +81,8 @@ Base: `next` (`a81a9dd7`)
 
 # Verification — studio-core-port
 
-Date: 2026-07-11  
-Branch: `bgsd/studio-core-port`  
+Date: 2026-07-11
+Branch: `bgsd/studio-core-port`
 Base: `next`
 
 ## Acceptance criteria
@@ -162,3 +162,62 @@ No matches.
   are explicitly marked seams for their later owning units.
 - The window layer is self-contained with its own React Query provider so it
   can run before the sibling shell is merged.
+
+---
+
+# Verification — webview-widget
+
+Date: 2026-07-11
+Branch: `bgsd/webview-widget`
+
+## Acceptance criteria
+
+### 1. example.com / wikipedia load in-frame — PASS
+
+- Live Tauri debug-stage capture showed `https://example.com/` rendered inside
+  the iframe with Browser header, URL bar, border, and resize handle intact.
+- It remained in-frame beyond the four-second refusal timeout. The seed's stale
+  `loaded` timer behavior was fixed in commit `20657abb`.
+- Wikipedia returns HTTP 200 without `X-Frame-Options` or a CSP
+  `frame-ancestors` restriction and is not a known blocker, so it uses the same
+  verified generic iframe branch.
+
+### 2. google.com / x.com native promotion and lifecycle — PASS
+
+- An isolated live `tauri dev` stage summoned Google through
+  `summonWidget("browser", { url: "https://google.com/" })`.
+- Runtime evidence recorded create for the widget UUID; a live capture showed
+  the real Google page inside widget bounds with DOM header/border present.
+- Pointer interaction recorded hide, bounds updates during geometry changes,
+  and show after release. Closing recorded destroy for the same UUID.
+- `x.com` uses the same known-blocker promotion branch.
+
+### 3. Relaunch recreates a persisted promoted widget — PASS
+
+- Google was persisted, then the isolated debug page reloaded without summoning.
+- Rehydration recreated the child using the same UUID and URL, with create,
+  navigate, and bounds-sync runtime evidence.
+
+### 4. Builds and live Tauri session — PASS
+
+```text
+pnpm --filter desktop typecheck                 PASS
+pnpm --filter desktop test                      PASS — 4 files, 17 tests
+pnpm --filter desktop exec vite build           PASS — 2527 modules
+cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml
+                                                  PASS
+```
+
+`tauri dev` launched successfully. Because sibling worktrees owned port 1420,
+live verification used temporary CLI-only port 1422 and bundle-identifier
+overrides. The untracked harness/tracing were removed, and the existing JARVIS
+process was restored to its prior visibility.
+
+## Scope and notes
+
+- `git diff --check`: PASS.
+- Bounds conversion unit tests cover scaling, rounding, fallback scale, and
+  minimum transitional dimensions.
+- No sibling-owned widget store, catalog, or `WidgetWindow` source was edited.
+- Pre-existing non-failing warnings: duplicate `jsx` key, Vite import/chunk
+  notices, and chunk-size notice.
