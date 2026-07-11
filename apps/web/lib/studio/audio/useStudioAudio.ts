@@ -25,7 +25,7 @@ import { subscribeFrontRow } from "../state/active-row";
 import { getMuted, subscribeMuted } from "../state/audio-settings";
 import { getSelfWindow } from "../state/window-registry";
 import { createStudioSyncChannel } from "../sync/broadcast";
-import { cueForEvent, playCue } from "./cues";
+import { cueForEvent, playCue, subscribeStudioCue } from "./cues";
 import { createStudioAudio, type StudioAudioEngine } from "./synth";
 
 export function useStudioAudio(): void {
@@ -112,6 +112,8 @@ export function useStudioAudio(): void {
     const unsub = subscribeMuted(() => engine.setMuted(getMuted()));
     return unsub;
   }, [engine]);
+
+  useEffect(() => subscribeStudioCue((cue) => playCue(engine, cue)), [engine]);
 
   // Dispose the engine on unmount.
   useEffect(() => {

@@ -26,7 +26,10 @@ export type StudioCueId =
   | "zoneTick"
   | "drop"
   | "rowSwap"
-  | "handoff";
+  | "handoff"
+  | "summon"
+  | "dismiss"
+  | "windowGrab";
 
 /** Every event source the audio layer resolves a cue from. */
 export type StudioAudioEvent =
@@ -108,7 +111,24 @@ export const STUDIO_CUES: Record<StudioCueId, readonly VoiceSpec[]> = {
   ],
   // Noise whoosh sweeping across for a window hand-off.
   handoff: [{ kind: "noise", freq: 700, sweepTo: 3200, dur: 0.18, gain: 0.32, q: 0.9 }],
+  summon: [
+    { kind: "osc", type: "sine", freq: 460, sweepTo: 920, dur: 0.17, gain: 0.38 },
+    { kind: "noise", freq: 1700, sweepTo: 3400, dur: 0.12, gain: 0.16 },
+  ],
+  dismiss: [{ kind: "osc", type: "triangle", freq: 520, sweepTo: 210, dur: 0.13, gain: 0.34 }],
+  windowGrab: [{ kind: "osc", type: "triangle", freq: 820, dur: 0.045, gain: 0.32 }],
 };
+
+const directCueSubscribers = new Set<(id: StudioCueId) => void>();
+
+export function emitStudioCue(id: StudioCueId): void {
+  for (const cb of directCueSubscribers) cb(id);
+}
+
+export function subscribeStudioCue(cb: (id: StudioCueId) => void): () => void {
+  directCueSubscribers.add(cb);
+  return () => directCueSubscribers.delete(cb);
+}
 
 /** Render a cue by id: walk its voices and hand each to the engine. */
 export function playCue(engine: StudioAudioEngine, id: StudioCueId): void {
