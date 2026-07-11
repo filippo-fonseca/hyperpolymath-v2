@@ -28,7 +28,7 @@ const FLOOR_Y = 0.2;
 const CEILING_Y = 4.2;
 const BAND_H = CEILING_Y - FLOOR_Y;
 // How long the drift keeps running after an interaction (ms).
-const ACTIVE_MS = 7000;
+const ACTIVE_MS = 4000;
 // Gentle sway amplitude (meters) and rise speed range (m/s).
 const SWAY = 0.06;
 const RISE_MIN = 0.02;
