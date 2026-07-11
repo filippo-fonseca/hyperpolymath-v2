@@ -172,4 +172,19 @@ describe("widget window store", () => {
       },
     ]);
   });
+
+  it("restores without a position at an available spawn point", () => {
+    const first = summonWidget("browser", {}, { x: 0.5, y: 0.48 });
+    const second = summonWidget("browser", {}, { x: 0.22, y: 0.22 });
+    stowWidget(second);
+
+    restoreWidget(second);
+
+    const restored = getWidgetWindows().find((item) => item.id === second)!;
+    expect(restored.stowed).toBe(false);
+    expect({ x: restored.x, y: restored.y }).not.toEqual({ x: 0.22, y: 0.22 });
+    expect(restored.z).toBeGreaterThan(
+      getWidgetWindows().find((item) => item.id === first)!.z,
+    );
+  });
 });

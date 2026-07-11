@@ -194,7 +194,13 @@ export function restoreWidget(
 ): void {
   const item = windows.find((candidate) => candidate.id === id);
   if (!item || !item.stowed) return;
-  const rect = clampToStage({ ...item, ...position });
+  const spawn =
+    position ??
+    pickSpawnPosition(
+      windows.filter((candidate) => !candidate.stowed),
+      item,
+    );
+  const rect = clampToStage({ ...item, ...spawn });
   const z = nextStackOrder(windows);
   write(
     windows.map((candidate) =>

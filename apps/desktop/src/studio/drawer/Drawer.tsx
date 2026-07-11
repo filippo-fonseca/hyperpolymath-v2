@@ -3,7 +3,11 @@ import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
-import { summonWidget, type WidgetWindowInstance } from "../state/widget-windows";
+import {
+  restoreWidget,
+  summonWidget,
+  type WidgetWindowInstance,
+} from "../state/widget-windows";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { catalogEntries, type WidgetKind, WIDGET_CATALOG } from "../windows/catalog";
 
@@ -14,8 +18,9 @@ interface Props {
   windows: readonly WidgetWindowInstance[];
 }
 
-interface CatalogDrag {
+interface DrawerDrag {
   kind: WidgetKind;
+  stowedId?: string;
   pointerId: number;
   startX: number;
   startY: number;
@@ -102,17 +107,19 @@ export function Drawer({
 }: Props): React.ReactElement {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement | null>(null);
-  const dragRef = useRef<CatalogDrag | null>(null);
+  const dragRef = useRef<DrawerDrag | null>(null);
   const suppressClick = useRef(false);
-  const [drag, setDrag] = useState<CatalogDrag | null>(null);
+  const [drag, setDrag] = useState<DrawerDrag | null>(null);
 
-  const startCatalogDrag = (
+  const startDrag = (
     kind: WidgetKind,
     event: PointerEvent<HTMLButtonElement>,
+    stowedId?: string,
   ): void => {
     if (event.button !== 0) return;
     dragRef.current = {
       kind,
+      stowedId,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
@@ -124,7 +131,7 @@ export function Drawer({
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const moveCatalogDrag = (event: PointerEvent<HTMLButtonElement>): void => {
+  const moveDrag = (event: PointerEvent<HTMLButtonElement>): void => {
     const current = dragRef.current;
     if (!current || current.pointerId !== event.pointerId) return;
     const moved =
@@ -138,11 +145,18 @@ export function Drawer({
     }
   };
 
-  const endCatalogDrag = (event: PointerEvent<HTMLButtonElement>): void => {
+  const endDrag = (
+    event: PointerEvent<HTMLButtonElement>,
+    cancelled = false,
+  ): void => {
     const current = dragRef.current;
     if (!current || current.pointerId !== event.pointerId) return;
     dragRef.current = null;
     setDrag(null);
+    if (cancelled) {
+      suppressClick.current = false;
+      return;
+    }
     if (!current.moved) return;
     const drawerRect = rootRef.current?.getBoundingClientRect();
     const overDrawer =
@@ -154,7 +168,9 @@ export function Drawer({
     const at = overDrawer
       ? undefined
       : stageDropPosition(event.clientX, event.clientY);
-    if (at) summon(current.kind, at);
+    if (!at) return;
+    if (current.stowedId) restoreWidget(current.stowedId, at);
+    else summon(current.kind, at);
   };
 
   return (
@@ -242,10 +258,10 @@ export function Drawer({
                     key={kind}
                     type="button"
                     aria-label={`Summon ${entry.label}`}
-                    onPointerDown={(event) => startCatalogDrag(kind, event)}
-                    onPointerMove={moveCatalogDrag}
-                    onPointerUp={endCatalogDrag}
-                    onPointerCancel={endCatalogDrag}
+                    onPointerDown={(event) => startDrag(kind, event)}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                    onPointerCancel={(event) => endDrag(event, true)}
                     onClick={() => {
                       if (suppressClick.current) {
                         suppressClick.current = false;
@@ -290,10 +306,25 @@ export function Drawer({
                     .map((item) => {
                       const entry = WIDGET_CATALOG[item.kind];
                       return (
-                        <motion.div
+                        <motion.button
                           key={item.id}
+                          type="button"
                           layoutId={`widget:${item.id}`}
                           aria-label={`${entry.label}, ${propsHint(item)}`}
+                          title={`Restore ${entry.label}`}
+                          onPointerDown={(event) =>
+                            startDrag(item.kind, event, item.id)
+                          }
+                          onPointerMove={moveDrag}
+                          onPointerUp={endDrag}
+                          onPointerCancel={(event) => endDrag(event, true)}
+                          onClick={() => {
+                            if (suppressClick.current) {
+                              suppressClick.current = false;
+                              return;
+                            }
+                            restoreWidget(item.id);
+                          }}
                           style={{
                             display: "flex",
                             minWidth: 92,
@@ -305,6 +336,9 @@ export function Drawer({
                             borderRadius: 19,
                             color: STUDIO_COLORS.text,
                             background: STUDIO_COLORS.background,
+                            cursor: "grab",
+                            fontFamily: STUDIO_MONO,
+                            touchAction: "none",
                           }}
                         >
                           <entry.icon size={14} aria-hidden />
@@ -319,7 +353,7 @@ export function Drawer({
                           >
                             {propsHint(item)}
                           </span>
-                        </motion.div>
+                        </motion.button>
                       );
                     })
                 ) : (
