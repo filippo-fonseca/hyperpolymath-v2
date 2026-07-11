@@ -52,6 +52,7 @@ Authoritative token values: `.planning/SPACEDRIVE-TOKENS.md` (real values from t
 - V6. **Inspector** (right panel): preview block up top, name + kind line, then sectioned metadata exactly in the screenshot's register — uppercase micro-labels (DETAILS / DATES), label-value rows, hairline dividers.
 - V7. Typography, radii, spacing, hover states per dossier. Motion: subtle (Spacedrive is calm) — 120–160ms fades, no springy theatrics; respect reduced-motion.
 - V8. The **Journal rail keeps its editorial glass register** (it is intentionally NOT Spacedrive); only the Explorer surface below it is restyled.
+- V9. **Both themes must read properly.** Dark mode is the primary register (Spacedrive's native near-black ladder applies verbatim). Light mode must get a deliberately mirrored token ladder (light canvas, subtly darker boxes, hairline lines, same accent #2599FF, theme-aware icon shadows per §3.0) — never raw dark-mode values leaking onto a light canvas or vice versa. Every new surface (tiles, top bar, inspector, context menus, drag ghost, drop highlights, + New menu) must be checked in BOTH themes; no unreadable text, no invisible borders, no dark slabs on light backgrounds.
 
 ## 3. Known root causes (from live diagnosis)
 
