@@ -327,6 +327,27 @@ async function enrichSparseWebSearchResults(
   });
 }
 
+// U1 jarvis-web-brain — pick the single best URL (first fetchable http(s)
+// result) and a short excerpt of any enriched page body, so the webSearch
+// receipt carries BOTH an answer source and a concrete URL for the browser
+// widget. Never returns a search-engine landing page — those are not results.
+function pickTopResult(results: WebSearchResult[]): {
+  top_url?: string;
+  content_excerpt?: string;
+} {
+  const top = results.find((r) => isFetchableWebUrl(r.url));
+  if (!top) return {};
+  const excerptSource = top.content ?? top.snippet;
+  const content_excerpt =
+    typeof excerptSource === "string" && excerptSource.trim()
+      ? excerptSource.trim().slice(0, 500)
+      : undefined;
+  return {
+    top_url: top.url,
+    ...(content_excerpt ? { content_excerpt } : {}),
+  };
+}
+
 async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
   const apiKey = process.env.BROWSERBASE_API_KEY;
   if (!apiKey) return [];
@@ -1196,6 +1217,9 @@ export function createServerExecutor(): ActionExecutor {
 
       const results = await browserbaseWebSearch(input.query);
       if (results.length > 0) {
+        // U1 — expose the single best URL + a content excerpt so the model has
+        // BOTH an answer source and a concrete URL to hand studio_open_widget.
+        const { top_url, content_excerpt } = pickTopResult(results);
         return {
           ok: true,
           id: `web_search:${input.query}`,
@@ -1204,8 +1228,29 @@ export function createServerExecutor(): ActionExecutor {
             engine,
             provider: "browserbase",
             results,
+            ...(top_url ? { top_url } : {}),
+            ...(content_excerpt ? { content_excerpt } : {}),
             answer_hint:
-              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question.",
+              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question. To show your work, also open the browser widget on top_url via studio_open_widget{kind:\"browser\"}; never open a search-engine page as a substitute for answering.",
+          },
+        };
+      }
+
+      // No results. If Browserbase is unconfigured, degrade gracefully: the
+      // model still gets a turn (no crash), just a hint that live search is
+      // unavailable so it can say so plainly instead of dead-ending.
+      if (!process.env.BROWSERBASE_API_KEY) {
+        console.warn("[jarvis] web_search: BROWSERBASE_API_KEY missing — search unavailable");
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: {
+            query: input.query,
+            engine,
+            provider: "unavailable",
+            search_unavailable: true,
+            answer_hint:
+              "Live web search is unavailable right now (no search provider configured). Tell the user plainly you cannot look that up at the moment; do not fabricate a live answer.",
           },
         };
       }
