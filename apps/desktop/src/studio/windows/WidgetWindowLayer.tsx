@@ -39,6 +39,7 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
   const windows = useWidgetWindows();
   const reduced = useReducedMotion();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTargetId, setDrawerTargetId] = useState<string | null>(null);
   const [glints, setGlints] = useState<
     Array<{ id: string; x: number; y: number }>
   >([]);
@@ -82,6 +83,14 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
     [],
   );
 
+  const onDrawerTargetChange = useCallback(
+    (id: string, targeted: boolean) => {
+      setDrawerTargetId((current) => (targeted ? id : current === id ? null : current));
+      if (targeted) setDrawerOpen(true);
+    },
+    [],
+  );
+
   return (
     <>
       <div data-widget-window-layer style={layerStyle}>
@@ -108,12 +117,22 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
         </AnimatePresence>
         <AnimatePresence>
           {windows.filter((item) => !item.stowed).map((item) => (
-            <WidgetWindow key={item.id} window={item} onElement={onElement} />
+            <WidgetWindow
+              key={item.id}
+              window={item}
+              onElement={onElement}
+              onDrawerTargetChange={onDrawerTargetChange}
+            />
           ))}
         </AnimatePresence>
       </div>
 
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} windows={windows} />
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        targeted={drawerTargetId !== null}
+        windows={windows}
+      />
 
       {/* TEMP: replaced by desktop-react-shell at merge. */}
       {debugSummon ? (

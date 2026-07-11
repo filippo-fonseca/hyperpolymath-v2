@@ -71,7 +71,35 @@ function summon(kind: WidgetKind, at?: { x: number; y: number }): void {
   });
 }
 
-export function Drawer({ open, onOpenChange, targeted = false }: Props): React.ReactElement {
+function propsHint(item: WidgetWindowInstance): string {
+  const url = item.props.url;
+  if (typeof url === "string" && url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return url;
+    }
+  }
+  for (const key of ["city", "title", "name", "query"]) {
+    const value = item.props[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return "Saved";
+}
+
+function isStowable(item: WidgetWindowInstance): boolean {
+  const entry = WIDGET_CATALOG[item.kind] as
+    | ({ permanent?: boolean } & object)
+    | undefined;
+  return item.kind !== ("orb" as WidgetKind) && entry?.permanent !== true;
+}
+
+export function Drawer({
+  open,
+  onOpenChange,
+  targeted = false,
+  windows,
+}: Props): React.ReactElement {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<CatalogDrag | null>(null);
@@ -231,6 +259,74 @@ export function Drawer({ open, onOpenChange, targeted = false }: Props): React.R
                     <span style={{ fontSize: 9 }}>{entry.label}</span>
                   </button>
                 ))}
+              </div>
+            </section>
+            <section
+              aria-labelledby="drawer-stowed-label"
+              style={{
+                width: "38%",
+                minWidth: 160,
+                marginLeft: 10,
+                paddingLeft: 10,
+                borderLeft: `1px solid ${STUDIO_COLORS.rule}`,
+              }}
+            >
+              <h2
+                id="drawer-stowed-label"
+                style={{
+                  margin: "5px 0 7px",
+                  color: STUDIO_COLORS.muted,
+                  fontSize: 8,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Stowed
+              </h2>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+                {windows.filter((item) => item.stowed && isStowable(item)).length ? (
+                  windows
+                    .filter((item) => item.stowed && isStowable(item))
+                    .map((item) => {
+                      const entry = WIDGET_CATALOG[item.kind];
+                      return (
+                        <motion.div
+                          key={item.id}
+                          layoutId={`widget:${item.id}`}
+                          aria-label={`${entry.label}, ${propsHint(item)}`}
+                          style={{
+                            display: "flex",
+                            minWidth: 92,
+                            height: 38,
+                            alignItems: "center",
+                            gap: 7,
+                            padding: "0 9px",
+                            border: `1px solid ${STUDIO_COLORS.rule}`,
+                            borderRadius: 19,
+                            color: STUDIO_COLORS.text,
+                            background: STUDIO_COLORS.background,
+                          }}
+                        >
+                          <entry.icon size={14} aria-hidden />
+                          <span
+                            style={{
+                              minWidth: 0,
+                              overflow: "hidden",
+                              fontSize: 8,
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {propsHint(item)}
+                          </span>
+                        </motion.div>
+                      );
+                    })
+                ) : (
+                  <span style={{ color: STUDIO_COLORS.muted, fontSize: 8, lineHeight: "38px" }}>
+                    Empty
+                  </span>
+                )}
               </div>
             </section>
           </motion.div>

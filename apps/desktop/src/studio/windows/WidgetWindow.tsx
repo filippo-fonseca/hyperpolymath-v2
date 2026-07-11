@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Suspense, useRef, type CSSProperties, type PointerEvent } from "react";
-import { Pin, X } from "lucide-react";
+import { Minus, Pin, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
@@ -9,6 +9,7 @@ import {
   focusWidget,
   moveWidget,
   resizeWidget,
+  stowWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "./catalog";
@@ -17,6 +18,7 @@ import { clampToStage } from "./layout";
 interface Props {
   window: WidgetWindowInstance;
   onElement: (id: string, element: HTMLDivElement | null) => void;
+  onDrawerTargetChange: (id: string, targeted: boolean) => void;
 }
 
 interface PointerSession {
@@ -65,11 +67,30 @@ const chromeButtonStyle: CSSProperties = {
   cursor: "pointer",
 };
 
-export function WidgetWindow({ window: item, onElement }: Props): React.ReactElement {
+function isNearDrawer(clientX: number, clientY: number): boolean {
+  const drawer = document.querySelector<HTMLElement>("[data-widget-drawer]");
+  const rect = drawer?.getBoundingClientRect();
+  return Boolean(
+    rect &&
+      clientX >= rect.left - 72 &&
+      clientX <= rect.right + 72 &&
+      clientY >= rect.top - 104,
+  );
+}
+
+export function WidgetWindow({
+  window: item,
+  onElement,
+  onDrawerTargetChange,
+}: Props): React.ReactElement {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<PointerSession | null>(null);
   const entry = WIDGET_CATALOG[item.kind];
+  const catalogEntry = entry as typeof entry & { permanent?: boolean };
+  const stowable =
+    item.kind !== ("orb" as WidgetWindowInstance["kind"]) &&
+    catalogEntry.permanent !== true;
   const Content = entry.component;
 
   const setRoot = (element: HTMLDivElement | null): void => {
@@ -124,13 +145,20 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
             h: session.start.h + dyPx / stage.height,
           });
     applyWindowGeometry(root, rect);
+    if (session.mode === "move" && stowable) {
+      onDrawerTargetChange(item.id, isNearDrawer(event.clientX, event.clientY));
+    }
   };
 
-  const endPointer = (event: PointerEvent<HTMLElement>): void => {
+  const endPointer = (
+    event: PointerEvent<HTMLElement>,
+    cancelled = false,
+  ): void => {
     const session = sessionRef.current;
     const root = rootRef.current;
     const stage = root?.parentElement?.getBoundingClientRect();
     sessionRef.current = null;
+    onDrawerTargetChange(item.id, false);
     if (
       !session?.moved ||
       session.pointerId !== event.pointerId ||
@@ -142,6 +170,10 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
     const dx = (event.clientX - session.startClientX) / stage.width;
     const dy = (event.clientY - session.startClientY) / stage.height;
     if (session.mode === "move") {
+      if (!cancelled && stowable && isNearDrawer(event.clientX, event.clientY)) {
+        stowWidget(item.id);
+        return;
+      }
       moveWidget(item.id, session.start.x + dx, session.start.y + dy);
     } else {
       resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
@@ -156,6 +188,7 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
       aria-label={entry.label}
       onPointerDown={() => focusWidget(item.id)}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
+      layoutId={`widget:${item.id}`}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
       transition={{ duration: reduced ? 0 : 0.18 }}
@@ -183,7 +216,7 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
         onPointerDown={(event) => startPointer("move", event)}
         onPointerMove={movePointer}
         onPointerUp={endPointer}
-        onPointerCancel={endPointer}
+        onPointerCancel={(event) => endPointer(event, true)}
       >
         <span
           style={{
@@ -212,6 +245,18 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
         >
           <Pin size={12} aria-hidden />
         </button>
+        {stowable ? (
+          <button
+            type="button"
+            aria-label="Stow window"
+            title="Stow"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => stowWidget(item.id)}
+            style={chromeButtonStyle}
+          >
+            <Minus size={13} aria-hidden />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label="Close window"
@@ -257,7 +302,7 @@ export function WidgetWindow({ window: item, onElement }: Props): React.ReactEle
         onPointerDown={(event) => startPointer("resize", event)}
         onPointerMove={movePointer}
         onPointerUp={endPointer}
-        onPointerCancel={endPointer}
+        onPointerCancel={(event) => endPointer(event, true)}
       />
     </motion.div>
   );
