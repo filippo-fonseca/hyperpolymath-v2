@@ -34,3 +34,18 @@ export const HUD_COLORS = {
   text: "#DCE8EE",
   muted: "#687C8F",
 } as const;
+
+// Widget-layer palette, expressed against the canonical HUD palette above.
+export const STUDIO_COLORS = {
+  background: HUD_COLORS.canvas,
+  surface: HUD_COLORS.canvasRaised,
+  text: HUD_COLORS.text,
+  muted: HUD_COLORS.muted,
+  rule: HUD_COLORS.rule,
+  accent: STUDIOLO.jarvisCyan,
+  danger: STUDIOLO.emberAlarm,
+  shadow: "#020305",
+} as const;
+
+export const STUDIO_MONO =
+  '"Berkeley Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';

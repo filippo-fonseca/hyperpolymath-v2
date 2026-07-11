@@ -17,6 +17,9 @@ importers:
       '@hyperpolymath/jarvis-core':
         specifier: workspace:*
         version: link:../../packages/jarvis-core
+      '@tanstack/react-query':
+        specifier: ^5.59.0
+        version: 5.100.10(react@19.2.4)
       '@tauri-apps/api':
         specifier: ^2.11.0
         version: 2.11.0
@@ -35,6 +38,9 @@ importers:
       '@tauri-apps/plugin-store':
         specifier: ^2.4.3
         version: 2.4.3
+      lucide-react:
+        specifier: ^0.460.0
+        version: 0.460.0(react@19.2.4)
       motion:
         specifier: ^12.38.0
         version: 12.38.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
