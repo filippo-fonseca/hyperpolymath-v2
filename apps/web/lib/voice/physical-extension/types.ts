@@ -32,6 +32,20 @@ export interface PhysicalJarvisToolCall {
   at: number;
 }
 
+export type PhysicalStudioWidgetKind = "browser" | "whatsapp" | "weather" | "news";
+
+export type PhysicalStudioAction =
+  | {
+      action: "open";
+      kind: PhysicalStudioWidgetKind;
+      props?: Record<string, unknown>;
+    }
+  | {
+      action: "close";
+      kind: PhysicalStudioWidgetKind | "all" | string;
+      target?: "kind" | "id";
+    };
+
 export interface PhysicalJarvisResponseEnd {
   turnId: string;
   at: number;

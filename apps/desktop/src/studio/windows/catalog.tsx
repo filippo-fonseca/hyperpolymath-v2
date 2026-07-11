@@ -1,7 +1,13 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
-import { CloudSun, Globe2, MessageCircle, Newspaper } from "lucide-react";
+import {
+  CloudSun,
+  FileText,
+  Globe2,
+  MessageCircle,
+  Newspaper,
+} from "lucide-react";
 
-export type WidgetKind = "browser" | "whatsapp" | "weather" | "news";
+export type WidgetKind = "browser" | "whatsapp" | "weather" | "news" | "card";
 
 export interface WidgetContentProps {
   id: string;
@@ -43,6 +49,12 @@ export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
     component: lazy(() => import("../widgets/NewsWidget")),
     defaultSize: { w: 0.34, h: 0.46 },
     singleton: true,
+  },
+  card: {
+    label: "Card",
+    icon: FileText,
+    component: lazy(() => import("../widgets/CardWidget")),
+    defaultSize: { w: 0.27, h: 0.25 },
   },
 };
 

@@ -1,13 +1,11 @@
-import {
-  ensurePhysicalRealtimeBridge,
-  physicalBus,
-} from "@/lib/voice/physical-extension/bus";
+import { ensurePhysicalRealtimeBridge, physicalBus } from "@/lib/voice/physical-extension/bus";
 import type {
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
   PhysicalJarvisRoutineProgress,
   PhysicalJarvisToolCall,
+  PhysicalStudioAction,
   PhysicalTranscript,
   PhysicalTrigger,
 } from "@/lib/voice/physical-extension/types";
@@ -145,17 +143,23 @@ export async function GET(req: Request): Promise<Response> {
 
       const triggerHandler = (data: PhysicalTrigger) => send("trigger", data);
       const transcriptHandler = (data: PhysicalTranscript) => send("transcript", data);
-      const responseStartHandler = (data: PhysicalJarvisResponseStart) => send("jarvis-response-start", data);
-      const responseChunkHandler = (data: PhysicalJarvisResponseChunk) => send("jarvis-response-chunk", data);
+      const responseStartHandler = (data: PhysicalJarvisResponseStart) =>
+        send("jarvis-response-start", data);
+      const responseChunkHandler = (data: PhysicalJarvisResponseChunk) =>
+        send("jarvis-response-chunk", data);
       const toolCallHandler = (data: PhysicalJarvisToolCall) => send("jarvis-tool-call", data);
-      const responseEndHandler = (data: PhysicalJarvisResponseEnd) => send("jarvis-response-end", data);
-      const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) => send("jarvis-routine-progress", data);
+      const studioActionHandler = (data: PhysicalStudioAction) => send("studio-action", data);
+      const responseEndHandler = (data: PhysicalJarvisResponseEnd) =>
+        send("jarvis-response-end", data);
+      const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) =>
+        send("jarvis-routine-progress", data);
 
       physicalBus.on("trigger", triggerHandler);
       physicalBus.on("transcript", transcriptHandler);
       physicalBus.on("jarvis-response-start", responseStartHandler);
       physicalBus.on("jarvis-response-chunk", responseChunkHandler);
       physicalBus.on("jarvis-tool-call", toolCallHandler);
+      physicalBus.on("studio-action", studioActionHandler);
       physicalBus.on("jarvis-response-end", responseEndHandler);
       physicalBus.on("jarvis-routine-progress", routineProgressHandler);
 
@@ -173,6 +177,7 @@ export async function GET(req: Request): Promise<Response> {
         physicalBus.off("jarvis-response-start", responseStartHandler);
         physicalBus.off("jarvis-response-chunk", responseChunkHandler);
         physicalBus.off("jarvis-tool-call", toolCallHandler);
+        physicalBus.off("studio-action", studioActionHandler);
         physicalBus.off("jarvis-response-end", responseEndHandler);
         physicalBus.off("jarvis-routine-progress", routineProgressHandler);
         clearInterval(heartbeat);
