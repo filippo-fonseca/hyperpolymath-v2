@@ -11,6 +11,7 @@ import { mountOrb } from "@/hud/orb";
 import { studioBridge } from "@studio/bridge";
 import { moveWidget, resizeWidget } from "@studio/state/widget-windows";
 import type { WidgetContentProps } from "@studio/windows/catalog";
+import { getOrbTargetGeometry } from "./orb-geometry";
 
 const CYAN = "#2fa8ff";
 const CYAN_HIGH = "#3bd6ff";
@@ -67,20 +68,16 @@ export default function OrbWidget({ id }: WidgetContentProps): React.ReactElemen
 
       if (state === "idle") {
         manualDrag.current = false;
-        const diameter = Math.min(300, stage.height * 0.42, stage.width * 0.28);
-        resizeWidget(id, diameter / stage.width, diameter / stage.height);
-        moveWidget(id, 0.5, 0.5);
+        const target = getOrbTargetGeometry(stage, false);
+        resizeWidget(id, target.w, target.h);
+        moveWidget(id, target.x, target.y);
         return;
       }
 
       if (manualDrag.current) return;
-      const diameter = Math.min(124, stage.height * 0.2, stage.width * 0.12);
-      const w = Math.max(0.16, diameter / stage.width);
-      const h = Math.max(0.16, diameter / stage.height);
-      const edgeX = 32 / stage.width;
-      const edgeY = 32 / stage.height;
-      resizeWidget(id, w, h);
-      moveWidget(id, 1 - w / 2 - edgeX, 1 - h / 2 - edgeY);
+      const target = getOrbTargetGeometry(stage, true);
+      resizeWidget(id, target.w, target.h);
+      moveWidget(id, target.x, target.y);
     });
     return () => cancelAnimationFrame(raf);
   }, [id, state]);
