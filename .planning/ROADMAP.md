@@ -55,6 +55,7 @@ Phases 21–32 overhaul the Pages feature (renamed **Wiki**) and bring JARVIS in
 - [ ] **Phase 31: In-document @JARVIS engine integration** - Inline invocation runs the SAME engine (`jarvis-core` tools + `createServerExecutor` + `runJarvisTurnStream` / `/api/jarvis`); scope resolver (whole page / section / block / sub-block, block-first); page content as context; persists a real `jarvis_turns` turn with receipts + 5s undo.
 - [ ] **Phase 32: In-document @JARVIS inline UX** - `@` autocomplete dropdown (`@J`+Enter); neumorphic mono pill, Cmd+Enter to submit; loading → receipt transform; hover tooltip with original prompt; `/Jarvis` slash entry with logo; nav-bar hide-receipts toggle; receipts always excluded from exports.
 - [ ] **Phase 33: JARVIS page UI redesign + cmd+K reliability** - Full visual overhaul of the JARVIS tab (chat bubbles, receipts, composer, streaming indicator) to "Apple Messages × JARVIS × Sunday Robotics" glassy aesthetic; fix cmd+K palette messages aborting on navigation; add 5s undo and retry for cmd+K-initiated messages.
+- [ ] **Phase 34: Explorer foundation (bgsd unit)** - Spacedrive-grade design substrate for the Wiki Explorer: `--sd-*` token ladder in globals.css, dimensional FolderIcon/PageIcon SVG set, and presentational Explorer chrome primitives (top bar, breadcrumbs, view toggle, sort select, context menu, inspector shell, rubber band, empty state) + dev gallery route.
 
 ## Phase Details
 
@@ -728,6 +729,19 @@ Plans:
 - [ ] 33-01-PLAN.md — cmd+K reliability: sessionStorage handoff + GlobalJarvisHandler hardening
 - [ ] 33-02-PLAN.md — Bubble layout rearchitecture + glass composer + hud-focus-breathe fix
 - [ ] 33-03-PLAN.md — Dead-code cleanup, split-screen ambient fix, full-path checkpoint
+
+### Phase 34: Explorer foundation (bgsd unit explorer-foundation)
+
+**Goal**: The Spacedrive-grade design substrate for the Wiki Explorer, delivered as a reusable presentational component library (no data fetching, no server actions): (1) the `--sd-*` 235°/15% token ladder appended to `apps/web/app/globals.css` (dark values verbatim under `.dark`, light equivalents under `:root`, no existing tokens modified); (2) dimensional SVG icon set in `apps/web/components/wiki/icons/` — layered `FolderIcon` (open/closed + drop-target variants) and `PageIcon` (kind: note | daily | doc), crisp 16–80px; (3) Explorer chrome primitives in `apps/web/components/wiki/explorer/` — ExplorerTopBar, ExplorerBreadcrumbs, ViewToggle, SortSelect, ExplorerContextMenu, InspectorShell (+MetaRow/MetaSection), SelectionRubberBand, EmptyState — per SPEC Design Doctrine (flat `--sd-*` chrome, cyan-only accent, motion budget); (4) a dev gallery route rendering every primitive in both themes for Playwright verification.
+**Depends on**: none (wave-1 file-disjoint unit; consumes existing globals.css token conventions)
+**Requirements**: .planning/UNIT-BRIEF.md deliverables 1–4 (binding), .planning/SPEC.md Design Doctrine 1–8
+**Success Criteria**:
+  1. `--sd-*` token ladder present in globals.css (dark verbatim + light equivalents); no existing tokens or glass classes modified
+  2. FolderIcon + PageIcon render crisp at 16px and 80px, dimensional per Doctrine-7, pure SVG, no external assets
+  3. All eight chrome primitives render presentationally with typed props and SPEC Doctrine-6 motion
+  4. Gallery route renders every primitive in light AND dark with no console errors
+  5. Accent only `var(--hud-cyan)` (`#2389FF` appears nowhere); no Garamond inside chrome; `pnpm --filter web build` + typecheck green
+**Plans**: TBD
 
 ## Progress
 

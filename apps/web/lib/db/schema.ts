@@ -453,6 +453,11 @@ export const pages = pgTable(
     // The partial unique index below enforces exactly one Daily Page per user per
     // day, leaving normal pages (daily_date IS NULL) unconstrained.
     dailyDate: date("daily_date"),
+    // Wiki Renaissance (migration 0048) — base-62 fractional index for manual
+    // drag-to-reorder in the Explorer (see lib/pages/position.ts). NULL = never
+    // manually ordered; sort is (position_key NULLS LAST, name), so NULL rows
+    // trail and fall back to name order until the first reorder seeds keys.
+    positionKey: text("position_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -464,6 +469,11 @@ export const pages = pgTable(
     uniqueIndex("pages_user_daily_date_uniq")
       .on(t.userId, t.dailyDate)
       .where(sql`daily_date IS NOT NULL`),
+    // Per-folder ordered sibling scan for reorder/seed (migration 0048). Partial:
+    // only rows that already carry a key participate.
+    index("pages_user_folder_position_idx")
+      .on(t.userId, t.folderId, t.positionKey)
+      .where(sql`position_key IS NOT NULL`),
   ],
 );
 
@@ -486,11 +496,21 @@ export const pageFolders = pgTable("page_folders", {
   }),
   name: text("name").notNull(),
   orderIndex: integer("order_index").notNull().default(0),
+  // Wiki Renaissance (migration 0048) — base-62 fractional index for manual
+  // drag-to-reorder in the Explorer (see lib/pages/position.ts). NULL = never
+  // manually ordered; sort is (position_key NULLS LAST, name). Standardizes
+  // ordering on this key; order_index above is left unused (not dropped).
+  positionKey: text("position_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("page_folders_parent_idx").on(t.parentId),
   index("page_folders_user_idx").on(t.userId),
+  // Per-parent ordered sibling scan for reorder/seed (migration 0048). Partial:
+  // only rows that already carry a key participate.
+  index("page_folders_user_parent_position_idx")
+    .on(t.userId, t.parentId, t.positionKey)
+    .where(sql`position_key IS NOT NULL`),
 ]);
 
 // folder_projects (migration 0034) — M:N folder->project links. user_id is

@@ -1,112 +1,30 @@
 "use client";
 
 import {
-  createFolder,
-  deleteFolder,
   getFolderProjectsForCurrentUser,
   getFoldersForCurrentUser,
-  renameFolder,
-  setPageFolder,
-  setParentFolder,
 } from "@/app/actions/folders";
 import {
-  createPage,
-  deletePage,
   getDailyPagesForCurrentUser,
   getPagesForCurrentUser,
   openDailyPage,
-  updatePage,
 } from "@/app/actions/pages";
 import { getFieldDefinitionsForCurrentUser } from "@/app/actions/page-fields";
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
-import { JournalCalendar } from "@/components/journaling/JournalCalendar";
-import { ProjectPillRow } from "@/components/pages/ProjectPill";
 import { PropertiesManagerModal } from "./PropertiesManagerModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { asSelectIds, type PageFieldWithValue } from "@/lib/pages/custom-fields";
-import { WikiFolderMenu } from "@/components/pages/WikiFolderMenu";
-import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
-import { WikiPageMenu } from "@/components/pages/WikiPageMenu";
+import { JournalRail } from "@/components/wiki/journal/JournalRail";
+import { WikiExplorer } from "@/components/wiki/WikiExplorer";
+import { buildTreeZip, downloadZipFiles } from "@/lib/pages/markdown-export";
+import { buildPagesTree } from "@/lib/pages/tree";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";
 import type { DailyPageRef, PageWithProjects } from "@/lib/db/queries/pages";
-import {
-  buildFolderZip,
-  buildTreeZip,
-  downloadTextFile,
-  downloadZipFiles,
-  pageToMarkdown,
-  safeFileName,
-} from "@/lib/pages/markdown-export";
-import {
-  buildChildrenMap,
-  collectSubtreeIds,
-  DND_ROOT_ID,
-  encodeDraggableId,
-  parseDraggableId,
-  parseDroppableId,
-  resolveMove,
-  type DropTarget,
-  type Move,
-} from "@/lib/pages/folder-dnd";
-import { buildPagesTree, type TreeFolder, type TreePage } from "@/lib/pages/tree";
-import { dailyDayClickAction, dailyPageTitle } from "@/lib/pages/daily-page";
+import { useEnsureTodayDailyPage } from "@/lib/pages/useEnsureTodayDailyPage";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  MeasuringStrategy,
-  PointerSensor,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
-import {
-  ArrowUpDown,
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  CornerLeftUp,
-  Download,
-  FileText,
-  Folder,
-  FolderPlus,
-  GripVertical,
-  Inbox,
-  LayoutGrid,
-  List,
-  Loader2,
-  Plus,
-  SlidersHorizontal,
-  Trash2,
-} from "lucide-react";
+import { Download, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useState } from "react";
 
 interface Props {
   userId: string;
@@ -116,40 +34,12 @@ interface Props {
   initialDailyPages: DailyPageRef[];
 }
 
-/** Callbacks + lookups threaded into the recursive folder/page nodes. */
-interface TreeCtx {
-  collapsed: Set<string>;
-  toggle: (key: string) => void;
-  q: string;
-  projectNames: Map<string, string>;
-  folderNames: Map<string, string>;
-  openPage: (id: string) => void;
-  onExportFolder: (id: string, name: string) => void;
-  onRenameFolder: (id: string, name: string) => void;
-  onAddSubfolder: (parentId: string, name: string) => void;
-  onAddPage: (folderId: string) => void;
-  onDeleteFolder: (id: string) => void;
-  onManageFolderProperties: (id: string, name: string) => void;
-  folders: FolderRow[];
-  pageFolderOf: Map<string, string | null>;
-  onRenamePage: (id: string, title: string) => void;
-  onMovePage: (pageId: string, folderId: string | null) => void;
-  onExportPage: (id: string) => void;
-  onDeletePage: (id: string) => void;
-  canDrop: (target: DropTarget) => boolean;
-  dragging: boolean;
-}
-
 /**
- * /wiki home. Renders the wiki as a project-independent folder hierarchy
- * (Phase 21): root folders, subfolders, pages, plus a top-level Standalone
- * group for pages in no folder. A title filter narrows the tree live.
- *
- * Folders are fully editable here (issue #95): create root folders + subfolders,
- * rename, delete, and drag-and-drop pages/folders between folders (or out to no
- * folder / the top level). Drag moves optimistically patch the TanStack Query
- * cache, then the Realtime echo reconciles; the pure move-resolution + cycle
- * rules live in lib/pages/folder-dnd.ts.
+ * /wiki home. Header + Daily-Pages placeholder (wave-3-owned) + the new
+ * WikiExplorer surface. The Explorer owns folder drill-down, dnd, selection,
+ * keyboard, the inspector, search, and view rendering — this shell only pumps
+ * data into it and mirrors the app-wide realtime subscriptions so an echo from
+ * another tab reconciles as-is.
  */
 export function PagesListClient({
   userId,
@@ -160,45 +50,7 @@ export function PagesListClient({
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState("");
-  const [creating, setCreating] = useState(false);
-  // "list" is the draggable hierarchy; "grid" is a flat card gallery of pages.
-  // Initialized to "list" for a stable first render, then synced from
-  // localStorage on mount (below) to avoid an SSR/hydration mismatch.
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  useEffect(() => {
-    const saved = localStorage.getItem("wiki:view-mode");
-    if (saved === "grid" || saved === "list") setViewMode(saved);
-  }, []);
-  function chooseView(mode: "list" | "grid") {
-    setViewMode(mode);
-    localStorage.setItem("wiki:view-mode", mode);
-  }
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  // Google-Drive-style grid navigation: which folder the grid is currently
-  // showing (null = top level). Only used by the grid view; the list view keeps
-  // its expand/collapse tree instead.
-  const [gridFolderId, setGridFolderId] = useState<string | null>(null);
-  // The Daily Pages calendar is shown by default; collapsible per WIKI-DAILY-01.
-  const [dailyOpen, setDailyOpen] = useState(true);
-  const [openingDay, setOpeningDay] = useState(false);
-  // The calendar day the user has highlighted. Drives the "No daily page" panel
-  // for a past/empty day. Starts on today.
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    format(new Date(), "yyyy-MM-dd"),
-  );
-  // Custom-fields UI state: property-manager modals + active sort.
-  const [wikiManagerOpen, setWikiManagerOpen] = useState(false);
-  const [folderManager, setFolderManager] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [sortKey, setSortKey] = useState<string>("updated");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Any pages change also refreshes the Daily Pages calendar (new/removed days).
   useTableSubscription("pages", userId, {
     alsoInvalidate: [["daily-pages", userId]],
   });
@@ -211,6 +63,7 @@ export function PagesListClient({
 
   const pagesKey = tableKey("pages", userId);
   const foldersKey = tableKey("page_folders", userId);
+  const fieldDefsKey = ["page-field-definitions", userId] as const;
 
   const { data: allPages = [] } = useQuery({
     queryKey: pagesKey,
@@ -227,751 +80,104 @@ export function PagesListClient({
     queryFn: () => getFolderProjectsForCurrentUser(),
     initialData: initialFolderProjects,
   });
-  // No initialData / SSR seed for projects: this feeds the projectNames map
-  // that resolves the folder + page project pills. Seeding [] with the global
-  // refetchOnMount:false meant the map stayed empty on a cold load, so
-  // ProjectPillRow filtered out every link (no resolvable name) and linked
-  // projects never showed in the Wiki tree. Unseeded, the queryFn runs on mount.
-  const { data: projects = [] } = useQuery({
+  // See wave-1 for why projects / fieldDefinitions aren't seeded with []:
+  // the global QueryClient runs refetchOnMount:false, so a seed sticks.
+  useQuery({
     queryKey: tableKey("projects", userId),
     queryFn: () => getProjectsForCurrentUser(),
   });
-  // Daily Pages (Phase 30) — drives the dotted days on the calendar. Shares the
-  // "pages" realtime channel, so the subscription above already refreshes it.
-  const { data: dailyPages = [] } = useQuery<DailyPageRef[]>({
-    queryKey: ["daily-pages", userId],
-    queryFn: () => getDailyPagesForCurrentUser(),
-    initialData: initialDailyPages,
-  });
-  // Custom field (property) definitions for this user — drives the sort menu and
-  // the Properties manager modals. No initialData: the global QueryClient runs
-  // refetchOnMount:false, so a seeded [] would stick forever (same footgun as
-  // the projects query above). Omitting it lets the query fetch on mount;
-  // handleFieldsChanged invalidates it after edits.
-  const fieldDefsKey = ["page-field-definitions", userId] as const;
   const { data: fieldDefinitions = [] } = useQuery({
     queryKey: fieldDefsKey,
     queryFn: () => getFieldDefinitionsForCurrentUser(),
   });
+  const { data: dailyPages = [], isSuccess: dailyFetched } = useQuery<
+    DailyPageRef[]
+  >({
+    queryKey: ["daily-pages", userId],
+    queryFn: () => getDailyPagesForCurrentUser(),
+    initialData: initialDailyPages,
+  });
+
+  // Wave-3: ensure today's Daily Page exists without navigating. Coordinates
+  // with the app-shell `DailyAutoOpen` via the shared partial unique index.
+  useEnsureTodayDailyPage(userId, dailyPages, dailyFetched);
+
+  const [openingDate, setOpeningDate] = useState<string | null>(null);
+  const [wikiManagerOpen, setWikiManagerOpen] = useState(false);
+
   const handleFieldsChanged = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: pagesKey });
     queryClient.invalidateQueries({ queryKey: fieldDefsKey });
-    // pagesKey/fieldDefsKey derive from userId, so it's the true dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient, userId]);
 
-  // id -> display name lookups so pills render labels, not raw uuids.
-  const projectNames = useMemo(
-    () => new Map(projects.map((p) => [p.id, p.name] as const)),
-    [projects]
-  );
-  const folderNames = useMemo(
-    () => new Map(folders.map((f) => [f.id, f.name] as const)),
-    [folders]
+  const handleOpenPage = useCallback(
+    (pageId: string) => {
+      router.push(`/wiki/${pageId}`);
+    },
+    [router],
   );
 
-  // If the grid is sitting inside a folder that gets deleted (here or via a
-  // realtime echo from another tab), fall back to the top level so we never
-  // render an empty drill-down for a folder that no longer exists.
-  useEffect(() => {
-    if (gridFolderId && !folders.some((f) => f.id === gridFolderId)) {
-      setGridFolderId(null);
-    }
-  }, [folders, gridFolderId]);
-
-  const q = filter.trim().toLowerCase();
-  const visiblePages = useMemo(
-    () => (q ? allPages.filter((p) => p.title.toLowerCase().includes(q)) : allPages),
-    [allPages, q]
-  );
-
-  // Only wiki-scoped custom fields are sortable across the whole wiki.
-  const wikiDefs = useMemo(
-    () => fieldDefinitions.filter((d) => d.scope === "wiki"),
-    [fieldDefinitions],
-  );
-
-  // Resolve a comparable value for a page under the active sort key. Built-in
-  // keys (updated/created/title) plus "field:<defId>" for custom properties.
-  function pageSortValue(
-    page: PageWithProjects,
-    key: string,
-  ): string | number | null {
-    if (key === "updated") return new Date(page.updatedAt).getTime();
-    if (key === "created") return new Date(page.createdAt).getTime();
-    if (key === "title") return page.title.trim().toLowerCase();
-    if (key.startsWith("field:")) {
-      const defId = key.slice("field:".length);
-      const f = page.fields.find((x) => x.id === defId) as
-        | PageFieldWithValue
-        | undefined;
-      if (!f || f.value === null || f.value === undefined) return null;
-      switch (f.type) {
-        case "number":
-          return typeof f.value === "number" ? f.value : Number(f.value);
-        case "checkbox":
-          return f.value === true ? 1 : 0;
-        case "select": {
-          const ids = asSelectIds(f.value);
-          if (ids.length === 0) return null;
-          const opt = (f.options ?? []).find((o) => o.id === ids[0]);
-          return (opt?.label ?? "").toLowerCase();
-        }
-        default:
-          return String(f.value).toLowerCase();
+  const handleCreateForDate = useCallback(
+    async (iso: string) => {
+      if (openingDate) return;
+      setOpeningDate(iso);
+      try {
+        const result = await openDailyPage({ date: iso });
+        if (result.success) router.push(`/wiki/${result.data.id}`);
+      } finally {
+        setOpeningDate(null);
       }
-    }
-    return null;
-  }
-
-  function comparePages(a: PageWithProjects, b: PageWithProjects): number {
-    // Pinned pages always float first, regardless of the chosen sort/direction.
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    const va = pageSortValue(a, sortKey);
-    const vb = pageSortValue(b, sortKey);
-    // Nulls always sort last regardless of direction.
-    if (va === null && vb === null) return 0;
-    if (va === null) return 1;
-    if (vb === null) return -1;
-    let cmp = 0;
-    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
-    else cmp = String(va).localeCompare(String(vb));
-    return sortDir === "asc" ? cmp : -cmp;
-  }
-
-  // Sort the filtered pages once; the tree preserves input order, so this drives
-  // ordering inside every folder + the standalone group (list view). The grid
-  // view sorts with the same comparator.
-  const sortedVisiblePages = useMemo(
-    () => [...visiblePages].sort(comparePages),
-    // comparePages closes over sortKey/sortDir, the true inputs here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visiblePages, sortKey, sortDir],
-  );
-
-  const pagesTree = useMemo(
-    () => buildPagesTree(folders, folderProjects, sortedVisiblePages),
-    [folders, folderProjects, sortedVisiblePages]
-  );
-
-  // Export always works on the FULL tree (every page, never the title-filtered
-  // view) so a partial filter can never produce an incomplete bundle.
-  const fullTree = useMemo(
-    () => buildPagesTree(folders, folderProjects, allPages),
-    [folders, folderProjects, allPages]
+    },
+    [openingDate, router],
   );
 
   function handleExportAll() {
-    const files = buildTreeZip(fullTree, allPages);
+    const tree = buildPagesTree(folders, folderProjects, allPages);
+    const files = buildTreeZip(tree, allPages);
     downloadZipFiles(files, "wiki.zip");
   }
 
-  function handleExportFolder(folderId: string, folderName: string) {
-    const node = findFolder(fullTree.roots, folderId);
-    if (!node) return;
-    const files = buildFolderZip(node, allPages);
-    downloadZipFiles(files, `${safeFileName(folderName)}.zip`);
-  }
-
-  function toggle(id: string) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function expandFolder(folderId: string) {
-    setCollapsed((prev) => {
-      if (!prev.has(`folder:${folderId}`)) return prev;
-      const next = new Set(prev);
-      next.delete(`folder:${folderId}`);
-      return next;
-    });
-  }
-
-  async function handleNewPage(folderId: string | null = null) {
-    if (creating) return;
-    setCreating(true);
-    try {
-      const id = crypto.randomUUID();
-      // Optimistically insert into the list cache before navigating into the
-      // editor. Every other Wiki mutation here self-patches; this one used to
-      // rely solely on the Realtime INSERT echo, so returning to /wiki after
-      // creating showed a stale list until a manual refresh. createPage takes
-      // our client id, so the echo reconciles onto the same row with no dupe.
-      const now = new Date();
-      patchPages((old) => [
-        {
-          id,
-          title: "",
-          content: "",
-          contentJson: null,
-          emoji: null,
-          pinned: false,
-          url: null,
-          coverImageUrl: null,
-          coverImageAttribution: null,
-          noExport: false,
-          folderId,
-          folderName: folderId ? folderNames.get(folderId) ?? null : null,
-          dailyDate: null,
-          createdAt: now,
-          updatedAt: now,
-          projects: [],
-          fields: [],
-        },
-        ...old,
-      ]);
-      if (folderId) expandFolder(folderId);
-      const result = await createPage({ id, title: "", content: "", folderId });
-      if (!result.success) {
-        void queryClient.invalidateQueries({ queryKey: pagesKey });
-        return;
-      }
-      router.push(`/wiki/${result.data.id}`);
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  // ─── Folder CRUD (optimistic patch → server action → realtime reconcile) ────
-
-  function patchFolders(updater: (old: FolderRow[]) => FolderRow[]) {
-    queryClient.setQueryData<FolderRow[]>(foldersKey, (old) => updater(old ?? []));
-  }
-
-  async function handleCreateFolder(name: string, parentId: string | null) {
-    const id = crypto.randomUUID();
-    patchFolders((old) => [
-      ...old,
-      { id, parentId, name, orderIndex: old.length },
-    ]);
-    if (parentId) expandFolder(parentId);
-    const r = await createFolder({ id, parentId, name });
-    if (!r.success) {
-      toast.error(r.error);
-      queryClient.invalidateQueries({ queryKey: foldersKey });
-    }
-  }
-
-  async function handleRenameFolder(id: string, name: string) {
-    patchFolders((old) => old.map((f) => (f.id === id ? { ...f, name } : f)));
-    const r = await renameFolder({ id, name });
-    if (!r.success) {
-      toast.error(r.error);
-      queryClient.invalidateQueries({ queryKey: foldersKey });
-    }
-  }
-
-  async function handleDeleteFolder(id: string) {
-    const subtree = new Set(collectSubtreeIds(id, buildChildrenMap(folders)));
-    patchFolders((old) => old.filter((f) => !subtree.has(f.id)));
-    const r = await deleteFolder(id);
-    if (!r.success) {
-      toast.error(r.error);
-      queryClient.invalidateQueries({ queryKey: foldersKey });
-    }
-  }
-
-  // ─── Page CRUD (optimistic patch → server action → realtime reconcile) ─────
-
-  function patchPages(updater: (old: PageWithProjects[]) => PageWithProjects[]) {
-    queryClient.setQueryData<PageWithProjects[]>(pagesKey, (old) =>
-      updater(old ?? []),
-    );
-  }
-
-  async function handleRenamePage(id: string, title: string) {
-    patchPages((old) => old.map((p) => (p.id === id ? { ...p, title } : p)));
-    const r = await updatePage({ id, title });
-    if (!r.success) {
-      toast.error(r.error);
-      queryClient.invalidateQueries({ queryKey: pagesKey });
-    }
-  }
-
-  async function handleDeletePage(id: string) {
-    patchPages((old) => old.filter((p) => p.id !== id));
-    const r = await deletePage(id);
-    if (!r.success) {
-      toast.error(r.error);
-      queryClient.invalidateQueries({ queryKey: pagesKey });
-    }
-  }
-
-  function handleExportPage(id: string) {
-    const page = allPages.find((p) => p.id === id);
-    if (!page) return;
-    const md = pageToMarkdown({ id: page.id, title: page.title, content: page.content });
-    downloadTextFile(md, `${safeFileName(page.title)}.md`);
-  }
-
-  // ─── Drag-and-drop ───────────────────────────────────────────────────────
-
-  const pageFolderOf = useMemo(
-    () => new Map(allPages.map((p) => [p.id, p.folderId] as const)),
-    [allPages],
-  );
-  const folderParentOf = useMemo(
-    () => new Map(folders.map((f) => [f.id, f.parentId] as const)),
-    [folders],
-  );
-  const childrenOf = useMemo(() => buildChildrenMap(folders), [folders]);
-  const moveCtx = useMemo(
-    () => ({ pageFolderOf, folderParentOf, childrenOf }),
-    [pageFolderOf, folderParentOf, childrenOf],
-  );
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
-  );
-
-  const activeDrag = activeId ? parseDraggableId(activeId) : null;
-  const activeLabel = activeDrag
-    ? activeDrag.kind === "folder"
-      ? folderNames.get(activeDrag.id) ?? "Folder"
-      : allPages.find((p) => p.id === activeDrag.id)?.title || "Untitled page"
-    : null;
-
-  function canDrop(target: DropTarget): boolean {
-    if (!activeDrag) return false;
-    return resolveMove(activeDrag, target, moveCtx) !== null;
-  }
-
-  async function applyMove(move: Move) {
-    if (move.kind === "page") {
-      queryClient.setQueryData<PageWithProjects[]>(pagesKey, (old) =>
-        (old ?? []).map((p) =>
-          p.id === move.pageId ? { ...p, folderId: move.folderId } : p,
-        ),
-      );
-      if (move.folderId) expandFolder(move.folderId);
-      const r = await setPageFolder({
-        pageId: move.pageId,
-        folderId: move.folderId,
-      });
-      if (!r.success) {
-        toast.error(r.error);
-        queryClient.invalidateQueries({ queryKey: pagesKey });
-      }
-    } else {
-      patchFolders((old) =>
-        old.map((f) =>
-          f.id === move.folderId ? { ...f, parentId: move.parentId } : f,
-        ),
-      );
-      if (move.parentId) expandFolder(move.parentId);
-      const r = await setParentFolder({
-        folderId: move.folderId,
-        parentId: move.parentId,
-      });
-      if (!r.success) {
-        toast.error(r.error);
-        queryClient.invalidateQueries({ queryKey: foldersKey });
-      }
-    }
-  }
-
-  function handleDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
-  }
-
-  function handleDragEnd(e: DragEndEvent) {
-    setActiveId(null);
-    const { active, over } = e;
-    if (!over) return;
-    const drag = parseDraggableId(String(active.id));
-    const drop = parseDroppableId(String(over.id));
-    if (!drag || !drop) return;
-    const move = resolveMove(drag, drop, moveCtx);
-    if (move) void applyMove(move);
-  }
-
-  // Daily Pages keyed by their date (route to existing vs. show create panel).
-  const dailyByDate = useMemo(
-    () => new Map(dailyPages.map((d) => [d.dailyDate, d] as const)),
-    [dailyPages],
-  );
-  const markedDays = useMemo(
-    () => new Set(dailyPages.map((d) => d.dailyDate)),
-    [dailyPages],
-  );
-  const todayIso = format(new Date(), "yyyy-MM-dd");
-
-  async function createAndOpen(iso: string) {
-    if (openingDay) return;
-    setOpeningDay(true);
-    try {
-      const result = await openDailyPage({ date: iso });
-      if (result.success) router.push(`/wiki/${result.data.id}`);
-    } finally {
-      setOpeningDay(false);
-    }
-  }
-
-  function handleSelectDay(iso: string) {
-    setSelectedDate(iso);
-    const action = dailyDayClickAction(iso, dailyByDate.get(iso)?.id);
-    if (action.kind === "route") router.push(`/wiki/${action.pageId}`);
-  }
-
-  // First-open-of-day auto-create + navigation now lives app-wide in
-  // <DailyAutoOpen> (issue #92, part 4), so the behavior fires from any entry
-  // route, not only the Wiki home. This view keeps its manual "Today" button
-  // and the per-day create panel below.
-
-  const selectedDailyPage = dailyByDate.get(selectedDate) ?? null;
-
-  const isEmpty =
-    pagesTree.roots.length === 0 && pagesTree.standalonePages.length === 0;
-
-  const ctx: TreeCtx = {
-    collapsed,
-    toggle,
-    q,
-    projectNames,
-    folderNames,
-    openPage: (id) => router.push(`/wiki/${id}`),
-    onExportFolder: handleExportFolder,
-    onRenameFolder: handleRenameFolder,
-    onAddSubfolder: (parentId, name) => handleCreateFolder(name, parentId),
-    onAddPage: (folderId) => void handleNewPage(folderId),
-    onDeleteFolder: handleDeleteFolder,
-    onManageFolderProperties: (id, name) => setFolderManager({ id, name }),
-    folders,
-    pageFolderOf,
-    onRenamePage: handleRenamePage,
-    onMovePage: (pageId, folderId) =>
-      void applyMove({ kind: "page", pageId, folderId }),
-    onExportPage: handleExportPage,
-    onDeletePage: handleDeletePage,
-    canDrop,
-    dragging: activeDrag !== null,
-  };
+  const isEmpty = allPages.length === 0 && folders.length === 0;
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="font-mono text-[13px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-          Wiki
-        </h1>
+        <h1 className="font-serif text-3xl leading-none text-[var(--ink)]">Wiki</h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-sm border border-[var(--edge)] p-0.5">
-            <button
-              type="button"
-              onClick={() => chooseView("list")}
-              aria-pressed={viewMode === "list"}
-              title="List view"
-              className={`flex items-center justify-center rounded-[3px] p-1.5 transition-colors duration-150 cursor-pointer ${
-                viewMode === "list"
-                  ? "bg-[var(--surface)] text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              <List size={14} strokeWidth={1.5} />
-            </button>
-            <button
-              type="button"
-              onClick={() => chooseView("grid")}
-              aria-pressed={viewMode === "grid"}
-              title="Grid view"
-              className={`flex items-center justify-center rounded-[3px] p-1.5 transition-colors duration-150 cursor-pointer ${
-                viewMode === "grid"
-                  ? "bg-[var(--surface)] text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              <LayoutGrid size={14} strokeWidth={1.5} />
-            </button>
-          </div>
           <button
             type="button"
             onClick={handleExportAll}
             disabled={isEmpty}
             title="Export the entire wiki as a .zip of markdown files"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors duration-150 ease-out hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download size={13} strokeWidth={1.5} />
             <span>Export all</span>
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                title="Sort pages"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
-              >
-                <ArrowUpDown size={13} strokeWidth={1.5} />
-                <span>Sort</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={sortKey} onValueChange={setSortKey}>
-                <DropdownMenuRadioItem value="updated">
-                  Last updated
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="created">
-                  Created
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
-                {wikiDefs.length > 0 && <DropdownMenuSeparator />}
-                {wikiDefs.map((d) => (
-                  <DropdownMenuRadioItem key={d.id} value={`field:${d.id}`}>
-                    {d.name}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup
-                value={sortDir}
-                onValueChange={(v) => setSortDir(v as "asc" | "desc")}
-              >
-                <DropdownMenuRadioItem value="asc">
-                  Ascending
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="desc">
-                  Descending
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <button
             type="button"
             onClick={() => setWikiManagerOpen(true)}
             title="Manage wiki properties"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
+            className="flex items-center gap-1.5 rounded-sm border border-[var(--edge)] px-3 py-1.5 font-serif text-[13px] text-[var(--ink)] transition-colors duration-150 ease-out hover:bg-[var(--surface)]"
           >
             <SlidersHorizontal size={13} strokeWidth={1.5} />
             <span>Properties</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setNewFolderOpen(true)}
-            title="Create a new top-level folder"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer"
-          >
-            <FolderPlus size={13} strokeWidth={1.5} />
-            <span>New folder</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleNewPage()}
-            disabled={creating}
-            aria-busy={creating}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[13px] font-serif text-[var(--ink)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-          >
-            {creating ? (
-              <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
-            ) : (
-              <Plus size={13} strokeWidth={1.5} />
-            )}
-            <span>{creating ? "Creating…" : "New page"}</span>
-          </button>
         </div>
       </div>
 
-      {/* Daily Pages — collapsible calendar section (WIKI-DAILY-01). */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setDailyOpen((o) => !o)}
-            className="flex items-center gap-1.5 cursor-pointer text-left"
-            aria-expanded={dailyOpen}
-          >
-            <span className="text-[var(--ink-muted)] flex-shrink-0">
-              {dailyOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </span>
-            <CalendarDays
-              size={13}
-              strokeWidth={1.5}
-              className="text-[var(--ink-muted)] flex-shrink-0"
-            />
-            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-              Daily Pages
-            </span>
-            {dailyPages.length > 0 && (
-              <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
-                {dailyPages.length}
-              </span>
-            )}
-          </button>
-          {dailyOpen && (
-            <button
-              type="button"
-              onClick={() =>
-                markedDays.has(todayIso)
-                  ? handleSelectDay(todayIso)
-                  : void createAndOpen(todayIso)
-              }
-              disabled={openingDay}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[12px] font-serif text-[var(--hud-cyan)] border border-[var(--edge)] hover:bg-[var(--surface)] transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {openingDay ? (
-                <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-              ) : (
-                <CalendarDays size={12} strokeWidth={1.5} />
-              )}
-              <span>Today</span>
-            </button>
-          )}
-        </div>
-        {dailyOpen && (
-          <>
-            <JournalCalendar
-              selectedDate={selectedDate}
-              markedDates={markedDays}
-              onSelectDate={handleSelectDay}
-              ariaLabel="Daily Pages calendar"
-            />
-            {!selectedDailyPage && (
-              <div className="glass-tile flex items-center justify-between gap-3 rounded-md px-3 py-2.5">
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                    No daily page
-                  </span>
-                  <span className="truncate text-[13px] font-serif text-[var(--ink)]">
-                    {dailyPageTitle(selectedDate)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void createAndOpen(selectedDate)}
-                  disabled={openingDay}
-                  className="glass-button flex flex-shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-[12px] font-serif text-[var(--hud-cyan)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {openingDay ? (
-                    <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-                  ) : (
-                    <Plus size={12} strokeWidth={1.5} />
-                  )}
-                  <span>Create daily page</span>
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Filter */}
-      <input
-        type="text"
-        placeholder="Filter by title..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        className="w-full px-3 py-2 text-[13px] font-serif bg-transparent border border-[var(--edge)] rounded-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none focus:border-[var(--ink-muted)] transition-colors duration-150"
+      {/* Wave-3: the editorial Journal rail (today card + 7-day trail + calendar). */}
+      <JournalRail
+        allPages={allPages}
+        dailyPages={dailyPages}
+        onOpenPage={handleOpenPage}
+        onCreateForDate={handleCreateForDate}
+        openingDate={openingDate}
       />
 
-      {/* Tree */}
-      {isEmpty ? (
-        <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl glass-tile">
-            <FileText size={22} strokeWidth={1.2} className="text-[var(--ink-muted)] opacity-60" />
-          </div>
-          <p className="text-[13px] font-serif text-[var(--ink-muted)]">
-            {filter
-              ? "No pages match that filter."
-              : "No pages yet. Create a folder or a page to keep notes, docs, or references."}
-          </p>
-        </div>
-      ) : viewMode === "grid" ? (
-        q ? (
-          // Active title filter: search is global, so flatten every matching
-          // page into a single gallery rather than constraining to one folder.
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-            {sortedVisiblePages.map((page) => (
-                <PageCard
-                  key={page.id}
-                  page={page}
-                  folderName={
-                    page.folderId ? folderNames.get(page.folderId) ?? null : null
-                  }
-                  projectNames={projectNames}
-                  onOpen={() => router.push(`/wiki/${page.id}`)}
-                />
-              ))}
-          </div>
-        ) : (
-          <GridDriveView
-            gridFolderId={gridFolderId}
-            onNavigate={setGridFolderId}
-            folders={folders}
-            pages={allPages}
-            folderProjects={folderProjects}
-            folderNames={folderNames}
-            projectNames={projectNames}
-            onOpenPage={(id) => router.push(`/wiki/${id}`)}
-            onAddPage={(folderId) => void handleNewPage(folderId)}
-            comparePages={comparePages}
-          />
-        )
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          // Measure droppables continuously, not just at drag start. The root
-          // drop zone only mounts once a drag begins, so the default
-          // measure-at-start strategy never registered its rect and dropping
-          // onto it did nothing ("no way to drag to the root").
-          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveId(null)}
-        >
-          {/* Top-level / "no folder" drop zone — appears during a drag. */}
-          <RootDropZone show={ctx.dragging} canDrop={canDrop({ kind: "root" })} />
-
-          <div className="flex flex-col gap-1">
-            {pagesTree.roots.map((folder) => (
-              <FolderNode key={folder.id} folder={folder} depth={0} ctx={ctx} />
-            ))}
-
-            {pagesTree.standalonePages.length > 0 && (
-              <div className="flex flex-col">
-                <Row
-                  depth={0}
-                  open={!collapsed.has("standalone")}
-                  onToggle={() => toggle("standalone")}
-                  icon={<Inbox size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-                  label="Standalone"
-                  labelClass="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
-                  count={pagesTree.standalonePages.length}
-                />
-                {!collapsed.has("standalone") &&
-                  pagesTree.standalonePages.map((page) => (
-                    <PageNode key={page.id} page={page} depth={1} ctx={ctx} />
-                  ))}
-              </div>
-            )}
-          </div>
-
-          <DragOverlay dropAnimation={null}>
-            {activeDrag ? (
-              <div className="glass-button flex items-center gap-2 rounded-md px-2.5 py-1.5 select-none cursor-grabbing font-serif text-[13px] text-[var(--ink)] shadow-lg">
-                {activeDrag.kind === "folder" ? (
-                  <Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-                ) : (
-                  <FileText size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-                )}
-                <span className="truncate max-w-[220px]">{activeLabel}</span>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
-
-      <WikiFolderNameDialog
-        open={newFolderOpen}
-        onOpenChange={setNewFolderOpen}
-        title="New folder"
-        submitLabel="Create"
-        onSubmit={(name) => handleCreateFolder(name, null)}
-      />
+      <WikiExplorer userId={userId} pages={allPages} folders={folders} />
 
       <PropertiesManagerModal
         open={wikiManagerOpen}
@@ -980,698 +186,6 @@ export function PagesListClient({
         definitions={fieldDefinitions}
         onChanged={handleFieldsChanged}
       />
-      <PropertiesManagerModal
-        open={folderManager !== null}
-        onOpenChange={(o) => {
-          if (!o) setFolderManager(null);
-        }}
-        scope="folder"
-        folderId={folderManager?.id ?? null}
-        folderName={folderManager?.name}
-        definitions={fieldDefinitions}
-        onChanged={handleFieldsChanged}
-      />
-    </div>
-  );
-}
-
-/** Depth-first search for a folder node by id across a forest of roots. */
-function findFolder(nodes: TreeFolder[], id: string): TreeFolder | null {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    const hit = findFolder(node.subfolders, id);
-    if (hit) return hit;
-  }
-  return null;
-}
-
-/** True if a folder or any of its descendants holds at least one page. */
-function folderHasVisiblePages(folder: TreeFolder): boolean {
-  if (folder.pages.length > 0) return true;
-  return folder.subfolders.some(folderHasVisiblePages);
-}
-
-const INDENT = 18;
-
-// ─── Root / "no folder" drop zone ──────────────────────────────────────────
-
-function RootDropZone({ show, canDrop }: { show: boolean; canDrop: boolean }) {
-  const { setNodeRef, isOver } = useDroppable({ id: DND_ROOT_ID });
-  if (!show) return null;
-  const active = isOver && canDrop;
-  return (
-    <div
-      ref={setNodeRef}
-      className={`mb-1 flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-[12px] font-serif transition-colors duration-100 ${
-        active
-          ? "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] text-[var(--hud-cyan)]"
-          : "border-[var(--edge)] text-[var(--ink-muted)]"
-      }`}
-    >
-      <CornerLeftUp size={13} strokeWidth={1.5} />
-      <span>Move to top level (no folder)</span>
-    </div>
-  );
-}
-
-// ─── Folder node (draggable + droppable, recursive) ────────────────────────
-
-function FolderNode({
-  folder,
-  depth,
-  ctx,
-}: {
-  folder: TreeFolder;
-  depth: number;
-  ctx: TreeCtx;
-}) {
-  const dndId = encodeDraggableId({ kind: "folder", id: folder.id });
-  const {
-    attributes,
-    listeners,
-    setNodeRef: setDragRef,
-    isDragging,
-  } = useDraggable({ id: dndId });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dndId });
-
-  if (ctx.q && !folderHasVisiblePages(folder)) return null;
-
-  const folderKey = `folder:${folder.id}`;
-  const folderOpen = !ctx.collapsed.has(folderKey);
-  const highlight = isOver && ctx.canDrop({ kind: "folder", id: folder.id });
-
-  const folderPills = folder.projectLinks.map((l) => ({
-    projectId: l.projectId,
-    isInherited: l.isInherited,
-    sourceFolderName: l.sourceFolder ? ctx.folderNames.get(l.sourceFolder) : undefined,
-  }));
-
-  return (
-    <div className="flex flex-col">
-      <div
-        ref={setDropRef}
-        className={`rounded-md transition-colors duration-100 ${
-          highlight
-            ? "bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] shadow-[inset_0_0_0_1px_var(--hud-cyan)]"
-            : ""
-        } ${isDragging ? "opacity-40" : ""}`}
-      >
-        <Row
-          ref={setDragRef}
-          depth={depth}
-          open={folderOpen}
-          onToggle={() => ctx.toggle(folderKey)}
-          icon={<Folder size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />}
-          label={folder.name}
-          labelClass="font-serif text-[13px] text-[var(--ink)]"
-          count={folder.pages.length}
-          pills={<ProjectPillRow links={folderPills} projectNames={ctx.projectNames} />}
-          dragHandle={
-            <span
-              {...attributes}
-              {...listeners}
-              className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-              aria-label={`Drag ${folder.name}`}
-            >
-              <GripVertical size={13} strokeWidth={1.5} />
-            </span>
-          }
-          trailing={
-            <span className="flex items-center gap-0.5">
-              <button
-                type="button"
-                aria-label={`New page in ${folder.name}`}
-                title="New page in this folder"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  ctx.onAddPage(folder.id);
-                }}
-                className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
-              >
-                <Plus size={13} strokeWidth={1.5} />
-              </button>
-              <WikiFolderMenu
-                folderId={folder.id}
-                folderName={folder.name}
-                isTopLevel={folder.parentId === null}
-                onRename={ctx.onRenameFolder}
-                onAddSubfolder={ctx.onAddSubfolder}
-                onExport={() => ctx.onExportFolder(folder.id, folder.name)}
-                onManageProperties={ctx.onManageFolderProperties}
-                onDelete={ctx.onDeleteFolder}
-              />
-            </span>
-          }
-        />
-      </div>
-      {folderOpen && (
-        <>
-          {folder.subfolders.map((sub) => (
-            <FolderNode key={sub.id} folder={sub} depth={depth + 1} ctx={ctx} />
-          ))}
-          {folder.pages.map((page) => (
-            <PageNode key={page.id} page={page} depth={depth + 1} ctx={ctx} />
-          ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Page node (draggable) ─────────────────────────────────────────────────
-
-function PageNode({
-  page,
-  depth,
-  ctx,
-}: {
-  page: TreePage;
-  depth: number;
-  ctx: TreeCtx;
-}) {
-  const dndId = encodeDraggableId({ kind: "page", id: page.id });
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: dndId,
-  });
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const currentFolderId = ctx.pageFolderOf.get(page.id) ?? null;
-  const label = page.title || "Untitled page";
-
-  return (
-    <>
-      <PageRow
-        ref={setNodeRef}
-        depth={depth}
-        page={page}
-        projectNames={ctx.projectNames}
-        onOpen={() => ctx.openPage(page.id)}
-        className={isDragging ? "opacity-40" : ""}
-        dragHandle={
-          <span
-            {...attributes}
-            {...listeners}
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-            aria-label={`Drag ${label}`}
-          >
-            <GripVertical size={13} strokeWidth={1.5} />
-          </span>
-        }
-        actions={
-          <>
-            <button
-              type="button"
-              aria-label={`Delete ${label}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteOpen(true);
-              }}
-              className="flex-shrink-0 p-1 rounded-sm text-[var(--ink-muted)] hover:text-destructive hover:bg-[var(--surface)] cursor-pointer outline-none"
-            >
-              <Trash2 size={13} strokeWidth={1.5} />
-            </button>
-            <WikiPageMenu
-              currentFolderId={currentFolderId}
-              folders={ctx.folders}
-              onRequestRename={() => setRenameOpen(true)}
-              onMove={(folderId) => ctx.onMovePage(page.id, folderId)}
-              onExport={() => ctx.onExportPage(page.id)}
-              onRequestDelete={() => setDeleteOpen(true)}
-            />
-          </>
-        }
-      />
-
-      <WikiFolderNameDialog
-        open={renameOpen}
-        onOpenChange={setRenameOpen}
-        title="Rename page"
-        initialValue={page.title}
-        placeholder="Page title"
-        submitLabel="Save"
-        onSubmit={(title) => ctx.onRenamePage(page.id, title)}
-      />
-
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete &ldquo;{label}&rdquo;?</DialogTitle>
-            <DialogDescription>
-              This permanently removes the page and its contents. This cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setDeleteOpen(false);
-                ctx.onDeletePage(page.id);
-              }}
-            >
-              Delete page
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// ─── Presentational rows ───────────────────────────────────────────────────
-
-function Row({
-  ref,
-  depth,
-  open,
-  onToggle,
-  icon,
-  label,
-  labelClass,
-  count,
-  pills,
-  dragHandle,
-  trailing,
-}: {
-  ref?: React.Ref<HTMLDivElement>;
-  depth: number;
-  open: boolean;
-  onToggle: () => void;
-  icon: React.ReactNode;
-  label: string;
-  labelClass: string;
-  count?: number;
-  pills?: React.ReactNode;
-  dragHandle?: React.ReactNode;
-  trailing?: React.ReactNode;
-}) {
-  return (
-    <div
-      ref={ref}
-      className="group flex items-center gap-1.5 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors"
-      style={{ paddingLeft: depth * INDENT + 4 }}
-    >
-      {dragHandle}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1.5 min-w-0 flex-shrink cursor-pointer text-left"
-      >
-        <span className="text-[var(--ink-muted)] flex-shrink-0">
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        </span>
-        <span className="flex-shrink-0 w-4 text-center">{icon}</span>
-        <span className={`truncate ${labelClass}`}>{label}</span>
-        {count !== undefined && (
-          <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">{count}</span>
-        )}
-      </button>
-      {pills && <span className="ml-1 min-w-0">{pills}</span>}
-      {trailing && <span className="ml-auto flex-shrink-0">{trailing}</span>}
-    </div>
-  );
-}
-
-function PageRow({
-  ref,
-  depth,
-  page,
-  projectNames,
-  onOpen,
-  className,
-  dragHandle,
-  actions,
-}: {
-  ref?: React.Ref<HTMLDivElement>;
-  depth: number;
-  page: TreePage;
-  projectNames: Map<string, string>;
-  onOpen: () => void;
-  className?: string;
-  dragHandle?: React.ReactNode;
-  actions?: React.ReactNode;
-}) {
-  return (
-    <div
-      ref={ref}
-      className={`group flex items-center gap-2 py-1 px-1 rounded-sm hover:bg-[var(--surface)] transition-colors ${className ?? ""}`}
-      style={{ paddingLeft: depth * INDENT + 4 }}
-    >
-      {dragHandle}
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer text-left"
-      >
-        <span className="flex-shrink-0 w-4 text-center text-[13px] leading-none">
-          {page.emoji ?? (
-            <FileText size={13} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          )}
-        </span>
-        <span className="min-w-0 text-[13px] font-serif text-[var(--ink)] truncate">
-          {page.title || <span className="text-[var(--ink-muted)] italic">Untitled page</span>}
-        </span>
-      </button>
-      <ProjectPillRow links={page.projectLinks} projectNames={projectNames} />
-      <span className="flex-shrink-0 text-[10px] font-mono text-[var(--ink-muted)]">
-        {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
-      </span>
-      {actions && (
-        <span className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
-          {actions}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─── Grid view card ────────────────────────────────────────────────────────
-
-function PageCard({
-  page,
-  folderName,
-  projectNames,
-  onOpen,
-}: {
-  page: PageWithProjects;
-  folderName: string | null;
-  projectNames: Map<string, string>;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex flex-col gap-3 h-full text-left rounded-xl glass-tile p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-1"
-    >
-      <div className="flex items-start gap-3">
-        <span className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-[color-mix(in_oklch,var(--surface-raised)_80%,transparent)] border border-[var(--edge)] text-[16px] leading-none">
-          {page.emoji ?? (
-            <FileText size={15} strokeWidth={1.5} className="text-[var(--ink-muted)]" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1 pt-0.5 text-[14px] font-serif text-[var(--ink)] line-clamp-3 leading-snug">
-          {page.title || (
-            <span className="text-[var(--ink-muted)] italic">Untitled page</span>
-          )}
-        </span>
-      </div>
-      {folderName && (
-        <span className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--ink-muted)] truncate">
-          <Folder size={10} strokeWidth={1.5} className="flex-shrink-0" />
-          {folderName}
-        </span>
-      )}
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1 border-t border-[var(--edge)] border-opacity-50">
-        <ProjectPillRow
-          links={page.projects.map((p) => ({
-            projectId: p.id,
-            isInherited: false,
-          }))}
-          projectNames={projectNames}
-        />
-        <span className="flex-shrink-0 ml-auto text-[10px] font-mono text-[var(--ink-muted)]">
-          {formatDistanceToNow(new Date(page.updatedAt), { addSuffix: true })}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-// ─── Grid view: Google-Drive-style folder drill-down ───────────────────────
-
-/**
- * Drive-like gallery for the grid view. Shows the contents of one folder at a
- * time (`gridFolderId`; null = top level): subfolders first as folder cards,
- * then pages as page cards, with a clickable breadcrumb trail back to the root.
- * Folder/page membership is read straight off the flat `folders` + `pages`
- * arrays (parentId / folderId), so a realtime echo repaints it for free.
- */
-function GridDriveView({
-  gridFolderId,
-  onNavigate,
-  folders,
-  pages,
-  folderProjects,
-  folderNames,
-  projectNames,
-  onOpenPage,
-  onAddPage,
-  comparePages,
-}: {
-  gridFolderId: string | null;
-  onNavigate: (folderId: string | null) => void;
-  folders: FolderRow[];
-  pages: PageWithProjects[];
-  folderProjects: FolderProjectLink[];
-  folderNames: Map<string, string>;
-  projectNames: Map<string, string>;
-  onOpenPage: (id: string) => void;
-  onAddPage: (folderId: string) => void;
-  comparePages: (a: PageWithProjects, b: PageWithProjects) => number;
-}) {
-  const subfolders = useMemo(
-    () =>
-      folders
-        .filter((f) => (f.parentId ?? null) === gridFolderId)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [folders, gridFolderId],
-  );
-  const childPages = useMemo(
-    () =>
-      pages
-        .filter((p) => (p.folderId ?? null) === gridFolderId)
-        .sort(comparePages),
-    [pages, gridFolderId, comparePages],
-  );
-
-  // Item counts per folder (subfolders + pages) for the folder-card subtitle.
-  const childCount = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const f of folders) {
-      if (f.parentId) m.set(f.parentId, (m.get(f.parentId) ?? 0) + 1);
-    }
-    for (const p of pages) {
-      if (p.folderId) m.set(p.folderId, (m.get(p.folderId) ?? 0) + 1);
-    }
-    return m;
-  }, [folders, pages]);
-
-  // Own (direct) project links per folder, for the folder-card pill row.
-  const ownLinksByFolder = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const link of folderProjects) {
-      const list = m.get(link.folderId) ?? [];
-      list.push(link.projectId);
-      m.set(link.folderId, list);
-    }
-    return m;
-  }, [folderProjects]);
-
-  // Breadcrumb trail (root first). Cycle-safe via a visited guard.
-  const path = useMemo(() => {
-    if (!gridFolderId) return [] as { id: string; name: string }[];
-    const byId = new Map(folders.map((f) => [f.id, f] as const));
-    const chain: { id: string; name: string }[] = [];
-    const visited = new Set<string>();
-    let current: string | null = gridFolderId;
-    while (current && !visited.has(current)) {
-      visited.add(current);
-      const node = byId.get(current);
-      if (!node) break;
-      chain.push({ id: node.id, name: node.name });
-      current = node.parentId;
-    }
-    return chain.reverse();
-  }, [gridFolderId, folders]);
-
-  const isEmpty = subfolders.length === 0 && childPages.length === 0;
-
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-[12px] font-mono text-[var(--ink-muted)] flex-wrap">
-        <button
-          type="button"
-          onClick={() => onNavigate(null)}
-          className={`hover:text-[var(--ink)] transition-colors cursor-pointer ${
-            gridFolderId === null ? "text-[var(--ink)]" : ""
-          }`}
-        >
-          Wiki
-        </button>
-        {path.map((seg, i) => {
-          const isLast = i === path.length - 1;
-          return (
-            <span key={seg.id} className="flex items-center gap-1 min-w-0">
-              <ChevronRight
-                size={12}
-                strokeWidth={1.5}
-                className="opacity-50 flex-shrink-0"
-              />
-              <button
-                type="button"
-                onClick={() => onNavigate(seg.id)}
-                className={`truncate max-w-[180px] hover:text-[var(--ink)] transition-colors cursor-pointer ${
-                  isLast ? "text-[var(--ink)]" : ""
-                }`}
-              >
-                {seg.name}
-              </button>
-            </span>
-          );
-        })}
-        {gridFolderId && (
-          <button
-            type="button"
-            onClick={() => onAddPage(gridFolderId)}
-            title="New page in this folder"
-            className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md glass-button text-[var(--ink)] transition-colors duration-150 cursor-pointer"
-          >
-            <Plus size={12} strokeWidth={1.5} />
-            <span>New page here</span>
-          </button>
-        )}
-      </nav>
-
-      {isEmpty ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl glass-tile">
-            <Folder
-              size={24}
-              strokeWidth={1.2}
-              className="text-[var(--ink-muted)] opacity-60"
-            />
-          </div>
-          <p className="text-[13px] font-serif text-[var(--ink-muted)]">
-            This folder is empty.
-          </p>
-        </div>
-      ) : (
-        <>
-          {subfolders.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                Folders
-              </h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-                {subfolders.map((folder) => (
-                  <FolderCard
-                    key={folder.id}
-                    name={folder.name}
-                    itemCount={childCount.get(folder.id) ?? 0}
-                    projectIds={ownLinksByFolder.get(folder.id) ?? []}
-                    projectNames={projectNames}
-                    onOpen={() => onNavigate(folder.id)}
-                    onAddPage={() => onAddPage(folder.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {childPages.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                Pages
-              </h2>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
-                {childPages.map((page) => (
-                  <PageCard
-                    key={page.id}
-                    page={page}
-                    folderName={
-                      page.folderId
-                        ? folderNames.get(page.folderId) ?? null
-                        : null
-                    }
-                    projectNames={projectNames}
-                    onOpen={() => onOpenPage(page.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function FolderCard({
-  name,
-  itemCount,
-  projectIds,
-  projectNames,
-  onOpen,
-  onAddPage,
-}: {
-  name: string;
-  itemCount: number;
-  projectIds: string[];
-  projectNames: Map<string, string>;
-  onOpen: () => void;
-  onAddPage: () => void;
-}) {
-  return (
-    <div
-      // biome-ignore lint/a11y/useSemanticElements: the card holds a nested "new page" button, so it can't itself be a <button> (no nested interactives); a keyboard-handled role=button div is the accessible alternative.
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group relative flex flex-col gap-3 h-full text-left rounded-xl glass-tile p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-1"
-    >
-      {/* Top: folder icon block + add-page action */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] border border-[color-mix(in_oklch,var(--hud-cyan)_20%,var(--edge))]">
-          <Folder
-            size={18}
-            strokeWidth={1.5}
-            className="text-[var(--hud-cyan-dim)]"
-          />
-        </div>
-        <button
-          type="button"
-          aria-label={`New page in ${name}`}
-          title="New page in this folder"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddPage();
-          }}
-          className="glass-button flex-shrink-0 p-1.5 rounded-lg text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150 cursor-pointer outline-none"
-        >
-          <Plus size={13} strokeWidth={1.5} />
-        </button>
-      </div>
-
-      {/* Folder name */}
-      <span className="min-w-0 text-[14px] font-serif text-[var(--ink)] line-clamp-2 leading-snug">
-        {name}
-      </span>
-
-      {/* Footer */}
-      <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-[var(--edge)] border-opacity-50">
-        <ProjectPillRow
-          links={projectIds.map((projectId) => ({
-            projectId,
-            isInherited: false,
-          }))}
-          projectNames={projectNames}
-        />
-        <span className="flex-shrink-0 ml-auto text-[10px] font-mono text-[var(--ink-muted)] tabular-nums">
-          {itemCount} {itemCount === 1 ? "item" : "items"}
-        </span>
-      </div>
     </div>
   );
 }

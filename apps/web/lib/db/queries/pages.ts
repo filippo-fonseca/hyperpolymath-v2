@@ -40,6 +40,8 @@ export interface PageWithProjects {
   /** The folder this page sits in globally (Phase 21: one folder per page). */
   folderId: string | null;
   folderName: string | null;
+  /** Fractional manual-order key for Wiki Explorer sorting. */
+  positionKey?: string | null;
   /**
    * Daily Page marker (Phase 30). NULL = a normal page; a yyyy-MM-dd string
    * marks this as the user's Daily Page for that day, which drives the "Daily
@@ -69,6 +71,7 @@ const PAGE_COLS = {
   noExport: pages.noExport,
   folderId: pages.folderId,
   folderName: pageFolders.name,
+  positionKey: pages.positionKey,
   dailyDate: pages.dailyDate,
   createdAt: pages.createdAt,
   updatedAt: pages.updatedAt,
@@ -87,6 +90,7 @@ type PageRow = {
   noExport: boolean;
   folderId: string | null;
   folderName: string | null;
+  positionKey: string | null;
   dailyDate: string | null;
   createdAt: Date;
   updatedAt: Date;

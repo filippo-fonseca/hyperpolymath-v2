@@ -1,57 +1,76 @@
-# Plan — imessage-send-harden
+# Plan — wiki-explorer-rebuild (wave 2)
 
-## Goal
-Harden `buildIMessageSend` in `apps/desktop/src/actions/applescript.ts` with:
-1. SMS-service fallback so green-bubble contacts still receive the message.
-2. Group / chat-id targeting when the recipient string looks like a chat id.
+Reference: `.planning/UNIT-BRIEF.md` (binding). Wave 1 foundations already in
+place: `components/wiki/explorer/*`, `components/wiki/icons/*`,
+`components/wiki/preview/*`, `lib/pages/preview.ts`, `lib/pages/position.ts`,
+`app/actions/ordering.ts`.
 
-Do not change `SendMessageAction`, the dispatcher, or the confirm-gate flow. Normal
-single-recipient iMessage sends must be byte-identical in behavior.
+## Approach
 
-## Design
+Introduce a `WikiExplorer` subtree under `apps/web/components/wiki/` that owns
+folder drill-down, dnd, selection, keyboard, inspector, search, and view-mode
+rendering. `PagesListClient` shrinks to header + daily placeholder + `<WikiExplorer/>`.
+Reuse existing server actions and TanStack Query keys verbatim.
 
-### Recipient shape detection (in TS, before script build)
-Detect chat-id shape with a simple, conservative regex — everything else stays on
-the participant path so the common case cannot regress.
+## File layout
 
-- Chat id heuristic: `/^(iMessage|SMS);[+-];chat/i` or a bare `/^chat[0-9A-F-]{6,}$/i`
-  (the two forms `Messages.app` exposes for `text chat id`).
-- Anything not matching → treat as a single participant (phone / email / handle).
-
-### AppleScript branches
-
-**Chat-id branch (group or 1:1 chat by id)** — no SMS fallback needed; the chat id
-already encodes the service:
-
-```applescript
-tell application "Messages"
-  set targetChat to text chat id "<recipient>"
-  send "<text>" to targetChat
-end tell
+```
+apps/web/components/wiki/
+  WikiExplorer.tsx                 top-level composition + DndContext
+  explorer-hooks/
+    useExplorerFolder.ts           URL folder state (nuqs) + back/fwd history
+    useExplorerSelection.ts        single/cmd/shift + arrow-key navigation
+    useExplorerContext.ts          memoized dnd context maps
+  explorer-views/
+    ExplorerGridView.tsx           folder tiles + PagePreviewCards
+    ExplorerListView.tsx           Spacedrive rows
+    ExplorerSearchResults.tsx      flat cross-wiki results
+  explorer-parts/
+    ExplorerInspectorPanel.tsx     inspector body (meta rows + actions)
+    ItemContextMenu.tsx            item right-click actions
+    EmptySpaceContextMenu.tsx      empty-space right-click
+    RubberBandLayer.tsx            rubber-band gesture + geometry
+    DragGhost.tsx                  count-badge drag overlay
 ```
 
-**Participant branch (default)** — try iMessage first, fall back to SMS on error:
+Target: no file over ~400 LOC.
 
-```applescript
-tell application "Messages"
-  try
-    set targetService to 1st service whose service type = iMessage
-    send "<text>" to participant "<recipient>" of targetService
-  on error
-    set smsService to 1st service whose service type = SMS
-    send "<text>" to participant "<recipient>" of smsService
-  end try
-end tell
-```
+## Slices (each = one commit)
 
-Both interpolated values continue to flow through `escapeAppleScript`.
+1. URL folder + history hook `useExplorerFolder`.
+2. Selection hook `useExplorerSelection` (pure state + keyboard math).
+3. Grid view (presentational).
+4. List view (Spacedrive rows).
+5. Inspector panel.
+6. Context menus (item + empty space).
+7. Rubber-band + drag-ghost.
+8. WikiExplorer composition (DndContext, sensors, applyMove, keyboard).
+9. Refactor PagesListClient to use WikiExplorer; delete dead tree/grid code.
+10. Vitest tests for pure selection helpers.
+11. Typecheck + build green.
+12. `/gsd-code-review`.
 
-## Verification
-- `pnpm --filter desktop typecheck` must be green.
-- Manual reasoning: for a plain phone/email recipient the produced script is the
-  original one wrapped in `try … on error …`, so the healthy-path behavior is
-  unchanged when the iMessage send succeeds.
+## Data contracts (from survey)
 
-## Non-goals
-- No changes to `SendMessageAction`, `dispatcher.ts`, or `confirm-gate.ts`.
-- No new tool schema, no new UI, no per-recipient service detection cache.
+- Server actions to reuse: `createPage`, `updatePage`, `deletePage`,
+  `createFolder`, `renameFolder`, `deleteFolder`, `setPageFolder`,
+  `setParentFolder`, `movePagesBulk`, `reorderItem`.
+- Comparators: `withPinnedFirst(compareExplorerItems)` for Manual sort;
+  Name = title asc; Updated = updatedAt desc. Pinned first ALWAYS.
+- TanStack query keys unchanged; realtime channels unchanged; optimistic
+  cache patching mirrors current `applyMove` shape.
+
+## Motion (SPEC Doctrine-6)
+
+- View toggle: 180ms fade + 4px Y stagger (cap 24 items).
+- Inspector slide: 220ms `cubic-bezier(0.32, 0.72, 0, 1)` (already in
+  `InspectorShell`).
+- Context menu: 120ms fade + 4px Y.
+- Selection ring: instant.
+- Drag ghost: 60% opacity + cyan count badge.
+
+## Out of scope (guardrails)
+
+Daily-pages data model, `PageDetailClient`, `ProjectPagesSection`, sidebar,
+schema, `_foundation-preview`/`_preview-preview` gallery routes (leave for
+wave 3 coherence pass unless they conflict with routing).

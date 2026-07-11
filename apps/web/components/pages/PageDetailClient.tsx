@@ -654,10 +654,18 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     return chain.reverse();
   }, [serverPage.folderId, allFolders]);
 
+  // Back target for the "Wiki" breadcrumb: a page inside a folder returns to
+  // that folder's Explorer view (`/wiki?folder=<id>`), not the bare wiki root,
+  // so leaving the page preserves the folder context. Derived from the page's
+  // own folderId so it survives a hard reload of the detail route.
+  const wikiBackHref = serverPage.folderId
+    ? `/wiki?folder=${serverPage.folderId}`
+    : "/wiki";
+
   return (
     <div
       data-page-island
-      className="relative flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full min-h-full"
+      className="relative flex flex-col gap-4 p-6 max-w-4xl mx-auto w-full min-h-full"
     >
       {searchOpen && (
         <PageSearchBar
@@ -681,19 +689,21 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
         onChange={handleCoverChange}
       />
 
-      {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page */}
-      <nav className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] flex-wrap">
+      {/* Breadcrumb: Wiki / Area / [Project pill] / Folder > Subfolder > … / Page.
+          Every segment is a link back to the corresponding Wiki Explorer folder
+          view, so leaving the page keeps you in your place. */}
+      <nav className="flex flex-wrap items-center gap-1 font-mono text-[11px] text-[var(--ink-muted)]">
         <button
           type="button"
-          onClick={() => router.push("/wiki")}
-          className="hover:text-[var(--ink)] transition-colors cursor-pointer"
+          onClick={() => router.push(wikiBackHref)}
+          className="rounded-[4px] px-1 py-0.5 transition-[color,background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hud-cyan)] cursor-pointer"
         >
           Wiki
         </button>
         {primaryProject?.areaName && (
           <>
             <span className="opacity-50">/</span>
-            <span>{primaryProject.areaName}</span>
+            <span className="px-1">{primaryProject.areaName}</span>
           </>
         )}
         {primaryLink && (
@@ -702,28 +712,35 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             <button
               type="button"
               onClick={() => router.push(`/projects/${primaryLink.id}`)}
-              className="bg-[var(--surface)] border border-[var(--edge)] text-[var(--ink)] px-1.5 py-0.5 rounded-sm hover:border-[var(--ink-muted)] transition-colors cursor-pointer truncate max-w-[200px]"
+              className="truncate max-w-[200px] rounded-[4px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-1.5 py-0.5 text-[var(--ink)] transition-[background-color,border-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:border-[var(--hud-cyan)] focus-visible:outline-none focus-visible:border-[var(--hud-cyan)] cursor-pointer"
             >
               {primaryLink.name}
             </button>
           </>
         )}
-        {/* Full folder ancestry path, root first. */}
         {folderPath.map((folder) => (
           <span key={folder.id} className="flex items-center gap-1">
             <span className="opacity-50">/</span>
-            <span className="truncate max-w-[180px]">{folder.name}</span>
+            <button
+              type="button"
+              onClick={() => router.push(`/wiki?folder=${folder.id}`)}
+              className="truncate max-w-[180px] rounded-[4px] px-1 py-0.5 transition-[color,background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hud-cyan)] cursor-pointer"
+              title={`Open folder “${folder.name}” in Wiki`}
+            >
+              {folder.name}
+            </button>
           </span>
         ))}
-        {/* Current page is the final, non-link segment. */}
         <span className="opacity-50">/</span>
-        <span className="text-[var(--ink)] truncate max-w-[200px]">{title || "Untitled page"}</span>
+        <span className="truncate max-w-[220px] px-1 text-[var(--ink)]">
+          {title || "Untitled page"}
+        </span>
       </nav>
 
       {/* Sticky per-doc nav bar: saved indicator + export, hide-receipts, delete.
           Pinned top-right, opaque canvas background so body content scrolling
           under it stays hidden. */}
-      <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-sm border border-[var(--edge)] bg-[var(--canvas)] px-2 py-1">
+      <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-2 py-1 shadow-[0_1px_0_hsl(235_15%_0%_/_0.12)]">
         {showSaved && (
           <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in mr-0.5">
             <Check size={11} strokeWidth={2} />
