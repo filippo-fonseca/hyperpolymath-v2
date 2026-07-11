@@ -35,12 +35,17 @@ const PHYSICAL_EVENTS = [
   "jarvis-routine-progress",
 ] as const;
 
+// MAJOR-6 — `userId` is threaded through so SSE subscribers can filter
+// (see /app/api/jarvis/physical/events/route.ts). Optional to keep the
+// gate in this file soft during rollout; the SSE consumer treats a
+// missing/mismatched userId as "not for me" and drops silently.
 const StudioActionSchema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("open"),
       kind: z.enum(["browser", "whatsapp", "weather", "news"]),
       props: z.record(z.string(), z.unknown()).optional(),
+      userId: z.string().min(1).optional(),
     })
     .strict(),
   z
@@ -48,6 +53,7 @@ const StudioActionSchema = z.discriminatedUnion("action", [
       action: z.literal("close"),
       kind: z.string().min(1),
       target: z.enum(["kind", "id"]).optional(),
+      userId: z.string().min(1).optional(),
     })
     .strict(),
 ]);
@@ -136,6 +142,21 @@ export function emitJarvisToolCall(payload: PhysicalJarvisToolCall): void {
   emitEverywhere("jarvis-tool-call", payload);
 }
 
+/**
+ * Emit a studio widget action onto the physical bus.
+ *
+ * INVARIANT: this bus is a single global EventEmitter that fans out to every
+ * SSE subscriber. The `/api/jarvis/physical/events` route currently gates
+ * subscribers to the owner user (`isOwnerUser`), but the studio-action
+ * pipeline itself has no per-user partition. The `userId` field on the
+ * payload is the forward-compat plumbing that lets subscribers filter
+ * (or a future partitioned bus route) events to the correct user.
+ *
+ * Callers should ALWAYS include `payload.userId` (the tool executor's
+ * ctx.userId). Emitters that omit it will only reach subscribers if the
+ * bus is ever relaxed to broadcast — hence the SSE consumer treats
+ * missing userId as "not for this subscriber" and drops silently.
+ */
 export function emitStudioAction(payload: PhysicalStudioAction): void {
   const parsed = StudioActionSchema.safeParse(payload);
   if (!parsed.success) {

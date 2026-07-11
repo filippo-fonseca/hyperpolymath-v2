@@ -148,7 +148,16 @@ export async function GET(req: Request): Promise<Response> {
       const responseChunkHandler = (data: PhysicalJarvisResponseChunk) =>
         send("jarvis-response-chunk", data);
       const toolCallHandler = (data: PhysicalJarvisToolCall) => send("jarvis-tool-call", data);
-      const studioActionHandler = (data: PhysicalStudioAction) => send("studio-action", data);
+      // MAJOR-6 — the bus is a single global emitter. The route above
+      // gates subscribers to `isOwnerUser`, but the studio-action payloads
+      // now carry `userId` so we can drop foreign events at the SSE seam.
+      // A missing userId is treated as "not for me" (belt-and-braces:
+      // legacy emitters pre-fix are effectively dropped so the invariant
+      // doesn't silently regress).
+      const studioActionHandler = (data: PhysicalStudioAction) => {
+        if (data.userId !== userId) return;
+        send("studio-action", data);
+      };
       const responseEndHandler = (data: PhysicalJarvisResponseEnd) =>
         send("jarvis-response-end", data);
       const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) =>

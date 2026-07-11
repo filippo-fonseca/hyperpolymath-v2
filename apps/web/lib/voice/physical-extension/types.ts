@@ -34,16 +34,24 @@ export interface PhysicalJarvisToolCall {
 
 export type PhysicalStudioWidgetKind = "browser" | "whatsapp" | "weather" | "news";
 
+// MAJOR-6 — the physical bus is currently a single global EventEmitter and
+// the SSE endpoint is owner-gated. `userId` is carried on every studio-action
+// payload so SSE subscribers can filter (or verify) events belong to them,
+// and so the invariant survives if/when the bus is ever partitioned per
+// user. Optional for backwards compatibility during rollout; new emitters
+// should always include it.
 export type PhysicalStudioAction =
   | {
       action: "open";
       kind: PhysicalStudioWidgetKind;
       props?: Record<string, unknown>;
+      userId?: string;
     }
   | {
       action: "close";
       kind: PhysicalStudioWidgetKind | "all" | string;
       target?: "kind" | "id";
+      userId?: string;
     };
 
 export interface PhysicalJarvisResponseEnd {

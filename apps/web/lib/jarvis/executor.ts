@@ -116,14 +116,21 @@ import { validateCalendarId, validateProjectIds } from "./validate-references";
 import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
 import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
 
+// MAJOR-6 — tag every studio-action emit with the invoking user's id so
+// SSE subscribers can filter (see lib/voice/physical-extension/bus.ts and
+// app/api/jarvis/physical/events/route.ts). userId is optional in the type
+// for backward compat with any legacy caller, but ALL current call sites
+// (run-turn.ts) thread ctx.userId explicitly.
 export async function executeStudioOpenWidget(
-  input: StudioOpenWidgetInput
+  input: StudioOpenWidgetInput,
+  userId?: string
 ): Promise<ExecutorResult> {
   const ts = Date.now();
   emitStudioAction({
     action: "open",
     kind: input.kind,
     ...(input.url ? { props: { url: input.url } } : {}),
+    ...(userId ? { userId } : {}),
   });
   return {
     ok: true,
@@ -137,13 +144,15 @@ export async function executeStudioOpenWidget(
 }
 
 export async function executeStudioCloseWidget(
-  input: StudioCloseWidgetInput
+  input: StudioCloseWidgetInput,
+  userId?: string
 ): Promise<ExecutorResult> {
   const ts = Date.now();
   emitStudioAction({
     action: "close",
     kind: input.all ? "all" : (input.kind ?? "all"),
     target: "kind",
+    ...(userId ? { userId } : {}),
   });
   return {
     ok: true,

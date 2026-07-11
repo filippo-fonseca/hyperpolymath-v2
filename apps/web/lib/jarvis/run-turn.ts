@@ -882,9 +882,15 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
                 ctx
               );
             } else if (toolName === "studio_open_widget") {
-              result = await executeStudioOpenWidget(parsed.data as StudioOpenWidgetInput);
+              result = await executeStudioOpenWidget(
+                parsed.data as StudioOpenWidgetInput,
+                ctx.userId
+              );
             } else if (toolName === "studio_close_widget") {
-              result = await executeStudioCloseWidget(parsed.data as StudioCloseWidgetInput);
+              result = await executeStudioCloseWidget(
+                parsed.data as StudioCloseWidgetInput,
+                ctx.userId
+              );
             } else if (toolName === "read_gmail") {
               result = await executor.readGmail(
                 parsed.data as Parameters<typeof executor.readGmail>[0],
