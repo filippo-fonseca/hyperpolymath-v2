@@ -2,9 +2,9 @@
  * summaries.ts — The Studio · tile-summary projections
  *
  * Pure functions (no React) that project each full slice into a
- * `StudioTileSummary` — the dumb string+badge+state+lines shape the widget-cloud
- * tiles render. Unit-tested in isolation. Every rule here is LOCKED so tiles
- * are deterministic; the per-widget hooks wrap these in `useMemo`.
+ * `StudioTileSummary` — the dumb string+badge+state shape the widget-cloud
+ * tiles render. Unit-tested in isolation. Every rule here is LOCKED so Wave-2
+ * tiles are deterministic; the per-widget hooks wrap these in `useMemo`.
  */
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
@@ -21,15 +21,10 @@ import type {
 } from "./useStudioData";
 
 /** Truncate to ~`max` chars on a single line, collapsing whitespace. */
-function truncate(text: string, max = 48): string {
+function truncate(text: string, max = 60): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= max) return flat;
   return `${flat.slice(0, max - 1).trimEnd()}…`;
-}
-
-/** Prefix a list row so the amphitheater body reads as a menu, not a wall. */
-function bullet(text: string, max = 44): string {
-  return `· ${truncate(text, max)}`;
 }
 
 // ── Tasks ───────────────────────────────────────────────────────────────────
@@ -40,61 +35,31 @@ const PRIORITY_RANK: Record<TaskWithProjects["priority"], number> = {
   "P∞": 3,
 };
 
-function sortOpenTasks(
-  tasks: TaskWithProjects[],
-): TaskWithProjects[] {
-  return [...tasks]
-    .filter((t) => t.status !== "lesno")
-    .sort((a, b) => {
-      if (a.dueDate !== b.dueDate) {
-        if (a.dueDate === null) return 1;
-        if (b.dueDate === null) return -1;
-        return a.dueDate < b.dueDate ? -1 : 1;
-      }
-      const pr = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
-      if (pr !== 0) return pr;
-      return a.kanbanPosition - b.kanbanPosition;
-    });
-}
-
 export function summarizeTasks(
   tasks: TaskWithProjects[],
   todayYmd: string,
 ): StudioTileSummary {
-  const open = sortOpenTasks(tasks);
+  const open = tasks.filter((t) => t.status !== "lesno");
   const dueToday = open.filter((t) => t.dueDate === todayYmd).length;
-  const overdue = open.filter(
-    (t) => t.dueDate !== null && t.dueDate < todayYmd,
-  ).length;
-  const next = open[0];
 
-  const meta: string[] = [];
-  if (overdue > 0) meta.push(`${overdue} overdue`);
-  if (dueToday > 0) meta.push(`${dueToday} due today`);
-  if (meta.length === 0 && open.length > 0) {
-    meta.push(`${open.length} open`);
-  }
-
-  const lines = open
-    .slice(1, 5)
-    .map((t) => {
-      const pri = t.priority === "P1" ? "★ " : "";
-      const due =
-        t.dueDate === todayYmd
-          ? " · today"
-          : t.dueDate && t.dueDate < todayYmd
-            ? " · overdue"
-            : "";
-      return bullet(`${pri}${t.title}${due}`, 42);
-    });
+  // Sort: dueDate asc (nulls last), then priority P1<P2<P3<P∞, then kanbanPosition.
+  const next = [...open].sort((a, b) => {
+    if (a.dueDate !== b.dueDate) {
+      if (a.dueDate === null) return 1;
+      if (b.dueDate === null) return -1;
+      return a.dueDate < b.dueDate ? -1 : 1;
+    }
+    const pr = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    if (pr !== 0) return pr;
+    return a.kanbanPosition - b.kanbanPosition;
+  })[0];
 
   return {
     id: "tasks",
     label: "Tasks",
     badge: open.length,
-    headline: next ? truncate(next.title, 52) : null,
-    subline: meta.length > 0 ? meta.join(" · ") : null,
-    lines,
+    headline: next ? truncate(next.title) : null,
+    subline: dueToday > 0 ? `${dueToday} due today` : null,
     state: open.length === 0 ? "empty" : "ok",
   };
 }
@@ -104,44 +69,26 @@ export function summarizeCaptures(
   captures: CaptureWithLinks[],
   todayYmd: string,
 ): StudioTileSummary {
-  const newestFirst = [...captures].sort(
+  // Newest first by createdAt (server returns desc, but sort defensively).
+  const newest = [...captures].sort(
     (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-  );
-  const newest = newestFirst[0];
+  )[0];
   const todayCount = captures.filter(
     (c) => toYmd(c.createdAt) === todayYmd,
   ).length;
 
-  // Badge = last 7 days relative to todayYmd (glanceable "active" count), not
-  // the whole library. Anchored on the studio clock so midnight/tests are stable.
-  const [yy, mm, dd] = todayYmd.split("-").map(Number);
-  const todayStart = new Date(yy ?? 1970, (mm ?? 1) - 1, dd ?? 1).getTime();
-  const weekAgo = todayStart - 7 * 24 * 60 * 60 * 1000;
-  const recentWeek = captures.filter(
-    (c) => c.createdAt.getTime() >= weekAgo,
-  ).length;
-
-  const lines = newestFirst
-    .slice(1, 5)
-    .map((c) => bullet(c.content, 42));
-
   return {
     id: "captures",
     label: "Captures",
-    badge: recentWeek,
-    headline: newest ? truncate(newest.content, 52) : null,
-    subline:
-      todayCount > 0
-        ? `${todayCount} today · ${captures.length} total`
-        : captures.length > 0
-          ? `${captures.length} total`
-          : null,
-    lines,
+    badge: captures.length,
+    headline: newest ? truncate(newest.content) : null,
+    subline: todayCount > 0 ? `${todayCount} today` : null,
     state: captures.length === 0 ? "empty" : "ok",
   };
 }
 
 // ── Agenda ────────────────────────────────────────────────────────────────────
+/** Format an ISO/YYYY-MM-DD event start into a short local time label. */
 function eventTimeLabel(
   event: { start: string; allDay: boolean },
   timezone: string,
@@ -149,31 +96,14 @@ function eventTimeLabel(
   if (event.allDay) return "all day";
   try {
     return new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
+      hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
       timeZone: timezone,
     }).format(new Date(event.start));
   } catch {
     return "";
   }
-}
-
-/** Relative cue for timed events: "now", "in 25m", "in 2h". */
-function relativeCue(
-  event: { start: string; end: string; allDay: boolean },
-  nowMs: number,
-): string {
-  if (event.allDay) return "all day";
-  const start = new Date(event.start).getTime();
-  const end = new Date(event.end).getTime();
-  if (start <= nowMs && end >= nowMs) return "now";
-  const mins = Math.round((start - nowMs) / 60_000);
-  if (mins < 0) return "";
-  if (mins < 60) return `in ${mins}m`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `in ${hrs}h`;
-  return eventTimeLabel(event, "UTC");
 }
 
 export function summarizeAgenda(
@@ -182,6 +112,7 @@ export function summarizeAgenda(
 ): StudioTileSummary {
   const todayYmdTz = (() => {
     try {
+      // `en-CA` gives YYYY-MM-DD directly.
       return new Intl.DateTimeFormat("en-CA", {
         timeZone: calendar.timezone,
         year: "numeric",
@@ -193,12 +124,16 @@ export function summarizeAgenda(
     }
   })();
 
+  // Events on today (timed: start's local day is today; all-day: start date is
+  // today) that haven't fully ended yet (end ≥ now). All-day events count for
+  // the whole day. In-progress timed events count.
   const isTodayEvent = (e: {
     start: string;
     end: string;
     allDay: boolean;
   }): boolean => {
     if (e.allDay) {
+      // All-day: start is YYYY-MM-DD; end is exclusive next-day per gcal.
       return e.start <= todayYmdTz && todayYmdTz < e.end;
     }
     const startDay = new Intl.DateTimeFormat("en-CA", {
@@ -212,6 +147,9 @@ export function summarizeAgenda(
   };
 
   const remaining = calendar.events.filter(isTodayEvent);
+
+  // Next event: the earliest remaining today event whose start ≥ now, else the
+  // current in-progress one (earliest start among remaining).
   const sorted = [...remaining].sort((a, b) => {
     const as = a.allDay ? -Infinity : new Date(a.start).getTime();
     const bs = b.allDay ? -Infinity : new Date(b.start).getTime();
@@ -221,35 +159,15 @@ export function summarizeAgenda(
     (e) => e.allDay || new Date(e.start).getTime() >= nowMs,
   );
   const next = upcoming ?? sorted[0];
+
   const attention = calendar.status !== "connected";
-
-  const lines = sorted
-    .filter((e) => e !== next)
-    .slice(0, 4)
-    .map((e) => {
-      const t = eventTimeLabel(e, calendar.timezone);
-      return bullet(t ? `${t}  ${e.title}` : e.title, 42);
-    });
-
-  const cue = next ? relativeCue(next, nowMs) : null;
-  const time = next ? eventTimeLabel(next, calendar.timezone) : null;
 
   return {
     id: "agenda",
     label: "Agenda",
     badge: remaining.length,
-    headline: next ? truncate(next.title, 52) : null,
-    subline:
-      next && cue
-        ? cue === time
-          ? cue
-          : `${cue}${time && cue !== "now" && cue !== "all day" ? ` · ${time}` : ""}`
-        : next
-          ? time
-          : attention
-            ? "Calendar offline"
-            : null,
-    lines,
+    headline: next ? truncate(next.title) : null,
+    subline: next ? eventTimeLabel(next, calendar.timezone) : null,
     state: attention ? "attention" : remaining.length === 0 ? "empty" : "ok",
   };
 }
@@ -259,6 +177,8 @@ export function summarizeHabits(
   habits: HabitsData,
   todayYmd: string,
 ): StudioTileSummary {
+  // Local day-of-week index for todayYmd (0 = Sunday), matching the 2D client's
+  // `parseISODate(selectedDate).getDay()` and `daysOfWeek[dow]` predicate.
   const [y, mo, d] = todayYmd.split("-").map(Number);
   const dow = new Date(y ?? 1970, (mo ?? 1) - 1, d ?? 1).getDay();
 
@@ -272,41 +192,21 @@ export function summarizeHabits(
       .map((c) => c.habitId),
   );
 
-  const remaining = dueToday
-    .filter((h) => !completedToday.has(h.id))
-    .sort((a, b) => {
-      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
-      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-    });
+  const remaining = dueToday.filter((h) => !completedToday.has(h.id));
   const doneCount = dueToday.length - remaining.length;
-  const nextHabit = remaining[0];
 
-  const lines = remaining
-    .slice(1, 5)
-    .map((h) => bullet(h.name, 42));
-
-  // Completed habits as a soft trailing line when space remains.
-  if (lines.length < 3 && doneCount > 0) {
-    const done = dueToday
-      .filter((h) => completedToday.has(h.id))
-      .slice(0, 3 - lines.length);
-    for (const h of done) {
-      lines.push(`✓ ${truncate(h.name, 40)}`);
-    }
-  }
+  // First incomplete due habit by orderIndex (then name for stability).
+  const nextHabit = [...remaining].sort((a, b) => {
+    if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
+    return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+  })[0];
 
   return {
     id: "habits",
     label: "Habits",
     badge: remaining.length,
-    headline: nextHabit
-      ? truncate(nextHabit.name, 52)
-      : dueToday.length > 0
-        ? "All done for today"
-        : null,
-    subline:
-      dueToday.length > 0 ? `${doneCount}/${dueToday.length} done` : null,
-    lines,
+    headline: nextHabit ? truncate(nextHabit.name) : null,
+    subline: dueToday.length > 0 ? `${doneCount}/${dueToday.length} done` : null,
     state: dueToday.length === 0 ? "empty" : "ok",
   };
 }
@@ -314,41 +214,37 @@ export function summarizeHabits(
 // ── Journal ───────────────────────────────────────────────────────────────────
 export function summarizeJournal(journal: JournalTodayData): StudioTileSummary {
   const entry = journal.entry;
-  const body = (entry?.mainResponse ?? "").trim();
-  const notes = (entry?.notesSection ?? "").trim();
-  const written = body.length > 0;
-  const paragraphs = body
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const firstLine = paragraphs[0] ?? "";
-
-  const lines: string[] = [];
-  for (const p of paragraphs.slice(1, 4)) {
-    lines.push(bullet(p, 42));
-  }
-  if (lines.length < 2 && notes) {
-    lines.push(bullet(notes, 42));
-  }
+  const written = Boolean(entry && (entry.mainResponse ?? "").trim().length > 0);
+  const firstLine = written
+    ? (entry?.mainResponse ?? "").split("\n").find((l) => l.trim().length > 0) ??
+      ""
+    : "";
 
   return {
     id: "journal",
     label: "Journal",
     badge: null,
-    headline: written ? truncate(firstLine, 52) : "No entry yet",
-    subline: written ? (notes ? "Written · has notes" : "Written") : null,
-    lines,
+    headline: written ? truncate(firstLine) : "No entry yet",
+    subline: written ? "Written" : null,
     state: written ? "ok" : "empty",
   };
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 export function summarizeProjects(projects: ProjectRow[]): StudioTileSummary {
+  // Issue #55: a class past its semester, or a project past its end date, counts
+  // as archived even without an explicit archivedAt. getProjectsForCurrentUser
+  // returns unsynthesized rows, so mirror sidebar.ts and drop expired projects
+  // here — otherwise the badge over-counts and an expired project can become the
+  // "next-ending" headline.
   const open = projects.filter(
     (p) => p.archivedAt === null && !isProjectExpired(p),
   );
 
-  const ordered = [...open].sort((a, b) => {
+  // Next-ending open project: endDate asc (nulls last), then orderIndex, then
+  // name. `endDate` is a YYYY-MM-DD string (date column), so lexical compare is
+  // chronological.
+  const next = [...open].sort((a, b) => {
     if (a.endDate !== b.endDate) {
       if (a.endDate === null) return 1;
       if (b.endDate === null) return -1;
@@ -356,33 +252,19 @@ export function summarizeProjects(projects: ProjectRow[]): StudioTileSummary {
     }
     if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
     return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-  });
-  const next = ordered[0];
-  const classCount = open.filter((p) => p.isClass).length;
+  })[0];
 
-  const lines = ordered.slice(1, 5).map((p) => {
-    const end = p.endDate
-      ? ` · ${p.endDate.slice(5).replace("-", "/")}`
-      : "";
-    const icon = p.icon ? `${p.icon} ` : "";
-    return bullet(`${icon}${p.name}${end}`, 42);
-  });
+  const classCount = open.filter((p) => p.isClass).length;
 
   return {
     id: "projects",
     label: "Projects",
     badge: open.length,
-    headline: next
-      ? truncate(
-          next.icon ? `${next.icon} ${next.name}` : next.name,
-          52,
-        )
-      : null,
+    headline: next ? truncate(next.name) : null,
     subline:
       classCount > 0
         ? `${classCount} class${classCount === 1 ? "" : "es"}`
         : null,
-    lines,
     state: open.length === 0 ? "empty" : "ok",
   };
 }
@@ -398,68 +280,44 @@ export function summarizeAreas(areas: SidebarArea[]): StudioTileSummary {
     0,
   );
 
-  const ordered = [...active].sort((a, b) => {
+  // Headline: active area with the most active projects; ties → lower orderIndex.
+  const top = [...active].sort((a, b) => {
     const diff = activeProjectCount(b) - activeProjectCount(a);
     if (diff !== 0) return diff;
     return a.orderIndex - b.orderIndex;
-  });
-  const top = ordered[0];
-
-  const lines = ordered.slice(0, 4).map((a) => {
-    const n = activeProjectCount(a);
-    const emoji = a.emoji ? `${a.emoji} ` : "";
-    return bullet(
-      `${emoji}${a.name}${n > 0 ? ` · ${n}` : ""}`,
-      42,
-    );
-  });
+  })[0];
 
   return {
     id: "areas",
     label: "Areas",
     badge: active.length,
-    headline: top
-      ? truncate(top.emoji ? `${top.emoji} ${top.name}` : top.name, 52)
-      : null,
+    headline: top ? truncate(top.name) : null,
     subline:
       totalActiveProjects > 0
         ? `${totalActiveProjects} project${totalActiveProjects === 1 ? "" : "s"}`
         : null,
-    lines,
     state: active.length === 0 ? "empty" : "ok",
   };
 }
 
 // ── People ────────────────────────────────────────────────────────────────────
 export function summarizePeople(people: PersonWithStats[]): StudioTileSummary {
-  const ordered = [...people].sort((a, b) => {
-    if (b.referenceCount !== a.referenceCount) {
-      return b.referenceCount - a.referenceCount;
-    }
-    return a.name.localeCompare(b.name);
-  });
-  const top = ordered[0];
-
-  const lines = ordered.slice(0, 4).map((p) => {
-    const refs =
-      p.referenceCount > 0 ? ` · ${p.referenceCount} ref` : "";
-    const tags =
-      Array.isArray(p.tags) && p.tags.length > 0
-        ? ` · ${p.tags.slice(0, 2).join(", ")}`
-        : "";
-    return bullet(`${p.name}${refs || tags}`, 42);
-  });
+  // Most-referenced person; ties keep input order (server returns name-sorted),
+  // so a strict `>` leaves the first max in place.
+  const top = people.reduce<PersonWithStats | null>((best, p) => {
+    if (best === null || p.referenceCount > best.referenceCount) return p;
+    return best;
+  }, null);
 
   return {
     id: "people",
     label: "People",
     badge: people.length,
-    headline: top ? truncate(top.name, 52) : null,
+    headline: top ? truncate(top.name) : null,
     subline:
       top && top.referenceCount > 0
         ? `${top.referenceCount} reference${top.referenceCount === 1 ? "" : "s"}`
         : null,
-    lines,
     state: people.length === 0 ? "empty" : "ok",
   };
 }

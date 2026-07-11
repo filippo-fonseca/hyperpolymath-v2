@@ -170,14 +170,13 @@ describe("summarizeTasks", () => {
       TODAY,
     );
     expect(s.badge).toBe(3);
-    expect(s.subline).toContain("2 due today");
+    expect(s.subline).toBe("2 due today");
     expect(s.state).toBe("ok");
-    expect(s.lines.length).toBeGreaterThan(0);
   });
 
-  it("subline falls back to open count when nothing due today", () => {
+  it("null subline when nothing due today", () => {
     const s = summarizeTasks([task({ dueDate: "2026-08-01" })], TODAY);
-    expect(s.subline).toBe("1 open");
+    expect(s.subline).toBeNull();
   });
 
   it("headline picks earliest due, then priority, then kanbanPosition", () => {
@@ -214,7 +213,7 @@ describe("summarizeCaptures", () => {
     expect(s.state).toBe("empty");
   });
 
-  it("headline is newest by createdAt; badge is recent-week; today in subline", () => {
+  it("headline is newest by createdAt; today count", () => {
     const s = summarizeCaptures(
       [
         capture({
@@ -231,17 +230,14 @@ describe("summarizeCaptures", () => {
       TODAY,
     );
     expect(s.headline).toBe("newest thing");
-    // Badge = last 7 days (both fixtures are within a week of TODAY when the
-    // suite runs near that date; at minimum today's item is counted).
-    expect(s.badge).toBeGreaterThanOrEqual(1);
-    expect(s.subline).toContain("1 today");
-    expect(s.lines.length).toBeGreaterThanOrEqual(1);
+    expect(s.badge).toBe(2);
+    expect(s.subline).toBe("1 today");
   });
 
   it("truncates long content to a single line", () => {
     const long = "x".repeat(200);
     const s = summarizeCaptures([capture({ content: long })], TODAY);
-    expect(s.headline!.length).toBeLessThanOrEqual(52);
+    expect(s.headline!.length).toBeLessThanOrEqual(60);
     expect(s.headline!.endsWith("…")).toBe(true);
   });
 });
