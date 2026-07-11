@@ -1,5 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import {
+  Camera,
   CircleDotDashed,
   Clock,
   CloudSun,
@@ -16,6 +17,7 @@ export type WidgetKind =
   | "news"
   | "card"
   | "clock"
+  | "camera"
   | "orb";
 
 export interface WidgetContentProps {
@@ -71,6 +73,13 @@ export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
     icon: Clock,
     component: lazy(() => import("../widgets/ClockWidget")),
     defaultSize: { w: 0.26, h: 0.2 },
+    singleton: true,
+  },
+  camera: {
+    label: "Camera",
+    icon: Camera,
+    component: lazy(() => import("../widgets/CameraWidget")),
+    defaultSize: { w: 0.3, h: 0.34 },
     singleton: true,
   },
   orb: {
