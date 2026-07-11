@@ -22,6 +22,7 @@ export type JarvisToolName =
   | "send_message" | "system_control" | "type_text" | "press_key"
   | "take_screenshot" | "run_applescript" | "run_shortcut" | "play_music"
   | "get_weather"
+  | "studio_open_widget" | "studio_close_widget"
   // Server-side data tools (no DesktopAction)
   | "read_gmail"
   | "get_news"
@@ -286,6 +287,18 @@ export interface PlayMusicAction {
 
 export interface GetWeatherAction {
   location?: string;
+}
+
+export type StudioWidgetKind = "browser" | "whatsapp" | "weather" | "news";
+
+export interface StudioOpenWidgetAction {
+  kind: StudioWidgetKind;
+  url?: string;
+}
+
+export interface StudioCloseWidgetAction {
+  kind?: StudioWidgetKind;
+  all?: boolean;
 }
 
 /**

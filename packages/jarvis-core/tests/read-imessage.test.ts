@@ -39,7 +39,7 @@ describe("ReadImessageInputSchema", () => {
 });
 
 describe("buildToolDefinitions — read_imessage registration", () => {
-  it("registers read_imessage as non-strict, positioned after read_whatsapp and before computer_use", () => {
+  it("registers read_imessage as non-strict before Studio controls and computer_use", () => {
     const tools = buildToolDefinitions();
     const names = tools.map((t) => t.name);
     const ri = tools.find((t) => t.name === "read_imessage");
@@ -51,7 +51,9 @@ describe("buildToolDefinitions — read_imessage registration", () => {
     const iCu = names.indexOf("computer_use");
     expect(iWa).toBeGreaterThan(-1);
     expect(iIm).toBe(iWa + 1);
-    expect(iCu).toBe(iIm + 1);
+    expect(names[iIm + 1]).toBe("studio_open_widget");
+    expect(names[iIm + 2]).toBe("studio_close_widget");
+    expect(iCu).toBe(iIm + 3);
     expect(iCu).toBe(names.length - 1);
   });
 });

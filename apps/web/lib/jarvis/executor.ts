@@ -35,6 +35,7 @@ import { randomUUID } from "node:crypto";
 import { google } from "googleapis";
 import { and, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import {
   captures,
@@ -105,6 +106,8 @@ import type {
   RunShortcutAction,
   SendMessageAction,
   SystemControlAction,
+  StudioCloseWidgetAction,
+  StudioOpenWidgetAction,
   TakeScreenshotAction,
   TypeTextAction,
   UpdateCaptureAction,
@@ -113,6 +116,36 @@ import type {
   WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
+
+async function broadcastStudioAction(
+  userId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const channel = supabase.channel(`studio:${userId}`);
+  try {
+    // Supabase realtime can silently drop broadcasts sent on an unsubscribed
+    // channel; wait for SUBSCRIBED (or fail fast) before sending.
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("studio broadcast subscribe timeout")),
+        5000,
+      );
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          clearTimeout(timer);
+          resolve();
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          clearTimeout(timer);
+          reject(new Error(`studio broadcast channel ${status}`));
+        }
+      });
+    });
+    await channel.send({ type: "broadcast", event: "studio_action", payload });
+  } finally {
+    await supabase.removeChannel(channel);
+  }
+}
 
 /**
  * Phase 5.1 D-P2 #3 / JARVIS-21 — check if all model-emitted project_ids
@@ -1356,13 +1389,20 @@ export function createServerExecutor(): ActionExecutor {
         }
         const fcRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
-            "&current=temperature_2m,weather_code,wind_speed_10m",
+            "&current=temperature_2m,weather_code,wind_speed_10m" +
+            "&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=3&timezone=auto",
         );
         if (!fcRes.ok) {
           return { ok: false, kind: "network", error: `Forecast fetch failed (${fcRes.status})` };
         }
         const fc = (await fcRes.json()) as {
           current?: { temperature_2m?: number; weather_code?: number; wind_speed_10m?: number };
+          daily?: {
+            time?: string[];
+            weather_code?: number[];
+            temperature_2m_max?: number[];
+            temperature_2m_min?: number[];
+          };
         };
         const current = fc.current;
         if (!current || typeof current.temperature_2m !== "number") {
@@ -1378,6 +1418,12 @@ export function createServerExecutor(): ActionExecutor {
           tempF,
           condition: describeWeatherCode(current.weather_code ?? -1),
           windKph,
+          forecast: (fc.daily?.time ?? []).slice(0, 3).map((date, index) => ({
+            date,
+            condition: describeWeatherCode(fc.daily?.weather_code?.[index] ?? -1),
+            highC: Math.round(fc.daily?.temperature_2m_max?.[index] ?? tempC),
+            lowC: Math.round(fc.daily?.temperature_2m_min?.[index] ?? tempC),
+          })),
         };
         return { ok: true, id: `get_weather:${place.name}`, receipt: { weather } };
       } catch (err) {
@@ -1387,6 +1433,44 @@ export function createServerExecutor(): ActionExecutor {
           error: err instanceof Error ? err.message : String(err),
         };
       }
+    },
+
+    async studioOpenWidget(input: StudioOpenWidgetAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const ts = Date.now();
+      await broadcastStudioAction(ctx.userId, {
+        type: "open_widget",
+        kind: input.kind,
+        ...(input.url ? { url: input.url } : {}),
+        ts,
+      });
+      return {
+        ok: true,
+        id: `studio_open_widget:${input.kind}:${ts}`,
+        receipt: {
+          kind: input.kind,
+          ...(input.url ? { url: input.url } : {}),
+          message: `Sent a request to open the ${input.kind} widget.`,
+        },
+      };
+    },
+
+    async studioCloseWidget(input: StudioCloseWidgetAction, ctx: ExecutionContext): Promise<ExecutorResult> {
+      const ts = Date.now();
+      await broadcastStudioAction(ctx.userId, {
+        type: "close_widget",
+        ...(input.kind ? { kind: input.kind } : {}),
+        ...(input.all ? { all: true } : {}),
+        ts,
+      });
+      return {
+        ok: true,
+        id: `studio_close_widget:${input.all ? "all" : input.kind}:${ts}`,
+        receipt: {
+          ...(input.kind ? { kind: input.kind } : {}),
+          all: input.all === true,
+          message: "Sent a request to close the Studio widget view.",
+        },
+      };
     },
 
     async readGmail(input: ReadGmailAction, ctx: ExecutionContext): Promise<ExecutorResult> {

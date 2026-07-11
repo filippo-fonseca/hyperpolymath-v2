@@ -91,6 +91,7 @@ import { getNewsTool } from "./get-news";
 import { readWhatsappTool } from "./read-whatsapp";
 import { readImessageTool } from "./read-imessage";
 import { computerUseTool } from "./computer-use";
+import { studioCloseWidgetTool, studioOpenWidgetTool } from "./studio-widgets";
 
 export { zCreateTask } from "./create-task";
 export { zCreateCapture } from "./create-capture";
@@ -130,6 +131,8 @@ export interface JarvisToolDefinition {
     | "run_shortcut"
     | "play_music"
     | "get_weather"
+    | "studio_open_widget"
+    | "studio_close_widget"
     | "read_gmail"
     | "get_news"
     | "read_whatsapp"
@@ -262,6 +265,10 @@ export function buildToolDefinitions(
     // sync worker; the executor gracefully returns a friendly setup hint if
     // the table is empty (worker not running / not yet synced).
     { ...readImessageTool, strict: false as const },
+    // Studio canvas controls — broadcast-only, no DB write. Kept near the end
+    // with other server-side tools while computer_use remains the cache break.
+    { ...studioOpenWidgetTool, strict: false as const },
+    { ...studioCloseWidgetTool, strict: false as const },
     {
       // Computer Use fallback — the catch-all when no named tool fits.
       // NON-strict (grammar budget): server-side Zod validation covers this.
@@ -310,6 +317,7 @@ export { RunApplescriptInputSchema } from "./run-applescript";
 export { RunShortcutInputSchema } from "./run-shortcut";
 export { PlayMusicInputSchema } from "./play-music";
 export { GetWeatherInputSchema } from "./get-weather";
+export { StudioOpenWidgetInputSchema, StudioCloseWidgetInputSchema } from "./studio-widgets";
 // Server-side data tools: re-export input schemas for run-turn.ts validation.
 export { ReadGmailInputSchema } from "./read-gmail";
 export { GetNewsInputSchema } from "./get-news";

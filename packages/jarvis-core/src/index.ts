@@ -113,6 +113,9 @@ export type {
   // Clicky slice — desktop action tools + server-side weather
   SendMessageAction,
   SystemControlAction,
+  StudioWidgetKind,
+  StudioOpenWidgetAction,
+  StudioCloseWidgetAction,
   TypeTextAction,
   PressKeyAction,
   TakeScreenshotAction,
