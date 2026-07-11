@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
+import { Drawer } from "../drawer/Drawer";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
   rehydrateWidgetWindows,
@@ -37,6 +38,7 @@ function summon(kind: WidgetKind): void {
 function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): React.ReactElement {
   const windows = useWidgetWindows();
   const reduced = useReducedMotion();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [glints, setGlints] = useState<
     Array<{ id: string; x: number; y: number }>
   >([]);
@@ -105,11 +107,13 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
           ))}
         </AnimatePresence>
         <AnimatePresence>
-          {windows.map((item) => (
+          {windows.filter((item) => !item.stowed).map((item) => (
             <WidgetWindow key={item.id} window={item} onElement={onElement} />
           ))}
         </AnimatePresence>
       </div>
+
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} windows={windows} />
 
       {/* TEMP: replaced by desktop-react-shell at merge. */}
       {debugSummon ? (
