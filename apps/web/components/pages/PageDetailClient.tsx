@@ -654,6 +654,14 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
     return chain.reverse();
   }, [serverPage.folderId, allFolders]);
 
+  // Back target for the "Wiki" breadcrumb: a page inside a folder returns to
+  // that folder's Explorer view (`/wiki?folder=<id>`), not the bare wiki root,
+  // so leaving the page preserves the folder context. Derived from the page's
+  // own folderId so it survives a hard reload of the detail route.
+  const wikiBackHref = serverPage.folderId
+    ? `/wiki?folder=${serverPage.folderId}`
+    : "/wiki";
+
   return (
     <div
       data-page-island
@@ -687,7 +695,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
       <nav className="flex flex-wrap items-center gap-1 font-mono text-[11px] text-[var(--ink-muted)]">
         <button
           type="button"
-          onClick={() => router.push("/wiki")}
+          onClick={() => router.push(wikiBackHref)}
           className="rounded-[4px] px-1 py-0.5 transition-[color,background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--hud-cyan)] cursor-pointer"
         >
           Wiki
