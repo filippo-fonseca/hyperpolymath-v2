@@ -50,11 +50,21 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
 
   useEffect(() => {
     rehydrateWidgetWindows();
+    // A truly fresh boot has no persisted windows at all. Only then do we
+    // compose the idle-home; any persisted layout is left untouched.
+    const freshBoot = getWidgetWindows().length === 0;
     if (!getWidgetWindows().some((item) => item.kind === "orb")) {
       const entry = WIDGET_CATALOG.orb;
       summonWidget("orb", {}, { x: 0.5, y: 0.5 }, {
         defaultSize: entry.defaultSize,
         singleton: entry.singleton,
+      });
+    }
+    if (freshBoot) {
+      const clock = WIDGET_CATALOG.clock;
+      summonWidget("clock", {}, { x: 0.5, y: 0.15 }, {
+        defaultSize: clock.defaultSize,
+        singleton: clock.singleton,
       });
     }
   }, []);
