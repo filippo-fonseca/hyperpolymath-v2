@@ -339,9 +339,13 @@ export function WikiExplorer({ userId, pages, folders }: WikiExplorerProps) {
           </InspectorShell>
         </div>
 
-        <DragOverlay>
+        <DragOverlay style={{ width: "max-content", height: "auto" }}>
           {dnd.activeDrag ? (
-            <DragCountBadge label={dnd.activeLabel} count={dnd.dragBag.length} />
+            <DragCountBadge
+              kind={dnd.activeDrag.kind}
+              label={dnd.activeLabel}
+              count={dnd.dragBag.length}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>
