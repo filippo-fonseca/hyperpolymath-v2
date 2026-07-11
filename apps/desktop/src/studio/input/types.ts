@@ -58,17 +58,36 @@ export type StudioPhaseEvent =
   | { type: "grabEnd" }
   | { type: "dragStart" }
   | { type: "dragMove"; dx: number; dy: number; dz: number }
-  | { type: "dragEnd" };
+  | { type: "dragEnd" }
+  // Open-hand resize (widget-scoped). Like `grab*`, `resizeStart` carries the
+  // hovered widget the hub injected; `resizeMove` streams a cumulative scale
+  // multiplier from the arm baseline (1.0 = unchanged), `resizeEnd` terminates.
+  | { type: "resizeStart"; targetId: string }
+  | { type: "resizeMove"; scale: number }
+  | { type: "resizeEnd" }
+  // Index-finger scroll (surface-scoped). `scrollStart` carries the hovered
+  // surface the hub injected; `scrollMove` streams an incremental vertical
+  // wheel delta (`dy`, px-ish, positive = content moves up / scroll down),
+  // `scrollEnd` terminates.
+  | { type: "scrollStart"; targetId: string }
+  | { type: "scrollMove"; dy: number }
+  | { type: "scrollEnd" };
 
 /**
  * What drivers are allowed to emit on the phase bus. Drivers never resolve
- * hover, so `grabStart` carries no target — the hub upgrades it from the
- * current hover (and drops the whole grab lifecycle when there is none), exactly
- * as it upgrades `expand`. Everything else passes through unchanged.
+ * hover, so `grabStart`/`resizeStart`/`scrollStart` carry no target — the hub
+ * upgrades each from the current hover (and drops the whole lifecycle when
+ * there is none), exactly as it upgrades `expand`. Everything else passes
+ * through unchanged.
  */
 export type StudioPhaseInput =
   | { type: "grabStart" }
-  | Exclude<StudioPhaseEvent, { type: "grabStart" }>;
+  | { type: "resizeStart" }
+  | { type: "scrollStart" }
+  | Exclude<
+      StudioPhaseEvent,
+      { type: "grabStart" } | { type: "resizeStart" } | { type: "scrollStart" }
+    >;
 
 /**
  * What drivers are allowed to emit. Drivers never resolve hover, so `expand`
