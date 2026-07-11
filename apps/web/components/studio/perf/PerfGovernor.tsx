@@ -38,6 +38,7 @@
 import { useCallback, useEffect, useRef, type ReactElement } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
+import { setStudioPerfTier } from "@/lib/studio/state/perf-tier";
 
 // ── The dpr ladder (§7.6) ───────────────────────────────────────────────────
 // Rung 0 is the crisp default; each decline steps one rung down toward 1.0,
@@ -111,6 +112,7 @@ export function PerfGovernor(): ReactElement {
       const clamped = clampInt(nextIndex, 0, DPR_LADDER.length - 1);
       if (clamped === ladderIndex.current) return; // already at the rail
       ladderIndex.current = clamped;
+      setStudioPerfTier(clamped === 0 ? "high" : clamped === 1 ? "medium" : "low");
       const dpr = clampNum(DPR_LADDER[clamped], DPR_MIN, maxDpr.current);
       setDpr(dpr);
       invalidate(); // repaint once so the new render-target size takes effect

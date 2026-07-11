@@ -10,13 +10,35 @@
  * Bloom/Vignette composer in PostFX, the floor in StudioRoom.
  */
 import { Environment } from "@react-three/drei";
+import { useEffect, useMemo } from "react";
+import * as THREE from "three";
 import { STUDIOLO } from "../materials/tokens";
 
 export function StudioAtmosphere(): React.ReactElement {
+  const glow = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext("2d");
+    if (context) {
+      const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gradient.addColorStop(0, STUDIOLO.jarvisCyan);
+      gradient.addColorStop(0.25, `${STUDIOLO.jarvisCyan}44`);
+      gradient.addColorStop(1, `${STUDIOLO.deepVellum}00`);
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 128, 128);
+    }
+    return new THREE.CanvasTexture(canvas);
+  }, []);
+  useEffect(() => () => glow.dispose(), [glow]);
+
   return (
     <>
       {/* Night IBL only — background is StudioCanvas's nightwalnut clear color. */}
       <Environment preset="night" background={false} />
+      <sprite position={[0, 1.4, -2.8]} scale={[10, 6, 1]}>
+        <spriteMaterial map={glow} transparent opacity={0.18} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </sprite>
 
       {/* Base ambient so body tints don't collapse to pure black off-rim. */}
       <ambientLight color={STUDIOLO.parchment} intensity={0.07} />
