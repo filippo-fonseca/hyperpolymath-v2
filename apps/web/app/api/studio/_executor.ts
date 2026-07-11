@@ -11,8 +11,17 @@ export async function studioUserId(request: Request): Promise<string | null> {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getClaims();
-    return error ? null : ((data?.claims?.sub as string | undefined) ?? null);
-  } catch {
+    if (error) {
+      // MINOR-1 — surface the Supabase failure in server logs so a
+      // misconfigured SUPABASE_URL / expired signing key doesn't look
+      // identical to an expired session at the 401 seam. Message is NOT
+      // returned to the client.
+      console.warn("[studio-auth] getClaims failed", error.message ?? error);
+      return null;
+    }
+    return (data?.claims?.sub as string | undefined) ?? null;
+  } catch (err) {
+    console.warn("[studio-auth] getClaims threw", err instanceof Error ? err.message : err);
     return null;
   }
 }
