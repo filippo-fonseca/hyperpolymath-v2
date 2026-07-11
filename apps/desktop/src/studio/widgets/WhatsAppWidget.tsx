@@ -4,6 +4,27 @@ import { useQuery } from "@tanstack/react-query";
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { fetchStudioWidget } from "./widget-fetch";
 
+// MAJOR-5 — Widget is refetched every ACTIVE_POLL_MS while the HUD is
+// visible. When `document.hidden` (HUD stowed, workspace switch, machine
+// asleep), polling pauses entirely — we still refetch on window focus so
+// the "back at desk" refresh works. The Realtime-invalidation pattern
+// (per CLAUDE.md "Realtime as invalidation signal") is the eventual home,
+// but a per-user Realtime channel is a bigger change; this cuts the
+// unconditional pinning without that scope.
+const ACTIVE_POLL_MS = 60_000;
+
+function useDocumentHidden(): boolean {
+  const subscribe = React.useCallback((cb: () => void) => {
+    document.addEventListener("visibilitychange", cb);
+    return () => document.removeEventListener("visibilitychange", cb);
+  }, []);
+  const getSnapshot = React.useCallback(() => {
+    if (typeof document === "undefined") return false;
+    return document.hidden;
+  }, []);
+  return React.useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
 interface Message {
   senderName: string | null;
   fromMe: boolean;
@@ -24,10 +45,15 @@ interface Receipt extends Record<string, unknown> {
 
 export default function WhatsAppWidget(): React.ReactElement {
   // SEAM: the desktop realtime subscription lands with the shell data bridge.
+  // MAJOR-5 — pause polling entirely when the HUD is hidden; refetch on
+  // focus for the "back at desk" case.
+  const hidden = useDocumentHidden();
   const { data, error, isLoading } = useQuery({
     queryKey: ["studio", "whatsapp"],
     queryFn: () => fetchStudioWidget<Receipt>("/api/studio/whatsapp"),
-    refetchInterval: 30_000,
+    refetchInterval: hidden ? false : ACTIVE_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
   const chats = data?.chats ?? [];
   const unreplied = chats.filter(
