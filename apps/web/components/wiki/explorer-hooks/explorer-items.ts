@@ -1,14 +1,14 @@
 import type { ExplorerItem, ExplorerSortMode } from "@/components/wiki/explorer-types";
+import type { ExplorerSearchHit } from "@/components/wiki/explorer-views/ExplorerSearchResults";
+import { formatPageLocation } from "@/components/wiki/explorer-views/ExplorerSearchResults";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { FolderRow } from "@/lib/pages/folder-projects";
 import { compareExplorerItems, withPinnedFirst } from "@/lib/pages/position";
-import type { ExplorerSearchHit } from "@/components/wiki/explorer-views/ExplorerSearchResults";
-import { formatPageLocation } from "@/components/wiki/explorer-views/ExplorerSearchResults";
 
 /** Sub-folder + page counts nested under a folder id (direct children only). */
 export function computeFolderItemCounts(
   folders: FolderRow[],
-  pages: PageWithProjects[],
+  pages: PageWithProjects[]
 ): Map<string, number> {
   const m = new Map<string, number>();
   for (const f of folders) {
@@ -31,12 +31,10 @@ export function buildExplorerItems(
   pages: PageWithProjects[],
   currentFolderId: string | null,
   sort: ExplorerSortMode,
-  counts?: Map<string, number>,
+  counts?: Map<string, number>
 ): ExplorerItem[] {
   const childFolders = folders.filter((f) => (f.parentId ?? null) === currentFolderId);
-  const childPages = pages.filter(
-    (p) => (p.folderId ?? null) === currentFolderId && !p.dailyDate,
-  );
+  const childPages = pages.filter((p) => (p.folderId ?? null) === currentFolderId && !p.dailyDate);
 
   const folderCounts = counts ?? computeFolderItemCounts(folders, pages);
 
@@ -48,19 +46,19 @@ export function buildExplorerItems(
   const pageCmp = (() => {
     if (sort === "name") {
       return withPinnedFirst<PageWithProjects>((a, b) =>
-        a.title.trim().toLowerCase().localeCompare(b.title.trim().toLowerCase()),
+        a.title.trim().toLowerCase().localeCompare(b.title.trim().toLowerCase())
       );
     }
     if (sort === "updated") {
       return withPinnedFirst<PageWithProjects>(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
     }
     return withPinnedFirst<PageWithProjects>((a, b) =>
       compareExplorerItems(
         { positionKey: a.positionKey ?? null, name: a.title },
-        { positionKey: b.positionKey ?? null, name: b.title },
-      ),
+        { positionKey: b.positionKey ?? null, name: b.title }
+      )
     );
   })();
 
@@ -76,6 +74,21 @@ export function buildExplorerItems(
   return out;
 }
 
+/** Preserve the sort order produced above while making the two Drive-style
+ * render bands explicit. This also protects views from accidental interleave. */
+export function partitionExplorerItems(items: ExplorerItem[]): {
+  folders: Extract<ExplorerItem, { kind: "folder" }>[];
+  pages: Extract<ExplorerItem, { kind: "page" }>[];
+} {
+  const folders: Extract<ExplorerItem, { kind: "folder" }>[] = [];
+  const pages: Extract<ExplorerItem, { kind: "page" }>[] = [];
+  for (const item of items) {
+    if (item.kind === "folder") folders.push(item);
+    else pages.push(item);
+  }
+  return { folders, pages };
+}
+
 /**
  * Flat cross-wiki search: match title + emoji + folder ancestry. Daily pages
  * excluded — Wave 3 owns the daily surface. Query is trimmed + lowercased.
@@ -83,7 +96,7 @@ export function buildExplorerItems(
 export function computeSearchHits(
   allPages: PageWithProjects[],
   folders: FolderRow[],
-  rawQuery: string,
+  rawQuery: string
 ): ExplorerSearchHit[] {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return [];
@@ -101,10 +114,7 @@ export function computeSearchHits(
  * Compute the ancestry label ("Wiki / Foo / Bar") for a folder id, matching
  * the inspector's "Location" row. Cycle-safe.
  */
-export function ancestryLabelFor(
-  folderId: string | null,
-  folders: FolderRow[],
-): string {
+export function ancestryLabelFor(folderId: string | null, folders: FolderRow[]): string {
   if (!folderId) return "Wiki";
   const byId = new Map(folders.map((f) => [f.id, f] as const));
   const chain: string[] = [];
@@ -125,25 +135,18 @@ export function ancestryLabelFor(
  * DnD composition. Supports `folder:<id>`, `breadcrumb:<id>`,
  * `breadcrumb-root`, and the shared `wiki-root-zone` sentinel.
  */
-export type ExplorerDropTarget =
-  | { kind: "folder"; id: string }
-  | { kind: "root" };
+export type ExplorerDropTarget = { kind: "folder"; id: string } | { kind: "root" };
 
 export function parseExplorerDropId(raw: string): ExplorerDropTarget | null {
   if (raw === "wiki-root-zone" || raw === "breadcrumb-root") return { kind: "root" };
-  if (raw.startsWith("breadcrumb:"))
-    return { kind: "folder", id: raw.slice("breadcrumb:".length) };
-  if (raw.startsWith("folder:"))
-    return { kind: "folder", id: raw.slice("folder:".length) };
+  if (raw.startsWith("breadcrumb:")) return { kind: "folder", id: raw.slice("breadcrumb:".length) };
+  if (raw.startsWith("folder:")) return { kind: "folder", id: raw.slice("folder:".length) };
   return null;
 }
 
 /** Decode a draggable id back to `{ kind, id }`. */
-export function parseExplorerDragId(
-  raw: string,
-): { kind: "page" | "folder"; id: string } | null {
+export function parseExplorerDragId(raw: string): { kind: "page" | "folder"; id: string } | null {
   if (raw.startsWith("page:")) return { kind: "page", id: raw.slice("page:".length) };
-  if (raw.startsWith("folder:"))
-    return { kind: "folder", id: raw.slice("folder:".length) };
+  if (raw.startsWith("folder:")) return { kind: "folder", id: raw.slice("folder:".length) };
   return null;
 }

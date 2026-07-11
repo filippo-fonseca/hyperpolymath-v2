@@ -43,7 +43,7 @@ export function ExplorerSearchResults({
           onDoubleClick={() => onOpen(hit.page)}
           className={cn(
             "group flex flex-col gap-1 rounded-[8px] outline-none",
-            "focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
+            "focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
           )}
         >
           <PagePreviewCard
@@ -51,7 +51,7 @@ export function ExplorerSearchResults({
             icon={hit.page.emoji ?? null}
             selected={selectedId === `page:${hit.page.id}`}
           />
-          <span className="truncate px-1 font-mono text-[0.65rem] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="truncate px-1 font-sans text-[0.65rem] text-[var(--sd-ink-dull)]">
             {hit.location || "Wiki"}
           </span>
         </button>
@@ -61,10 +61,7 @@ export function ExplorerSearchResults({
 }
 
 /** Given a page + folder list, format its location breadcrumb (root -> parent). */
-export function formatPageLocation(
-  page: PageWithProjects,
-  folders: FolderRow[],
-): string {
+export function formatPageLocation(page: PageWithProjects, folders: FolderRow[]): string {
   if (!page.folderId) return "Wiki";
   const byId = new Map(folders.map((f) => [f.id, f] as const));
   const chain: string[] = [];

@@ -1,10 +1,11 @@
 "use client";
 
-import { FolderIcon } from "@/components/wiki/icons/FolderIcon";
-import { PageIcon } from "@/components/wiki/icons/PageIcon";
+import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
+import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
+import { FolderIcon } from "@/components/wiki/icons/FolderIcon";
+import { PageIcon } from "@/components/wiki/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
@@ -15,6 +16,7 @@ export interface ExplorerListViewProps {
   isSelected: (id: string) => boolean;
   onItemClick: (id: string, mods: SelectionClickModifiers) => void;
   onItemOpen: (item: ExplorerItem) => void;
+  rejectedDragId?: string | null;
   onItemContextMenu?: (event: MouseEvent, item: ExplorerItem) => void;
   renderItemChrome?: (item: ExplorerItem, node: ReactNode) => ReactNode;
 }
@@ -24,12 +26,57 @@ export function ExplorerListView({
   isSelected,
   onItemClick,
   onItemOpen,
+  rejectedDragId,
   onItemContextMenu,
   renderItemChrome,
 }: ExplorerListViewProps) {
+  const bands = partitionExplorerItems(items);
   return (
-    <div className="rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-[0.8rem] text-[var(--ink)]" data-view="list">
+    <div
+      className="rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] font-sans text-[0.8rem] text-[var(--ink)]"
+      data-view="list"
+    >
       <ExplorerListHeaderRow />
+      <ExplorerListBand
+        label="Folders"
+        items={bands.folders}
+        isSelected={isSelected}
+        rejectedDragId={rejectedDragId}
+        onItemClick={onItemClick}
+        onItemOpen={onItemOpen}
+        onItemContextMenu={onItemContextMenu}
+        renderItemChrome={renderItemChrome}
+      />
+      <ExplorerListBand
+        label="Files"
+        items={bands.pages}
+        isSelected={isSelected}
+        rejectedDragId={rejectedDragId}
+        onItemClick={onItemClick}
+        onItemOpen={onItemOpen}
+        onItemContextMenu={onItemContextMenu}
+        renderItemChrome={renderItemChrome}
+      />
+    </div>
+  );
+}
+
+function ExplorerListBand({
+  label,
+  items,
+  isSelected,
+  rejectedDragId,
+  onItemClick,
+  onItemOpen,
+  onItemContextMenu,
+  renderItemChrome,
+}: ExplorerListViewProps & { label: string }) {
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <h2 className="border-b border-[var(--sd-line)] bg-[var(--sd-dark-box)] px-3 py-1.5 text-[0.68rem] font-semibold text-[var(--sd-ink-dull)]">
+        {label}
+      </h2>
       <ul className="divide-y divide-[var(--sd-divider)]">
         {items.map((item) => {
           const id = explorerItemId(item);
@@ -38,6 +85,7 @@ export function ExplorerListView({
               key={id}
               item={item}
               selected={isSelected(id)}
+              rejected={rejectedDragId === id}
               onClick={(event) =>
                 onItemClick(id, {
                   metaKey: event.metaKey,
@@ -53,14 +101,14 @@ export function ExplorerListView({
           return <li key={id}>{wrapped}</li>;
         })}
       </ul>
-    </div>
+    </section>
   );
 }
 
 function ExplorerListHeaderRow() {
   return (
     <div
-      className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-mono text-[0.65rem] uppercase tracking-[0.09em] text-[var(--ink-muted)]"
+      className="grid h-7 items-center gap-3 border-b border-[var(--sd-divider)] px-3 font-sans text-[0.65rem] font-semibold text-[var(--sd-ink-dull)]"
       style={{ gridTemplateColumns: "minmax(0,2fr) 96px 128px minmax(0,1.2fr)" }}
     >
       <span>Name</span>
@@ -74,12 +122,14 @@ function ExplorerListHeaderRow() {
 function ExplorerListRow({
   item,
   selected,
+  rejected,
   onClick,
   onDoubleClick,
   onContextMenu,
 }: {
   item: ExplorerItem;
   selected: boolean;
+  rejected: boolean;
   onClick: (event: MouseEvent) => void;
   onDoubleClick: () => void;
   onContextMenu: (event: MouseEvent) => void;
@@ -90,12 +140,17 @@ function ExplorerListRow({
     id: droppableId ?? `noop:${id}`,
     disabled: !droppableId,
   });
-  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    isDragging,
+  } = useDraggable({
     id,
     data: { kind: item.kind },
   });
 
-  const setRef = (node: HTMLDivElement | null) => {
+  const setRef = (node: HTMLButtonElement | null) => {
     setDraggableRef(node);
     if (droppableId) setDroppableRef(node);
   };
@@ -111,13 +166,13 @@ function ExplorerListRow({
   const projects = item.kind === "page" ? item.page.projects : [];
 
   return (
-    <div
+    <button
+      type="button"
       ref={setRef}
       {...attributes}
       {...listeners}
+      aria-describedby={undefined}
       data-explorer-id={id}
-      role="button"
-      tabIndex={0}
       aria-selected={selected}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -126,13 +181,15 @@ function ExplorerListRow({
       className={cn(
         "relative grid h-8 items-center gap-3 px-3 text-[var(--ink)] outline-none",
         "transition-[background-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
-        "focus-visible:bg-[var(--sd-hover)] focus-visible:shadow-[inset_0_0_0_1px_var(--hud-cyan)]",
-        selected && "bg-[var(--sd-selected)]",
-        isOver && "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--sd-box))]",
+        "focus-visible:bg-[var(--sd-hover)] focus-visible:shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+        selected && "bg-[var(--sd-selected-item)]",
+        isOver &&
+          "bg-[color-mix(in_srgb,var(--sd-accent)_10%,var(--sd-box))] shadow-[inset_0_0_0_1px_var(--sd-accent)]",
+        rejected && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
     >
       {selected ? (
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[var(--hud-cyan)]" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] bg-[var(--sd-accent)]" />
       ) : null}
       <div
         className="grid min-w-0 items-center gap-3"
@@ -146,14 +203,12 @@ function ExplorerListRow({
           )}
           <span className="truncate">{name}</span>
         </span>
-        <span className="font-mono text-[0.7rem] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-          {kindLabel}
-        </span>
-        <span className="truncate font-mono text-[0.7rem] text-[var(--ink-muted)]">{updated}</span>
+        <span className="text-[0.7rem] text-[var(--sd-ink-dull)]">{kindLabel}</span>
+        <span className="truncate text-[0.7rem] text-[var(--sd-ink-dull)]">{updated}</span>
         <span className="min-w-0 truncate text-[0.75rem] text-[var(--ink-muted)]">
           {projects.length > 0 ? projects.map((p) => p.name).join(", ") : ""}
         </span>
       </div>
-    </div>
+    </button>
   );
 }

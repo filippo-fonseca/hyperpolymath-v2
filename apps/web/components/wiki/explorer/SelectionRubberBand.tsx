@@ -23,9 +23,8 @@ export function SelectionRubberBand({
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute z-20 rounded-[6px] border border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_18%,transparent)]",
-        "shadow-[0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_24%,transparent)_inset]",
-        className,
+        "pointer-events-none absolute z-20 rounded-[6px] border border-[var(--sd-accent)] bg-[color-mix(in_srgb,var(--sd-accent)_20%,transparent)]",
+        className
       )}
       style={{
         transform: `translate3d(${x}px, ${y}px, 0)`,

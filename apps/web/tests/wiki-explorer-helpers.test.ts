@@ -6,7 +6,6 @@
  * without a DOM.
  */
 
-import { describe, expect, it } from "vitest";
 import {
   ancestryLabelFor,
   buildExplorerItems,
@@ -14,6 +13,7 @@ import {
   computeSearchHits,
   parseExplorerDragId,
   parseExplorerDropId,
+  partitionExplorerItems,
 } from "@/components/wiki/explorer-hooks/explorer-items";
 import {
   type ExplorerHistoryStack,
@@ -22,12 +22,13 @@ import {
 import { rangeBetween } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { FolderRow } from "@/lib/pages/folder-projects";
+import { describe, expect, it } from "vitest";
 
 function folder(
   id: string,
   parentId: string | null,
   name: string,
-  positionKey: string | null = null,
+  positionKey: string | null = null
 ): FolderRow {
   return { id, parentId, name, orderIndex: 0, positionKey };
 }
@@ -36,7 +37,7 @@ function page(
   id: string,
   folderId: string | null,
   title: string,
-  extra: Partial<PageWithProjects> = {},
+  extra: Partial<PageWithProjects> = {}
 ): PageWithProjects {
   const now = new Date("2026-07-10T12:00:00Z");
   return {
@@ -124,6 +125,23 @@ describe("buildExplorerItems", () => {
     expect(items.filter((it) => it.kind === "folder").length).toBe(2);
   });
 
+  it("preserves each active sort inside strict folder and page bands", () => {
+    const items = buildExplorerItems(
+      [folder("z", null, "Zulu", "a"), folder("a", null, "Alpha", "z")],
+      [
+        page("late", null, "Zulu", { positionKey: "a" }),
+        page("early", null, "Alpha", { positionKey: "z" }),
+      ],
+      null,
+      "manual"
+    );
+    const bands = partitionExplorerItems(items);
+    expect(bands.folders.map((item) => item.id)).toEqual(["z", "a"]);
+    expect(bands.pages.map((item) => item.id)).toEqual(["late", "early"]);
+    expect(bands.folders.every((item) => item.kind === "folder")).toBe(true);
+    expect(bands.pages.every((item) => item.kind === "page")).toBe(true);
+  });
+
   it("excludes daily pages from the flat list", () => {
     const items = buildExplorerItems(folders, pages, null, "name");
     const ids = items.map((it) => it.id);
@@ -167,10 +185,7 @@ describe("ancestryLabelFor", () => {
     expect(ancestryLabelFor("leaf", folders)).toBe("Wiki / Root / Mid / Leaf");
   });
   it("cycle-safe when the parent chain loops", () => {
-    const looped: FolderRow[] = [
-      folder("a", "b", "A"),
-      folder("b", "a", "B"),
-    ];
+    const looped: FolderRow[] = [folder("a", "b", "A"), folder("b", "a", "B")];
     expect(() => ancestryLabelFor("a", looped)).not.toThrow();
   });
 });
@@ -200,7 +215,7 @@ describe("syncExplorerHistory", () => {
   const stack = (
     past: (string | null)[],
     future: (string | null)[],
-    last: string | null,
+    last: string | null
   ): ExplorerHistoryStack => ({ past, future, last });
 
   it("no-ops when already in sync (own setFolderId echo)", () => {
@@ -213,7 +228,7 @@ describe("syncExplorerHistory", () => {
     // Drilled root -> a, then browser Back to root.
     const s = stack([null], [], "a");
     syncExplorerHistory(s, null);
-    expect(s).toEqual(stack([], [ "a" ], null));
+    expect(s).toEqual(stack([], ["a"], null));
   });
 
   it("drill-down stays live after browser Back (regression)", () => {

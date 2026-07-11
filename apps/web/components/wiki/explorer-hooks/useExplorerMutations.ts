@@ -5,6 +5,7 @@ import { movePagesBulk, reorderItem } from "@/app/actions/ordering";
 import { updatePage } from "@/app/actions/pages";
 import type { PageWithProjects } from "@/lib/db/queries/pages";
 import type { FolderRow } from "@/lib/pages/folder-projects";
+import { compareExplorerItems, initialKeysFor } from "@/lib/pages/position";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
@@ -24,14 +25,14 @@ export function useExplorerMutations(userId: string) {
     (updater: (old: PageWithProjects[]) => PageWithProjects[]) => {
       qc.setQueryData<PageWithProjects[]>(pagesKey, (old) => updater(old ?? []));
     },
-    [pagesKey, qc],
+    [pagesKey, qc]
   );
 
   const patchFolders = useCallback(
     (updater: (old: FolderRow[]) => FolderRow[]) => {
       qc.setQueryData<FolderRow[]>(foldersKey, (old) => updater(old ?? []));
     },
-    [foldersKey, qc],
+    [foldersKey, qc]
   );
 
   const invalidatePages = useCallback(() => {
@@ -44,30 +45,26 @@ export function useExplorerMutations(userId: string) {
 
   const movePageTo = useCallback(
     async (pageId: string, folderId: string | null) => {
-      patchPages((old) =>
-        old.map((p) => (p.id === pageId ? { ...p, folderId } : p)),
-      );
+      patchPages((old) => old.map((p) => (p.id === pageId ? { ...p, folderId } : p)));
       const r = await setPageFolder({ pageId, folderId });
       if (!r.success) {
         toast.error(r.error);
         invalidatePages();
       }
     },
-    [invalidatePages, patchPages],
+    [invalidatePages, patchPages]
   );
 
   const moveFolderTo = useCallback(
     async (folderId: string, parentId: string | null) => {
-      patchFolders((old) =>
-        old.map((f) => (f.id === folderId ? { ...f, parentId } : f)),
-      );
+      patchFolders((old) => old.map((f) => (f.id === folderId ? { ...f, parentId } : f)));
       const r = await setParentFolder({ folderId, parentId });
       if (!r.success) {
         toast.error(r.error);
         invalidateFolders();
       }
     },
-    [invalidateFolders, patchFolders],
+    [invalidateFolders, patchFolders]
   );
 
   const bulkMovePages = useCallback(
@@ -82,7 +79,7 @@ export function useExplorerMutations(userId: string) {
         invalidatePages();
       }
     },
-    [invalidatePages, patchPages],
+    [invalidatePages, patchPages]
   );
 
   const reorder = useCallback(
@@ -93,13 +90,58 @@ export function useExplorerMutations(userId: string) {
       beforeId?: string | null;
       parentId: string | null;
     }) => {
+      const place = <T extends { id: string; positionKey?: string | null }>(rows: T[]) => {
+        const without = rows.filter((row) => row.id !== input.id);
+        let insertAt = without.length;
+        if (input.beforeId) {
+          const index = without.findIndex((row) => row.id === input.beforeId);
+          if (index >= 0) insertAt = index;
+        } else if (input.afterId) {
+          const index = without.findIndex((row) => row.id === input.afterId);
+          if (index >= 0) insertAt = index + 1;
+        }
+        const moving = rows.find((row) => row.id === input.id);
+        if (!moving) return rows;
+        without.splice(insertAt, 0, moving);
+        const keys = initialKeysFor(without.length);
+        return without.map((row, index) => ({ ...row, positionKey: keys[index] }));
+      };
+
+      if (input.kind === "page") {
+        patchPages((old) => {
+          const siblings = old
+            .filter((page) => !page.dailyDate && (page.folderId ?? null) === input.parentId)
+            .sort((a, b) =>
+              compareExplorerItems(
+                { positionKey: a.positionKey, name: a.title },
+                { positionKey: b.positionKey, name: b.title }
+              )
+            );
+          const placed = new Map(place(siblings).map((page) => [page.id, page.positionKey]));
+          return old.map((page) =>
+            placed.has(page.id) ? { ...page, positionKey: placed.get(page.id) ?? null } : page
+          );
+        });
+      } else {
+        patchFolders((old) => {
+          const siblings = old
+            .filter((folder) => (folder.parentId ?? null) === input.parentId)
+            .sort(compareExplorerItems);
+          const placed = new Map(place(siblings).map((folder) => [folder.id, folder.positionKey]));
+          return old.map((folder) =>
+            placed.has(folder.id)
+              ? { ...folder, positionKey: placed.get(folder.id) ?? null }
+              : folder
+          );
+        });
+      }
       const r = await reorderItem(input);
       if (!r.success) {
         toast.error(r.error);
         input.kind === "page" ? invalidatePages() : invalidateFolders();
       }
     },
-    [invalidateFolders, invalidatePages],
+    [invalidateFolders, invalidatePages, patchFolders, patchPages]
   );
 
   const rename = useCallback(
@@ -111,7 +153,7 @@ export function useExplorerMutations(userId: string) {
         invalidatePages();
       }
     },
-    [invalidatePages, patchPages],
+    [invalidatePages, patchPages]
   );
 
   return {
