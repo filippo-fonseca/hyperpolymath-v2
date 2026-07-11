@@ -98,4 +98,63 @@ export function useNativeWebviewSync(
     contentRect?.width,
     contentRect?.height,
   ]);
+
+  useEffect(() => {
+    if (!enabled || typeof document === "undefined") return;
+    let pointerId: number | null = null;
+    let cancelled = false;
+    let animationFrame = 0;
+
+    const widgetFrame = (target: EventTarget | null): HTMLElement | null => {
+      const element = target instanceof Element ? target : null;
+      const frame = element?.closest<HTMLElement>("[data-widget-window]") ?? null;
+      return frame?.dataset.widgetWindow === id ? frame : null;
+    };
+
+    const onPointerDown = (event: PointerEvent): void => {
+      if (event.button !== 0) return;
+      const frame = widgetFrame(event.target);
+      if (!frame) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const onResizeHandle =
+        target?.closest('button[aria-label="Resize window"]')?.parentElement === frame;
+      const onHeader =
+        target?.closest("header")?.parentElement === frame &&
+        !target?.closest("button, a, input, select, textarea");
+      if (!onHeader && !onResizeHandle) return;
+      pointerId = event.pointerId;
+      void hideNativeWebview(id).catch(() => undefined);
+    };
+
+    const finishInteraction = (event: PointerEvent): void => {
+      if (pointerId !== event.pointerId) return;
+      pointerId = null;
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          const element = Array.from(
+            document.querySelectorAll<HTMLElement>("[data-native-webview-content]"),
+          ).find((candidate) => candidate.dataset.nativeWebviewContent === id);
+          if (!element) return;
+          void physicalWebviewBounds(element.getBoundingClientRect())
+            .then((bounds) => setNativeWebviewBounds(id, bounds))
+            .catch(() => undefined)
+            .finally(() => {
+              if (!cancelled) void showNativeWebview(id).catch(() => undefined);
+            });
+        });
+      });
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", finishInteraction);
+    document.addEventListener("pointercancel", finishInteraction);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(animationFrame);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", finishInteraction);
+      document.removeEventListener("pointercancel", finishInteraction);
+    };
+  }, [id, enabled]);
 }

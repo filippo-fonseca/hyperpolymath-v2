@@ -283,6 +283,7 @@ export default function BrowserWidget({
       </form>
       <div
         ref={setContentElement}
+        data-native-webview-content={id}
         style={{ position: "relative", minHeight: 0, flex: 1, overflow: "hidden" }}
       >
         {fallback ? (
