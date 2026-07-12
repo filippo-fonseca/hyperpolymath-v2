@@ -196,6 +196,25 @@ function emitPendingChange(isPending: boolean): void {
   for (const fn of pendingListeners) fn(isPending);
 }
 
+/** How a pending send resolved — drives the confirm-gesture panel's dismissal
+ *  flourish (tick vs cross). "sent" covers voice-yes / gesture-approve /
+ *  pre-confirm; "cancelled" covers voice-no / gesture-cancel / replacement;
+ *  "expired" is the silent TTL backstop. Purely presentational. */
+export type ConfirmResolution = "sent" | "cancelled" | "expired";
+type ConfirmResolvedListener = (resolution: ConfirmResolution) => void;
+const resolvedListeners = new Set<ConfirmResolvedListener>();
+
+export function onConfirmResolved(fn: ConfirmResolvedListener): () => void {
+  resolvedListeners.add(fn);
+  return () => {
+    resolvedListeners.delete(fn);
+  };
+}
+
+function emitResolved(resolution: ConfirmResolution): void {
+  for (const fn of resolvedListeners) fn(resolution);
+}
+
 /** Fired after a WhatsApp send is CONFIRMED and successfully delivered by the
  *  bridge. The Studio WhatsApp widget listens (via bridge.ts) to open itself to
  *  the target chat and pulse-highlight the just-sent message. Purely a UX echo —
@@ -238,7 +257,11 @@ function discardPending(reason: string): void {
   console.log(
     `[confirm] pending send_message to "${pending.action.recipient}" discarded — ${reason}`,
   );
+  // A TTL expiry is a silent backstop (no user answer); everything else here is a
+  // deliberate decline. The panel shows a cross for a decline, nothing for expiry.
+  const resolution: ConfirmResolution = reason.startsWith("TTL") ? "expired" : "cancelled";
   clearPendingState();
+  emitResolved(resolution);
 }
 
 /** Best-effort parse of the bridge's JSON error body (it always writes JSON via
@@ -596,6 +619,45 @@ export function holdSendMessage(action: SendMessageAction): void {
   );
 }
 
+/** True while a send_message is held awaiting a yes/no answer. Lets a gesture
+ *  consumer (thumbs-up/down) know whether there's anything to answer without
+ *  reaching into the module's internals. */
+export function hasPendingSend(): boolean {
+  return pending !== null;
+}
+
+/**
+ * Programmatically CONFIRM the pending send — the non-voice answer path (a
+ * thumbs-up gesture, or any future UI affordance). Equivalent to the user saying
+ * "yes": it dispatches the held send and clears the pending. Returns true when a
+ * pending existed and was dispatched, false when there was nothing to confirm.
+ * Voice confirmation stays valid simultaneously — whichever answer lands first
+ * clears the pending, and the other becomes a no-op.
+ */
+export function confirmPendingSend(): boolean {
+  if (!pending) return false;
+  const action = pending.action;
+  clearPendingState();
+  emitResolved("sent");
+  // eslint-disable-next-line no-console
+  console.log("[confirm] gesture confirmation (thumbs-up) received — sending");
+  // Load-bearing fire-and-forget, exactly as the transcript path: clearing the
+  // pending has already dropped the amber HUD ring, so nothing waits on the send.
+  void dispatchAndReport(action);
+  return true;
+}
+
+/**
+ * Programmatically CANCEL the pending send — the non-voice decline path (a
+ * thumbs-down gesture). Equivalent to the user saying "no". Returns true when a
+ * pending existed and was discarded, false when there was nothing to cancel.
+ */
+export function cancelPendingSend(): boolean {
+  if (!pending) return false;
+  discardPending("gesture cancellation (thumbs-down)");
+  return true;
+}
+
 /**
  * Try to resolve the pending send with a fresh transcript from the
  * continue-listening window. Returns true when the transcript was consumed as
@@ -610,6 +672,7 @@ function resolvePendingWithTranscript(text: string): boolean {
   if (AFFIRM_RE.test(text) || hasUnnegatedSendVerb(text)) {
     const action = pending.action;
     clearPendingState();
+    emitResolved("sent");
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
     // No client-side ack here — see the pre-confirm branch above. The model's

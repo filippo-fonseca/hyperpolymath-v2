@@ -37,6 +37,7 @@ import {
   resizeWidget,
 } from "../state/widget-windows";
 import { scrollNativeWebview } from "../windows/native-webview";
+import { confirmPendingSend, cancelPendingSend } from "@/actions/confirm-gate";
 
 /** A synthetic pointer id, far from any real (1+) pointer, so shims can target it. */
 const SYNTH_POINTER_ID = 90210;
@@ -430,10 +431,23 @@ export function useHandPointerSynthesis(): void {
     }
   });
 
-  // Expand (pinch-bloom) → a press at the reticle: summon a tile, restore a chip,
-  // or click a widget button. collapse/swipe intents drive reticle pulses only.
+  // Click intents → a press at the reticle: summon a tile, restore a chip, or
+  // click a widget button / drawer entry / news row. `tap` (index-finger jab) is
+  // the primary click; `expand` (pinch-bloom) is the legacy click, kept alongside
+  // it — both synthesize the same pointerdown→up→click through the widget DOM's
+  // own handlers, so everything hittable responds. `confirmApprove`/`confirmCancel`
+  // (thumbs-up/down) answer the send confirm gate directly. collapse/swipe drive
+  // reticle pulses only.
   useStudioIntent((intent) => {
-    if (intent.type !== "expand") return;
+    if (intent.type === "confirmApprove") {
+      confirmPendingSend();
+      return;
+    }
+    if (intent.type === "confirmCancel") {
+      cancelPendingSend();
+      return;
+    }
+    if (intent.type !== "expand" && intent.type !== "tap") return;
     const vp = cursorViewport();
     if (!vp) return;
     const hit = hitTest(vp.x, vp.y);
