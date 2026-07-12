@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 
 import { Drawer } from "../drawer/Drawer";
 import { HandTrackingLayer } from "../input/HandTrackingLayer";
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { HUD_EASE_OUT_QUART, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
   getWidgetWindows,
   rehydrateWidgetWindows,
@@ -132,7 +132,7 @@ function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): Reac
               initial={{ opacity: 0, scale: 0.35 }}
               animate={{ opacity: [0, 1, 0], scale: 1.35 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
+              transition={{ duration: 0.22, ease: [...HUD_EASE_OUT_QUART] }}
             />
           ))}
         </AnimatePresence>

@@ -8,7 +8,7 @@ import {
   summonWidget,
   type WidgetWindowInstance,
 } from "../state/widget-windows";
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { catalogEntries, type WidgetKind, WIDGET_CATALOG } from "../windows/catalog";
 
 interface Props {
@@ -38,13 +38,16 @@ const drawerButtonStyle: CSSProperties = {
   justifyContent: "center",
   gap: 5,
   touchAction: "none",
-  border: `1px solid ${STUDIO_COLORS.rule}`,
+  border: `1px solid ${HUD_SURFACES.line}`,
   borderRadius: 7,
   color: STUDIO_COLORS.text,
-  background: STUDIO_COLORS.background,
+  background: HUD_SURFACES.sunken,
   cursor: "grab",
   fontFamily: STUDIO_MONO,
 };
+
+/** One easing curve for all drawer motion, matching the wiki ease-out-quart. */
+const EASE_OUT_QUART: [number, number, number, number] = [...HUD_EASE_OUT_QUART];
 
 function stageDropPosition(
   clientX: number,
@@ -179,7 +182,7 @@ export function Drawer({
       data-widget-drawer
       aria-label="Widget drawer"
       layout
-      transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
+      transition={{ duration: reduced ? 0 : 0.18, ease: EASE_OUT_QUART }}
       style={{
         position: "absolute",
         left: "50%",
@@ -187,11 +190,11 @@ export function Drawer({
         zIndex: 40,
         width: open ? "min(760px, calc(100% - 32px))" : 136,
         padding: open ? "8px 10px 10px" : "5px 14px 4px",
-        border: `1px solid ${targeted ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
+        border: `1px solid ${targeted ? STUDIO_COLORS.accent : HUD_SURFACES.line}`,
         borderBottom: 0,
         borderRadius: "10px 10px 0 0",
         color: STUDIO_COLORS.text,
-        background: STUDIO_COLORS.surface,
+        background: HUD_SURFACES.raised,
         boxShadow: targeted
           ? `0 -10px 34px color-mix(in srgb, ${STUDIO_COLORS.accent} 22%, transparent)`
           : `0 -12px 30px color-mix(in srgb, ${STUDIO_COLORS.shadow} 72%, transparent)`,
@@ -236,7 +239,7 @@ export function Drawer({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: reduced ? 0 : 0.16 }}
+            transition={{ duration: reduced ? 0 : 0.16, ease: EASE_OUT_QUART }}
             style={{ display: "flex", minWidth: 0, overflow: "hidden" }}
           >
             <section aria-labelledby="drawer-catalog-label" style={{ minWidth: 0, flex: 1 }}>
@@ -269,6 +272,7 @@ export function Drawer({
                       }
                       summon(kind);
                     }}
+                    className="studio-drawer-tile"
                     style={drawerButtonStyle}
                   >
                     <entry.icon size={17} aria-hidden />
@@ -284,7 +288,7 @@ export function Drawer({
                 minWidth: 160,
                 marginLeft: 10,
                 paddingLeft: 10,
-                borderLeft: `1px solid ${STUDIO_COLORS.rule}`,
+                borderLeft: `1px solid ${HUD_SURFACES.line}`,
               }}
             >
               <h2
@@ -325,6 +329,7 @@ export function Drawer({
                             }
                             restoreWidget(item.id);
                           }}
+                          className="studio-drawer-tile"
                           style={{
                             display: "flex",
                             minWidth: 92,
@@ -332,10 +337,10 @@ export function Drawer({
                             alignItems: "center",
                             gap: 7,
                             padding: "0 9px",
-                            border: `1px solid ${STUDIO_COLORS.rule}`,
+                            border: `1px solid ${HUD_SURFACES.line}`,
                             borderRadius: 19,
                             color: STUDIO_COLORS.text,
-                            background: STUDIO_COLORS.background,
+                            background: HUD_SURFACES.sunken,
                             cursor: "grab",
                             fontFamily: STUDIO_MONO,
                             touchAction: "none",
@@ -374,6 +379,7 @@ export function Drawer({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 0.92, scale: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0 : 0.14, ease: EASE_OUT_QUART }}
             style={{
               position: "fixed",
               left: drag.x,
@@ -386,7 +392,7 @@ export function Drawer({
               border: `1px solid ${STUDIO_COLORS.accent}`,
               borderRadius: 9,
               color: STUDIO_COLORS.accent,
-              background: STUDIO_COLORS.surface,
+              background: HUD_SURFACES.raised,
               pointerEvents: "none",
               transform: "translate(-50%, -50%)",
             }}
