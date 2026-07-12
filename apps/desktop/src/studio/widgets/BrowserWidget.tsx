@@ -296,6 +296,11 @@ export default function BrowserWidget({
                 ? "Native website content"
                 : "Opening website"
             }
+            // When the child webview is live the hand-scroll path must route to
+            // the `studio_webview_scroll` IPC, not a DOM WheelEvent — the OS
+            // webview is not in this document. This marker (present only while
+            // active) lets pointer-synth pick the native path.
+            {...(nativeStatus === "active" ? { "data-native-webview-active": id } : {})}
             style={{ position: "absolute", inset: 0, background: STUDIO_COLORS.surface }}
           />
         ) : (

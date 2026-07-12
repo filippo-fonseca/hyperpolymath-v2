@@ -76,6 +76,21 @@ export function navigateNativeWebview(
   return invoke("studio_webview_navigate", { label, url });
 }
 
+/**
+ * Scroll a promoted child webview by an in-page pixel delta. Runs
+ * `window.scrollBy(dx, dy)` inside the child webview over IPC — the only way to
+ * reach a native OS webview, which sits outside the host DOM and so cannot
+ * receive a synthesized `WheelEvent` from the hand pointer-synth. Deltas are
+ * logical (CSS) pixels; batch per animation frame at the call site.
+ */
+export function scrollNativeWebview(
+  label: string,
+  dx: number,
+  dy: number,
+): Promise<void> {
+  return invoke("studio_webview_scroll", { label, dx, dy });
+}
+
 export function useNativeWebviewSync(
   id: string,
   contentRect: ContentRect | null,

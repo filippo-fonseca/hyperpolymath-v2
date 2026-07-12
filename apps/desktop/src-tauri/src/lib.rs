@@ -198,6 +198,7 @@ pub fn run() {
             studio_webview::studio_webview_hide,
             studio_webview::studio_webview_destroy,
             studio_webview::studio_webview_navigate,
+            studio_webview::studio_webview_scroll,
             whatsapp::whatsapp_reconnect,
         ])
         .build(tauri::generate_context!())
