@@ -2,13 +2,19 @@
 // Local (offline) speech fallback for when ElevenLabs TTS is unavailable, so
 // JARVIS is never mute. Two backends, in preference order:
 //
-//   1. macOS `say` via the Tauri shell plugin — native, offline, and keeps the
-//      butler register with a British voice (Daniel). This is the reliable
-//      path under Tauri: a hotkey/tray invocation has no in-webview user
-//      gesture, so the WKWebView AudioContext stays suspended and browser
-//      SpeechSynthesis often won't fire. `say` sidesteps that entirely.
+//   1. macOS `say` via the native Rust command `speak_fallback` — offline, and
+//      keeps the butler register with a British voice (Daniel). This is the
+//      reliable path under Tauri: a hotkey/tray invocation has no in-webview
+//      user gesture, so the WKWebView AudioContext stays suspended and browser
+//      SpeechSynthesis often won't fire. Native `say` sidesteps that entirely.
+//
+//      NOTE: this used to shell out via the Tauri shell plugin
+//      (`Command.create("say-voice", ...)`), but that scoped command never
+//      registered at runtime ("Scoped command say-voice not found"), so the
+//      fallback silently fell through to SpeechSynthesis. The dedicated Rust
+//      command owns the `say` child directly — see src-tauri/src/say.rs.
 //   2. Web `SpeechSynthesis` — used only outside Tauri (plain vite dev / tests
-//      where the shell plugin is absent), where a user gesture is present.
+//      where the native command is absent), where a user gesture is present.
 //
 // Interrupt semantics mirror ElevenLabs playback: `stop()` kills the running
 // `say` child and cancels any SpeechSynthesis utterance immediately, so a new
@@ -16,7 +22,7 @@
 // `speak()` resolves only when its utterance FINISHES (or is stopped), so the
 // TtsPlayer drain plays fallback sentences one at a time, in order.
 
-import { Command, type Child } from "@tauri-apps/plugin-shell";
+import { invoke } from "@tauri-apps/api/core";
 
 /** UK butler register — Daniel is the stock British male voice on macOS. */
 export const LOCAL_SAY_VOICE = "Daniel";
@@ -36,20 +42,44 @@ export interface LocalSpeechBackends {
   webSpeak: ((text: string) => LocalUtterance) | null;
 }
 
-/** Default backend: macOS `say` via Tauri shell, web SpeechSynthesis otherwise. */
+/** Default backend: native macOS `say` (Rust command), web SpeechSynthesis otherwise. */
 export function defaultLocalSpeechBackends(): LocalSpeechBackends {
   return {
     async saySpawn(text, voice) {
-      // `say-voice` scope: cmd "say", args ["-v", <voice>, <text>]. Spawn (not
-      // execute) so we hold a Child to kill() on barge-in; the `close`/`error`
-      // events resolve `done` when the utterance finishes.
-      const cmd = Command.create("say-voice", ["-v", voice, text]);
-      const child: Child = await cmd.spawn();
-      const done = new Promise<void>((resolve) => {
-        cmd.on("close", () => resolve());
-        cmd.on("error", () => resolve());
+      // Native `speak_fallback` (src-tauri/src/say.rs) owns the `say` child and
+      // RESOLVES when the utterance finishes — so the invoke promise IS `done`.
+      // Barge-in is `speak_fallback_stop`, which kills the tracked child and
+      // makes the pending invoke resolve.
+      //
+      // We kick the invoke immediately and keep its promise as `done` (it settles
+      // on true utterance completion, or on barge-in). We must NOT await the whole
+      // utterance here — LocalSpeech registers the returned utterance as the
+      // current one and awaits `done` itself. But we DO need saySpawn to THROW
+      // when native `say` is unavailable (off-Tauri, or non-macOS where the
+      // command returns Err fast) so LocalSpeech falls through to SpeechSynthesis.
+      //
+      // Resolution: race the invoke against a next-tick sentinel. A native `say`
+      // that's actually speaking stays pending well past the tick, so the sentinel
+      // wins and we return the utterance with `done` still tracking completion. An
+      // immediate rejection (missing command / non-macOS Err) settles before or at
+      // the tick — we detect it and throw. False-negative risk is nil because a
+      // real utterance takes far longer than a microtask+timer to finish.
+      let rejectedEarly = false;
+      const call = invoke<void>("speak_fallback", { text, voice });
+      const done = call.then(
+        () => undefined,
+        () => undefined,
+      );
+      call.catch(() => {
+        rejectedEarly = true;
       });
-      return { done, kill: () => void child.kill() };
+      // Yield a macrotask so a synchronous/near-synchronous rejection is observed.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (rejectedEarly) throw new Error("native say unavailable");
+      return {
+        done,
+        kill: () => void invoke("speak_fallback_stop").catch(() => {}),
+      };
     },
     webSpeak:
       typeof globalThis !== "undefined" &&
