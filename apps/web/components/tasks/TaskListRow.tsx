@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { GripVertical, MoreHorizontal, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
@@ -67,6 +67,7 @@ interface Props {
  * over once dragging ends. No double-wrap to keep markup flat.
  */
 export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [, startTransition] = useTransition();
@@ -91,7 +92,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   const isOverdue =
     task.dueDate !== null &&
     task.status !== "lesno" &&
-    new Date(task.dueDate) < today;
+    new Date(`${task.dueDate}T00:00:00`) < today;
   const isLesno = task.status === "lesno";
 
   function startEditTitle(e: React.MouseEvent) {
@@ -164,17 +165,17 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   return (
     <motion.div
       ref={setNodeRef}
-      layout
-      initial={{ opacity: 0, y: 4 }}
+      layout={!reducedMotion}
+      initial={reducedMotion ? false : { opacity: 0, y: 4 }}
       animate={{ opacity: isDragging ? 0 : 1, y: 0 }}
-      exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
-      transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+      transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.25, 1, 0.5, 1] }}
       style={dndStyle}
       className={cn(
         // Flat row on --canvas — no card chrome.
         "group flex items-center gap-2 h-10 px-2 cursor-pointer",
         // Hover left edge accent (felt-quality grep target: hover:border-l-[var(--edge)])
-        "border-l-2 transition-colors duration-150 ease-out",
+        "border-l-2 transition-colors duration-[var(--dur-hover)] ease-out focus-within:bg-[var(--deck-hover)]",
         isLesno
           ? "border-l-[var(--ink-sage)] opacity-70"
           : "border-l-transparent hover:border-l-[var(--edge)]",
@@ -183,7 +184,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       {/* Drag handle */}
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="min-h-7 min-w-7 cursor-grab active:cursor-grabbing rounded-[0.375rem] p-1 text-[var(--deck-ink-dull)] opacity-0 transition-opacity duration-[var(--dur-hover)] group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
@@ -199,7 +200,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         type="button"
         onClick={toggleLesno}
         className={cn(
-          "w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors duration-150 ease-out",
+          "h-6 w-6 flex-shrink-0 items-center justify-center rounded border transition-colors duration-[var(--dur-select)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
           isLesno
             ? "bg-[var(--ink-sage)] border-[var(--ink-sage)]"
             : "border-[var(--edge)]",
@@ -310,8 +311,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
           <button
             type="button"
             className={cn(
-              "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded",
-              "hover:bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              "min-h-7 min-w-7 rounded p-1 text-[var(--deck-ink-dull)] opacity-0 transition-opacity duration-[var(--dur-hover)] group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
+              "hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)]",
             )}
             aria-label="Task options"
             onPointerDown={(e) => e.stopPropagation()}

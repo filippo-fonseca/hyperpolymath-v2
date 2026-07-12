@@ -98,7 +98,7 @@ export function TaskFilters({ projects }: Props) {
     filters.project.length > 0;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
       {/* PRIORITY chips */}
       {filters.priority.map((p) => (
         <ChipPill
@@ -138,7 +138,7 @@ export function TaskFilters({ projects }: Props) {
       {/* + Filter dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="font-sans text-[13px]">
+          <Button variant="outline" size="sm" className="min-h-8 font-[family-name:var(--font-sans)] text-[12px] focus-visible:[box-shadow:var(--ring-focus)]">
             + Filter
           </Button>
         </DropdownMenuTrigger>
@@ -240,7 +240,7 @@ export function TaskFilters({ projects }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          className="font-sans text-[13px] text-muted-foreground"
+          className="min-h-8 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)] focus-visible:[box-shadow:var(--ring-focus)]"
           onClick={() =>
             setFilters({ priority: [], status: [], due: [], project: [] })
           }
@@ -262,13 +262,13 @@ function ChipPill({
   // Per UI-SPEC §Filter Chip Pills active chip:
   // bg primary, text primary-foreground, rounded-full, px-3 py-1, font-sans 13px, X icon ml-1
   return (
-    <span className="inline-flex items-center bg-primary text-primary-foreground rounded-full px-3 py-1 font-sans text-[13px]">
+    <span className="inline-flex min-h-7 items-center rounded-[0.375rem] bg-[var(--deck-selected)] px-2.5 py-1 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink)]">
       {label}
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove filter"
-        className="ml-1 hover:opacity-70"
+        className="ml-1 rounded p-0.5 hover:opacity-70 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
       >
         <X size={13} />
       </button>

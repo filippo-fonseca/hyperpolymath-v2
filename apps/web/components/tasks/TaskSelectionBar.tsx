@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { Spinner } from "@/components/shared/Spinner";
 import { MoveToMenu } from "./MoveToMenu";
@@ -20,14 +20,15 @@ interface Props {
  * stays visible while the user scrolls through tasks.
  */
 export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, pending }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   return (
-    <AnimatePresence>
+    <AnimatePresence initial={!reducedMotion}>
       {count > 0 ? (
         <motion.div
-          initial={{ y: 24, opacity: 0 }}
+          initial={reducedMotion ? false : { y: 24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 24, opacity: 0 }}
-          transition={{ duration: 0.18, ease: [0.25, 1, 0.5, 1] }}
+          exit={reducedMotion ? { opacity: 0 } : { y: 24, opacity: 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.18, ease: [0.25, 1, 0.5, 1] }}
           className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4"
         >
           <div
@@ -43,7 +44,7 @@ export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, p
               type="button"
               onClick={onDeleteSelected}
               disabled={pending}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50"
+            className="inline-flex min-h-8 items-center gap-1 rounded-[0.375rem] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
             >
               {pending ? <Spinner size={12} label="Deleting tasks" /> : null}
               Delete
@@ -51,7 +52,7 @@ export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, p
             <button
               type="button"
               onClick={onClear}
-              className="rounded-full p-1 hover:bg-[var(--canvas)]/15 cursor-pointer-always"
+              className="min-h-8 min-w-8 rounded-[0.375rem] p-1 hover:bg-[var(--canvas)]/15 cursor-pointer-always focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
               aria-label="Clear selection"
             >
               <X size={14} strokeWidth={1.75} />

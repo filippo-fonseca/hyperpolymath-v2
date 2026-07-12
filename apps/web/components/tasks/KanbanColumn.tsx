@@ -2,7 +2,7 @@
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
 import { useRef } from "react";
 import { type CardFields, TaskCard } from "./TaskCard";
 import { TaskCreateInline } from "./TaskCreateInline";
@@ -84,6 +84,7 @@ export function KanbanColumn({
   onToggleSelected,
   onToggleColumnSelection,
 }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const taskIds = tasks.map((t) => t.id);
   const selectedInColumn = selectedIds ? taskIds.filter((id) => selectedIds.has(id)).length : 0;
   const allSelected = taskIds.length > 0 && selectedInColumn === taskIds.length;
@@ -139,7 +140,7 @@ export function KanbanColumn({
         {
           background: accent.bg,
           boxShadow: restingShadow,
-          transition: "box-shadow 140ms ease-out",
+          transition: `box-shadow ${reducedMotion ? "0ms" : "var(--dur-hover)"} ease-out`,
           ["--task-card-bg" as string]: accent.cardBg,
         } as React.CSSProperties
       }
@@ -163,7 +164,7 @@ export function KanbanColumn({
             type="button"
             onClick={() => onToggleColumnSelection(status, taskIds)}
             className={cn(
-              "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              "ml-auto min-h-7 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity duration-[var(--dur-hover)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] group-focus-within/colhdr:opacity-100 [@media(pointer:coarse)]:opacity-100",
               allSelected
                 ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
                 : selectionActive || selectedInColumn > 0
@@ -182,7 +183,7 @@ export function KanbanColumn({
           so the column grows to its content and the footer follows the list. */}
       <div className="flex flex-col px-3 pb-3">
         <div className="flex flex-col gap-2.5 pr-1 -mr-1">
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence mode="popLayout" initial={!reducedMotion}>
             {tasks.map((task) => (
               <TaskCard
                 key={task.id}

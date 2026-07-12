@@ -40,6 +40,7 @@ import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { UrlField } from "@/components/shared/UrlField";
 import { PersonListField } from "@/components/shared/PersonListField";
@@ -157,7 +158,7 @@ function PillGroup<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               "group inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
-              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
+              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
               "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
               selected
                 ? "text-[var(--ink)]"
@@ -261,6 +262,7 @@ export function TaskDetailPanel({
   mode = "edit",
 }: Props) {
   const isCreate = mode === "create";
+  const reducedMotion = useReducedMotion() ?? false;
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hashtags] = useState(initialHashtags);
@@ -665,13 +667,16 @@ export function TaskDetailPanel({
         {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
         <SheetContent
           side="right"
-          className="w-[420px] p-0 flex flex-col [background:var(--glass-bg)] [backdrop-filter:blur(12px)]"
+          className={cn(
+            "flex w-[min(420px,100vw)] flex-col border-l border-[var(--deck-line)] bg-[var(--deck-panel)] p-0",
+            reducedMotion && "[&[data-state=open]]:animate-none [&[data-state=closed]]:animate-none",
+          )}
           showCloseButton={false}
         >
           {task && (
             <>
               {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--glass-border)]">
+              <SheetHeader className="border-b border-[var(--deck-line)] px-4 pb-3 pt-4 sm:px-5">
                 <div className="flex items-start justify-between gap-3">
                   <SheetTitle className="flex-1 p-0 m-0">
                     <input
@@ -681,10 +686,8 @@ export function TaskDetailPanel({
                       autoFocus={isCreate}
                       placeholder={isCreate ? "Task title…" : undefined}
                       className={cn(
-                        "font-serif text-xl font-semibold text-[var(--ink)] w-full",
-                        "bg-transparent focus:outline-none border-b border-transparent",
-                        "focus:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
-                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal"
+                        "w-full bg-transparent font-[family-name:var(--font-sans)] text-lg font-semibold text-[var(--deck-ink)] placeholder:font-normal placeholder:text-[var(--deck-ink-dull)] focus:outline-none",
+                        "border-b border-transparent transition-colors duration-[var(--dur-hover)] focus:border-[var(--deck-accent)]"
                       )}
                       aria-label="Task title"
                     />
@@ -693,7 +696,7 @@ export function TaskDetailPanel({
                     type="button"
                     onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
-                    className="p-1 rounded hover:bg-[var(--surface)] transition-colors duration-150 ease-out flex-shrink-0 mt-1 cursor-pointer-always"
+                    className="mt-1 min-h-8 min-w-8 flex-shrink-0 rounded-[0.375rem] p-1 text-[var(--deck-ink-dull)] transition-colors duration-[var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] cursor-pointer-always focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                   >
                     <X size={16} className="text-[var(--ink-muted)]" />
                   </button>
@@ -701,7 +704,7 @@ export function TaskDetailPanel({
               </SheetHeader>
 
               {/* Body — scrollable field sections */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5">
+              <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5">
                 {/* 1. Status — glassy colored pills mirroring the kanban columns */}
                 <FieldSection label="Status">
                   <PillGroup
@@ -835,7 +838,7 @@ export function TaskDetailPanel({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--glass-border)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--deck-line)] px-4 py-3 sm:px-5">
                 {isCreate ? (
                   <span />
                 ) : (
@@ -870,7 +873,7 @@ export function TaskDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="glass-button rounded-md px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]"
+                    className="rounded-[0.375rem] bg-[var(--deck-selected)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
@@ -948,9 +951,9 @@ function FieldSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2 border-t border-[var(--deck-divider)] pt-3 first:border-t-0 first:pt-0">
       {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
-      <label className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+      <label className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)]">
         {label}
       </label>
       {children}

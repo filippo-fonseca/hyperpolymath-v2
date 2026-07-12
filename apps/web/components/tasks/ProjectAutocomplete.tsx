@@ -125,7 +125,7 @@ export function ProjectAutocomplete({
               <button
                 type="button"
                 onClick={() => toggle(p.id)}
-                className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+                className="min-h-6 min-w-6 rounded p-1 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                 aria-label={`Remove ${getLabel(p)}`}
               >
                 <X size={11} />

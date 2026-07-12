@@ -18,7 +18,7 @@
 import { useMemo, useState } from "react";
 import { addDays, format, startOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./TaskCard";
@@ -43,6 +43,7 @@ export function TaskOverviewView({
   draggingActive = false,
   onDropDay,
 }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   // Which day row a card is currently hovering over during a drag.
   const [dropOverYmd, setDropOverYmd] = useState<string | null>(null);
   // today + next 6 days as YMD strings (string equality, no Date round-trip).
@@ -99,12 +100,12 @@ export function TaskOverviewView({
               <button
                 type="button"
                 onClick={() => onSelectDay(ymd)}
-                className="flex flex-1 items-center justify-between px-4 py-2.5 rounded-lg cursor-pointer-always border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 text-left"
+                className="flex min-h-10 flex-1 items-center justify-between rounded-[0.375rem] border border-[var(--deck-line)] px-3 py-2 text-left cursor-pointer-always transition-colors duration-[var(--dur-hover)] hover:border-[var(--deck-accent)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
               >
-                <span className="font-serif text-base text-[var(--ink)]">
+                <span className="font-[family-name:var(--font-sans)] text-[13px] text-[var(--deck-ink)]">
                   {format(date, "EEEE, MMMM d")}
                 </span>
-                <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
+                <span className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--deck-ink-dull)] tabular-nums">
                   {dayTasks.length}
                 </span>
               </button>
@@ -113,7 +114,7 @@ export function TaskOverviewView({
                 onClick={() => toggleDay(ymd)}
                 aria-expanded={isOpen}
                 aria-label={isOpen ? "Collapse day" : "Expand day"}
-                className="p-2 rounded-lg cursor-pointer-always text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150"
+                className="min-h-10 min-w-10 rounded-[0.375rem] p-2 cursor-pointer-always text-[var(--deck-ink-dull)] transition-colors duration-[var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
               >
                 {isOpen ? (
                   <ChevronDown size={14} />
@@ -123,23 +124,23 @@ export function TaskOverviewView({
               </button>
             </div>
 
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={!reducedMotion}>
               {isOpen ? (
                 <motion.div
                   key="body"
-                  initial={{ height: 0, opacity: 0 }}
+                  initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
+                  exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="glass-tile rounded-xl p-3 mt-1 mb-2 space-y-1">
+                  <div className="mt-1 mb-2 space-y-1 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel-deep)] p-2">
                     {dayTasks.length > 0 ? (
                       dayTasks.map((t) => (
                         <TaskCard key={t.id} task={t} onClick={onTaskClick} />
                       ))
                     ) : (
-                      <p className="font-serif text-sm italic text-[var(--ink-muted)] px-1 py-0.5">
+                      <p className="px-1 py-1 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">
                         Nothing scheduled.
                       </p>
                     )}

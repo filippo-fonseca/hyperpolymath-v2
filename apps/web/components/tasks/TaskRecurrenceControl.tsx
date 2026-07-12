@@ -102,9 +102,9 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
               disabled={disabled}
               onClick={() => pickFrequency(opt.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
+                "inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
                 "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
-                "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
+                "border transition-[color,background-color,border-color,box-shadow] duration-[var(--dur-hover)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
                 selected
                   ? "border-[var(--hud-cyan)] text-[var(--ink)]"
                   : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
@@ -162,9 +162,9 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
                   aria-label={full}
                   title={full}
                   className={cn(
-                    "inline-flex items-center justify-center w-8 h-8 rounded-md",
+                    "inline-flex h-8 w-8 items-center justify-center rounded-md",
                     "font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer-always",
-                    "border transition-colors duration-150 ease-out",
+                    "border transition-colors duration-[var(--dur-hover)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
                     on
                       ? "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,var(--surface))] text-[var(--ink)]"
                       : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",

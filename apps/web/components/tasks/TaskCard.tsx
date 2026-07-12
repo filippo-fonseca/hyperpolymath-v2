@@ -6,7 +6,7 @@ import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
 import { Check, Repeat } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { PriorityChip } from "./PriorityChip";
 import { shortRuleLabel } from "@/lib/tasks/recurrence";
 
@@ -84,6 +84,7 @@ export function TaskCard({
   isSelected,
   onToggleSelected,
 }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   // Parse YMD as LOCAL midnight (not UTC midnight) so a 2026-06-08 due
@@ -92,7 +93,9 @@ export function TaskCard({
   const isOverdue = dueLocal !== null && task.status !== "lesno" && dueLocal < today;
   const isLesno = task.status === "lesno";
 
-  // Tailwind's group-hover modifier on the checkbox keys off this class.
+  // Tailwind's group-hover modifier on the checkbox keys off this class. The
+  // focus-within and coarse-pointer variants keep the control discoverable
+  // without requiring a hover-capable pointer.
   return (
     <div
       draggable={draggable}
@@ -116,23 +119,14 @@ export function TaskCard({
       )}
     >
       <motion.div
-        initial={{ opacity: 0, y: -4 }}
+        initial={reducedMotion ? false : { opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
-        whileHover={
-          isDragging
-            ? undefined
-            : {
-                y: -2,
-                boxShadow:
-                  "0 8px 24px rgba(0,0,0,0.18), inset 0 0 0 1px color-mix(in oklch, var(--edge-hud) 60%, transparent)",
-              }
-        }
-        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 4 }}
+        whileHover={reducedMotion || isDragging ? undefined : { y: -1 }}
+        transition={{ duration: reducedMotion ? 0 : 0.16, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
-          // S-4 (D-09): cards adopt the settings-page glass language.
-          // rounded-lg (8px) for cards vs rounded-xl (12px) for panels.
-          "glass-tile rounded-lg relative px-3 py-2.5",
+          "relative rounded-[0.375rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] px-3 py-2.5",
+          "transition-colors duration-[var(--dur-hover)] hover:border-[var(--deck-hover)]",
           isPending && "opacity-50",
           // S-8: completed (lesno) cards render dimmed.
           isLesno && "opacity-70",
@@ -151,7 +145,7 @@ export function TaskCard({
               onToggleSelected(task.id, ev);
             }}
             className={cn(
-              "absolute -left-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-md border bg-[var(--canvas)] transition-opacity duration-100 cursor-pointer-always",
+              "absolute -left-1 -top-1 z-10 flex h-6 w-6 items-center justify-center rounded-[0.375rem] border bg-[var(--deck-app)] transition-opacity duration-[var(--dur-hover)] cursor-pointer-always focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] group-focus-within/task:opacity-100 [@media(pointer:coarse)]:opacity-100",
               isSelected
                 ? "opacity-100 border-[var(--hud-cyan)] bg-[var(--hud-cyan)] text-[var(--canvas)]"
                 : selectionActive

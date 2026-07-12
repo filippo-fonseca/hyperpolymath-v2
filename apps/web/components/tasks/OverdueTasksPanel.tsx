@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { fromYmd } from "@/lib/tasks/date-shortcuts";
 import { differenceInCalendarDays, format } from "date-fns";
 import { AlarmClock, Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MoveToMenu } from "./MoveToMenu";
 import { TaskCard } from "./TaskCard";
@@ -116,6 +116,7 @@ export function OverdueTasksPanel({
   onDragStart,
   onDragEnd,
 }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const [panelOpen, setPanelOpen] = usePersistentBoolean(PANEL_OPEN_KEY, true);
   const [collapsedGroups, toggleGroup] = usePersistentStringSet(COLLAPSED_GROUPS_KEY);
 
@@ -236,7 +237,7 @@ export function OverdueTasksPanel({
             onClick={toggleSelectAll}
             aria-pressed={allSelected}
             className={cn(
-              "rounded-md border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-150 ease-out shrink-0",
+              "min-h-8 shrink-0 rounded-[0.375rem] border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[var(--dur-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] [@media(pointer:coarse)]:opacity-100",
               allSelected
                 ? "border-[var(--ink-amber)]/50 bg-[var(--surface-raised)] text-[var(--ink)]"
                 : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
@@ -247,14 +248,14 @@ export function OverdueTasksPanel({
         ) : null}
       </header>
 
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={!reducedMotion}>
         {panelOpen ? (
           <motion.div
             key="overdue-body"
-            initial={{ height: 0, opacity: 0 }}
+            initial={reducedMotion ? false : { height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
             <div className="max-h-[40vh] overflow-y-auto px-4 pb-3">
@@ -293,13 +294,13 @@ export function OverdueTasksPanel({
       {/* Mass-action toolbar — appears within the panel when one or more
           overdue tasks are selected. Sits at the panel's bottom edge so it
           doesn't collide with the global kanban TaskSelectionBar. */}
-      <AnimatePresence>
+      <AnimatePresence initial={!reducedMotion}>
         {panelOpen && selectedIds.size > 0 ? (
           <motion.div
-            initial={{ y: 12, opacity: 0 }}
+            initial={reducedMotion ? false : { y: 12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 12, opacity: 0 }}
-            transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
+            exit={reducedMotion ? { opacity: 0 } : { y: 12, opacity: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
             className="flex items-center justify-between gap-3 border-t border-[var(--edge)] px-4 py-2.5"
             role="toolbar"
             aria-label="Overdue bulk actions"
@@ -398,7 +399,7 @@ function OverdueDateGroup({
             onClick={onToggleGroupSelection}
             aria-pressed={groupAllSelected}
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-150 ease-out",
+              "min-h-7 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[var(--dur-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] [@media(pointer:coarse)]:opacity-100",
               groupAllSelected
                 ? "text-[var(--ink-amber)]"
                 : "text-[var(--ink-muted)] hover:text-[var(--ink)]"

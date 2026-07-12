@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { reorderTasks } from "@/app/actions/tasks";
 import { TaskListRow } from "./TaskListRow";
@@ -34,6 +34,7 @@ interface Props {
 }
 
 export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -106,22 +107,22 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-col">
+        <div className="flex min-w-[720px] flex-col">
           {/* Header row — mono metadata chrome per UI-SPEC §5h */}
-          <div className="flex items-center gap-2 h-8 px-2 border-b border-[var(--edge)]">
+          <div className="flex h-8 items-center gap-2 border-b border-[var(--deck-line)] px-2">
             <div className="w-4 flex-shrink-0" /> {/* drag handle placeholder */}
             <div className="w-4 flex-shrink-0" /> {/* checkbox placeholder */}
             <div className="w-4 flex-shrink-0" /> {/* priority placeholder */}
-            <span className="flex-1 font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="flex-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)]">
               Title
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-28 flex-shrink-0">
+            <span className="w-28 flex-shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)]">
               Project
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-24 flex-shrink-0">
+            <span className="w-24 flex-shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)]">
               Status
             </span>
-            <span className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--ink-muted)] w-20 flex-shrink-0">
+            <span className="w-20 flex-shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)]">
               Due
             </span>
             <div className="w-6 flex-shrink-0" />
@@ -130,7 +131,7 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
           {/* AnimatePresence drives TaskListRow exit animation (opacity 0 + height 0)
               on delete per UI-SPEC §7c / felt-quality mandate. `mode="popLayout"`
               lets sibling rows reflow during the exit instead of holding the slot. */}
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence mode="popLayout" initial={!reducedMotion}>
             {tasks.map((task) => (
               <TaskListRow
                 key={task.id}
@@ -144,7 +145,7 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
       </SortableContext>
 
       {/* DragOverlay — floating preview */}
-      <DragOverlay>
+      <DragOverlay dropAnimation={reducedMotion ? null : undefined}>
         {activeTask ? (
           <div
             className={cn(

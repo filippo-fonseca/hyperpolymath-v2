@@ -1,8 +1,9 @@
 "use client";
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { DeckPanel, SectionHeader } from "@/components/spacedrive";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, type DragEvent } from "react";
 import { TaskCard } from "./TaskCard";
 
 interface Props {
@@ -51,39 +52,37 @@ export function InboxColumn({
   const [isDragOver, setIsDragOver] = useState(false);
 
   return (
-    <div
+    <DeckPanel
+      as="section"
       role="region"
       aria-label="Tasks without a due date"
-      onDragOver={(e) => {
+      onDragOver={(e: DragEvent<HTMLElement>) => {
         e.preventDefault();
         setIsDragOver(true);
       }}
       onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
+      onDrop={(e: DragEvent<HTMLElement>) => {
         e.preventDefault();
         setIsDragOver(false);
         void onDrop();
       }}
       className={cn(
-        "glass-tile rounded-xl p-4 w-[240px] shrink-0 flex flex-col min-h-0 overflow-y-auto",
+        "flex w-full max-h-[34vh] shrink-0 flex-col overflow-y-auto p-3 md:max-h-none md:w-[220px] lg:w-[240px]",
         // S-1 drag-target active class — cyan glow + border + ring, shown
         // ONLY while a card is hovering over the Inbox during a drag.
-        isDragOver &&
-          "[--glass-glow-color:var(--hud-cyan)] [--glass-border:color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] ring-1 ring-[var(--hud-cyan)]/30"
+        isDragOver && "border-[var(--deck-accent)] ring-1 ring-[var(--deck-accent)]/30"
       )}
     >
-      <div className="mb-3 flex items-center justify-between px-0.5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-          Inbox · undated
-        </p>
-        <p className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
-          {inboxTasks.length}
-        </p>
-      </div>
+      <SectionHeader
+        title="Inbox · undated"
+        eyebrow
+        className="mb-2 px-1"
+        action={<span className="font-[family-name:var(--font-mono)] text-[10px] tabular-nums text-[var(--deck-ink-dull)]">{inboxTasks.length}</span>}
+      />
       {inboxTasks.length === 0 ? (
-        <p className="px-0.5 font-serif text-sm text-[var(--ink-muted)]">Inbox is empty.</p>
+        <p className="px-1 py-2 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">Inbox is empty.</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           {inboxTasks.map((t) => (
             <TaskCard
               key={t.id}
@@ -100,6 +99,6 @@ export function InboxColumn({
           ))}
         </div>
       )}
-    </div>
+    </DeckPanel>
   );
 }

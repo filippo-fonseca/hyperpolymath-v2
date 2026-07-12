@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
@@ -79,6 +80,7 @@ export function KanbanBoard({
   onExternalDragEnd,
   onExternalDropOnStatus,
 }: Props) {
+  const reducedMotion = useReducedMotion() ?? false;
   const queryClient = useQueryClient();
   const [internalDraggedTaskId, setInternalDraggedTaskId] = useState<string | null>(null);
   const draggedTaskId = externalDraggedTaskId ?? internalDraggedTaskId;
@@ -188,7 +190,7 @@ export function KanbanBoard({
                 "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 cursor-pointer-always",
                 "font-mono text-[11px] uppercase tracking-[0.08em] border border-[var(--edge)]",
                 "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                "bg-[var(--surface)] transition-colors duration-150 ease-out"
+                "bg-[var(--deck-panel)] transition-colors duration-[var(--dur-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
               )}
             >
               <SlidersHorizontal size={12} strokeWidth={1.5} />
@@ -210,8 +212,8 @@ export function KanbanBoard({
                     aria-pressed={on}
                     className={cn(
                       "flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 cursor-pointer-always",
-                      "font-sans text-[13px] transition-colors duration-150 ease-out",
-                      "text-[var(--ink)] hover:bg-[var(--surface)]"
+                      "font-sans text-[13px] transition-colors duration-[var(--dur-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
+                      "text-[var(--ink)] hover:bg-[var(--deck-hover)]"
                     )}
                   >
                     {label}
@@ -237,6 +239,7 @@ export function KanbanBoard({
         tasks={tasksByStatus["not started"]}
         expanded={trayExpanded}
         onToggle={() => setTrayExpanded((v) => !v)}
+        reducedMotion={reducedMotion}
         onCreateTask={onCreateTask}
         onStartCreate={onStartCreate}
         onTaskClick={onTaskClick}
@@ -287,6 +290,7 @@ interface TrayProps {
   tasks: TaskWithProjects[];
   expanded: boolean;
   onToggle: () => void;
+  reducedMotion: boolean;
   onCreateTask: (input: { title: string; status: Status }) => Promise<void>;
   onStartCreate?: (status: Status) => void;
   onTaskClick: (id: string) => void;
@@ -306,6 +310,7 @@ function NotStartedTray({
   tasks,
   expanded,
   onToggle,
+  reducedMotion,
   onCreateTask,
   onStartCreate,
   onTaskClick,
@@ -354,7 +359,7 @@ function NotStartedTray({
           boxShadow: showDrop
             ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, var(--glass-raise), var(--glass-drop)`
             : `inset 0 0 0 1px ${accent.rim}, var(--glass-raise), var(--glass-drop)`,
-          transition: "box-shadow 160ms ease-out",
+          transition: `box-shadow ${reducedMotion ? "0ms" : "var(--dur-hover)"} ease-out`,
           ["--task-card-bg" as string]: accent.cardBg,
         } as React.CSSProperties
       }
@@ -363,11 +368,11 @@ function NotStartedTray({
         <button
           type="button"
           onClick={onToggle}
-          className="flex items-center gap-2 cursor-pointer min-w-0"
+          className="flex min-h-8 min-w-0 items-center gap-2 rounded-[0.375rem] px-1 cursor-pointer focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
           aria-expanded={expanded}
         >
           <ChevronDown
-            className={cn("h-3.5 w-3.5 transition-transform shrink-0", !expanded && "-rotate-90")}
+            className={cn("h-3.5 w-3.5 shrink-0", !reducedMotion && "transition-transform duration-[var(--dur-hover)]", !expanded && "-rotate-90")}
             style={{ color: accent.dot }}
           />
           <span
@@ -389,7 +394,7 @@ function NotStartedTray({
             type="button"
             onClick={() => onToggleColumnSelection("not started", trayIds)}
             className={cn(
-              "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
+              "ml-auto min-h-7 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity duration-[var(--dur-hover)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] group-focus-within/trayhdr:opacity-100 [@media(pointer:coarse)]:opacity-100",
               allSelected
                 ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
                 : selectionActive || selectedInTray > 0

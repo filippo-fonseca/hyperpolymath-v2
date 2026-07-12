@@ -54,8 +54,8 @@ export function MoveToMenu({
 
   const triggerClass =
     variant === "bar"
-      ? "inline-flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--canvas)] hover:opacity-90 disabled:opacity-40"
-      : "inline-flex items-center gap-1.5 rounded-md border border-[var(--edge)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-40";
+      ? "inline-flex min-h-8 items-center gap-1.5 rounded-[0.375rem] bg-[var(--deck-active)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--deck-ink)] hover:bg-[var(--deck-selected)] disabled:opacity-40 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+      : "inline-flex min-h-8 items-center gap-1.5 rounded-[0.375rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--deck-ink-dull)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] disabled:opacity-40 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]";
 
   function pick(dateYmd: string | null) {
     setOpen(false);
@@ -78,7 +78,7 @@ export function MoveToMenu({
       <PopoverContent
         align={variant === "bar" ? "center" : "start"}
         side="top"
-        className="w-[260px] p-1.5 border-[var(--edge)] bg-[var(--surface-raised)]"
+        className="w-[260px] border-[var(--deck-line)] bg-[var(--deck-panel)] p-1.5"
       >
         <ul className="space-y-0.5">
           <ShortcutRow
@@ -108,7 +108,7 @@ export function MoveToMenu({
         <button
           type="button"
           onClick={() => customRef.current?.showPicker?.() ?? customRef.current?.focus()}
-          className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
+          className="flex min-h-8 w-full items-center justify-between rounded-[0.375rem] px-2 py-1.5 text-left hover:bg-[var(--deck-hover)] cursor-pointer-always focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
         >
           <span className="font-sans text-[13px] text-[var(--ink)]">Custom date…</span>
           <input
@@ -140,7 +140,7 @@ function ShortcutRow({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left hover:bg-[var(--surface)] cursor-pointer-always"
+        className="flex min-h-8 w-full items-center justify-between rounded-[0.375rem] px-2 py-1.5 text-left hover:bg-[var(--deck-hover)] cursor-pointer-always focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
       >
         <span className="font-sans text-[13px] text-[var(--ink)]">{label}</span>
         <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
