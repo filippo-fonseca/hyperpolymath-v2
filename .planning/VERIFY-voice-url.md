@@ -50,3 +50,42 @@ No cargo build run (disk). No Rust changed — `say` fallback uses the existing 
 4. **Voice never mute.** Set a stale/empty `ELEVENLABS_API_KEY`. Every reply should still be spoken via `say -v Daniel`; the amber "voice degraded" chip appears in the status line (tooltip reflects key_missing/auth vs transient).
 5. **Recovery clears the chip.** Restore a valid key mid-session; the next spoken sentence clears the degraded chip.
 6. **Barge-in parity.** While the local fallback voice is speaking, start a new turn / press Stop → the `say` process is killed immediately (no talk-over).
+
+## Loop-2 live receipt: native `say` fallback (2026-07-11)
+
+**Bug fixed.** The TTS local fallback shelled out via the Tauri shell plugin
+(`Command.create("say-voice", …)`), whose `say-voice` / `say-plain` scope in
+`capabilities/default.json` never registered at runtime — every spawn failed
+with `Scoped command say-voice not found`, so the desktop fell through to web
+`SpeechSynthesis` (which a global-hotkey invocation can't play).
+
+**Fix.** Replaced the shell-plugin path with a dedicated Rust command pair,
+`speak_fallback(text, voice)` / `speak_fallback_stop()` (`src-tauri/src/say.rs`),
+mirroring the audio/whatsapp managed-process idiom: a single `/usr/bin/say`
+child tracked in Tauri `SayFallback` state, killed before each new utterance for
+barge-in. `tts-player.ts` → `local-speech.ts` `defaultLocalSpeechBackends.saySpawn`
+now `invoke("speak_fallback", …)` (the invoke promise IS `done`, settling on true
+utterance completion); barge-in kills via `speak_fallback_stop`. `SpeechSynthesis`
+stays the off-Tauri / non-macOS fallback. Dead `say-voice` / `say-plain`
+capability entries removed.
+
+**Static verification.** `pnpm typecheck` clean; `pnpm vitest run` → 16 files /
+92 tests pass (incl. `src/audio/local-speech.test.ts`, 8 tests); `cargo check`
+in `src-tauri` exit 0. The running `pnpm tauri dev` hot-rebuilt the binary
+(`target/debug/jarvis-desktop`, 21:29) picking up the new commands.
+
+**Live verification.** Fired
+`POST http://localhost:3000/api/jarvis/voice/text` (Bearer `hpd_…`) with
+`{"text":"say a short test line"}` → HTTP 200,
+`{"turnId":"98cdfb2a-4422-471f-8ee3-12efd7f63afb"}`. ~25s later, the new log
+line (line 185, immediately after the pre-request marker at line 184) was:
+
+```
+[say] speaking fallback line (25 chars)
+```
+
+That is the `eprintln!` from the native `speak_fallback` command — the say path
+ran and the line was spoken on the machine. The three
+`Scoped command say-voice not found` errors in the log are all at lines 36-44
+(the OLD shell-plugin failures, before the fixed binary rebuilt); ZERO new
+scoped-command errors appeared for the post-fix turn. Fix confirmed.
