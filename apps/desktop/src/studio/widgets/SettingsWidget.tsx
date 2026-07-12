@@ -19,6 +19,7 @@ import {
   setMessageAutoReadEnabled,
   setMessageNotificationsEnabled,
   setMotionMode,
+  setSoundEnabled,
   useHudSettings,
   type MotionMode,
 } from "../state/hud-settings";
@@ -182,6 +183,7 @@ export default function SettingsWidget(): React.ReactElement {
   const {
     backgroundEnabled,
     motionMode,
+    soundEnabled,
     messageNotificationsEnabled,
     messageAutoReadEnabled,
   } = useHudSettings();
@@ -241,6 +243,14 @@ export default function SettingsWidget(): React.ReactElement {
           <p style={hintStyle}>Override the system reduced-motion preference</p>
         </div>
         <MotionSegments value={motionMode} onChange={setMotionMode} />
+      </div>
+
+      <div style={rowStyle}>
+        <div style={{ minWidth: 0 }}>
+          <p style={labelStyle}>Sound</p>
+          <p style={hintStyle}>Widget drop pop and message-send cue</p>
+        </div>
+        <Toggle on={soundEnabled} onChange={setSoundEnabled} label="Toggle UI sounds" />
       </div>
 
       <div style={rowStyle}>

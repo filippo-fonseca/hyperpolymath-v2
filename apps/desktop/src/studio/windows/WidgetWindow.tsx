@@ -1,13 +1,14 @@
 import * as React from "react";
 import {
   Suspense,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent,
 } from "react";
 import { Minus, Pin, X } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { animate as animateValue, motion, useMotionValue, useReducedMotion } from "motion/react";
 
 import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
@@ -21,6 +22,7 @@ import {
 import { WIDGET_CATALOG } from "./catalog";
 import { clampToStage } from "./layout";
 import { BurstBubble } from "./BurstBubble";
+import { playDropPop } from "../sound/studio-sfx";
 import {
   edgeOutwardDirection,
   shouldBurst,
@@ -109,11 +111,17 @@ const chromeButtonStyle: CSSProperties = {
 function isNearDrawer(clientX: number, clientY: number): boolean {
   const drawer = document.querySelector<HTMLElement>("[data-widget-drawer]");
   const rect = drawer?.getBoundingClientRect();
+  // Position-agnostic proximity: a widget dragged within a generous margin of
+  // the drawer's box counts as "near" so the drawer highlights and a release
+  // stows it. The drawer now lives on the right edge, so this is intentionally
+  // symmetric rather than the old bottom-only test.
+  const MARGIN = 84;
   return Boolean(
     rect &&
-      clientX >= rect.left - 72 &&
-      clientX <= rect.right + 72 &&
-      clientY >= rect.top - 104,
+      clientX >= rect.left - MARGIN &&
+      clientX <= rect.right + MARGIN &&
+      clientY >= rect.top - MARGIN &&
+      clientY <= rect.bottom + MARGIN,
   );
 }
 
@@ -125,6 +133,18 @@ export function WidgetWindow({
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<PointerSession | null>(null);
+  // Permanent widgets (the orb) are positioned through motion values so drag
+  // updates and the settle animation share ONE source of truth. Driving the
+  // position with `animate={{ left: item.x }}` instead produced the drop
+  // whiplash: geometry applied imperatively during the drag never reached
+  // motion's internal target, so on release the spring first snapped the orb
+  // back to its pre-drag origin, then jumped to the new position once state
+  // updated. Motion values eliminate that stale-target replay.
+  const leftMv = useMotionValue(`${(item.x - item.w / 2) * 100}%`);
+  const topMv = useMotionValue(`${(item.y - item.h / 2) * 100}%`);
+  const widthMv = useMotionValue(`${item.w * 100}%`);
+  const heightMv = useMotionValue(`${item.h * 100}%`);
+  const draggingRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -136,6 +156,48 @@ export function WidgetWindow({
     catalogEntry.permanent !== true;
   const Content = entry.component;
   const permanent = entry.permanent === true;
+
+  // When the committed geometry changes (a settled drop, a resize, or an
+  // external move) settle the permanent widget's motion values toward it with a
+  // gentle spring — but never mid-drag, where the drag handler owns the values
+  // directly. Because the values already hold the drag's last position, the
+  // spring starts from exactly where the orb was released: no back-snap, no
+  // jump. Reduced motion sets the values instantly.
+  const targetLeft = `${(item.x - item.w / 2) * 100}%`;
+  const targetTop = `${(item.y - item.h / 2) * 100}%`;
+  const targetWidth = `${item.w * 100}%`;
+  const targetHeight = `${item.h * 100}%`;
+  useEffect(() => {
+    if (!permanent || draggingRef.current) return;
+    if (reduced) {
+      leftMv.set(targetLeft);
+      topMv.set(targetTop);
+      widthMv.set(targetWidth);
+      heightMv.set(targetHeight);
+      return;
+    }
+    const spring = { type: "spring", stiffness: 220, damping: 30, mass: 0.7 } as const;
+    const controls = [
+      animateValue(leftMv, targetLeft, spring),
+      animateValue(topMv, targetTop, spring),
+      animateValue(widthMv, targetWidth, spring),
+      animateValue(heightMv, targetHeight, spring),
+    ];
+    return () => {
+      for (const control of controls) control.stop();
+    };
+  }, [
+    permanent,
+    reduced,
+    targetLeft,
+    targetTop,
+    targetWidth,
+    targetHeight,
+    leftMv,
+    topMv,
+    widthMv,
+    heightMv,
+  ]);
 
   const setRoot = (element: HTMLDivElement | null): void => {
     rootRef.current = element;
@@ -184,6 +246,7 @@ export function WidgetWindow({
     const dyPx = event.clientY - session.startClientY;
     if (!session.moved && Math.hypot(dxPx, dyPx) < 4) return;
     session.moved = true;
+    draggingRef.current = true;
     if (!dragging) setDragging(true);
     // The RAW (unclamped) center drives the edge-burst affordance so pushing
     // a widget INTO / past the border is expressible even though the applied
@@ -203,7 +266,18 @@ export function WidgetWindow({
             w: session.start.w + dxPx / stage.width,
             h: session.start.h + dyPx / stage.height,
           });
-    applyWindowGeometry(root, rect);
+    // Permanent widgets are motion-value driven: set the values directly (no
+    // spring) so the orb tracks the pointer 1:1. Everything else keeps the
+    // imperative geometry path (its `animate` re-applies committed state on
+    // the settle re-render).
+    if (permanent) {
+      leftMv.set(`${(rect.x - rect.w / 2) * 100}%`);
+      topMv.set(`${(rect.y - rect.h / 2) * 100}%`);
+      widthMv.set(`${rect.w * 100}%`);
+      heightMv.set(`${rect.h * 100}%`);
+    } else {
+      applyWindowGeometry(root, rect);
+    }
     if (session.mode === "move" && stowable) {
       const progress = widgetEdgeProgress(rawCenter);
       setBurst(
@@ -232,6 +306,10 @@ export function WidgetWindow({
     const root = rootRef.current;
     const stage = root?.parentElement?.getBoundingClientRect();
     sessionRef.current = null;
+    // Release the drag lock BEFORE committing state so the settle effect runs
+    // on the re-render. The motion values still hold the released position, so
+    // the spring starts exactly there — no back-snap to the pre-drag origin.
+    draggingRef.current = false;
     setDragging(false);
     onDrawerTargetChange(item.id, false);
     if (
@@ -270,6 +348,8 @@ export function WidgetWindow({
         return;
       }
       moveWidget(item.id, rawCenter.x, rawCenter.y);
+      // Soft pop as the widget settles under the release point.
+      if (!cancelled) playDropPop();
     } else {
       resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
     }
@@ -297,17 +377,15 @@ export function WidgetWindow({
         }
       }}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
-      layoutId={`widget:${item.id}`}
+      // The orb (permanent) is NEVER stowed, so it needs no shared-element
+      // layout transition — and giving it a `layoutId` made motion replay a
+      // layout animation from the stale pre-drag box on every drop, part of the
+      // whiplash. Only stowable widgets, which morph to/from a drawer chip, get
+      // the layoutId.
+      layoutId={permanent ? undefined : `widget:${item.id}`}
       animate={
         permanent
-          ? {
-              opacity: 1,
-              scale: 1,
-              left: `${(item.x - item.w / 2) * 100}%`,
-              top: `${(item.y - item.h / 2) * 100}%`,
-              width: `${item.w * 100}%`,
-              height: `${item.h * 100}%`,
-            }
+          ? { opacity: 1, scale: 1 }
           : {
               opacity: 1,
               // Drag-feel: a subtle lift while grabbed, and the widget deflates
@@ -354,10 +432,14 @@ export function WidgetWindow({
               ...(dragging ? { cursor: "grabbing" } : null),
             }
           : null),
-        left: `${(item.x - item.w / 2) * 100}%`,
-        top: `${(item.y - item.h / 2) * 100}%`,
-        width: `${item.w * 100}%`,
-        height: `${item.h * 100}%`,
+        // Permanent widgets read position from the shared motion values (drag +
+        // settle use the same source, so a drop lands exactly under the pointer
+        // and settles with at most a whisper of spring). Others stay on
+        // item-derived strings, re-applied on the settle re-render.
+        left: permanent ? leftMv : `${(item.x - item.w / 2) * 100}%`,
+        top: permanent ? topMv : `${(item.y - item.h / 2) * 100}%`,
+        width: permanent ? widthMv : `${item.w * 100}%`,
+        height: permanent ? heightMv : `${item.h * 100}%`,
         zIndex: dragging && !permanent ? 9_000 : item.z,
       }}
     >

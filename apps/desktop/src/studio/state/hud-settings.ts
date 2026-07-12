@@ -32,6 +32,8 @@ export interface HudSettings {
    *  pipeline. Layered on top of the master toggle (no effect when
    *  notifications are off). Default OFF — the toast is quiet by default. */
   messageAutoReadEnabled: boolean;
+  /** UI sound effects (widget drop pop, message-send cue) on/off. Default on. */
+  soundEnabled: boolean;
 }
 
 const DEFAULTS: HudSettings = {
@@ -39,6 +41,7 @@ const DEFAULTS: HudSettings = {
   motionMode: "system",
   messageNotificationsEnabled: true,
   messageAutoReadEnabled: false,
+  soundEnabled: true,
 };
 
 let state: HudSettings = DEFAULTS;
@@ -87,6 +90,10 @@ export function hydrateHudSettings(): void {
         typeof value.messageAutoReadEnabled === "boolean"
           ? value.messageAutoReadEnabled
           : DEFAULTS.messageAutoReadEnabled,
+      soundEnabled:
+        typeof value.soundEnabled === "boolean"
+          ? value.soundEnabled
+          : DEFAULTS.soundEnabled,
     };
     emit();
   } catch {
@@ -129,6 +136,13 @@ export function setMessageNotificationsEnabled(enabled: boolean): void {
 export function setMessageAutoReadEnabled(enabled: boolean): void {
   if (state.messageAutoReadEnabled === enabled) return;
   state = { ...state, messageAutoReadEnabled: enabled };
+  persist();
+  emit();
+}
+
+export function setSoundEnabled(enabled: boolean): void {
+  if (state.soundEnabled === enabled) return;
+  state = { ...state, soundEnabled: enabled };
   persist();
   emit();
 }

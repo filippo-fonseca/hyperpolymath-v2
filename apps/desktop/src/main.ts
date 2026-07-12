@@ -53,7 +53,8 @@ import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
-import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
+import { playSendSound } from "@/studio/sound/studio-sfx";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
 import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
@@ -100,6 +101,8 @@ import {
   isStudioAvailable,
   openBrowserUrl,
 } from "@studio/actions/browser-router";
+import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
+import { openSettingsWidget } from "@studio/actions/open-settings";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -348,6 +351,11 @@ const echoDedupeState = createEchoDedupeState();
  * utterance, never a legitimately new one.
  */
 function paintTranscriptDeduped(input: EchoInput): void {
+  // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
+  // which the server echoes back as a user transcript turn. Drop that one echo
+  // so wake never injects a fake typed user message into the conversation — the
+  // spoken briefing and listening still happen; only the phantom bubble is gone.
+  if (shouldSuppressBriefingEcho(input.text)) return;
   if (decidePaintEcho(input, echoDedupeState)) {
     paintTranscript(input.text);
   }
@@ -1031,6 +1039,10 @@ async function boot(): Promise<void> {
   onConfirmPendingChange((confirmPending) => {
     document.body.dataset.confirmPending = confirmPending ? "true" : "false";
   });
+  // Subtle "sent" cue when an outgoing message (WhatsApp or iMessage) is
+  // confirmed dispatched. Mirrors the web app's send-to-JARVIS effect; gated
+  // on the Sound setting inside playSendSound.
+  onMessageSent(() => playSendSound());
   startConfirmGate();
 
   // 5c. Acknowledge strip: auto-fading first-clause echo of each JARVIS
@@ -1061,11 +1073,18 @@ async function boot(): Promise<void> {
   // fail-safe — a bad poll skips one tick.
   startNotificationAnnouncer();
 
-  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  // 5d. Settings gear → opens the Settings widget on the studio stage.
+  // The gear was previously unclickable (studio layers painted over it and
+  // swallowed the hit — fixed by lifting .gear-btn above the studio stack in
+  // index.html) and toggled the legacy DOM settings sheet. It now summons the
+  // singleton Settings widget so the HUD's settings live in one surface,
+  // reachable by mouse AND the synthetic hand pointer (the button is a normal
+  // DOM target either driver can land on). The legacy DOM sheet stays wired for
+  // its close button and the disconnect banner (device-token recovery).
   const gearBtn = document.getElementById("gear-btn");
   const settingsEl = document.getElementById("settings");
   const settingsCloseBtn = document.getElementById("settings-close");
-  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  gearBtn?.addEventListener("click", () => openSettingsWidget());
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
   // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut

@@ -697,6 +697,12 @@
       /* ── Settings drawer (behind a gear toggle; auto-hidden by default) ── */
       .gear-btn {
         position: fixed; top: 12px; right: 12px;
+        /* The studio layers (#studio-widget-root at z-index 2, its foreground
+           scrims, and any widget) paint ABOVE the gear when it has no stacking
+           context of its own, so the click landed on a studio layer instead of
+           the button. Lift the gear above the whole studio stack and force its
+           own pointer surface so it is always the top hit at the corner. */
+        z-index: 70; pointer-events: auto;
         appearance: none; background: transparent; border: none;
         color: var(--muted); cursor: pointer; font-size: 15px;
         padding: 6px; border-radius: 8px; line-height: 1;
