@@ -135,6 +135,7 @@ export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Prop
   useEffect(() => {
     const container = containerRef.current;
     const root = rootRef.current;
+    const expectedAreaCount = areas.length;
     if (!container || !root) return;
 
     function measure() {
@@ -154,7 +155,7 @@ export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Prop
           top: r.top - containerRect.top,
         });
       }
-      if (cardCenters.length === 0) {
+      if (expectedAreaCount === 0 || cardCenters.length === 0) {
         setPaths([]);
         setCardVertices([]);
         setJunctionLines([]);
