@@ -101,6 +101,7 @@ import {
   openBrowserUrl,
 } from "@studio/actions/browser-router";
 import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
+import { openSettingsWidget } from "@studio/actions/open-settings";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -1063,11 +1064,18 @@ async function boot(): Promise<void> {
   // fire-and-forget.
   startBackgroundTasksMonitor();
 
-  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  // 5d. Settings gear → opens the Settings widget on the studio stage.
+  // The gear was previously unclickable (studio layers painted over it and
+  // swallowed the hit — fixed by lifting .gear-btn above the studio stack in
+  // index.html) and toggled the legacy DOM settings sheet. It now summons the
+  // singleton Settings widget so the HUD's settings live in one surface,
+  // reachable by mouse AND the synthetic hand pointer (the button is a normal
+  // DOM target either driver can land on). The legacy DOM sheet stays wired for
+  // its close button and the disconnect banner (device-token recovery).
   const gearBtn = document.getElementById("gear-btn");
   const settingsEl = document.getElementById("settings");
   const settingsCloseBtn = document.getElementById("settings-close");
-  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  gearBtn?.addEventListener("click", () => openSettingsWidget());
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
   // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
