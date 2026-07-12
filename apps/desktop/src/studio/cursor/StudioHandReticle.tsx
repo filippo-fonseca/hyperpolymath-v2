@@ -106,7 +106,12 @@ export function StudioHandReticle(): React.JSX.Element {
         width: 0,
         height: 0,
         pointerEvents: "none",
-        zIndex: 35,
+        // Above EVERYTHING it aims at: widget layer (z20), drawer (z40), and the
+        // confirm-gesture panel (z50). In hand mode the reticle is the only thing
+        // telling the user where they're pointing, so it must never be occluded —
+        // it was z35 (behind the z40 drawer), which read as "the cursor vanishes
+        // over the drawer". pointer-events stay none, so raising it can't eat clicks.
+        zIndex: 60,
         opacity: visible ? 1 : 0,
         transition: "opacity 150ms ease",
       }}
@@ -181,7 +186,10 @@ function Pulse({ type }: { type: StudioIntentType }): React.JSX.Element {
     );
   }
 
-  const isExpand = type === "expand";
+  // `tap` (primary click) and `expand` (pinch-bloom) both bloom the ring outward
+  // so every click is visibly confirmed at the reticle. `confirmApprove` reuses
+  // the same pop (a positive flourish); `confirmCancel` uses the inward collapse.
+  const isPop = type === "expand" || type === "tap" || type === "confirmApprove";
   return (
     <span
       aria-hidden
@@ -192,9 +200,9 @@ function Pulse({ type }: { type: StudioIntentType }): React.JSX.Element {
         width: RING,
         height: RING,
         borderRadius: "9999px",
-        border: isExpand ? `1.5px solid ${FLAME}` : `1.5px solid rgba(201,162,39,0.7)`,
+        border: isPop ? `1.5px solid ${FLAME}` : `1.5px solid rgba(201,162,39,0.7)`,
         transform: "translate(-50%, -50%)",
-        animation: isExpand
+        animation: isPop
           ? "studio-reticle-expand 380ms ease-out forwards"
           : "studio-reticle-collapse 320ms ease-in forwards",
         pointerEvents: "none",
