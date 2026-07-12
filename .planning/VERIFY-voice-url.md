@@ -89,3 +89,58 @@ ran and the line was spoken on the machine. The three
 `Scoped command say-voice not found` errors in the log are all at lines 36-44
 (the OLD shell-plugin failures, before the fixed binary rebuilt); ZERO new
 scoped-command errors appeared for the post-fix turn. Fix confirmed.
+
+---
+
+## Loop-2: Groq Orpheus TTS fallback (before local `say`)
+
+**Goal:** on ElevenLabs failure, try Groq's Orpheus neural TTS before the desktop
+drops to macOS `say`. Groq → raw PCM on the same transport as ElevenLabs, so the
+desktop keeps its normal rodio playback path.
+
+**Change:** `apps/web/app/api/jarvis/tts/route.ts` — on the ElevenLabs `catch`,
+call Groq (`canopylabs/orpheus-v1-english`, voice `daniel`, `response_format=wav`),
+strip the WAV/RIFF container to raw 16-bit LE PCM @ 24kHz mono (walk chunk list,
+take bytes after `data` header to EOF — Groq sends a `0xFFFFFFFF` placeholder
+size and a `LIST` chunk), and return `application/octet-stream` (identical to the
+ElevenLabs path). 502+reason only when BOTH fail. Logs `[tts] served by
+elevenlabs|groq`. Input truncated to Orpheus's 200-char cap at a sentence/word
+boundary. Commit d159077b.
+
+**Voice chosen:** `daniel`. Orpheus English personas are Autumn/Diana/Hannah
+(female) and Austin/Daniel/Troy (male); none is documented as British, so per the
+brief we keep the verified-working male voice `daniel` (calm, measured — closest
+read to George's butler register). Alternatives noted in a const comment:
+`austin`, `troy`.
+
+**Verify — typecheck:** `pnpm --filter web typecheck` → exit 0.
+
+**Verify — WAV format probe (live Groq call):**
+```
+/…/groq_probe.wav: RIFF (little-endian) data, WAVE audio, Microsoft PCM, 16 bit, mono 24000 Hz
+data chunk at offset 70, dataStart 78, declaredSize 0xFFFFFFFF -> pcmBytes 88312 (16-bit aligned)
+```
+Groq's WAV is already 16-bit mono 24kHz — the exact sample format the desktop
+rodio path consumes. Stripping the container is sufficient; no resampling.
+
+**Verify — direct TTS curl (local ElevenLabs key is dead → forces Groq path):**
+```
+curl -s -o /tmp/t.wav -w "%{http_code}" -X POST -H "Authorization: Bearer hpd_…" \
+  -H "Content-Type: application/json" -d '{"text":"Good evening sir."}' \
+  http://localhost:3000/api/jarvis/tts
+→ http=200 ; size=61432 ; first bytes d6ff d6ff (raw PCM samples, NOT a RIFF header)
+```
+Web log for the request: `[tts] ElevenLabs failed Error: Status code: 401` then
+`[tts] served by groq` — the 200 + valid raw PCM was produced by the Groq fallback.
+
+**Verify — full voice turn (POST /api/jarvis/voice/text, same bearer):**
+```
+-d '{"text":"give me a one line status"}' → http=200 {"turnId":"311076ad-…"}
+```
+- Web log: `[tts] ElevenLabs failed … 401` → `[tts] served by groq`
+- Desktop HUD log (/tmp/bgsd-tauri-dev5.log): `[tts] play_pcm invoked (207352 bytes)`
+  — the NORMAL native rodio PCM playback path fired.
+- **NO `[say]` fallback line** for this turn. Cloud (Groq) audio played through the
+  desktop's normal path; macOS `say` was NOT reached.
+
+Fix confirmed: ElevenLabs → Groq → (only then) local `say`.
