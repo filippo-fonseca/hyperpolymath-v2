@@ -163,9 +163,11 @@ describe("DenseListRow — keyboard activation", () => {
 
     fireEvent.click(row);
     fireEvent.keyDown(row, { key: "Enter" });
-    fireEvent.keyDown(row, { key: " " });
+    // Space must activate AND be prevented (so the row doesn't also scroll).
+    const spaceDefaultPrevented = !fireEvent.keyDown(row, { key: " " });
 
     expect(onActivate).toHaveBeenCalledTimes(3);
+    expect(spaceDefaultPrevented).toBe(true);
   });
 
   it("is inert (no button role) without onActivate", () => {
