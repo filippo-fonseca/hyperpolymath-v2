@@ -31,6 +31,12 @@ import {
   useStudioPhase,
 } from "./react";
 import type { HoverProvider, StudioCursor } from "./types";
+import { STUDIO_COLORS } from "../tokens";
+import {
+  getWidgetWindows,
+  resizeWidget,
+} from "../state/widget-windows";
+import { scrollNativeWebview } from "../windows/native-webview";
 
 /** A synthetic pointer id, far from any real (1+) pointer, so shims can target it. */
 const SYNTH_POINTER_ID = 90210;
@@ -153,10 +159,82 @@ function dispatchClick(target: Element, vx: number, vy: number): void {
   );
 }
 
+/** Dispatch a synthetic vertical WheelEvent onto the DOM element at the cursor. */
+function dispatchWheel(target: Element, vx: number, vy: number, dy: number): void {
+  target.dispatchEvent(
+    new WheelEvent("wheel", {
+      deltaX: 0,
+      deltaY: dy,
+      deltaMode: 0, // WheelEvent.DOM_DELTA_PIXEL
+      clientX: vx,
+      clientY: vy,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+    }),
+  );
+}
+
+/**
+ * A live child webview label under the point, or null. A promoted BrowserWidget
+ * tags its placeholder `data-native-webview-active={id}` only while the OS-level
+ * child webview is active; scroll for such a surface must route to the
+ * `studio_webview_scroll` IPC, since the child webview is not in this document
+ * and no WheelEvent can reach it.
+ */
+function nativeWebviewLabelAt(vx: number, vy: number): string | null {
+  const el = document.elementFromPoint(vx, vy);
+  const marker = el?.closest<HTMLElement>("[data-native-webview-active]");
+  return marker?.dataset.nativeWebviewActive ?? null;
+}
+
+/** The live widget-window frame element for an id, or null. */
+function widgetElement(id: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`[data-widget-window="${CSS.escape(id)}"]`);
+}
+
+/**
+ * Toggle the "resize armed" affordance on a widget frame: a bright accent ring so
+ * the user SEES which widget an open-hand resize is driving. Applied imperatively
+ * (no React state) so it never churns the hot path; cleared on `resizeEnd`.
+ */
+function setResizeAffordance(id: string, armed: boolean): void {
+  const el = widgetElement(id);
+  if (!el) return;
+  if (armed) {
+    el.dataset.resizeArmed = "true";
+    el.style.outline = `2px solid ${STUDIO_COLORS.accent}`;
+    el.style.outlineOffset = "2px";
+    el.style.boxShadow = `0 0 0 1px ${STUDIO_COLORS.accent}, 0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`;
+  } else {
+    delete el.dataset.resizeArmed;
+    el.style.outline = "";
+    el.style.outlineOffset = "";
+    el.style.boxShadow = "";
+  }
+}
+
 type GrabState = {
   dragTarget: Element | null;
   /** True until the first grabMove dispatches the pointerdown at the palm origin. */
   pendingDown: boolean;
+  lastX: number;
+  lastY: number;
+};
+
+type ResizeState = {
+  id: string;
+  /** Widget w/h captured at arm time; the emitted scale multiplies these. */
+  w0: number;
+  h0: number;
+};
+
+type ScrollState = {
+  /** Live native child-webview label if this surface is a promoted browser. */
+  nativeLabel: string | null;
+  /** Element a DOM WheelEvent is dispatched onto (non-native surfaces). */
+  domTarget: Element | null;
   lastX: number;
   lastY: number;
 };
@@ -169,6 +247,8 @@ type GrabState = {
 export function useHandPointerSynthesis(): void {
   const bus = useStudioInput();
   const grab = useRef<GrabState | null>(null);
+  const resize = useRef<ResizeState | null>(null);
+  const scroll = useRef<ScrollState | null>(null);
 
   useEffect(() => {
     installPointerCaptureShim();
@@ -245,6 +325,75 @@ export function useHandPointerSynthesis(): void {
         }
         break;
       }
+
+      // Open-hand resize → live widget resize via the existing store setter.
+      // Gated OFF while a grab-drag is active (belt-and-suspenders: the gesture
+      // layer already makes pinch/open mutually exclusive) so a stray resize
+      // never fights a drag. Scale is cumulative from the arm baseline, so we
+      // multiply the widget's arm-time w/h; clampToStage floors it at 0.16.
+      case "resizeStart": {
+        if (grab.current) {
+          resize.current = null;
+          break;
+        }
+        const w = getWidgetWindows().find((item) => item.id === phase.targetId);
+        resize.current = w ? { id: w.id, w0: w.w, h0: w.h } : null;
+        if (resize.current) setResizeAffordance(resize.current.id, true);
+        break;
+      }
+      case "resizeMove": {
+        const r = resize.current;
+        if (!r) break;
+        resizeWidget(r.id, r.w0 * phase.scale, r.h0 * phase.scale);
+        break;
+      }
+      case "resizeEnd": {
+        if (resize.current) setResizeAffordance(resize.current.id, false);
+        resize.current = null;
+        break;
+      }
+
+      // Index-finger scroll. Resolve the surface at the reticle once on start: a
+      // live promoted browser routes to the child-webview IPC; every other DOM
+      // surface takes a synthesized WheelEvent at the cursor. `dy` is an
+      // incremental per-frame wheel delta (positive = scroll down).
+      case "scrollStart": {
+        const vp = cursorViewport();
+        if (!vp) {
+          scroll.current = null;
+          break;
+        }
+        const nativeLabel = nativeWebviewLabelAt(vp.x, vp.y);
+        scroll.current = {
+          nativeLabel,
+          domTarget: nativeLabel ? null : document.elementFromPoint(vp.x, vp.y),
+          lastX: vp.x,
+          lastY: vp.y,
+        };
+        break;
+      }
+      case "scrollMove": {
+        const s = scroll.current;
+        if (!s) break;
+        const vp = cursorViewport();
+        if (vp) {
+          s.lastX = vp.x;
+          s.lastY = vp.y;
+        }
+        if (s.nativeLabel) {
+          void scrollNativeWebview(s.nativeLabel, 0, phase.dy).catch(
+            () => undefined,
+          );
+        } else if (s.domTarget) {
+          dispatchWheel(s.domTarget, s.lastX, s.lastY, phase.dy);
+        }
+        break;
+      }
+      case "scrollEnd": {
+        scroll.current = null;
+        break;
+      }
+
       default:
         // drag* phases (camera-nav over empty space) have no desktop analog.
         break;
