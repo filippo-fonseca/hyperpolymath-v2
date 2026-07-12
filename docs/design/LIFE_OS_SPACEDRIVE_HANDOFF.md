@@ -9,13 +9,60 @@
 - Integration target is this staging branch only. Never modify or merge into `next` or `main`.
 - The original `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2` checkout is the live `next` worktree with another agent's changes. Do not work there.
 
-## Current state
+## Current state (updated 2026-07-12, end of Claude leg)
 
-Research and orchestration are complete. No implementation pipeline executor has launched. The staging branch contains only bgsd isolation/model configuration plus this handoff and the pinned visual references. The first implementation unit must begin from this branch.
+**Unit 1 (`sd-shell-foundation`) is BUILT and code-verified, pending final merge.**
+The Claude leg (Fable Conductor/advisor, Opus executor) implemented it on branch
+`bgsd/sd-shell-foundation` in worktree `/Users/filippofonseca/Developer/Projects/hp-wt-sd-shell`
+(base `e205d7b6`). ~14 atomic commits: UI-SPEC -> PLAN -> `--deck-*`/`--dur-*`
+tokens -> spacedrive primitives (3 commits) -> shell register restyle (3 commits)
+-> tests -> post-review fixes -> verification docs. Typecheck, lint, unit tests,
+and `pnpm --filter web build` are green; in-unit code review found 0
+critical/high/medium. The signed-in Playwright usage pass was IN FLIGHT at
+handoff: check `/Users/filippofonseca/Developer/Projects/hp-wt-sd-shell/verification-report.json`.
+- If it exists with overall PASS: merge `bgsd/sd-shell-foundation` onto
+  `next-codex-spacedrive-ui`, then IMMEDIATELY `git worktree remove --force`
+  the worktree AND `git branch -D bgsd/sd-shell-foundation` (teardown policy in
+  BGSD.md — merged commits live on the integration branch).
+- If absent or FAIL: boot the app (`cd <worktree>/apps/web && pnpm exec next dev -p 3105`),
+  run the signed-in usage ladder (console/DOM/vision: nav routes, 260/64px sidebar
+  contract + hover overlay, tasks-fullscreen coordination, Cmd+Shift+K palette,
+  reduced-motion, 320/768/1440), fix in the unit worktree, then merge + teardown.
 
-Codex routing was explicitly set to GPT-5.6 Luna for executors while GPT-5.6 Sol acted only as Conductor/advisor. If resuming under Claude, use bgsd's configured Claude executor mapping and preserve the same separation: the live session conducts/reviews; pipeline agents execute.
+**What Unit 1 gives Units 2/3** (all merged onto the integration branch after the
+Unit 1 merge; UI-SPEC/PLAN/VERIFICATION live in `.planning/phases/sd-shell-foundation/`):
+- `--deck-*` alias tokens in `apps/web/app/globals.css` (app/panel/panel-deep/
+  panel-deeper/input/line/divider/hover/selected/active/accent[-faint/-deep]/
+  ink[-dull/-faint]) — accent maps to `--hud-cyan` (the wiki-scoped `--sd-accent`
+  is NOT lifted to `:root`); plus `--dur-hover 130ms / --dur-select 180ms /
+  --dur-tree 170ms / --dur-panel 220ms / --dur-route 260ms / --dur-orb 14s`.
+- `apps/web/components/spacedrive/` primitive family via barrel `index.ts`:
+  `DeckPanel`, `HairlineDivider`, `SectionHeader`, `EmptyState`, `CommandToolbar`,
+  `ModeStrip`, `KpiRail`, `StatChip`, `DenseListRow` (40px, Enter/Space),
+  `InspectorShell`/`MetaSection`/`MetaRow`, `AmbientOrb` (12-16s transform/opacity,
+  reduced-motion static, ONE per surface). Units 2/3 compose these; do not fork them.
+- Shell (Sidebar/AppShell/TopTabBar/PersistentNav) already in the Spacedrive
+  register with operational (sans) nav typography; all frozen shell contracts
+  preserved and covered by net-new tests in `apps/web/tests/`.
 
-Commit small logical changes frequently. After a pipeline unit is verified and merged onto `next-codex-spacedrive-ui`, immediately remove its worktree directory while preserving its branch/commit history.
+**Deep scout maps for Units 2 and 3** (read them before planning — exact frozen
+query keys, storage keys, realtime islands, a11y debt with file anchors):
+`.bgsd/runs/sesh-1783863067187/research/lifeos-surface-map.md` and
+`.bgsd/runs/sesh-1783863067187/research/tasks-surface-map.md` (also
+`shell-surface-map.md`), on disk in this worktree (gitignored, not committed).
+Key advisor directives for wave 2: gate `AreasTree`'s SMIL feed dots + avatar
+`animate-pulse` behind reduced-motion (currently un-gated); make the captures
+hover-only "-> Task" reveal focus-visible; Tasks components import NO
+`useReducedMotion` today — add gating throughout; preserve the dual DnD systems
+(native HTML5 kanban + dnd-kit list with its keyboard reorder) and the
+`fromYmd` local-midnight date invariants.
+
+Codex routing: GPT-5.6 Luna for executors, GPT-5.6 Sol as Conductor/advisor only.
+Commit small logical changes frequently. After each unit is verified and merged
+onto `next-codex-spacedrive-ui`, immediately remove its worktree AND delete its
+unit branch. After Units 2 and 3 merge, run whole-app integration verification
+(typecheck/lint/tests/build + accessibility + responsive 320/375/768/1024/1440
++ 200% zoom + reduced-motion + signed-in visual pass).
 
 ## Canonical references
 
@@ -78,6 +125,6 @@ Depends on Unit 1 and may run parallel with Unit 2. Owns `apps/web/app/(app)/tas
 
 Merge each verified unit onto `next-codex-spacedrive-ui`, then remove its worktree immediately. Run whole-app integration verification after Units 2 and 3 merge. Do not open or merge a `next`/`main` PR without Filippo's explicit instruction.
 
-## Ready-to-paste Claude pickup prompt
+## Ready-to-paste Codex pickup prompt (wave 2)
 
-> Resume the bgsd Life OS Renaissance UI refactor from `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-life-os-refactor` on branch `next-codex-spacedrive-ui`. Read `AGENTS.md`, `BGSD.md`, and `docs/design/LIFE_OS_SPACEDRIVE_HANDOFF.md` completely before acting. Continue bgsd session `sesh-1783863067187` using full advisor/planner/executor/reviewer/tester discipline. The only visual source is Spacedrive.com plus the three tracked screenshots under `docs/design/spacedrive-references/`, Raycast, and the existing Wiki Renaissance (`d70eac6`); Spacetribe is explicitly excluded. Execute the three-unit graph in the handoff: foundation/shell first, merge it, immediately delete its worktree, then run Life OS and Tasks in parallel, committing small logical changes frequently. Merge every verified unit only onto `next-codex-spacedrive-ui`, delete each merged pipeline worktree immediately, then run full integration, accessibility, responsive, reduced-motion, and signed-in visual verification. Never touch `next`, `main`, or the original checkout. Preserve every frozen data/URL/storage/realtime/optimistic behavior contract. Play the configured completion sound at terminal session outcome. Begin by confirming the branch/worktree is clean and showing the exact Luna/Claude executor routing before fan-out.
+> Resume the bgsd Life OS Renaissance UI refactor from `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-life-os-refactor` on branch `next-codex-spacedrive-ui`, continuing bgsd session `sesh-1783863067187` with full advisor/planner/executor/reviewer/tester discipline (GPT-5.6 Sol conducts/advises, GPT-5.6 Luna executes). Read `AGENTS.md`, `BGSD.md`, and `docs/design/LIFE_OS_SPACEDRIVE_HANDOFF.md` completely before acting — the "Current state" section describes exactly where the Claude leg stopped. First close out Unit 1: check `/Users/filippofonseca/Developer/Projects/hp-wt-sd-shell/verification-report.json`; on overall PASS merge `bgsd/sd-shell-foundation` onto `next-codex-spacedrive-ui` and immediately delete both the worktree (`git worktree remove --force`) and the branch (`git branch -D`); if the report is absent or FAIL, re-run the signed-in usage ladder on port 3105, fix in that worktree, then merge and tear down. Then run Units 2 (Life OS command center) and 3 (Tasks operations surface) in parallel per the handoff's three-unit graph, composing the merged `--deck-*`/`--dur-*` tokens and `apps/web/components/spacedrive/` primitives rather than forking them, and reading the deep scout maps at `.bgsd/runs/sesh-1783863067187/research/lifeos-surface-map.md` and `tasks-surface-map.md` before planning. Commit small logical changes frequently; merge each verified unit only onto `next-codex-spacedrive-ui`; delete each merged worktree and branch immediately; then run full integration, accessibility, responsive (320/375/768/1024/1440 + 200% zoom), reduced-motion, and signed-in visual verification. Never touch `next`, `main`, or the original checkout. Preserve every frozen data/URL/storage/realtime/optimistic contract listed in the handoff and scout maps. Play the configured completion sound at the terminal session outcome. Begin by confirming branch/worktree state and showing the exact Luna executor routing before fan-out.
