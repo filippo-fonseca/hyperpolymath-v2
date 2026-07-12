@@ -32,7 +32,15 @@ export interface PhysicalJarvisToolCall {
   at: number;
 }
 
-export type PhysicalStudioWidgetKind = "browser" | "whatsapp" | "weather" | "news";
+export type PhysicalStudioWidgetKind =
+  | "browser"
+  | "whatsapp"
+  | "weather"
+  | "news"
+  | "card"
+  | "clock"
+  | "camera"
+  | "settings";
 
 // MAJOR-6 — the physical bus is currently a single global EventEmitter and
 // the SSE endpoint is owner-gated. `userId` is carried on every studio-action

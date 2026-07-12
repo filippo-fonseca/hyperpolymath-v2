@@ -43,7 +43,16 @@ const StudioActionSchema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("open"),
-      kind: z.enum(["browser", "whatsapp", "weather", "news"]),
+      kind: z.enum([
+        "browser",
+        "whatsapp",
+        "weather",
+        "news",
+        "card",
+        "clock",
+        "camera",
+        "settings",
+      ]),
       props: z.record(z.string(), z.unknown()).optional(),
       userId: z.string().min(1).optional(),
     })
