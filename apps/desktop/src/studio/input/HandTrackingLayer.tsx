@@ -19,6 +19,7 @@ import { Hand } from "lucide-react";
 
 import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { StudioHandReticle } from "../cursor/StudioHandReticle";
+import { ConfirmGesturePanel } from "../cursor/ConfirmGesturePanel";
 import { StudioInputProvider, useStudioInput } from "./react";
 import { useHandPointerSynthesis } from "./pointer-synth";
 import { HandTrackingDriver, type HandDriverStatus } from "./drivers/hand";
@@ -137,6 +138,11 @@ function HandTrackingInner(): React.JSX.Element {
   return (
     <>
       <StudioHandReticle />
+      {/* Send confirm-gate affordance: shows while a send is held awaiting a
+          yes/no (thumbs-up/down OR voice), dismisses with a tick/cross flourish.
+          Mounted here (not the widget layer) so it lives in the studio overlay
+          without touching WidgetWindowLayer; visible regardless of hand mode. */}
+      <ConfirmGesturePanel />
       <button
         type="button"
         aria-pressed={enabled}
