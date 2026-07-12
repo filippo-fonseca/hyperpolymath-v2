@@ -73,3 +73,74 @@ so the chat list uses a v1 heuristic: order by recency, and flag "attention"
 4. "tell Rohan …" → confirm ("yes") → widget summons (if closed) / re-navigates
    to Rohan's chat with the sent message visible and briefly cyan-highlighted.
 5. Re-focus the same chat via another send → pulse re-plays (focusAt nonce).
+
+---
+
+## Loop-2 fixes — contact names + send receipt (2026-07-11)
+
+Two defects from user screenshots (WhatsApp widget header + JARVIS chat).
+
+### Defect 1 — raw JID instead of contact name
+
+**Name source used:** `whatsmeow_contacts` in the bridge sqlite, resolved with
+the SAME priority the Go bridge's `bestName()` uses for send_whatsapp
+(full_name → first_name → push_name → business_name). This keeps read (widget)
+and write (send) symmetric on which name a contact carries. Groups (`@g.us`)
+keep using the `chats.name` subject.
+
+Root cause: the sync worker (`tools/whatsapp-sync/sync.mjs`) only joined
+`chats.name` (empty for individual chats like Rohan), so `chatName`/`senderName`
+landed null in Postgres and the web route fell through to the raw JID.
+
+Fix, three layers:
+- `tools/whatsapp-sync/sync.mjs` — LEFT JOIN `whatsmeow_contacts` on both the
+  chat jid and the message sender; emit the resolved best-name.
+- `apps/web/app/api/whatsapp/ingest/route.ts` — `onConflictDoNothing` →
+  `onConflictDoUpdate` with `COALESCE(excluded.*, existing)` so a re-sync
+  backfills names onto rows first ingested with nulls, never wiping a good name.
+- `apps/web/app/api/studio/whatsapp/route.ts` — `resolveChatName()` NEVER returns
+  a raw JID: synced name → group subject → generic "Group chat" → prettified
+  number (`+1 203 606 8566`). Last line of defense even if Postgres has nulls.
+
+**Live (server :3000, device bearer):**
+- BEFORE re-sync: `?chat=12036068566@s.whatsapp.net` header = `+1 203 606 8566`
+  (prettified number — no raw JID leak, the reported bug is gone regardless of
+  sync state).
+- AFTER a re-sync pass (worker enriched + ingest upserted): chat list + header
+  both show `"Rohan"`; group shows `"Fonseca 👩‍👩‍👧‍👧 Family"`; other contacts
+  resolve (`Emir`, `Ana Mari Pauly`, `matski`, …). No `@s.whatsapp.net` string
+  anywhere in the JSON.
+
+### Defect 2 — JARVIS didn't know whether a send happened
+
+**Receipt shape:** an assistant-kind `jarvis_turns` row (NO schema migration —
+`kind` is free text and `buildRecentHistory` maps `assistant`→assistant message).
+`text_delta` =
+`[system receipt] WhatsApp message to <name> (<jid>) delivered to transport at <ISO>: "<text>"`
+(failure variant says `FAILED to send at <ISO> (not delivered)`).
+
+- New route `POST /api/jarvis/voice/history/receipt` (auth mirrors
+  `history/clear`: `validateDesktopBearerIdentity` + `isOwnerUser`; zod-validated
+  body). Inserts the receipt row.
+- Desktop `apps/desktop/src/api/client.ts::postWhatsappReceipt` +
+  `apps/desktop/src/actions/confirm-gate.ts::dispatchAndReport` — fire-and-forget
+  POST on BOTH the success path (beside `emitWhatsappSendConfirmed`) and the
+  WhatsApp failure path. Never blocks the send.
+
+**Live:** POSTed a synthetic success receipt, then fired an `ask` turn
+"did you send the whatsapp to rohan?" via `/api/jarvis/voice/text`. The
+persisted assistant reply:
+> "It appears so, sir — the system receipt at the top of this conversation
+> confirms a WhatsApp message reading "I don't like packing." was delivered to
+> Rohan at 2:58 AM UTC."
+Grounded truth referencing the receipt — vs the old waffle ("the desktop holds
+the send until you confirm aloud… it will have gone through"). Failure-case
+receipt also verified to render `FAILED to send … (not delivered)`.
+
+### Verification (exit codes)
+
+- desktop `pnpm typecheck` → **0**
+- desktop `pnpm vitest run` → **0** (16 files, **92 tests** passed)
+- desktop `pnpm vite build` → **0** (WhatsAppWidget chunk built)
+- web `pnpm typecheck` → **0**
+- Not pushed. No cargo build.
