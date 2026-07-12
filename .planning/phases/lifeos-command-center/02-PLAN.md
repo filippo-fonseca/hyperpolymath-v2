@@ -18,6 +18,18 @@
    targeted tests; inspect the diff for ownership/frozen-contract drift; write
    `verification-report-lifeos.json` with the tested SHA and honest limitations.
 
+## Evidence anchors
+
+- `lifeos-surface-map.md` §1–§4 is authoritative for the server load, props,
+  query keys, realtime islands, optimistic rollback, and storage namespaces.
+- `lifeos-surface-map.md` §5–§6 is authoritative for the capture focus debt and
+  AreasTree SMIL/avatar reduced-motion debt.
+- Unit 1 primitives are consumed from `@/components/spacedrive`; no local
+  replacement primitive or global token change is permitted.
+- The first focused tests cover source-level contract preservation plus the
+  rendered reduced-motion/focus affordances that are feasible without a live
+  authenticated browser session.
+
 ## Commit sequence
 
 `UI-SPEC/PLAN` → `page composition` → `AreasTree` → `widgets/cards` →
