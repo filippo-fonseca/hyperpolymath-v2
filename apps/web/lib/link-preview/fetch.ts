@@ -195,6 +195,43 @@ async function fetchTwitter(url: string): Promise<LinkPreviewResult> {
   };
 }
 
+/**
+ * Read a response body as text, capping at MAX_HTML_BYTES via a streamed reader so
+ * a hostile huge response never buffers fully into memory. The download is cancelled
+ * once the byte budget is reached. Decodes only up to MAX_HTML_BYTES (matches the
+ * previous slice-then-decode semantics).
+ */
+async function readCappedText(res: Response): Promise<string> {
+  if (!res.body) {
+    // Bodyless response (rare): keep prior behavior.
+    return (await res.text()).slice(0, MAX_HTML_BYTES);
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    const remaining = MAX_HTML_BYTES - received;
+    if (value.length >= remaining) {
+      chunks.push(value.subarray(0, remaining));
+      received += remaining;
+      await reader.cancel(); // stop the download once the cap is hit
+      break;
+    }
+    chunks.push(value);
+    received += value.length;
+  }
+  const merged = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return new TextDecoder("utf-8").decode(merged);
+}
+
 async function fetchGeneric(url: string): Promise<LinkPreviewResult> {
   const res = await fetchWithTimeout(url, "text/html,application/xhtml+xml");
   if (!res.ok) return errorResult(url, `HTTP ${res.status}`);
@@ -214,8 +251,7 @@ async function fetchGeneric(url: string): Promise<LinkPreviewResult> {
       error: null,
     };
   }
-  const buf = await res.arrayBuffer();
-  const html = new TextDecoder("utf-8").decode(buf.slice(0, MAX_HTML_BYTES));
+  const html = await readCappedText(res);
   const meta = extractMeta(html);
   // Resolve a relative og:image against the final URL.
   let imageUrl = meta.imageUrl;
