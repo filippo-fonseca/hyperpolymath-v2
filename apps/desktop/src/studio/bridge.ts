@@ -1,5 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
+import { onWhatsappSendConfirmed } from "@/actions/confirm-gate";
 import { onTranscriptReceived } from "@/audio/capture";
 import {
   getJarvisState,
@@ -101,6 +102,25 @@ export function startStudioBridge(): void {
   });
   onJarvisToolCall((payload) => emit("toolCall", payload));
   onStudioAction(routeStudioAction);
+  // After a confirmed WhatsApp send, summon/navigate the WhatsApp widget to that
+  // chat and pulse-highlight the just-sent message. Routed through the SAME
+  // studio-action router as server-emitted opens; the focus props travel as an
+  // `open` action so an already-open singleton is re-navigated (the router
+  // pushes props onto the live instance). Requires the bridge's resolved jid —
+  // without it we can't address the chat, so we skip navigation silently.
+  onWhatsappSendConfirmed((payload) => {
+    if (!payload.jid) return;
+    routeStudioAction({
+      action: "open",
+      kind: "whatsapp",
+      props: {
+        focusChatJid: payload.jid,
+        focusChatName: payload.recipient,
+        focusMessageBody: payload.text,
+        focusAt: Date.now(),
+      },
+    });
+  });
   startMaterialization();
 }
 

@@ -56,6 +56,10 @@ interface SendResult {
    *  "Sent to <name>, sir" confirmation so the user is never left guessing
    *  whether — and to whom — a message went. Falls back to what the user said. */
   resolvedRecipient?: string;
+  /** On a successful WhatsApp send, the chat JID the bridge actually delivered
+   *  to (from its `{ jid }` success body). Lets the widget focus that exact chat
+   *  after a confirmed send without a fuzzy name match. Absent for iMessage. */
+  resolvedJid?: string;
   /** True when the failure line has ALREADY been spoken by executeSend itself
    *  (e.g. the iMessage recipient couldn't be resolved to a real contact, so a
    *  specific "I couldn't find Rohan, sir" line was said). dispatchAndReport
@@ -191,6 +195,32 @@ function emitPendingChange(isPending: boolean): void {
   for (const fn of pendingListeners) fn(isPending);
 }
 
+/** Fired after a WhatsApp send is CONFIRMED and successfully delivered by the
+ *  bridge. The Studio WhatsApp widget listens (via bridge.ts) to open itself to
+ *  the target chat and pulse-highlight the just-sent message. Purely a UX echo —
+ *  no gate logic keys off it, and it fires only on `ok:true` from the bridge. */
+export interface WhatsappSendConfirmed {
+  /** Contact/chat name the bridge resolved to (falls back to the spoken name). */
+  recipient: string;
+  /** True chat JID the bridge delivered to, when it reported one. */
+  jid?: string;
+  /** The message text that went out — matched to highlight the bubble. */
+  text: string;
+}
+type WhatsappSendConfirmedListener = (payload: WhatsappSendConfirmed) => void;
+const whatsappSendListeners = new Set<WhatsappSendConfirmedListener>();
+
+export function onWhatsappSendConfirmed(fn: WhatsappSendConfirmedListener): () => void {
+  whatsappSendListeners.add(fn);
+  return () => {
+    whatsappSendListeners.delete(fn);
+  };
+}
+
+function emitWhatsappSendConfirmed(payload: WhatsappSendConfirmed): void {
+  for (const fn of whatsappSendListeners) fn(payload);
+}
+
 function clearPendingState(): void {
   const hadPending = pending !== null;
   pending = null;
@@ -287,10 +317,14 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     // name (empty for raw JID/number sends). Never throw on a malformed body —
     // fall back to what the user said.
     let resolvedRecipient = action.recipient;
+    let resolvedJid: string | undefined;
     try {
-      const body = (await res.json()) as { recipient?: unknown };
+      const body = (await res.json()) as { recipient?: unknown; jid?: unknown };
       if (typeof body?.recipient === "string" && body.recipient.trim()) {
         resolvedRecipient = body.recipient.trim();
+      }
+      if (typeof body?.jid === "string" && body.jid.trim()) {
+        resolvedJid = body.jid.trim();
       }
     } catch {
       // Non-JSON / empty success body — keep the spoken recipient.
@@ -300,7 +334,7 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     console.log(
       `[confirm] whatsapp send dispatched to "${action.recipient}" → "${resolvedRecipient}" (${action.text.length} chars) via ${target}`,
     );
-    return { ok: true, resolvedRecipient };
+    return { ok: true, resolvedRecipient, resolvedJid };
   } catch (err) {
     const aborted = ctrl.signal.aborted || (err as { name?: string })?.name === "AbortError";
     if (aborted) {
@@ -422,6 +456,16 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
     // when the spoken name was a partial/nickname.
     const who = (result.resolvedRecipient ?? action.recipient).trim() || action.recipient;
     ttsPlayer.speakNow(`Sent to ${who}, sir.`);
+    // UX echo (WhatsApp only): tell the Studio widget to open THIS chat and
+    // pulse the just-sent message. Fires only on a confirmed, delivered send —
+    // never gates or blocks the send path.
+    if (action.app === "whatsapp") {
+      emitWhatsappSendConfirmed({
+        recipient: who,
+        ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+        text: action.text,
+      });
+    }
     return;
   }
   // executeSend already spoke a specific, category-appropriate line — for
