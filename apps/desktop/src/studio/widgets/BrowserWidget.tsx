@@ -24,7 +24,6 @@ import {
 import { subscribeWidgetWindows, updateWidgetProps } from "../state/widget-windows";
 import {
   classifyLinkEmbed,
-  isKnownFrameBlocker,
   linkDomain,
   normalizeBrowserUrl,
   twitterStatusId,
@@ -127,9 +126,14 @@ export default function BrowserWidget({
   const classification = classifyLinkEmbed(url);
   const tweetId =
     classification.mediaType === "twitter" ? twitterStatusId(url) : null;
-  const knownBlocker =
-    classification.mediaType === "generic" && isKnownFrameBlocker(url);
-  const shouldPromote = knownBlocker || timedOut;
+  // Real websites almost universally block iframing via X-Frame-Options or CSP
+  // frame-ancestors (bbc.com, google.com, news sites, etc.). A blocked frame
+  // still fires `onLoad` on WebKit, which cancels the 4s timeout below, so the
+  // iframe path silently strands the widget on a permanent white page. Only
+  // youtube/twitter have purpose-built embed iframes that reliably frame; every
+  // other (generic) page must render through the native child webview.
+  const isGeneric = classification.mediaType === "generic";
+  const shouldPromote = isGeneric || timedOut;
   const contentReady = contentRect !== null;
   const invalidTweet = classification.mediaType === "twitter" && !tweetId;
   const fallback = invalidTweet || (shouldPromote && nativeStatus === "failed");
@@ -172,12 +176,15 @@ export default function BrowserWidget({
     loadedRef.current = false;
     setLoaded(false);
     setTimedOut(false);
-    if (knownBlocker) return;
+    // Generic pages promote to the native webview immediately (see above), so no
+    // iframe-load timeout is needed. Only the embed iframes (youtube/twitter)
+    // rely on the fallback timeout.
+    if (isGeneric) return;
     const timer = window.setTimeout(() => {
       if (!loadedRef.current) setTimedOut(true);
     }, 4_000);
     return () => window.clearTimeout(timer);
-  }, [url, reloadKey, knownBlocker]);
+  }, [url, reloadKey, isGeneric]);
 
   useEffect(() => {
     if (!shouldPromote || !contentRect) {
