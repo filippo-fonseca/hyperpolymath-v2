@@ -25,16 +25,6 @@
           "name": "open-app-url",
           "cmd": "open",
           "args": ["-a", { "validator": ".+" }, { "validator": ".+" }]
-        },
-        {
-          "name": "say-voice",
-          "cmd": "say",
-          "args": ["-v", { "validator": ".+" }, { "validator": "[\\s\\S]*" }]
-        },
-        {
-          "name": "say-plain",
-          "cmd": "say",
-          "args": [{ "validator": "[\\s\\S]*" }]
         }
       ]
     },
