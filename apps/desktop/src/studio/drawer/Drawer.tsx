@@ -38,6 +38,39 @@ const HOVER_ZONE_WIDTH = 22;
 const PANEL_WIDTH = 288;
 /** Grace period before the panel collapses after the cursor leaves it. */
 const COLLAPSE_GRACE_MS = 400;
+/** Floor for the collapsed rail's height so a jittery hand can still land on it. */
+const RAIL_MIN_HEIGHT = 128;
+/** The rail must span at least this fraction of the stage height. */
+const RAIL_STAGE_FRACTION = 0.4;
+
+/**
+ * The hand cursor drives DOM state through synthesized PointerEvents only during
+ * an active grab/click — a bare hover never dispatches pointerenter/leave (see
+ * pointer-synth.ts), so React's onPointerEnter/onPointerLeave alone only ever
+ * fire for the real OS mouse. To make hover-open work for the hand too, we poll
+ * the always-present reticle DOM node (`[data-studio-reticle]`, rendered by
+ * StudioHandReticle regardless of React context boundaries) and rect-hit-test
+ * its live position against the rail/panel — the same "more robust" approach
+ * used for hit-testing elsewhere in the hand pipeline, kept self-contained here
+ * so this file never has to reach into ../input/.
+ */
+function reticleViewportPoint(): { x: number; y: number } | null {
+  const el = document.querySelector<HTMLElement>(
+    '[data-studio-reticle][data-reticle-visible="true"]',
+  );
+  if (!el) return null;
+  const rect = el.getBoundingClientRect();
+  return { x: rect.left, y: rect.top };
+}
+
+function pointInRect(point: { x: number; y: number }, rect: DOMRect): boolean {
+  return (
+    point.x >= rect.left &&
+    point.x <= rect.right &&
+    point.y >= rect.top &&
+    point.y <= rect.bottom
+  );
+}
 
 function stageDropPosition(
   clientX: number,
@@ -158,10 +191,12 @@ export function Drawer({
 }: Props): React.ReactElement {
   const reduced = useReducedMotion();
   const rootRef = useRef<HTMLElement | null>(null);
+  const railRef = useRef<HTMLButtonElement | null>(null);
   const dragRef = useRef<DrawerDrag | null>(null);
   const suppressClick = useRef(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [drag, setDrag] = useState<DrawerDrag | null>(null);
+  const [railHeight, setRailHeight] = useState(RAIL_MIN_HEIGHT);
 
   // Hover-open with a collapse grace: the cursor (mouse OR synthetic hand
   // pointer) entering the right-edge zone opens the panel; leaving it starts a
@@ -191,6 +226,66 @@ export function Drawer({
     if (targeted) openNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targeted]);
+
+  // Size the collapsed rail to at least 40% of the stage height (floor
+  // RAIL_MIN_HEIGHT) so a jittery hand has a generously tall target to land on.
+  // Re-measures on resize; a ResizeObserver on the stage keeps it correct across
+  // window/panel resizes without polling.
+  useEffect(() => {
+    const measure = (): void => {
+      const stage = document.querySelector<HTMLElement>("[data-studio-stage]");
+      const stageHeight = stage?.getBoundingClientRect().height ?? 0;
+      setRailHeight(Math.max(RAIL_MIN_HEIGHT, stageHeight * RAIL_STAGE_FRACTION));
+    };
+    measure();
+    const stage = document.querySelector<HTMLElement>("[data-studio-stage]");
+    if (typeof ResizeObserver === "undefined" || !stage) {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+
+  // Hand-hover coverage: the synthetic hand pointer only dispatches real DOM
+  // PointerEvents during an active grab/click, never for a bare hover (the hub
+  // resolves hover purely from cursor position, with no enter/leave dispatch —
+  // see pointer-synth.ts). So onPointerEnter/onPointerLeave above only ever fire
+  // for the real OS mouse. To cover the hand too, poll the always-present
+  // reticle node's live position each frame and rect-hit-test it against the
+  // rail (collapsed) or the whole aside (expanded), driving the exact same
+  // openNow/scheduleCollapse used for the mouse so behavior (grace period,
+  // targeted-hold, reduced motion) stays identical across both input methods.
+  useEffect(() => {
+    let frame = 0;
+    let wasOver = false;
+    const tick = (): void => {
+      frame = requestAnimationFrame(tick);
+      const point = reticleViewportPoint();
+      if (!point) {
+        if (wasOver) {
+          wasOver = false;
+          scheduleCollapse();
+        }
+        return;
+      }
+      const hitRect = open
+        ? rootRef.current?.getBoundingClientRect()
+        : railRef.current?.getBoundingClientRect();
+      const over = !!hitRect && pointInRect(point, hitRect);
+      if (over && !wasOver) {
+        wasOver = true;
+        openNow();
+      } else if (!over && wasOver) {
+        wasOver = false;
+        scheduleCollapse();
+      }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const startDrag = (
     kind: WidgetKind,
@@ -285,6 +380,7 @@ export function Drawer({
       {/* Slim right-edge hover strip: the always-present collapsed affordance.
           A faint vertical cyan hairline + grip dots hint the pull-out. */}
       <button
+        ref={railRef}
         type="button"
         aria-label={open ? "Widget picker open" : "Open widget picker"}
         aria-expanded={open}
@@ -296,7 +392,7 @@ export function Drawer({
           top: "50%",
           right: 0,
           width: HOVER_ZONE_WIDTH,
-          height: 128,
+          height: railHeight,
           transform: "translateY(-50%)",
           display: "grid",
           placeItems: "center",
