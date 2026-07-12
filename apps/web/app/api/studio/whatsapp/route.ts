@@ -46,6 +46,49 @@ function toIso(value: unknown): string {
   return value instanceof Date ? value.toISOString() : String(value);
 }
 
+/** Prettify the phone number out of an individual chat JID for display:
+ *  `12036068566@s.whatsapp.net` → `+1 203 606 8566`. Best-effort grouping
+ *  (country-code + area + rest for NANP-length numbers); otherwise a single
+ *  `+<digits>` block. Non-`@s.whatsapp.net` inputs (e.g. `@lid`) fall back to
+ *  the bare digits with a leading `+`. */
+function prettifyPhoneJid(jid: string): string {
+  const local = jid.split("@")[0] ?? jid;
+  const digits = local.replace(/\D/g, "");
+  if (!digits) return jid;
+  // NANP (+1 NXX NXX XXXX): render as +1 AAA BBB CCCC.
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 ${digits.slice(1, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `+${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+  return `+${digits}`;
+}
+
+/** Resolve a human display name for a chat, NEVER leaking a raw
+ *  `@s.whatsapp.net` / `@lid` JID. Priority:
+ *   1. a synced `chatName` (group subject, or contact name the sync worker
+ *      resolved from whatsmeow_contacts),
+ *   2. a synced `senderName` for individual chats (again contact-resolved),
+ *   3. group JIDs (`@g.us`) with no subject → a generic "Group chat" label,
+ *   4. individual JIDs → the prettified phone number. */
+function resolveChatName(
+  chatJid: string,
+  chatName: string | null | undefined,
+  senderName: string | null | undefined,
+): string {
+  const trimmedChat = chatName?.trim();
+  if (trimmedChat) return trimmedChat;
+  const trimmedSender = senderName?.trim();
+  // A senderName that is itself just the raw JID is no better than the jid —
+  // reject it so we fall through to the prettified number.
+  if (trimmedSender && trimmedSender !== chatJid && !trimmedSender.includes("@")) {
+    return trimmedSender;
+  }
+  if (chatJid.endsWith("@g.us")) return "Group chat";
+  return prettifyPhoneJid(chatJid);
+}
+
 /** Chat list: latest N chats by most-recent message time, with a preview of
  *  that message and an "attention" (awaiting-reply) flag. Ordering is by recency
  *  because whatsmeow's true unread state isn't synced — see ChatListItem. */
@@ -72,7 +115,7 @@ async function chatList(userId: string): Promise<Response> {
     if (seen.has(r.chatJid)) continue;
     seen.set(r.chatJid, {
       chatJid: r.chatJid,
-      chatName: r.chatName ?? r.senderName ?? r.chatJid,
+      chatName: resolveChatName(r.chatJid, r.chatName, r.senderName),
       lastBody: r.body,
       lastFromMe: r.fromMe,
       lastAt: toIso(r.sentAt),
@@ -124,10 +167,11 @@ async function chatHistory(userId: string, chatJid: string): Promise<Response> {
     body: r.body,
     sentAt: toIso(r.sentAt),
   }));
-  const chatName =
-    ordered.find((r) => r.chatName)?.chatName ??
-    ordered.find((r) => r.senderName && !r.fromMe)?.senderName ??
-    chatJid;
+  const chatName = resolveChatName(
+    chatJid,
+    ordered.find((r) => r.chatName?.trim())?.chatName ?? null,
+    ordered.find((r) => r.senderName?.trim() && !r.fromMe)?.senderName ?? null,
+  );
 
   return Response.json({
     ok: true,
