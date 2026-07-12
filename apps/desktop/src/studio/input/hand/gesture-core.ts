@@ -155,6 +155,13 @@ export type HandGestureConfig = {
    */
   pinchReleaseGraceMs: number;
   /**
+   * Guards pinch engagement against a closing FIST false-positive (see
+   * {@link computePinchShapeValid}): at least one of middle/ring/pinky must
+   * stay at or above this tip/palm ratio for the frame to count as a pinch
+   * candidate at all, no matter how tight the thumb-index distance reads.
+   */
+  pinchMinNonPinchFingerRatio: number;
+  /**
    * Max hand-lost gap (ms) that a held pinch survives. When landmarks return
    * within this window while `pinchActive`, the reacquire-reset is skipped so the
    * drag anchor + filters live on across a single MediaPipe dropout (≤ this many
@@ -190,6 +197,25 @@ export type HandGestureConfig = {
    * Passed straight to {@link computeThumbGesture} every frame.
    */
   thumbGesture: ThumbGestureConfig;
+  /**
+   * Whole-hand openness (the same smoothed scalar that drives resize/scroll)
+   * must drop below this for a frame to count as "closed" toward palm-click,
+   * ON TOP OF all four fingers individually reading curled — belt-and-
+   * suspenders so a partially-curled hand (e.g. mid-scroll-curl) never reads
+   * as a closed fist.
+   */
+  palmClickOpennessThreshold: number;
+  /** Ms after close-START within which a reopen fires the palm-click. */
+  palmClickReopenWindowMs: number;
+  /** Ms a fist can be held before palm-click treats it as cancelled. */
+  palmClickCancelMs: number;
+  /**
+   * Ms the four-finger scroll candidate (curling, not yet a full fist) must be
+   * sustained before it actually engages. Guards against a curl-en-route-to-a-
+   * fist (the start of a palm-click) false-triggering a scroll before the palm
+   * has had a chance to fully close.
+   */
+  scrollCurlSustainMs: number;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -205,6 +231,7 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   pinchOnRatio: 0.4,
   pinchOffRatio: 0.55,
   pinchReleaseGraceMs: 150,
+  pinchMinNonPinchFingerRatio: 1.35,
   pinchLostGraceMs: 200,
   grabHoldMs: 350,
   bloomWindowMs: 150,
@@ -216,6 +243,12 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   // beta = little speed-up on fast opens. Resize should never feel jumpy.
   opennessOneEuro: { minCutoff: 0.6, beta: 0.008, dCutoff: 1.0 },
   thumbGesture: { ...DEFAULT_THUMB_GESTURE },
+  // Matches the curl band (curlThreshold) so "closed" for palm-click lines up
+  // with each finger's own curled classification.
+  palmClickOpennessThreshold: 1.35,
+  palmClickReopenWindowMs: 600,
+  palmClickCancelMs: 700,
+  scrollCurlSustainMs: 250,
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -308,6 +341,34 @@ export function computePinchRatio(landmarks: Pt[]): number {
   const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
   if (palm <= 0) return Infinity;
   return dist2d(landmarks[THUMB_TIP]!, landmarks[INDEX_TIP]!) / palm;
+}
+
+/**
+ * Guards pinch engagement against a closing FIST false-positive: a full-hand
+ * curl also collapses thumb-index distance (the thumb tucks in alongside the
+ * curling fingers), so `computePinchRatio` alone can't tell "pinching" from
+ * "making a fist" apart. A real pinch keeps middle/ring/pinky reasonably
+ * EXTENDED while only the thumb and index draw together; a fist curls all
+ * three of those in with the index. Reuses {@link computeFingerRatios}' tip/
+ * palm ratios (indices 1/2/3 = middle/ring/pinky; index 0 is the index finger,
+ * irrelevant here since the pinch itself is what draws it in) so the shape
+ * check shares the same scale/depth-invariant normalization as everything
+ * else. Returns true (pinch shape OK) whenever at least one of middle/ring/
+ * pinky is above `minNonPinchFingerRatio` — a closing fist curls ALL of them
+ * together, so requiring just one to stay extended is enough to reject it
+ * while still tolerating a natural pinch where a couple of the idle fingers
+ * relax inward.
+ */
+export function computePinchShapeValid(
+  landmarks: Pt[],
+  minNonPinchFingerRatio: number,
+): boolean {
+  const [, middle = 0, ring = 0, pinky = 0] = computeFingerRatios(landmarks);
+  return (
+    middle >= minNonPinchFingerRatio ||
+    ring >= minNonPinchFingerRatio ||
+    pinky >= minNonPinchFingerRatio
+  );
 }
 
 /** Raw apparent palm size (wrist↔middle-MCP) — a monotonic depth proxy. */
@@ -622,9 +683,14 @@ export function createHandGestureInterpreter(
     // blur degrades the thumb/index landmarks during a fast drag, is absorbed so
     // a continuously-held pinch never drops its drag anchor mid-gesture).
     const pinchRatio = computePinchRatio(landmarks);
+    // Fist guard: a closing fist also collapses thumb-index distance, so gate
+    // engagement (and continued hold) on middle/ring/pinky NOT all curling in
+    // with it — see computePinchShapeValid. A fist can never read as a pinch,
+    // no matter how tight the raw ratio.
+    const pinchShapeOk = computePinchShapeValid(landmarks, cfg.pinchMinNonPinchFingerRatio);
     if (!pinchActive) {
       unpinchSince = null;
-      const wantsEngage = pinchRatio < cfg.pinchOnRatio; // tighter on gate
+      const wantsEngage = pinchRatio < cfg.pinchOnRatio && pinchShapeOk; // tighter on gate
       if (wantsEngage) {
         if (pinchCandidate === true) {
           pinchCandidateCount += 1;
@@ -644,7 +710,10 @@ export function createHandGestureInterpreter(
     } else {
       pinchCandidate = null;
       pinchCandidateCount = 0;
-      const stillPinched = pinchRatio <= cfg.pinchOffRatio; // hold past off gate
+      // A held pinch that curls into a fist (shape check fails) releases
+      // immediately through the same grace path as a ratio pop above — a fist
+      // must never be read as a continued pinch/drag.
+      const stillPinched = pinchRatio <= cfg.pinchOffRatio && pinchShapeOk; // hold past off gate
       if (stillPinched) {
         unpinchSince = null;
       } else {
