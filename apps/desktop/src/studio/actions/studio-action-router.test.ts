@@ -48,4 +48,28 @@ describe("routeStudioAction", () => {
     routeStudioAction({ action: "open", kind: "unknown" });
     expect(getWidgetWindows()).toHaveLength(0);
   });
+
+  it("pushes focus props onto an already-open singleton instead of duplicating it", () => {
+    // First open: no focus props.
+    routeStudioAction({ action: "open", kind: "whatsapp" });
+    expect(getWidgetWindows()).toHaveLength(1);
+    const firstId = getWidgetWindows()[0]!.id;
+
+    // A whatsapp_focus_chat-style open for the SAME singleton re-navigates the
+    // live instance (props updated) rather than spawning a second widget.
+    routeStudioAction({
+      action: "open",
+      kind: "whatsapp",
+      props: { focusChatJid: "123@s.whatsapp.net", focusChatName: "Rohan", focusAt: 42 },
+    });
+
+    const windows = getWidgetWindows();
+    expect(windows).toHaveLength(1);
+    expect(windows[0]!.id).toBe(firstId);
+    expect(windows[0]!.props).toMatchObject({
+      focusChatJid: "123@s.whatsapp.net",
+      focusChatName: "Rohan",
+      focusAt: 42,
+    });
+  });
 });
