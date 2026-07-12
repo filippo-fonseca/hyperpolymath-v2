@@ -34,7 +34,10 @@ export function LifeOsInsightsWidget({
   ];
 
   return (
-    <div className="flex h-full flex-col">
+    <section aria-labelledby="lifeos-insights-title" className="flex h-full flex-col">
+      <h2 id="lifeos-insights-title" className="sr-only">
+        Insights gateway
+      </h2>
       <SectionHeader
         title="Insights gateway"
         action={
@@ -57,6 +60,6 @@ export function LifeOsInsightsWidget({
           </div>
         ))}
       </dl>
-    </div>
+    </section>
   );
 }

@@ -53,7 +53,10 @@ export function TodayTrainingWidget({ userId, initialActivities, distanceUnit, t
   const visible = activities.filter((a) => a.status !== "cancelled" && a.status !== "skipped");
 
   return (
-    <div className="flex flex-col h-full">
+    <section aria-labelledby="lifeos-training-title" className="flex flex-col h-full">
+      <h3 id="lifeos-training-title" className="sr-only">
+        Training
+      </h3>
       <SectionHeader
         title="Training"
         action={
@@ -121,6 +124,6 @@ export function TodayTrainingWidget({ userId, initialActivities, distanceUnit, t
           })}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

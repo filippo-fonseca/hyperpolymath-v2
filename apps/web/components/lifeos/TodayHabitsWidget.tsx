@@ -145,7 +145,10 @@ export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, t
   const doneCount = habits.filter((h) => isDone(h.id)).length;
 
   return (
-    <div className="flex flex-col h-full">
+    <section aria-labelledby="lifeos-habits-title" className="flex flex-col h-full">
+      <h3 id="lifeos-habits-title" className="sr-only">
+        Habits today
+      </h3>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <RingProgress done={doneCount} total={habits.length} reduced={reduced ?? false} />
@@ -212,6 +215,6 @@ export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, t
           )}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

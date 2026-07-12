@@ -31,7 +31,10 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
       };
 
   return (
-    <motion.section className="mb-10" {...animProps}>
+    <motion.section aria-labelledby="lifeos-system-map-title" className="mb-10" {...animProps}>
+      <h2 id="lifeos-system-map-title" className="sr-only">
+        System map
+      </h2>
       <SectionHeader
         title="System map"
         eyebrow

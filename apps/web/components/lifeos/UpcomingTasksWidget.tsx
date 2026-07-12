@@ -157,7 +157,10 @@ export function UpcomingTasksWidget({ userId, initialTasks, compact = false, lim
     : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
   return (
-    <div className="flex flex-col h-full">
+    <section aria-labelledby="lifeos-upcoming-tasks-title" className="flex flex-col h-full">
+      <h3 id="lifeos-upcoming-tasks-title" className="sr-only">
+        {compact ? "Upcoming" : "Upcoming tasks"}
+      </h3>
       <SectionHeader
         title={compact ? "Upcoming" : "Upcoming tasks"}
         action={
@@ -283,6 +286,6 @@ export function UpcomingTasksWidget({ userId, initialTasks, compact = false, lim
           </AnimatePresence>
         </ul>
       )}
-    </div>
+    </section>
   );
 }

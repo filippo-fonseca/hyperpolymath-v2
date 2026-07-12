@@ -42,7 +42,10 @@ export function RecentCapturesWidget({ userId, initialCaptures, availableProject
   const [convertTarget, setConvertTarget] = useState<CaptureWithLinks | null>(null);
 
   return (
-    <div className="flex flex-col h-full">
+    <section aria-labelledby="lifeos-capture-stream-title" className="flex flex-col h-full">
+      <h3 id="lifeos-capture-stream-title" className="sr-only">
+        Capture stream
+      </h3>
       <SectionHeader
         title="Capture stream"
         action={
@@ -155,6 +158,6 @@ export function RecentCapturesWidget({ userId, initialCaptures, availableProject
           availableProjects={availableProjects}
         />
       )}
-    </div>
+    </section>
   );
 }
