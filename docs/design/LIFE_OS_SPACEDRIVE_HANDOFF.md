@@ -9,7 +9,20 @@
 - Integration target is this staging branch only. Never modify or merge into `next` or `main`.
 - The original `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2` checkout is the live `next` worktree with another agent's changes. Do not work there.
 
-## Current state (updated 2026-07-12, end of Claude leg)
+## Final state (updated 2026-07-12, end of Codex leg)
+
+The three-unit graph is complete on `next-codex-spacedrive-ui`:
+
+- Unit 1 shell foundation merged at `16a43f8b`; its worktree and branch were deleted.
+- Unit 3 Tasks operations surface merged at `b1760235`; independent review passed with no critical/high/medium findings; its worktree and branch were deleted.
+- Unit 2 Life OS command center merged at `db57a65b`; independent review found two medium issues (container breakpoint and semantic headings), both fixed and re-reviewed PASS; its worktree and branch were deleted.
+- Combined staging verification: lockfile-pinned install, `pnpm --filter web typecheck`, 27/27 focused integration tests, `git diff --check`, and placeholder-`DATABASE_URL` production build all pass. Existing Wiki `::highlight()` and NFT tracing warnings remain outside this refactor's ownership.
+- The user explicitly waived the remaining signed-in browser usage ladder. Responsive, 200% zoom, theme, and authenticated visual checks are therefore recorded as not run rather than fabricated.
+- `next` and `main` remain untouched. The only integration target is this staging branch.
+
+See `.planning/phases/life-os-renaissance-integration/VERIFICATION.md`, `verification-report.json`, `verification-report-lifeos.json`, and `verification-report-tasks.json` for evidence.
+
+## Historical pickup state (Claude → Codex)
 
 **Unit 1 (`sd-shell-foundation`) is BUILT and code-verified, pending final merge.**
 The Claude leg (Fable Conductor/advisor, Opus executor) implemented it on branch
