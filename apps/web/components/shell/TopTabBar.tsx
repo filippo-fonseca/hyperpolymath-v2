@@ -235,7 +235,7 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       title={on ? "Exit split screen" : "Split screen with JARVIS"}
       className={cn(
         "agent-mode-scope inline-flex h-6 w-6 items-center justify-center rounded-md",
-        "transition-[background-color,color] duration-150 ease-out",
+        "transition-[background-color,color] [transition-duration:var(--dur-hover)] ease-out",
         on
           ? "bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)] text-[var(--hud-cyan)]"
           : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]"
@@ -277,7 +277,7 @@ function TabPill({
       className={cn(
         "group/tab relative flex items-center",
         scope,
-        "rounded-md transition-[background-color,color,box-shadow] duration-150 ease-out",
+        "rounded-md transition-[background-color,color,box-shadow] [transition-duration:var(--dur-hover)] ease-out",
         active
           ? "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]"
           : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"

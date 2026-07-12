@@ -85,7 +85,8 @@ export function AppShell({
             transition={
               reduceMotion
                 ? { duration: 0 }
-                : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
+                : // 220ms — matches --dur-panel motion budget
+                  { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
             }
             onAnimationStart={() => setSidebarAnimating(true)}
             onAnimationComplete={() => setSidebarAnimating(false)}
