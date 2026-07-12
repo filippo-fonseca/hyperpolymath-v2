@@ -96,6 +96,30 @@
         background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
       }
       body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
+      /* Voice-degraded chip: amber (the guarded/attention register), sits after
+         the status word. Hidden via the [hidden] attribute until TTS falls back
+         to the local voice; a soft pulse draws the eye without shouting. */
+      .status-line .voice-degraded {
+        display: inline-flex; align-items: center;
+        margin-left: 9px; padding: 1px 6px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+        color: var(--amber);
+        background: color-mix(in srgb, var(--amber) 12%, transparent);
+        letter-spacing: 0.1em;
+        animation: voice-degraded-pulse 2s ease-in-out infinite;
+      }
+      .status-line .voice-degraded[hidden] { display: none; }
+      .status-line .voice-degraded::before {
+        content: ""; display: inline-block;
+        width: 5px; height: 5px; border-radius: 50%;
+        margin-right: 5px; background: var(--amber);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--amber) 80%, transparent);
+      }
+      @keyframes voice-degraded-pulse {
+        0%, 100% { opacity: 0.72; }
+        50% { opacity: 1; }
+      }
 
       /* Disconnect banner — an always-visible top strip whenever the JARVIS
          server / device-token link is down, so the user never has to open
@@ -717,6 +741,15 @@
         </div>
         <div class="status-line" id="status-line">
           <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
+          <!-- Voice-degraded indicator: shown only while ElevenLabs is down and
+               JARVIS is speaking through the local fallback voice. Hidden on
+               recovery. -->
+          <span
+            class="voice-degraded"
+            id="voice-degraded"
+            hidden
+            title="ElevenLabs unavailable — using local voice"
+          >voice degraded</span>
         </div>
         <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
       </header>

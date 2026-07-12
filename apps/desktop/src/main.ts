@@ -49,6 +49,7 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
@@ -471,6 +472,29 @@ function paintTtsState(playing: boolean): void {
   idleLabel.style.display = playing ? "none" : "";
 }
 
+/**
+ * Toggle the "voice degraded" HUD chip. Shown while ElevenLabs is down and
+ * JARVIS is speaking through the local fallback voice; hidden on recovery so
+ * silence is never mysterious and a working ElevenLabs never leaves a stale
+ * warning up. The reason (key_missing / auth / transient) sharpens the tooltip.
+ */
+function paintVoiceStatus(status: VoiceStatus): void {
+  const el = document.getElementById("voice-degraded");
+  if (!el) return;
+  if (status.state === "degraded") {
+    el.hidden = false;
+    const detail =
+      status.reason === "key_missing" || status.reason === "auth"
+        ? "ElevenLabs key unavailable — using local voice"
+        : status.reason === "transient"
+          ? "ElevenLabs unreachable — using local voice"
+          : "ElevenLabs unavailable — using local voice";
+    el.setAttribute("title", detail);
+  } else {
+    el.hidden = true;
+  }
+}
+
 let _wakeRegistered = false;
 let _extendRegistered = false;
 
@@ -868,6 +892,10 @@ async function boot(): Promise<void> {
   // owned by the conversation FSM (which reads the same ttsPlayer signal).
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
+  });
+  // Voice-degraded HUD chip: reflects the ElevenLabs→local-voice fallback.
+  ttsPlayer.onVoiceStatusChange((status) => {
+    paintVoiceStatus(status);
   });
 
   onJarvisResponseStart(() => paintResponseStart());
