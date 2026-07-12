@@ -274,6 +274,37 @@ export async function postText(text: string): Promise<boolean> {
 }
 
 /**
+ * POST /api/jarvis/voice/history/clear
+ * Wipes the server-side conversation memory (jarvis_turns) for this user —
+ * the same table the voice agent reads as its 15-minute cross-turn memory.
+ * The HUD's Clear control calls this after emptying the visible transcript so
+ * a fresh conversation doesn't inherit stale turns (including curl-fired test
+ * turns). Best-effort: a failure is logged and surfaced as `false`.
+ */
+export async function clearHistory(): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/clear`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/clear] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/clear] error", err);
+    return false;
+  }
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.
