@@ -187,11 +187,18 @@ export default function BrowserWidget({
     const generation = ++nativeGeneration.current;
     setNativeStatus("creating");
     const creation = physicalWebviewBounds(contentRect)
-      .then((bounds) => createNativeWebview(id, url, bounds))
+      .then((bounds) => {
+        console.warn(
+          `[BrowserWidget] promoting ${id} url=${url} bounds`,
+          bounds,
+        );
+        return createNativeWebview(id, url, bounds);
+      })
       .then(() => {
         if (nativeGeneration.current === generation) setNativeStatus("active");
       })
-      .catch(() => {
+      .catch((error) => {
+        console.warn(`[BrowserWidget] native promotion failed ${id}:`, error);
         if (nativeGeneration.current === generation) {
           void destroyNativeWebview(id).catch(() => undefined);
           setNativeStatus("failed");
@@ -211,7 +218,8 @@ export default function BrowserWidget({
 
   useEffect(() => {
     if (nativeStatus !== "active" || !shouldPromote) return;
-    void navigateNativeWebview(id, url).catch(() => {
+    void navigateNativeWebview(id, url).catch((error) => {
+      console.warn(`[BrowserWidget] native navigate failed ${id}:`, error);
       void destroyNativeWebview(id).catch(() => undefined);
       setNativeStatus("failed");
     });
