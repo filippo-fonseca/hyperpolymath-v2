@@ -432,8 +432,8 @@ export function useHandPointerSynthesis(): void {
   });
 
   // Click intents → a press at the reticle: summon a tile, restore a chip, or
-  // click a widget button / drawer entry / news row. `tap` (index-finger jab) is
-  // the primary click; `expand` (pinch-bloom) is the legacy click, kept alongside
+  // click a widget button / drawer entry / news row. `tap` (palm close-then-
+  // open) is the primary click; `expand` (pinch-bloom) is the legacy click, kept alongside
   // it — both synthesize the same pointerdown→up→click through the widget DOM's
   // own handlers, so everything hittable responds. `confirmApprove`/`confirmCancel`
   // (thumbs-up/down) answer the send confirm gate directly. collapse/swipe drive

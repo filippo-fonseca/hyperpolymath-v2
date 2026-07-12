@@ -42,7 +42,7 @@ export type StudioIntentType =
 /**
  * What consumers receive on the intent bus. `expand` and `tap` both always carry
  * the hovered target the hub injected; a targetless one is never delivered. `tap`
- * is the primary hand click (an index-finger forward push+return); `expand` is the
+ * is the primary hand click (a palm close-then-open); `expand` is the
  * legacy pinch-bloom click, kept alongside it. `halt` is a deliberate one-shot (a
  * ~1s open-palm hold) — targetless, used by the kill-switch downstream; it passes
  * through the hub unchanged. `confirmApprove`/`confirmCancel` are the thumbs-up /

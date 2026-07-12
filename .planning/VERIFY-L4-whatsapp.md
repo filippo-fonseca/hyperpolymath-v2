@@ -85,3 +85,39 @@ tests) with a fixed `now` and timezone-independent local-time fixtures.
 2. "tell Rohan …" → confirm → widget navigates to Rohan; the just-sent line
    appears immediately as a dimmed "sending…" bubble, then firms up (real HH:MM)
    within a beat as the refetch/sync lands — no 60s wait.
+
+## reconcile + contacts names
+
+Two targeted fixes on `bgsd/studio-native`.
+
+**Fix 1 — "sending…" never resolves.** Root cause: the optimistic bubble's only
+refetch fired ~2s after send, but the sync worker copies bridge→Postgres every
+~15s, so the row wasn't present yet and nothing refetched again until the 60s
+poll. Additionally the old match was body-only (no timestamp guard). Fix: pure
+helpers in `whatsapp-conversation.ts` — `pendingMatchesSynced` (from-me,
+normalized-equal body, ±90s window for local-clock vs bridge-stamp drift),
+`isPendingReconciled`, and `RECONCILE_RETRY_MS` (~3/8/15/25/40/60s burst). The
+widget tracks a `PendingSend`, arms timed refetches, drops the bubble on match,
+and after the schedule exhausts flips to sent-unconfirmed ("· sent") rather than
+an eternal "sending…". Reconcile predicate + schedule unit-tested as pure fns.
+
+**Fix 2 — names from macOS Contacts.** New `whatsapp-contacts.ts`: reverse of
+the send-path JXA resolver. `phoneFromJid` derives the number, JXA scans
+Contacts matching on the last-10-digit tail, cached jid→{name, checkedAt}
+(persisted store, re-check ~daily), resolved async and non-blocking.
+`pickContactName` priority = Contacts > synced WhatsApp name > pretty number;
+groups keep their subject. Applied in both chat list (`ChatRow`) and
+conversation header (`useContactName`).
+
+Verification:
+- `pnpm typecheck` → clean (tsc --noEmit, exit 0).
+- `pnpm vitest run` → my 44 new widget tests pass (whatsapp-conversation 26,
+  whatsapp-contacts 18). The only failing file is `src/actions/confirm-gate.test.ts`
+  (sibling agent's uncommitted in-flight edits in the shared tree, not owned by
+  or touched by this work — confirmed by stashing: with my changes stashed the
+  confirm-gate edits still fail, and my files don't reference confirm-gate).
+- `pnpm vite build` → exit 0.
+- Live JXA lookup against real bridge numbers (read-only, from whatsapp.db;
+  numbers NOT committed): 3 individual jids resolved to the saved Contacts names
+  ("Rohan", "Emir Ahmed", and a +506 number → "Mamma"), confirming the last-10-
+  digit tail match handles varying country-code formatting.

@@ -20,10 +20,18 @@
  * The fist family stays close-only, mutually exclusive with the above:
  *   - fist + lateral palm motion → swipe (shared recognizer), latches.
  *   - fist held >= holdMs (no swipe) → `collapse`, fired once at the threshold.
+ *   - fist that reopens within ~600ms (before `collapse` would fire) → `tap`
+ *     (palm-click, the PRIMARY hand click — see `palm-click-recognizer.ts`).
+ *     `collapseFired` gates palm-click's `engaged`, so once a hold has already
+ *     fired `collapse` its eventual release can never ALSO fire a click.
  *
  * Cursor freeze — the cursor tracks the index fingertip, which curls into the
  * palm as a fist closes; so while a fist is held (or a pinch is engaged) the
- * cursor is frozen (no moves emitted) and swipe samples come from the palm centroid.
+ * cursor is frozen (no moves emitted) and swipe samples come from the palm
+ * centroid. Palm-click freezes its click-aim separately, at `lastCursor` — the
+ * last real fingertip position before the fist closed — rather than reusing
+ * the palm centroid, since a click should land where the user was POINTING,
+ * not where their palm happens to sit.
  */
 
 import {
@@ -41,9 +49,9 @@ import {
   type IndexScrollRecognizer,
 } from "../index-scroll-recognizer";
 import {
-  createTapClickRecognizer,
-  type TapClickRecognizer,
-} from "../tap-click-recognizer";
+  createPalmClickRecognizer,
+  type PalmClickRecognizer,
+} from "../palm-click-recognizer";
 import {
   createThumbConfirmRecognizer,
   type ThumbConfirmRecognizer,
@@ -503,6 +511,11 @@ export function createHandGestureInterpreter(
 
   let cursorActive = false;
   let nullSince: number | null = null;
+  // Last smoothed cursor position emitted (from `filter`, index-fingertip
+  // steering). Kept live even while the cursor is frozen (fist/pinch) so
+  // palm-click can freeze its aim at "wherever the hand was last actually
+  // aiming" rather than a fist-distorted fingertip position.
+  let lastCursor: { nx: number; ny: number } = { nx: 0.5, ny: 0.5 };
 
   // Fist-gesture tracking.
   let fistStart: number | null = null;
@@ -561,10 +574,9 @@ export function createHandGestureInterpreter(
   );
   // Index-finger scroll: a point pose over a scrollable surface, fingertip
   // velocity → wheel deltas. DEMOTED to a secondary path — the four-finger curl
-  // below is now the primary scroll. It coexists with tap-to-click (also point
-  // pose) on ORTHOGONAL axes: index-scroll watches vertical (ny) velocity, tap
-  // watches forward (z) depth, so a vertical flick scrolls without tapping and a
-  // forward jab taps without scrolling. Targetless; the hub gates it on hover.
+  // below is now the primary scroll. Palm-click (below) is a FIST gesture, not a
+  // point one, so the two never share a pose to begin with. Targetless; the hub
+  // gates it on hover.
   const indexScroll: IndexScrollRecognizer = createIndexScrollRecognizer((e) =>
     callbacks.onPhase(e),
   );
@@ -573,13 +585,20 @@ export function createHandGestureInterpreter(
   // the point pose that steers the cursor). Targetless; the hub gates it on hover.
   const fourFingerScroll: FourFingerScrollRecognizer =
     createFourFingerScrollRecognizer((e) => callbacks.onPhase(e));
-  // Tap-to-click: an index-finger forward jab that springs back. The PRIMARY hand
-  // click — emits a targetless `tap` the hub upgrades from the hovered target, so
+  // Palm-click: a fist close-then-open within ~600ms. The PRIMARY hand click —
+  // emits a targetless `tap` the hub upgrades from the hovered target, so
   // buttons / links / list rows all press through the same pointer synthesis as a
-  // pinch-bloom. Debounced against a sustained forward hold (a drag), so only a
-  // poke-and-return clicks.
-  const tapClick: TapClickRecognizer = createTapClickRecognizer((i) =>
-    callbacks.onIntent(i),
+  // pinch-bloom. Replaces the old index-jab tap: closing the whole hand is
+  // orthogonal to the index-fingertip cursor steering, so clicking never drags
+  // the cursor along with it (a jab's shared index-tip signal did). Aim freezes
+  // at close-START (see `lastCursor` below) and a fist held past `cancelMs`
+  // without reopening cancels rather than clicking.
+  const palmClick: PalmClickRecognizer = createPalmClickRecognizer(
+    (i) => callbacks.onIntent(i),
+    {
+      reopenWindowMs: cfg.palmClickReopenWindowMs,
+      cancelMs: cfg.palmClickCancelMs,
+    },
   );
   // Thumbs-up / thumbs-down confirm: a sustained (~400ms) thumb answers the send
   // confirm gate — up approves, down cancels. Targetless `confirmApprove` /
@@ -598,6 +617,7 @@ export function createHandGestureInterpreter(
     pose = "open";
     candidatePose = null;
     candidateCount = 0;
+    lastCursor = { nx: 0.5, ny: 0.5 };
     fistStart = null;
     fistOrigin = null;
     swipeFired = false;
@@ -616,7 +636,7 @@ export function createHandGestureInterpreter(
     openHandResize.reset();
     indexScroll.reset();
     fourFingerScroll.reset();
-    tapClick.reset();
+    palmClick.reset();
     thumbConfirm.reset();
   }
 
@@ -809,14 +829,25 @@ export function createHandGestureInterpreter(
       engaged: pose === "open" && !pinchActive,
     });
 
-    // Tap-to-click (PRIMARY click): an index-finger forward jab. Fed the palm-
-    // relative index-tip depth; engaged only in a point pose and not pinching, so
-    // it never fights a pinch/grab. The recognizer's dip→recover machine fires the
-    // targetless `tap` on the return stroke.
-    tapClick.push({
+    // Palm-click (PRIMARY click): a whole-hand close-then-open. `closed` is
+    // gated on BOTH the pose classifier reading "fist" (which itself requires
+    // all four fingers individually curled, via `poseFromFingers`'s hysteresis
+    // + debounce) AND the smoothed openness scalar dropping below its own
+    // threshold — belt-and-suspenders so a partial curl (e.g. mid-scroll)
+    // never reads as a click candidate. `nx/ny` come from `lastCursor` (the
+    // last real index-fingertip aim, frozen since cursor emission stops the
+    // instant pose leaves open/point) rather than the current (fist-distorted)
+    // fingertip, so the recognizer freezes the correct pre-close aim point.
+    // `engaged` also drops once `collapseFired` — a fist held long enough to
+    // already fire `collapse` must not ALSO fire a click on release, since
+    // palm-click's own cancel window (`cancelMs`) is deliberately longer than
+    // collapse's `holdMs` to give the click a full, unhurried reopen window.
+    palmClick.push({
       t: tMs,
-      depth: computeIndexTipDepth(landmarks),
-      engaged: pose === "point" && !pinchActive,
+      closed: pose === "fist" && sOpenness < cfg.palmClickOpennessThreshold,
+      nx: lastCursor.nx,
+      ny: lastCursor.ny,
+      engaged: !pinchActive && !collapseFired,
     });
 
     // Thumbs-up / thumbs-down confirm: classify the raw frame and feed the hold
@@ -871,6 +902,7 @@ export function createHandGestureInterpreter(
     if (pose === "open" || pose === "point") {
       const target = computeCursorTarget(landmarks, cfg);
       const sm = filter.filter(tMs, target.nx, target.ny);
+      lastCursor = { nx: sm.x, ny: sm.y };
       callbacks.onCursorMove(sm.x, sm.y);
     }
   }
