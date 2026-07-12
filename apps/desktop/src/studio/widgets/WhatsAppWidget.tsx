@@ -8,6 +8,7 @@ import { fetchStudioWidget } from "./widget-fetch";
 import {
   buildConversationRows,
   isPendingReconciled,
+  mergePendingForChat,
   normalizeBody,
   RECONCILE_RETRY_MS,
   type ConversationMessage,
@@ -318,7 +319,7 @@ function Conversation({
   // On each confirmed focused send, (re)arm the pending bubble + refetch burst.
   React.useEffect(() => {
     if (!isFocusedSend || !highlightBody) return;
-    setPending({ body: highlightBody, sentAt: new Date().toISOString() });
+    setPending({ jid: chatJid, body: highlightBody, sentAt: new Date().toISOString() });
     setPendingExhausted(false);
     // Immediate + scheduled out-of-band refetches so we don't wait on the 60s
     // poll and cover the sync worker's ~15s copy cadence across a few cycles.
@@ -338,32 +339,23 @@ function Conversation({
   }, [highlightNonce, chatJid]);
 
   // Drop the pending bubble the moment a matching synced row appears in a fetch.
+  // Scoped to the pending's own chat: `fetched` is THIS open chat's history, so
+  // only reconcile a pending that actually targets it (the component is reused
+  // across chats, so `pending` may still hold chat A's send while chat B is open).
   React.useEffect(() => {
-    if (pending && isPendingReconciled(pending, fetched)) {
+    if (pending && pending.jid === chatJid && isPendingReconciled(pending, fetched)) {
       setPending(null);
       setPendingExhausted(false);
     }
-  }, [fetched, pending]);
+  }, [fetched, pending, chatJid]);
 
-  // Merge the optimistic bubble into the rendered list while it's unreconciled.
-  // `pending: true` renders "sending…"; once the retry schedule exhausts we keep
-  // the bubble but mark it `unconfirmed` so it reads as sent (real timestamp,
-  // no "sending…") rather than hanging forever.
-  const messages = React.useMemo<ConversationMessage[]>(() => {
-    if (!pending) return fetched;
-    if (isPendingReconciled(pending, fetched)) return fetched;
-    return [
-      ...fetched,
-      {
-        senderName: null,
-        fromMe: true,
-        body: pending.body,
-        sentAt: pending.sentAt,
-        pending: !pendingExhausted,
-        unconfirmed: pendingExhausted,
-      },
-    ];
-  }, [fetched, pending, pendingExhausted]);
+  // Merge the optimistic bubble into the rendered list while it's unreconciled —
+  // but ONLY into the chat it targets, so a "sending…" from chat A never leaks
+  // into chat B (the Conversation component is reused, not remounted, per chat).
+  const messages = React.useMemo<ConversationMessage[]>(
+    () => mergePendingForChat(fetched, pending, chatJid, pendingExhausted),
+    [fetched, pending, chatJid, pendingExhausted],
+  );
 
   const rows = React.useMemo(() => buildConversationRows(messages), [messages]);
 

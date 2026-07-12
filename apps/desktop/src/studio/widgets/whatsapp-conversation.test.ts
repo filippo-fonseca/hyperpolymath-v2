@@ -4,6 +4,7 @@ import {
   buildConversationRows,
   dayLabel,
   isPendingReconciled,
+  mergePendingForChat,
   normalizeBody,
   pendingMatchesSynced,
   RECONCILE_RETRY_MS,
@@ -177,7 +178,7 @@ describe("normalizeBody", () => {
 
 describe("pendingMatchesSynced — reconcile predicate", () => {
   const at = (mi: number, s = 0) => localIso(2026, 6, 11, 12, mi, s);
-  const pending: PendingSend = { body: "on my way", sentAt: at(0) };
+  const pending: PendingSend = { jid: "a@s.whatsapp.net", body: "on my way", sentAt: at(0) };
 
   it("matches a from-me synced row with the same body within ±90s", () => {
     // Bridge stamp trailing the local clock by 30s — a realistic drift.
@@ -220,7 +221,11 @@ describe("pendingMatchesSynced — reconcile predicate", () => {
 });
 
 describe("isPendingReconciled", () => {
-  const pending: PendingSend = { body: "hello", sentAt: localIso(2026, 6, 11, 12, 0) };
+  const pending: PendingSend = {
+    jid: "a@s.whatsapp.net",
+    body: "hello",
+    sentAt: localIso(2026, 6, 11, 12, 0),
+  };
 
   it("is true once the synced history contains the matching from-me row", () => {
     const fetched = [
@@ -233,6 +238,55 @@ describe("isPendingReconciled", () => {
   it("is false when no synced row matches yet", () => {
     const fetched = [msg({ fromMe: false, body: "hey", sentAt: localIso(2026, 6, 11, 11, 59) })];
     expect(isPendingReconciled(pending, fetched)).toBe(false);
+  });
+});
+
+describe("mergePendingForChat — pending scoped by jid", () => {
+  const JID_A = "a@s.whatsapp.net";
+  const JID_B = "b@s.whatsapp.net";
+  const pendingA: PendingSend = {
+    jid: JID_A,
+    body: "for chat A",
+    sentAt: localIso(2026, 6, 11, 12, 0),
+  };
+  // Chat B's fetched history — deliberately empty so a leaked bubble would be
+  // trivially visible.
+  const chatBHistory: ConversationMessage[] = [
+    msg({ fromMe: false, body: "hi from B", sentAt: localIso(2026, 6, 11, 11, 59) }),
+  ];
+
+  it("does NOT render chat A's pending bubble in chat B's rows", () => {
+    const merged = mergePendingForChat(chatBHistory, pendingA, JID_B, false);
+    // No optimistic append: chat B gets its own history back, untouched.
+    expect(merged).toEqual(chatBHistory);
+    // And the built rows never carry chat A's body.
+    const bodies = messageRows(buildConversationRows(merged, NOW)).map((r) => r.message.body);
+    expect(bodies).not.toContain("for chat A");
+  });
+
+  it("renders the pending bubble in its OWN chat as 'sending…'", () => {
+    const merged = mergePendingForChat([], pendingA, JID_A, false);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      fromMe: true,
+      body: "for chat A",
+      pending: true,
+      unconfirmed: false,
+    });
+  });
+
+  it("flips the bubble to sent-unconfirmed once the retry schedule is exhausted", () => {
+    const merged = mergePendingForChat([], pendingA, JID_A, true);
+    expect(merged[0]).toMatchObject({ pending: false, unconfirmed: true });
+  });
+
+  it("drops the optimistic bubble once a matching synced row has landed", () => {
+    const synced = [msg({ fromMe: true, body: "for chat A", sentAt: localIso(2026, 6, 11, 12, 0, 8) })];
+    expect(mergePendingForChat(synced, pendingA, JID_A, false)).toEqual(synced);
+  });
+
+  it("returns the history untouched when there is no pending send", () => {
+    expect(mergePendingForChat(chatBHistory, null, JID_B, false)).toBe(chatBHistory);
   });
 });
 
