@@ -380,7 +380,7 @@ export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Prop
                 cx={v.cx}
                 cy={v.cy}
                 r="3.25"
-                fill="var(--canvas)"
+                fill="var(--deck-panel-deep)"
                 stroke={accent}
                 strokeWidth="1.5"
               />
@@ -397,7 +397,7 @@ export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Prop
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
+          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--deck-panel)]"
           style={{
             width: 72,
             height: 72,
@@ -433,7 +433,7 @@ export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Prop
             />
           ) : (
             <span
-              className="font-serif text-2xl text-[var(--ink-muted)] flex items-center justify-center"
+              className="flex items-center justify-center font-[family-name:var(--font-sans)] text-2xl text-[var(--deck-ink-dull)]"
               style={{ width: 72, height: 72 }}
             >
               {rootInitial}
@@ -573,7 +573,7 @@ function AreaBranch({
                 {area.emoji}
               </span>
             ) : null}
-            <span className="font-serif text-base font-semibold text-[var(--ink)] truncate">
+            <span className="truncate font-[family-name:var(--font-sans)] text-base font-semibold text-[var(--deck-ink)]">
               {area.name}
             </span>
           </div>
@@ -599,8 +599,8 @@ function AreaBranch({
           aria-expanded={!collapsed}
           className={cn(
             "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md",
-            "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-            "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
+            "text-[var(--deck-ink-dull)] hover:text-[var(--deck-ink)]",
+            "border border-transparent hover:border-[var(--deck-line)] hover:bg-[var(--deck-hover)]",
             "transition-colors [transition-duration:var(--dur-hover)] ease-out cursor-pointer-always",
             "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
           )}
@@ -664,7 +664,7 @@ function AreaBranch({
                     href={`/projects/${p.id}`}
                     className={cn(
                       "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-md",
-                      "font-serif text-[13px]",
+                      "font-[family-name:var(--font-sans)] text-[13px]",
                       "hover:bg-[var(--deck-hover)] transition-colors [transition-duration:var(--dur-hover)]",
                       "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
                       isArchived ? "text-[var(--ink-muted)] italic" : "text-[var(--ink)]"
@@ -718,7 +718,7 @@ function AreaBranch({
             style={{ height: STEM_DROP, background: lineColor }}
           />
           <p
-            className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
+            className="pl-7 font-[family-name:var(--font-sans)] text-[13px] italic text-[var(--deck-ink-dull)]"
             style={{ marginTop: STEM_DROP + 2 }}
           >
             No projects yet.
@@ -731,8 +731,8 @@ function AreaBranch({
 
 function EmptyAreas() {
   return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
-      <p className="font-serif italic text-base text-[var(--ink-muted)]">
+    <div className="mx-auto max-w-md rounded-md border border-dashed border-[var(--deck-line)] px-6 py-8 text-center">
+      <p className="font-[family-name:var(--font-sans)] text-base italic text-[var(--deck-ink-dull)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
     </div>

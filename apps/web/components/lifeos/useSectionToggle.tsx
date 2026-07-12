@@ -52,7 +52,7 @@ export function CollapseChevron({
       onClick={onClick}
       aria-expanded={!collapsed}
       aria-label={collapsed ? `Show ${label}` : `Hide ${label}`}
-      className="inline-flex items-center justify-center rounded-md p-1 text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer-always"
+      className="inline-flex items-center justify-center rounded-md p-1 text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] cursor-pointer-always"
     >
       <motion.span
         initial={false}

@@ -114,7 +114,7 @@ export function LifeOsHero({
       <div className="flex flex-col gap-5">
         {/* Date strap */}
         <div className="flex flex-wrap items-center gap-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--deck-ink-dull)]">
-          <span aria-hidden className="inline-block h-px w-6 bg-[var(--edge)]" />
+          <span aria-hidden className="inline-block h-px w-6 bg-[var(--deck-line)]" />
           <span>{format(now, "EEEE · MMMM d, yyyy")}</span>
           <span className="text-[var(--deck-ink-faint)]">/ COMMAND DECK</span>
         </div>

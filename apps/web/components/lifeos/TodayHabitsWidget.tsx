@@ -44,7 +44,7 @@ function RingProgress({ done, total, reduced }: { done: number; total: number; r
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke="var(--edge)"
+          stroke="var(--deck-line)"
           strokeWidth={stroke}
           fill="none"
         />
