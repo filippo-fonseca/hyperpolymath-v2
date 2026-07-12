@@ -33,9 +33,21 @@ import {
   type OneEuroConfig,
 } from "../one-euro";
 import {
+  createFourFingerScrollRecognizer,
+  type FourFingerScrollRecognizer,
+} from "../four-finger-scroll-recognizer";
+import {
   createIndexScrollRecognizer,
   type IndexScrollRecognizer,
 } from "../index-scroll-recognizer";
+import {
+  createTapClickRecognizer,
+  type TapClickRecognizer,
+} from "../tap-click-recognizer";
+import {
+  createThumbConfirmRecognizer,
+  type ThumbConfirmRecognizer,
+} from "../thumb-confirm-recognizer";
 import {
   createOpenHandResizeRecognizer,
   type OpenHandResizeRecognizer,
@@ -78,6 +90,7 @@ export const dist2d = (a: Pt, b: Pt): number => Math.hypot(a.x - b.x, a.y - b.y)
 
 // MediaPipe hand landmark indices we read.
 const WRIST = 0;
+const THUMB_MCP = 2;
 const THUMB_TIP = 4;
 const INDEX_TIP = 8;
 const MIDDLE_MCP = 9;
@@ -91,6 +104,24 @@ export const remapInset = (v: number, inset: number): number =>
   clamp01((v - inset) / (1 - 2 * inset));
 
 // ---- Config -----------------------------------------------------------------
+
+/** A thumbs gesture classification, or null when the hand is neither shape. */
+export type ThumbGesture = "thumbUp" | "thumbDown" | null;
+
+export type ThumbGestureConfig = {
+  /** Thumb extension ratio must exceed this (thumb clearly cocked out). */
+  minThumbExtension: number;
+  /** Every non-thumb finger's tip/palm ratio must be BELOW this (all curled). */
+  maxFingerRatio: number;
+  /** |thumb vertical| must exceed this so a sideways thumb is neither up nor down. */
+  minThumbVertical: number;
+};
+
+export const DEFAULT_THUMB_GESTURE: ThumbGestureConfig = {
+  minThumbExtension: 1.15,
+  maxFingerRatio: 1.35,
+  minThumbVertical: 0.35,
+};
 
 export type HandGestureConfig = {
   /** Interaction-box inset so the user needn't reach the frame edges. */
@@ -154,6 +185,11 @@ export type HandGestureConfig = {
    * smooth and unhurried, never twitchy, at the cost of a little latency.
    */
   opennessOneEuro: OneEuroConfig;
+  /**
+   * Classification thresholds for the thumbs-up / thumbs-down confirm gestures.
+   * Passed straight to {@link computeThumbGesture} every frame.
+   */
+  thumbGesture: ThumbGestureConfig;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -179,6 +215,7 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   // Heavier smoothing than the cursor: lower minCutoff = calmer at rest, tiny
   // beta = little speed-up on fast opens. Resize should never feel jumpy.
   opennessOneEuro: { minCutoff: 0.6, beta: 0.008, dCutoff: 1.0 },
+  thumbGesture: { ...DEFAULT_THUMB_GESTURE },
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -295,6 +332,74 @@ export function computeHandOpenness(landmarks: Pt[]): number {
   return sum / ratios.length;
 }
 
+/**
+ * Index-tip depth relative to the palm plane, palm-normalized — the signal the
+ * tap-click recognizer watches. MediaPipe carries a per-landmark `z` (roughly
+ * metric depth in the same scale as x, with SMALLER/more-negative = closer to the
+ * camera). Diffing the index tip's z against the middle-MCP's z cancels whole-hand
+ * distance (moving the hand nearer shifts every z together), so this isolates the
+ * index finger *poking forward* out of the palm plane. Dividing by palm size makes
+ * it scale-invariant like the other ratios. A resting point reads near 0; a
+ * forward jab drives it negative. Returns 0 for a degenerate palm.
+ */
+export function computeIndexTipDepth(landmarks: Pt[]): number {
+  const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
+  if (palm <= 0) return 0;
+  return (landmarks[INDEX_TIP]!.z - landmarks[MIDDLE_MCP]!.z) / palm;
+}
+
+// ---- Thumb geometry (for the thumbs-up / thumbs-down confirm gestures) -------
+
+/**
+ * The thumb's own extension ratio: thumb-tip↔wrist distance normalized by palm
+ * size (wrist↔middle-MCP), matching {@link computeFingerRatios}'s idiom so the
+ * value is scale/depth-invariant. A curled thumb tucked against the palm reads
+ * low; a fully cocked thumb reads high. Returns 0 for a degenerate palm.
+ */
+export function computeThumbExtension(landmarks: Pt[]): number {
+  const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
+  if (palm <= 0) return 0;
+  return dist2d(landmarks[THUMB_TIP]!, landmarks[WRIST]!) / palm;
+}
+
+/**
+ * The thumb's vertical direction in image space, normalized by palm size:
+ * (thumb-MCP.y − thumb-tip.y) / palm. MediaPipe y grows DOWNWARD, so a thumb
+ * pointing UP puts the tip above the MCP (smaller y) ⇒ POSITIVE; a thumb pointing
+ * DOWN ⇒ negative. Using the MCP (not the wrist) as the reference isolates the
+ * thumb's own aim from whole-hand tilt. Returns 0 for a degenerate palm.
+ */
+export function computeThumbVertical(landmarks: Pt[]): number {
+  const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
+  if (palm <= 0) return 0;
+  return (landmarks[THUMB_MCP]!.y - landmarks[THUMB_TIP]!.y) / palm;
+}
+
+/**
+ * Classify a raw frame as thumbs-up, thumbs-down, or neither. A thumbs gesture is
+ * a fist with ONLY the thumb extended and clearly aimed up or down:
+ *   - the four fingers (index/middle/ring/pinky) are all curled (each tip/palm
+ *     ratio below `maxFingerRatio` — the same curl band the pose classifier uses),
+ *   - the thumb is extended (`computeThumbExtension` above `minThumbExtension`),
+ *   - the thumb's vertical aim is decisive (`|computeThumbVertical|` past
+ *     `minThumbVertical`), whose SIGN picks up vs down.
+ * Pure and instantaneous: the debounce/hold that stops a passing hand from firing
+ * lives in the thumb-confirm recognizer, not here.
+ */
+export function computeThumbGesture(
+  landmarks: Pt[],
+  config: ThumbGestureConfig = DEFAULT_THUMB_GESTURE,
+): ThumbGesture {
+  const fingerRatios = computeFingerRatios(landmarks);
+  // A degenerate palm yields all-zero ratios; that also fails the thumb tests.
+  const allCurled = fingerRatios.every((r) => r > 0 && r < config.maxFingerRatio);
+  if (!allCurled) return null;
+  if (computeThumbExtension(landmarks) < config.minThumbExtension) return null;
+  const vertical = computeThumbVertical(landmarks);
+  if (Math.abs(vertical) < config.minThumbVertical) return null;
+  return vertical > 0 ? "thumbUp" : "thumbDown";
+}
+
 // ---- Interpreter ------------------------------------------------------------
 
 export type HandGestureCallbacks = {
@@ -394,9 +499,33 @@ export function createHandGestureInterpreter(
     (e) => callbacks.onPhase(e),
   );
   // Index-finger scroll: a point pose over a scrollable surface, fingertip
-  // velocity → wheel deltas. Also targetless; the hub gates it on hover.
+  // velocity → wheel deltas. DEMOTED to a secondary path — the four-finger curl
+  // below is now the primary scroll. It coexists with tap-to-click (also point
+  // pose) on ORTHOGONAL axes: index-scroll watches vertical (ny) velocity, tap
+  // watches forward (z) depth, so a vertical flick scrolls without tapping and a
+  // forward jab taps without scrolling. Targetless; the hub gates it on hover.
   const indexScroll: IndexScrollRecognizer = createIndexScrollRecognizer((e) =>
     callbacks.onPhase(e),
+  );
+  // Four-finger-curl scroll: an open palm whose fingers curl/uncurl together, the
+  // openness velocity → wheel deltas. The PRIMARY scroll gesture (orthogonal to
+  // the point pose that steers the cursor). Targetless; the hub gates it on hover.
+  const fourFingerScroll: FourFingerScrollRecognizer =
+    createFourFingerScrollRecognizer((e) => callbacks.onPhase(e));
+  // Tap-to-click: an index-finger forward jab that springs back. The PRIMARY hand
+  // click — emits a targetless `tap` the hub upgrades from the hovered target, so
+  // buttons / links / list rows all press through the same pointer synthesis as a
+  // pinch-bloom. Debounced against a sustained forward hold (a drag), so only a
+  // poke-and-return clicks.
+  const tapClick: TapClickRecognizer = createTapClickRecognizer((i) =>
+    callbacks.onIntent(i),
+  );
+  // Thumbs-up / thumbs-down confirm: a sustained (~400ms) thumb answers the send
+  // confirm gate — up approves, down cancels. Targetless `confirmApprove` /
+  // `confirmCancel` intents; the confirm gate (downstream) decides whether a
+  // pending send exists to answer. The hold guards against a passing hand firing.
+  const thumbConfirm: ThumbConfirmRecognizer = createThumbConfirmRecognizer((i) =>
+    callbacks.onIntent(i),
   );
 
   function resetTransient(): void {
@@ -425,6 +554,9 @@ export function createHandGestureInterpreter(
     pinchBloom.reset();
     openHandResize.reset();
     indexScroll.reset();
+    fourFingerScroll.reset();
+    tapClick.reset();
+    thumbConfirm.reset();
   }
 
   function push(tMs: number, landmarks: Pt[] | null): void {
@@ -594,6 +726,37 @@ export function createHandGestureInterpreter(
       t: tMs,
       ny: scrollTarget.ny,
       engaged: pose === "point" && !pinchActive,
+    });
+
+    // Four-finger-curl scroll (PRIMARY): an open palm whose fingers curl/uncurl
+    // together drives the scroll. Reuses the same smoothed openness signal as
+    // resize; the two separate by dynamics — a fast curl trips scroll's velocity
+    // deadband before resize's 300ms arm dwell completes, while a slow, steady
+    // open-hand hold arms a resize without ever crossing scroll's velocity gate.
+    // Targetless; the hub gates it on hover.
+    fourFingerScroll.push({
+      t: tMs,
+      openness: sOpenness,
+      engaged: pose === "open" && !pinchActive,
+    });
+
+    // Tap-to-click (PRIMARY click): an index-finger forward jab. Fed the palm-
+    // relative index-tip depth; engaged only in a point pose and not pinching, so
+    // it never fights a pinch/grab. The recognizer's dip→recover machine fires the
+    // targetless `tap` on the return stroke.
+    tapClick.push({
+      t: tMs,
+      depth: computeIndexTipDepth(landmarks),
+      engaged: pose === "point" && !pinchActive,
+    });
+
+    // Thumbs-up / thumbs-down confirm: classify the raw frame and feed the hold
+    // machine. Runs every frame (a thumb reads as a fist by count, so it is fed
+    // independent of `pose`); the recognizer's ~400ms dwell is what actually fires.
+    // Gated OFF while pinching so a pinch can never masquerade as a thumb.
+    thumbConfirm.push({
+      t: tMs,
+      gesture: pinchActive ? null : computeThumbGesture(landmarks, cfg.thumbGesture),
     });
 
     if (pinchActive) {
