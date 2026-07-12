@@ -101,3 +101,24 @@ pub fn studio_webview_navigate(app: AppHandle, label: String, url: String) -> Re
         .navigate(external_url(&url)?)
         .map_err(|error| error.to_string())
 }
+
+/// Scroll a promoted child webview by an in-page pixel delta. The native child
+/// webview is a separate OS webview NOT in the host DOM, so a synthesized
+/// `WheelEvent` from the hand pointer-synth can never reach it — the only way in
+/// is to run script inside it. `dx`/`dy` are logical (CSS) pixels, matching the
+/// `window.scrollBy` contract the caller batches per animation frame. Non-finite
+/// deltas are rejected so a landmark pop can't inject `NaN` into the page.
+#[tauri::command]
+pub fn studio_webview_scroll(
+    app: AppHandle,
+    label: String,
+    dx: f64,
+    dy: f64,
+) -> Result<(), String> {
+    if !dx.is_finite() || !dy.is_finite() {
+        return Err("scroll deltas must be finite".to_string());
+    }
+    webview(&app, &label)?
+        .eval(format!("window.scrollBy({dx}, {dy});"))
+        .map_err(|error| error.to_string())
+}
