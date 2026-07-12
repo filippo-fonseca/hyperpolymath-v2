@@ -45,7 +45,7 @@ const child = {
  *                   │ bottom  │
  *                   └─────────┘
  *
- * Hero spans 2 columns × 2 rows on lg+, so the most action-dense tile (tasks)
+ * Hero spans 2 columns × 2 rows on @3xl/main+, so the most action-dense tile (tasks)
  * gets the most visual weight. topRight + midRight share the right column.
  * Bottom spans full width — captures read well as a wide stream.
  */
@@ -54,36 +54,39 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
   const [collapsed, toggle] = usePersistedCollapse("lifeos:widgets:collapsed");
 
   const grid = reduced ? (
-    <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(180px,auto)]">
-      <div className="min-w-0 lg:col-span-8 lg:row-span-2">{hero}</div>
-      <div className="min-w-0 lg:col-span-4">{topRight}</div>
-      <div className="min-w-0 lg:col-span-4">{midRight}</div>
-      <div className="min-w-0 lg:col-span-12">{bottom}</div>
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 @3xl/main:grid-cols-12 @3xl/main:auto-rows-[minmax(180px,auto)]">
+      <div className="min-w-0 @3xl/main:col-span-8 @3xl/main:row-span-2">{hero}</div>
+      <div className="min-w-0 @3xl/main:col-span-4">{topRight}</div>
+      <div className="min-w-0 @3xl/main:col-span-4">{midRight}</div>
+      <div className="min-w-0 @3xl/main:col-span-12">{bottom}</div>
     </div>
   ) : (
     <motion.div
-      className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(180px,auto)]"
+      className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 @3xl/main:grid-cols-12 @3xl/main:auto-rows-[minmax(180px,auto)]"
       variants={container}
       initial="hidden"
       animate="show"
     >
-      <motion.div variants={child} className="min-w-0 lg:col-span-8 lg:row-span-2">
+      <motion.div variants={child} className="min-w-0 @3xl/main:col-span-8 @3xl/main:row-span-2">
         {hero}
       </motion.div>
-      <motion.div variants={child} className="min-w-0 lg:col-span-4">
+      <motion.div variants={child} className="min-w-0 @3xl/main:col-span-4">
         {topRight}
       </motion.div>
-      <motion.div variants={child} className="min-w-0 lg:col-span-4">
+      <motion.div variants={child} className="min-w-0 @3xl/main:col-span-4">
         {midRight}
       </motion.div>
-      <motion.div variants={child} className="min-w-0 lg:col-span-12">
+      <motion.div variants={child} className="min-w-0 @3xl/main:col-span-12">
         {bottom}
       </motion.div>
     </motion.div>
   );
 
   return (
-    <section className="mb-10">
+    <section aria-labelledby="lifeos-today-work-title" className="mb-10">
+      <h2 id="lifeos-today-work-title" className="sr-only">
+        Today / work
+      </h2>
       <SectionHeader
         title="Today / work"
         eyebrow
