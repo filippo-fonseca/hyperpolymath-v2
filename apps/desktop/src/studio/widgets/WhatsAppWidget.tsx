@@ -7,9 +7,14 @@ import type { WidgetContentProps } from "../windows/catalog";
 import { fetchStudioWidget } from "./widget-fetch";
 import {
   buildConversationRows,
+  isPendingReconciled,
+  normalizeBody,
+  RECONCILE_RETRY_MS,
   type ConversationMessage,
   type MessageRow,
+  type PendingSend,
 } from "./whatsapp-conversation";
+import { pickContactName, resolveContactName } from "./whatsapp-contacts";
 
 // MAJOR-5 — Widget is refetched every ACTIVE_POLL_MS while the HUD is
 // visible. When `document.hidden` (HUD stowed, workspace switch, machine
@@ -86,8 +91,23 @@ function timeLabel(iso: string): string {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function normalizeBody(s: string | null | undefined): string {
-  return (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+/** Resolve a chat's macOS Contacts name asynchronously (cached; never blocks
+ *  render). Returns null until (and unless) a name lands, so callers compose it
+ *  through pickContactName(contactsName, syncedName, fallback). Groups and
+ *  numberless chats resolve to null and keep their synced label. */
+function useContactName(jid: string): string | null {
+  const [name, setName] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    setName(null);
+    void resolveContactName(jid).then((n) => {
+      if (!cancelled) setName(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [jid]);
+  return name;
 }
 
 const uppercaseLabel: React.CSSProperties = {
@@ -160,66 +180,82 @@ function ChatList({
       ) : null}
       <div style={{ display: "grid", gap: 6 }}>
         {chats.map((chat) => (
-          <button
-            key={chat.chatJid}
-            type="button"
-            onClick={() => onOpenChat(chat.chatJid, chat.chatName)}
-            style={{
-              display: "block",
-              width: "100%",
-              minHeight: MIN_TARGET_PX,
-              padding: 8,
-              textAlign: "left",
-              border: `1px solid ${chat.attention ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
-              borderRadius: 6,
-              color: STUDIO_COLORS.text,
-              background: chat.attention
-                ? `color-mix(in srgb, ${STUDIO_COLORS.accent} 6%, transparent)`
-                : "transparent",
-              cursor: "pointer",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {chat.chatName}
-              </span>
-              <time
-                style={{
-                  flexShrink: 0,
-                  color: STUDIO_COLORS.muted,
-                  fontFamily: STUDIO_MONO,
-                  fontSize: 9,
-                }}
-              >
-                {timeLabel(chat.lastAt)}
-              </time>
-            </div>
-            <p
-              style={{
-                margin: "4px 0 0",
-                overflow: "hidden",
-                color: STUDIO_COLORS.muted,
-                fontSize: 11,
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {chat.lastFromMe ? "You: " : ""}
-              {chat.lastBody ?? "Media message"}
-            </p>
-          </button>
+          <ChatRow key={chat.chatJid} chat={chat} onOpenChat={onOpenChat} />
         ))}
       </div>
     </div>
+  );
+}
+
+/** One chat-list row. The display name resolves the user's macOS Contacts name
+ *  (via useContactName) over the synced WhatsApp name / pretty number, updating
+ *  asynchronously as the lookup lands — the row renders immediately regardless. */
+function ChatRow({
+  chat,
+  onOpenChat,
+}: {
+  chat: ChatListItem;
+  onOpenChat: (jid: string, name: string) => void;
+}): React.ReactElement {
+  const contactsName = useContactName(chat.chatJid);
+  const displayName = pickContactName(contactsName, chat.chatName, chat.chatName);
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenChat(chat.chatJid, displayName)}
+      style={{
+        display: "block",
+        width: "100%",
+        minHeight: MIN_TARGET_PX,
+        padding: 8,
+        textAlign: "left",
+        border: `1px solid ${chat.attention ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
+        borderRadius: 6,
+        color: STUDIO_COLORS.text,
+        background: chat.attention
+          ? `color-mix(in srgb, ${STUDIO_COLORS.accent} 6%, transparent)`
+          : "transparent",
+        cursor: "pointer",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {displayName}
+        </span>
+        <time
+          style={{
+            flexShrink: 0,
+            color: STUDIO_COLORS.muted,
+            fontFamily: STUDIO_MONO,
+            fontSize: 9,
+          }}
+        >
+          {timeLabel(chat.lastAt)}
+        </time>
+      </div>
+      <p
+        style={{
+          margin: "4px 0 0",
+          overflow: "hidden",
+          color: STUDIO_COLORS.muted,
+          fontSize: 11,
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {chat.lastFromMe ? "You: " : ""}
+        {chat.lastBody ?? "Media message"}
+      </p>
+    </button>
   );
 }
 
@@ -258,50 +294,83 @@ function Conversation({
     [data?.messages],
   );
 
-  // INSTANT FRESHNESS. The real ~1-minute lag was the 60s widget poll: even
-  // once the sync worker had copied a just-sent message into Postgres, the view
-  // wouldn't refetch until the next interval tick. When a send receipt lands on
-  // THIS open chat (focusAt bumps), force an immediate refetch so the synced
-  // message shows within a poll-independent beat, and OPTIMISTICALLY append the
-  // just-sent line (marked pending) so it's visible instantly — reconciled away
-  // once the real fetch returns it.
+  // INSTANT FRESHNESS + RECONCILE. The real ~1-minute lag was two things: the
+  // 60s widget poll, AND that the sync worker only copies bridge→Postgres every
+  // ~15s, so an immediate refetch fires before the just-sent row exists and,
+  // previously, NOTHING refetched again until the 60s tick — so the optimistic
+  // "sending…" bubble sat there forever. Fix: on a confirmed send (focusAt
+  // bumps), record a PendingSend and schedule a burst of short refetches
+  // (RECONCILE_RETRY_MS: ~3/8/15/25/40/60s) until a matching synced row lands.
+  // The pending bubble reconciles against synced rows via pendingMatchesSynced
+  // (from-me, normalized-equal body, ±90s window — timestamps differ between the
+  // local clock and the bridge stamp). Once matched, the bubble is dropped for
+  // the real row. If the schedule exhausts without a match (~60s), the bubble
+  // flips to sent-unconfirmed rather than an eternal "sending…".
   // A focused send targets THIS chat: highlightBody is only ever passed for the
   // focused jid, and highlightNonce (focusAt) bumps on each confirmed send.
   const isFocusedSend = !!highlightBody && (highlightNonce ?? 0) > 0;
 
+  // The optimistic just-sent message we're tracking to reconciliation, plus
+  // whether the retry schedule has exhausted (→ show as sent-unconfirmed).
+  const [pending, setPending] = React.useState<PendingSend | null>(null);
+  const [pendingExhausted, setPendingExhausted] = React.useState(false);
+
+  // On each confirmed focused send, (re)arm the pending bubble + refetch burst.
   React.useEffect(() => {
-    if (!isFocusedSend) return;
-    // Kick an out-of-band refetch of this chat so we don't wait on the 60s poll.
+    if (!isFocusedSend || !highlightBody) return;
+    setPending({ body: highlightBody, sentAt: new Date().toISOString() });
+    setPendingExhausted(false);
+    // Immediate + scheduled out-of-band refetches so we don't wait on the 60s
+    // poll and cover the sync worker's ~15s copy cadence across a few cycles.
     void queryClient.invalidateQueries({ queryKey });
+    const timers = RECONCILE_RETRY_MS.map((delay, i) =>
+      setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey });
+        // After the final scheduled refetch, mark the schedule exhausted so an
+        // as-yet-unreconciled bubble flips to sent-unconfirmed.
+        if (i === RECONCILE_RETRY_MS.length - 1) setPendingExhausted(true);
+      }, delay),
+    );
+    return () => {
+      for (const t of timers) clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightNonce, chatJid]);
 
-  // Merge in an optimistic pending bubble for the just-sent message when the
-  // fetched history doesn't yet contain it (sync worker hasn't caught up). It's
-  // dropped automatically once a fetched row with the same normalized body from
-  // me appears.
+  // Drop the pending bubble the moment a matching synced row appears in a fetch.
+  React.useEffect(() => {
+    if (pending && isPendingReconciled(pending, fetched)) {
+      setPending(null);
+      setPendingExhausted(false);
+    }
+  }, [fetched, pending]);
+
+  // Merge the optimistic bubble into the rendered list while it's unreconciled.
+  // `pending: true` renders "sending…"; once the retry schedule exhausts we keep
+  // the bubble but mark it `unconfirmed` so it reads as sent (real timestamp,
+  // no "sending…") rather than hanging forever.
   const messages = React.useMemo<ConversationMessage[]>(() => {
-    if (!isFocusedSend || !highlightBody) return fetched;
-    const target = normalizeBody(highlightBody);
-    if (!target) return fetched;
-    const alreadySynced = fetched.some(
-      (m) => m.fromMe && normalizeBody(m.body) === target,
-    );
-    if (alreadySynced) return fetched;
+    if (!pending) return fetched;
+    if (isPendingReconciled(pending, fetched)) return fetched;
     return [
       ...fetched,
       {
         senderName: null,
         fromMe: true,
-        body: highlightBody,
-        sentAt: new Date().toISOString(),
-        pending: true,
+        body: pending.body,
+        sentAt: pending.sentAt,
+        pending: !pendingExhausted,
+        unconfirmed: pendingExhausted,
       },
     ];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetched, highlightBody, highlightNonce]);
+  }, [fetched, pending, pendingExhausted]);
 
   const rows = React.useMemo(() => buildConversationRows(messages), [messages]);
+
+  // Header name: macOS Contacts name over the route's resolved name / fallback.
+  const contactsName = useContactName(chatJid);
+  const routeName = data?.chatName ?? chatName;
+  const headerName = pickContactName(contactsName, routeName, routeName);
 
   // The key of the message row to pulse-highlight: the LAST message whose body
   // matches the just-sent text (newest wins, incl. the pending bubble).
@@ -367,7 +436,7 @@ function Conversation({
             whiteSpace: "nowrap",
           }}
         >
-          {data?.chatName ?? chatName}
+          {headerName}
         </span>
       </div>
 
@@ -448,6 +517,10 @@ function MessageBubble({
 
   const mine = message.fromMe;
   const pending = message.pending === true;
+  // Sent, but not yet proven present in the synced history (reconcile retries
+  // exhausted). Shown as a normal sent bubble — real timestamp, full opacity —
+  // so it never hangs on "sending…" when the message actually went through.
+  const unconfirmed = message.unconfirmed === true;
   // Tighter clustering: consecutive same-sender bubbles hug; new clusters get
   // more top gap. Only the last bubble of a run rounds its "tail" corner fully.
   const tailCorner = mine ? "borderBottomRightRadius" : "borderBottomLeftRadius";
@@ -506,7 +579,11 @@ function MessageBubble({
             textAlign: "right",
           }}
         >
-          {pending ? "sending…" : timeLabel(message.sentAt)}
+          {pending
+            ? "sending…"
+            : unconfirmed
+              ? `${timeLabel(message.sentAt)} · sent`
+              : timeLabel(message.sentAt)}
         </time>
       </div>
     </div>
