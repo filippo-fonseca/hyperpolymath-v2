@@ -224,6 +224,16 @@ export type HandGestureConfig = {
    * has had a chance to fully close.
    */
   scrollCurlSustainMs: number;
+  /**
+   * Openness at/above which the hand reads as "held open" rather than curling —
+   * the UPPER edge of the four-finger scroll candidate band. Scroll only becomes
+   * a candidate once openness dips below this (an active curl) AND stays at/above
+   * `palmClickOpennessThreshold` (not yet closed); a held-open hand is not a
+   * candidate, so it neither scrolls on its own nor lets the fast curl of a
+   * palm-click leak a delta before the sustain dwell can reject it. Camera-tunable
+   * (sits between the closed band ~1.35 and a fully open hand ~1.7-2.1).
+   */
+  scrollArmOpennessCeil: number;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -257,6 +267,7 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   palmClickReopenWindowMs: 600,
   palmClickCancelMs: 700,
   scrollCurlSustainMs: 250,
+  scrollArmOpennessCeil: 1.6,
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -402,19 +413,102 @@ export function computeHandOpenness(landmarks: Pt[]): number {
 }
 
 /**
- * Index-tip depth relative to the palm plane, palm-normalized — the signal the
- * tap-click recognizer watches. MediaPipe carries a per-landmark `z` (roughly
- * metric depth in the same scale as x, with SMALLER/more-negative = closer to the
- * camera). Diffing the index tip's z against the middle-MCP's z cancels whole-hand
- * distance (moving the hand nearer shifts every z together), so this isolates the
- * index finger *poking forward* out of the palm plane. Dividing by palm size makes
- * it scale-invariant like the other ratios. A resting point reads near 0; a
- * forward jab drives it negative. Returns 0 for a degenerate palm.
+ * Index-tip depth relative to the palm plane, palm-normalized. This was the
+ * signal the retired index-jab tap-click watched; palm-click (a whole-hand
+ * close-then-open) is now the sole `tap` source, because a jab's driving signal
+ * rides the SAME index finger that steers the cursor, so jabbing dragged the
+ * aim along with it. The helper is KEPT (shared geometry, still exercised by
+ * tests) but is no longer wired to any recognizer.
+ *
+ * MediaPipe carries a per-landmark `z` (roughly metric depth in the same scale
+ * as x, with SMALLER/more-negative = closer to the camera). Diffing the index
+ * tip's z against the middle-MCP's z cancels whole-hand distance (moving the
+ * hand nearer shifts every z together), so this isolates the index finger
+ * *poking forward* out of the palm plane. Dividing by palm size makes it
+ * scale-invariant like the other ratios. A resting point reads near 0; a forward
+ * jab drives it negative. Returns 0 for a degenerate palm.
  */
 export function computeIndexTipDepth(landmarks: Pt[]): number {
   const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
   if (palm <= 0) return 0;
   return (landmarks[INDEX_TIP]!.z - landmarks[MIDDLE_MCP]!.z) / palm;
+}
+
+// ---- Click-vs-continuous gates (palm-click coexistence) ---------------------
+
+/** Per-frame state a scroll-curl gate needs to decide four-finger engagement. */
+export type ScrollCurlGateConfig = {
+  /** Continuous ms the curl candidate must hold before scroll actually engages. */
+  sustainMs: number;
+  /** Openness at/above which the hand is "held open" (NOT a scroll candidate). */
+  armOpennessCeil: number;
+  /** Openness below which the hand is closing toward a palm-click (abort). */
+  closedOpenness: number;
+};
+
+export type ScrollCurlGate = {
+  /**
+   * @param t         frame time (ms)
+   * @param openPose  the hand is an open pose, not pinching (the caller's own gate)
+   * @param openness  smoothed whole-hand openness scalar this frame
+   * @returns whether four-finger scroll may engage this frame
+   */
+  push(t: number, openPose: boolean, openness: number): boolean;
+  reset(): void;
+};
+
+/**
+ * Dwell gate that decouples a four-finger scroll-curl from a palm-click's fast
+ * close. Scroll is a CANDIDATE only while the hand is actively curling — an open
+ * pose whose openness has dipped below `armOpennessCeil` (so a held-open hand is
+ * never a candidate) but is still at/above `closedOpenness` (so a fully closed
+ * fist aborts it). Scroll then ENGAGES only once that candidate has held
+ * continuously for `sustainMs`; any frame that breaks the candidate resets the
+ * clock. A palm-click drives openness from open → closed within its ~600ms
+ * round trip, far faster than `sustainMs`, so the candidate never survives long
+ * enough to engage: a close-open click yields ZERO scroll deltas. Because the
+ * scroll recognizer re-anchors its openness on the engage edge, the curl consumed
+ * by the sustain dwell emits nothing — scroll starts clean once armed.
+ */
+export function createScrollCurlGate(cfg: ScrollCurlGateConfig): ScrollCurlGate {
+  let since: number | null = null;
+  return {
+    push(t: number, openPose: boolean, openness: number): boolean {
+      const candidate =
+        openPose && openness < cfg.armOpennessCeil && openness >= cfg.closedOpenness;
+      if (!candidate) {
+        since = null;
+        return false;
+      }
+      if (since === null) {
+        since = t;
+        return false;
+      }
+      return t - since >= cfg.sustainMs;
+    },
+    reset(): void {
+      since = null;
+    },
+  };
+}
+
+/**
+ * Whether the open-hand resize may be engaged this frame. Beyond the caller's own
+ * "open pose, not pinching" gate, resize DISARMS (a) while a palm-click candidate
+ * is in flight — the closing fist would otherwise read as a fast shrink and
+ * fling the widget down as the user actually meant to click — and (b) once the
+ * hand curls into the closed band, catching the pre-fist ramp the discrete
+ * click-state can't see yet. A normal resize-shrink stays well above
+ * `closedOpenness`, so this never fights a deliberate shrink.
+ */
+export function resizeEngageAllowed(
+  openPose: boolean,
+  pinching: boolean,
+  clickClosing: boolean,
+  openness: number,
+  closedOpenness: number,
+): boolean {
+  return openPose && !pinching && !clickClosing && openness >= closedOpenness;
 }
 
 // ---- Thumb geometry (for the thumbs-up / thumbs-down confirm gestures) -------
@@ -534,6 +628,17 @@ export function createHandGestureInterpreter(
   // been sustained `pinchReleaseGraceMs`.
   let unpinchSince: number | null = null;
 
+  // Four-finger-curl scroll dwell gate: keeps a curl en route to a fist (the
+  // start of a palm-click) from false-triggering a scroll before the palm has
+  // had a chance to finish closing. Scroll engages only after ~250ms of a
+  // sustained curl that never fully closes; a <600ms close-open click yields
+  // zero scroll deltas. See `createScrollCurlGate`.
+  const scrollCurlGate = createScrollCurlGate({
+    sustainMs: cfg.scrollCurlSustainMs,
+    armOpennessCeil: cfg.scrollArmOpennessCeil,
+    closedOpenness: cfg.palmClickOpennessThreshold,
+  });
+
   const swipe: SwipeRecognizer = createSwipeRecognizer((dir) => {
     swipeFired = true;
     callbacks.onIntent({ type: dir });
@@ -636,6 +741,7 @@ export function createHandGestureInterpreter(
     openHandResize.reset();
     indexScroll.reset();
     fourFingerScroll.reset();
+    scrollCurlGate.reset();
     palmClick.reset();
     thumbConfirm.reset();
   }
@@ -805,10 +911,20 @@ export function createHandGestureInterpreter(
     // lifecycle over empty space, so "resize/scroll only over a widget" falls out
     // of the same hover gate that grab already uses.
     const sOpenness = opennessFilter.filter(tMs, computeHandOpenness(landmarks));
+    // Resize disarms while a palm-click is in flight (this reads last frame's
+    // palm-click state — it runs before palmClick.push below — which is fine for a
+    // multi-frame candidate) and once the hand curls into the closed band, so the
+    // fist of a click never reads as a shrink.
     openHandResize.push({
       t: tMs,
       openness: sOpenness,
-      engaged: pose === "open" && !pinchActive,
+      engaged: resizeEngageAllowed(
+        pose === "open",
+        pinchActive,
+        palmClick.state === "closing",
+        sOpenness,
+        cfg.palmClickOpennessThreshold,
+      ),
     });
     const scrollTarget = computeCursorTarget(landmarks, cfg);
     indexScroll.push({
@@ -822,11 +938,14 @@ export function createHandGestureInterpreter(
     // resize; the two separate by dynamics — a fast curl trips scroll's velocity
     // deadband before resize's 300ms arm dwell completes, while a slow, steady
     // open-hand hold arms a resize without ever crossing scroll's velocity gate.
-    // Targetless; the hub gates it on hover.
+    // The scroll-curl dwell gate (createScrollCurlGate) sits in front of engage:
+    // scroll arms only after ~250ms of a sustained curl that never fully closes,
+    // so the fast close of a palm-click never leaks a scroll delta. Targetless;
+    // the hub gates it on hover.
     fourFingerScroll.push({
       t: tMs,
       openness: sOpenness,
-      engaged: pose === "open" && !pinchActive,
+      engaged: scrollCurlGate.push(tMs, pose === "open" && !pinchActive, sOpenness),
     });
 
     // Palm-click (PRIMARY click): a whole-hand close-then-open. `closed` is
