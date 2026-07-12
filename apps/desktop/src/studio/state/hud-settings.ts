@@ -24,11 +24,21 @@ export interface HudSettings {
   backgroundEnabled: boolean;
   /** Motion override; `system` defers to `prefers-reduced-motion`. */
   motionMode: MotionMode;
+  /** Master toggle for incoming-message notifications (toast near the orb +
+   *  auto-open the relevant widget). Default ON. When off, the watcher stops
+   *  announcing entirely. */
+  messageNotificationsEnabled: boolean;
+  /** When ON, an announced message is ALSO spoken aloud through the TTS
+   *  pipeline. Layered on top of the master toggle (no effect when
+   *  notifications are off). Default OFF — the toast is quiet by default. */
+  messageAutoReadEnabled: boolean;
 }
 
 const DEFAULTS: HudSettings = {
   backgroundEnabled: true,
   motionMode: "system",
+  messageNotificationsEnabled: true,
+  messageAutoReadEnabled: false,
 };
 
 let state: HudSettings = DEFAULTS;
@@ -69,6 +79,14 @@ export function hydrateHudSettings(): void {
         value.motionMode === "system"
           ? value.motionMode
           : DEFAULTS.motionMode,
+      messageNotificationsEnabled:
+        typeof value.messageNotificationsEnabled === "boolean"
+          ? value.messageNotificationsEnabled
+          : DEFAULTS.messageNotificationsEnabled,
+      messageAutoReadEnabled:
+        typeof value.messageAutoReadEnabled === "boolean"
+          ? value.messageAutoReadEnabled
+          : DEFAULTS.messageAutoReadEnabled,
     };
     emit();
   } catch {
@@ -97,6 +115,20 @@ export function setBackgroundEnabled(enabled: boolean): void {
 export function setMotionMode(mode: MotionMode): void {
   if (state.motionMode === mode) return;
   state = { ...state, motionMode: mode };
+  persist();
+  emit();
+}
+
+export function setMessageNotificationsEnabled(enabled: boolean): void {
+  if (state.messageNotificationsEnabled === enabled) return;
+  state = { ...state, messageNotificationsEnabled: enabled };
+  persist();
+  emit();
+}
+
+export function setMessageAutoReadEnabled(enabled: boolean): void {
+  if (state.messageAutoReadEnabled === enabled) return;
+  state = { ...state, messageAutoReadEnabled: enabled };
   persist();
   emit();
 }

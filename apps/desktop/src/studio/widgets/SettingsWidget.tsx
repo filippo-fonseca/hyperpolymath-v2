@@ -16,6 +16,8 @@ import { setHandEnabled, useHandTracking } from "../input/hand-status";
 import {
   hydrateHudSettings,
   setBackgroundEnabled,
+  setMessageAutoReadEnabled,
+  setMessageNotificationsEnabled,
   setMotionMode,
   useHudSettings,
   type MotionMode,
@@ -177,7 +179,12 @@ function useTtsInfo(): { enabled: boolean; voiceId: string } | null {
 
 export default function SettingsWidget(): React.ReactElement {
   const { enabled: handEnabled } = useHandTracking();
-  const { backgroundEnabled, motionMode } = useHudSettings();
+  const {
+    backgroundEnabled,
+    motionMode,
+    messageNotificationsEnabled,
+    messageAutoReadEnabled,
+  } = useHudSettings();
   const tts = useTtsInfo();
 
   useEffect(() => {
@@ -234,6 +241,30 @@ export default function SettingsWidget(): React.ReactElement {
           <p style={hintStyle}>Override the system reduced-motion preference</p>
         </div>
         <MotionSegments value={motionMode} onChange={setMotionMode} />
+      </div>
+
+      <div style={rowStyle}>
+        <div style={{ minWidth: 0 }}>
+          <p style={labelStyle}>Message notifications</p>
+          <p style={hintStyle}>Announce incoming WhatsApp + iMessage · toast + open the chat</p>
+        </div>
+        <Toggle
+          on={messageNotificationsEnabled}
+          onChange={setMessageNotificationsEnabled}
+          label="Toggle message notifications"
+        />
+      </div>
+
+      <div style={rowStyle}>
+        <div style={{ minWidth: 0 }}>
+          <p style={labelStyle}>Auto-read aloud</p>
+          <p style={hintStyle}>Speak new messages in JARVIS's voice as they arrive</p>
+        </div>
+        <Toggle
+          on={messageAutoReadEnabled}
+          onChange={setMessageAutoReadEnabled}
+          label="Toggle auto-read aloud"
+        />
       </div>
 
       <div style={rowStyle}>
