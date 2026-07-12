@@ -1,10 +1,15 @@
 import * as React from "react";
 import { ChevronLeft } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { STUDIO_COLORS, STUDIO_MONO, STUDIOLO } from "../tokens";
 import type { WidgetContentProps } from "../windows/catalog";
 import { fetchStudioWidget } from "./widget-fetch";
+import {
+  buildConversationRows,
+  type ConversationMessage,
+  type MessageRow,
+} from "./whatsapp-conversation";
 
 // MAJOR-5 — Widget is refetched every ACTIVE_POLL_MS while the HUD is
 // visible. When `document.hidden` (HUD stowed, workspace switch, machine
@@ -234,9 +239,11 @@ function Conversation({
   onBack: () => void;
 }): React.ReactElement {
   const hidden = useDocumentHidden();
+  const queryClient = useQueryClient();
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const queryKey = React.useMemo(() => ["studio", "whatsapp", "chat", chatJid], [chatJid]);
   const { data, error, isLoading } = useQuery({
-    queryKey: ["studio", "whatsapp", "chat", chatJid],
+    queryKey,
     queryFn: () =>
       fetchStudioWidget<ChatHistoryReceipt>(
         `/api/studio/whatsapp?chat=${encodeURIComponent(chatJid)}`,
@@ -246,24 +253,73 @@ function Conversation({
     refetchOnWindowFocus: true,
   });
 
-  const messages = data?.messages ?? [];
+  const fetched = React.useMemo<ConversationMessage[]>(
+    () => data?.messages ?? [],
+    [data?.messages],
+  );
 
-  // The index of the message to pulse-highlight: the LAST message whose body
-  // matches the just-sent text (newest wins). Recomputed when the highlight
-  // request changes (highlightNonce) or new messages arrive.
-  const highlightIndex = React.useMemo(() => {
-    if (!highlightBody) return -1;
-    const target = normalizeBody(highlightBody);
-    if (!target) return -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i]!.fromMe && normalizeBody(messages[i]!.body) === target) return i;
-    }
-    return -1;
+  // INSTANT FRESHNESS. The real ~1-minute lag was the 60s widget poll: even
+  // once the sync worker had copied a just-sent message into Postgres, the view
+  // wouldn't refetch until the next interval tick. When a send receipt lands on
+  // THIS open chat (focusAt bumps), force an immediate refetch so the synced
+  // message shows within a poll-independent beat, and OPTIMISTICALLY append the
+  // just-sent line (marked pending) so it's visible instantly — reconciled away
+  // once the real fetch returns it.
+  // A focused send targets THIS chat: highlightBody is only ever passed for the
+  // focused jid, and highlightNonce (focusAt) bumps on each confirmed send.
+  const isFocusedSend = !!highlightBody && (highlightNonce ?? 0) > 0;
+
+  React.useEffect(() => {
+    if (!isFocusedSend) return;
+    // Kick an out-of-band refetch of this chat so we don't wait on the 60s poll.
+    void queryClient.invalidateQueries({ queryKey });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, highlightBody, highlightNonce]);
+  }, [highlightNonce, chatJid]);
+
+  // Merge in an optimistic pending bubble for the just-sent message when the
+  // fetched history doesn't yet contain it (sync worker hasn't caught up). It's
+  // dropped automatically once a fetched row with the same normalized body from
+  // me appears.
+  const messages = React.useMemo<ConversationMessage[]>(() => {
+    if (!isFocusedSend || !highlightBody) return fetched;
+    const target = normalizeBody(highlightBody);
+    if (!target) return fetched;
+    const alreadySynced = fetched.some(
+      (m) => m.fromMe && normalizeBody(m.body) === target,
+    );
+    if (alreadySynced) return fetched;
+    return [
+      ...fetched,
+      {
+        senderName: null,
+        fromMe: true,
+        body: highlightBody,
+        sentAt: new Date().toISOString(),
+        pending: true,
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetched, highlightBody, highlightNonce]);
+
+  const rows = React.useMemo(() => buildConversationRows(messages), [messages]);
+
+  // The key of the message row to pulse-highlight: the LAST message whose body
+  // matches the just-sent text (newest wins, incl. the pending bubble).
+  const highlightKey = React.useMemo(() => {
+    if (!highlightBody) return null;
+    const target = normalizeBody(highlightBody);
+    if (!target) return null;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i]!;
+      if (row.kind === "message" && row.message.fromMe && normalizeBody(row.message.body) === target)
+        return row.key;
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, highlightBody, highlightNonce]);
 
   // Keep the newest message in view: scroll to the bottom on load and whenever
-  // the message count grows (e.g. a poll picks up the just-sent line).
+  // the message count grows (e.g. a poll or the optimistic append adds a line).
   React.useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -320,18 +376,22 @@ function Conversation({
           <p style={{ ...uppercaseLabel }}>Loading…</p>
         ) : error ? (
           <p style={{ color: STUDIO_COLORS.danger, fontSize: 12 }}>{error.message}</p>
-        ) : messages.length === 0 ? (
+        ) : rows.length === 0 ? (
           <p style={{ color: STUDIO_COLORS.muted, fontSize: 12 }}>No messages in this chat.</p>
         ) : (
-          <div style={{ display: "grid", gap: 6 }}>
-            {messages.map((m, i) => (
-              <MessageBubble
-                key={`${m.sentAt}:${i}`}
-                message={m}
-                highlighted={i === highlightIndex}
-                highlightNonce={highlightNonce}
-              />
-            ))}
+          <div style={{ display: "grid", gap: 2 }}>
+            {rows.map((row) =>
+              row.kind === "day" ? (
+                <DaySeparator key={row.key} label={row.label} />
+              ) : (
+                <MessageBubble
+                  key={row.key}
+                  row={row}
+                  highlighted={row.key === highlightKey}
+                  highlightNonce={highlightNonce}
+                />
+              ),
+            )}
           </div>
         )}
       </div>
@@ -339,15 +399,39 @@ function Conversation({
   );
 }
 
+/** A centered pill marking the start of a new calendar day in the history. */
+function DaySeparator({ label }: { label: string }): React.ReactElement {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", margin: "10px 0 6px" }}>
+      <span
+        style={{
+          padding: "2px 10px",
+          borderRadius: 999,
+          border: `1px solid ${STUDIO_COLORS.rule}`,
+          color: STUDIO_COLORS.muted,
+          background: `color-mix(in srgb, ${STUDIO_COLORS.surface} 80%, transparent)`,
+          fontFamily: STUDIO_MONO,
+          fontSize: 9,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function MessageBubble({
-  message,
+  row,
   highlighted,
   highlightNonce,
 }: {
-  message: HistoryMessage;
+  row: MessageRow;
   highlighted: boolean;
   highlightNonce?: number;
 }): React.ReactElement {
+  const { message, clusterStart, clusterEnd } = row;
   const [pulsing, setPulsing] = React.useState(false);
   const bubbleRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -363,11 +447,17 @@ function MessageBubble({
   }, [highlighted, highlightNonce]);
 
   const mine = message.fromMe;
+  const pending = message.pending === true;
+  // Tighter clustering: consecutive same-sender bubbles hug; new clusters get
+  // more top gap. Only the last bubble of a run rounds its "tail" corner fully.
+  const tailCorner = mine ? "borderBottomRightRadius" : "borderBottomLeftRadius";
   return (
     <div
       style={{
         display: "flex",
         justifyContent: mine ? "flex-end" : "flex-start",
+        marginTop: clusterStart ? 6 : 1,
+        marginBottom: clusterEnd ? 2 : 0,
       }}
     >
       <div
@@ -376,6 +466,7 @@ function MessageBubble({
           maxWidth: "80%",
           padding: "6px 9px",
           borderRadius: 10,
+          [tailCorner]: clusterEnd ? 10 : 3,
           border: `1px solid ${
             pulsing ? STUDIOLO.fireflyCyan : mine ? STUDIO_COLORS.accent : STUDIO_COLORS.rule
           }`,
@@ -386,10 +477,11 @@ function MessageBubble({
           boxShadow: pulsing
             ? `0 0 0 2px color-mix(in srgb, ${STUDIOLO.fireflyCyan} 55%, transparent)`
             : "none",
-          transition: "box-shadow 260ms ease, border-color 260ms ease",
+          opacity: pending ? 0.72 : 1,
+          transition: "box-shadow 260ms ease, border-color 260ms ease, opacity 200ms ease",
         }}
       >
-        {!mine && message.senderName ? (
+        {!mine && clusterStart && message.senderName ? (
           <div
             style={{
               marginBottom: 2,
@@ -414,7 +506,7 @@ function MessageBubble({
             textAlign: "right",
           }}
         >
-          {timeLabel(message.sentAt)}
+          {pending ? "sending…" : timeLabel(message.sentAt)}
         </time>
       </div>
     </div>
