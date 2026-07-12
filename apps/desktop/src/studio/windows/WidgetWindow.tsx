@@ -111,11 +111,17 @@ const chromeButtonStyle: CSSProperties = {
 function isNearDrawer(clientX: number, clientY: number): boolean {
   const drawer = document.querySelector<HTMLElement>("[data-widget-drawer]");
   const rect = drawer?.getBoundingClientRect();
+  // Position-agnostic proximity: a widget dragged within a generous margin of
+  // the drawer's box counts as "near" so the drawer highlights and a release
+  // stows it. The drawer now lives on the right edge, so this is intentionally
+  // symmetric rather than the old bottom-only test.
+  const MARGIN = 84;
   return Boolean(
     rect &&
-      clientX >= rect.left - 72 &&
-      clientX <= rect.right + 72 &&
-      clientY >= rect.top - 104,
+      clientX >= rect.left - MARGIN &&
+      clientX <= rect.right + MARGIN &&
+      clientY >= rect.top - MARGIN &&
+      clientY <= rect.bottom + MARGIN,
   );
 }
 
