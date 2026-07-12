@@ -24,7 +24,7 @@
     },
     {
       "command": "pnpm --filter web exec biome check 'app/(app)/tasks/page.tsx' components/tasks lib/ui/useTasksExpanded.ts --max-diagnostics=200 --reporter=summary",
-      "result": "KNOWN DEBT — safe formatting/import fixes applied; 26 pre-existing lint/correctness/useExhaustiveDependencies diagnostics remain in TasksClient and TaskDetailPanel"
+      "result": "KNOWN DEBT — 28 pre-existing diagnostics: 2 formatting/import findings on the unchanged SSR page and 26 lint/correctness/useExhaustiveDependencies findings in TasksClient and TaskDetailPanel"
     },
     {
       "command": "pnpm --filter web test -- tests/shell-sidebar-contract.test.tsx",
@@ -41,7 +41,7 @@
   "limitations": [
     "No signed-in browser/visual pass was possible in this worktree because no auth/database environment was provided; responsive behavior is code-reviewed, not browser-measured.",
     "Build emits pre-existing warnings for ::highlight(...) CSS parsing and dynamic NFT tracing outside Unit 3 ownership.",
-    "Biome exhaustive-dependency debt predates this unit; it was not broadened or rewritten because those hooks are part of frozen state/editor contracts.",
+    "Biome debt predates this unit: the unchanged SSR page retains two formatting/import findings, and TasksClient/TaskDetailPanel retain 26 exhaustive-dependency findings. These were not rewritten because the hooks are part of frozen state/editor contracts.",
     "Pre-existing untracked .bgsd-luna-prompt.md was preserved and excluded from commits."
   ],
   "commits": [

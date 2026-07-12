@@ -16,9 +16,9 @@ evidence and known limitations.
 - `pnpm --filter web typecheck`: pass.
 - `DATABASE_URL=postgresql://localhost:5432/hp_test pnpm --filter web build`:
   pass through static generation and route optimization.
-- Owned-file Biome: formatting/import fixes applied; 26 existing
-  `useExhaustiveDependencies` diagnostics remain in TasksClient and
-  TaskDetailPanel.
+- Owned-file Biome: 28 pre-existing diagnostics remain — two formatting/import
+  findings on the unchanged SSR page and 26 `useExhaustiveDependencies`
+  findings in TasksClient and TaskDetailPanel.
 
 ## Review notes
 
