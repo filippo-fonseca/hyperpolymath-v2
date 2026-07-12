@@ -15,7 +15,7 @@
 // risk opening the wrong page. Keep the regexes tight to avoid false positives
 // on unrelated turns ("remind me to check the weather app tomorrow").
 
-export type StudioBackstopKind = "weather" | "news";
+export type StudioBackstopKind = "weather" | "news" | "whatsapp";
 
 // Weather / temperature: an ambient "what's it like out" question.
 const WEATHER_RE =
@@ -24,6 +24,13 @@ const WEATHER_RE =
 // News / headlines: an ambient "what's happening" request.
 const NEWS_RE =
   /\b(what(?:'s| is| s)?\s+(?:in|the)\s+news|(?:the\s+)?(?:latest\s+)?headlines|what(?:'s| is| s)?\s+(?:happening|going\s+on)\s+(?:in\s+the\s+world|today)|any\s+news\b|catch\s+me\s+up\s+on\s+the\s+news)/i;
+
+// WhatsApp / messages: an explicit "open my messages" request. Matched only on
+// an open/show/pull-up verb so we don't fire on incidental mentions ("text her
+// on WhatsApp"). "my messages"/"my chats" without a service name also maps here
+// since WhatsApp is the HUD's messaging widget.
+const WHATSAPP_RE =
+  /\b(?:open|show|pull\s+up|bring\s+up|launch|go\s+to|check)\s+(?:my\s+|the\s+)?(?:whats\s?app|messages|chats|texts|dms)\b/i;
 
 /**
  * Given the user's raw utterance and whether the model already opened a studio
@@ -44,5 +51,9 @@ export function detectStudioBackstop(
   // Weather takes priority: it is the more specific ambient intent.
   if (WEATHER_RE.test(text)) return "weather";
   if (NEWS_RE.test(text)) return "news";
+  // WhatsApp: an explicit "open whatsapp / my messages" request. Even if the
+  // model wrongly reached for open_app (launching the macOS WhatsApp.app), this
+  // nudges the native HUD widget open instead.
+  if (WHATSAPP_RE.test(text)) return "whatsapp";
   return null;
 }

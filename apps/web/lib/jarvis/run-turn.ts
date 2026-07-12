@@ -1085,11 +1085,14 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
     // U1 jarvis-web-brain — deterministic studio-widget backstop. The model is
     // told to pair ambient-data answers with the matching widget (weather →
-    // weather widget, news → news widget), but sometimes answers without
-    // opening one. If the raw utterance obviously asks for weather/news AND no
+    // weather widget, news → news widget) and to open the WhatsApp widget for
+    // "open whatsapp / my messages" rather than launching the macOS app, but it
+    // sometimes answers without opening one (or wrongly reaches for open_app).
+    // If the raw utterance obviously asks for weather/news/whatsapp AND no
     // studio_open_widget fired this turn, nudge the widget open server-side so
-    // "answer AND show" holds. Conservative matcher; live-web scores/prices are
-    // NOT backstopped (they need a real result URL only the model has).
+    // "answer AND show" holds and "open whatsapp" always lands the HUD widget.
+    // Conservative matcher; live-web scores/prices are NOT backstopped (they
+    // need a real result URL only the model has).
     {
       const alreadyOpenedWidget = actionTypes.includes("studio_open_widget");
       const backstopKind = detectStudioBackstop(opts.input ?? "", alreadyOpenedWidget);
