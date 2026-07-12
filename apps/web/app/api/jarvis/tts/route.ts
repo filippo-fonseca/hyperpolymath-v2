@@ -31,6 +31,7 @@ import { validateDesktopBearer } from "@/lib/auth/desktop-bearer";
 import { isOwnerUser } from "@/lib/auth/owner";
 import { getUserKeyOrNull } from "@/lib/byok/keys";
 import { DEFAULT_VOICE_ID } from "@/lib/voice/constants";
+import { sanitizeForTts } from "@/lib/voice/sanitize-for-tts";
 import type { TtsRequest } from "@/lib/voice/types";
 import type { NextRequest } from "next/server";
 
@@ -128,11 +129,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const text = (body.text ?? "").trim();
-  if (!text) return Response.json({ error: "Empty text" }, { status: 400 });
-  if (text.length > MAX_TEXT_LEN) {
+  const rawText = (body.text ?? "").trim();
+  if (!rawText) return Response.json({ error: "Empty text" }, { status: 400 });
+  if (rawText.length > MAX_TEXT_LEN) {
     return Response.json({ error: "Text too long" }, { status: 413 });
   }
+  // Sanitize just before BOTH upstreams (ElevenLabs + Groq/Orpheus fallback):
+  // em/en dashes → ", " (natural short pause, not the long dead air a raw dash
+  // gives), strip any stray markdown, collapse repeated punctuation/whitespace.
+  // A dash-only line could sanitize to empty; guard that as a 400 too.
+  const text = sanitizeForTts(rawText);
+  if (!text) return Response.json({ error: "Empty text" }, { status: 400 });
 
   const voiceId = body.voiceId ?? DEFAULT_VOICE_ID;
 
