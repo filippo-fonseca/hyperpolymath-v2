@@ -181,7 +181,16 @@ export function Drawer({
       ref={rootRef}
       data-widget-drawer
       aria-label="Widget drawer"
-      layout
+      animate={{
+        // Open, the drawer sits dead-center over the stage. Collapsed, the pull
+        // tab is nudged right of center so it never sits over the centered
+        // "Talk to JARVIS" invoke button in the HUD footer (the two used to
+        // overlap dead-center). Animating `x`/`width` as motion values keeps the
+        // horizontal shift reliable — a `layout` tween would pin the box to its
+        // collapsed anchor and never re-center on open.
+        x: open ? "-50%" : "calc(-50% + 240px)",
+        width: open ? "min(760px, calc(100% - 32px))" : 184,
+      }}
       transition={{ duration: reduced ? 0 : 0.18, ease: EASE_OUT_QUART }}
       style={{
         position: "absolute",
@@ -190,7 +199,6 @@ export function Drawer({
         zIndex: 40,
         // Collapsed, the drawer is a hand-cursor target: keep it comfortably wide
         // so a jittery synthetic pointer can land on the toggle to open it.
-        width: open ? "min(760px, calc(100% - 32px))" : 184,
         padding: open ? "8px 10px 10px" : "9px 16px 8px",
         border: `1px solid ${targeted ? STUDIO_COLORS.accent : HUD_SURFACES.line}`,
         borderBottom: 0,
@@ -202,7 +210,6 @@ export function Drawer({
           : `0 -12px 30px color-mix(in srgb, ${STUDIO_COLORS.shadow} 72%, transparent)`,
         fontFamily: STUDIO_MONO,
         pointerEvents: "auto",
-        transform: "translateX(-50%)",
       }}
     >
       <button
