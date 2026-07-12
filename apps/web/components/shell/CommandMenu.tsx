@@ -28,7 +28,7 @@ export function CommandMenu({ hashtags, projects }: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault();
         setOpen((v) => !v);
       }
