@@ -466,6 +466,56 @@
       }
       .transcript.has-content .transcript-empty { display: none; }
 
+      /* ── Region 2 wrapper: nested grid so the toolbar (auto) sits above the
+         scroll region (1fr) without eating the transcript's flex height. ── */
+      .transcript-region {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 6px;
+      }
+      /* Slim toolbar strip. Hidden until the transcript has content, so an
+         empty session shows only the idle hint — no orphaned control. */
+      .transcript-toolbar {
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 2px;
+        min-height: 0;
+      }
+      .transcript-region:has(.transcript.has-content) .transcript-toolbar {
+        display: flex;
+      }
+      /* Chrome button: mono, hairline border, cyan hover — matches HUD chrome. */
+      .chrome-btn {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 7px;
+        padding: 3px 9px;
+        cursor: pointer;
+        transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+      .chrome-btn:hover {
+        color: var(--accent);
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--rule));
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+      }
+      .chrome-btn:active {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+      }
+      .chrome-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+        color: var(--muted);
+        border-color: var(--rule);
+        background: transparent;
+      }
+
       /* A single turn bubble: the user line (right) or JARVIS line (left). */
       .turn {
         max-width: 100%;
@@ -768,14 +818,32 @@
         <div class="routine-loader-phase" id="routine-loader-phase">One moment…</div>
       </aside>
 
-      <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
-           auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
-      <section class="transcript" id="transcript" aria-live="polite">
-        <div class="transcript-empty" id="transcript-empty">
-          Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
-          Your words and JARVIS's replies appear here.
+      <!-- Region 2 wrapper: occupies the single 1fr grid row. A nested grid
+           stacks a slim toolbar (auto) over the scroll region (1fr) so adding
+           the toolbar never steals the transcript's flex height. -->
+      <div class="transcript-region">
+        <!-- Transcript toolbar: minimal HUD chrome above the scroll region.
+             Holds the Clear control, which empties the visible transcript AND
+             wipes the server-side conversation memory (jarvis_turns) so a fresh
+             session never inherits stale turns. Hidden until there's content. -->
+        <div class="transcript-toolbar" id="transcript-toolbar">
+          <button
+            class="chrome-btn"
+            id="clear-convo-btn"
+            type="button"
+            title="Clear conversation — wipes the transcript and JARVIS's memory of it"
+          >Clear</button>
         </div>
-      </section>
+
+        <!-- The ONLY scroll area. Conversation turns land here and it
+             auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
+        <section class="transcript" id="transcript" aria-live="polite">
+          <div class="transcript-empty" id="transcript-empty">
+            Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
+            Your words and JARVIS's replies appear here.
+          </div>
+        </section>
+      </div>
 
       <!-- Region 3: pinned footer — invoke button + inline action receipts. -->
       <footer class="hud-footer">
