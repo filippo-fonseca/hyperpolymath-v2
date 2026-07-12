@@ -4,11 +4,11 @@ import { HashtagChip } from "@/components/captures/HashtagChip";
 import { PersonChip } from "@/components/captures/PersonChip";
 import { tokenizeContent } from "@/lib/captures/tokenize-content";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { shortRuleLabel } from "@/lib/tasks/recurrence";
 import { cn } from "@/lib/utils";
 import { Check, Repeat } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { PriorityChip } from "./PriorityChip";
-import { shortRuleLabel } from "@/lib/tasks/recurrence";
 
 /** Which property pills render on a task card. Owned + persisted by KanbanBoard. */
 export interface CardFields {
@@ -89,7 +89,7 @@ export function TaskCard({
   today.setHours(0, 0, 0, 0);
   // Parse YMD as LOCAL midnight (not UTC midnight) so a 2026-06-08 due
   // date doesn't read as 2026-06-07 in negative-UTC timezones.
-  const dueLocal = task.dueDate ? new Date(task.dueDate + "T00:00:00") : null;
+  const dueLocal = task.dueDate ? new Date(`${task.dueDate}T00:00:00`) : null;
   const isOverdue = dueLocal !== null && task.status !== "lesno" && dueLocal < today;
   const isLesno = task.status === "lesno";
 
@@ -105,13 +105,6 @@ export function TaskCard({
         onDragStart?.(task.id);
       }}
       onDragEnd={() => onDragEnd?.()}
-      onClick={(ev) => {
-        if (onToggleSelected && (ev.metaKey || ev.ctrlKey || ev.shiftKey || selectionActive)) {
-          onToggleSelected(task.id, ev);
-          return;
-        }
-        onClick(task.id);
-      }}
       className={cn(
         "group/task select-none",
         draggable && "cursor-grab active:cursor-grabbing",
@@ -156,55 +149,67 @@ export function TaskCard({
             <Check size={11} strokeWidth={2.5} />
           </button>
         ) : null}
-        <div
-          className={cn(
-            "font-serif text-base line-clamp-2 mb-2",
-            isLesno ? "line-through text-[var(--ink-muted)]" : "text-[var(--ink)]"
-          )}
+        <button
+          type="button"
+          onClick={(ev) => {
+            if (onToggleSelected && (ev.metaKey || ev.ctrlKey || ev.shiftKey || selectionActive)) {
+              onToggleSelected(task.id, ev);
+              return;
+            }
+            onClick(task.id);
+          }}
+          className="block w-full rounded-[0.25rem] text-left focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
         >
-          <TaskTitle task={task} />
-        </div>
-
-        {(task.recurrence ||
-          cardFields.priority ||
-          cardFields.dueDate ||
-          cardFields.project ||
-          task.hashtags.length > 0 ||
-          task.people.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {/* Recurring-task marker (issue #144) — cyan repeat pill, distinct
-                from one-off tasks and from amber habits. */}
-            {task.recurrence && (
-              <CardPill tone="cyan">
-                <Repeat size={11} strokeWidth={2} />
-                {shortRuleLabel(task.recurrence)}
-              </CardPill>
+          <div
+            className={cn(
+              "mb-2 line-clamp-2 font-serif text-base",
+              isLesno ? "line-through text-[var(--ink-muted)]" : "text-[var(--ink)]"
             )}
-            {cardFields.priority && (
-              <CardPill>
-                <PriorityChip priority={task.priority} />
-                {task.priority}
-              </CardPill>
-            )}
-            {cardFields.dueDate && task.dueDate && (
-              <CardPill tone={isOverdue ? "coral" : "muted"}>{formatDate(task.dueDate)}</CardPill>
-            )}
-            {cardFields.project && task.projects.length > 0 && (
-              <CardPill>
-                <span className="truncate max-w-[140px]">{task.projects[0]!.name}</span>
-                {task.projects.length > 1 && ` +${task.projects.length - 1}`}
-              </CardPill>
-            )}
-            {/* Issue #159 — inline #hashtag chips */}
-            {task.hashtags.map((h) => (
-              <HashtagChip key={h.id} displayName={h.displayName} asButton={false} />
-            ))}
-            {/* Issue #159 — inline @person chips */}
-            {task.people.map((p) => (
-              <PersonChip key={p.id} name={p.name} asButton={false} />
-            ))}
+          >
+            <TaskTitle task={task} />
           </div>
-        )}
+
+          {(task.recurrence ||
+            cardFields.priority ||
+            cardFields.dueDate ||
+            cardFields.project ||
+            task.hashtags.length > 0 ||
+            task.people.length > 0) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Recurring-task marker (issue #144) — cyan repeat pill, distinct
+                from one-off tasks and from amber habits. */}
+              {task.recurrence && (
+                <CardPill tone="cyan">
+                  <Repeat size={11} strokeWidth={2} />
+                  {shortRuleLabel(task.recurrence)}
+                </CardPill>
+              )}
+              {cardFields.priority && (
+                <CardPill>
+                  <PriorityChip priority={task.priority} />
+                  {task.priority}
+                </CardPill>
+              )}
+              {cardFields.dueDate && task.dueDate && (
+                <CardPill tone={isOverdue ? "coral" : "muted"}>{formatDate(task.dueDate)}</CardPill>
+              )}
+              {cardFields.project && task.projects.length > 0 && (
+                <CardPill>
+                  <span className="max-w-[140px] truncate">{task.projects[0]?.name}</span>
+                  {task.projects.length > 1 && ` +${task.projects.length - 1}`}
+                </CardPill>
+              )}
+              {/* Issue #159 — inline #hashtag chips */}
+              {task.hashtags.map((h) => (
+                <HashtagChip key={h.id} displayName={h.displayName} asButton={false} />
+              ))}
+              {/* Issue #159 — inline @person chips */}
+              {task.people.map((p) => (
+                <PersonChip key={p.id} name={p.name} asButton={false} />
+              ))}
+            </div>
+          )}
+        </button>
       </motion.div>
     </div>
   );
@@ -218,20 +223,21 @@ function TaskTitle({ task }: { task: TaskWithProjects }) {
   return (
     <>
       {segments.map((seg, i) => {
+        const key = `${seg.kind}-${i}-${seg.kind === "text" ? seg.value : seg.display}`;
         if (seg.kind === "hashtag") {
-          return <HashtagChip key={i} displayName={seg.display} asButton={false} />;
+          return <HashtagChip key={key} displayName={seg.display} asButton={false} />;
         }
         if (seg.kind === "person") {
-          return <PersonChip key={i} name={seg.display} asButton={false} />;
+          return <PersonChip key={key} name={seg.display} asButton={false} />;
         }
-        return <span key={i}>{seg.value}</span>;
+        return <span key={key}>{seg.value}</span>;
       })}
     </>
   );
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(`${dateStr}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));

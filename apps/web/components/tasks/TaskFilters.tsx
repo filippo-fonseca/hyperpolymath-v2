@@ -1,6 +1,5 @@
 "use client";
 
-import { useQueryStates, parseAsArrayOf, parseAsString } from "nuqs";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,15 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { X } from "lucide-react";
+import { parseAsArrayOf, parseAsString, useQueryStates } from "nuqs";
 
 const PRIORITIES = ["P∞", "P1", "P2", "P3"] as const;
-const STATUSES = [
-  "not started",
-  "up next",
-  "in progress",
-  "almost done",
-  "lesno",
-] as const;
+const STATUSES = ["not started", "up next", "in progress", "almost done", "lesno"] as const;
 // "today"/"this-week"/"this-month" removed — the kanban day view now
 // owns the date dimension via its arrow + date-picker header, so a chip
 // filter on those buckets is redundant (and would double-filter inside
@@ -45,13 +39,12 @@ export function TaskFilters({ projects }: Props) {
       due: parseAsArrayOf(parseAsString).withDefault([]),
       project: parseAsArrayOf(parseAsString).withDefault([]),
     },
-    { shallow: false },
+    { shallow: false }
   );
 
   // PRIORITY handlers
   function addPriorityFilter(p: string) {
-    if (!filters.priority.includes(p))
-      setFilters({ priority: [...filters.priority, p] });
+    if (!filters.priority.includes(p)) setFilters({ priority: [...filters.priority, p] });
   }
   function removePriorityFilter(p: string) {
     setFilters({ priority: filters.priority.filter((x) => x !== p) });
@@ -59,8 +52,7 @@ export function TaskFilters({ projects }: Props) {
 
   // STATUS handlers (Blocker 3: concrete, explicit handlers for each dimension)
   function addStatusFilter(s: string) {
-    if (!filters.status.includes(s))
-      setFilters({ status: [...filters.status, s] });
+    if (!filters.status.includes(s)) setFilters({ status: [...filters.status, s] });
   }
   function removeStatusFilter(s: string) {
     setFilters({ status: filters.status.filter((x) => x !== s) });
@@ -76,8 +68,7 @@ export function TaskFilters({ projects }: Props) {
 
   // PROJECT handlers (Blocker 3)
   function addProjectFilter(pid: string) {
-    if (!filters.project.includes(pid))
-      setFilters({ project: [...filters.project, pid] });
+    if (!filters.project.includes(pid)) setFilters({ project: [...filters.project, pid] });
   }
   function removeProjectFilter(pid: string) {
     setFilters({ project: filters.project.filter((x) => x !== pid) });
@@ -110,20 +101,12 @@ export function TaskFilters({ projects }: Props) {
 
       {/* STATUS chips (Blocker 3) */}
       {filters.status.map((s) => (
-        <ChipPill
-          key={`sta-${s}`}
-          label={`Status: ${s}`}
-          onRemove={() => removeStatusFilter(s)}
-        />
+        <ChipPill key={`sta-${s}`} label={`Status: ${s}`} onRemove={() => removeStatusFilter(s)} />
       ))}
 
       {/* DUE chips (Blocker 3) */}
       {filters.due.map((d) => (
-        <ChipPill
-          key={`due-${d}`}
-          label={dueLabel(d)}
-          onRemove={() => removeDueFilter(d)}
-        />
+        <ChipPill key={`due-${d}`} label={dueLabel(d)} onRemove={() => removeDueFilter(d)} />
       ))}
 
       {/* PROJECT chips (Blocker 3) */}
@@ -138,14 +121,16 @@ export function TaskFilters({ projects }: Props) {
       {/* + Filter dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="min-h-8 font-[family-name:var(--font-sans)] text-[12px] focus-visible:[box-shadow:var(--ring-focus)]">
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-8 font-[family-name:var(--font-sans)] text-[12px] focus-visible:[box-shadow:var(--ring-focus)]"
+          >
             + Filter
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel className="font-sans text-[13px]">
-            Add filter
-          </DropdownMenuLabel>
+          <DropdownMenuLabel className="font-sans text-[13px]">Add filter</DropdownMenuLabel>
           <DropdownMenuSeparator />
 
           {/* Priority submenu */}
@@ -188,9 +173,7 @@ export function TaskFilters({ projects }: Props) {
 
           {/* Due submenu (Blocker 3) */}
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="font-sans text-[13px]">
-              Due
-            </DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="font-sans text-[13px]">Due</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {DUE_OPTIONS.map((o) => (
                 <DropdownMenuItem
@@ -212,10 +195,7 @@ export function TaskFilters({ projects }: Props) {
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-[260px] overflow-auto">
               {projects.length === 0 ? (
-                <DropdownMenuItem
-                  disabled
-                  className="font-sans text-[13px] italic"
-                >
+                <DropdownMenuItem disabled className="font-sans text-[13px] italic">
                   No projects yet
                 </DropdownMenuItem>
               ) : (
@@ -241,9 +221,7 @@ export function TaskFilters({ projects }: Props) {
           variant="ghost"
           size="sm"
           className="min-h-8 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)] focus-visible:[box-shadow:var(--ring-focus)]"
-          onClick={() =>
-            setFilters({ priority: [], status: [], due: [], project: [] })
-          }
+          onClick={() => setFilters({ priority: [], status: [], due: [], project: [] })}
         >
           Clear
         </Button>

@@ -1,8 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { X } from "lucide-react";
 import { Spinner } from "@/components/shared/Spinner";
+import { X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { MoveToMenu } from "./MoveToMenu";
 
 interface Props {
@@ -44,7 +44,7 @@ export function TaskSelectionBar({ count, onMoveTo, onDeleteSelected, onClear, p
               type="button"
               onClick={onDeleteSelected}
               disabled={pending}
-            className="inline-flex min-h-8 items-center gap-1 rounded-[0.375rem] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+              className="inline-flex min-h-8 items-center gap-1 rounded-[0.375rem] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] hover:bg-[var(--canvas)]/15 cursor-pointer-always disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
             >
               {pending ? <Spinner size={12} label="Deleting tasks" /> : null}
               Delete

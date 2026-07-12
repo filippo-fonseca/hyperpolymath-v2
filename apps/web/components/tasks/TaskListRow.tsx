@@ -1,19 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { motion, useReducedMotion } from "motion/react";
-import { GripVertical, MoreHorizontal, Repeat } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PriorityChip } from "./PriorityChip";
-import {
-  advanceRecurringTask,
-  updateTask,
-  updateTaskStatus,
-} from "@/app/actions/tasks";
-import { shortRuleLabel } from "@/lib/tasks/recurrence";
-import { toast } from "sonner";
+import { advanceRecurringTask, updateTask, updateTaskStatus } from "@/app/actions/tasks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,14 +8,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { shortRuleLabel } from "@/lib/tasks/recurrence";
+import { cn } from "@/lib/utils";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, MoreHorizontal, Repeat } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { PriorityChip } from "./PriorityChip";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
-type Status =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 const STATUS_LABELS: Record<Status, string> = {
   "not started": "Not Started",
@@ -73,14 +64,9 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   const [, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
 
   const dndStyle = {
     transform: CSS.Transform.toString(transform),
@@ -168,7 +154,9 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       layout={!reducedMotion}
       initial={reducedMotion ? false : { opacity: 0, y: 4 }}
       animate={{ opacity: isDragging ? 0 : 1, y: 0 }}
-      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
+      exit={
+        reducedMotion ? { opacity: 0 } : { opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }
+      }
       transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.25, 1, 0.5, 1] }}
       style={dndStyle}
       className={cn(
@@ -178,7 +166,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         "border-l-2 transition-colors duration-[var(--dur-hover)] ease-out focus-within:bg-[var(--deck-hover)]",
         isLesno
           ? "border-l-[var(--ink-sage)] opacity-70"
-          : "border-l-transparent hover:border-l-[var(--edge)]",
+          : "border-l-transparent hover:border-l-[var(--edge)]"
       )}
     >
       {/* Drag handle */}
@@ -201,9 +189,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         onClick={toggleLesno}
         className={cn(
           "h-6 w-6 flex-shrink-0 items-center justify-center rounded border transition-colors duration-[var(--dur-select)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
-          isLesno
-            ? "bg-[var(--ink-sage)] border-[var(--ink-sage)]"
-            : "border-[var(--edge)]",
+          isLesno ? "bg-[var(--ink-sage)] border-[var(--ink-sage)]" : "border-[var(--edge)]"
         )}
         aria-label={isLesno ? "Mark incomplete" : "Mark complete"}
       >
@@ -213,6 +199,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             height="10"
             viewBox="0 0 10 10"
             fill="none"
+            aria-hidden="true"
             style={{ color: "var(--canvas)" }}
           >
             <path
@@ -232,14 +219,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       </div>
 
       {/* Title — inline editable */}
-      <div
-        className="flex-1 min-w-0 cursor-pointer"
-        onClick={(e) => {
-          if (!isEditingTitle) {
-            e.stopPropagation();
-          }
-        }}
-      >
+      <div className="min-w-0 flex-1">
         {isEditingTitle ? (
           <input
             ref={inputRef}
@@ -251,28 +231,27 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             onClick={(e) => e.stopPropagation()}
             className={cn(
               "w-full bg-transparent font-serif text-base text-[var(--ink)]",
-              "focus:outline-none border-b border-[var(--ink-amber)]",
+              "focus:outline-none border-b border-[var(--ink-amber)]"
             )}
           />
         ) : (
-          <span
+          <button
+            type="button"
             onClick={startEditTitle}
             className={cn(
-              "font-serif text-base truncate block",
-              isLesno
-                ? "line-through text-[var(--ink-muted)]"
-                : "text-[var(--ink)]",
+              "block w-full truncate text-left font-serif text-base focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
+              isLesno ? "line-through text-[var(--ink-muted)]" : "text-[var(--ink)]"
             )}
           >
             {task.title}
-          </span>
+          </button>
         )}
       </div>
 
       {/* Project */}
       {task.projects.length > 0 && (
         <span className="font-mono text-xs text-[var(--ink-muted)] truncate max-w-[120px] flex-shrink-0">
-          {task.projects[0]!.name}
+          {task.projects[0]?.name}
           {task.projects.length > 1 && ` +${task.projects.length - 1}`}
         </span>
       )}
@@ -298,7 +277,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         <span
           className={cn(
             "font-mono text-xs flex-shrink-0",
-            isOverdue ? "text-[var(--ink-coral)]" : "text-[var(--ink-muted)]",
+            isOverdue ? "text-[var(--ink-coral)]" : "text-[var(--ink-muted)]"
           )}
         >
           {formatDate(task.dueDate)}
@@ -312,7 +291,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             type="button"
             className={cn(
               "min-h-7 min-w-7 rounded p-1 text-[var(--deck-ink-dull)] opacity-0 transition-opacity duration-[var(--dur-hover)] group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
-              "hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)]",
+              "hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)]"
             )}
             aria-label="Task options"
             onPointerDown={(e) => e.stopPropagation()}
@@ -321,10 +300,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            className="font-serif text-base"
-            onClick={() => onRowClick(task.id)}
-          >
+          <DropdownMenuItem className="font-serif text-base" onClick={() => onRowClick(task.id)}>
             Open detail
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -334,12 +310,10 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(`${dateStr}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const diff = Math.round(
-    (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff === -1) return "Yesterday";

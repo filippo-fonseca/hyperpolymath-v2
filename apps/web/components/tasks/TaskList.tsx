@@ -1,30 +1,30 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { reorderTasks } from "@/app/actions/tasks";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
+  type DragEndEvent,
   DragOverlay,
-  closestCenter,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { AnimatePresence, useReducedMotion } from "motion/react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { reorderTasks } from "@/app/actions/tasks";
-import { TaskListRow } from "./TaskListRow";
 import { PriorityChip } from "./PriorityChip";
-import { cn } from "@/lib/utils";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { TaskListRow } from "./TaskListRow";
 import type { TasksOptimisticDispatch } from "./TasksClient";
 
 interface Props {
@@ -42,12 +42,10 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
-  const activeTask = activeId
-    ? tasks.find((t) => t.id === activeId) ?? null
-    : null;
+  const activeTask = activeId ? (tasks.find((t) => t.id === activeId) ?? null) : null;
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -150,7 +148,7 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
           <div
             className={cn(
               "flex items-center gap-2 h-10 px-3 rounded-md opacity-95",
-              "bg-[var(--surface)] border border-[var(--edge)]",
+              "bg-[var(--surface)] border border-[var(--edge)]"
             )}
             style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
           >

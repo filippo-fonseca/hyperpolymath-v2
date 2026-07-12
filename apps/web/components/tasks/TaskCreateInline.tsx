@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Plus } from "lucide-react";
 import { Spinner } from "@/components/shared/Spinner";
 import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useRef, useState, useTransition } from "react";
 
-type TaskStatus =
-  | "not started"
-  | "up next"
-  | "in progress"
-  | "almost done"
-  | "lesno";
+type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
 
 interface Props {
   status: TaskStatus;
@@ -83,7 +78,7 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
             "w-full bg-card border border-border rounded-md px-3 py-2",
             "font-sans text-[13px] text-foreground placeholder:text-muted-foreground",
             "focus:outline-none focus:ring-2 focus:ring-ring",
-            "transition-colors",
+            "transition-colors"
           )}
         />
       ) : (
@@ -100,7 +95,7 @@ export function TaskCreateInline({ status, onCreateTask, onStartCreate }: Props)
             "flex items-center gap-1 w-full px-1 py-1",
             "font-sans text-[13px] text-muted-foreground",
             "hover:text-foreground transition-colors rounded focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "disabled:opacity-60 disabled:cursor-not-allowed"
           )}
         >
           {isPending ? (
