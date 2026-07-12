@@ -16,7 +16,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
-import { postClaim, postWarmup } from "@/api/client";
+import { postClaim, postWarmup, clearHistory } from "@/api/client";
 import {
   cancelCaptureTurn,
   onCaptureState,
@@ -397,6 +397,46 @@ function paintResponseChunk(delta: string): void {
   if (textEl) textEl.textContent = appendWithBoundarySpacing(textEl.textContent ?? "", delta);
 }
 
+/**
+ * Clear the conversation "from scratch". Two halves must both happen:
+ *   1. Empty the visible transcript DOM and reset every turn-pairing/optimistic
+ *      pointer, so the next utterance starts a clean pair (a dangling pointer
+ *      into a removed bubble would mis-order the first new turn).
+ *   2. Wipe the server-side memory (jarvis_turns) via clearHistory(), so the
+ *      voice agent's recency-windowed context (buildRecentHistory) no longer
+ *      inherits stale turns — including test turns fired via curl.
+ * The DOM wipe is immediate and never blocks on the network; the server wipe is
+ * best-effort and merely disables the button for its round-trip.
+ */
+async function clearConversation(): Promise<void> {
+  const el = transcriptEl();
+  if (el) {
+    // Remove every turn bubble but keep the static empty-state hint node.
+    el.querySelectorAll(".turn").forEach((t) => t.remove());
+    el.classList.remove("has-content");
+  }
+  // Reset all live turn pointers so a fresh pair can't reference removed nodes.
+  currentReplyBody = null;
+  turnPairState = "neutral";
+  jarvisTurnAwaitingUser = null;
+  optimisticUserTurn = null;
+  optimisticUserBody = null;
+
+  // Clear the drawer QA mirrors too, so they don't strand a stale exchange.
+  const transcriptText = document.getElementById("transcript-text");
+  if (transcriptText) transcriptText.textContent = "";
+  const responseText = document.getElementById("response-text");
+  if (responseText) responseText.textContent = "";
+
+  const btn = document.getElementById("clear-convo-btn") as HTMLButtonElement | null;
+  if (btn) btn.disabled = true;
+  try {
+    await clearHistory();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
 // and the drawer QA list. Keeps chrome out of the scrollable transcript.
 function pushFooterReceipt(text: string, extraClass = ""): void {
@@ -562,6 +602,14 @@ function wireStopButton(): void {
   btn.addEventListener("click", () => {
     ttsPlayer.stop();
     paintTtsState(false);
+  });
+}
+
+function wireClearButton(): void {
+  const btn = document.getElementById("clear-convo-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    void clearConversation();
   });
 }
 
@@ -943,6 +991,7 @@ async function boot(): Promise<void> {
   wireCancelButton();
   wireStopButton();
   wireWakeButton();
+  wireClearButton();
   wireExtendButton();
 
   // Route ESP32 `trigger` events through the conversation FSM so the physical
