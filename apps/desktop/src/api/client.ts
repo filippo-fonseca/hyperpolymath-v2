@@ -305,6 +305,52 @@ export async function clearHistory(): Promise<boolean> {
 }
 
 /**
+ * POST /api/jarvis/voice/history/receipt
+ *
+ * Records the true terminal outcome of a desktop-gated WhatsApp send into the
+ * server's cross-turn memory (jarvis_turns), so a following "did you send it?"
+ * turn is answered from a real receipt rather than a guess. Fire-and-forget:
+ * the send already succeeded/failed and was spoken; this only teaches the agent
+ * what happened. Failures to POST are logged, never surfaced.
+ */
+export async function postWhatsappReceipt(args: {
+  recipient: string;
+  jid?: string;
+  text: string;
+  success: boolean;
+  at?: string;
+}): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/receipt`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        channel: "whatsapp",
+        recipient: args.recipient,
+        ...(args.jid ? { jid: args.jid } : {}),
+        text: args.text,
+        success: args.success,
+        at: args.at ?? new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/receipt] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/receipt] error", err);
+    return false;
+  }
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.

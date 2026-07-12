@@ -42,6 +42,7 @@ import type { SendMessageAction } from "@/actions/dispatcher";
 import { ttsPlayer } from "@/jarvis-response";
 import { loadSettings } from "@/settings";
 import { startTask, resolveTask } from "@/hud/background-tasks";
+import { postWhatsappReceipt } from "@/api/client";
 
 /** Outcome of an actual send. `ok:true` only when the transport confirmed
  *  delivery (a 2xx from the WhatsApp bridge, or AppleScript running clean).
@@ -465,8 +466,29 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
         ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
         text: action.text,
       });
+      // Teach the server what actually happened so a following "did you send
+      // it?" voice turn is grounded (buildRecentHistory reads jarvis_turns).
+      // Fire-and-forget — the send already succeeded and was spoken.
+      void postWhatsappReceipt({
+        recipient: who,
+        ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+        text: action.text,
+        success: true,
+      });
     }
     return;
+  }
+  // Failure path. For WhatsApp, still record a receipt so the agent knows the
+  // send did NOT go through — otherwise the next turn would only see the model's
+  // pre-send prose and might claim success. iMessage failures aren't yet mirrored
+  // (no widget/receipt plumbing); WhatsApp is the reported case.
+  if (action.app === "whatsapp") {
+    void postWhatsappReceipt({
+      recipient: (result.resolvedRecipient ?? action.recipient).trim() || action.recipient,
+      ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+      text: action.text,
+      success: false,
+    });
   }
   // executeSend already spoke a specific, category-appropriate line — for
   // WhatsApp: not-connected vs contact-not-found vs ambiguous (see
