@@ -16,19 +16,19 @@
     "quick_branch_template": null
   },
   "workflow": {
-    "research": true,
+    "research": false,
     "plan_check": true,
     "verifier": true,
     "nyquist_validation": false,
-    "auto_advance": false,
+    "auto_advance": true,
     "node_repair": true,
     "node_repair_budget": 2,
-    "ui_phase": false,
+    "ui_phase": true,
     "ui_safety_gate": true,
     "text_mode": false,
     "research_before_questions": false,
     "discuss_mode": "discuss",
-    "skip_discuss": false,
+    "skip_discuss": true,
     "_auto_chain_active": false,
     "code_review": true,
     "ai_integration_phase": false
@@ -40,17 +40,17 @@
   "mode": "yolo",
   "granularity": "coarse",
   "bgsd_unit_posture": {
-    "unit_id": "imessage-send-harden",
+    "unit_id": "sd-shell-foundation",
     "model": "opus",
     "effort": "xhigh",
-    "difficulty": 0.35
+    "difficulty": 0.6
   },
   "bgsd_phase_config": {
-    "unit_id": "imessage-send-harden",
-    "research": true,
+    "unit_id": "sd-shell-foundation",
+    "research": false,
     "plan_check": true,
     "code_review": true,
     "ai_integration_phase": false,
-    "ui_phase": false
+    "ui_phase": true
   }
 }
