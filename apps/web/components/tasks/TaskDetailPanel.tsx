@@ -10,6 +10,7 @@ import {
   ensureTaskPeople,
   updateTask,
 } from "@/app/actions/tasks";
+import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,24 +32,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
 import { createPersonSuggestion } from "@/components/captures/person-suggestions";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
+import { PersonListField } from "@/components/shared/PersonListField";
+import { MetaSection } from "@/components/spacedrive";
+import { UrlField } from "@/components/shared/UrlField";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import { useCallback, useEffect, useState, useTransition } from "react";
 import { useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { UrlField } from "@/components/shared/UrlField";
-import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
-import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -146,15 +147,14 @@ function PillGroup<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ariaLabel}>
+    <fieldset className="m-0 flex flex-wrap gap-1.5 border-0 p-0" aria-label={ariaLabel}>
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
           <button
             key={opt.value}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            aria-pressed={selected}
             onClick={() => onChange(opt.value)}
             className={cn(
               "group inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
@@ -188,7 +188,7 @@ function PillGroup<T extends string>({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 
@@ -388,9 +388,7 @@ export function TaskDetailPanel({
   // Sync notes editor content when the task changes (panel opens a different task).
   useEffect(() => {
     if (!notesEditor) return;
-    const newContent = form.notes
-      ? `<p>${form.notes.split("\n").join("</p><p>")}</p>`
-      : "";
+    const newContent = form.notes ? `<p>${form.notes.split("\n").join("</p><p>")}</p>` : "";
     if (notesEditor.getHTML() !== newContent) {
       notesEditor.commands.setContent(newContent, { emitUpdate: false });
     }
@@ -424,10 +422,10 @@ export function TaskDetailPanel({
       if (cancelled || !r.success || !r.data.changed) return;
       const nextNames = r.data.people.map((p) => p.name);
       setForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       setInitialForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       addOptimistic({ type: "update", id: taskId, patch: { people: r.data.people } });
     });
@@ -472,7 +470,11 @@ export function TaskDetailPanel({
         createdAt: new Date(),
         recurrence: form.recurrence,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
         peopleDerivedAt: null,
       },
@@ -529,7 +531,11 @@ export function TaskDetailPanel({
       patch: {
         ...patch,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       },
     });
@@ -669,7 +675,7 @@ export function TaskDetailPanel({
           side="right"
           className={cn(
             "flex w-[min(420px,100vw)] flex-col border-l border-[var(--deck-line)] bg-[var(--deck-panel)] p-0",
-            reducedMotion && "[&[data-state=open]]:animate-none [&[data-state=closed]]:animate-none",
+            reducedMotion && "[&[data-state=open]]:animate-none [&[data-state=closed]]:animate-none"
           )}
           showCloseButton={false}
         >
@@ -683,7 +689,6 @@ export function TaskDetailPanel({
                       type="text"
                       value={form.title}
                       onChange={(e) => set("title", e.target.value)}
-                      autoFocus={isCreate}
                       placeholder={isCreate ? "Task title…" : undefined}
                       className={cn(
                         "w-full bg-transparent font-[family-name:var(--font-sans)] text-lg font-semibold text-[var(--deck-ink)] placeholder:font-normal placeholder:text-[var(--deck-ink-dull)] focus:outline-none",
@@ -950,13 +955,5 @@ function FieldSection({
   label: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-[var(--deck-divider)] pt-3 first:border-t-0 first:pt-0">
-      {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
-      <label className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)]">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
+  return <MetaSection label={label} className="px-0 py-3 first:pt-0">{children}</MetaSection>;
 }
