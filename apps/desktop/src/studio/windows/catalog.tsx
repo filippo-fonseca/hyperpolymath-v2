@@ -8,6 +8,7 @@ import {
   Globe2,
   MessageCircle,
   Newspaper,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export type WidgetKind =
@@ -18,6 +19,7 @@ export type WidgetKind =
   | "card"
   | "clock"
   | "camera"
+  | "settings"
   | "orb";
 
 export interface WidgetContentProps {
@@ -80,6 +82,13 @@ export const WIDGET_CATALOG: Record<WidgetKind, WidgetCatalogEntry> = {
     icon: Camera,
     component: lazy(() => import("../widgets/CameraWidget")),
     defaultSize: { w: 0.3, h: 0.34 },
+    singleton: true,
+  },
+  settings: {
+    label: "Settings",
+    icon: SlidersHorizontal,
+    component: lazy(() => import("../widgets/SettingsWidget")),
+    defaultSize: { w: 0.3, h: 0.42 },
     singleton: true,
   },
   orb: {
