@@ -2,7 +2,7 @@
   "unit": "Life OS command center",
   "session": "sesh-1783863067187",
   "branch": "bgsd/lifeos-command-center",
-  "testedSha": "a52aa4ee618bfc21f15730ad21ee375ca89cbc66",
+  "testedSha": "84a30743af9b079654e2671d2ed8812e76165f63",
   "overall": "PASS",
   "scope": "code verification passed; browser usage verification was unavailable",
   "commands": [
@@ -38,7 +38,17 @@
     {
       "command": "DATABASE_URL=postgresql://localhost:5432/lifeos pnpm --filter web build",
       "result": "PASS",
-      "details": "Production build completed and emitted routes. It reported pre-existing page-block-editor ::highlight parser warnings and the existing next.config NFT tracing warning."
+      "details": "Production build completed and emitted routes at the reviewer-fix tested SHA. It reported pre-existing page-block-editor ::highlight parser warnings and the existing next.config NFT tracing warning."
+    },
+    {
+      "command": "pnpm --filter web exec biome check 'components/lifeos/LifeOsBentoGrid.tsx' 'components/lifeos/LifeOsAreasShell.tsx' 'components/lifeos/LifeOsInsightsWidget.tsx' 'components/lifeos/UpcomingTasksWidget.tsx' 'components/lifeos/TodayHabitsWidget.tsx' 'components/lifeos/TodayTrainingWidget.tsx' 'components/lifeos/RecentCapturesWidget.tsx' 'tests/lifeos-command-center.test.tsx'",
+      "result": "PASS",
+      "details": "8 changed Life OS files checked; no diagnostics."
+    },
+    {
+      "command": "pnpm --filter web exec vitest run tests/lifeos-command-center.test.tsx tests/spacedrive-primitives.test.tsx",
+      "result": "PASS",
+      "details": "2 files, 18 tests passed, including container-breakpoint and heading-semantics regression guards."
     },
     {
       "command": "Local browser usage ladder",
@@ -53,7 +63,9 @@
     "task and habit optimistic mutation/rollback paths",
     "areas-tree-* and lifeos:* collapse namespaces",
     "AreasTree SMIL feed and avatar pulse are gated by useReducedMotion",
-    "capture conversion action is focus-visible and available on coarse pointers"
+    "capture conversion action is focus-visible and available on coarse pointers",
+    "bento 12-column layout and spans use @3xl/main in both reduced-motion and motion branches, preserving grid-cols-1 below the container threshold",
+    "System map, Today / work, and Insights gateway expose named h2 sections; Tasks, Habits, Training, and Capture stream expose named h3 widget sections while native links/buttons remain intact"
   ],
   "remainingLimitations": [
     "No authenticated browser session or browser backend was available for visual and responsive verification.",
