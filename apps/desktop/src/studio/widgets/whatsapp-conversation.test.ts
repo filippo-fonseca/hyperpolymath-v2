@@ -3,8 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildConversationRows,
   dayLabel,
+  isPendingReconciled,
+  normalizeBody,
+  pendingMatchesSynced,
+  RECONCILE_RETRY_MS,
+  RECONCILE_WINDOW_MS,
   type ConversationMessage,
   type MessageRow,
+  type PendingSend,
 } from "./whatsapp-conversation";
 
 // A fixed "now" so relative day labels are deterministic. Built from local
@@ -156,5 +162,89 @@ describe("buildConversationRows — clustering", () => {
 
   it("returns an empty list for no messages", () => {
     expect(buildConversationRows([], NOW)).toEqual([]);
+  });
+});
+
+describe("normalizeBody", () => {
+  it("collapses whitespace, trims, and lowercases", () => {
+    expect(normalizeBody("  Hey   There\n")).toBe("hey there");
+  });
+  it("treats null/undefined as empty", () => {
+    expect(normalizeBody(null)).toBe("");
+    expect(normalizeBody(undefined)).toBe("");
+  });
+});
+
+describe("pendingMatchesSynced — reconcile predicate", () => {
+  const at = (mi: number, s = 0) => localIso(2026, 6, 11, 12, mi, s);
+  const pending: PendingSend = { body: "on my way", sentAt: at(0) };
+
+  it("matches a from-me synced row with the same body within ±90s", () => {
+    // Bridge stamp trailing the local clock by 30s — a realistic drift.
+    const synced = msg({ fromMe: true, body: "on my way", sentAt: at(0, 30) });
+    expect(pendingMatchesSynced(pending, synced)).toBe(true);
+  });
+
+  it("matches despite whitespace / case differences in the body", () => {
+    const synced = msg({ fromMe: true, body: "  On My Way ", sentAt: at(0, 5) });
+    expect(pendingMatchesSynced(pending, synced)).toBe(true);
+  });
+
+  it("rejects an incoming (not-from-me) row with the same body", () => {
+    const synced = msg({ fromMe: false, body: "on my way", sentAt: at(0, 5) });
+    expect(pendingMatchesSynced(pending, synced)).toBe(false);
+  });
+
+  it("rejects a different body", () => {
+    const synced = msg({ fromMe: true, body: "see you soon", sentAt: at(0, 5) });
+    expect(pendingMatchesSynced(pending, synced)).toBe(false);
+  });
+
+  it("rejects a same-text row outside the ±90s window (a genuine repeat)", () => {
+    const synced = msg({ fromMe: true, body: "on my way", sentAt: at(2, 0) });
+    expect(pendingMatchesSynced(pending, synced)).toBe(false);
+  });
+
+  it("matches at exactly the window edge and rejects just beyond it", () => {
+    const edge = new Date(new Date(pending.sentAt).getTime() + RECONCILE_WINDOW_MS).toISOString();
+    const past = new Date(
+      new Date(pending.sentAt).getTime() + RECONCILE_WINDOW_MS + 1_000,
+    ).toISOString();
+    expect(pendingMatchesSynced(pending, msg({ fromMe: true, body: "on my way", sentAt: edge }))).toBe(true);
+    expect(pendingMatchesSynced(pending, msg({ fromMe: true, body: "on my way", sentAt: past }))).toBe(false);
+  });
+
+  it("rejects a row with an unparseable timestamp", () => {
+    expect(pendingMatchesSynced(pending, msg({ fromMe: true, body: "on my way", sentAt: "nope" }))).toBe(false);
+  });
+});
+
+describe("isPendingReconciled", () => {
+  const pending: PendingSend = { body: "hello", sentAt: localIso(2026, 6, 11, 12, 0) };
+
+  it("is true once the synced history contains the matching from-me row", () => {
+    const fetched = [
+      msg({ fromMe: false, body: "hey", sentAt: localIso(2026, 6, 11, 11, 59) }),
+      msg({ fromMe: true, body: "hello", sentAt: localIso(2026, 6, 11, 12, 0, 12) }),
+    ];
+    expect(isPendingReconciled(pending, fetched)).toBe(true);
+  });
+
+  it("is false when no synced row matches yet", () => {
+    const fetched = [msg({ fromMe: false, body: "hey", sentAt: localIso(2026, 6, 11, 11, 59) })];
+    expect(isPendingReconciled(pending, fetched)).toBe(false);
+  });
+});
+
+describe("RECONCILE_RETRY_MS — retry schedule", () => {
+  it("is strictly increasing and bounded to ~60s", () => {
+    for (let i = 1; i < RECONCILE_RETRY_MS.length; i++) {
+      expect(RECONCILE_RETRY_MS[i]!).toBeGreaterThan(RECONCILE_RETRY_MS[i - 1]!);
+    }
+    expect(RECONCILE_RETRY_MS[RECONCILE_RETRY_MS.length - 1]).toBe(60_000);
+  });
+
+  it("starts well before the ~15s sync-worker cadence", () => {
+    expect(RECONCILE_RETRY_MS[0]!).toBeLessThan(15_000);
   });
 });
