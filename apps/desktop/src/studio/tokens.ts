@@ -35,6 +35,25 @@ export const HUD_COLORS = {
   muted: "#687C8F",
 } as const;
 
+/**
+ * Surface ladder — near-equal navy steps on one hue (mirroring the wiki's
+ * Spacedrive `--sd-box`/`-dark-box`/`-darker-box` idiom). Depth reads through
+ * ~4-5% lightness steps + hairline borders, never heavy shadows. Ordered
+ * recessed → raised: `sunken` (drawer/inputs) < `base` (body) < `raised`
+ * (headers/chrome) < `hover` (interactive hover rung).
+ */
+export const HUD_SURFACES = {
+  sunken: "#080B14",
+  base: "#0A0E1A",
+  raised: "#0E1322",
+  hover: "#141A2C",
+  line: "rgba(47, 168, 255, 0.24)",
+  lineStrong: "rgba(47, 168, 255, 0.40)",
+} as const;
+
+/** One calibrated easing curve (matches the wiki `--ease-out-quart`) for HUD motion. */
+export const HUD_EASE_OUT_QUART = [0.25, 1, 0.5, 1] as const;
+
 // Widget-layer palette, expressed against the canonical HUD palette above.
 export const STUDIO_COLORS = {
   background: HUD_COLORS.canvas,

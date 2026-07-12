@@ -19,24 +19,44 @@
   inset: 0;
   overflow: hidden;
   color: var(--studio-text);
+  /* Base navy + raised top glow. The dotted grid moves to ::before so it can
+     be painted OVER the ambient constellation canvas as a foreground scrim. */
   background-color: var(--studio-canvas);
-  background-image:
-    radial-gradient(circle at center, var(--studio-grid) 0 1px, transparent 1.25px),
-    radial-gradient(ellipse at 50% 8%, var(--studio-canvas-raised) 0%, transparent 62%);
-  background-position: 0 0, center;
-  background-size: 24px 24px, 100% 100%;
+  background-image: radial-gradient(ellipse at 50% 8%, var(--studio-canvas-raised) 0%, transparent 62%);
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+/* Dotted grid scrim — layered above the constellation (z 0) and below the
+   rulers (z 1). Pointer-transparent atmosphere. */
+.studio-shell::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  background-image: radial-gradient(circle at center, var(--studio-grid) 0 1px, transparent 1.25px);
+  background-size: 24px 24px;
+  pointer-events: none;
 }
 
 .studio-shell::after {
   position: absolute;
   inset: 0;
+  z-index: 2;
   content: "";
   background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.48) 100%);
+  pointer-events: none;
+}
+
+/* Ambient graph background — above the base navy, below the dotted-grid scrim
+   and rulers. Atmosphere only: never captures pointer events. */
+.studio-constellation {
+  z-index: 0;
 }
 
 .studio-rulers {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   inset: 8px;
   opacity: 0.72;
   background:
@@ -54,7 +74,7 @@
 
 .studio-state-chip {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   left: 24px;
   bottom: 20px;
   padding: 6px 9px;
