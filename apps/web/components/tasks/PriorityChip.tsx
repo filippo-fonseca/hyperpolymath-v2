@@ -26,15 +26,8 @@ const opacityForPriority: Record<Exclude<Priority, "P∞">, number> = {
 export function PriorityChip({ priority }: { priority: Priority }) {
   if (priority === "P∞") {
     return (
-      <span
-        className="inline-flex items-center"
-        aria-label="Priority infinity"
-      >
-        <InfinityIcon
-          size={14}
-          strokeWidth={1.5}
-          style={{ color: "var(--ink-amber)" }}
-        />
+      <span className="inline-flex items-center" aria-label="Priority infinity">
+        <InfinityIcon size={14} strokeWidth={1.5} style={{ color: "var(--ink-amber)" }} />
       </span>
     );
   }

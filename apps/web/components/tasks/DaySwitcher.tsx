@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { addDays, format, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { useRef } from "react";
 
 interface Props {
   /** Active day in YYYY-MM-DD form (URL-synced via TasksClient). */
@@ -26,13 +26,13 @@ export function DaySwitcher({ dateYmd, onDateChange }: Props) {
   const isToday = isSameDay(date, today);
 
   return (
-    <div className="flex items-center gap-2 px-1 pb-3">
+    <div className="flex flex-wrap items-center gap-2 px-1 pb-2">
       <div className="flex items-center gap-1">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0"
+          className="h-8 w-8 p-0 focus-visible:[box-shadow:var(--ring-focus)]"
           onClick={() => onDateChange(toYmd(addDays(date, -1)))}
           aria-label="Previous day"
         >
@@ -43,8 +43,8 @@ export function DaySwitcher({ dateYmd, onDateChange }: Props) {
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 px-2 font-mono text-[11px] uppercase tracking-[0.06em]",
-            isToday && "text-[var(--ink-muted)]",
+            "h-8 px-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] focus-visible:[box-shadow:var(--ring-focus)]",
+            isToday && "text-[var(--ink-muted)]"
           )}
           onClick={() => onDateChange(toYmd(today))}
           disabled={isToday}
@@ -55,7 +55,7 @@ export function DaySwitcher({ dateYmd, onDateChange }: Props) {
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0"
+          className="h-8 w-8 p-0 focus-visible:[box-shadow:var(--ring-focus)]"
           onClick={() => onDateChange(toYmd(addDays(date, 1)))}
           aria-label="Next day"
         >
@@ -68,13 +68,13 @@ export function DaySwitcher({ dateYmd, onDateChange }: Props) {
           fallback otherwise). */}
       <button
         type="button"
-        className="relative font-serif text-base text-[var(--ink)] hover:text-[var(--ink)] cursor-pointer-always"
+        className="relative min-h-8 rounded-[0.375rem] px-2 text-left font-[family-name:var(--font-sans)] text-[13px] text-[var(--deck-ink)] hover:bg-[var(--deck-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] cursor-pointer-always"
         onClick={() => pickerRef.current?.showPicker?.() ?? pickerRef.current?.focus()}
         title="Jump to a date"
       >
         {format(date, "EEEE, MMMM d, yyyy")}
         {isToday ? (
-          <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="ml-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[var(--deck-ink-dull)]">
             · Today
           </span>
         ) : null}

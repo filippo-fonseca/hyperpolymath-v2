@@ -1,0 +1,56 @@
+{
+  "unit": "tasks-operations-surface",
+  "session": "sesh-1783863067187",
+  "branch": "bgsd/tasks-operations-surface",
+  "testedSha": "c5b82c7e",
+  "overall": "PASS",
+  "passRationale": "Owned Tasks code typechecks, focused contract and primitive tests pass, and the production build completes with only a command-scoped placeholder DATABASE_URL. Known repository-wide lint/test-environment debt is recorded below and does not originate in this unit's behavior changes.",
+  "commands": [
+    {
+      "command": "pnpm --filter web test -- tests/tasks-operations-surface-contracts.test.tsx tests/spacedrive-primitives.test.tsx",
+      "result": "PASS — 2 files, 15 tests"
+    },
+    {
+      "command": "pnpm --filter web typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm --filter web build",
+      "result": "BLOCKED — missing DATABASE_URL during page-data collection after successful compile/TypeScript"
+    },
+    {
+      "command": "DATABASE_URL=postgresql://localhost:5432/hp_test pnpm --filter web build",
+      "result": "PASS — compile, TypeScript, static generation, and route optimization completed"
+    },
+    {
+      "command": "pnpm --filter web exec biome check 'app/(app)/tasks/page.tsx' components/tasks lib/ui/useTasksExpanded.ts --max-diagnostics=200 --reporter=summary",
+      "result": "KNOWN DEBT — 28 pre-existing diagnostics: 2 formatting/import findings on the unchanged SSR page and 26 lint/correctness/useExhaustiveDependencies findings in TasksClient and TaskDetailPanel"
+    },
+    {
+      "command": "pnpm --filter web test -- tests/shell-sidebar-contract.test.tsx",
+      "result": "KNOWN ENVIRONMENT FAILURE — repository's existing jsdom localStorage is an object without clear/getItem under the current Node --localstorage-file setup"
+    }
+  ],
+  "coverage": [
+    "Command toolbar, wrapped mode strip, day context, Inbox/central composition, responsive internal scrolling",
+    "Task cards/list rows/selection controls with focus-visible and coarse-pointer affordances",
+    "Inspector metadata sections with preserved create/edit/save/delete/undo contracts",
+    "useReducedMotion gating on every owned Motion surface",
+    "Local YMD parsing, URL/storage/realtime markers, and both DnD systems preserved by scoped edits"
+  ],
+  "limitations": [
+    "No signed-in browser/visual pass was possible in this worktree because no auth/database environment was provided; responsive behavior is code-reviewed, not browser-measured.",
+    "Build emits pre-existing warnings for ::highlight(...) CSS parsing and dynamic NFT tracing outside Unit 3 ownership.",
+    "Biome debt predates this unit: the unchanged SSR page retains two formatting/import findings, and TasksClient/TaskDetailPanel retain 26 exhaustive-dependency findings. These were not rewritten because the hooks are part of frozen state/editor contracts.",
+    "Pre-existing untracked .bgsd-luna-prompt.md was preserved and excluded from commits."
+  ],
+  "commits": [
+    "2ad3a365 docs(tasks): specify operations surface",
+    "8ce2766f feat(tasks): establish command toolbar and mode strip",
+    "ca49d438 feat(tasks): refine task rows cards and selection",
+    "5a9dc49d feat(tasks): restyle metadata inspector",
+    "24d889bb fix(tasks): gate motion and responsive affordances",
+    "374b30fb test(tasks): cover operations surface contracts",
+    "c5b82c7e chore(tasks): apply owned formatting"
+  ]
+}

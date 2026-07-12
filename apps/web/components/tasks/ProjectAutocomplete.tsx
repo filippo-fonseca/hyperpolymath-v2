@@ -42,13 +42,7 @@ interface Props {
   onCreateProject: (input: { name: string; areaId: string }) => Promise<string | null>;
 }
 
-export function ProjectAutocomplete({
-  value,
-  onChange,
-  projects,
-  areas,
-  onCreateProject,
-}: Props) {
+export function ProjectAutocomplete({ value, onChange, projects, areas, onCreateProject }: Props) {
   const [open, setOpen] = React.useState(false);
   // Inline create (issue #34): when true the popover swaps from the project
   // list to a tiny create form (name + area). Submitting creates the project,
@@ -125,7 +119,7 @@ export function ProjectAutocomplete({
               <button
                 type="button"
                 onClick={() => toggle(p.id)}
-                className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+                className="min-h-6 min-w-6 rounded p-1 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                 aria-label={`Remove ${getLabel(p)}`}
               >
                 <X size={11} />
@@ -146,8 +140,8 @@ export function ProjectAutocomplete({
           <Button
             type="button"
             variant="outline"
-            role="combobox"
             aria-expanded={open}
+            aria-haspopup="listbox"
             className="w-full justify-between font-sans text-[13px] h-8"
           >
             {selected.length === 0 ? "Link projects..." : `${selected.length} linked`}

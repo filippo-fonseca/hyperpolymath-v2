@@ -1,13 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Repeat } from "lucide-react";
-import type {
-  RecurrenceFrequency,
-  RecurrenceRule,
-} from "@/lib/tasks/recurrence";
+import type { RecurrenceFrequency, RecurrenceRule } from "@/lib/tasks/recurrence";
 import { describeRule, normalizeRule } from "@/lib/tasks/recurrence";
+import { cn } from "@/lib/utils";
+import { Repeat } from "lucide-react";
 
 /**
  * Recurrence editor for a task (issue #144). DISTINCT from the habit frequency
@@ -59,7 +56,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
           interval: value?.interval ?? 1,
           // Seed with the current weekdays, else Monday so the rule is valid.
           weekdays: value?.weekdays && value.weekdays.length > 0 ? value.weekdays : [1],
-        }),
+        })
       );
       return;
     }
@@ -67,7 +64,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
       normalizeRule({
         frequency: next,
         interval: next === "custom" ? Math.max(2, value?.interval ?? 2) : 1,
-      }),
+      })
     );
   }
 
@@ -90,31 +87,29 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
   return (
     <div className="flex flex-col gap-2.5">
       {/* Frequency pills — cyan accent marks "this is a recurring task". */}
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Repeat">
+      <fieldset className="m-0 flex flex-wrap gap-1.5 border-0 p-0" aria-label="Repeat">
         {FREQ_OPTIONS.map((opt) => {
           const selected = opt.value === frequency;
           return (
             <button
               key={opt.value}
               type="button"
-              role="radio"
-              aria-checked={selected}
+              aria-pressed={selected}
               disabled={disabled}
               onClick={() => pickFrequency(opt.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
+                "inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
                 "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
-                "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
+                "border transition-[color,background-color,border-color,box-shadow] duration-[var(--dur-hover)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
                 selected
                   ? "border-[var(--hud-cyan)] text-[var(--ink)]"
                   : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                disabled && "opacity-40 cursor-not-allowed",
+                disabled && "opacity-40 cursor-not-allowed"
               )}
               style={
                 selected
                   ? {
-                      backgroundColor:
-                        "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
+                      backgroundColor: "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
                       boxShadow:
                         "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 45%, transparent), 0 0 12px color-mix(in oklch, var(--hud-cyan) 22%, transparent)",
                     }
@@ -126,7 +121,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
             </button>
           );
         })}
-      </div>
+      </fieldset>
 
       {/* Custom interval — "every N days". */}
       {value?.frequency === "custom" && (
@@ -149,7 +144,10 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
       {/* Weekly weekday picker — cyan-accented to stay distinct from habits. */}
       {value?.frequency === "weekly" && (
         <div className="flex flex-col gap-2">
-          <div className="inline-flex items-center gap-1" role="group" aria-label="Repeat on">
+          <fieldset
+            className="m-0 inline-flex items-center gap-1 border-0 p-0"
+            aria-label="Repeat on"
+          >
             {WEEKDAY_ORDER.map(({ idx, short, full }) => {
               const on = (value.weekdays ?? []).includes(idx);
               return (
@@ -162,20 +160,20 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
                   aria-label={full}
                   title={full}
                   className={cn(
-                    "inline-flex items-center justify-center w-8 h-8 rounded-md",
+                    "inline-flex h-8 w-8 items-center justify-center rounded-md",
                     "font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer-always",
-                    "border transition-colors duration-150 ease-out",
+                    "border transition-colors duration-[var(--dur-hover)] ease-out focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
                     on
                       ? "border-[var(--hud-cyan)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,var(--surface))] text-[var(--ink)]"
                       : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
-                    disabled && "opacity-40 cursor-not-allowed",
+                    disabled && "opacity-40 cursor-not-allowed"
                   )}
                 >
                   {short}
                 </button>
               );
             })}
-          </div>
+          </fieldset>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-[var(--ink-muted)]">Every</span>
             <Input

@@ -10,6 +10,7 @@ import {
   ensureTaskPeople,
   updateTask,
 } from "@/app/actions/tasks";
+import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,23 +32,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
 import { createPersonSuggestion } from "@/components/captures/person-suggestions";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
+import { PersonListField } from "@/components/shared/PersonListField";
+import { UrlField } from "@/components/shared/UrlField";
+import { MetaSection } from "@/components/spacedrive";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { UrlField } from "@/components/shared/UrlField";
-import { PersonListField } from "@/components/shared/PersonListField";
 import { MoveToMenu } from "./MoveToMenu";
 import { ProjectAutocomplete } from "./ProjectAutocomplete";
 import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import type { TasksOptimisticDispatch } from "./TasksClient";
-import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 
 type Priority = "P∞" | "P1" | "P2" | "P3";
 type Status = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -145,19 +147,18 @@ function PillGroup<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ariaLabel}>
+    <fieldset className="m-0 flex flex-wrap gap-1.5 border-0 p-0" aria-label={ariaLabel}>
       {options.map((opt) => {
         const selected = opt.value === value;
         return (
           <button
             key={opt.value}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            aria-pressed={selected}
             onClick={() => onChange(opt.value)}
             className={cn(
               "group inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
-              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
+              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
               "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
               selected
                 ? "text-[var(--ink)]"
@@ -187,7 +188,7 @@ function PillGroup<T extends string>({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 
@@ -261,6 +262,7 @@ export function TaskDetailPanel({
   mode = "edit",
 }: Props) {
   const isCreate = mode === "create";
+  const reducedMotion = useReducedMotion() ?? false;
   const [isPending, startTransition] = useTransition();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hashtags] = useState(initialHashtags);
@@ -386,9 +388,7 @@ export function TaskDetailPanel({
   // Sync notes editor content when the task changes (panel opens a different task).
   useEffect(() => {
     if (!notesEditor) return;
-    const newContent = form.notes
-      ? `<p>${form.notes.split("\n").join("</p><p>")}</p>`
-      : "";
+    const newContent = form.notes ? `<p>${form.notes.split("\n").join("</p><p>")}</p>` : "";
     if (notesEditor.getHTML() !== newContent) {
       notesEditor.commands.setContent(newContent, { emitUpdate: false });
     }
@@ -422,10 +422,10 @@ export function TaskDetailPanel({
       if (cancelled || !r.success || !r.data.changed) return;
       const nextNames = r.data.people.map((p) => p.name);
       setForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       setInitialForm((prev) =>
-        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev,
+        key(prev.personNames) === baseline ? { ...prev, personNames: nextNames } : prev
       );
       addOptimistic({ type: "update", id: taskId, patch: { people: r.data.people } });
     });
@@ -470,7 +470,11 @@ export function TaskDetailPanel({
         createdAt: new Date(),
         recurrence: form.recurrence,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
         peopleDerivedAt: null,
       },
@@ -527,7 +531,11 @@ export function TaskDetailPanel({
       patch: {
         ...patch,
         projects: projectChips,
-        hashtags: hashtagNames.map((name) => ({ id: `pending-${name}`, name: name.toLowerCase(), displayName: name })),
+        hashtags: hashtagNames.map((name) => ({
+          id: `pending-${name}`,
+          name: name.toLowerCase(),
+          displayName: name,
+        })),
         people: personNames.map((name) => ({ id: `pending-${name}`, name })),
       },
     });
@@ -665,26 +673,26 @@ export function TaskDetailPanel({
         {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
         <SheetContent
           side="right"
-          className="w-[420px] p-0 flex flex-col [background:var(--glass-bg)] [backdrop-filter:blur(12px)]"
+          className={cn(
+            "flex w-[min(420px,100vw)] flex-col border-l border-[var(--deck-line)] bg-[var(--deck-panel)] p-0",
+            reducedMotion && "[&[data-state=open]]:animate-none [&[data-state=closed]]:animate-none"
+          )}
           showCloseButton={false}
         >
           {task && (
             <>
               {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--glass-border)]">
+              <SheetHeader className="border-b border-[var(--deck-line)] px-4 pb-3 pt-4 sm:px-5">
                 <div className="flex items-start justify-between gap-3">
                   <SheetTitle className="flex-1 p-0 m-0">
                     <input
                       type="text"
                       value={form.title}
                       onChange={(e) => set("title", e.target.value)}
-                      autoFocus={isCreate}
                       placeholder={isCreate ? "Task title…" : undefined}
                       className={cn(
-                        "font-serif text-xl font-semibold text-[var(--ink)] w-full",
-                        "bg-transparent focus:outline-none border-b border-transparent",
-                        "focus:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
-                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal"
+                        "w-full bg-transparent font-[family-name:var(--font-sans)] text-lg font-semibold text-[var(--deck-ink)] placeholder:font-normal placeholder:text-[var(--deck-ink-dull)] focus:outline-none",
+                        "border-b border-transparent transition-colors duration-[var(--dur-hover)] focus:border-[var(--deck-accent)]"
                       )}
                       aria-label="Task title"
                     />
@@ -693,7 +701,7 @@ export function TaskDetailPanel({
                     type="button"
                     onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
-                    className="p-1 rounded hover:bg-[var(--surface)] transition-colors duration-150 ease-out flex-shrink-0 mt-1 cursor-pointer-always"
+                    className="mt-1 min-h-8 min-w-8 flex-shrink-0 rounded-[0.375rem] p-1 text-[var(--deck-ink-dull)] transition-colors duration-[var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] cursor-pointer-always focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                   >
                     <X size={16} className="text-[var(--ink-muted)]" />
                   </button>
@@ -701,7 +709,7 @@ export function TaskDetailPanel({
               </SheetHeader>
 
               {/* Body — scrollable field sections */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5">
+              <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5">
                 {/* 1. Status — glassy colored pills mirroring the kanban columns */}
                 <FieldSection label="Status">
                   <PillGroup
@@ -835,7 +843,7 @@ export function TaskDetailPanel({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--glass-border)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--deck-line)] px-4 py-3 sm:px-5">
                 {isCreate ? (
                   <span />
                 ) : (
@@ -870,7 +878,7 @@ export function TaskDetailPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="glass-button rounded-md px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]"
+                    className="rounded-[0.375rem] bg-[var(--deck-selected)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
                   >
@@ -948,12 +956,8 @@ function FieldSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
-      <label className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-        {label}
-      </label>
+    <MetaSection label={label} className="px-0 py-3 first:pt-0">
       {children}
-    </div>
+    </MetaSection>
   );
 }
