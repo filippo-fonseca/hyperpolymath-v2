@@ -109,10 +109,10 @@ Notes section and Kiwi will respect them.
 ```json bgsd-settings
 {
   "version": 1,
-  "integration_branch": "next",
-  "base_branch": null,
+  "integration_branch": "next-codex-spacedrive-ui",
+  "base_branch": "next",
   "git": {
-    "sync_integration_from_base": true,
+    "sync_integration_from_base": false,
     "integration_to_main": "manual"
   },
   "env": {
@@ -137,7 +137,7 @@ Notes section and Kiwi will respect them.
         "fable": "claude-fable-5"
       },
       "codex": {
-        "opus": "gpt-5.6-sol",
+        "opus": "gpt-5.6-luna",
         "sonnet": "gpt-5",
         "haiku": "gpt-5-mini",
         "fable": "gpt-5-codex"
