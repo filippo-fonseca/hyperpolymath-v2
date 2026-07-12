@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ElementType, ReactNode } from "react";
+import { createElement, type ElementType, type ReactNode } from "react";
 
 const TONE_SURFACE = {
   app: "var(--deck-app)",
@@ -34,14 +34,21 @@ export function DeckPanel({
   children,
   ...rest
 }: DeckPanelProps & Record<string, unknown>) {
-  const Component = (as ?? "div") as ElementType;
-  return (
-    <Component
-      className={cn("rounded-[0.5rem]", bordered && "border border-[var(--deck-line)]", className)}
-      style={{ backgroundColor: TONE_SURFACE[tone] }}
-      {...rest}
-    >
-      {children}
-    </Component>
+  const Component: ElementType = as ?? "div";
+  // createElement (not JSX) so the polymorphic `as` doesn't collapse `children`
+  // to `never`: bare ElementType unions void tags (input/br) whose children type
+  // is never, which JSX intersects — createElement types children as ReactNode.
+  return createElement(
+    Component,
+    {
+      className: cn(
+        "rounded-[0.5rem]",
+        bordered && "border border-[var(--deck-line)]",
+        className
+      ),
+      style: { backgroundColor: TONE_SURFACE[tone] },
+      ...rest,
+    },
+    children
   );
 }
