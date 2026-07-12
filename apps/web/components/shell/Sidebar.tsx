@@ -154,8 +154,8 @@ export function Sidebar({
     <aside
       aria-label="Sidebar"
       className={cn(
-        "relative h-full shrink-0",
-        "transition-[width] duration-200 ease-in-out",
+        "sd-motion relative h-full shrink-0",
+        "transition-[width] [transition-duration:var(--dur-panel)] ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
         !mounted && "invisible"
       )}
@@ -167,7 +167,7 @@ export function Sidebar({
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "group/sidebar absolute inset-y-0 left-0 flex flex-col bg-[var(--surface)] border-r border-[var(--edge)] overflow-hidden",
-          "transition-[width,box-shadow] duration-200 ease-in-out",
+          "transition-[width,box-shadow] [transition-duration:var(--dur-panel)] ease-in-out",
           effectiveCollapsed ? "w-16" : "w-[260px]",
           // When hover-expanded, float above the page content with a soft
           // raised shadow so it reads as a temporary overlay, not a reflow.
@@ -193,7 +193,7 @@ export function Sidebar({
                     size="icon-sm"
                     onClick={handleChevronClick}
                     aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-                    className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out"
+                    className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors [transition-duration:var(--dur-hover)] ease-out"
                   >
                     {collapsed ? (
                       <Pin size={13} strokeWidth={1.5} />
@@ -514,7 +514,7 @@ function UserChip({
             <a
               href="/settings"
               aria-label={`Open settings — signed in as ${primaryLabel}`}
-              className="block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 cursor-pointer-always"
+              className="block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors [transition-duration:var(--dur-hover)] cursor-pointer-always"
             >
               <AvatarOrInitial src={src} initial={initial} textSize="text-sm" />
             </a>
@@ -530,11 +530,13 @@ function UserChip({
       href="/settings"
       className="sidebar-row group flex items-center gap-3 -mx-1 px-2 py-1.5 cursor-pointer-always"
     >
-      <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors duration-150 shrink-0">
+      <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors [transition-duration:var(--dur-hover)] shrink-0">
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
-        <span className="font-serif text-sm text-[var(--ink)] truncate">{primaryLabel}</span>
+        <span className="font-sans text-[13px] tracking-[-0.005em] text-[var(--ink)] truncate">
+          {primaryLabel}
+        </span>
         {profile.displayName?.trim() ? (
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] truncate">
             {profile.email}
@@ -615,7 +617,7 @@ function SidebarIconButton({
   children: React.ReactNode;
 }) {
   const cls = cn(
-    "inline-flex items-center justify-center w-7 h-7 transition-colors duration-150 cursor-pointer-always",
+    "inline-flex items-center justify-center w-7 h-7 transition-colors [transition-duration:var(--dur-hover)] cursor-pointer-always",
     active
       ? "sidebar-row-active text-[var(--ink)]"
       : "sidebar-ghost-btn text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -671,8 +673,8 @@ function SidebarSectionLink({
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "sidebar-row mx-2 flex items-center gap-3 px-3 h-9",
-        "font-serif text-[14px] tracking-tight",
-        "transition-colors duration-150 ease-out cursor-pointer-always",
+        "font-sans text-[13px] tracking-[-0.005em]",
+        "transition-colors [transition-duration:var(--dur-hover)] ease-out cursor-pointer-always",
         isActive
           ? "sidebar-row-active sidebar-row-active-area text-[var(--hud-cyan)] font-medium"
           : "text-[var(--ink-muted)] hover:text-[var(--ink)]"

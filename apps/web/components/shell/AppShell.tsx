@@ -85,7 +85,8 @@ export function AppShell({
             transition={
               reduceMotion
                 ? { duration: 0 }
-                : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
+                : // 220ms — matches --dur-panel motion budget
+                  { duration: 0.22, ease: [0.25, 1, 0.5, 1] }
             }
             onAnimationStart={() => setSidebarAnimating(true)}
             onAnimationComplete={() => setSidebarAnimating(false)}
@@ -93,7 +94,7 @@ export function AppShell({
             // overlay inside it) above the main content. overflow is clipped
             // only mid-animation; visible at rest so the overlay can escape.
             className={cn(
-              "relative z-40 shrink-0",
+              "sd-motion relative z-40 shrink-0",
               sidebarAnimating ? "overflow-hidden" : "overflow-visible"
             )}
           >

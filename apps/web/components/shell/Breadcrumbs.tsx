@@ -30,7 +30,7 @@ export function Breadcrumbs({ items, className }: Props) {
   const last = items.length - 1;
 
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label="Breadcrumb" className={cn("sd-motion", className)}>
       <ol className="flex items-center gap-1.5 flex-wrap">
         {items.map((c, i) => {
           const isLast = i === last;
@@ -52,7 +52,7 @@ export function Breadcrumbs({ items, className }: Props) {
                   className={cn(
                     "font-mono text-[11px] uppercase tracking-[0.08em]",
                     "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-                    "transition-colors duration-150 ease-out cursor-pointer-always",
+                    "transition-colors [transition-duration:var(--dur-hover)] ease-out cursor-pointer-always",
                   )}
                 >
                   {content}

@@ -17,7 +17,9 @@
 
 @theme {
   --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Inter is not loaded by the app shell; keep chrome sans when next/font
+     variables are unavailable rather than falling back to the body serif. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
@@ -83,6 +85,21 @@
   --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-in-fast: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* =====================================================================
+     Unit 1 (Spacedrive foundation) — numeric motion duration tokens.
+     Encodes the sealed control-deck motion budget so surfaces stop hard-coding
+     inline durations: hover 120-140, selection 160-200, tree 160-180, panels
+     200-240, route reveal 240-280 max, orb 12-16s transform/opacity only.
+     Reduced motion is handled separately (the .sd-motion reset below +
+     useReducedMotion() in JS).
+     ===================================================================== */
+  --dur-hover: 130ms;
+  --dur-select: 180ms;
+  --dur-tree: 170ms;
+  --dur-panel: 220ms;
+  --dur-route: 260ms;
+  --dur-orb: 14s;
 
   /* Tailwind 4 color bindings — preserved names, NEW source values */
   --color-background: var(--canvas);
@@ -635,6 +652,21 @@ html::-webkit-scrollbar-thumb:hover,
 
 @media (prefers-reduced-motion: reduce) {
   .wiki-explorer * {
+    scroll-behavior: auto !important;
+  }
+
+  /* Unit 1 (Spacedrive foundation) — freeze CSS-driven motion to a static
+     frame. Any element opting into CSS animation/transition motion in this
+     unit's surfaces (the spacedrive/ primitive family and restyled shell)
+     marks itself `.sd-motion`; here we collapse its animation + transition to
+     an imperceptible instant (the standard accessible reset — 0.01ms rather
+     than `none` so transitionend/animationend still fire and nothing sticks
+     mid-keyframe). JS-driven motion uses useReducedMotion() from motion/react. */
+  .sd-motion,
+  .sd-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }
@@ -1435,4 +1467,50 @@ select:focus-visible,
   --ink: var(--sd-ink);
   --ink-muted: var(--sd-ink-dull);
   scrollbar-color: hsl(235 20% 25%) transparent;
+}
+
+/* =====================================================================
+   Unit 1 (Spacedrive foundation) — generic --deck-* alias layer.
+
+   A single vocabulary the shell + spacedrive/ primitives style against, so
+   feature surfaces stop reaching for wiki-named or raw values. NO new palette:
+   every alias points at an existing token. Defined ONCE in :root — CSS custom
+   properties are substituted at computed-value time on each element, so an
+   alias to a theme-overridden token (e.g. --sd-box, --ink) automatically picks
+   up the .dark value in a dark subtree. No .dark duplicate is needed because
+   none of these map to a *different* source var per theme.
+
+   Reconciliations (see .planning/phases/sd-shell-foundation/PLAN.md):
+   - Accent aliases point at the --hud-cyan family, NOT --sd-accent*: the sd
+     accent tokens are defined only inside .wiki-explorer and are undefined
+     app-wide. The app-wide restrained cyan IS --hud-cyan. Chrome accent is
+     cyan-only; the multi-accent inks (--ink-amber/-sage/-coral/-violet/-blue)
+     stay reserved for data semantics, never chrome.
+   - Ink aliases point at semantic --ink/--ink-muted, NOT --sd-ink*: same
+     wiki-only scoping reason; the semantic ink tokens are theme-aware app-wide.
+   - Surfaces / hairlines / states map onto the --sd-* ladder, which IS defined
+     app-wide (:root + .dark), giving primitives the Spacedrive tonal depth.
+   ===================================================================== */
+:root {
+  /* Surfaces */
+  --deck-app: var(--sd-app);
+  --deck-panel: var(--sd-box);
+  --deck-panel-deep: var(--sd-dark-box);
+  --deck-panel-deeper: var(--sd-darker-box);
+  --deck-input: var(--sd-input);
+  /* Hairlines */
+  --deck-line: var(--sd-line);
+  --deck-divider: var(--sd-divider);
+  /* States */
+  --deck-hover: var(--sd-hover);
+  --deck-selected: var(--sd-selected);
+  --deck-active: var(--sd-active);
+  /* Accent (cyan-only chrome) */
+  --deck-accent: var(--hud-cyan);
+  --deck-accent-faint: var(--hud-cyan-dim);
+  --deck-accent-deep: var(--hud-cyan-light);
+  /* Ink */
+  --deck-ink: var(--ink);
+  --deck-ink-dull: var(--ink-muted);
+  --deck-ink-faint: color-mix(in oklch, var(--ink-muted) 65%, transparent);
 }

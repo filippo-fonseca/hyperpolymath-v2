@@ -1,1 +1,21 @@
-{"unit_id":"explorer-foundation","run_id":"sesh-1783700667211","scale":"project","title":"Explorer foundation: Spacedrive tokens, SVG icon set, chrome primitives","scope":"BINDING: read .planning/SPEC.md then .planning/UNIT-BRIEF.md and implement exactly that unit. Commit atomically and often with explicit pathspecs. Run pnpm install if node_modules missing; build via 'pnpm --filter web build' from the worktree root.","criteria":["--sd-* token ladder added to globals.css (dark verbatim + light equivalents), no existing tokens modified","Dimensional FolderIcon + PageIcon SVG components, crisp 16-80px","ExplorerTopBar, ExplorerBreadcrumbs, ViewToggle, SortSelect, ExplorerContextMenu, InspectorShell, SelectionRubberBand, EmptyState primitives per brief","Gallery route renders all primitives both themes, no console errors","Accent only var(--hud-cyan); no Garamond in chrome; build+typecheck green"],"touched":["apps/web/app/globals.css","apps/web/components/wiki/icons/","apps/web/components/wiki/explorer/"]}
+{
+  "unit_id": "sd-shell-foundation",
+  "run_id": "sesh-1783863067187",
+  "scale": "project",
+  "title": "Spacedrive foundation and app shell: generic token aliases, spacedrive primitive family, shell restyle",
+  "scope": "BINDING: read .planning/fable-plan.md (the authoritative Fable seed plan) and docs/design/LIFE_OS_SPACEDRIVE_HANDOFF.md, then implement exactly this unit. Owns ONLY apps/web/app/globals.css, apps/web/components/shell/**, NEW apps/web/components/spacedrive/**, and net-new tests in apps/web/tests/. NEVER modify components/lifeos, components/tasks, components/wiki, components/areas, app/actions, lib/realtime, or DB/schema — escalate instead. Visual sources: Spacedrive.com + docs/design/spacedrive-references/*.png + Raycast + Wiki Renaissance d70eac6 only; Spacetribe excluded from code, comments, naming, rationale; never copy Spacedrive assets/gradients. Commit atomically and often with explicit pathspecs. pnpm install if node_modules missing; build via 'pnpm --filter web build' from the worktree root.",
+  "criteria": [
+    "Generic --deck-* alias layer over existing --sd-* and semantic tokens plus numeric motion duration tokens (--dur-hover 130ms, --dur-select 180ms, --dur-tree 170ms, --dur-panel 220ms, --dur-route 260ms, --dur-orb 14s) added to globals.css; no existing token values changed; no third raw palette",
+    "New apps/web/components/spacedrive/** family with barrel: DeckPanel, HairlineDivider, SectionHeader, EmptyState, CommandToolbar, ModeStrip, KpiRail, StatChip, DenseListRow (40px, Enter/Space activation), InspectorShell/MetaSection/MetaRow, AmbientOrb (own gradient, 12-16s transform/opacity only, reduced-motion static); all token-styled, both themes, wiki components untouched",
+    "AppShell/Sidebar/PersistentNav/TopTabBar restyled to Spacedrive register (unboxed idle rows, tonal active, hairlines, cyan-only chrome accent, no Garamond in chrome, no hover glow on static cards, heavy glass only on overlays) with 260px/64px geometry, hover-overlay expansion, anchored utilities, tasks-expanded and split-screen coordination preserved exactly",
+    "All frozen contracts intact: localStorage keys sidebar-collapsed, sidebar-show-archived, per-area collapse, top-tab-last-route, top-tab-today-route, tasks-expanded, split-screen-on, hp_tour_pending/hp_tour_v1_done, theme, sfx; window events tasks-expanded-change, split-screen-change, hp:tour-pending; tableKey areas/projects queries + useTableSubscription singletons; optimistic areas/projects split + archive undo; global hotkeys Cmd+K, Cmd+Shift+K, Cmd+[/], Ctrl+1/2/3, Ctrl+Alt+C/T/E/P; ?create=now deep links",
+    "prefers-reduced-motion renders shell + all spacedrive primitives fully static; focus-visible more visible than hover; 320/375/768/1024/1440 widths show no clipped primary actions",
+    "Net-new vitest tests (spacedrive primitives smoke + keyboard activation + reduced-motion; sidebar persistence + tasks-expanded contract) pass; typecheck, lint, full test suite, and pnpm --filter web build green with evidence; signed-in usage verification on port 3105 passes with zero console errors"
+  ],
+  "touched": [
+    "apps/web/app/globals.css",
+    "apps/web/components/shell/",
+    "apps/web/components/spacedrive/",
+    "apps/web/tests/"
+  ]
+}

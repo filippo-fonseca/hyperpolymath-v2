@@ -1,120 +1,159 @@
-# Fable Plan — wa-bridge-capture
+# Fable seed plan — Unit 1: Spacedrive foundation and app shell
 
-- **Unit:** `wa-bridge-capture` — Re-enable WhatsApp message capture + `/api/logout` in the Go bridge, rebundle sidecar
-- **Run:** `sesh-1783185088662`
-- **Worktree:** `/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-bgsd-wa-bridge-capture`
+Authored by the Fable advisor (Conductor session) for run `sesh-1783863067187`.
+This is the AUTHORITATIVE starting plan. Review it, augment where the code
+demands, but do not re-derive it from scratch. The full surface map is in the
+worktree at `.planning/research/shell-surface-map.md`
+(read it — it has exact line anchors); sealed visual decisions live in
+`docs/design/LIFE_OS_SPACEDRIVE_HANDOFF.md` (binding).
 
-## Goal & scope
+## Mission
 
-Make the desktop-embedded Go bridge (`tools/whatsapp-bridge/main.go`) the canonical WhatsApp mirror (Option A). Today it is send + QR + health only (main.go:14, handlers at main.go:232-235). This unit adds:
+Turn the app shell into the Spacedrive-style Renaissance control deck
+foundation: a generic token layer, a reusable `spacedrive/` primitive family,
+and a restyled shell (AppShell, Sidebar, PersistentNav, TopTabBar) — so Units
+2 (Life OS) and 3 (Tasks) can build on it without touching globals or shell.
 
-1. Live message capture (incoming AND outgoing) into `messages` + `chats` tables in the SAME sqlite file the whatsmeow session store uses (`<store>/whatsapp.db`, DSN built at main.go:183), with a schema that satisfies the exact SELECT in `tools/whatsapp-sync/sync.mjs:79-91` with zero SQL changes there.
-2. `POST /api/logout` that clears the paired device so the QR pairing flow re-fires.
-3. Rebuild + rebundle the aarch64-apple-darwin sidecar binary.
+**Ownership (hard boundary):** `apps/web/app/globals.css`,
+`apps/web/components/shell/**`, NEW `apps/web/components/spacedrive/**`, plus
+net-new tests in `apps/web/tests/`. NEVER modify `components/lifeos/**`,
+`components/tasks/**`, `components/wiki/**`, `components/areas/**`, any
+`app/actions/**`, `lib/realtime/**`, or DB/schema. If a change seems to demand
+touching those, stop and escalate instead.
 
-Success criteria (from the brief):
+**Visual sources (only these):** Spacedrive.com and the three pinned
+screenshots in `docs/design/spacedrive-references/` (explorer, overview,
+orb-hero), Raycast's interaction/motion discipline, and the existing Wiki
+Renaissance (`d70eac6`). Spacetribe is EXCLUDED — never in code, comments,
+naming, or rationale. Never copy Spacedrive's actual assets/gradients; the orb
+is our own.
 
-- Live capture into `messages(id, chat_jid, sender, content, timestamp, is_from_me, …)` + `chats(jid, name, …)` in `app_data_dir/whatsapp/whatsapp.db`; sync.mjs runs unchanged.
-- `POST /api/logout` clears `Store.ID` and the QR stdout/event flow re-fires for re-pairing.
-- `/api/send`, `/api/qr`, `/api/health` unchanged; `{"event":"qr"}` / `{"event":"ready"}` stdout events unchanged.
-- `go build` clean; `apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin` rebuilt from new source.
-- No change to store path, port (8080), or send/QR semantics.
+## Step 1 — Token layer in `globals.css` (commit 1)
 
-## Ground truth read
+The Wiki Renaissance already planted the full `--sd-*` ladder (authoritative
+dark block at ~L1411; light at ~L1374). Build on it; invent NOTHING raw.
 
-- `tools/whatsapp-bridge/main.go` (245 lines): single-file bridge. `bridge` struct holds `client` + QR state. QR channel is pulled before `Connect()` only when `client.Store.ID == nil` (main.go:199-223); otherwise it just connects and emits `ready`. Handlers registered at main.go:232-235. Pure-Go `modernc.org/sqlite` driver (registered as `"sqlite"`), so cross-compile stays CGO-free.
-- `tools/whatsapp-sync/sync.mjs:77-103`: shells out to `/usr/bin/sqlite3 -json` and runs:
-  `SELECT m.id, m.chat_jid, c.name AS chat_name, m.sender, m.content, m.timestamp, m.is_from_me FROM messages m LEFT JOIN chats c ON c.jid = m.chat_jid WHERE m.timestamp > '<cursor>' ORDER BY m.timestamp ASC LIMIT N`.
-  Note the cursor comparison is **string comparison on `timestamp`**, and `toIso()` (sync.mjs:105-112) expects `new Date(ts)` to parse it. So `timestamp` must be stored as a lexicographically-sortable, `Date()`-parsable string → **UTC RFC3339 text** (`2026-07-04T18:05:00Z`).
-- `apps/desktop/src-tauri/src/whatsapp.rs`: supervisor spawns the sidecar with `--store <app_data>/whatsapp --port 8080`, forwards `qr`/`ready` stdout events, and **respawns the child on `Terminated`** with capped linear backoff (whatsapp.rs:113-134, `MAX_RESTARTS = 8`, counter reset on healthy spawn at whatsapp.rs:92). This gives us a clean logout path: exit the process after logout and the supervisor restarts it; the fresh process sees `Store.ID == nil` and enters the QR branch.
-- `apps/desktop/package.json:9`: `"build:bridge": "cd ../../tools/whatsapp-bridge && GOOS=darwin GOARCH=arm64 go build -o ../../apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin ."` — the rebundle command already exists.
-- `tools/whatsapp-bridge/go.mod`: whatsmeow `v0.0.0-20260630180629-b572e5bcb92b`, protobuf, modernc sqlite already present. **No new module deps needed** (`events` and `database/sql` come from existing modules / stdlib), so `go.sum` should not change.
+1. Add a **generic alias layer** (name suggestion: `--deck-*`) mapping onto
+   the existing `--sd-*` + semantic tokens so feature surfaces stop reaching
+   for wiki-named or raw values:
+   - Surfaces: `--deck-app` -> `--sd-app`, `--deck-panel` -> `--sd-box`,
+     `--deck-panel-deep` -> `--sd-dark-box` / `--sd-darker-box`,
+     `--deck-input` -> `--sd-input`.
+   - Hairlines: `--deck-line` -> `--sd-line`, `--deck-divider` -> `--sd-divider`.
+   - States: `--deck-hover` -> `--sd-hover`, `--deck-selected` -> `--sd-selected`,
+     `--deck-active` -> `--sd-active`.
+   - Accent: `--deck-accent[-faint/-deep]` -> `--sd-accent*` (which is the
+     restrained cyan). Accent stays cyan-only; the multi-accent inks
+     (`--ink-amber/-sage/-coral/...`) remain for data semantics, not chrome.
+   - Ink: `--deck-ink[-dull/-faint]` -> `--sd-ink*`.
+   Define aliases once in `:root` + `.dark` beside the existing sd blocks.
+   Do NOT change any existing token's value; light-mode sd values already exist.
+2. Add **numeric motion duration tokens** (none exist today — durations are
+   inline): `--dur-hover: 130ms; --dur-select: 180ms; --dur-tree: 170ms;
+   --dur-panel: 220ms; --dur-route: 260ms; --dur-orb: 14s;` next to the
+   existing easings (~L82). These encode the sealed motion budget: hover
+   120-140, selection 160-200, tree 160-180, panels 200-240, route 240-280 max,
+   orb 12-16s transform/opacity only.
+3. **Extend the reduced-motion block** (~L636): it currently covers only
+   `.hud-*`/`.receipt-*`/`.wiki-explorer`. Add coverage for all new
+   `spacedrive/` primitive classes and the shell (e.g. a `.sd-motion` class
+   convention or explicit selectors) so CSS-driven motion in this unit's
+   surfaces is fully static under `prefers-reduced-motion`. JS-driven motion
+   uses `useReducedMotion` from `motion/react` (established repo pattern).
 
-## Design decisions
+## Step 2 — `apps/web/components/spacedrive/**` primitive family (commits 2-4)
 
-1. **Second `*sql.DB` handle into the same `whatsapp.db`, not reuse of the sqlstore container.** `sqlstore.Container` hides its DB behind dbutil; reaching in is version-fragile. Open our own `sql.Open("sqlite", dsn)` with the same DSN string built at main.go:183 (path unchanged → the "no change to store path/DSN" criterion holds; we merely open a second connection to it). `busy_timeout(5000)` is already in the DSN and handles cross-connection locking.
-   - *Rejected:* separate `messages.db` file (the lharries layout). The brief explicitly says same store file; sync.mjs takes the path via `WHATSAPP_DB_PATH` anyway.
-   - *Optional (flag for Opus):* add `&_pragma=journal_mode(WAL)` on the capture connection so sync.mjs's external `sqlite3` CLI reads never block writers. WAL is a persistent per-file property and is safe with whatsmeow, but it is a behavior change to the shared store file. Default: **skip it**; busy_timeout suffices. Adopt only if lock contention shows up in verification.
-2. **Schema mirrors lharries/whatsapp-mcp so sync.mjs needs zero changes:**
-   ```sql
-   CREATE TABLE IF NOT EXISTS chats (
-     jid TEXT PRIMARY KEY,
-     name TEXT,
-     last_message_time TIMESTAMP
-   );
-   CREATE TABLE IF NOT EXISTS messages (
-     id TEXT,
-     chat_jid TEXT,
-     sender TEXT,
-     content TEXT,
-     timestamp TIMESTAMP,
-     is_from_me BOOLEAN,
-     media_type TEXT,
-     PRIMARY KEY (id, chat_jid),
-     FOREIGN KEY (chat_jid) REFERENCES chats(jid)
-   );
-   ```
-   FK enforcement is ON (DSN pragma `foreign_keys(1)`), so **always upsert the chat row before inserting the message**. Use `INSERT OR REPLACE` for messages (whatsmeow can redeliver; PK makes capture idempotent).
-3. **`timestamp` stored as explicit UTC RFC3339 string** via `msg.Info.Timestamp.UTC().Format(time.RFC3339)`. Do NOT pass a raw `time.Time` and trust driver serialization; sync.mjs's string-comparison cursor (`m.timestamp > '<bound>'`) requires a stable, lexicographically sortable text format that `new Date()` parses.
-4. **Event handler registered right after `whatsmeow.NewClient` (main.go:196), before either `Connect()` branch**, so no messages are missed in the already-paired path. Handle only `*events.Message`; explicitly do NOT handle `*events.HistorySync` ("start fresh from now" — no backfill, and HistorySync would flood).
-5. **Row mapping from `*events.Message`** (lharries/whatsapp-mcp main.go is the reference):
-   - `id` = `msg.Info.ID`
-   - `chat_jid` = `msg.Info.Chat.String()`
-   - `sender` = `msg.Info.Sender.User` (bare user part; sync.mjs treats it as opaque)
-   - `content` = first non-empty of `msg.Message.GetConversation()`, `msg.Message.GetExtendedTextMessage().GetText()`; for media-only messages set `content` empty and `media_type` to `"image"|"video"|"audio"|"document"` per which media field is non-nil. Skip rows where both content and media_type are empty (protocol/receipt/reaction noise).
-   - `timestamp` = RFC3339 UTC per decision 3
-   - `is_from_me` = `msg.Info.IsFromMe` stored as 1/0 (sync.mjs:144 accepts `1` or `true`)
-6. **Chat name:** on each captured message, upsert `chats` with `last_message_time` and a best-effort name: for group JIDs (server `g.us`), `client.GetGroupInfo(chat)` `.Name` behind a small in-memory `map[types.JID]string` cache (one network hit per group per process lifetime, tolerate failure → NULL name); for DMs, `msg.Info.PushName` when incoming. Upsert with `ON CONFLICT(jid) DO UPDATE SET name = COALESCE(NULLIF(excluded.name, ''), chats.name), last_message_time = excluded.last_message_time` so a blank name never clobbers a good one. sync.mjs only LEFT JOINs the name, so NULL early on is acceptable.
-7. **Outgoing sends via `/api/send` recorded directly in `handleSend`.** `client.SendMessage` does NOT fire `events.Message` on the sending client, so after a successful send (main.go:135-142) insert a row using the returned `whatsmeow.SendResponse` (`resp.ID`, `resp.Timestamp`), `is_from_me = 1`, `sender` = `client.Store.ID.User`, `chat_jid` = resolved JID `.String()`. Recording failure must NOT fail the send response (log only). Messages Filippo sends from his phone arrive as `events.Message` with `IsFromMe = true`, covered by decision 5.
-8. **`/api/logout` = logout, respond, exit; the supervisor restarts into the QR flow.** Handler: POST-only (405 otherwise, matching `handleSend` style); if `client.Store.ID == nil` reply `{"ok":true,"note":"already logged out"}` and do nothing else; otherwise call `client.Logout(ctx)` (clears the device row → `Store.ID`), reply `{"ok":true}`, then in a goroutine `time.Sleep(300 * time.Millisecond)` (let the response flush) and `os.Exit(0)`. whatsapp.rs respawns on `Terminated` (~2s backoff); the fresh process hits the `client.Store.ID == nil` branch at main.go:199 and re-fires the exact existing `{"event":"qr"}` stdout flow. Tolerate `whatsmeow.ErrNotLoggedIn` from `Logout` (treat as success) — don't 500 on a race.
-   - *Rejected:* in-process re-pair (new device store + new client + new QR channel after logout). whatsmeow requires a fresh client on a fresh device row post-logout; rebuilding client/handler/QR-goroutine in place is strictly more code and more failure modes than the restart path the supervisor already implements and tests.
-   - *Note:* exit(0) consumes one restart tick, but the counter resets on each healthy respawn (whatsapp.rs:92), so logouts never exhaust the budget in practice.
+Net-new directory (confirmed absent) with a barrel `index.ts`. Style ONLY via
+the alias/token layer. Wiki components stay untouched — do not import
+wiki-specific orchestration; where a Wiki explorer primitive is genuinely
+generic (InspectorShell, ExplorerListView row anatomy, EmptyState), build the
+generic sibling here informed by its anatomy, thin and token-driven. Keep each
+primitive small; split commits by cluster:
 
-## Task breakdown (ordered, atomically committable)
+- **Panels/chrome:** `DeckPanel` (tonal layered panel, hairline border, NO
+  hover glow — heavy blur/glass is reserved for overlays and meaningful
+  layered surfaces only), `HairlineDivider`, `SectionHeader` (operational
+  typography: sans/mono, no Garamond in chrome), `EmptyState`.
+- **Toolbars:** `CommandToolbar` (first tier: identity + primary actions) and
+  `ModeStrip` (second tier: view modes/filters) — the two-tier toolbar from
+  the explorer screenshot. Compose from real `<button>`s, `aria-pressed` for
+  toggles, focus-visible ring via `--ring-focus` MORE visible than hover.
+- **Data display:** `KpiRail` + `StatChip` (compact KPI rail from the overview
+  screenshot: one main metric, quiet density), `DenseListRow` (40px row
+  anatomy: leading glyph, title, trailing meta/pills; keyboard-activatable —
+  Enter/Space; focus ring), `InspectorShell` + `MetaSection`/`MetaRow`
+  (generic inspector panel shell).
+- **Ambient:** `AmbientOrb` — exactly ONE ambient energy source per major
+  surface (consumers enforce singularity; document it in the JSDoc). Our own
+  gradient (never Spacedrive's asset), 12-16s loop, transform/opacity ONLY,
+  `useReducedMotion` -> static frame. Provide `data-testid` for tests.
 
-1. **Capture store: schema + writer helpers** — `tools/whatsapp-bridge/main.go`
-   - Add `msgDB *sql.DB` to the `bridge` struct (or a small `messageStore` type). In `main()`, after the sqlstore opens (main.go:186-189), `sql.Open("sqlite", dsn)` against the same DSN, `Ping`, and execute the decision-2 DDL; `log.Fatalf` on failure (matching existing style).
-   - Add `(b *bridge) upsertChat(jid, name string, ts time.Time)` and `(b *bridge) storeMessage(id, chatJID, sender, content, mediaType string, ts time.Time, fromMe bool)` implementing decisions 2, 3, 6 (chat upsert always before message insert, timestamps formatted once here).
-   - New imports: `database/sql` (stdlib). Update the stale package doc comment at main.go:14 ("No message reading/mirroring" is no longer true).
-   - Commit: `feat(whatsapp-bridge): add messages/chats capture store in whatsapp.db`
-2. **Live capture event handler** — `tools/whatsapp-bridge/main.go`
-   - After `b := &bridge{client: client}` (main.go:197), register `client.AddEventHandler(b.handleEvent)` BEFORE either connect branch. `handleEvent(evt interface{})` switches on `*events.Message`, applies the decision-5 mapping (+ decision-6 chat name), and calls the step-1 helpers; log (never fatal) on insert errors. Import `go.mau.fi/whatsmeow/types/events`.
-   - Commit: `feat(whatsapp-bridge): capture live incoming/outgoing messages via events.Message`
-3. **Mirror outgoing `/api/send` messages** — `tools/whatsapp-bridge/main.go`
-   - In `handleSend`, capture `resp, err := b.client.SendMessage(...)` (currently the response is discarded at main.go:135) and on success best-effort `upsertChat` + `storeMessage` per decision 7. No change to request/response shapes or status codes.
-   - Commit: `feat(whatsapp-bridge): mirror /api/send messages into the capture store`
-4. **`POST /api/logout`** — `tools/whatsapp-bridge/main.go`
-   - `handleLogout` per decision 8; register `mux.HandleFunc("/api/logout", b.handleLogout)` in the existing block (main.go:232-235). Import `os` (already imported).
-   - Commit: `feat(whatsapp-bridge): add POST /api/logout (exit-and-respawn re-pairing)`
-5. **Build + rebundle the sidecar**
-   - `cd tools/whatsapp-bridge && go build ./...` (sanity; also `go vet ./...`). Then from `apps/desktop`: `pnpm run build:bridge` (the package.json:9 script). Confirm `file apps/desktop/src-tauri/binaries/whatsapp-bridge-aarch64-apple-darwin` reports arm64 Mach-O with a fresh mtime. `go.sum` should be untouched; only commit it if `go mod tidy` actually changed it.
-   - Commit: `build(desktop): rebundle whatsapp-bridge sidecar with capture + logout`
+Every primitive: dark-first but correct in both themes, no console errors,
+props typed and minimal, `"use client"` only where interactivity demands.
 
-## Sequencing & dependencies
+## Step 3 — Shell restyle (commits 5-7, one file-cluster per commit)
 
-Strictly 1 → 2 → 3 → 4 → 5. Steps 2 and 3 depend on step 1's helpers; step 4 is logically independent but touches the same handler-registration block, so land it after 3 to avoid churn; step 5 must be last (the bundled binary must embody all source changes).
+Restyle to the Spacedrive register while preserving behavior EXACTLY:
 
-## Risks & edge cases
+- `Sidebar.tsx`: unboxed idle rows (no boxed cards at rest), tonal active
+  state via `--deck-selected` (adapt `.sidebar-row-active` helpers in
+  globals.css), hairline section dividers, restrained cyan only as accent.
+  PRESERVE: 260px/64px geometry, collapsed hover-overlay expansion (inner
+  panel to 260px, z-50, page never reflows), pin chevron, anchored footer
+  utilities (archived-eye, ThemeToggle, SFX, Settings), `sidebar-collapsed` +
+  `sidebar-show-archived` storage, areas/projects realtime subscriptions +
+  `useOptimistic` split (areas here, projects in SidebarTree), archive undo
+  semantics, all context menus and dnd reorder in `SidebarTree.tsx`.
+- `AppShell.tsx`: token surfaces; PRESERVE tasks-expanded sidebar collapse
+  (200ms -> `--dur-panel`, `useReducedMotion`-gated, `sidebarAnimating`
+  overflow guard), split-screen 70/30, `/today` + `/onboarding` panel
+  suppression, `/wiki` full-height.
+- `TopTabBar.tsx` + `PersistentNav.tsx` + `NavArrows.tsx` + `Breadcrumbs.tsx`:
+  hairlines, tonal actives, duration tokens; PRESERVE `top-tab-last-route` /
+  `top-tab-today-route` storage, tour `data-tour` attributes, calendar badge.
+- `CommandMenu.tsx` / `ShortcutsCheatSheet.tsx`: these are overlays — the ONE
+  place heavier glass/blur is allowed. Raycast register: fast, focused,
+  keyboard-first. Motion within budget.
+- Swap inline durations for the new tokens across shell files as touched.
+- Responsive: at 320/375px nothing clipped; collapsed rail still usable;
+  hover-expansion does not trap touch users (rail links work on tap without
+  requiring hover).
 
-- **SQLite locking, three actors** (whatsmeow sqlstore conn, capture conn, external `sqlite3` CLI from sync.mjs): `busy_timeout(5000)` is in the DSN for both Go connections. If verification shows contention, the WAL option (decision 1) removes reader/writer blocking; do not enable it preemptively.
-- **Timestamp cursor correctness**: RFC3339 UTC text sorts lexicographically == chronologically. Any drift into local-zone or driver-default formats silently breaks sync.mjs's string `>` cursor. Step 1's `storeMessage` is the single formatting choke point — format there and nowhere else.
-- **FK violations**: `foreign_keys(1)` is enforced; the chat upsert MUST precede the message insert in both the event handler and `handleSend`.
-- **Duplicate deliveries**: `PRIMARY KEY (id, chat_jid)` + `INSERT OR REPLACE` makes capture idempotent.
-- **HistorySync flood**: intentionally unhandled (start-fresh). Do not add an `*events.HistorySync` case.
-- **Logout races**: already-logged-out → ok-without-exit; `ErrNotLoggedIn` from `Logout` → treat as success. Response must flush before `os.Exit(0)` (the 300ms goroutine delay).
-- **GetGroupInfo network call**: only on first message per group (in-memory cache); tolerate failure, name stays NULL, sync's LEFT JOIN is fine.
-- **QR/ready semantics**: untouched — the capture handler is additive; `GetQRChannel` continues to be pulled before `Connect` in the unpaired branch; `AddEventHandler` does not interfere with the QR channel.
+## Step 4 — Tests (commit 8)
 
-## Verification hooks (per criterion)
+Net-new in `apps/web/tests/` (RTL/jsdom patterns per
+`studio-tracking-toggle.test.tsx`):
+- `spacedrive-primitives.test.tsx`: render smoke for each primitive (both
+  themes via `.dark` class), keyboard activation on `DenseListRow`
+  (Enter/Space), `aria-pressed` on `ModeStrip` toggles, `AmbientOrb` static
+  under mocked reduced-motion.
+- `shell-sidebar-contract.test.tsx`: `sidebar-collapsed`/`sidebar-show-archived`
+  persistence round-trip; `useTasksExpanded` -> `tasks-expanded` key + the
+  `tasks-expanded-change` window event contract.
 
-1. **Live capture, sync-compatible schema**: run the built binary (`./whatsapp-bridge --store /tmp/wa-test --port 8091`); tables are created at startup even unpaired, so at minimum run sync.mjs's exact SELECT via `sqlite3 -json /tmp/wa-test/whatsapp.db "SELECT m.id, m.chat_jid, c.name AS chat_name, m.sender, m.content, m.timestamp, m.is_from_me FROM messages m LEFT JOIN chats c ON c.jid = m.chat_jid ORDER BY m.timestamp ASC LIMIT 5;"` — must execute with no missing-column errors. If a paired session is available (real app-data store, desktop app closed), send a message from the phone and confirm a row lands with a `Date()`-parsable timestamp. If only the schema-level check is possible in the build environment, SAY SO in the report — don't claim live capture was observed.
-2. **Logout**: `curl -X POST localhost:8091/api/logout` → `{"ok":true}` and the process exits 0; restarting the binary by hand shows `{"event":"qr","code":…}` on stdout (the supervisor-respawn leg needs the desktop app; process-exit + QR-on-restart is the provable core).
-3. **Unchanged endpoints**: `curl localhost:8091/api/health` → `{connected, loggedIn}`; `/api/qr` → 204 or the code; diff review confirms `handleSend`'s request/response shapes and all `emitEvent` call sites are untouched.
-4. **Build + bundle**: `go build ./...` exits 0; `pnpm run build:bridge` succeeds; `file` shows arm64 Mach-O; `git status` shows the binary modified.
-5. **No semantic drift**: diff shows the DSN construction (main.go:183), `--store`/`--port` flags, port default `8080`, and the QR/ready emit paths byte-identical.
+## Frozen contracts (verify, never alter)
 
-## Open questions (flagged, not guessed)
+localStorage: `sidebar-collapsed`, `sidebar-show-archived`, per-area collapse
+(`useAreaCollapsed`), `top-tab-last-route`, `top-tab-today-route`,
+`tasks-expanded` (+ `tasks-expanded-change` event), `split-screen-on`
+(+ `split-screen-change`), `hp_tour_pending`/`hp_tour_v1_done`, SFX pref,
+theme. Query/realtime: `tableKey("areas"|"projects", userId)`,
+`useTableSubscription("areas"|"projects")` refcounted singletons, optimistic
+areas/projects split, archive-undo (immediate-commit variant). Events:
+`hp:tour-pending`. Global hotkeys: Cmd+K JARVIS, Cmd+Shift+K palette,
+Cmd+[/], Ctrl+1/2/3, Ctrl+Alt+C/T/E/P. Deep links `?create=now`.
 
-1. **WAL journal mode** (decision 1): recommended default is to skip; adopt only if verification hits `database is locked` despite busy_timeout. Whoever enables it should note it persists in the file.
-2. **sync.mjs deployment env**: sync.mjs's default `WHATSAPP_DB_PATH` still points at the old `~/whatsapp-mcp/whatsapp-bridge/store/messages.db` (sync.mjs:41-43). Flipping it to the desktop app-data `whatsapp/whatsapp.db` is launchd/env config, outside this unit's `touched[]`, and sync.mjs itself must NOT be edited (criterion: runs unchanged). The Opus agent should note the required env flip in its final report.
-3. **Exact whatsmeow API surfaces at `v0.0.0-20260630180629…`**: verify field/method names in the module cache before writing code — `SendResponse.ID` / `.Timestamp`, `events.Message.Info.{ID,Chat,Sender,IsFromMe,PushName,Timestamp}`, `client.Logout(ctx)` signature, and `types.JID.Server == types.GroupServer` for the group check. These are stable in recent whatsmeow but 30 seconds in `$GOMODCACHE/go.mau.fi/whatsmeow@…` removes the guess.
+## Verification bar (no silent green)
+
+`pnpm install` if node_modules missing; `pnpm --filter web typecheck` (or the
+repo's script), lint, `pnpm --filter web test`, `pnpm --filter web build` from
+the worktree root — all green with evidence. Then signed-in usage
+verification on the unit's dev port: navigate all primary nav routes, sidebar
+collapse/expand/hover-overlay, tasks fullscreen coordination, command palette,
+theme toggle both themes, reduced-motion pass (emulate
+`prefers-reduced-motion`), 320/768/1440 widths, zero console errors.
+
+## Commit discipline
+
+Small logical commits with explicit pathspecs, in the order above (tokens ->
+primitives x3 -> shell x3 -> tests). Record every sha on the control file.

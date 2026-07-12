@@ -18,7 +18,7 @@ export function NavArrows() {
   const { canGoBack, canGoForward, goBack, goForward } = useNavHistory();
 
   return (
-    <div className="flex items-center gap-0.5 pr-1.5 mr-0.5 border-r border-[var(--edge)]">
+    <div className="sd-motion flex items-center gap-0.5 pr-1.5 mr-0.5 border-r border-[var(--edge)]">
       <NavArrowButton
         direction="back"
         disabled={!canGoBack}
@@ -60,7 +60,7 @@ function NavArrowButton({
       title={`${label} (${kbd})`}
       className={cn(
         "inline-flex h-6 w-6 items-center justify-center rounded-md",
-        "transition-[background-color,color,opacity] duration-150 ease-out",
+        "transition-[background-color,color,opacity] [transition-duration:var(--dur-hover)] ease-out",
         disabled
           ? "text-[var(--ink-muted)] opacity-30 cursor-default"
           : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]"

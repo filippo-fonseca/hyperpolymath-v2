@@ -150,7 +150,7 @@ export function PersistentNav({ collapsed }: Props) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <nav className="flex flex-col gap-0.5 px-2" aria-label="Main navigation">
+      <nav className="sd-motion flex flex-col gap-0.5 px-2" aria-label="Main navigation">
         {items.map((item) => {
           const Icon = item.icon;
           const active = !!pathname?.startsWith(item.href);
@@ -163,8 +163,8 @@ export function PersistentNav({ collapsed }: Props) {
                 // Glassy pill nav row — matches the AREAS/projects tree register.
                 // Idle = bare; hover = soft pill; active = raised pill (below).
                 "group relative flex items-center gap-3 rounded-[0.7rem] px-3 h-9 w-full",
-                "font-serif text-[14px] tracking-tight",
-                "transition-colors duration-150 ease-out",
+                "font-sans text-[13px] tracking-[-0.005em]",
+                "transition-colors [transition-duration:var(--dur-hover)] ease-out",
                 !item.disabled && "sidebar-row",
                 active && !item.disabled
                   ? "text-[var(--hud-cyan)]"
@@ -328,8 +328,8 @@ export function PersistentNav({ collapsed }: Props) {
             type="button"
             className={cn(
               "sidebar-row group relative flex items-center gap-3 px-3 h-9 w-full",
-              "font-serif text-[14px] tracking-tight text-[var(--ink-muted)]",
-              "transition-colors duration-150 ease-out",
+              "font-sans text-[13px] tracking-[-0.005em] text-[var(--ink-muted)]",
+              "transition-colors [transition-duration:var(--dur-hover)] ease-out",
               "hover:text-[var(--ink)]"
             )}
             aria-label="About Kiwi"
@@ -337,7 +337,7 @@ export function PersistentNav({ collapsed }: Props) {
             <span className="relative shrink-0">
               <Info size={16} strokeWidth={1.5} aria-hidden="true" />
             </span>
-            {!collapsed && <span className="flex-1 text-left italic">About Kiwi</span>}
+            {!collapsed && <span className="flex-1 text-left">About Kiwi</span>}
           </button>
         </KiwiAboutDialog>
       </nav>

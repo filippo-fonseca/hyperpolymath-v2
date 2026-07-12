@@ -1,0 +1,131 @@
+{
+  "unit": "sd-shell-foundation",
+  "overall": "BLOCKED",
+  "disposition": "USER_WAIVED_BROWSER_RERUN_AND_AUTHORIZED_CONTINUATION",
+  "disposition_note": "On 2026-07-12 the user explicitly directed the conductor to skip the remaining signed-in browser rerun and continue building. The BLOCKED result is retained rather than rewritten as PASS.",
+  "timestamp": "2026-07-12T19:18:27Z",
+  "tested_commit_sha": "36e19b1f224a6bc4aaa7d7d79795b6ad3ef57698",
+  "branch": "bgsd/sd-shell-foundation",
+  "app_under_test": "http://localhost:3105",
+  "supabase": "http://localhost:54321",
+  "commands": [
+    {
+      "command": "pnpm --filter web typecheck",
+      "result": "PASS",
+      "notes": "tsc --noEmit completed successfully."
+    },
+    {
+      "command": "NODE_OPTIONS=--localstorage-file=/tmp/hp-wt-sd-shell-vitest.local pnpm --filter web exec vitest run tests/spacedrive-primitives.test.tsx tests/shell-sidebar-contract.test.tsx",
+      "result": "PASS",
+      "notes": "18/18 Unit 1 tests passed. The explicit temporary Node test-storage path avoids the runner environment's invalid local-storage-file warning; no repository or browser profile storage was inspected."
+    },
+    {
+      "command": "pnpm --filter web build",
+      "result": "PASS",
+      "notes": "Production build completed. Turbopack emitted pre-existing warnings for ::highlight selectors in page-block-editor.css and an NFT trace in next.config.ts; neither is Unit 1-owned."
+    },
+    {
+      "command": "pnpm --filter web exec biome check components/shell/AppShell.tsx components/shell/Sidebar.tsx components/shell/TopTabBar.tsx components/shell/PersistentNav.tsx components/shell/NavArrows.tsx components/shell/Breadcrumbs.tsx components/spacedrive/DenseListRow.tsx components/spacedrive/ModeStrip.tsx",
+      "result": "FAIL_EXPECTED_PREEXISTING",
+      "notes": "The check reports the documented pre-existing shell findings (import ordering, index key, semantic-role, non-null assertion, and string-concatenation diagnostics). The changes in this run are class additions only in those files."
+    },
+    {
+      "command": "curl route probes for /lifeos /tasks /wiki /today /settings and http://localhost:54321/health",
+      "result": "PASS_CONNECTIVITY_ONLY",
+      "notes": "All app probes returned 307 redirects because no authenticated browser request was available; Supabase port 54321 responded with HTTP 404 to /health, confirming reachability but not a health endpoint."
+    }
+  ],
+  "browser": {
+    "configured_surface": "in-app Browser control via browser-client / Playwright bindings",
+    "selection_attempt": "getForUrl(http://localhost:3105/)",
+    "result": "BLOCKED",
+    "availability": "agent.browsers.list() returned []",
+    "authenticated_context": "No authenticated browser context was available. No cookies, profiles, local storage, passwords, or session files were inspected.",
+    "supported_auth_paths": "Could not be exercised because the configured browser backend was unavailable; no production auth bypass was added and no PASS was fabricated."
+  },
+  "browser_routes": {
+    "requested_authenticated_routes": ["/lifeos", "/tasks", "/wiki", "/today", "/settings"],
+    "unauthenticated_connectivity_results": {
+      "/lifeos": 307,
+      "/tasks": 307,
+      "/wiki": 307,
+      "/today": 307,
+      "/settings": 307
+    },
+    "requested_viewports_px": [320, 375, 768, 1024, 1440],
+    "authenticated_viewport_execution": "NOT_RUN — browser backend unavailable"
+  },
+  "console_network_findings": {
+    "current_run_console": "NOT_OBSERVABLE — no browser tab was available",
+    "current_run_network": "NOT_OBSERVABLE in an authenticated browser; curl only observed 307 redirects",
+    "prior_signed_in_session": {
+      "status": "genuine signed-in evidence exists before the current fixes",
+      "routes": ["/lifeos", "/tasks", "/wiki", "/today", "/settings"],
+      "console_errors": 0,
+      "known_warning": "Physical-extension SSE reconnect / teardown warning on /api/jarvis/physical/events",
+      "prior_verdict": "FAIL before this run's scoped fixes: Cmd+Shift+K matching, shell sans fallback, and reduced-motion shell transitions"
+    }
+  },
+  "accessibility_reduced_motion_findings": {
+    "automated": {
+      "AmbientOrb_reduced_motion_static_test": "PASS",
+      "DenseListRow_Enter_Space_and_preventDefault_test": "PASS",
+      "ModeStrip_real_buttons_and_aria_pressed_test": "PASS"
+    },
+    "source_fixes_in_current_commit": [
+      "Shell chrome and motion-bearing Unit 1 primitives now carry sd-motion so the existing prefers-reduced-motion reset covers their CSS transitions.",
+      "AppShell continues to use motion/react useReducedMotion() for the tasks fullscreen panel transition.",
+      "--font-sans now has an available system sans fallback because this app layout does not load --font-inter.",
+      "CommandMenu now normalizes e.key, so shifted KeyK produces a working Cmd/Ctrl+Shift+K match."
+    ],
+    "browser_emulation": "NOT_RUN — prefers-reduced-motion and focus-visible behavior require the unavailable authenticated browser"
+  },
+  "keyboard_dom_vision_findings": {
+    "current_run": "NOT_RUN — authenticated DOM, keyboard, screenshot, and vision checks require a browser context",
+    "prior_signed_in_evidence_paths": [
+      "/private/tmp/claude-501/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/e43a15b7-f126-48e3-9f41-12553706f35e/scratchpad/run/lifeos-1440-dark.png",
+      "/private/tmp/claude-501/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/e43a15b7-f126-48e3-9f41-12553706f35e/scratchpad/run/tasks-1440-dark.png",
+      "/private/tmp/claude-501/-Users-filippofonseca-Developer-Projects-hyperpolymath-v2/e43a15b7-f126-48e3-9f41-12553706f35e/scratchpad/run/lifeos-1440-light.png"
+    ],
+    "prior_structural_results": [
+      "Sidebar geometry 260px expanded / 64px collapsed passed.",
+      "Collapsed hover overlay remained 260px wide, z-50, and did not reflow main content.",
+      "Tasks fullscreen hid the sidebar and restored it with tasks-expanded persistence.",
+      "Escape closed the palette after a control-open; Cmd+K focused the JARVIS composer."
+    ]
+  },
+  "fixes_commits": [
+    {
+      "commit": "22c4c7f9",
+      "paths": ["apps/web/components/shell/CommandMenu.tsx"],
+      "summary": "Normalize command palette key matching for shifted K."
+    },
+    {
+      "commit": "7c893821",
+      "paths": ["apps/web/app/globals.css"],
+      "summary": "Keep new chrome typography sans when --font-inter is unavailable."
+    },
+    {
+      "commit": "36e19b1f",
+      "paths": [
+        "apps/web/components/shell/AppShell.tsx",
+        "apps/web/components/shell/Sidebar.tsx",
+        "apps/web/components/shell/TopTabBar.tsx",
+        "apps/web/components/shell/PersistentNav.tsx",
+        "apps/web/components/shell/NavArrows.tsx",
+        "apps/web/components/shell/Breadcrumbs.tsx",
+        "apps/web/components/spacedrive/DenseListRow.tsx",
+        "apps/web/components/spacedrive/ModeStrip.tsx"
+      ],
+      "summary": "Apply the existing reduced-motion CSS reset to shell chrome and motion-bearing primitives."
+    }
+  ],
+  "out_of_scope_observations": [
+    "The prior signed-in visual pass observed cyan hover glow on non-Unit-1 .glass-tile content cards; those global/app surfaces predate this unit and were not modified."
+  ],
+  "blockers": [
+    "The configured browser runtime had no available browser target, so the required genuine signed-in usage ladder could not be resumed.",
+    "Without that browser target, current-commit console, network, DOM, keyboard, vision, 260/64 overlay geometry, Tasks fullscreen, Cmd+Shift+K, reduced-motion emulation, and 320/768/1440 responsive evidence cannot be reverified after the fixes."
+  ],
+  "working_tree_note": "Only Unit 1-owned source files were committed for the logical fixes. Pre-existing planning-control and tester files remain uncommitted and untouched."
+}
