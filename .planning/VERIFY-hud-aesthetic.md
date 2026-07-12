@@ -46,3 +46,17 @@ Boot the desktop app (or the studio in the vite dev shell) and check:
 
 - Research referenced a `studio/settings.ts` UI module that does not exist in this worktree; the real settings live in `apps/desktop/src/settings.ts` (tauri-store). The new HUD-visual prefs (background, motion) get their own small persisted store `state/hud-settings.ts`; the widget reads the tauri TTS settings read-only.
 - `noUncheckedIndexedAccess` is on: constellation link/node indexing is guarded.
+
+## Loop-2 fixes
+
+Two nits from the conductor's screenshot review (vite dev on :1420, viewport 1600x1000), both fixed and re-verified headless.
+
+1. **Talk-to-JARVIS button obscured** (`apps/desktop/src/studio/drawer/Drawer.tsx`) — collapsed, the widget-drawer pull tab and the bottom-center "Talk to JARVIS" invoke button both sat dead-center and overlapped (only "T..." peeked out). The drawer is now anchored `left: 50%` for both states with position driven by animated motion values (`x`/`width` in `animate`, constant `left`): open, it tweens back to `x: -50%` (dead-center over the stage); collapsed, it tweens to `x: calc(-50% + 240px)`, nudging the 184px pull tab clear to the right of the centered footer button. Motion values are used instead of a `layout` tween because `layout` pinned the box to its collapsed anchor and never re-centered on open. The enlarged 184px collapsed hit target is preserved.
+
+2. **Floating catalog chip row** (`apps/desktop/src/studio/windows/WidgetWindowLayer.tsx`) — the detached bottom-right chip row (Browser, WhatsApp, Weather ... JARVIS Orb) was the `debugSummon` nav, which rendered the full catalog and defaulted on via `import.meta.env.DEV`, so it always showed in vite dev. Default flipped to `false`; the nav now only renders in the standalone `studio/debug/main.tsx` harness (which passes `debugSummon` explicitly). The full catalog is thus contained; the real app's catalog lives only inside the open drawer.
+
+**Verification (all green):**
+- `pnpm typecheck` (tsc --noEmit) — clean.
+- `pnpm test` (vitest run) — 16 files, 92 tests passed.
+- `vite build` — built OK (only pre-existing chunk-size / dynamic-import advisories, unrelated).
+- Headless screenshots (playwright MCP, 1600x1000): collapsed state shows "Talk to JARVIS ⌘⌃J" fully visible + centered with the WIDGETS tab clear to its right and no floating chip row; open state shows the drawer centered and symmetric (CATALOG left, STOWED right), catalog contained inside it.
