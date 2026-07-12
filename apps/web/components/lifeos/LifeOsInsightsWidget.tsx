@@ -1,5 +1,7 @@
 "use client";
 
+import { HairlineDivider, SectionHeader } from "@/components/spacedrive";
+
 interface Stat {
   label: string;
   value: string;
@@ -33,17 +35,25 @@ export function LifeOsInsightsWidget({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="mb-4 flex items-center justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">Insights</h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          Open →
-        </span>
-      </header>
-      <dl className="grid grid-cols-3 gap-4">
+      <SectionHeader
+        title="Insights gateway"
+        action={
+          <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)]">
+            Open →
+          </span>
+        }
+        className="mb-3"
+      />
+      <HairlineDivider className="mb-4" />
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {stats.map((s) => (
-          <div key={s.label} className="flex flex-col gap-1">
-            <dd className="font-mono text-2xl tabular-nums text-[var(--ink)]">{s.value}</dd>
-            <dt className="font-serif text-[12px] text-[var(--ink-muted)]">{s.label}</dt>
+          <div key={s.label} className="flex min-w-0 flex-col gap-1">
+            <dd className="font-[family-name:var(--font-sans)] text-xl tabular-nums text-[var(--deck-ink)] sm:text-2xl">
+              {s.value}
+            </dd>
+            <dt className="font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">
+              {s.label}
+            </dt>
           </div>
         ))}
       </dl>

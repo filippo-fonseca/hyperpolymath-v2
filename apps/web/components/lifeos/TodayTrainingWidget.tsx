@@ -1,13 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { Moon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { listActivitiesInRange } from "@/app/actions/training";
+import { DenseListRow, EmptyState, SectionHeader } from "@/components/spacedrive";
 import type { ActivityWithType } from "@/lib/db/queries/training";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
+import { type DistanceUnit, formatDistance } from "@/lib/training/distance";
+import { useQuery } from "@tanstack/react-query";
+import { Moon } from "lucide-react";
+import Link from "next/link";
 
 interface Props {
   userId: string;
@@ -36,20 +37,11 @@ interface Props {
  * actuals happens (D-15 lets discretion fall to routing vs in-place check-off;
  * routing is simpler and preserves the modal's pre-fill UX).
  */
-export function TodayTrainingWidget({
-  userId,
-  initialActivities,
-  distanceUnit,
-  todayISO,
-}: Props) {
+export function TodayTrainingWidget({ userId, initialActivities, distanceUnit, todayISO }: Props) {
   // Realtime → invalidate the windowed query key below.
   useTableSubscription("training_activities", userId);
 
-  const queryKey = [
-    ...tableKey("training_activities", userId),
-    todayISO,
-    todayISO,
-  ] as const;
+  const queryKey = [...tableKey("training_activities", userId), todayISO, todayISO] as const;
 
   const { data: activities = initialActivities } = useQuery({
     queryKey,
@@ -58,87 +50,72 @@ export function TodayTrainingWidget({
   });
 
   // Hide cancelled/skipped — the widget is about *today's training intent*.
-  const visible = activities.filter(
-    (a) => a.status !== "cancelled" && a.status !== "skipped",
-  );
+  const visible = activities.filter((a) => a.status !== "cancelled" && a.status !== "skipped");
 
   return (
     <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-2.5">
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-            Training
-          </h3>
-          {visible.length > 0 && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
-              {visible.filter((a) => a.status === "done").length}/{visible.length}
-            </span>
-          )}
-        </div>
-        <Link
-          href="/training"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          Plan →
-        </Link>
-      </header>
+      <SectionHeader
+        title="Training"
+        action={
+          <div className="flex items-center gap-2.5">
+            {visible.length > 0 && (
+              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--deck-ink-dull)] tabular-nums">
+                {visible.filter((a) => a.status === "done").length}/{visible.length}
+              </span>
+            )}
+            <Link
+              href="/training"
+              className="rounded-sm px-1 py-0.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+            >
+              Plan →
+            </Link>
+          </div>
+        }
+        className="mb-4"
+      />
 
       {visible.length === 0 ? (
         // Rest day — positive, intentional. Not "nothing to do".
-        <div className="flex flex-1 flex-col items-start justify-center gap-2 py-2">
-          <Moon
-            size={18}
-            strokeWidth={1.5}
-            className="text-[var(--ink-muted)]"
-            aria-hidden
-          />
-          <p className="font-serif text-[14px] text-[var(--ink)]">
-            Rest day.
-          </p>
-          <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-            Recover well — tomorrow earns more.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Moon size={18} strokeWidth={1.5} aria-hidden />}
+          title="Rest day."
+          description="Recover well — tomorrow earns more."
+          className="min-h-0 flex-1 items-start justify-center px-0 py-8 text-left"
+        />
       ) : (
-        <ul className="flex flex-col gap-2.5 flex-1">
+        <ul className="flex flex-1 flex-col gap-1">
           {visible.map((a) => {
             const done = a.status === "done";
             const plannedMin = a.plannedDurationMin;
-            const plannedKm = a.plannedDistanceKm
-              ? Number(a.plannedDistanceKm)
-              : null;
+            const plannedKm = a.plannedDistanceKm ? Number(a.plannedDistanceKm) : null;
             return (
               <li key={a.id}>
-                <Link
-                  href="/training"
-                  className="flex w-full items-center gap-2.5 text-left cursor-pointer-always group/training"
-                >
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: a.type.color }}
-                    aria-hidden
-                  />
-                  <span
-                    className={`font-serif text-[14px] truncate flex-1 min-w-0 ${
-                      done
-                        ? "text-[var(--ink-muted)] line-through"
-                        : "text-[var(--ink)] group-hover/training:text-[var(--ink)]"
-                    }`}
-                  >
-                    {a.title}
-                  </span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] shrink-0">
-                    {plannedMin != null ? `${plannedMin}m` : null}
-                    {plannedMin != null &&
-                    a.type.hasDistance &&
-                    plannedKm != null
-                      ? " · "
-                      : null}
-                    {a.type.hasDistance && plannedKm != null
-                      ? formatDistance(plannedKm, distanceUnit)
-                      : null}
-                  </span>
-                </Link>
+                <DenseListRow
+                  glyph={
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: a.type.color }}
+                      aria-hidden
+                    />
+                  }
+                  title={
+                    <Link
+                      href="/training"
+                      className={`block min-w-0 truncate font-[family-name:var(--font-sans)] text-[13px] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] ${done ? "text-[var(--deck-ink-dull)] line-through" : "text-[var(--deck-ink)]"}`}
+                    >
+                      {a.title}
+                    </Link>
+                  }
+                  meta={
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[var(--deck-ink-dull)]">
+                      {plannedMin != null ? `${plannedMin}m` : null}
+                      {plannedMin != null && a.type.hasDistance && plannedKm != null ? " · " : null}
+                      {a.type.hasDistance && plannedKm != null
+                        ? formatDistance(plannedKm, distanceUnit)
+                        : null}
+                    </span>
+                  }
+                />
               </li>
             );
           })}
