@@ -10,6 +10,7 @@ import {
 } from "../state/widget-windows";
 import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import { catalogEntries, type WidgetKind, WIDGET_CATALOG } from "../windows/catalog";
+import { playDropPop } from "../sound/studio-sfx";
 
 interface Props {
   open: boolean;
@@ -77,6 +78,7 @@ function summon(kind: WidgetKind, at?: { x: number; y: number }): void {
     defaultSize: entry.defaultSize,
     singleton: entry.singleton,
   });
+  playDropPop();
 }
 
 function propsHint(item: WidgetWindowInstance): string {
@@ -172,8 +174,12 @@ export function Drawer({
       ? undefined
       : stageDropPosition(event.clientX, event.clientY);
     if (!at) return;
-    if (current.stowedId) restoreWidget(current.stowedId, at);
-    else summon(current.kind, at);
+    if (current.stowedId) {
+      restoreWidget(current.stowedId, at);
+      playDropPop();
+    } else {
+      summon(current.kind, at);
+    }
   };
 
   return (
@@ -340,6 +346,7 @@ export function Drawer({
                               return;
                             }
                             restoreWidget(item.id);
+                            playDropPop();
                           }}
                           className="studio-drawer-tile"
                           style={{

@@ -21,6 +21,7 @@ import {
 import { WIDGET_CATALOG } from "./catalog";
 import { clampToStage } from "./layout";
 import { BurstBubble } from "./BurstBubble";
+import { playDropPop } from "../sound/studio-sfx";
 import {
   edgeOutwardDirection,
   shouldBurst,
@@ -270,6 +271,8 @@ export function WidgetWindow({
         return;
       }
       moveWidget(item.id, rawCenter.x, rawCenter.y);
+      // Soft pop as the widget settles under the release point.
+      if (!cancelled) playDropPop();
     } else {
       resizeWidget(item.id, session.start.w + dx, session.start.h + dy);
     }
