@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Check, Circle } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
-  getHabitsForCurrentUser,
-  getHabitCompletionsInRange,
-  toggleHabitCompletion,
   type HabitWithAreas,
+  getHabitCompletionsInRange,
+  getHabitsForCurrentUser,
+  toggleHabitCompletion,
 } from "@/app/actions/habits";
+import { DenseListRow, EmptyState, SectionHeader } from "@/components/spacedrive";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Circle } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   userId: string;
@@ -28,7 +29,7 @@ interface Props {
  * --edge. Numbers in the centre stay font-mono so they don't compete with
  * the serif habit rows.
  */
-function RingProgress({ done, total }: { done: number; total: number }) {
+function RingProgress({ done, total, reduced }: { done: number; total: number; reduced: boolean }) {
   const size = 36;
   const stroke = 3;
   const r = (size - stroke) / 2;
@@ -38,34 +39,42 @@ function RingProgress({ done, total }: { done: number; total: number }) {
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="rotate-[-90deg]">
+      <svg aria-hidden="true" width={size} height={size} className="rotate-[-90deg]">
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke="var(--edge)"
+          stroke="var(--deck-line)"
           strokeWidth={stroke}
           fill="none"
         />
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="var(--hud-cyan)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
-          animate={{ strokeDashoffset: c - dash }}
-          transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
-          style={{
-            filter:
-              ratio > 0
-                ? "drop-shadow(0 0 4px color-mix(in oklch, var(--hud-cyan) 50%, transparent))"
-                : undefined,
-          }}
-        />
+        {reduced ? (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke="var(--deck-accent)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={c}
+            strokeDashoffset={c - dash}
+          />
+        ) : (
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke="var(--deck-accent)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={c}
+            initial={{ strokeDashoffset: c }}
+            animate={{ strokeDashoffset: c - dash }}
+            transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="font-mono text-[10px] tabular-nums text-[var(--ink)]">
@@ -76,19 +85,10 @@ function RingProgress({ done, total }: { done: number; total: number }) {
   );
 }
 
-export function TodayHabitsWidget({
-  userId,
-  initialHabits,
-  initialCompletions,
-  todayISO,
-}: Props) {
+export function TodayHabitsWidget({ userId, initialHabits, initialCompletions, todayISO }: Props) {
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
-  const completionsKey = [
-    ...tableKey("habit_completions", userId),
-    todayISO,
-    todayISO,
-  ] as const;
+  const completionsKey = [...tableKey("habit_completions", userId), todayISO, todayISO] as const;
 
   useTableSubscription("habits", userId);
   useTableSubscription("habit_completions", userId);
@@ -105,15 +105,11 @@ export function TodayHabitsWidget({
     initialData: initialCompletions,
   });
 
-  const [optimisticToggles, setOptimisticToggles] = useState<
-    Map<string, boolean>
-  >(new Map());
+  const [optimisticToggles, setOptimisticToggles] = useState<Map<string, boolean>>(new Map());
 
   const isDone = (habitId: string): boolean => {
-    if (optimisticToggles.has(habitId)) return optimisticToggles.get(habitId)!;
-    return completions.some(
-      (c) => c.habitId === habitId && c.completedDate === todayISO,
-    );
+    if (optimisticToggles.has(habitId)) return optimisticToggles.get(habitId) ?? false;
+    return completions.some((c) => c.habitId === habitId && c.completedDate === todayISO);
   };
 
   async function handleToggle(habitId: string) {
@@ -149,76 +145,66 @@ export function TodayHabitsWidget({
   const doneCount = habits.filter((h) => isDone(h.id)).length;
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <RingProgress done={doneCount} total={habits.length} />
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)] truncate">
-            Today
-          </h3>
+    <section aria-labelledby="lifeos-habits-title" className="flex flex-col h-full">
+      <h3 id="lifeos-habits-title" className="sr-only">
+        Habits today
+      </h3>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <RingProgress done={doneCount} total={habits.length} reduced={reduced ?? false} />
+          <SectionHeader title="Habits today" />
         </div>
         <Link
           href="/habits"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
+          className="rounded-sm px-1 py-0.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
         >
           All →
         </Link>
-      </header>
+      </div>
       {habits.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-          No habits yet.
-        </p>
+        <EmptyState
+          title="No habits yet."
+          description="Create a rhythm and it will appear here."
+          className="min-h-0 flex-1 items-start px-0 py-8 text-left"
+        />
       ) : (
         <ul className="flex flex-col gap-2 flex-1">
           {habits.slice(0, 6).map((h) => {
             const done = isDone(h.id);
             return (
               <li key={h.id}>
-                <button
-                  type="button"
-                  onClick={() => handleToggle(h.id)}
-                  className="flex w-full items-center gap-2.5 text-left cursor-pointer-always group/habit"
-                >
-                  <motion.span
-                    initial={false}
-                    animate={
-                      reduced
-                        ? undefined
-                        : done
-                          ? { scale: [1, 1.18, 1] }
-                          : { scale: 1 }
-                    }
-                    transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-                    className="inline-flex shrink-0"
-                  >
-                    {done ? (
-                      <Check
-                        size={14}
-                        strokeWidth={2}
-                        className="text-[var(--hud-cyan)]"
-                        style={{
-                          filter:
-                            "drop-shadow(0 0 5px color-mix(in oklch, var(--hud-cyan) 55%, transparent))",
-                        }}
-                      />
-                    ) : (
-                      <Circle
-                        size={14}
-                        strokeWidth={1.5}
-                        className="text-[var(--ink-muted)] group-hover/habit:text-[var(--ink)] transition-colors duration-100"
-                      />
-                    )}
-                  </motion.span>
-                  <span
-                    className={`font-serif text-[14px] truncate ${
-                      done
-                        ? "text-[var(--ink-muted)] line-through"
-                        : "text-[var(--ink)]"
-                    }`}
-                  >
-                    {h.name}
-                  </span>
-                </button>
+                <DenseListRow
+                  title={h.name}
+                  onActivate={() => handleToggle(h.id)}
+                  className="h-10 px-2"
+                  glyph={
+                    <motion.span
+                      initial={false}
+                      animate={reduced ? undefined : done ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+                      transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                      className="inline-flex shrink-0"
+                    >
+                      {done ? (
+                        <Check
+                          size={14}
+                          strokeWidth={2}
+                          className="text-[var(--hud-cyan)]"
+                          style={{
+                            filter:
+                              "drop-shadow(0 0 5px color-mix(in oklch, var(--hud-cyan) 55%, transparent))",
+                          }}
+                        />
+                      ) : (
+                        <Circle
+                          size={14}
+                          strokeWidth={1.5}
+                          className="text-[var(--ink-muted)] group-hover/habit:text-[var(--ink)] transition-colors duration-100"
+                        />
+                      )}
+                    </motion.span>
+                  }
+                  selected={done}
+                />
               </li>
             );
           })}
@@ -229,6 +215,6 @@ export function TodayHabitsWidget({
           )}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

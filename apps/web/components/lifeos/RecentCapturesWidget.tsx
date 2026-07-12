@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { formatDistanceToNowStrict } from "date-fns";
-import { motion, useReducedMotion } from "motion/react";
-import { Sparkles, PenLine, Hash } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { getCapturesForCurrentUser } from "@/app/actions/captures";
-import { tableKey } from "@/lib/realtime/query-keys";
-import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { ConvertCaptureToTaskDialog } from "@/components/captures/ConvertCaptureToTaskDialog";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { EmptyState, SectionHeader } from "@/components/spacedrive";
+import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { tableKey } from "@/lib/realtime/query-keys";
+import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNowStrict } from "date-fns";
+import { Hash, PenLine, Sparkles } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { useState } from "react";
 
 interface Props {
   userId: string;
@@ -27,11 +28,7 @@ interface Props {
  * hashtag chips. Hover reveals the "→ Task" affordance ONLY for JARVIS
  * captures (D-14 / JARVIS-13). Cards stagger in on mount.
  */
-export function RecentCapturesWidget({
-  userId,
-  initialCaptures,
-  availableProjects,
-}: Props) {
+export function RecentCapturesWidget({ userId, initialCaptures, availableProjects }: Props) {
   const reduced = useReducedMotion();
   useTableSubscription("captures", userId);
 
@@ -42,32 +39,36 @@ export function RecentCapturesWidget({
   });
 
   const recent = capturesData.slice(0, 6);
-  const [convertTarget, setConvertTarget] = useState<CaptureWithLinks | null>(
-    null,
-  );
+  const [convertTarget, setConvertTarget] = useState<CaptureWithLinks | null>(null);
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-            Recent captures
-          </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
-            {capturesData.length} total
-          </span>
-        </div>
-        <Link
-          href="/captures"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
+    <section aria-labelledby="lifeos-capture-stream-title" className="flex flex-col h-full">
+      <h3 id="lifeos-capture-stream-title" className="sr-only">
+        Capture stream
+      </h3>
+      <SectionHeader
+        title="Capture stream"
+        action={
+          <div className="flex items-center gap-3">
+            <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--deck-ink-dull)] tabular-nums">
+              {capturesData.length} total
+            </span>
+            <Link
+              href="/captures"
+              className="rounded-sm px-1 py-0.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+            >
+              All →
+            </Link>
+          </div>
+        }
+        className="mb-4"
+      />
       {recent.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-          Nothing captured yet. Type into JARVIS to drop a note.
-        </p>
+        <EmptyState
+          title="Nothing captured yet."
+          description="Type into Quick Send to drop a note into the stream."
+          className="min-h-0 items-start px-0 py-8 text-left"
+        />
       ) : (
         <ul className="grid grid-cols-1 @lg/main:grid-cols-2 @3xl/main:grid-cols-3 gap-3">
           {recent.map((c, i) => {
@@ -83,34 +84,32 @@ export function RecentCapturesWidget({
                   duration: 0.28,
                   ease: [0.25, 1, 0.5, 1],
                 }}
-                className="group relative rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2 transition-[border-color] duration-150 hover:border-[var(--edge-hud)]"
+                className="group relative flex flex-col gap-2 rounded-md border border-[var(--deck-line)] bg-[var(--deck-panel-deep)] p-3 transition-[border-color,background-color] [transition-duration:var(--dur-hover)] hover:border-[var(--deck-accent-faint)] hover:bg-[var(--deck-hover)]"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+                  <div className="flex items-center gap-1.5 text-[var(--deck-ink-dull)]">
                     <SourceIcon
                       size={11}
                       strokeWidth={1.75}
                       style={
                         isJarvis
                           ? {
-                              color: "var(--hud-cyan)",
-                              filter:
-                                "drop-shadow(0 0 4px color-mix(in oklch, var(--hud-cyan) 50%, transparent))",
+                              color: "var(--deck-accent)",
                             }
                           : undefined
                       }
                     />
-                    <span className="font-mono text-[9px] uppercase tracking-[0.14em]">
+                    <span className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.14em]">
                       {isJarvis ? "JARVIS" : "Manual"}
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+                  <span className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.10em] text-[var(--deck-ink-dull)] tabular-nums">
                     {formatDistanceToNowStrict(new Date(c.createdAt), {
                       addSuffix: false,
                     })}
                   </span>
                 </div>
-                <p className="font-serif text-[13px] leading-[1.45] text-[var(--ink)] line-clamp-3">
+                <p className="font-[family-name:var(--font-sans)] text-[13px] leading-[1.45] text-[var(--deck-ink)] line-clamp-3">
                   {c.content}
                 </p>
                 {(c.hashtags.length > 0 || c.projects.length > 0) && (
@@ -118,7 +117,7 @@ export function RecentCapturesWidget({
                     {c.hashtags.slice(0, 2).map((h) => (
                       <span
                         key={h.id}
-                        className="inline-flex items-center gap-0.5 font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)]"
+                        className="inline-flex items-center gap-0.5 font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.10em] text-[var(--deck-ink-dull)]"
                       >
                         <Hash size={8} strokeWidth={2} />
                         {h.displayName}
@@ -127,7 +126,7 @@ export function RecentCapturesWidget({
                     {c.projects.slice(0, 1).map((p) => (
                       <span
                         key={p.id}
-                        className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] truncate max-w-[120px]"
+                        className="max-w-[120px] truncate font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.10em] text-[var(--deck-ink-dull)]"
                       >
                         / {p.name}
                       </span>
@@ -138,7 +137,7 @@ export function RecentCapturesWidget({
                   <button
                     type="button"
                     onClick={() => setConvertTarget(c)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-[0.85] transition-opacity duration-150 ease-out font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--hud-cyan)] cursor-pointer-always bg-[var(--surface-raised)] px-1.5 py-0.5 rounded"
+                    className="absolute right-2 top-2 rounded bg-[var(--deck-panel)] px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-accent)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover:opacity-100 [@media(pointer:fine)]:group-focus-within:opacity-100"
                   >
                     → Task
                   </button>
@@ -159,6 +158,6 @@ export function RecentCapturesWidget({
           availableProjects={availableProjects}
         />
       )}
-    </div>
+    </section>
   );
 }

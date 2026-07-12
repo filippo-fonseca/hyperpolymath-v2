@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import { KpiRail, StatChip } from "@/components/spacedrive";
 import { format } from "date-fns";
+import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
 
 interface Stat {
   label: string;
@@ -12,6 +13,7 @@ interface Stat {
 }
 
 interface Props {
+  titleId?: string;
   displayName?: string | null;
   habitsDone: number;
   habitsTotal: number;
@@ -53,6 +55,7 @@ function toneColor(tone: Stat["tone"]) {
  * cyan = highlight. Restraint: no glow, no big numbers, no neumorphic.
  */
 export function LifeOsHero({
+  titleId = "lifeos-title",
   displayName,
   habitsDone,
   habitsTotal,
@@ -68,10 +71,7 @@ export function LifeOsHero({
   const stats: Stat[] = [
     {
       label: "Habits",
-      value:
-        habitsTotal === 0
-          ? "—"
-          : `${habitsDone}/${habitsTotal}`,
+      value: habitsTotal === 0 ? "—" : `${habitsDone}/${habitsTotal}`,
       href: "/habits",
       tone:
         habitsTotal > 0 && habitsDone === habitsTotal
@@ -82,31 +82,15 @@ export function LifeOsHero({
     },
     {
       label: tasksOverdue > 0 ? "Overdue" : "Due today",
-      value:
-        tasksOverdue > 0
-          ? String(tasksOverdue)
-          : String(tasksDueToday),
+      value: tasksOverdue > 0 ? String(tasksOverdue) : String(tasksDueToday),
       href: "/tasks",
-      tone:
-        tasksOverdue > 0
-          ? "coral"
-          : tasksDueToday > 0
-            ? "amber"
-            : "sage",
+      tone: tasksOverdue > 0 ? "coral" : tasksDueToday > 0 ? "amber" : "sage",
     },
     {
       label: "Training",
-      value:
-        trainingPlanned === 0
-          ? "Rest"
-          : `${trainingDone}/${trainingPlanned}`,
+      value: trainingPlanned === 0 ? "Rest" : `${trainingDone}/${trainingPlanned}`,
       href: "/training",
-      tone:
-        trainingPlanned === 0
-          ? "default"
-          : trainingDone === trainingPlanned
-            ? "sage"
-            : "cyan",
+      tone: trainingPlanned === 0 ? "default" : trainingDone === trainingPlanned ? "sage" : "cyan",
     },
   ];
 
@@ -118,76 +102,58 @@ export function LifeOsHero({
         transition: { duration: 0.36, ease: [0.25, 1, 0.5, 1] as const },
       };
 
+  const taskSummary =
+    tasksOverdue > 0
+      ? `${tasksOverdue} overdue task${tasksOverdue === 1 ? "" : "s"} need attention.`
+      : tasksDueToday > 0
+        ? `${tasksDueToday} task${tasksDueToday === 1 ? "" : "s"} due today.`
+        : "Your queue is clear for today.";
+
   return (
-    <motion.section className="mb-10" {...animProps}>
+    <motion.section className="mb-7" {...animProps}>
       <div className="flex flex-col gap-5">
         {/* Date strap */}
-        <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-          <span
-            aria-hidden
-            className="inline-block h-px w-6 bg-[var(--edge)]"
-          />
+        <div className="flex flex-wrap items-center gap-3 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--deck-ink-dull)]">
+          <span aria-hidden className="inline-block h-px w-6 bg-[var(--deck-line)]" />
           <span>{format(now, "EEEE · MMMM d, yyyy")}</span>
+          <span className="text-[var(--deck-ink-faint)]">/ COMMAND DECK</span>
         </div>
 
         {/* Greeting + name */}
         <div className="flex flex-col gap-2">
-          <h1 className="font-serif text-[44px] leading-[1.05] font-semibold tracking-tight text-[var(--ink)]">
+          <h1
+            id={titleId}
+            className="font-[family-name:var(--font-sans)] text-[clamp(2rem,5vw,3.25rem)] leading-[1.05] font-semibold tracking-[-0.04em] text-[var(--deck-ink)]"
+          >
             {greeting(now.getHours())}
             {firstName ? (
               <>
-                ,{" "}
-                <span
-                  style={{
-                    color: "var(--hud-cyan)",
-                    textShadow:
-                      "0 0 18px color-mix(in oklch, var(--hud-cyan) 25%, transparent)",
-                  }}
-                >
-                  {firstName}
-                </span>
+                , <span className="text-[var(--deck-accent)]">{firstName}</span>
               </>
             ) : null}
-            <span className="text-[var(--ink-muted)]">.</span>
+            <span className="text-[var(--deck-ink-dull)]">.</span>
           </h1>
-          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
-            One canvas — captures, habits, tasks, training. JARVIS is one tab away.
+          <p className="max-w-2xl font-[family-name:var(--font-sans)] text-[13px] leading-5 text-[var(--deck-ink-dull)]">
+            {taskSummary} Habits, training, and captures are staged below.
           </p>
         </div>
 
-        {/* Stat chips */}
-        <div className="flex flex-wrap items-stretch gap-2">
+        {/* KPI rail — links remain native navigation targets. */}
+        <KpiRail className="gap-x-5 gap-y-3 sm:gap-x-8">
           {stats.map((s) => (
             <Link
               key={s.label}
               href={s.href}
-              className="group/chip inline-flex items-center gap-2.5 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-1.5 transition-[border-color,transform,background-color] duration-150 ease-out hover:border-[var(--edge-hud)] hover:-translate-y-px"
+              aria-label={`${s.label}: ${s.value}`}
+              className="group/kpi rounded-md px-1 py-1 transition-colors [transition-duration:var(--dur-hover)] hover:bg-[var(--deck-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
             >
-              <span
-                aria-hidden
-                className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: toneColor(s.tone),
-                  boxShadow:
-                    s.tone && s.tone !== "default"
-                      ? `0 0 8px color-mix(in oklch, ${toneColor(s.tone)} 45%, transparent)`
-                      : undefined,
-                }}
+              <StatChip
+                label={s.label}
+                value={<span style={{ color: toneColor(s.tone) }}>{s.value}</span>}
               />
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]"
-              >
-                {s.label}
-              </span>
-              <span
-                className="font-serif text-[13px] tabular-nums"
-                style={{ color: toneColor(s.tone) }}
-              >
-                {s.value}
-              </span>
             </Link>
           ))}
-        </div>
+        </KpiRail>
       </div>
     </motion.section>
   );

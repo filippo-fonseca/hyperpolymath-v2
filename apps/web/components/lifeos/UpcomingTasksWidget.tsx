@@ -1,20 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { format, differenceInCalendarDays } from "date-fns";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  createTask,
-  getTasksForCurrentUser,
-  updateTaskStatus,
-} from "@/app/actions/tasks";
+import { createTask, getTasksForCurrentUser, updateTaskStatus } from "@/app/actions/tasks";
+import { DenseListRow, EmptyState, SectionHeader } from "@/components/spacedrive";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { differenceInCalendarDays, format } from "date-fns";
+import { Plus } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   userId: string;
@@ -69,12 +66,7 @@ const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }
  * matters at a glance — coral for overdue, amber for today, cyan for the
  * coming week, muted for later.
  */
-export function UpcomingTasksWidget({
-  userId,
-  initialTasks,
-  compact = false,
-  limit = 7,
-}: Props) {
+export function UpcomingTasksWidget({ userId, initialTasks, compact = false, limit = 7 }: Props) {
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
 
@@ -96,21 +88,19 @@ export function UpcomingTasksWidget({
   })();
 
   const open = tasksData.filter(
-    (t) => t.status !== "lesno" && t.dueDate != null && !checkedOff.has(t.id),
+    (t) => t.status !== "lesno" && t.dueDate != null && !checkedOff.has(t.id)
   );
 
   const overdueCount = open.filter(
-    (t) => urgencyOf(t.dueDate as string, todayISO) === "overdue",
+    (t) => urgencyOf(t.dueDate as string, todayISO) === "overdue"
   ).length;
   const todayCount = open.filter(
-    (t) => urgencyOf(t.dueDate as string, todayISO) === "today",
+    (t) => urgencyOf(t.dueDate as string, todayISO) === "today"
   ).length;
 
   const upcoming = open
     .sort(
-      (a, b) =>
-        new Date(a.dueDate as string).getTime() -
-        new Date(b.dueDate as string).getTime(),
+      (a, b) => new Date(a.dueDate as string).getTime() - new Date(b.dueDate as string).getTime()
     )
     .slice(0, limit);
 
@@ -152,15 +142,13 @@ export function UpcomingTasksWidget({
     if (r.data.becameLesno) toast("Lesno.");
 
     setTimeout(() => {
-      void queryClient
-        .invalidateQueries({ queryKey: tableKey("tasks", userId) })
-        .then(() => {
-          setCheckedOff((prev) => {
-            const next = new Set(prev);
-            next.delete(task.id);
-            return next;
-          });
+      void queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) }).then(() => {
+        setCheckedOff((prev) => {
+          const next = new Set(prev);
+          next.delete(task.id);
+          return next;
         });
+      });
     }, 250);
   }
 
@@ -169,44 +157,42 @@ export function UpcomingTasksWidget({
     : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="mb-5 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h3
-            className={`font-serif font-semibold text-[var(--ink)] ${compact ? "text-base" : "text-lg"}`}
-          >
-            Upcoming
-          </h3>
-          {(overdueCount > 0 || todayCount > 0) && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-              {overdueCount > 0 && (
-                <span style={{ color: "var(--ink-coral)" }}>
-                  {overdueCount} overdue
-                </span>
-              )}
-              {overdueCount > 0 && todayCount > 0 ? " · " : ""}
-              {todayCount > 0 && (
-                <span style={{ color: "var(--ink-amber)" }}>
-                  {todayCount} today
-                </span>
-              )}
-            </span>
-          )}
-        </div>
-        <Link
-          href="/tasks"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
+    <section aria-labelledby="lifeos-upcoming-tasks-title" className="flex flex-col h-full">
+      <h3 id="lifeos-upcoming-tasks-title" className="sr-only">
+        {compact ? "Upcoming" : "Upcoming tasks"}
+      </h3>
+      <SectionHeader
+        title={compact ? "Upcoming" : "Upcoming tasks"}
+        action={
+          <div className="flex items-center gap-3">
+            {(overdueCount > 0 || todayCount > 0) && (
+              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--deck-ink-dull)]">
+                {overdueCount > 0 && (
+                  <span style={{ color: "var(--ink-coral)" }}>{overdueCount} overdue</span>
+                )}
+                {overdueCount > 0 && todayCount > 0 ? " · " : ""}
+                {todayCount > 0 && (
+                  <span style={{ color: "var(--ink-amber)" }}>{todayCount} today</span>
+                )}
+              </span>
+            )}
+            <Link
+              href="/tasks"
+              className="rounded-sm px-1 py-0.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+            >
+              All →
+            </Link>
+          </div>
+        }
+        className="mb-4"
+      />
 
       {/* Inline composer — Enter to create with today's due date. */}
-      <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 transition-colors duration-150 focus-within:border-[var(--edge-hud)]">
+      <div className="mb-3 flex items-center gap-2 rounded-md border border-[var(--deck-line)] bg-[var(--deck-panel-deep)] px-3 py-2 transition-colors [transition-duration:var(--dur-hover)] focus-within:border-[var(--deck-accent-faint)]">
         <Plus
           size={13}
           strokeWidth={1.75}
-          className="text-[var(--ink-muted)] shrink-0"
+          className="shrink-0 text-[var(--deck-ink-dull)]"
           aria-hidden
         />
         <input
@@ -221,21 +207,21 @@ export function UpcomingTasksWidget({
           }}
           placeholder="New task — Enter to add"
           disabled={creating}
-          className="flex-1 min-w-0 bg-transparent outline-none font-serif text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+          className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-sans)] text-[13px] text-[var(--deck-ink)] outline-none placeholder:text-[var(--deck-ink-dull)] placeholder:italic focus-visible:[box-shadow:var(--ring-focus)]"
         />
         {newTitle.trim() && (
-          <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+          <span className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.10em] text-[var(--deck-ink-dull)] tabular-nums">
             ⏎
           </span>
         )}
       </div>
 
       {upcoming.length === 0 ? (
-        <div className="flex flex-1 items-center">
-          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
-            Nothing due. Breathe.
-          </p>
-        </div>
+        <EmptyState
+          title="Nothing due. Breathe."
+          description="New tasks created here land on today's queue."
+          className="min-h-0 flex-1 items-start px-0 py-8 text-left"
+        />
       ) : (
         <ul className="flex flex-col flex-1">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -246,51 +232,60 @@ export function UpcomingTasksWidget({
               return (
                 <motion.li
                   key={t.id}
-                  layout
+                  layout={!reducedMotion}
                   initial={reducedMotion ? false : { opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: -20 }}
                   transition={transition}
-                  className="group/task flex items-center gap-3 py-2.5 border-b border-[var(--edge)] last:border-b-0"
+                  className="group/task border-b border-[var(--deck-divider)] last:border-b-0"
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleCheck(t)}
-                    aria-label={`Mark "${t.title}" as done`}
-                    className="relative flex items-center justify-center w-[16px] h-[16px] rounded-[3px] border shrink-0 cursor-pointer-always transition-colors duration-100"
-                    style={{
-                      borderColor:
-                        u === "overdue" || u === "today"
-                          ? tone.dot
-                          : "var(--edge)",
-                    }}
-                  >
-                    <span
-                      aria-hidden
-                      className="absolute -left-2 top-1/2 -translate-y-1/2 h-[14px] w-[2px] rounded-sm opacity-0 group-hover/task:opacity-100 transition-opacity duration-100"
-                      style={{ backgroundColor: tone.dot }}
-                    />
-                  </button>
-                  <span className="font-serif text-[14px] text-[var(--ink)] flex-1 min-w-0 truncate">
-                    {t.title}
-                  </span>
-                  {project && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)] shrink-0 max-w-[120px] truncate">
-                      {project.name}
-                    </span>
-                  )}
-                  <span
-                    className="font-mono text-[10px] uppercase tracking-[0.10em] shrink-0 tabular-nums"
-                    style={{ color: tone.text }}
-                  >
-                    {tone.label || format(new Date(t.dueDate as string), "MMM d")}
-                  </span>
+                  <DenseListRow
+                    glyph={
+                      <button
+                        type="button"
+                        onClick={() => handleCheck(t)}
+                        aria-label={`Mark "${t.title}" as done`}
+                        className="relative flex h-5 w-5 items-center justify-center rounded-[3px] border cursor-pointer-always transition-colors [transition-duration:var(--dur-hover)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+                        style={{
+                          borderColor:
+                            u === "overdue" || u === "today" ? tone.dot : "var(--deck-line)",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          className="h-2 w-2 rounded-sm"
+                          style={{
+                            backgroundColor: checkedOff.has(t.id) ? tone.dot : "transparent",
+                          }}
+                        />
+                      </button>
+                    }
+                    title={
+                      <span className="font-[family-name:var(--font-sans)] text-[13px]">
+                        {t.title}
+                      </span>
+                    }
+                    meta={
+                      <span
+                        className="flex max-w-[42vw] items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] tabular-nums sm:max-w-none"
+                        style={{ color: tone.text }}
+                      >
+                        {project ? (
+                          <span className="hidden max-w-[120px] truncate sm:inline">
+                            {project.name}
+                          </span>
+                        ) : null}
+                        <span>{tone.label || format(new Date(t.dueDate as string), "MMM d")}</span>
+                      </span>
+                    }
+                    className="h-11 px-2.5"
+                  />
                 </motion.li>
               );
             })}
           </AnimatePresence>
         </ul>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { ChevronDown, ChevronRight, Archive } from "lucide-react";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
-import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
+import { cn } from "@/lib/utils";
+import { Archive, ChevronDown, ChevronRight } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   areas: SidebarArea[];
@@ -60,7 +61,7 @@ const NODE_PALETTE = [
   "oklch(72% 0.14 305)", // purple
   "oklch(74% 0.13 175)", // turquoise
   "oklch(76% 0.15 155)", // mint / light green
-  "oklch(80% 0.13 70)",  // amber / peach
+  "oklch(80% 0.13 70)", // amber / peach
 ] as const;
 
 function pickNodeColor(id: string): string {
@@ -69,23 +70,15 @@ function pickNodeColor(id: string): string {
   return NODE_PALETTE[Math.abs(h) % NODE_PALETTE.length];
 }
 
-export function AreasTree({
-  areas,
-  rootAvatarUrl,
-  rootInitial,
-  rootLabel,
-}: Props) {
+export function AreasTree({ areas, rootAvatarUrl, rootInitial, rootLabel }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  const reducedMotion = useReducedMotion();
 
   const [paths, setPaths] = useState<{ id: string; d: string }[]>([]);
-  const [cardVertices, setCardVertices] = useState<
-    { id: string; cx: number; cy: number }[]
-  >([]);
-  const [junctionLines, setJunctionLines] = useState<
-    { x1: number; x2: number; y: number }[]
-  >([]);
+  const [cardVertices, setCardVertices] = useState<{ id: string; cx: number; cy: number }[]>([]);
+  const [junctionLines, setJunctionLines] = useState<{ x1: number; x2: number; y: number }[]>([]);
   const [trunkLine, setTrunkLine] = useState<{
     x: number;
     y1: number;
@@ -109,11 +102,7 @@ export function AreasTree({
     const collapsed = new Set<string>();
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (
-        k &&
-        k.startsWith(PER_AREA_COLLAPSED_PREFIX) &&
-        localStorage.getItem(k) === "true"
-      ) {
+      if (k?.startsWith(PER_AREA_COLLAPSED_PREFIX) && localStorage.getItem(k) === "true") {
         collapsed.add(k.slice(PER_AREA_COLLAPSED_PREFIX.length));
       }
     }
@@ -121,8 +110,7 @@ export function AreasTree({
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined")
-      localStorage.setItem(HIDE_ALL_KEY, String(hideAllProjects));
+    if (typeof window !== "undefined") localStorage.setItem(HIDE_ALL_KEY, String(hideAllProjects));
   }, [hideAllProjects]);
   useEffect(() => {
     if (typeof window !== "undefined")
@@ -134,8 +122,7 @@ export function AreasTree({
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        if (typeof window !== "undefined")
-          localStorage.removeItem(PER_AREA_COLLAPSED_PREFIX + id);
+        if (typeof window !== "undefined") localStorage.removeItem(PER_AREA_COLLAPSED_PREFIX + id);
       } else {
         next.add(id);
         if (typeof window !== "undefined")
@@ -148,6 +135,7 @@ export function AreasTree({
   useEffect(() => {
     const container = containerRef.current;
     const root = rootRef.current;
+    const expectedAreaCount = areas.length;
     if (!container || !root) return;
 
     function measure() {
@@ -167,7 +155,7 @@ export function AreasTree({
           top: r.top - containerRect.top,
         });
       }
-      if (cardCenters.length === 0) {
+      if (expectedAreaCount === 0 || cardCenters.length === 0) {
         setPaths([]);
         setCardVertices([]);
         setJunctionLines([]);
@@ -265,19 +253,17 @@ export function AreasTree({
           chrome strip; pills on the right. Hairline border below the bar
           gives it just enough separation from the canvas without becoming
           a card. */}
-      <div className="flex items-center justify-between gap-4 px-2 pb-3 mb-4 border-b border-[var(--edge)]">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--deck-line)] px-2 pb-3">
+        <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--deck-ink-dull)]">
           View
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <TogglePill
             active={!hideAllProjects}
             onClick={() => setHideAllProjects((v) => !v)}
             label={hideAllProjects ? "Show projects" : "Hide projects"}
             title={
-              hideAllProjects
-                ? "Show all project sub-branches"
-                : "Hide all project sub-branches"
+              hideAllProjects ? "Show all project sub-branches" : "Hide all project sub-branches"
             }
           />
           <TogglePill
@@ -285,9 +271,7 @@ export function AreasTree({
             onClick={() => setShowArchived((v) => !v)}
             label={showArchived ? "Hiding archived" : "Show archived"}
             title={
-              showArchived
-                ? "Hide archived projects"
-                : "Include archived projects in the tree"
+              showArchived ? "Hide archived projects" : "Include archived projects in the tree"
             }
             icon={<Archive size={11} />}
           />
@@ -324,9 +308,9 @@ export function AreasTree({
         {/* Per-row junctions — one horizontal segment per wrapped row, drawn
             separately from the per-area paths so animated dots don't
             double-travel along the junction. */}
-        {junctionLines.map((j, i) => (
+        {junctionLines.map((j) => (
           <line
-            key={`junction-${i}`}
+            key={`junction-${j.x1}-${j.x2}-${j.y}`}
             x1={j.x1}
             y1={j.y}
             x2={j.x2}
@@ -350,29 +334,28 @@ export function AreasTree({
                 strokeWidth="1.75"
                 strokeLinecap="round"
               />
-              <circle
-                r="4"
-                fill={accent}
-                filter="url(#feed-glow)"
-                opacity="0.85"
-              >
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
-              <circle r="1.75" fill={accent}>
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
+              {reducedMotion ? null : (
+                <>
+                  <circle r="4" fill={accent} filter="url(#feed-glow)" opacity="0.85">
+                    <animateMotion
+                      dur="2.6s"
+                      repeatCount="indefinite"
+                      begin={`${(i * 0.35).toFixed(2)}s`}
+                    >
+                      <mpath href={`#feed-path-${p.id}`} />
+                    </animateMotion>
+                  </circle>
+                  <circle r="1.75" fill={accent}>
+                    <animateMotion
+                      dur="2.6s"
+                      repeatCount="indefinite"
+                      begin={`${(i * 0.35).toFixed(2)}s`}
+                    >
+                      <mpath href={`#feed-path-${p.id}`} />
+                    </animateMotion>
+                  </circle>
+                </>
+              )}
             </g>
           );
         })}
@@ -397,7 +380,7 @@ export function AreasTree({
                 cx={v.cx}
                 cy={v.cy}
                 r="3.25"
-                fill="var(--canvas)"
+                fill="var(--deck-panel-deep)"
                 stroke={accent}
                 strokeWidth="1.5"
               />
@@ -414,7 +397,7 @@ export function AreasTree({
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
+          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--deck-panel)]"
           style={{
             width: 72,
             height: 72,
@@ -424,10 +407,12 @@ export function AreasTree({
         >
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-2xl",
+              !reducedMotion && "animate-pulse"
+            )}
             style={{
-              boxShadow:
-                "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
+              boxShadow: "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
             }}
           />
           {rootAvatarUrl ? (
@@ -448,7 +433,7 @@ export function AreasTree({
             />
           ) : (
             <span
-              className="font-serif text-2xl text-[var(--ink-muted)] flex items-center justify-center"
+              className="flex items-center justify-center font-[family-name:var(--font-sans)] text-2xl text-[var(--deck-ink-dull)]"
               style={{ width: 72, height: 72 }}
             >
               {rootInitial}
@@ -516,8 +501,9 @@ function TogglePill({
         "font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always",
         "transition-colors duration-150 ease-out",
         active
-          ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-          : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+          ? "border-[var(--deck-line)] bg-[var(--deck-selected)] text-[var(--deck-ink)]"
+          : "border-transparent text-[var(--deck-ink-dull)] hover:text-[var(--deck-ink)] hover:border-[var(--deck-line)]",
+        "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
       )}
     >
       {icon}
@@ -558,16 +544,14 @@ function AreaBranch({
   const visibleProjects = showArchived
     ? area.projects
     : area.projects.filter((p) => p.archivedAt === null);
-  const activeCount = area.projects.filter(
-    (p) => p.archivedAt === null,
-  ).length;
+  const activeCount = area.projects.filter((p) => p.archivedAt === null).length;
   const archivedCount = area.projects.length - activeCount;
   const previewProjects = visibleProjects.slice(0, 6);
   const hiddenCount = visibleProjects.length - previewProjects.length;
   const lineColor = "color-mix(in oklch, var(--edge-hud) 70%, transparent)";
 
   return (
-    <div className="flex flex-col items-stretch w-[240px] shrink-0">
+    <div className="flex w-full max-w-[240px] min-w-0 shrink-0 flex-col items-stretch">
       <div className="relative">
         <Link
           ref={setRef}
@@ -577,10 +561,10 @@ function AreaBranch({
             // Glassier tile — translucent surface + backdrop blur. Reads the
             // --glass-* knobs so /lifeos (under .lifeos-glass) runs frostier
             // than /areas, both glassier than the old solid fill.
-            "border border-[var(--edge)] bg-[var(--glass-bg)]",
-            "[backdrop-filter:blur(var(--glass-blur,12px))] [-webkit-backdrop-filter:blur(var(--glass-blur,12px))]",
-            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_88%,transparent)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "border border-[var(--deck-line)] bg-[var(--deck-panel)]",
+            "hover:border-[var(--deck-accent-faint)] hover:bg-[var(--deck-hover)]",
+            "transition-colors [transition-duration:var(--dur-hover)] ease-out cursor-pointer-always",
+            "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
           )}
         >
           <div className="flex items-baseline gap-2">
@@ -589,16 +573,14 @@ function AreaBranch({
                 {area.emoji}
               </span>
             ) : null}
-            <span className="font-serif text-base font-semibold text-[var(--ink)] truncate">
+            <span className="truncate font-[family-name:var(--font-sans)] text-base font-semibold text-[var(--deck-ink)]">
               {area.name}
             </span>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
             {activeCount} project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
-              <span className="ml-1 text-[var(--ink-muted)]/70">
-                · {archivedCount} archived
-              </span>
+              <span className="ml-1 text-[var(--ink-muted)]/70">· {archivedCount} archived</span>
             ) : null}
           </span>
         </Link>
@@ -617,9 +599,10 @@ function AreaBranch({
           aria-expanded={!collapsed}
           className={cn(
             "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md",
-            "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-            "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "text-[var(--deck-ink-dull)] hover:text-[var(--deck-ink)]",
+            "border border-transparent hover:border-[var(--deck-line)] hover:bg-[var(--deck-hover)]",
+            "transition-colors [transition-duration:var(--dur-hover)] ease-out cursor-pointer-always",
+            "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
           )}
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
@@ -646,10 +629,7 @@ function AreaBranch({
             className="absolute left-3 -top-px w-px"
             style={{ height: STEM_DROP, background: lineColor }}
           />
-          <ul
-            className="flex flex-col gap-1.5 pl-3 relative"
-            style={{ marginTop: STEM_DROP - 2 }}
-          >
+          <ul className="flex flex-col gap-1.5 pl-3 relative" style={{ marginTop: STEM_DROP - 2 }}>
             <span
               aria-hidden="true"
               className="absolute left-3 top-0 w-px"
@@ -684,11 +664,10 @@ function AreaBranch({
                     href={`/projects/${p.id}`}
                     className={cn(
                       "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-md",
-                      "font-serif text-[13px]",
-                      "hover:bg-[var(--surface)] transition-colors duration-100",
-                      isArchived
-                        ? "text-[var(--ink-muted)] italic"
-                        : "text-[var(--ink)]",
+                      "font-[family-name:var(--font-sans)] text-[13px]",
+                      "hover:bg-[var(--deck-hover)] transition-colors [transition-duration:var(--dur-hover)]",
+                      "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
+                      isArchived ? "text-[var(--ink-muted)] italic" : "text-[var(--ink)]"
                     )}
                   >
                     <DynamicIcon
@@ -710,10 +689,7 @@ function AreaBranch({
               );
             })}
             {hiddenCount > 0 ? (
-              <li
-                className="relative"
-                style={{ paddingLeft: TICK_WIDTH + 12 }}
-              >
+              <li className="relative" style={{ paddingLeft: TICK_WIDTH + 12 }}>
                 <span
                   aria-hidden="true"
                   className="absolute h-px"
@@ -726,7 +702,7 @@ function AreaBranch({
                 />
                 <Link
                   href={`/areas/${area.id}`}
-                  className="inline-flex font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors py-1"
+                  className="inline-flex rounded-sm py-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
                 >
                   + {hiddenCount} more
                 </Link>
@@ -742,7 +718,7 @@ function AreaBranch({
             style={{ height: STEM_DROP, background: lineColor }}
           />
           <p
-            className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
+            className="pl-7 font-[family-name:var(--font-sans)] text-[13px] italic text-[var(--deck-ink-dull)]"
             style={{ marginTop: STEM_DROP + 2 }}
           >
             No projects yet.
@@ -755,8 +731,8 @@ function AreaBranch({
 
 function EmptyAreas() {
   return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
-      <p className="font-serif italic text-base text-[var(--ink-muted)]">
+    <div className="mx-auto max-w-md rounded-md border border-dashed border-[var(--deck-line)] px-6 py-8 text-center">
+      <p className="font-[family-name:var(--font-sans)] text-base italic text-[var(--deck-ink-dull)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -44,18 +44,20 @@ export function CollapseChevron({
   onClick: () => void;
   label: string;
 }) {
+  const reduced = useReducedMotion();
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-expanded={!collapsed}
       aria-label={collapsed ? `Show ${label}` : `Hide ${label}`}
-      className="inline-flex items-center justify-center rounded-md p-1 text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)] transition-colors duration-100 cursor-pointer-always"
+      className="inline-flex items-center justify-center rounded-md p-1 text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)] cursor-pointer-always"
     >
       <motion.span
         initial={false}
         animate={{ rotate: collapsed ? -90 : 0 }}
-        transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+        transition={reduced ? { duration: 0 } : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
         className="inline-flex"
       >
         <ChevronDown size={16} strokeWidth={2} />

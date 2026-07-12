@@ -1,0 +1,75 @@
+{
+  "unit": "Life OS command center",
+  "session": "sesh-1783863067187",
+  "branch": "bgsd/lifeos-command-center",
+  "testedSha": "84a30743af9b079654e2671d2ed8812e76165f63",
+  "overall": "PASS",
+  "scope": "code verification passed; browser usage verification was unavailable",
+  "commands": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "result": "PASS",
+      "details": "Workspace dependencies installed from the existing lockfile."
+    },
+    {
+      "command": "pnpm --filter web typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm exec biome check 'app/(app)/lifeos/page.tsx' components/lifeos components/areas/AreasTree.tsx tests/lifeos-command-center.test.tsx",
+      "result": "PASS",
+      "details": "15 owned files checked; no diagnostics."
+    },
+    {
+      "command": "pnpm --filter web exec vitest run tests/lifeos-command-center.test.tsx tests/spacedrive-primitives.test.tsx",
+      "result": "PASS",
+      "details": "2 files, 16 tests passed."
+    },
+    {
+      "command": "pnpm --filter web exec vitest run tests/lifeos-command-center.test.tsx tests/spacedrive-primitives.test.tsx tests/jarvis-convert-capture.test.tsx",
+      "result": "PARTIAL",
+      "details": "Life OS and Spacedrive tests passed; 5 of 6 capture-dialog tests passed. The remaining pre-existing shape test imports the database client and fails because DATABASE_URL is absent."
+    },
+    {
+      "command": "pnpm --filter web build",
+      "result": "BLOCKED_BY_ENV",
+      "details": "Compilation and TypeScript completed, but page-data collection stopped because DATABASE_URL is absent."
+    },
+    {
+      "command": "DATABASE_URL=postgresql://localhost:5432/lifeos pnpm --filter web build",
+      "result": "PASS",
+      "details": "Production build completed and emitted routes at the reviewer-fix tested SHA. It reported pre-existing page-block-editor ::highlight parser warnings and the existing next.config NFT tracing warning."
+    },
+    {
+      "command": "pnpm --filter web exec biome check 'components/lifeos/LifeOsBentoGrid.tsx' 'components/lifeos/LifeOsAreasShell.tsx' 'components/lifeos/LifeOsInsightsWidget.tsx' 'components/lifeos/UpcomingTasksWidget.tsx' 'components/lifeos/TodayHabitsWidget.tsx' 'components/lifeos/TodayTrainingWidget.tsx' 'components/lifeos/RecentCapturesWidget.tsx' 'tests/lifeos-command-center.test.tsx'",
+      "result": "PASS",
+      "details": "8 changed Life OS files checked; no diagnostics."
+    },
+    {
+      "command": "pnpm --filter web exec vitest run tests/lifeos-command-center.test.tsx tests/spacedrive-primitives.test.tsx",
+      "result": "PASS",
+      "details": "2 files, 18 tests passed, including container-breakpoint and heading-semantics regression guards."
+    },
+    {
+      "command": "Local browser usage ladder",
+      "result": "NOT_RUN",
+      "details": "The app started on port 3105, but the configured browser runtime reported no available browser backends. Responsive 320/375/768/1024/1440, 200% zoom, theme, auth, and signed-in visual checks remain unobserved."
+    }
+  ],
+  "contractEvidence": [
+    "jarvis-prefill sessionStorage write then /today routing",
+    "Cmd/Ctrl+Enter and Escape remain owned by LiteJarvisComposer",
+    "five Life OS realtime subscription islands and exact tableKey shapes",
+    "task and habit optimistic mutation/rollback paths",
+    "areas-tree-* and lifeos:* collapse namespaces",
+    "AreasTree SMIL feed and avatar pulse are gated by useReducedMotion",
+    "capture conversion action is focus-visible and available on coarse pointers",
+    "bento 12-column layout and spans use @3xl/main in both reduced-motion and motion branches, preserving grid-cols-1 below the container threshold",
+    "System map, Today / work, and Insights gateway expose named h2 sections; Tasks, Habits, Training, and Capture stream expose named h3 widget sections while native links/buttons remain intact"
+  ],
+  "remainingLimitations": [
+    "No authenticated browser session or browser backend was available for visual and responsive verification.",
+    "The repository's existing DATABASE_URL-dependent capture shape test cannot run without a database environment.",
+    "The production build still emits unrelated existing CSS parser and NFT tracing warnings."
+  ]
+}

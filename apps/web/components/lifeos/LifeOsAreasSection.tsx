@@ -1,7 +1,7 @@
-import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
-import { getSidebarTree } from "@/lib/db/queries/sidebar";
 import { AreasTree } from "@/components/areas/AreasTree";
 import { LifeOsAreasShell } from "@/components/lifeos/LifeOsAreasShell";
+import { getAuthAvatar, requireOnboarded } from "@/lib/auth/get-user";
+import { getSidebarTree } from "@/lib/db/queries/sidebar";
 
 /**
  * LifeOsAreasSection — the centerpiece of /lifeos.
@@ -28,13 +28,7 @@ export async function LifeOsAreasSection() {
 
   const rootAvatarUrl = user.avatarUrl || oauthAvatar.avatarUrl;
   const rootLabel = user.displayName?.trim() || user.email;
-  const rootInitial = (
-    user.displayName?.trim() ||
-    user.email ||
-    "·"
-  )
-    .charAt(0)
-    .toUpperCase();
+  const rootInitial = (user.displayName?.trim() || user.email || "·").charAt(0).toUpperCase();
 
   return (
     <LifeOsAreasShell>

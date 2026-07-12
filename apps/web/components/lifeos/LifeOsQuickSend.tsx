@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
 import { LiteJarvisComposer } from "@/components/jarvis/LiteJarvisComposer";
+import { SectionHeader } from "@/components/spacedrive";
+import { motion, useReducedMotion } from "motion/react";
+import { useRouter } from "next/navigation";
 
 /**
  * LifeOsQuickSend — JARVIS quick-send box on /lifeos between the banner and
@@ -40,7 +41,17 @@ export function LifeOsQuickSend() {
       };
 
   return (
-    <motion.section className="mb-10" {...animProps}>
+    <motion.section aria-label="Quick Send" className="mb-8" {...animProps}>
+      <SectionHeader
+        title="Quick Send"
+        eyebrow
+        action={
+          <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-faint)]">
+            JARVIS handoff
+          </span>
+        }
+        className="mb-2 px-1"
+      />
       <LiteJarvisComposer onSubmit={handleSubmit} />
     </motion.section>
   );

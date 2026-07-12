@@ -9,6 +9,7 @@ import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
 import { WidgetCard } from "@/components/lifeos/WidgetCard";
+import { AmbientOrb } from "@/components/spacedrive";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
@@ -85,9 +86,14 @@ export default async function LifeOsPage() {
   const trainingDone = visibleTraining.filter((a) => a.status === "done").length;
 
   return (
-    <main className="lifeos-glass relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
+    <main
+      aria-labelledby="lifeos-title"
+      className="lifeos-glass relative min-h-full overflow-x-clip bg-[var(--deck-app)] text-[var(--deck-ink)]"
+    >
+      <AmbientOrb size={360} intensity={0.22} className="-right-40 -top-40 z-0" />
+      <div className="relative z-10 @container/main mx-auto w-full max-w-[1280px] px-4 pb-12 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pt-8">
         <LifeOsHero
+          titleId="lifeos-title"
           displayName={user.displayName ?? user.email}
           habitsDone={habitsDone}
           habitsTotal={habitsTotal}
