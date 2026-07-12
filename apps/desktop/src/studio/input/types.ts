@@ -29,20 +29,35 @@ export type StudioCursor = {
 
 // ---- Intents ---------------------------------------------------------------
 
-export type StudioIntentType = "expand" | "collapse" | "swipeLeft" | "swipeRight" | "halt";
+export type StudioIntentType =
+  | "expand"
+  | "tap"
+  | "collapse"
+  | "swipeLeft"
+  | "swipeRight"
+  | "halt"
+  | "confirmApprove"
+  | "confirmCancel";
 
 /**
- * What consumers receive on the intent bus. `expand` always carries the
- * hovered target the hub injected; a targetless `expand` is never delivered.
- * `halt` is a deliberate one-shot (a ~1s open-palm hold) — targetless, used by
- * the kill-switch downstream; it passes through the hub unchanged.
+ * What consumers receive on the intent bus. `expand` and `tap` both always carry
+ * the hovered target the hub injected; a targetless one is never delivered. `tap`
+ * is the primary hand click (an index-finger forward push+return); `expand` is the
+ * legacy pinch-bloom click, kept alongside it. `halt` is a deliberate one-shot (a
+ * ~1s open-palm hold) — targetless, used by the kill-switch downstream; it passes
+ * through the hub unchanged. `confirmApprove`/`confirmCancel` are the thumbs-up /
+ * thumbs-down confirm-gate answers — targetless one-shots, delivered as-is (the
+ * confirm gate, not the hub, decides whether a pending send exists to answer).
  */
 export type StudioIntent =
   | { type: "expand"; targetId: string }
+  | { type: "tap"; targetId: string }
   | { type: "collapse" }
   | { type: "swipeLeft" }
   | { type: "swipeRight" }
-  | { type: "halt" };
+  | { type: "halt" }
+  | { type: "confirmApprove" }
+  | { type: "confirmCancel" };
 
 /**
  * Continuous interaction phases, delivered on a separate bus from discrete
@@ -95,10 +110,13 @@ export type StudioPhaseInput =
  */
 export type StudioIntentInput =
   | { type: "expand" }
+  | { type: "tap" }
   | { type: "collapse" }
   | { type: "swipeLeft" }
   | { type: "swipeRight" }
-  | { type: "halt" };
+  | { type: "halt" }
+  | { type: "confirmApprove" }
+  | { type: "confirmCancel" };
 
 // ---- Hover providers (THE seam for 3D + DOM) -------------------------------
 

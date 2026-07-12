@@ -275,11 +275,16 @@ export class StudioInputHub implements StudioInputBus {
 
   private emitIntent(input: StudioIntentInput): void {
     let intent: StudioIntent;
-    if (input.type === "expand") {
+    if (input.type === "expand" || input.type === "tap") {
+      // Both clicks upgrade from the current hover; a targetless one is dropped
+      // (a tap/bloom off any hittable is intentionally inert — nothing to press).
       const targetId = this.snapshot.hoverTargetId;
-      if (targetId === null) return; // drop targetless expand
-      intent = { type: "expand", targetId };
+      if (targetId === null) return;
+      intent = { type: input.type, targetId };
     } else {
+      // collapse / swipe / halt / confirmApprove / confirmCancel pass through
+      // untouched: none is hover-scoped (the confirm gate decides whether an
+      // approve/cancel has a pending send to answer).
       intent = input;
     }
     for (const cb of this.intentSubs) cb(intent);
