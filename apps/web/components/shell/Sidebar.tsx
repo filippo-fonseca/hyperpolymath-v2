@@ -534,7 +534,9 @@ function UserChip({
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
-        <span className="font-sans text-[13px] tracking-[-0.005em] text-[var(--ink)] truncate">{primaryLabel}</span>
+        <span className="font-sans text-[13px] tracking-[-0.005em] text-[var(--ink)] truncate">
+          {primaryLabel}
+        </span>
         {profile.displayName?.trim() ? (
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] truncate">
             {profile.email}
