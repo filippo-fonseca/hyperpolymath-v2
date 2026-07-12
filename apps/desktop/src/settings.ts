@@ -9,7 +9,7 @@
 //   physicalExtender.enabled boolean — whether to respond to SSE trigger events (default true)
 //   wake.enabled            boolean  — idle wake-phrase listener (OPT-IN, default false)
 //   wake.enabledExplicit    boolean  — marker: wake.enabled was set by the user (see below)
-//   startup.briefingEnabled boolean  — spoken briefing on session-start (default true)
+//   startup.briefingEnabled boolean  — spoken briefing on session-start (OPT-IN, default false)
 //   startup.openOnStart     array    — apps/URLs opened on session-start (default [])
 //   startup.shortcuts       array    — macOS Shortcuts run on session-start (default [])
 
@@ -62,7 +62,10 @@ export interface DesktopSettings {
   // "startupShortcuts", value). Malformed persisted entries are dropped on
   // load, so consumers always see well-shaped values.
 
-  /** Speak the proactive briefing on session-start. Default true. */
+  /** Speak the proactive briefing on session-start. OPT-IN: default false — a
+   *  greeting the user never asked for reads as the app talking to itself,
+   *  so waking/talking starts with a clean transcript unless the user turns
+   *  this on explicitly in settings. */
   startupBriefingEnabled: boolean;
   /** Apps/URLs to open on session-start, launched in parallel. Default []. */
   startupOpenOnStart: StartupOpenItem[];
@@ -84,7 +87,7 @@ const DEFAULTS: DesktopSettings = {
   vadSilenceMs: 1_500,
   manualMode: false,
   wakeEnabled: false,
-  startupBriefingEnabled: true,
+  startupBriefingEnabled: false,
   startupOpenOnStart: [],
   startupShortcuts: [],
   whatsappBridgeUrl: "http://localhost:8080",
