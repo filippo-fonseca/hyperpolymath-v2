@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { addDays, format, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { useRef } from "react";
 
 interface Props {
   /** Active day in YYYY-MM-DD form (URL-synced via TasksClient). */
@@ -44,7 +44,7 @@ export function DaySwitcher({ dateYmd, onDateChange }: Props) {
           size="sm"
           className={cn(
             "h-8 px-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.08em] focus-visible:[box-shadow:var(--ring-focus)]",
-            isToday && "text-[var(--ink-muted)]",
+            isToday && "text-[var(--ink-muted)]"
           )}
           onClick={() => onDateChange(toYmd(today))}
           disabled={isToday}

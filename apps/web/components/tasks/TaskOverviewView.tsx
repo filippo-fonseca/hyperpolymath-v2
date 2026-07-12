@@ -15,14 +15,14 @@
  * day-slice relies on).
  */
 
-import { useMemo, useState } from "react";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { toYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { addDays, format, startOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { toYmd } from "@/lib/tasks/date-shortcuts";
-import { cn } from "@/lib/utils";
+import { useMemo, useState } from "react";
 import { TaskCard } from "./TaskCard";
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 
 interface Props {
   tasks: TaskWithProjects[];
@@ -116,11 +116,7 @@ export function TaskOverviewView({
                 aria-label={isOpen ? "Collapse day" : "Expand day"}
                 className="min-h-10 min-w-10 rounded-[0.375rem] p-2 cursor-pointer-always text-[var(--deck-ink-dull)] transition-colors duration-[var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
               >
-                {isOpen ? (
-                  <ChevronDown size={14} />
-                ) : (
-                  <ChevronRight size={14} />
-                )}
+                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
             </div>
 
@@ -136,9 +132,7 @@ export function TaskOverviewView({
                 >
                   <div className="mt-1 mb-2 space-y-1 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel-deep)] p-2">
                     {dayTasks.length > 0 ? (
-                      dayTasks.map((t) => (
-                        <TaskCard key={t.id} task={t} onClick={onTaskClick} />
-                      ))
+                      dayTasks.map((t) => <TaskCard key={t.id} task={t} onClick={onTaskClick} />)
                     ) : (
                       <p className="px-1 py-1 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">
                         Nothing scheduled.

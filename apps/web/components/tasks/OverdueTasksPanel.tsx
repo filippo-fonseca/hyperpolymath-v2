@@ -1,8 +1,8 @@
 "use client";
 
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
-import { cn } from "@/lib/utils";
 import { fromYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, format } from "date-fns";
 import { AlarmClock, Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -127,10 +127,7 @@ export function OverdueTasksPanel({
   // Drop stale ids from the selection whenever the overdue set shrinks (e.g.
   // a task got rescheduled out of the panel) so the selection toolbar count
   // never references tasks that no longer exist here.
-  const overdueIdSet = useMemo(
-    () => new Set(overdueTasks.map((t) => t.id)),
-    [overdueTasks]
-  );
+  const overdueIdSet = useMemo(() => new Set(overdueTasks.map((t) => t.id)), [overdueTasks]);
   useEffect(() => {
     setSelectedIds((prev) => {
       let changed = false;

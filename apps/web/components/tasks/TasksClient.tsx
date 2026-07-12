@@ -1,5 +1,6 @@
 "use client";
 
+import { createProject } from "@/app/actions/projects";
 import {
   bulkDeleteTasks,
   bulkUpdateTaskDueDate,
@@ -8,22 +9,15 @@ import {
   updateTask,
 } from "@/app/actions/tasks";
 import { deleteTask } from "@/app/actions/tasks";
-import { createProject } from "@/app/actions/projects";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
-import {
-  CommandToolbar,
-  DeckPanel,
-  KpiRail,
-  ModeStrip,
-  StatChip,
-} from "@/components/spacedrive";
+import { CommandToolbar, DeckPanel, KpiRail, ModeStrip, StatChip } from "@/components/spacedrive";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { tableKey } from "@/lib/realtime/query-keys";
-import { useOptimisticList, type OptimisticListAction } from "@/lib/realtime/useOptimisticList";
+import { type OptimisticListAction, useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
-import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { fromYmd, toYmd } from "@/lib/tasks/date-shortcuts";
+import { useTasksExpanded } from "@/lib/ui/useTasksExpanded";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { endOfMonth, endOfWeek, isAfter, isBefore, isSameDay, startOfDay } from "date-fns";
@@ -32,14 +26,14 @@ import { useRouter } from "next/navigation";
 import { parseAsArrayOf, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { DaySwitcher } from "./DaySwitcher";
 import { InboxColumn } from "./InboxColumn";
 import { KanbanBoard } from "./KanbanBoard";
 import { OverdueTasksPanel } from "./OverdueTasksPanel";
-import { DaySwitcher } from "./DaySwitcher";
-import { TaskOverviewView } from "./TaskOverviewView";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { TaskFilters } from "./TaskFilters";
 import { TaskList } from "./TaskList";
+import { TaskOverviewView } from "./TaskOverviewView";
 import { TaskSelectionBar } from "./TaskSelectionBar";
 
 type TaskStatus = "not started" | "up next" | "in progress" | "almost done" | "lesno";
@@ -337,7 +331,16 @@ export function TasksClient({
       }
       return true;
     });
-  }, [optimisticTasks, filters.priority, filters.status, filters.due, filters.project, showLesno, dateYmd, pendingDeleteIds]);
+  }, [
+    optimisticTasks,
+    filters.priority,
+    filters.status,
+    filters.due,
+    filters.project,
+    showLesno,
+    dateYmd,
+    pendingDeleteIds,
+  ]);
 
   // Day-scoped slice of `filtered` for the kanban (default view). Tasks
   // with a due date matching `dateYmd` show in the columns; undated tasks
@@ -396,9 +399,7 @@ export function TasksClient({
         return;
       }
       await queryClient.invalidateQueries({ queryKey: tableKey("tasks", userId) });
-      toast.success(
-        `${ids.length} task${ids.length === 1 ? "" : "s"} rescheduled to ${dueYmd}`
-      );
+      toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} rescheduled to ${dueYmd}`);
     },
     [addOptimistic, queryClient, userId, startTransition]
   );
@@ -748,12 +749,19 @@ export function TasksClient({
             aria-label={expanded ? "Exit fullscreen" : "Expand tasks to fullscreen"}
             className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-[0.375rem] text-[var(--deck-ink-dull)] transition-colors duration-[var(--dur-hover)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
           >
-            {expanded ? <Minimize2 size={15} strokeWidth={1.6} /> : <Maximize2 size={15} strokeWidth={1.6} />}
+            {expanded ? (
+              <Minimize2 size={15} strokeWidth={1.6} />
+            ) : (
+              <Maximize2 size={15} strokeWidth={1.6} />
+            )}
           </button>
         </div>
       </CommandToolbar>
 
-      <DeckPanel tone="deep" className="flex flex-wrap items-center gap-2 rounded-t-none border-t-0 px-3 py-2">
+      <DeckPanel
+        tone="deep"
+        className="flex flex-wrap items-center gap-2 rounded-t-none border-t-0 px-3 py-2"
+      >
         <ModeStrip
           ariaLabel="Task view"
           value={view ?? "kanban"}
@@ -780,7 +788,9 @@ export function TasksClient({
                   ? "bg-[var(--deck-selected)] text-[var(--deck-accent)]"
                   : "text-[var(--deck-ink-dull)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)]"
             )}
-            title={view !== "overview" ? "Completed tasks always show on the selected day" : undefined}
+            title={
+              view !== "overview" ? "Completed tasks always show on the selected day" : undefined
+            }
           >
             {showLesno ? "Hide done" : "Show done"}
           </button>
@@ -828,90 +838,94 @@ export function TasksClient({
           ) : null}
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:flex-row md:gap-4">
-          {/* D-01: persistent first-class Inbox — always present across every
+            {/* D-01: persistent first-class Inbox — always present across every
               view (kanban / list / overview) so dateless tasks stay visible
               regardless of the central day-scoped surface. */}
-          {!inboxHidden && (
-            <InboxColumn
-              inboxTasks={inboxTasks}
-              onTaskClick={setOpenTaskId}
-              draggedTaskId={draggedTaskId}
-              onDragStart={(id) => setDraggedTaskId(id)}
-              onDragEnd={() => setDraggedTaskId(null)}
-              onDrop={() => void handleInboxDrop()}
-              selectedIds={selectedIds}
-              onToggleSelected={(id) => toggleSelected(id)}
-            />
-          )}
+            {!inboxHidden && (
+              <InboxColumn
+                inboxTasks={inboxTasks}
+                onTaskClick={setOpenTaskId}
+                draggedTaskId={draggedTaskId}
+                onDragStart={(id) => setDraggedTaskId(id)}
+                onDragEnd={() => setDraggedTaskId(null)}
+                onDrop={() => void handleInboxDrop()}
+                selectedIds={selectedIds}
+                onToggleSelected={(id) => toggleSelected(id)}
+              />
+            )}
 
-          {/* Central area — the day-scoped surface. The DaySwitcher lives HERE
+            {/* Central area — the day-scoped surface. The DaySwitcher lives HERE
               (not page-wide) so it visually governs the central tasks and makes
               clear it does NOT scope the dateless Inbox. Overview is inherently
               multi-day, so it owns its own day toggles and hides the switcher. */}
-          <DeckPanel as="section" tone="app" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
-            {view !== "overview" && (
-              <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
-            )}
-            {view === "list" ? (
-              <div
-                onDragOver={(e) => {
-                  if (!draggedTaskId) return;
-                  e.preventDefault();
-                  setListDragOver(true);
-                }}
-                onDragLeave={() => setListDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setListDragOver(false);
-                  void handleDropOnDay(dateYmd);
-                }}
-                className={cn(
-                  "flex-1 min-h-0 overflow-auto -mx-2 rounded-[0.375rem] px-2 transition-shadow",
-                  listDragOver &&
-                    "ring-1 ring-[var(--hud-cyan)]/30 [--glass-glow-color:var(--hud-cyan)]"
-                )}
-              >
-                <TaskList
-                  tasks={dayFilteredTasks}
-                  onTaskClick={setOpenTaskId}
-                  addOptimistic={addOptimistic}
-                />
-              </div>
-            ) : view === "overview" ? (
-              <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2">
-                <TaskOverviewView
-                  tasks={filtered}
-                  onTaskClick={setOpenTaskId}
-                  onSelectDay={(ymd) => {
-                    void setDateYmd(ymd);
-                    void setView("kanban");
+            <DeckPanel
+              as="section"
+              tone="app"
+              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3"
+            >
+              {view !== "overview" && (
+                <DaySwitcher dateYmd={dateYmd} onDateChange={(ymd) => void setDateYmd(ymd)} />
+              )}
+              {view === "list" ? (
+                <div
+                  onDragOver={(e) => {
+                    if (!draggedTaskId) return;
+                    e.preventDefault();
+                    setListDragOver(true);
                   }}
-                  draggingActive={!!draggedTaskId}
-                  onDropDay={(ymd) => void handleDropOnDay(ymd)}
-                />
-              </div>
-            ) : (
-              <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2">
-                <KanbanBoard
-                  tasks={dayFilteredTasks}
-                  userId={userId}
-                  onTaskClick={setOpenTaskId}
-                  onCreateTask={handleCreateTask}
-                  onStartCreate={(s) => setDraftStatus(s)}
-                  addOptimistic={addOptimistic}
-                  selectionActive={selectedIds.size > 0}
-                  selectedIds={selectedIds}
-                  onToggleSelected={(id) => toggleSelected(id)}
-                  onToggleColumnSelection={toggleColumnSelection}
-                  externalDraggedTaskId={draggedTaskId}
-                  externalDraggedFromStatus={draggedFromStatus}
-                  onExternalDragStart={(id) => setDraggedTaskId(id)}
-                  onExternalDragEnd={() => setDraggedTaskId(null)}
-                  onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
-                />
-              </div>
-            )}
-          </DeckPanel>
+                  onDragLeave={() => setListDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setListDragOver(false);
+                    void handleDropOnDay(dateYmd);
+                  }}
+                  className={cn(
+                    "flex-1 min-h-0 overflow-auto -mx-2 rounded-[0.375rem] px-2 transition-shadow",
+                    listDragOver &&
+                      "ring-1 ring-[var(--hud-cyan)]/30 [--glass-glow-color:var(--hud-cyan)]"
+                  )}
+                >
+                  <TaskList
+                    tasks={dayFilteredTasks}
+                    onTaskClick={setOpenTaskId}
+                    addOptimistic={addOptimistic}
+                  />
+                </div>
+              ) : view === "overview" ? (
+                <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2">
+                  <TaskOverviewView
+                    tasks={filtered}
+                    onTaskClick={setOpenTaskId}
+                    onSelectDay={(ymd) => {
+                      void setDateYmd(ymd);
+                      void setView("kanban");
+                    }}
+                    draggingActive={!!draggedTaskId}
+                    onDropDay={(ymd) => void handleDropOnDay(ymd)}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2">
+                  <KanbanBoard
+                    tasks={dayFilteredTasks}
+                    userId={userId}
+                    onTaskClick={setOpenTaskId}
+                    onCreateTask={handleCreateTask}
+                    onStartCreate={(s) => setDraftStatus(s)}
+                    addOptimistic={addOptimistic}
+                    selectionActive={selectedIds.size > 0}
+                    selectedIds={selectedIds}
+                    onToggleSelected={(id) => toggleSelected(id)}
+                    onToggleColumnSelection={toggleColumnSelection}
+                    externalDraggedTaskId={draggedTaskId}
+                    externalDraggedFromStatus={draggedFromStatus}
+                    onExternalDragStart={(id) => setDraggedTaskId(id)}
+                    onExternalDragEnd={() => setDraggedTaskId(null)}
+                    onExternalDropOnStatus={(s) => void handleKanbanDrop(s as TaskStatus)}
+                  />
+                </div>
+              )}
+            </DeckPanel>
           </div>
         </div>
       )}

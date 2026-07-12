@@ -1,20 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { fromYmd, nextWeekYmd, thisSundayYmd, tomorrowYmd } from "@/lib/tasks/date-shortcuts";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import {
-  fromYmd,
-  nextWeekYmd,
-  thisSundayYmd,
-  tomorrowYmd,
-} from "@/lib/tasks/date-shortcuts";
+import { useRef, useState } from "react";
 
 interface Props {
   /** Called with a YYYY-MM-DD string or null to clear the due date. */
@@ -97,11 +88,7 @@ export function MoveToMenu({
             onClick={() => pick(next)}
           />
           {allowClear ? (
-            <ShortcutRow
-              label="Clear due date"
-              sub="Move to Inbox"
-              onClick={() => pick(null)}
-            />
+            <ShortcutRow label="Clear due date" sub="Move to Inbox" onClick={() => pick(null)} />
           ) : null}
         </ul>
         <div className="my-1.5 h-px bg-[var(--edge)]" />

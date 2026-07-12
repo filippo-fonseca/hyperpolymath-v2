@@ -1,9 +1,9 @@
 "use client";
 
-import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { DeckPanel, SectionHeader } from "@/components/spacedrive";
+import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
-import { useState, type DragEvent } from "react";
+import { type DragEvent, useState } from "react";
 import { TaskCard } from "./TaskCard";
 
 interface Props {
@@ -54,7 +54,6 @@ export function InboxColumn({
   return (
     <DeckPanel
       as="section"
-      role="region"
       aria-label="Tasks without a due date"
       onDragOver={(e: DragEvent<HTMLElement>) => {
         e.preventDefault();
@@ -77,10 +76,16 @@ export function InboxColumn({
         title="Inbox · undated"
         eyebrow
         className="mb-2 px-1"
-        action={<span className="font-[family-name:var(--font-mono)] text-[10px] tabular-nums text-[var(--deck-ink-dull)]">{inboxTasks.length}</span>}
+        action={
+          <span className="font-[family-name:var(--font-mono)] text-[10px] tabular-nums text-[var(--deck-ink-dull)]">
+            {inboxTasks.length}
+          </span>
+        }
       />
       {inboxTasks.length === 0 ? (
-        <p className="px-1 py-2 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">Inbox is empty.</p>
+        <p className="px-1 py-2 font-[family-name:var(--font-sans)] text-[12px] text-[var(--deck-ink-dull)]">
+          Inbox is empty.
+        </p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {inboxTasks.map((t) => (

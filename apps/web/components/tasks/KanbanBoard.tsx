@@ -7,8 +7,8 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
 import { useReducedMotion } from "motion/react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
@@ -372,7 +372,11 @@ function NotStartedTray({
           aria-expanded={expanded}
         >
           <ChevronDown
-            className={cn("h-3.5 w-3.5 shrink-0", !reducedMotion && "transition-transform duration-[var(--dur-hover)]", !expanded && "-rotate-90")}
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              !reducedMotion && "transition-transform duration-[var(--dur-hover)]",
+              !expanded && "-rotate-90"
+            )}
             style={{ color: accent.dot }}
           />
           <span
