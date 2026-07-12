@@ -37,8 +37,8 @@ import { createPersonDecorations } from "@/components/captures/person-decoration
 import { createPersonSuggestion } from "@/components/captures/person-suggestions";
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import { PersonListField } from "@/components/shared/PersonListField";
-import { MetaSection } from "@/components/spacedrive";
 import { UrlField } from "@/components/shared/UrlField";
+import { MetaSection } from "@/components/spacedrive";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import type { RecurrenceRule } from "@/lib/tasks/recurrence";
 import { cn } from "@/lib/utils";
@@ -955,5 +955,9 @@ function FieldSection({
   label: string;
   children: React.ReactNode;
 }) {
-  return <MetaSection label={label} className="px-0 py-3 first:pt-0">{children}</MetaSection>;
+  return (
+    <MetaSection label={label} className="px-0 py-3 first:pt-0">
+      {children}
+    </MetaSection>
+  );
 }
