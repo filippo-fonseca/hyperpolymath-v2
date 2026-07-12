@@ -151,8 +151,11 @@ const DEDUPE_WINDOW_MS = 30_000;
  *  to the same person still works: the user just confirms it again. */
 const DISPATCH_LATCH_MS = 15_000;
 /** Hard backstop: a pending confirm never outlives this, even if the
- *  conversation somehow stays active. */
-const PENDING_TTL_MS = 120_000;
+ *  conversation somehow stays active. Short enough that a forgotten "shall I
+ *  send it, sir?" doesn't leave the gate silently guarding a stale send for
+ *  minutes — after this the pending is auto-cancelled and JARVIS says so, so
+ *  the user is never left wondering why later turns seem to do nothing. */
+const PENDING_TTL_MS = 45_000;
 /** Fail-fast timeout on the POST to the WhatsApp bridge. Without this, a dead
  *  or wedged bridge (process crashed, unpaired mid-QR, tunnel down) would leave
  *  the send `fetch` hanging indefinitely — the failure line never speaks, the
@@ -269,17 +272,22 @@ function clearPendingState(): void {
   if (hadPending) emitPendingChange(false);
 }
 
-function discardPending(reason: string): void {
+function discardPending(reason: string, speak?: string): void {
   if (!pending) return;
   // eslint-disable-next-line no-console
   console.log(
     `[confirm] pending send_message to "${pending.action.recipient}" discarded — ${reason}`,
   );
-  // A TTL expiry is a silent backstop (no user answer); everything else here is a
-  // deliberate decline. The panel shows a cross for a decline, nothing for expiry.
+  // A TTL expiry / an unrelated turn moving on are silent-ish backstops (no
+  // explicit "no"); an actual spoken/gesture decline is a deliberate cancel.
+  // The panel shows a cross for a decline, nothing for expiry/supersede.
   const resolution: ConfirmResolution = reason.startsWith("TTL") ? "expired" : "cancelled";
   clearPendingState();
   emitResolved(resolution);
+  // Tell the user the confirmation lapsed so "why did nothing send" is never a
+  // mystery — but only for the backstops (TTL / unrelated-turn), where there
+  // was no explicit "no" already implying the user knows it's off.
+  if (speak) ttsPlayer.speakNow(speak);
 }
 
 /** Best-effort parse of the bridge's JSON error body (it always writes JSON via
@@ -631,7 +639,10 @@ export function holdSendMessage(action: SendMessageAction): void {
   emitPendingChange(true);
   pendingTtlTimer = setTimeout(() => {
     pendingTtlTimer = null;
-    discardPending(`TTL expired (${PENDING_TTL_MS}ms) with no spoken answer`);
+    discardPending(
+      `TTL expired (${PENDING_TTL_MS}ms) with no spoken answer`,
+      "No confirmation, sir — cancelled.",
+    );
   }, PENDING_TTL_MS);
   // eslint-disable-next-line no-console
   console.log(
@@ -681,8 +692,9 @@ export function cancelPendingSend(): boolean {
 /**
  * Try to resolve the pending send with a fresh transcript from the
  * continue-listening window. Returns true when the transcript was consumed as
- * a confirm/deny; anything else leaves the pending in place (the user may be
- * amending — a replacement action will arrive) until the window closes.
+ * a confirm/deny. Any OTHER (unrelated) transcript discards the pending —
+ * the gate no longer blocks on it — so the new turn is free to run normally;
+ * see the discardPending call at the bottom of this function.
  */
 function resolvePendingWithTranscript(text: string): boolean {
   if (!pending) return false;
@@ -714,6 +726,18 @@ function resolvePendingWithTranscript(text: string): boolean {
   if (NEGATE_RE.test(text) || NEGATOR_RE.test(text)) {
     discardPending(`user declined ("${text}")`);
     return true;
+  }
+  // Unrelated turn: the user said something that is neither a yes/no answer to
+  // "shall I send it, sir?" nor a decline. Previously this left `pending` (and
+  // its amber confirm-pending ring) hanging indefinitely — the ONLY escape was
+  // the 2-minute TTL — so a real follow-up question right after a pending send
+  // looked like the app had stopped responding. Drop the stale pending here so
+  // the new turn is free to proceed and produce its own reply/actions; return
+  // `false` (not "consumed" as a yes/no) so the transcript is still recorded as
+  // `lastTranscript` for the normal two-turn pre-confirm path on its own next
+  // action, same as if there had been no pending send at all.
+  if (text.trim().length > 0) {
+    discardPending(`superseded by unrelated turn ("${text}")`);
   }
   return false;
 }

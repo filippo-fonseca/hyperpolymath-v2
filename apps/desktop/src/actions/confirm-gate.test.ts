@@ -4,7 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // side-effecting imports so the STATE MACHINE (hold → pending → confirm/cancel →
 // resolution) is testable in plain Node. `fetch` resolves ok so a confirmed send
 // "succeeds" without a real bridge.
-const { speakNow } = vi.hoisted(() => ({ speakNow: vi.fn() }));
+const { speakNow, onTranscriptReceived, transcriptListeners } = vi.hoisted(() => {
+  const listeners: Array<(text: string) => void> = [];
+  return {
+    speakNow: vi.fn(),
+    transcriptListeners: listeners,
+    onTranscriptReceived: vi.fn((fn: (text: string) => void) => {
+      listeners.push(fn);
+      return () => {};
+    }),
+  };
+});
 vi.mock("@tauri-apps/plugin-http", () => ({
   fetch: vi.fn(async () => ({
     ok: true,
@@ -12,7 +22,7 @@ vi.mock("@tauri-apps/plugin-http", () => ({
     json: async () => ({ recipient: "Rohan", jid: "rohan@s.whatsapp.net" }),
   })),
 }));
-vi.mock("@/audio/capture", () => ({ onTranscriptReceived: vi.fn() }));
+vi.mock("@/audio/capture", () => ({ onTranscriptReceived }));
 vi.mock("@/physical-extender/sse-client", () => ({ onJarvisResponseStart: vi.fn() }));
 vi.mock("@/actions/applescript", () => ({
   buildIMessageSend: vi.fn(() => "script"),
@@ -36,9 +46,20 @@ import {
   holdSendMessage,
   onConfirmPendingChange,
   onConfirmResolved,
+  startConfirmGate,
   type ConfirmResolution,
 } from "./confirm-gate";
 import type { SendMessageAction } from "./dispatcher";
+
+/** Feed a transcript to the confirm gate exactly as the capture pipeline
+ *  would (via the mocked onTranscriptReceived subscription armed by
+ *  startConfirmGate()). startConfirmGate is idempotent (guarded by a
+ *  module-level `started` flag), so calling it repeatedly across tests is
+ *  safe and only the first call actually registers the listener. */
+function emitTranscript(text: string): void {
+  startConfirmGate();
+  for (const fn of transcriptListeners) fn(text);
+}
 
 function action(overrides: Partial<SendMessageAction> = {}): SendMessageAction {
   return {
@@ -99,5 +120,78 @@ describe("confirm gate — gesture confirm/cancel state machine", () => {
     holdSendMessage(action({ text: "one then the other" }));
     expect(cancelPendingSend()).toBe(true);
     expect(confirmPendingSend()).toBe(false); // nothing left to confirm
+  });
+});
+
+describe("confirm gate — spoken transcript resolution", () => {
+  beforeEach(() => {
+    cancelPendingSend();
+    speakNow.mockClear();
+    // NOTE: do NOT clear transcriptListeners here — startConfirmGate() is
+    // guarded by a module-level `started` flag (armed once, by whichever test
+    // runs first), so its onTranscriptReceived registration only ever fires
+    // once per test run. Clearing the array would silently orphan every test
+    // after the first. emitTranscript() itself re-arms startConfirmGate(),
+    // which is an idempotent no-op after the first call.
+  });
+
+  it.each(["yes", "yeah", "go ahead", "do it", "yep", "sure", "okay"])(
+    "affirmative %j resolves the pending send as 'sent'",
+    (word) => {
+      const resolutions: ConfirmResolution[] = [];
+      const un = onConfirmResolved((r) => resolutions.push(r));
+      holdSendMessage(action({ text: `affirmed by ${word}` }));
+      emitTranscript(word);
+      expect(hasPendingSend()).toBe(false);
+      expect(resolutions).toEqual(["sent"]);
+      un();
+    },
+  );
+
+  it("a negative ('no' / 'cancel') discards the pending as 'cancelled'", () => {
+    const resolutions: ConfirmResolution[] = [];
+    const un = onConfirmResolved((r) => resolutions.push(r));
+    holdSendMessage(action({ text: "declined body" }));
+    emitTranscript("no, cancel that");
+    expect(hasPendingSend()).toBe(false);
+    expect(resolutions).toEqual(["cancelled"]);
+    un();
+  });
+
+  it("an unrelated turn (neither yes nor no) cancels the pending instead of swallowing it", () => {
+    const resolutions: ConfirmResolution[] = [];
+    const un = onConfirmResolved((r) => resolutions.push(r));
+    holdSendMessage(action({ text: "unrelated-turn body" }));
+    expect(hasPendingSend()).toBe(true);
+
+    // A completely unrelated follow-up ("what's on my calendar today?") must
+    // NOT be eaten by the gate — it should drop the stale pending so the new
+    // turn proceeds normally, rather than leaving the amber confirm ring (and
+    // the app) looking stuck until the TTL backstop finally fires minutes later.
+    emitTranscript("what's on my calendar today?");
+    expect(hasPendingSend()).toBe(false);
+    expect(resolutions).toEqual(["cancelled"]);
+    un();
+  });
+
+  it("TTL auto-cancels an unanswered pending after 45s and speaks a note", () => {
+    vi.useFakeTimers();
+    try {
+      const resolutions: ConfirmResolution[] = [];
+      const un = onConfirmResolved((r) => resolutions.push(r));
+      holdSendMessage(action({ text: "ttl body" }));
+      expect(hasPendingSend()).toBe(true);
+
+      vi.advanceTimersByTime(44_000);
+      expect(hasPendingSend()).toBe(true); // not yet — still inside the window
+
+      vi.advanceTimersByTime(2_000); // crosses the 45s mark
+      expect(hasPendingSend()).toBe(false);
+      expect(resolutions).toEqual(["expired"]);
+      expect(speakNow).toHaveBeenCalledWith("No confirmation, sir — cancelled.");
+      un();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
