@@ -100,6 +100,7 @@ import {
   isStudioAvailable,
   openBrowserUrl,
 } from "@studio/actions/browser-router";
+import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -348,6 +349,11 @@ const echoDedupeState = createEchoDedupeState();
  * utterance, never a legitimately new one.
  */
 function paintTranscriptDeduped(input: EchoInput): void {
+  // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
+  // which the server echoes back as a user transcript turn. Drop that one echo
+  // so wake never injects a fake typed user message into the conversation — the
+  // spoken briefing and listening still happen; only the phantom bubble is gone.
+  if (shouldSuppressBriefingEcho(input.text)) return;
   if (decidePaintEcho(input, echoDedupeState)) {
     paintTranscript(input.text);
   }
