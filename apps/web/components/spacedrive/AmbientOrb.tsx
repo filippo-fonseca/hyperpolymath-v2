@@ -38,19 +38,11 @@ export function AmbientOrb({ size = 320, intensity = 0.5, className }: AmbientOr
     filter: "blur(28px)",
   } as const;
 
-  const base = cn(
-    "sd-motion pointer-events-none absolute rounded-full",
-    className
-  );
+  const base = cn("sd-motion pointer-events-none absolute rounded-full", className);
 
   if (reduceMotion) {
     return (
-      <div
-        aria-hidden="true"
-        data-testid="ambient-orb"
-        className={base}
-        style={staticStyle}
-      />
+      <div aria-hidden="true" data-testid="ambient-orb" className={base} style={staticStyle} />
     );
   }
 
@@ -70,7 +62,7 @@ export function AmbientOrb({ size = 320, intensity = 0.5, className }: AmbientOr
       transition={{
         duration: 14,
         ease: "easeInOut",
-        repeat: Infinity,
+        repeat: Number.POSITIVE_INFINITY,
         repeatType: "loop",
       }}
     />

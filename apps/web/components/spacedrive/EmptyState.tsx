@@ -13,13 +13,7 @@ export interface EmptyStateProps {
  * A quiet, centered empty state for the control deck. Muted ink, generous
  * vertical breathing room, optional icon / description / action.
  */
-export function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -27,9 +21,7 @@ export function EmptyState({
         className
       )}
     >
-      {icon ? (
-        <div className="mb-3 text-[var(--deck-ink-faint)]">{icon}</div>
-      ) : null}
+      {icon ? <div className="mb-3 text-[var(--deck-ink-faint)]">{icon}</div> : null}
       <h2 className="max-w-md text-[13px] font-medium leading-tight text-[var(--deck-ink)]">
         {title}
       </h2>
@@ -38,9 +30,7 @@ export function EmptyState({
           {description}
         </p>
       ) : null}
-      {action ? (
-        <div className="mt-5 flex items-center justify-center gap-2">{action}</div>
-      ) : null}
+      {action ? <div className="mt-5 flex items-center justify-center gap-2">{action}</div> : null}
     </div>
   );
 }

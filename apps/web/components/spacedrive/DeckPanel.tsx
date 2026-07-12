@@ -37,11 +37,7 @@ export function DeckPanel({
   const Component = (as ?? "div") as ElementType;
   return (
     <Component
-      className={cn(
-        "rounded-[0.5rem]",
-        bordered && "border border-[var(--deck-line)]",
-        className
-      )}
+      className={cn("rounded-[0.5rem]", bordered && "border border-[var(--deck-line)]", className)}
       style={{ backgroundColor: TONE_SURFACE[tone] }}
       {...rest}
     >

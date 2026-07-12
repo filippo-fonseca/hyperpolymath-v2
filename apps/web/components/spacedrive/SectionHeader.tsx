@@ -14,19 +14,9 @@ export interface SectionHeaderProps {
  * Operational section header — a title cluster with an optional trailing action.
  * `eyebrow` switches the title to mono uppercase micro-type for quiet sub-sections.
  */
-export function SectionHeader({
-  title,
-  eyebrow = false,
-  action,
-  className,
-}: SectionHeaderProps) {
+export function SectionHeader({ title, eyebrow = false, action, className }: SectionHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex min-h-6 items-center justify-between gap-3",
-        className
-      )}
-    >
+    <div className={cn("flex min-h-6 items-center justify-between gap-3", className)}>
       {eyebrow ? (
         <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[var(--deck-ink-dull)]">
           {title}

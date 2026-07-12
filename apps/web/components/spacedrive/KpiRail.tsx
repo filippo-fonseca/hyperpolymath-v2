@@ -13,13 +13,6 @@ export interface KpiRailProps {
  */
 export function KpiRail({ children, className }: KpiRailProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-stretch gap-x-6 gap-y-3",
-        className
-      )}
-    >
-      {children}
-    </div>
+    <div className={cn("flex flex-wrap items-stretch gap-x-6 gap-y-3", className)}>{children}</div>
   );
 }

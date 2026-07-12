@@ -71,12 +71,7 @@ export interface MetaRowProps {
  */
 export function MetaRow({ label, value, className }: MetaRowProps) {
   return (
-    <div
-      className={cn(
-        "flex min-h-6 items-center gap-3 text-[12px]",
-        className
-      )}
-    >
+    <div className={cn("flex min-h-6 items-center gap-3 text-[12px]", className)}>
       <div className="flex-1 whitespace-nowrap font-[family-name:var(--font-mono)] text-[var(--deck-ink-dull)]">
         {label}
       </div>

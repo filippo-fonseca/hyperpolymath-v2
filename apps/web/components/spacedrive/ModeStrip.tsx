@@ -23,19 +23,15 @@ export interface ModeStripProps {
  * mode reads with a tonal `--deck-selected` fill and `--deck-accent` text; the
  * rest sit quiet in `--deck-ink-dull`. Buttons are natively focusable/activatable.
  */
-export function ModeStrip({
-  modes,
-  value,
-  onChange,
-  ariaLabel,
-  className,
-}: ModeStripProps) {
+export function ModeStrip({ modes, value, onChange, ariaLabel, className }: ModeStripProps) {
   return (
-    <div
-      role="group"
+    // <fieldset> carries the implicit `group` role; aria-label names it. Using
+    // the semantic element (instead of a div with role="group") keeps the a11y
+    // linter happy. Default fieldset chrome (border/margin/min-width) is reset.
+    <fieldset
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] p-0.5 font-[family-name:var(--font-sans)]",
+        "m-0 inline-flex min-w-0 items-center gap-0.5 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] p-0.5 font-[family-name:var(--font-sans)]",
         className
       )}
     >
@@ -56,13 +52,11 @@ export function ModeStrip({
                 : "text-[var(--deck-ink-dull)] hover:bg-[var(--deck-hover)] hover:text-[var(--deck-ink)]"
             )}
           >
-            {mode.icon ? (
-              <span className="flex shrink-0 items-center">{mode.icon}</span>
-            ) : null}
+            {mode.icon ? <span className="flex shrink-0 items-center">{mode.icon}</span> : null}
             <span className="truncate">{mode.label}</span>
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

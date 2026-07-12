@@ -52,16 +52,13 @@ export function DenseListRow({
         "transition-colors duration-[var(--dur-hover)] ease-out",
         interactive && "hover:bg-[var(--deck-hover)]",
         selected && "bg-[var(--deck-selected)] shadow-[inset_0_0_0_1px_var(--deck-line)]",
-        interactive &&
-          "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
+        interactive && "focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]",
         className
       )}
       {...rest}
     >
       {glyph ? (
-        <span className="flex shrink-0 items-center text-[var(--deck-ink-dull)]">
-          {glyph}
-        </span>
+        <span className="flex shrink-0 items-center text-[var(--deck-ink-dull)]">{glyph}</span>
       ) : null}
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {meta ? (

@@ -14,11 +14,7 @@ export interface CommandToolbarProps {
  * identity cluster on the left, primary actions on the right, a bottom hairline
  * closing it off from the content below.
  */
-export function CommandToolbar({
-  leading,
-  children,
-  className,
-}: CommandToolbarProps) {
+export function CommandToolbar({ leading, children, className }: CommandToolbarProps) {
   return (
     <div
       className={cn(
@@ -27,9 +23,7 @@ export function CommandToolbar({
       )}
     >
       <div className="flex min-w-0 items-center gap-2">{leading}</div>
-      {children ? (
-        <div className="flex shrink-0 items-center gap-1.5">{children}</div>
-      ) : null}
+      {children ? <div className="flex shrink-0 items-center gap-1.5">{children}</div> : null}
     </div>
   );
 }

@@ -38,7 +38,7 @@ function stubMatchMedia(matches: boolean) {
       addListener: vi.fn(),
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
-    })),
+    }))
   );
 }
 
@@ -58,7 +58,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
     rerender(
       <div className="dark">
         <DeckPanel tone="deep">panel-body</DeckPanel>
-      </div>,
+      </div>
     );
     expect(screen.getByText("panel-body")).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
 
   it("SectionHeader renders title (label + eyebrow variants) and action", () => {
     const { rerender } = render(
-      <SectionHeader title="Overview" action={<button type="button">act</button>} />,
+      <SectionHeader title="Overview" action={<button type="button">act</button>} />
     );
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "act" })).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
         title="Nothing here"
         description="Add your first item"
         action={<button type="button">New</button>}
-      />,
+      />
     );
     expect(screen.getByText("Nothing here")).toBeInTheDocument();
     expect(screen.getByText("Add your first item")).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
     render(
       <CommandToolbar leading={<span>Title</span>}>
         <button type="button">Primary</button>
-      </CommandToolbar>,
+      </CommandToolbar>
     );
     expect(screen.getByText("Title")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Primary" })).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
         <KpiRail>
           <StatChip label="Focus" value="4h" delta={{ value: "12%", direction: "up" }} />
         </KpiRail>
-      </div>,
+      </div>
     );
     expect(screen.getByText("Focus")).toBeInTheDocument();
     expect(screen.getByText("4h")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("spacedrive primitives — render smoke (both themes)", () => {
         <MetaSection label="Meta">
           <MetaRow label="Created" value="Today" />
         </MetaSection>
-      </InspectorShell>,
+      </InspectorShell>
     );
     expect(screen.getByText("Details")).toBeInTheDocument();
     expect(screen.getByText("Meta")).toBeInTheDocument();
