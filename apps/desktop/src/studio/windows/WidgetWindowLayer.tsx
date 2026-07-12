@@ -37,7 +37,7 @@ function summon(kind: WidgetKind): void {
   });
 }
 
-function WindowLayerContents({ debugSummon = import.meta.env.DEV }: Props): React.ReactElement {
+function WindowLayerContents({ debugSummon = false }: Props): React.ReactElement {
   const windows = useWidgetWindows();
   const reduced = useReducedMotion();
   const [drawerOpen, setDrawerOpen] = useState(false);
