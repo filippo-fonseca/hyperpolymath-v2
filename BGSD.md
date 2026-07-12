@@ -253,7 +253,7 @@ Notes section and Kiwi will respect them.
 
 - If the Claude spend/usage limit kills pipeline agents and Filippo later says to continue (any phrasing: 'go', 'continue', etc.), that itself means the limit has reset for ALL Claude instances — respawn the executor fleet immediately instead of falling back to inline conductor work.
 
-- Always delete a pipeline agent's worktree (git worktree remove --force) as soon as its unit is done and merged — the branch stays in git; the worktree (node_modules + cargo target) must not linger and eat disk.
+- Always delete a pipeline agent's worktree (git worktree remove --force) AND its unit branch (git branch -D) as soon as its unit is done and merged — the merged commits live on the integration branch, so neither the worktree (node_modules + cargo target) nor the stale bgsd/* branch may linger and eat disk or clutter refs.
 
 <!-- Free-form preferences for Kiwi. Examples:
 - Never use haiku for verification.
