@@ -219,3 +219,42 @@ working tree) was read-only, never edited.
   in the reported transcript suggests a backend-side follow-up may still be
   worth a look outside this worktree's scope.
 - No push (per instructions).
+
+---
+
+## Finisher evidence — drawer rail hand-hover (2026-07-12)
+
+Commit `42afa96c` — `feat(studio): hand-pointer hover opens the right-edge drawer rail`.
+
+The collapsed right-edge rail already expanded on real-mouse hover
+(`onPointerEnter`/`onPointerLeave` on the rail + aside). But the synthetic hand
+pointer (id 90210) never dispatches pointerenter/leave for a BARE hover — the hub
+resolves hover purely from cursor position (confirmed in `pointer-synth.ts`;
+enter/leave are only synthesized during an active grab/click). So the hand could
+never open the picker by hovering.
+
+Fix (Drawer.tsx):
+- A `requestAnimationFrame` poll reads the always-present reticle DOM node
+  (`[data-studio-reticle][data-reticle-visible="true"]`, a 0x0 node positioned at
+  the cursor, so its `getBoundingClientRect()` gives the cursor's viewport point)
+  and rect-hit-tests it against the rail (collapsed) or the whole aside
+  (expanded), driving the SAME `openNow` / `scheduleCollapse` the mouse uses — so
+  the 400ms collapse grace, the `targeted` drag-hold, and reduced-motion behavior
+  are identical across mouse and hand. For a real mouse the reticle is hidden
+  (`data-reticle-visible="false"`), so the poll is inert and the native handlers
+  drive it — no double-driving.
+- The rail is floored at `>=40%` of the stage height (min 128px), tracked by a
+  `ResizeObserver` on `[data-studio-stage]`, so a jittery hand has a tall target.
+
+No clicks are required to open/close (hover drives it); the entry click/tap and
+drag-out still summon. Rail keeps its slim ~22px width, always-visible collapsed
+state, cyan hairline grip + faint approach glow.
+
+Verification (from `apps/desktop`): `pnpm typecheck` → exit 0; `pnpm vitest run`
+→ exit 0 (27 files, 239 tests); `pnpm vite build` → exit 0.
+
+Camera-dependent manual smoke:
+- With the hand tracker running, sweep the reticle to the right edge and confirm
+  the picker expands leftward, and that leaving it collapses after ~400ms.
+- Confirm a real mouse still opens/closes the rail exactly as before.
+- Confirm reduced-motion shows/hides the panel instantly.

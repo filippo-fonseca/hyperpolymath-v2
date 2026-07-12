@@ -84,3 +84,51 @@ Toggle hand tracking (⌘⇧H) and, in front of the camera:
   `studio/input/HandTrackingLayer.tsx`, `actions/confirm-gate.ts` (programmatic
   confirm/cancel + resolution emitter). Drawer.tsx / WidgetWindowLayer.tsx /
   WhatsApp widget internals untouched (siblings own them).
+
+---
+
+## Finisher evidence — palm-click coexistence (2026-07-12)
+
+Commit `72adbe77` — `feat(studio): coexist four-finger scroll + open-hand resize with palm-click`.
+
+Palm-click (close-then-open) had already been added (`d9b810ba`) and wired into
+gesture-core, with the cursor already frozen while the fist is held (so the aim
+stays at the pre-close point) and the `tap` intent already flowing through
+pointer-synth's pointerdown/up + the reticle click-pop. This finisher closed the
+remaining coexistence gaps:
+
+- **(a) scroll vs the click's fast close** — new pure `createScrollCurlGate`
+  (gesture-core). Four-finger scroll is a candidate ONLY while the hand is
+  actively curling (openness dipped below `scrollArmOpennessCeil` = 1.6 yet still
+  at/above the closed band 1.35) and engages only after that candidate holds
+  `scrollCurlSustainMs` = 250ms. A <600ms close-open round trip never survives
+  the dwell, so it yields zero scroll deltas; a held-open hand is never a
+  candidate. The old bare `scrollCandidateSince` stub was replaced by this gate.
+- **(b) resize disarms during a click** — new pure `resizeEngageAllowed`
+  (gesture-core), applied at the `openHandResize.push` site: disarms while
+  `palmClick.state === "closing"` and once the hand curls into the closed band,
+  so the closing fist never reads as a shrink. A normal shrink stays above the
+  closed band, so it is unaffected.
+- **(c) index-jab retired as a click source** — already structural
+  (`tap-click-recognizer.ts` is gone, palm-click is the sole `tap`). Updated the
+  stale `computeIndexTipDepth` doc to say it is a KEPT shared geometry helper no
+  longer wired to any recognizer.
+- **(d)/(e)** — verified already wired: `pointer-synth.ts` dispatches
+  pointerdown+up+click for the `tap` intent at the frozen reticle point
+  (cursor emission is gated to `pose === "open" || "point"`, so it stays frozen
+  while the palm is closed), and `StudioHandReticle` pops on `tap` (`isPop`).
+
+Tests: `src/studio/input/hand/gesture-click-gates.test.ts` (13 new) covers the
+scroll-gate dwell + zero-delta round trip + end-to-end with the real
+FourFingerScrollRecognizer, the resize disarm predicate, and the jab retirement.
+
+Verification (from `apps/desktop`): `pnpm typecheck` → exit 0; `pnpm vitest run`
+→ exit 0 (27 files, 239 tests); `pnpm vite build` → exit 0.
+
+Camera-dependent manual smoke:
+- `scrollArmOpennessCeil` (1.6) is tuned blind. Confirm a deliberate four-finger
+  beckon still arms scroll on the real camera (curl must bring openness below 1.6
+  while the pose still reads open); raise the ceil toward 1.7 if scroll feels hard
+  to start, lower it if a held-open hand ever scrolls on its own.
+- Confirm a palm-click over a scrollable widget produces no visible scroll jump.
+- Confirm a click while an open-hand resize is armed does not shrink the widget.

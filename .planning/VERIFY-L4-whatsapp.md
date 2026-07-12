@@ -121,3 +121,35 @@ Verification:
   numbers NOT committed): 3 individual jids resolved to the saved Contacts names
   ("Rohan", "Emir Ahmed", and a +506 number → "Mamma"), confirming the last-10-
   digit tail match handles varying country-code formatting.
+
+---
+
+## Finisher evidence — pending bubble scoped by jid (2026-07-12)
+
+Commit `bcf72700` — `fix(studio): scope WhatsApp pending-send bubble to its own chat`.
+
+The Conversation component is reused (not remounted) between chats, so the
+`pending` PendingSend state recorded on a send in chat A survived a switch to
+chat B and its optimistic "sending…" bubble rendered in chat B's list.
+
+Fix:
+- `PendingSend` now carries its target `jid`, set when the bubble is armed
+  (`setPending({ jid: chatJid, ... })`).
+- New pure `mergePendingForChat(fetched, pending, openJid, exhausted)` in
+  `whatsapp-conversation.ts` appends the optimistic bubble ONLY when
+  `pending.jid === openJid` (and it isn't already reconciled). The Conversation
+  component uses it for the rendered `messages`, and the reconcile-drop effect is
+  likewise gated on `pending.jid === chatJid`. Reconcile / retry burst / expiry
+  all stay per-jid.
+
+Tests: `whatsapp-conversation.test.ts` gains a `mergePendingForChat` block — the
+key case asserts chat A's pending is absent from the rows built for chat B, plus
+own-chat "sending…", exhausted→unconfirmed, reconciled-drop, and null-pending.
+
+Verification (from `apps/desktop`): `pnpm typecheck` → exit 0; `pnpm vitest run`
+→ exit 0 (27 files, 239 tests); `pnpm vite build` → exit 0.
+
+Manual smoke (not camera-dependent): send a message in chat A, immediately switch
+to chat B before it reconciles, and confirm no "sending…" bubble appears in B;
+switch back to A and confirm the bubble is still there (and reconciles/flips to
+unconfirmed on its own schedule).
