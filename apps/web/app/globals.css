@@ -17,7 +17,9 @@
 
 @theme {
   --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Inter is not loaded by the app shell; keep chrome sans when next/font
+     variables are unavailable rather than falling back to the body serif. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
