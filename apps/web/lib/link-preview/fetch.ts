@@ -12,10 +12,13 @@ import {
   siteNameFrom,
   youtubeVideoId,
 } from "./classify";
+import { assertHostAllowed } from "./ssrf";
 import type { LinkPreviewProviderData, LinkPreviewResult } from "./types";
 
 const FETCH_TIMEOUT_MS = 6000;
 const MAX_HTML_BYTES = 1_500_000; // don't parse enormous pages
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const USER_AGENT =
   "Mozilla/5.0 (compatible; HyperpolymathLinkPreview/1.0; +https://hyperpolymath.app)";
 
@@ -26,14 +29,32 @@ function truncate(s: string | null | undefined, n = 500): string | null {
 }
 
 async function fetchWithTimeout(url: string, accept: string): Promise<Response> {
+  // One controller across all hops so the total time budget still caps at 6s.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: { "user-agent": USER_AGENT, accept },
-    });
+    let currentUrl = url;
+    // Manual redirect handling so we can validate EVERY hop's host (the SSRF
+    // choke point). Guards the initial URL and each redirect Location target.
+    for (let remaining = MAX_REDIRECTS; ; remaining--) {
+      const parsed = safeParseUrl(currentUrl);
+      if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
+        throw new Error("Unsupported redirect target");
+      }
+      await assertHostAllowed(parsed);
+      const res = await fetch(currentUrl, {
+        signal: controller.signal,
+        redirect: "manual",
+        headers: { "user-agent": USER_AGENT, accept },
+      });
+      const location = res.headers.get("location");
+      if (REDIRECT_STATUSES.has(res.status) && location) {
+        if (remaining <= 0) throw new Error("Too many redirects");
+        currentUrl = new URL(location, currentUrl).href;
+        continue;
+      }
+      return res;
+    }
   } finally {
     clearTimeout(timer);
   }
