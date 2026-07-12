@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { whatsappMessages } from "@/lib/db/schema";
@@ -22,6 +22,11 @@ export const dynamic = "force-dynamic";
 
 const CHAT_LIST_LIMIT = 24;
 const HISTORY_LIMIT = 50;
+// Recent-incoming window: hard cap on rows returned for the notification
+// watcher so a burst can never return an unbounded page. The watcher passes a
+// `since` watermark, so in steady state this returns only the handful of new
+// messages since the last poll.
+const RECENT_LIMIT = 40;
 
 interface ChatListItem {
   chatJid: string;
@@ -180,6 +185,56 @@ async function chatHistory(userId: string, chatJid: string): Promise<Response> {
   });
 }
 
+interface RecentIncomingMessage {
+  chatJid: string;
+  chatName: string;
+  senderName: string;
+  body: string | null;
+  sentAt: string;
+}
+
+/** Recent INCOMING (not-from-me) messages across all chats, newest first,
+ *  optionally bounded to those strictly after a `since` ISO watermark. This is
+ *  the notification watcher's read path: it polls with the last-seen timestamp
+ *  and announces whatever is new. Outgoing (fromMe) rows are excluded server-
+ *  side so the watcher never announces the owner's own messages. */
+async function recentIncoming(userId: string, since: Date | null): Promise<Response> {
+  const conditions = [eq(whatsappMessages.userId, userId), eq(whatsappMessages.fromMe, false)];
+  if (since) conditions.push(gt(whatsappMessages.sentAt, since));
+
+  const rows = await db
+    .select({
+      chatJid: whatsappMessages.chatJid,
+      chatName: whatsappMessages.chatName,
+      senderName: whatsappMessages.senderName,
+      body: whatsappMessages.body,
+      sentAt: whatsappMessages.sentAt,
+    })
+    .from(whatsappMessages)
+    .where(and(...conditions))
+    .orderBy(desc(whatsappMessages.sentAt))
+    .limit(RECENT_LIMIT);
+
+  const messages: RecentIncomingMessage[] = rows.map((r) => ({
+    chatJid: r.chatJid,
+    chatName: resolveChatName(r.chatJid, r.chatName, r.senderName),
+    // For a group chat, chatName is the group subject; the per-message
+    // senderName (if resolved) is who actually spoke. Fall back to the chat
+    // name so the announcer always has a person/label to voice.
+    senderName: r.senderName?.trim() && !r.senderName.includes("@")
+      ? r.senderName.trim()
+      : resolveChatName(r.chatJid, r.chatName, r.senderName),
+    body: r.body,
+    sentAt: toIso(r.sentAt),
+  }));
+
+  return Response.json({
+    ok: true,
+    id: `whatsapp_recent:${messages.length}`,
+    receipt: { mode: "recent", messages },
+  });
+}
+
 export async function GET(request: Request): Promise<Response> {
   const auth = await studioExecutorContext(request);
   if (!auth) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -187,10 +242,17 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const chatJid = url.searchParams.get("chat");
   const list = url.searchParams.get("list");
+  const recent = url.searchParams.get("recent");
 
   try {
     if (chatJid && chatJid.trim()) {
       return await chatHistory(auth.ctx.userId, chatJid.trim());
+    }
+    if (recent !== null) {
+      const sinceParam = url.searchParams.get("since");
+      const sinceDate = sinceParam ? new Date(sinceParam) : null;
+      const since = sinceDate && !Number.isNaN(sinceDate.getTime()) ? sinceDate : null;
+      return await recentIncoming(auth.ctx.userId, since);
     }
     if (list === "chats") {
       return await chatList(auth.ctx.userId);

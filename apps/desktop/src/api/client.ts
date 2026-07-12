@@ -619,6 +619,122 @@ export async function resolveRecentImessageHandles(name: string): Promise<string
   }
 }
 
+// ---------------------------------------------------------------------------
+// Notification announcer — incoming-message polling.
+// The desktop watcher polls these two read-only endpoints on a short interval
+// while the HUD runs, passing the last-seen timestamp per channel so each poll
+// returns only what is new. Both are fail-safe: any non-ok/parse/transport
+// failure yields [] so a transient hiccup skips one tick rather than crashing
+// the watcher loop.
+// ---------------------------------------------------------------------------
+
+/** One incoming message from either channel, normalized for the announcer.
+ *  `chatJid` addresses the chat for the open-widget flow (WhatsApp); iMessage
+ *  has no in-app widget yet, so its jid is carried but unused for summoning. */
+export interface IncomingMessage {
+  channel: "whatsapp" | "imessage";
+  chatJid: string;
+  senderName: string;
+  body: string | null;
+  sentAt: string;
+}
+
+/**
+ * GET /api/studio/whatsapp?recent&since=<iso>
+ * Newest incoming (not-from-me) WhatsApp messages since `since`, normalized to
+ * IncomingMessage. Returns [] on any failure.
+ */
+export async function getWhatsappRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `&since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/studio/whatsapp?recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[whatsapp/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      receipt?: {
+        messages?: Array<{
+          chatJid?: unknown;
+          senderName?: unknown;
+          body?: unknown;
+          sentAt?: unknown;
+        }>;
+      };
+    };
+    const rows = json.receipt?.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "whatsapp" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : r.chatJid,
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[whatsapp/recent] GET failed", err);
+    return [];
+  }
+}
+
+/**
+ * GET /api/imessage/recent?since=<iso>
+ * Newest incoming iMessages since `since`, normalized to IncomingMessage.
+ * Returns [] on any failure.
+ */
+export async function getImessageRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/imessage/recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[imessage/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      messages?: Array<{
+        chatJid?: unknown;
+        senderName?: unknown;
+        body?: unknown;
+        sentAt?: unknown;
+      }>;
+    };
+    const rows = json.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "imessage" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : "Someone",
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imessage/recent] GET failed", err);
+    return [];
+  }
+}
+
 // Re-export the trigger-type alias so registry/dispatch code can import it
 // alongside the client without a second jarvis-core import site.
 export type { RoutineTriggerType };

@@ -71,6 +71,7 @@ import {
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
 import { startRoutineLoader } from "@/hud/routine-loader";
 import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
+import { startNotificationAnnouncer } from "@/hud/notification-announcer";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
@@ -1051,6 +1052,14 @@ async function boot(): Promise<void> {
   // even several at once. Additive + presentational — the dispatch path stays
   // fire-and-forget.
   startBackgroundTasksMonitor();
+
+  // 5c-quinquies. Incoming-message notification announcer: polls WhatsApp +
+  // iMessage for new messages FROM people and, when the "Message notifications"
+  // setting is on, surfaces a toast near the orb and opens the relevant chat
+  // widget; when "Auto-read aloud" is on it also speaks the message in the
+  // butler register (FSM-idle-gated so it never talks over a turn). Additive +
+  // fail-safe — a bad poll skips one tick.
+  startNotificationAnnouncer();
 
   // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
   const gearBtn = document.getElementById("gear-btn");
