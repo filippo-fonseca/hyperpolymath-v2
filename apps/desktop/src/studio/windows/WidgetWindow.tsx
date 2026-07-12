@@ -9,7 +9,7 @@ import {
 import { Minus, Pin, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { STUDIO_COLORS, STUDIO_MONO } from "../tokens";
+import { HUD_EASE_OUT_QUART, HUD_SURFACES, STUDIO_COLORS, STUDIO_MONO } from "../tokens";
 import {
   closeWidget,
   focusWidget,
@@ -59,6 +59,24 @@ export function applyWindowGeometry(
   element.style.height = `${rect.h * 100}%`;
 }
 
+/**
+ * Glass-depth shadow stack ported from the wiki `.glass-tile` register: an outer
+ * drop for lift, a faint specular top edge (very low alpha so it never smears
+ * white on the dark canvas), a recessed bottom edge, and a whisper of inset cyan
+ * breath. `hover` deepens the drop and lifts the cyan breath; `focus` adds a 1px
+ * inset accent ring (never an outer offset, matching the wiki chrome).
+ */
+function glassShadow(hover: boolean): string {
+  return [
+    hover
+      ? `0 34px 84px color-mix(in srgb, ${STUDIO_COLORS.shadow} 86%, transparent)`
+      : `0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`,
+    "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+    "inset 0 -1px 0 rgba(0, 0, 0, 0.4)",
+    `inset 0 0 24px color-mix(in srgb, ${STUDIO_COLORS.accent} ${hover ? 9 : 5}%, transparent)`,
+  ].join(", ");
+}
+
 const frameStyle: CSSProperties = {
   position: "absolute",
   display: "flex",
@@ -68,9 +86,10 @@ const frameStyle: CSSProperties = {
   border: `1px solid color-mix(in srgb, ${STUDIO_COLORS.rule} 85%, transparent)`,
   borderRadius: 10,
   color: STUDIO_COLORS.text,
-  background: `color-mix(in srgb, ${STUDIO_COLORS.surface} 92%, transparent)`,
-  boxShadow: `0 20px 56px color-mix(in srgb, ${STUDIO_COLORS.shadow} 78%, transparent)`,
+  background: `color-mix(in srgb, ${HUD_SURFACES.raised} 90%, transparent)`,
+  boxShadow: glassShadow(false),
   backdropFilter: "blur(18px)",
+  transition: `box-shadow 180ms cubic-bezier(${HUD_EASE_OUT_QUART.join(",")}), border-color 180ms cubic-bezier(${HUD_EASE_OUT_QUART.join(",")})`,
   pointerEvents: "auto",
 };
 
@@ -81,6 +100,7 @@ const chromeButtonStyle: CSSProperties = {
   placeItems: "center",
   padding: 0,
   border: 0,
+  borderRadius: 5,
   color: STUDIO_COLORS.muted,
   background: "transparent",
   cursor: "pointer",
@@ -106,6 +126,8 @@ export function WidgetWindow({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<PointerSession | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [burst, setBurst] = useState<BurstState | null>(null);
   const entry = WIDGET_CATALOG[item.kind];
   const catalogEntry = entry as typeof entry & { permanent?: boolean };
@@ -266,6 +288,14 @@ export function WidgetWindow({
       onPointerMove={permanent ? movePointer : undefined}
       onPointerUp={permanent ? endPointer : undefined}
       onPointerCancel={permanent ? endPointer : undefined}
+      onPointerEnter={permanent ? undefined : () => setHovered(true)}
+      onPointerLeave={permanent ? undefined : () => setHovered(false)}
+      onFocus={permanent ? undefined : () => setFocused(true)}
+      onBlur={permanent ? undefined : (event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+          setFocused(false);
+        }
+      }}
       initial={{ opacity: 0, scale: reduced ? 1 : 0.96 }}
       layoutId={`widget:${item.id}`}
       animate={
@@ -315,10 +345,13 @@ export function WidgetWindow({
               touchAction: "none",
             }
           : null),
-        ...(!permanent && dragging
+        ...(!permanent && (dragging || hovered || focused)
           ? {
-              boxShadow: `0 34px 84px color-mix(in srgb, ${STUDIO_COLORS.shadow} 86%, transparent)`,
-              cursor: "grabbing",
+              borderColor: `color-mix(in srgb, ${STUDIO_COLORS.accent} ${dragging ? 55 : 40}%, ${STUDIO_COLORS.rule})`,
+              boxShadow: focused
+                ? `${glassShadow(true)}, inset 0 0 0 1px color-mix(in srgb, ${STUDIO_COLORS.accent} 70%, transparent)`
+                : glassShadow(true),
+              ...(dragging ? { cursor: "grabbing" } : null),
             }
           : null),
         left: `${(item.x - item.w / 2) * 100}%`,
@@ -345,7 +378,8 @@ export function WidgetWindow({
             alignItems: "center",
             gap: 8,
             padding: "0 8px 0 10px",
-            borderBottom: `1px solid ${STUDIO_COLORS.rule}`,
+            background: `color-mix(in srgb, ${HUD_SURFACES.hover} 55%, transparent)`,
+            borderBottom: `1px solid ${HUD_SURFACES.line}`,
             cursor: "grab",
           }}
           onPointerDown={(event) => startPointer("move", event)}
@@ -376,6 +410,7 @@ export function WidgetWindow({
             title="Pin to front"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => focusWidget(item.id)}
+            className="studio-chrome-btn"
             style={chromeButtonStyle}
           >
             <Pin size={12} aria-hidden />
@@ -387,6 +422,7 @@ export function WidgetWindow({
               title="Stow"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={stowFromHeader}
+              className="studio-chrome-btn"
               style={chromeButtonStyle}
             >
               <Minus size={13} aria-hidden />
@@ -398,6 +434,7 @@ export function WidgetWindow({
             title="Close"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => closeWidget(item.id)}
+            className="studio-chrome-btn"
             style={chromeButtonStyle}
           >
             <X size={13} aria-hidden />

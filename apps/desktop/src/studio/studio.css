@@ -88,6 +88,55 @@
   box-shadow: 0 0 18px color-mix(in srgb, var(--studio-accent) 8%, transparent);
 }
 
+/* Chrome buttons (widget header pin/stow/close, drawer tiles): soft hover rung
+   from the surface ladder + a 1px inset accent focus ring. Cheap, on-brand,
+   keyboard-accessible. */
+.studio-chrome-btn {
+  transition:
+    background-color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.studio-chrome-btn:hover {
+  color: var(--studio-accent-high, #3bd6ff);
+  background: color-mix(in srgb, var(--studio-surface-hover, #141a2c) 70%, transparent);
+}
+
+.studio-chrome-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--studio-accent, #2fa8ff) 70%, transparent);
+}
+
+/* Drawer tiles (catalog + stowed chips): hover lifts one ladder rung with a faint
+   inset top highlight; focus gets the same inset accent ring. */
+.studio-drawer-tile {
+  transition:
+    background-color 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    border-color 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    transform 140ms cubic-bezier(0.25, 1, 0.5, 1),
+    box-shadow 140ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.studio-drawer-tile:hover {
+  background: var(--studio-surface-hover, #141a2c);
+  border-color: var(--studio-line-strong, rgba(47, 168, 255, 0.4));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.studio-drawer-tile:focus-visible {
+  outline: none;
+  border-color: var(--studio-line-strong, rgba(47, 168, 255, 0.4));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--studio-accent, #2fa8ff) 70%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-drawer-tile:hover {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .studio-shell *,
   .studio-shell *::before,
