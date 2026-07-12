@@ -246,6 +246,11 @@ Notes section and Kiwi will respect them.
 
 ## Notes
 
+- On every terminal bgsd session outcome (done, blocked, or failed), play
+  `/System/Library/Sounds/Glass.aiff` once with `afplay` after writing the final
+  session record. This is a completion cue, must fail silently, and must never
+  interrupt or change the pipeline outcome.
+
 - If the Claude spend/usage limit kills pipeline agents and Filippo later says to continue (any phrasing: 'go', 'continue', etc.), that itself means the limit has reset for ALL Claude instances — respawn the executor fleet immediately instead of falling back to inline conductor work.
 
 - Always delete a pipeline agent's worktree (git worktree remove --force) as soon as its unit is done and merged — the branch stays in git; the worktree (node_modules + cargo target) must not linger and eat disk.
