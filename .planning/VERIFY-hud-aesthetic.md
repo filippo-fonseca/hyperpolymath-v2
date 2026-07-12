@@ -60,3 +60,30 @@ Two nits from the conductor's screenshot review (vite dev on :1420, viewport 160
 - `pnpm test` (vitest run) — 16 files, 92 tests passed.
 - `vite build` — built OK (only pre-existing chunk-size / dynamic-import advisories, unrelated).
 - Headless screenshots (playwright MCP, 1600x1000): collapsed state shows "Talk to JARVIS ⌘⌃J" fully visible + centered with the WIDGETS tab clear to its right and no floating chip row; open state shows the drawer centered and symmetric (CATALOG left, STOWED right), catalog contained inside it.
+
+---
+
+## Loop-2: white browser fix
+
+**Bug:** The in-app browser widget showed a permanent WHITE page for real sites (bbc.com, a Google results page). `studio_webview_create` never fired.
+
+**Root cause:** `BrowserWidget` iframed every generic URL and only promoted to the native child webview on a known-blocker host or a 4s iframe-load timeout. Real sites block iframing via `X-Frame-Options` / CSP `frame-ancestors`, but on WebKit a blocked frame still fires `onLoad`, which set `loadedRef.current = true` and cancelled the 4s timeout. So `shouldPromote` stayed false, `studio_webview_create` was never invoked, and the widget was stranded on the blocked (white) iframe. The whole native path was also silent (`.catch(() => undefined)` / silent `setNativeStatus("failed")`), so the failure was invisible.
+
+**Fix:** Promote every generic http(s) page to the native webview directly (`isGeneric || timedOut`); only the purpose-built youtube/twitter embed iframes (which reliably frame) keep the iframe path. Dropped the now-unused known-blocker gate + import. Also added diagnostic visibility that was missing on this path:
+- Rust `eprintln!` for args + every error branch across `studio_webview_create/set_bounds/show/hide/destroy/navigate`, plus a post-`add_child` `child.show()` so a freshly built promoted webview cannot be left behind the host surface on macOS.
+- `console.warn` on promotion/navigate failure in `BrowserWidget` (id, url, bounds, error).
+
+**Live receipt:** `POST /api/jarvis/voice/text {"text":"open bbc.com in the browser"}` (bearer) then tailed `/tmp/bgsd-tauri-dev5.log`:
+```
+[studio_webview_create] label=fa516e34-… url=https://www.bbc.com/ x=1480 y=423 w=1177 h=696
+[studio_webview_create] created label=fa516e34-…
+[studio_webview_navigate] label=fa516e34-… url=https://www.bbc.com/
+```
+Non-zero bounds, creation + navigate both succeed, zero error branches logged. `screencapture` of the running Tauri app (`/tmp/hud-browser2.png`) shows the BROWSER widgets rendering the fully-loaded BBC.com page (logo, nav, World Cup banners, survey overlay) — no white page.
+
+**Verification (all green):**
+- `pnpm typecheck` (tsc --noEmit) — clean.
+- `pnpm test` (vitest run) — 16 files, 92 tests passed.
+- `pnpm build` (vite build + tauri release) — built app + dmg OK; the release cargo build finished clean (covers `cargo check`).
+
+Diagnostic logging is intentionally kept — this path was too silent.
