@@ -50,9 +50,12 @@ all five realtime islands, optimistic task/habit mutation and rollback,
 `areas-tree-collapsed-<id>`, `lifeos:areas:collapsed`, and
 `lifeos:widgets:collapsed`.
 
-## Known evidence gap
+## Scout evidence
 
-`.bgsd/runs/sesh-1783863067187/research/lifeos-surface-map.md` is absent from
-this worktree (the `.bgsd` checkout only contains config, ledger, and empty
-session scaffolding). The handoff and source contracts are the available
-authority; verification must call out that missing research artifact.
+The authoritative scout map is available at
+`/Users/filippofonseca/Developer/Projects/hyperpolymath-v2-life-os-refactor/.bgsd/runs/sesh-1783863067187/research/lifeos-surface-map.md`.
+It confirms the eight-way server load, the five exact query-key shapes and
+realtime subscription islands, the optimistic task/habit rollback semantics,
+the two collapse-storage namespaces, and the existing AreasTree motion and
+capture-action accessibility debt. Implementation and verification should use
+those anchors alongside this spec and the handoff.
