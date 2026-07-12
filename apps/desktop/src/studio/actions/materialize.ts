@@ -4,6 +4,7 @@ import {
   type BackgroundTask,
 } from "@/hud/background-tasks";
 
+import { openBrowserUrl } from "./browser-router";
 import { summonWidget } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "../windows/catalog";
 
@@ -11,6 +12,8 @@ interface ToolCallPayload {
   toolUseId: string;
   name: string;
   result: unknown;
+  /** Present on live SSE payloads; used for per-turn browser-URL dedupe. */
+  turnId?: string;
 }
 
 interface PendingWhatsappSend {
@@ -79,7 +82,9 @@ export function materializeToolCall(payload: ToolCallPayload): void {
 
   const url = validHttpUrl(action?.url) ?? validHttpUrl(record(result.receipt)?.url);
   if (url) {
-    summon("browser", { url });
+    // Deduped per turn: if a studio-action (or the open_url dispatcher path)
+    // already opened this exact page this turn, this is a no-op.
+    openBrowserUrl(url, payload.turnId);
     return;
   }
 
