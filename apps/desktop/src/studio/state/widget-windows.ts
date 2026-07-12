@@ -91,6 +91,14 @@ export function rehydrateWidgetWindows(): void {
   }
 }
 
+/** First (any) live instance of a kind, or undefined. Used by the studio-action
+ *  router to push focus props onto an already-open singleton before summoning. */
+export function findWidgetByKind(
+  kind: WidgetKind,
+): WidgetWindowInstance | undefined {
+  return windows.find((item) => item.kind === kind);
+}
+
 export function summonWidget(
   kind: WidgetKind,
   props: Record<string, unknown> = {},
