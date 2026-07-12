@@ -1,0 +1,117 @@
+/**
+ * HUD settings store — the small, persisted external store the settings surface
+ * writes and the ambient background / motion layers read.
+ *
+ * Framework-light (one `useSyncExternalStore` hook, like {@link ./widget-windows}
+ * and the hand-status store) so a preference flip only re-renders the surfaces
+ * that read it. Persisted to localStorage under a versioned key so choices
+ * survive a reload.
+ *
+ * `motionMode` is a three-way override over the OS `prefers-reduced-motion`
+ * signal: `system` defers to the media query, `full` forces motion on, `reduced`
+ * forces it off. Consumers resolve the effective value with {@link prefersReducedMotion}.
+ */
+
+import { useSyncExternalStore } from "react";
+
+const STORAGE_KEY = "studio:hud-settings:v1";
+
+/** Explicit motion preference, overriding the OS media query when not `system`. */
+export type MotionMode = "system" | "full" | "reduced";
+
+export interface HudSettings {
+  /** Ambient constellation + graph background on/off. Default on. */
+  backgroundEnabled: boolean;
+  /** Motion override; `system` defers to `prefers-reduced-motion`. */
+  motionMode: MotionMode;
+}
+
+const DEFAULTS: HudSettings = {
+  backgroundEnabled: true,
+  motionMode: "system",
+};
+
+let state: HudSettings = DEFAULTS;
+let hydrated = false;
+
+const subscribers = new Set<() => void>();
+
+function emit(): void {
+  for (const cb of subscribers) cb();
+}
+
+function persist(): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Storage may be unavailable (private mode); preferences stay in-memory.
+  }
+}
+
+/** Reads persisted settings once, on first access. Safe to call repeatedly. */
+export function hydrateHudSettings(): void {
+  if (hydrated) return;
+  hydrated = true;
+  if (typeof localStorage === "undefined") return;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as unknown;
+    if (!parsed || typeof parsed !== "object") return;
+    const value = parsed as Partial<HudSettings>;
+    state = {
+      backgroundEnabled:
+        typeof value.backgroundEnabled === "boolean"
+          ? value.backgroundEnabled
+          : DEFAULTS.backgroundEnabled,
+      motionMode:
+        value.motionMode === "full" ||
+        value.motionMode === "reduced" ||
+        value.motionMode === "system"
+          ? value.motionMode
+          : DEFAULTS.motionMode,
+    };
+    emit();
+  } catch {
+    state = DEFAULTS;
+  }
+}
+
+export function getHudSettings(): HudSettings {
+  return state;
+}
+
+export function subscribeHudSettings(cb: () => void): () => void {
+  subscribers.add(cb);
+  return () => {
+    subscribers.delete(cb);
+  };
+}
+
+export function setBackgroundEnabled(enabled: boolean): void {
+  if (state.backgroundEnabled === enabled) return;
+  state = { ...state, backgroundEnabled: enabled };
+  persist();
+  emit();
+}
+
+export function setMotionMode(mode: MotionMode): void {
+  if (state.motionMode === mode) return;
+  state = { ...state, motionMode: mode };
+  persist();
+  emit();
+}
+
+export function useHudSettings(): HudSettings {
+  return useSyncExternalStore(subscribeHudSettings, getHudSettings, getHudSettings);
+}
+
+/**
+ * Resolves the effective reduced-motion preference: the settings override wins
+ * when set, otherwise the OS `prefers-reduced-motion` signal (passed in so this
+ * stays a pure helper testable without the media query).
+ */
+export function prefersReducedMotion(mode: MotionMode, systemReduced: boolean): boolean {
+  if (mode === "reduced") return true;
+  if (mode === "full") return false;
+  return systemReduced;
+}
