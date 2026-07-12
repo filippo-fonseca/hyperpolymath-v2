@@ -16,6 +16,7 @@ import {
   onPhysicalTranscript,
   onStudioAction,
 } from "@/physical-extender/sse-client";
+import { markStudioAvailable } from "@studio/actions/browser-router";
 import { routeStudioAction } from "@studio/actions/studio-action-router";
 import { startMaterialization } from "@studio/actions/materialize";
 
@@ -72,6 +73,10 @@ let started = false;
 export function startStudioBridge(): void {
   if (started) return;
   started = true;
+
+  // Studio is mounted → open_url can route into the browser widget instead of
+  // the system browser (dispatcher's routeOpenUrl gates on this).
+  markStudioAvailable();
 
   onJarvisState((state) => emit("jarvisState", state));
   onPhysicalTranscript((payload) => {

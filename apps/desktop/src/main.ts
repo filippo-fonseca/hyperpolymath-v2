@@ -49,9 +49,10 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
-import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
+import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
 import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
 import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
@@ -94,6 +95,10 @@ import { syncHotkeys } from "@/routines/hotkeys";
 import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
 import { startStudioBridge } from "@studio/bridge";
 import { mountStudio } from "@studio/StudioApp";
+import {
+  isStudioAvailable,
+  openBrowserUrl,
+} from "@studio/actions/browser-router";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -465,6 +470,29 @@ function paintTtsState(playing: boolean): void {
   if (!stopBtn || !idleLabel) return;
   stopBtn.style.display = playing ? "inline-flex" : "none";
   idleLabel.style.display = playing ? "none" : "";
+}
+
+/**
+ * Toggle the "voice degraded" HUD chip. Shown while ElevenLabs is down and
+ * JARVIS is speaking through the local fallback voice; hidden on recovery so
+ * silence is never mysterious and a working ElevenLabs never leaves a stale
+ * warning up. The reason (key_missing / auth / transient) sharpens the tooltip.
+ */
+function paintVoiceStatus(status: VoiceStatus): void {
+  const el = document.getElementById("voice-degraded");
+  if (!el) return;
+  if (status.state === "degraded") {
+    el.hidden = false;
+    const detail =
+      status.reason === "key_missing" || status.reason === "auth"
+        ? "ElevenLabs key unavailable — using local voice"
+        : status.reason === "transient"
+          ? "ElevenLabs unreachable — using local voice"
+          : "ElevenLabs unavailable — using local voice";
+    el.setAttribute("title", detail);
+  } else {
+    el.hidden = true;
+  }
 }
 
 let _wakeRegistered = false;
@@ -865,10 +893,14 @@ async function boot(): Promise<void> {
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
   });
+  // Voice-degraded HUD chip: reflects the ElevenLabs→local-voice fallback.
+  ttsPlayer.onVoiceStatusChange((status) => {
+    paintVoiceStatus(status);
+  });
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => {
+  onJarvisToolCall(({ name, result, turnId }) => {
     paintToolCall(name, result);
     // Computer-control tool results carry an `action` on their result. Key
     // strictly off result.action.kind (fixed contract with the backend agent):
@@ -878,6 +910,18 @@ async function boot(): Promise<void> {
     const action = parseAction(rawAction);
     if (action) {
       flashActionLine(describeAction(action));
+      // URL-LEAK FIX: an open_url must NOT launch the system browser for content
+      // JARVIS can show in the in-app browser widget. Route http(s) URLs into
+      // the widget whenever Studio is available (deduped per turn against the
+      // materialize + studio-action paths); the system opener stays only as the
+      // fallback (Studio unavailable) or for non-http schemes (mailto: etc.).
+      if (
+        action.kind === "open_url" &&
+        routeOpenUrl(action.url, { studioAvailable: isStudioAvailable() }) === "widget"
+      ) {
+        openBrowserUrl(action.url, turnId);
+        return;
+      }
       // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
       // foregrounds the target. We do NOT set_focus() the HUD after an open —
       // that would yank key focus back from the app the user wants to use. The

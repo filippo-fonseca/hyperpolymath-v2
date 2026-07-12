@@ -87,6 +87,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   } else {
     elevenLabsKey = process.env.ELEVENLABS_API_KEY;
   }
+  // Prod currently ships an EMPTY ELEVENLABS_API_KEY, so the owner/trigger path
+  // resolves to "" here. Treat an empty/whitespace key as key_missing up front
+  // (machine-readable reason) instead of letting an empty-key request fall into
+  // the generic 502 below — the desktop uses this to pick its local-voice
+  // fallback and label the "voice degraded" indicator correctly.
+  if (!elevenLabsKey || !elevenLabsKey.trim()) {
+    return Response.json(
+      { error: "key_missing", provider: "elevenlabs", reason: "key_missing" },
+      { status: 502 },
+    );
+  }
   const client = new ElevenLabsClient({ apiKey: elevenLabsKey });
 
   // 2. Parse body
@@ -138,8 +149,40 @@ export async function POST(req: NextRequest): Promise<Response> {
       },
     });
   } catch (err) {
-    // 502 (NOT 500) signals to client "upstream failed, use fallback" (Pitfall 7)
+    // 502 (NOT 500) signals to client "upstream failed, use fallback" (Pitfall 7).
+    // Include a machine-readable `reason` so the desktop can distinguish a
+    // dead/rejected key (auth — a fresh key must be minted) from a transient
+    // upstream blip (transient — worth a later retry). Both still fall back to
+    // local speech client-side, but the reason drives the "voice degraded"
+    // copy and any future retry policy.
     console.error("[tts] ElevenLabs failed", err);
-    return Response.json({ error: "TTS upstream failed" }, { status: 502 });
+    const reason = classifyTtsError(err);
+    return Response.json({ error: "TTS upstream failed", reason }, { status: 502 });
   }
+}
+
+/** Machine-readable failure reason for the 502 body. */
+type TtsFailureReason = "auth" | "transient";
+
+/**
+ * Best-effort classification of an ElevenLabs SDK error into auth vs transient.
+ * The SDK surfaces an HTTP `statusCode` on its errors; 401/403 (and 400 with an
+ * invalid-key body) mean the key is dead, everything else is treated as a
+ * transient upstream failure.
+ */
+function classifyTtsError(err: unknown): TtsFailureReason {
+  const status =
+    (err as { statusCode?: number; status?: number } | null)?.statusCode ??
+    (err as { statusCode?: number; status?: number } | null)?.status;
+  if (status === 401 || status === 403) return "auth";
+  const message = String((err as { message?: unknown } | null)?.message ?? "").toLowerCase();
+  if (
+    message.includes("unauthorized") ||
+    message.includes("invalid api key") ||
+    message.includes("invalid_api_key") ||
+    message.includes("api_key")
+  ) {
+    return "auth";
+  }
+  return "transient";
 }

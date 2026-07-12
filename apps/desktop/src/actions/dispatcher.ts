@@ -134,6 +134,41 @@ export type DesktopAction =
   | PlayMusicAction
   | ComputerUseAction;
 
+/** Where an `open_url` action should be materialized. */
+export type OpenUrlRoute = "widget" | "system";
+
+/**
+ * Decide whether an `open_url` should land in the in-app browser WIDGET or the
+ * SYSTEM default browser. Pure — no side effects — so it can be exhaustively
+ * unit-tested (the desktop's URL-leak fix lives here).
+ *
+ * Rules:
+ *   - Non-http(s) schemes (mailto:, tel:, facetime:, custom app deep links…)
+ *     always go to the system opener — the browser widget can only render web
+ *     pages, and handing it a `mailto:` would just show a blank frame.
+ *   - Malformed / scheme-less URLs also go to the system opener; `openUrl`
+ *     tolerates them (and this preserves the historical behaviour) whereas the
+ *     widget's <webview> would choke.
+ *   - Everything else (a real http/https page) routes to the WIDGET whenever the
+ *     Studio canvas is available. Only when Studio is unavailable do we fall
+ *     back to the system browser. This removes the leak where "is England
+ *     winning" launched the user's default browser instead of the HUD widget.
+ */
+export function routeOpenUrl(
+  url: string,
+  opts: { studioAvailable: boolean },
+): OpenUrlRoute {
+  let scheme: string;
+  try {
+    scheme = new URL(url).protocol;
+  } catch {
+    // Not a parseable absolute URL — let the system opener deal with it.
+    return "system";
+  }
+  if (scheme !== "http:" && scheme !== "https:") return "system";
+  return opts.studioAvailable ? "widget" : "system";
+}
+
 /**
  * Narrow an untrusted SSE payload into a DesktopAction. Returns null when the
  * payload doesn't match the fixed contract — the caller then does nothing,

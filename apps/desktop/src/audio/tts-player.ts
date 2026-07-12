@@ -23,8 +23,23 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getEnv } from "@/env";
 import { getDeviceToken } from "@/auth/device-token";
+import {
+  LocalSpeech,
+  defaultLocalSpeechBackends,
+  type LocalSpeechBackends,
+} from "@/audio/local-speech";
 
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George (warm British male)
+
+/**
+ * Voice health surfaced to the HUD. `ok` = ElevenLabs is speaking; `degraded` =
+ * ElevenLabs failed and JARVIS is speaking through the local fallback voice.
+ * `reason` mirrors the TTS route's 502 body when we can read it.
+ */
+export interface VoiceStatus {
+  state: "ok" | "degraded";
+  reason?: "key_missing" | "auth" | "transient";
+}
 
 interface QueuedSentence {
   text: string;
@@ -82,11 +97,50 @@ export class TtsPlayer {
   private unlistenIdle: UnlistenFn | null = null;
   /** Coarse level for the HUD orb's "speaking" pulse (no webview analyser). */
   private eventsWired = false;
+  /** Offline fallback voice (macOS `say` / SpeechSynthesis). */
+  private localSpeech: LocalSpeech;
+  /** Current voice health; flips to degraded on the first ElevenLabs failure. */
+  private voiceStatus: VoiceStatus = { state: "ok" };
+  private voiceStatusListeners = new Set<(status: VoiceStatus) => void>();
 
-  constructor(voiceId = DEFAULT_VOICE_ID, enabled = true) {
+  constructor(
+    voiceId = DEFAULT_VOICE_ID,
+    enabled = true,
+    localSpeechBackends: LocalSpeechBackends = defaultLocalSpeechBackends(),
+  ) {
     this.voiceId = voiceId;
     this.enabled = enabled;
+    this.localSpeech = new LocalSpeech(localSpeechBackends);
     void this.wireRustEvents();
+  }
+
+  /**
+   * Subscribe to voice-health transitions (ok ↔ degraded). Fires immediately
+   * with the current status. The HUD uses this to show/hide the "voice
+   * degraded" indicator.
+   */
+  onVoiceStatusChange(fn: (status: VoiceStatus) => void): () => void {
+    this.voiceStatusListeners.add(fn);
+    fn(this.voiceStatus);
+    return () => {
+      this.voiceStatusListeners.delete(fn);
+    };
+  }
+
+  /** Current voice health. */
+  getVoiceStatus(): VoiceStatus {
+    return this.voiceStatus;
+  }
+
+  private setVoiceStatus(next: VoiceStatus): void {
+    if (
+      next.state === this.voiceStatus.state &&
+      next.reason === this.voiceStatus.reason
+    ) {
+      return;
+    }
+    this.voiceStatus = next;
+    for (const fn of this.voiceStatusListeners) fn(next);
   }
 
   /**
@@ -271,6 +325,9 @@ export class TtsPlayer {
       this.abortController.abort();
       this.abortController = null;
     }
+    // Interrupt the local fallback voice too — same barge-in/new-turn semantics
+    // as ElevenLabs playback (a running `say` child is killed immediately).
+    this.localSpeech.stop();
     this.turns.clear();
     this.turnOrder = [];
     this.draining = false;
@@ -366,7 +423,17 @@ export class TtsPlayer {
       });
 
       if (!res.ok) {
-        console.warn(`[tts] server returned ${res.status} — skipping sentence`);
+        // ElevenLabs failed (typically 502 — dead/missing key or a transient
+        // upstream blip). Instead of going silently mute, SPEAK THIS SENTENCE
+        // through the local fallback voice and flip the HUD to "voice
+        // degraded". The route's JSON body carries a machine-readable reason.
+        const reason = await readTtsFailureReason(res);
+        console.warn(
+          `[tts] server returned ${res.status} (${reason ?? "unknown"}) — local fallback`,
+        );
+        this.setVoiceStatus({ state: "degraded", ...(reason ? { reason } : {}) });
+        this.abortController = null;
+        await this.localSpeech.speak(text);
         return;
       }
 
@@ -374,15 +441,42 @@ export class TtsPlayer {
       const pcmBytes = new Uint8Array(await res.arrayBuffer());
       if (!pcmBytes.byteLength) return;
 
+      // ElevenLabs is speaking again — clear any prior degraded state.
+      this.setVoiceStatus({ state: "ok" });
       // `bytes` must be a plain number[] so Tauri's IPC serialises it as a
       // Vec<u8>. Array.from on a typed array is exact and cheap enough here.
       await invoke("tts_play_pcm", { bytes: Array.from(pcmBytes) });
     } catch (err) {
       const name = (err as { name?: string })?.name;
       if (name === "AbortError") return; // cancelled by stop()
-      console.error("[tts] playSentence failed", err);
+      // Network-level failure (server unreachable, etc.): still speak locally so
+      // JARVIS is never mute, and mark the voice degraded (transient).
+      console.error("[tts] playSentence failed — local fallback", err);
+      this.setVoiceStatus({ state: "degraded", reason: "transient" });
+      this.abortController = null;
+      await this.localSpeech.speak(text);
     } finally {
       this.abortController = null;
     }
   }
+}
+
+/**
+ * Read the machine-readable `reason` from a failed TTS response body. Best
+ * effort: a non-JSON or reasonless body yields undefined (still treated as a
+ * degraded/transient failure by the caller).
+ */
+async function readTtsFailureReason(
+  res: Response,
+): Promise<VoiceStatus["reason"] | undefined> {
+  try {
+    const body = (await res.clone().json()) as { reason?: unknown };
+    const reason = body?.reason;
+    if (reason === "key_missing" || reason === "auth" || reason === "transient") {
+      return reason;
+    }
+  } catch {
+    // Non-JSON body (e.g. a plain "Unauthorized" string) — leave undefined.
+  }
+  return undefined;
 }
