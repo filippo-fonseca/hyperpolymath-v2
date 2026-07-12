@@ -17,6 +17,7 @@ import {
   hydrateHudSettings,
   setBackgroundEnabled,
   setMotionMode,
+  setSoundEnabled,
   useHudSettings,
   type MotionMode,
 } from "../state/hud-settings";
@@ -177,7 +178,7 @@ function useTtsInfo(): { enabled: boolean; voiceId: string } | null {
 
 export default function SettingsWidget(): React.ReactElement {
   const { enabled: handEnabled } = useHandTracking();
-  const { backgroundEnabled, motionMode } = useHudSettings();
+  const { backgroundEnabled, motionMode, soundEnabled } = useHudSettings();
   const tts = useTtsInfo();
 
   useEffect(() => {
@@ -234,6 +235,14 @@ export default function SettingsWidget(): React.ReactElement {
           <p style={hintStyle}>Override the system reduced-motion preference</p>
         </div>
         <MotionSegments value={motionMode} onChange={setMotionMode} />
+      </div>
+
+      <div style={rowStyle}>
+        <div style={{ minWidth: 0 }}>
+          <p style={labelStyle}>Sound</p>
+          <p style={hintStyle}>Widget drop pop and message-send cue</p>
+        </div>
+        <Toggle on={soundEnabled} onChange={setSoundEnabled} label="Toggle UI sounds" />
       </div>
 
       <div style={rowStyle}>

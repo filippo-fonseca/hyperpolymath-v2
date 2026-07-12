@@ -24,11 +24,14 @@ export interface HudSettings {
   backgroundEnabled: boolean;
   /** Motion override; `system` defers to `prefers-reduced-motion`. */
   motionMode: MotionMode;
+  /** UI sound effects (widget drop pop, message-send cue) on/off. Default on. */
+  soundEnabled: boolean;
 }
 
 const DEFAULTS: HudSettings = {
   backgroundEnabled: true,
   motionMode: "system",
+  soundEnabled: true,
 };
 
 let state: HudSettings = DEFAULTS;
@@ -69,6 +72,10 @@ export function hydrateHudSettings(): void {
         value.motionMode === "system"
           ? value.motionMode
           : DEFAULTS.motionMode,
+      soundEnabled:
+        typeof value.soundEnabled === "boolean"
+          ? value.soundEnabled
+          : DEFAULTS.soundEnabled,
     };
     emit();
   } catch {
@@ -97,6 +104,13 @@ export function setBackgroundEnabled(enabled: boolean): void {
 export function setMotionMode(mode: MotionMode): void {
   if (state.motionMode === mode) return;
   state = { ...state, motionMode: mode };
+  persist();
+  emit();
+}
+
+export function setSoundEnabled(enabled: boolean): void {
+  if (state.soundEnabled === enabled) return;
+  state = { ...state, soundEnabled: enabled };
   persist();
   emit();
 }
