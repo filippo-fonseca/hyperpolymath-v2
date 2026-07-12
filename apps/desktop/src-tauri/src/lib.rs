@@ -1,6 +1,7 @@
 mod audio;
 mod commands;
 mod computer;
+mod say;
 mod studio_webview;
 mod whatsapp;
 
@@ -55,6 +56,9 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        // Managed handle to the native `say` fallback child, so a new utterance
+        // or a stop can preempt the previous one (barge-in). See `say.rs`.
+        .manage(say::SayFallback::default())
         .setup(|app| {
             // macOS: run as a Regular app — Dock icon + standard app menu, so
             // Cmd+Q quits and the window is a normal, closable, movable window.
@@ -181,6 +185,8 @@ pub fn run() {
             commands::tts_play_pcm,
             commands::tts_stop,
             commands::tts_clear,
+            say::speak_fallback,
+            say::speak_fallback_stop,
             computer::run_applescript,
             computer::run_jxa,
             computer::run_shortcut,
