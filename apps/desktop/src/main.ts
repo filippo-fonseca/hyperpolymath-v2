@@ -53,7 +53,8 @@ import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
 import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
-import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
+import { playSendSound } from "@/studio/sound/studio-sfx";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
 import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
@@ -1030,6 +1031,10 @@ async function boot(): Promise<void> {
   onConfirmPendingChange((confirmPending) => {
     document.body.dataset.confirmPending = confirmPending ? "true" : "false";
   });
+  // Subtle "sent" cue when an outgoing message (WhatsApp or iMessage) is
+  // confirmed dispatched. Mirrors the web app's send-to-JARVIS effect; gated
+  // on the Sound setting inside playSendSound.
+  onMessageSent(() => playSendSound());
   startConfirmGate();
 
   // 5c. Acknowledge strip: auto-fading first-clause echo of each JARVIS

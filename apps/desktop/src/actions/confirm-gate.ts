@@ -222,6 +222,24 @@ function emitWhatsappSendConfirmed(payload: WhatsappSendConfirmed): void {
   for (const fn of whatsappSendListeners) fn(payload);
 }
 
+/** Fired once any outgoing message (WhatsApp OR iMessage) is confirmed
+ *  delivered by its transport. Transport-agnostic and payload-free: it exists
+ *  purely so the HUD can play a subtle "sent" cue at the true dispatch moment.
+ *  No gate logic keys off it. */
+type MessageSentListener = () => void;
+const messageSentListeners = new Set<MessageSentListener>();
+
+export function onMessageSent(fn: MessageSentListener): () => void {
+  messageSentListeners.add(fn);
+  return () => {
+    messageSentListeners.delete(fn);
+  };
+}
+
+function emitMessageSent(): void {
+  for (const fn of messageSentListeners) fn();
+}
+
 function clearPendingState(): void {
   const hadPending = pending !== null;
   pending = null;
@@ -449,6 +467,8 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   const result = await executeSend(action);
   resolveTask(taskId, result.ok ? "done" : "failed");
   if (result.ok) {
+    // Subtle "sent" cue at the true dispatch moment, for both transports.
+    emitMessageSent();
     // Speak an honest, terminal delivery confirmation naming the contact the
     // message ACTUALLY went to. Before this, success was silent — the user had
     // no way to know a send succeeded (or, worse, that a resolved-but-wrong or
