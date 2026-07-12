@@ -433,6 +433,12 @@ export function createHandGestureInterpreter(
       if (cursorActive && tMs - nullSince >= cfg.lostGraceMs) {
         cursorActive = false;
         callbacks.onCursorActive(false);
+        // Hand is truly gone: reset transient gesture state NOW (not lazily on
+        // reacquire) so continuous gestures fire their terminal events promptly.
+        // Otherwise a hand lost mid-resize/scroll would strand a half-applied
+        // widget until the hand returned. `resetTransient` emits resizeEnd/
+        // scrollEnd/grabEnd via each recognizer's own reset().
+        resetTransient();
       }
       return;
     }
