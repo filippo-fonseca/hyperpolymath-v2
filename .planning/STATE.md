@@ -47,7 +47,7 @@ Status (Phase 31 — DONE): Plan 31-01 executed on fix/pages-create-ux. 7 new fi
 ### Prior status (Phases 21-29 — DONE)
 
 Phases 21-29 executed on fix/pages-create-ux. Build + typecheck green; lib/context suite 15/15 + personal-context-mcp suite 40/40 green. Phase 29 made Wiki pages flow into the personal-context snapshot + knowledge graph + MCP by default: lib/context/nodes/pages.ts loadPages now emits each page node with its EFFECTIVE project set (own direct pages_projects UNION ancestor-folder folder_projects via getFoldersWithProjects + getEffectiveProjectIds) plus folderId + root-first folderPath; added a `page_in_folder` graph edge (page_in_project edges auto-reflect the effective set); bumped the CONTEXT snapshot schema (lib/context/types.ts + mirrored packages/personal-context-mcp/src/types.ts) to v3 with a v2->v3 migrator that backfills folderId:null + folderPath:[] on historical page nodes. Per-page noExport gate: `setPageNoExport` server action (app/actions/pages.ts) + a Globe/GlobeLock nav-bar toggle in PageDetailClient.tsx (loadPages already excludes noExport pages). NOTE: browser verification of the noExport toggle is DEFERRED to the human (autonomous flow could not run an interactive browser test). Remote/prod migration 0034 apply OUTSTANDING (local Docker only). Nothing pushed.
-Last activity: 2026-06-21 — Phase 29 (MCP + knowledge-graph inclusion) executed
+Last activity: 2026-07-12 — Completed quick task 260712-j32: harden link-preview fetch (SSRF + unbounded body, closes #261)
 
 ### Milestone v1.2 execution method (for resumption after compaction)
 
@@ -430,6 +430,7 @@ None yet.
 | 260615-n1x | Live-render `#hashtags` as styled tokens in capture inputs without requiring Enter (closes #41) — ProseMirror decoration plugin reusing the existing parser regex; visual parity with the popover-confirmed Mention chip | 2026-06-15 | 72909bc | [260615-n1x-hashtag-realtime-tokens](./quick/260615-n1x-hashtag-realtime-tokens/) |
 | 260616-3h3 | Harmonize hashtag chip background with brand --ink-sage token (replacing raw Tailwind lime) + align Input/Textarea focus border with the calm global --edge-hud ring (closes #43) | 2026-06-16 | 29f724b | [260616-3h3-improve-syntax-highlighting-colors-and-t](./quick/260616-3h3-improve-syntax-highlighting-colors-and-t/) |
 | 260618-eu2 | Widen kiwi-autodev worker beyond kiwi-drafted: optional LABEL (empty = every open issue), EXCLUDE_LABELS opt-out (default `blocked`), and open-PR dedup so the wider net does not spawn duplicate kiwi/auto PRs; triage size bar unchanged | 2026-06-18 | bd044ca | [260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr](./quick/260618-eu2-widen-kiwi-autodev-worker-beyond-kiwi-dr/) |
+| 260712-j32 | Harden link-preview fetch against SSRF (private/loopback/link-local IP filter incl. 169.254.169.254, DNS-rebinding guard, per-hop manual-redirect validation) and unbounded body reads (streamed 1.5MB size cap replacing arrayBuffer); new ssrf.ts + Vitest matrix; closes #261 | 2026-07-12 | 458a7f94 | [260712-j32-harden-link-preview-fetch-ssrf-and-unbou](./quick/260712-j32-harden-link-preview-fetch-ssrf-and-unbou/) |
 
 ## Session Continuity
 
