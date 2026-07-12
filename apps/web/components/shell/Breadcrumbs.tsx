@@ -30,7 +30,7 @@ export function Breadcrumbs({ items, className }: Props) {
   const last = items.length - 1;
 
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label="Breadcrumb" className={cn("sd-motion", className)}>
       <ol className="flex items-center gap-1.5 flex-wrap">
         {items.map((c, i) => {
           const isLast = i === last;

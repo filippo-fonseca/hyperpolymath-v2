@@ -150,7 +150,7 @@ export function PersistentNav({ collapsed }: Props) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <nav className="flex flex-col gap-0.5 px-2" aria-label="Main navigation">
+      <nav className="sd-motion flex flex-col gap-0.5 px-2" aria-label="Main navigation">
         {items.map((item) => {
           const Icon = item.icon;
           const active = !!pathname?.startsWith(item.href);

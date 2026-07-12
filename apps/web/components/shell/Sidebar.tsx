@@ -154,7 +154,7 @@ export function Sidebar({
     <aside
       aria-label="Sidebar"
       className={cn(
-        "relative h-full shrink-0",
+        "sd-motion relative h-full shrink-0",
         "transition-[width] [transition-duration:var(--dur-panel)] ease-in-out",
         collapsed ? "w-16" : "w-[260px]",
         !mounted && "invisible"

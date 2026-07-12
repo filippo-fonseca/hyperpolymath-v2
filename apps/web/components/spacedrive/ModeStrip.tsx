@@ -31,7 +31,7 @@ export function ModeStrip({ modes, value, onChange, ariaLabel, className }: Mode
     <fieldset
       aria-label={ariaLabel}
       className={cn(
-        "m-0 inline-flex min-w-0 items-center gap-0.5 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] p-0.5 font-[family-name:var(--font-sans)]",
+        "sd-motion m-0 inline-flex min-w-0 items-center gap-0.5 rounded-[0.5rem] border border-[var(--deck-line)] bg-[var(--deck-panel)] p-0.5 font-[family-name:var(--font-sans)]",
         className
       )}
     >

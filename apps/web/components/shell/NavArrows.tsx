@@ -18,7 +18,7 @@ export function NavArrows() {
   const { canGoBack, canGoForward, goBack, goForward } = useNavHistory();
 
   return (
-    <div className="flex items-center gap-0.5 pr-1.5 mr-0.5 border-r border-[var(--edge)]">
+    <div className="sd-motion flex items-center gap-0.5 pr-1.5 mr-0.5 border-r border-[var(--edge)]">
       <NavArrowButton
         direction="back"
         disabled={!canGoBack}

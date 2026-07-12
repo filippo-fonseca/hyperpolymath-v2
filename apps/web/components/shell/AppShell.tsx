@@ -94,7 +94,7 @@ export function AppShell({
             // overlay inside it) above the main content. overflow is clipped
             // only mid-animation; visible at rest so the overlay can escape.
             className={cn(
-              "relative z-40 shrink-0",
+              "sd-motion relative z-40 shrink-0",
               sidebarAnimating ? "overflow-hidden" : "overflow-visible"
             )}
           >

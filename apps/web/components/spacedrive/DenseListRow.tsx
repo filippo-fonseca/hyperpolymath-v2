@@ -47,7 +47,7 @@ export function DenseListRow({
       onClick={onActivate}
       onKeyDown={interactive ? handleKeyDown : undefined}
       className={cn(
-        "flex h-10 items-center gap-2.5 rounded-[0.375rem] px-2.5 font-[family-name:var(--font-sans)] text-[13px] text-[var(--deck-ink)]",
+        "sd-motion flex h-10 items-center gap-2.5 rounded-[0.375rem] px-2.5 font-[family-name:var(--font-sans)] text-[13px] text-[var(--deck-ink)]",
         interactive && "cursor-pointer",
         "transition-colors duration-[var(--dur-hover)] ease-out",
         interactive && "hover:bg-[var(--deck-hover)]",

@@ -175,7 +175,7 @@ export function TopTabBar({ userId }: { userId: string }) {
     <div
       role="tablist"
       aria-label="App tabs"
-      className="relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
+      className="sd-motion relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
       style={{ minHeight: 40 }}
     >
       <NavArrows />
