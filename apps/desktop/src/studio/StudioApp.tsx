@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 
 import { studioBridge } from "@studio/bridge";
-import { HUD_COLORS } from "@studio/tokens";
+import { HUD_COLORS, HUD_SURFACES } from "@studio/tokens";
+import { ConstellationCanvas } from "@studio/background/ConstellationCanvas";
 import { WidgetWindowLayer } from "@studio/windows/WidgetWindowLayer";
 
 import "@studio/studio.css";
@@ -63,10 +64,17 @@ export function StudioApp({ widgetHost }: StudioAppProps) {
     "--studio-accent-high": HUD_COLORS.accentHigh,
     "--studio-text": HUD_COLORS.text,
     "--studio-muted": HUD_COLORS.muted,
+    "--studio-surface-sunken": HUD_SURFACES.sunken,
+    "--studio-surface-base": HUD_SURFACES.base,
+    "--studio-surface-raised": HUD_SURFACES.raised,
+    "--studio-surface-hover": HUD_SURFACES.hover,
+    "--studio-line": HUD_SURFACES.line,
+    "--studio-line-strong": HUD_SURFACES.lineStrong,
   } as CSSProperties;
 
   return (
     <div className="studio-shell" style={colors}>
+      <ConstellationCanvas />
       <div className="studio-rulers" aria-hidden="true" />
       {createPortal(
         <div className="studio-widget-stage" data-studio-stage>
