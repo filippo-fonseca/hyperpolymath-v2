@@ -1,5 +1,6 @@
 "use client";
 
+import { DeckPanel, SectionHeader } from "@/components/spacedrive";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -30,21 +31,23 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
       };
 
   return (
-    <motion.section className="mb-12" {...animProps}>
-      <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
-            Areas
-          </h2>
-          <CollapseChevron collapsed={collapsed} onClick={toggle} label="areas" />
-        </div>
-        <Link
-          href="/areas"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          Open full view →
-        </Link>
-      </header>
+    <motion.section className="mb-10" {...animProps}>
+      <SectionHeader
+        title="System map"
+        eyebrow
+        className="mb-2 px-1"
+        action={
+          <>
+            <CollapseChevron collapsed={collapsed} onClick={toggle} label="areas" />
+            <Link
+              href="/areas"
+              className="rounded-md px-1.5 py-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.1em] text-[var(--deck-ink-dull)] transition-colors [transition-duration:var(--dur-hover)] hover:text-[var(--deck-ink)] focus-visible:outline-none focus-visible:[box-shadow:var(--ring-focus)]"
+            >
+              Open full view →
+            </Link>
+          </>
+        }
+      />
       <motion.div
         initial={false}
         animate={{ height: collapsed ? 0 : "auto", opacity: collapsed ? 0 : 1 }}
@@ -53,7 +56,9 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
         }
         style={{ overflow: "hidden" }}
       >
-        {children}
+        <DeckPanel tone="deep" className="overflow-hidden p-2 sm:p-3">
+          {children}
+        </DeckPanel>
       </motion.div>
     </motion.section>
   );

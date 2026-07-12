@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionHeader } from "@/components/spacedrive";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 import { CollapseChevron, usePersistedCollapse } from "./useSectionToggle";
@@ -53,40 +54,42 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
   const [collapsed, toggle] = usePersistedCollapse("lifeos:widgets:collapsed");
 
   const grid = reduced ? (
-    <div className="grid grid-cols-1 @3xl/main:grid-cols-3 gap-4 @3xl/main:auto-rows-[minmax(180px,auto)]">
-      <div className="@3xl/main:col-span-2 @3xl/main:row-span-2">{hero}</div>
-      <div>{topRight}</div>
-      <div>{midRight}</div>
-      <div className="@3xl/main:col-span-3">{bottom}</div>
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(180px,auto)]">
+      <div className="min-w-0 lg:col-span-8 lg:row-span-2">{hero}</div>
+      <div className="min-w-0 lg:col-span-4">{topRight}</div>
+      <div className="min-w-0 lg:col-span-4">{midRight}</div>
+      <div className="min-w-0 lg:col-span-12">{bottom}</div>
     </div>
   ) : (
     <motion.div
-      className="grid grid-cols-1 @3xl/main:grid-cols-3 gap-4 @3xl/main:auto-rows-[minmax(180px,auto)]"
+      className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(180px,auto)]"
       variants={container}
       initial="hidden"
       animate="show"
     >
-      <motion.div variants={child} className="@3xl/main:col-span-2 @3xl/main:row-span-2">
+      <motion.div variants={child} className="min-w-0 lg:col-span-8 lg:row-span-2">
         {hero}
       </motion.div>
-      <motion.div variants={child}>{topRight}</motion.div>
-      <motion.div variants={child}>{midRight}</motion.div>
-      <motion.div variants={child} className="@3xl/main:col-span-3">
+      <motion.div variants={child} className="min-w-0 lg:col-span-4">
+        {topRight}
+      </motion.div>
+      <motion.div variants={child} className="min-w-0 lg:col-span-4">
+        {midRight}
+      </motion.div>
+      <motion.div variants={child} className="min-w-0 lg:col-span-12">
         {bottom}
       </motion.div>
     </motion.div>
   );
 
   return (
-    <section className="mb-12">
-      <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
-            Widgets
-          </h2>
-          <CollapseChevron collapsed={collapsed} onClick={toggle} label="widgets" />
-        </div>
-      </header>
+    <section className="mb-10">
+      <SectionHeader
+        title="Today / work"
+        eyebrow
+        action={<CollapseChevron collapsed={collapsed} onClick={toggle} label="widgets" />}
+        className="mb-2 px-1"
+      />
       <motion.div
         initial={false}
         animate={{ height: collapsed ? 0 : "auto", opacity: collapsed ? 0 : 1 }}

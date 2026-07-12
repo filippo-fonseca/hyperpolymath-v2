@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -44,6 +44,8 @@ export function CollapseChevron({
   onClick: () => void;
   label: string;
 }) {
+  const reduced = useReducedMotion();
+
   return (
     <button
       type="button"
@@ -55,7 +57,7 @@ export function CollapseChevron({
       <motion.span
         initial={false}
         animate={{ rotate: collapsed ? -90 : 0 }}
-        transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+        transition={reduced ? { duration: 0 } : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
         className="inline-flex"
       >
         <ChevronDown size={16} strokeWidth={2} />

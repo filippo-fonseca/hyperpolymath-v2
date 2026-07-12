@@ -1,8 +1,9 @@
 "use client";
 
+import { DeckPanel } from "@/components/spacedrive";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
 
 interface Props {
   /** Route the card's "margin click"navigates to. */
@@ -23,37 +24,25 @@ interface Props {
  *   - Layer 2 (z-10): the card's content, wrapped in <WidgetCardContent>,
  *     sits above the overlay so its buttons/links capture clicks directly.
  *
- * Hover (group/card):
- *   - Cyan-tinged border deepens
- *   - Inner cyan glow intensifies, outer halo grows softer + larger
- *   - Mirrors the glassy "Profile"pill in /settings nav
- *
- * Recipe: translucent surface + backdrop-blur, inset white top highlight,
- * inset cyan ambient glow, paired outer halo. No transform — glow does the
- * lifting, not motion.
+ * Recipe: a flat tonal surface with a margin-click route. Interactive content
+ * remains above the route target so buttons and links retain native semantics.
  */
 export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
-    <div
-      className={cn(
-        "group/card relative h-full",
-        "rounded-xl glass-tile",
-        className,
-      )}
-    >
+    <DeckPanel tone="panel" className={cn("group/card relative h-full min-w-0", className)}>
       {/* Margin click target — sits below content. */}
       <Link
         href={href}
         aria-label={ariaLabel}
-        className="absolute inset-0 z-0 rounded-lg focus:outline-none"
+        className="absolute inset-0 z-0 rounded-[0.5rem] outline-none focus-visible:[box-shadow:var(--ring-focus)]"
       />
 
       {/* Content layer — interactive elements sit above the overlay. */}
-      <div className="relative z-10 flex h-full flex-col p-5 pointer-events-none">
+      <div className="relative z-10 flex h-full min-w-0 flex-col p-4 pointer-events-none sm:p-5">
         <div className="contents [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_textarea]:pointer-events-auto [&_label]:pointer-events-auto [&_select]:pointer-events-auto [&_[role=button]]:pointer-events-auto">
           {children}
         </div>
       </div>
-    </div>
+    </DeckPanel>
   );
 }
