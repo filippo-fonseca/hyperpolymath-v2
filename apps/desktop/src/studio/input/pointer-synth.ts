@@ -271,6 +271,36 @@ export function useHandPointerSynthesis(): void {
   );
   useStudioHoverProvider(provider);
 
+  // Drawer targeting glow: when the reticle hovers the drawer, ring it in accent
+  // so the user SEES they can open/click it with the hand. Driven off the hub's
+  // resolved hover (not per-frame) and applied imperatively to avoid re-renders.
+  useEffect(() => {
+    let glowing = false;
+    const setDrawerGlow = (on: boolean): void => {
+      if (on === glowing) return;
+      glowing = on;
+      const el = document.querySelector<HTMLElement>("[data-widget-drawer]");
+      if (!el) return;
+      if (on) {
+        el.dataset.handHover = "true";
+        el.style.borderColor = STUDIO_COLORS.accent;
+        el.style.boxShadow = `0 -10px 34px color-mix(in srgb, ${STUDIO_COLORS.accent} 30%, transparent)`;
+      } else {
+        delete el.dataset.handHover;
+        el.style.borderColor = "";
+        el.style.boxShadow = "";
+      }
+    };
+    const unsub = bus.subscribe(() => {
+      setDrawerGlow(bus.getSnapshot().hoverTargetId === "drawer");
+    });
+    setDrawerGlow(bus.getSnapshot().hoverTargetId === "drawer");
+    return () => {
+      unsub();
+      setDrawerGlow(false);
+    };
+  }, [bus]);
+
   const cursorViewport = (): { x: number; y: number } | null => {
     const rect = stageRect();
     if (!rect) return null;

@@ -185,8 +185,10 @@ export function Drawer({
         left: "50%",
         bottom: 0,
         zIndex: 40,
-        width: open ? "min(760px, calc(100% - 32px))" : 136,
-        padding: open ? "8px 10px 10px" : "5px 14px 4px",
+        // Collapsed, the drawer is a hand-cursor target: keep it comfortably wide
+        // so a jittery synthetic pointer can land on the toggle to open it.
+        width: open ? "min(760px, calc(100% - 32px))" : 184,
+        padding: open ? "8px 10px 10px" : "9px 16px 8px",
         border: `1px solid ${targeted ? STUDIO_COLORS.accent : STUDIO_COLORS.rule}`,
         borderBottom: 0,
         borderRadius: "10px 10px 0 0",
@@ -208,11 +210,14 @@ export function Drawer({
         style={{
           display: "flex",
           width: "100%",
-          minHeight: 27,
+          // A larger hit target than the old 27px so the hand cursor can open the
+          // drawer without pixel-perfect aim (research: the toggle was the choke
+          // point blocking hand users from ever opening the catalog).
+          minHeight: open ? 27 : 40,
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
-          padding: 0,
+          padding: open ? 0 : "6px 0",
           border: 0,
           color: STUDIO_COLORS.muted,
           background: "transparent",
