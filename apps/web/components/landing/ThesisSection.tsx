@@ -43,15 +43,17 @@ export function ThesisSection() {
   }, []);
 
   // Sanctioned hero entrance: opacity 0→1, y 12→0, 500ms ease-out, 100ms
-  // stagger by index. Reduced motion → instantly present, no transform.
-  const fade = (i: number) =>
-    reducedMotion
-      ? { initial: false as const, animate: { opacity: 1, y: 0 } }
-      : {
-          initial: { opacity: 0, y: 12 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.5, ease: EASE_OUT_QUART, delay: i * 0.1 },
-        };
+  // stagger by index. The rendered `initial` is identical on server and
+  // client (SSR can't read the motion preference), so only the transition
+  // is branched — reduced motion resolves the same values in 0ms with no
+  // travel, and there is no hydration mismatch.
+  const fade = (i: number) => ({
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0 },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : { duration: 0.5, ease: EASE_OUT_QUART, delay: i * 0.1 },
+  });
 
   return (
     <section
@@ -224,7 +226,7 @@ export function ThesisSection() {
             });
           }}
           className="absolute bottom-8 z-10 inline-flex cursor-pointer flex-col items-center gap-1 rounded px-3 py-2 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
-          initial={{ opacity: reducedMotion ? 0.7 : 0.5 }}
+          initial={{ opacity: 0.5 }}
           animate={
             reducedMotion ? { opacity: 0.7 } : { opacity: [0.45, 0.85, 0.45] }
           }
