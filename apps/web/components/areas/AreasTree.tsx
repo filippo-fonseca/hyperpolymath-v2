@@ -675,7 +675,9 @@ function AreaBranch({
             initial="hidden"
             animate="show"
             exit="hidden"
-            className="relative overflow-hidden"
+            // overflow-hidden clips content cleanly during the height reveal;
+            // pb-1 keeps the last leaf's focus ring off the clip edge.
+            className="relative overflow-hidden pb-1"
           >
             {previewProjects.length > 0 ? (
               <>
