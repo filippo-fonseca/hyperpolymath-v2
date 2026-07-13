@@ -234,6 +234,19 @@ export type HandGestureConfig = {
    * (sits between the closed band ~1.35 and a fully open hand ~1.7-2.1).
    */
   scrollArmOpennessCeil: number;
+  /**
+   * Pre-pinch aim latency (ms). The fingertip drifts while the thumb and index
+   * draw together to pinch, so the cursor position AT the engage frame is already
+   * off the target the user was aiming at. We keep a short ring buffer of recent
+   * filtered cursor positions and, on pinch-engage, re-anchor the frozen cursor
+   * (`lastCursor`) to the buffered sample from this many ms BEFORE engage — the
+   * Vision-Pro "aim-before-onset" pattern. Both the quick-pinch tap and the grab
+   * hover-upgrade then read the pre-drift aim. Kept short so a genuinely moving
+   * hand still anchors near where it currently is.
+   */
+  pinchAnchorLeadMs: number;
+  /** Ring-buffer retention (ms) for pre-pinch cursor anchoring. */
+  cursorHistoryMs: number;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -268,6 +281,10 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   palmClickCancelMs: 700,
   scrollCurlSustainMs: 250,
   scrollArmOpennessCeil: 1.6,
+  // ~110ms of pre-pinch aim recovery: long enough to undo the close-drift, short
+  // enough that a fast-moving hand still anchors near its current position.
+  pinchAnchorLeadMs: 110,
+  cursorHistoryMs: 220,
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -432,6 +449,59 @@ export function computeIndexTipDepth(landmarks: Pt[]): number {
   const palm = dist2d(landmarks[WRIST]!, landmarks[MIDDLE_MCP]!);
   if (palm <= 0) return 0;
   return (landmarks[INDEX_TIP]!.z - landmarks[MIDDLE_MCP]!.z) / palm;
+}
+
+// ---- Pre-pinch cursor anchoring (aim-before-onset) --------------------------
+
+/** A timestamped filtered-cursor sample kept for pre-pinch aim recovery. */
+export type CursorStamp = { t: number; nx: number; ny: number };
+
+/**
+ * A tiny time-windowed ring buffer of recent filtered cursor positions. On a
+ * pinch-engage the fingertip has already drifted while the thumb/index closed,
+ * so the frozen cursor at the engage frame sits off the intended target. This
+ * buffer lets the interpreter recover the aim from ~`leadMs` before engage (the
+ * Vision-Pro "aim-before-onset" pattern) for both the quick-pinch tap and the
+ * grab hover-upgrade. Pure + framework-free; retains only `windowMs` of history.
+ */
+export type CursorHistory = {
+  /** Record a filtered cursor sample. */
+  push(t: number, nx: number, ny: number): void;
+  /**
+   * The buffered sample closest to (t - leadMs), i.e. the aim from `leadMs` ago.
+   * Returns null only when the buffer is empty; otherwise the oldest retained
+   * sample when the lookback predates all history. Never extrapolates.
+   */
+  sampleBefore(t: number, leadMs: number): CursorStamp | null;
+  reset(): void;
+};
+
+export function createCursorHistory(windowMs: number): CursorHistory {
+  const buf: CursorStamp[] = [];
+  return {
+    push(t: number, nx: number, ny: number): void {
+      buf.push({ t, nx, ny });
+      // Drop samples older than the retention window (keep one straddling sample
+      // so a lookback just past the edge still resolves to the nearest history).
+      const cutoff = t - windowMs;
+      let drop = 0;
+      while (drop + 1 < buf.length && buf[drop + 1]!.t < cutoff) drop += 1;
+      if (drop > 0) buf.splice(0, drop);
+    },
+    sampleBefore(t: number, leadMs: number): CursorStamp | null {
+      if (buf.length === 0) return null;
+      const target = t - leadMs;
+      // Walk from newest to oldest; the first sample at//before target is the
+      // aim from ~leadMs ago. Falls back to the oldest retained sample.
+      for (let i = buf.length - 1; i >= 0; i -= 1) {
+        if (buf[i]!.t <= target) return buf[i]!;
+      }
+      return buf[0]!;
+    },
+    reset(): void {
+      buf.length = 0;
+    },
+  };
 }
 
 // ---- Click-vs-continuous gates (palm-click coexistence) ---------------------
@@ -608,8 +678,14 @@ export function createHandGestureInterpreter(
   // Last smoothed cursor position emitted (from `filter`, index-fingertip
   // steering). Kept live even while the cursor is frozen (fist/pinch) so
   // palm-click can freeze its aim at "wherever the hand was last actually
-  // aiming" rather than a fist-distorted fingertip position.
+  // aiming" rather than a fist-distorted fingertip position. Re-anchored on a
+  // pinch-engage to the pre-drift aim from the cursor history (see below).
   let lastCursor: { nx: number; ny: number } = { nx: 0.5, ny: 0.5 };
+  // Rolling filtered-cursor history for pre-pinch aim recovery. Pushed on every
+  // cursor emission; read on the pinch-engage rising edge to snap `lastCursor`
+  // back to where the hand was aiming ~`pinchAnchorLeadMs` before the pinch
+  // closed (the fingertip drifts as thumb+index draw together).
+  const cursorHistory = createCursorHistory(cfg.cursorHistoryMs);
 
   // Fist-gesture tracking.
   let fistStart: number | null = null;
@@ -723,6 +799,7 @@ export function createHandGestureInterpreter(
     candidatePose = null;
     candidateCount = 0;
     lastCursor = { nx: 0.5, ny: 0.5 };
+    cursorHistory.reset();
     fistStart = null;
     fistOrigin = null;
     swipeFired = false;
@@ -828,6 +905,17 @@ export function createHandGestureInterpreter(
           pinchActive = true;
           pinchCandidate = null;
           pinchCandidateCount = 0;
+          // Pinch just engaged: snap the frozen aim back to the pre-drift
+          // position from ~pinchAnchorLeadMs ago. The fingertip drifts as the
+          // thumb+index close, so the cursor at this frame is off-target; the
+          // history holds where the user was actually pointing. Both the
+          // quick-pinch tap (via the frozen cursor the hub/pointer-synth read)
+          // and the grab hover-upgrade then land on the pre-pinch aim.
+          const aim = cursorHistory.sampleBefore(tMs, cfg.pinchAnchorLeadMs);
+          if (aim) {
+            lastCursor = { nx: aim.nx, ny: aim.ny };
+            callbacks.onCursorMove(aim.nx, aim.ny);
+          }
         }
       } else {
         pinchCandidate = null;
@@ -1022,6 +1110,8 @@ export function createHandGestureInterpreter(
       const target = computeCursorTarget(landmarks, cfg);
       const sm = filter.filter(tMs, target.nx, target.ny);
       lastCursor = { nx: sm.x, ny: sm.y };
+      // Record the pre-drift aim so a subsequent pinch can recover it.
+      cursorHistory.push(tMs, sm.x, sm.y);
       callbacks.onCursorMove(sm.x, sm.y);
     }
   }
