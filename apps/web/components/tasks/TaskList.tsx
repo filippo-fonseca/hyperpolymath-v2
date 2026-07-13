@@ -148,13 +148,13 @@ export function TaskList({ tasks, onTaskClick, addOptimistic }: Props) {
         {activeTask ? (
           <div
             className={cn(
-              "flex items-center gap-2 h-10 px-3 rounded-md opacity-95",
-              "bg-[var(--surface)] border border-[var(--edge)]",
+              "flex items-center gap-2 h-10 px-3 rounded-[6px] opacity-95",
+              "bg-[var(--sd-box)] border border-[var(--sd-line)]",
             )}
             style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
           >
             <PriorityChip priority={activeTask.priority} />
-            <span className="font-serif text-base text-[var(--ink)] truncate flex-1">
+            <span className="font-serif text-base text-[var(--sd-ink)] truncate flex-1">
               {activeTask.title}
             </span>
           </div>

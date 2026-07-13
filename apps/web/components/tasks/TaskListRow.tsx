@@ -47,14 +47,14 @@ interface Props {
 /**
  * Phase 06.1 Plan 04 (UI-SPEC §5h, §7c) — document-tier task list row.
  *
- * Visual register:
- *  - bg --canvas (no card chrome)
- *  - 1px transparent left edge at rest; 1px --edge left edge on hover
- *    (fades over 150ms — felt-quality mandate)
- *  - lesno state: 2px --ink-sage persistent left edge + line-through + 70% opacity
- *  - Title in font-serif --ink (or --ink-muted line-through when lesno)
- *  - PriorityChip uses the amber opacity ladder + Infinity icon (no pills)
- *  - Status + Due in mono metadata register, --ink-muted
+ * Visual register (sd dossier list-row):
+ *  - 6px-radius row, neutral --sd-hover backplate on hover (and persistent when
+ *    lesno) — no card chrome, no left-edge accent.
+ *  - Completion: crisp --sd-accent check box (Life OS habit affordance).
+ *  - Title in font-serif --sd-ink (line-through + --sd-ink-faint when lesno).
+ *  - PriorityChip uses the amber opacity ladder + Infinity icon (no pills).
+ *  - Status + Due in mono metadata register (--sd-ink-dull); an overdue due
+ *    date reads as a 15%-alpha coral tinted chip + 6px sd-dot (D6).
  *
  * Motion (Motion 12 / motion/react):
  *  - `layout` prop drives reorder choreography (--ease-out-quart over 280ms)
