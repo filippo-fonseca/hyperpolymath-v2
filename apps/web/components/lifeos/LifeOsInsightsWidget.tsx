@@ -1,5 +1,8 @@
 "use client";
 
+import { BarChart3 } from "lucide-react";
+import { EntityCardHeader, StatusPill } from "./entity-card";
+
 interface Stat {
   label: string;
   value: string;
@@ -33,12 +36,23 @@ export function LifeOsInsightsWidget({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="mb-4 flex items-center justify-between">
-        <h3 className="font-serif text-base font-semibold text-[var(--ink)]">Insights</h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          Open →
-        </span>
-      </header>
+      <EntityCardHeader
+        icon={<BarChart3 size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        title="Insights"
+        subtitle="This week"
+        pill={
+          jarvisTurns > 0 ? (
+            <StatusPill tone="progress" label="7d" />
+          ) : (
+            <StatusPill tone="idle" label="quiet" />
+          )
+        }
+        action={
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+            Open →
+          </span>
+        }
+      />
       <dl className="grid grid-cols-3 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="flex flex-col gap-1">
