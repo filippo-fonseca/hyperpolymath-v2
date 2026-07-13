@@ -135,16 +135,17 @@ export function HeroJarvisLine() {
           border: "1px solid var(--edge-hud)",
           boxShadow: "var(--glow-hud-subtle)",
         }}
-        initial={
-          reducedMotion ? false : { opacity: 0, y: 8, scale: 0.985 }
-        }
+        // SSR-safe: `initial` is identical on server and first client render
+        // (both resolve { opacity: 0, ... }); only the transition is branched,
+        // so reduced motion settles instantly (0ms) with no hydration mismatch.
+        initial={{ opacity: 0, y: 8, scale: 0.985 }}
         animate={{
           opacity: phase === "fadeout" ? 0 : 1,
           y: 0,
           scale: 1,
         }}
         transition={{
-          duration: phase === "fadeout" ? 0.38 : 0.55,
+          duration: reducedMotion ? 0 : phase === "fadeout" ? 0.38 : 0.55,
           ease: EASE_OUT_QUART,
         }}
       >
@@ -197,10 +198,10 @@ export function HeroJarvisLine() {
           {showReceipt && (
             <motion.div
               key={`receipt-${exampleIdx}`}
-              initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.32, ease: EASE_OUT_QUART }}
+              transition={{ duration: reducedMotion ? 0 : 0.32, ease: EASE_OUT_QUART }}
               className="font-mono font-mono-stats text-[14px] leading-[1.55] text-left w-full"
             >
               <span style={{ color: "var(--hud-cyan)" }}>⚜ </span>
