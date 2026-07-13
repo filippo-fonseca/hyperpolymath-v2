@@ -16,16 +16,43 @@ interface ContentRect {
   height: number;
 }
 
+/**
+ * Detail of the `studio:gesture-interaction` window CustomEvent, dispatched by
+ * the hand-gesture pipeline (unit U4) around a gesture-driven resize/drag. The
+ * gesture path mutates the widget-windows store directly (via pointer-synth
+ * `resizeWidget`/`moveWidget`), so it never fires the real header/resize-handle
+ * PointerEvents the pointerdown guard watches. This event lets the native
+ * webview hide during the gesture and re-show once bounds settle.
+ */
+export interface GestureInteractionDetail {
+  widgetId: string;
+  kind: "resize" | "drag";
+  active: boolean;
+}
+
+/** Window event name for gesture-driven widget resize/drag interactions. */
+export const GESTURE_INTERACTION_EVENT = "studio:gesture-interaction";
+
 export function toPhysicalWebviewBounds(
   rect: ContentRect,
   scaleFactor: number,
 ): NativeWebviewBounds {
   const scale = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : 1;
+  // Clamp so the physical box never spills past the frame's true physical edges.
+  // At fractional DPR, independently rounding position and size can push
+  // `x + w` (or `y + h`) one physical pixel beyond the placeholder rect, so the
+  // child webview overhangs its DOM frame. Instead: ceil the near edge, floor
+  // the far edge, and take the size as the (non-negative) gap between them. A
+  // ≤1px underhang is invisible; a ≤1px overhang is the defect we forbid.
+  const left = Math.ceil(rect.left * scale);
+  const top = Math.ceil(rect.top * scale);
+  const right = Math.floor((rect.left + rect.width) * scale);
+  const bottom = Math.floor((rect.top + rect.height) * scale);
   return {
-    x: Math.round(rect.left * scale),
-    y: Math.round(rect.top * scale),
-    w: Math.max(1, Math.round(rect.width * scale)),
-    h: Math.max(1, Math.round(rect.height * scale)),
+    x: left,
+    y: top,
+    w: Math.max(1, right - left),
+    h: Math.max(1, bottom - top),
   };
 }
 
