@@ -18,7 +18,7 @@
 import { useMemo, useState } from "react";
 import { addDays, format, startOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toYmd } from "@/lib/tasks/date-shortcuts";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./TaskCard";
@@ -43,6 +43,7 @@ export function TaskOverviewView({
   draggingActive = false,
   onDropDay,
 }: Props) {
+  const reduced = useReducedMotion();
   // Which day row a card is currently hovering over during a drag.
   const [dropOverYmd, setDropOverYmd] = useState<string | null>(null);
   // today + next 6 days as YMD strings (string equality, no Date round-trip).
@@ -88,9 +89,8 @@ export function TaskOverviewView({
                 onDropDay?.(ymd);
               }}
               className={cn(
-                "flex items-center gap-1 rounded-lg transition-shadow",
-                isDropOver &&
-                  "ring-1 ring-[var(--hud-cyan)]/40 [--glass-glow-color:var(--hud-cyan)]"
+                "flex items-center gap-1 rounded-[6px] transition-shadow",
+                isDropOver && "ring-1 ring-[var(--sd-accent)]/50"
               )}
             >
               {/* Day-row header — clicking the label re-scopes the universal
@@ -99,12 +99,21 @@ export function TaskOverviewView({
               <button
                 type="button"
                 onClick={() => onSelectDay(ymd)}
-                className="flex flex-1 items-center justify-between px-4 py-2.5 rounded-lg cursor-pointer-always border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 text-left"
+                className="flex flex-1 items-center justify-between px-4 py-2.5 rounded-[6px] cursor-pointer-always border border-[var(--sd-line)] hover:bg-[var(--sd-hover)] transition-colors duration-[120ms] ease-out text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
-                <span className="font-serif text-base text-[var(--ink)]">
+                <span className="font-serif text-base text-[var(--sd-ink)]">
                   {format(date, "EEEE, MMMM d")}
                 </span>
-                <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
+                {/* Stat-strip numeral (Life OS idiom): quiet when the day is
+                    empty, bright + semibold once there's work on it. */}
+                <span
+                  className={cn(
+                    "font-mono text-xs tabular-nums",
+                    dayTasks.length > 0
+                      ? "font-semibold text-[var(--sd-ink)]"
+                      : "text-[var(--sd-ink-faint)]"
+                  )}
+                >
                   {dayTasks.length}
                 </span>
               </button>
@@ -113,7 +122,7 @@ export function TaskOverviewView({
                 onClick={() => toggleDay(ymd)}
                 aria-expanded={isOpen}
                 aria-label={isOpen ? "Collapse day" : "Expand day"}
-                className="p-2 rounded-lg cursor-pointer-always text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150"
+                className="p-2 rounded-[6px] cursor-pointer-always text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
                 {isOpen ? (
                   <ChevronDown size={14} />
@@ -130,16 +139,16 @@ export function TaskOverviewView({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
+                  transition={{ duration: reduced ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="glass-tile rounded-xl p-3 mt-1 mb-2 space-y-1">
+                  <div className="sd-panel p-3 mt-1 mb-2 space-y-1">
                     {dayTasks.length > 0 ? (
                       dayTasks.map((t) => (
                         <TaskCard key={t.id} task={t} onClick={onTaskClick} />
                       ))
                     ) : (
-                      <p className="font-serif text-sm italic text-[var(--ink-muted)] px-1 py-0.5">
+                      <p className="font-serif text-sm italic text-[var(--sd-ink-faint)] px-1 py-0.5">
                         Nothing scheduled.
                       </p>
                     )}
