@@ -5,3 +5,4 @@ export { AreaIcon } from "./AreaIcon";
 export { TaskIcon } from "./TaskIcon";
 export { HabitIcon } from "./HabitIcon";
 export { CaptureIcon } from "./CaptureIcon";
+export { TrainingIcon } from "./TrainingIcon";
