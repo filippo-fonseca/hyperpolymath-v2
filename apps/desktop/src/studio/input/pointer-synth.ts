@@ -11,9 +11,12 @@
  *     hub's grab/expand upgrades never drop, and the reticle snaps on hittables);
  *   - `grabStart/grabMove/grabEnd` become a pointerdown→move→up drag on the
  *     grabbed widget's header (or the orb root, or a drawer tile) — moving the
- *     widget or drag-placing a tile through the window's OWN handlers;
- *   - an `expand` intent (pinch-bloom) becomes a synthesized click at the reticle
- *     — summoning a drawer tile, restoring a stowed chip, or pressing a button.
+ *     widget or drag-placing a tile through the window's OWN handlers. A grab
+ *     that begins over a widget's corner resize zone instead drives its resize
+ *     handle (pinch-corner-resize), reusing the same pinch machine to resize;
+ *   - a `tap`/`expand` intent (quick-pinch / palm-click) becomes a synthesized
+ *     click at the reticle — summoning a drawer tile, restoring a stowed chip,
+ *     or pressing a button (routed into a promoted child webview over IPC).
  *
  * We never edit the widget store or WidgetWindow: the windows are a read-only DOM
  * we hit-test against and dispatch into. Coordinates come from the frozen cursor
@@ -41,6 +44,27 @@ import { confirmPendingSend, cancelPendingSend } from "@/actions/confirm-gate";
 
 /** A synthetic pointer id, far from any real (1+) pointer, so shims can target it. */
 const SYNTH_POINTER_ID = 90210;
+
+/**
+ * The window CustomEvent the hand pointer-synth fires at the START and END of a
+ * widget-scoped grab (move) or resize, so an interested listener (U3) can react
+ * to "the user is hand-manipulating this widget" without coupling to the input
+ * internals. Fire-and-forget; `detail.active` is true on start, false on end.
+ */
+export const GESTURE_INTERACTION_EVENT = "studio:gesture-interaction";
+
+export type GestureInteractionDetail = {
+  widgetId: string;
+  kind: "resize" | "drag";
+  active: boolean;
+};
+
+function dispatchGestureInteraction(detail: GestureInteractionDetail): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<GestureInteractionDetail>(GESTURE_INTERACTION_EVENT, { detail }),
+  );
+}
 
 // WidgetWindow/Drawer call `setPointerCapture(pointerId)` inside their pointerdown
 // handlers. The Pointer Events spec throws for a pointerId with no active (real)
@@ -98,7 +122,19 @@ type Hit = {
   pressTarget: Element;
   /** Element a pointer-drag begins on (a widget header / orb root / drawer tile). */
   dragTarget: Element | null;
+  /**
+   * The widget's resize-handle element when the reticle sits in its bottom-right
+   * resize zone, else null. A pinch-grab that begins here is a RESIZE drag (it
+   * dispatches onto this handle, which runs the widget's own resize logic)
+   * rather than a move — the pinch-corner-resize, reusing the trusted pinch
+   * machine end-to-end with no separate gesture.
+   */
+  resizeTarget: Element | null;
 };
+
+/** The bottom-right resize hot-zone (px), a touch larger than the 20px handle so
+ * a frozen reticle needn't land pixel-perfect on it. */
+const RESIZE_ZONE_PX = 28;
 
 /** Hit-test the real widget DOM at a viewport point. Returns null over empty space. */
 function hitTest(vx: number, vy: number): Hit | null {
@@ -108,16 +144,30 @@ function hitTest(vx: number, vy: number): Hit | null {
   if (widget) {
     // Normal widgets drag by their header; the permanent orb has none → drag root.
     const header = widget.querySelector(":scope > header");
+    // Resize handle (bottom-right). Present on non-permanent widgets only. Treat
+    // the reticle as "on the handle" when it is within RESIZE_ZONE_PX of the
+    // widget's bottom-right corner, so a pinch-grab there resizes.
+    const resizeBtn = widget.querySelector<HTMLElement>(
+      'button[aria-label="Resize window"]',
+    );
+    let resizeTarget: Element | null = null;
+    if (resizeBtn) {
+      const wr = widget.getBoundingClientRect();
+      if (vx >= wr.right - RESIZE_ZONE_PX && vy >= wr.bottom - RESIZE_ZONE_PX) {
+        resizeTarget = resizeBtn;
+      }
+    }
     return {
       id: widget.getAttribute("data-widget-window") ?? "widget",
       pressTarget: el,
       dragTarget: header ?? widget,
+      resizeTarget,
     };
   }
   const drawer = el.closest("[data-widget-drawer]");
   if (drawer) {
     const button = el.closest("button");
-    return { id: "drawer", pressTarget: button ?? el, dragTarget: button };
+    return { id: "drawer", pressTarget: button ?? el, dragTarget: button, resizeTarget: null };
   }
   return null;
 }
@@ -222,6 +272,10 @@ type GrabState = {
   pendingDown: boolean;
   lastX: number;
   lastY: number;
+  /** The widget this grab drives (for the U3 gesture-interaction seam event). */
+  widgetId: string;
+  /** "resize" when the grab landed on the corner handle, else "drag" (a move). */
+  kind: "resize" | "drag";
 };
 
 type ResizeState = {
@@ -328,9 +382,24 @@ export function useHandPointerSynthesis(): void {
           break;
         }
         const hit = hitTest(vp.x, vp.y);
-        grab.current = hit?.dragTarget
-          ? { dragTarget: hit.dragTarget, pendingDown: true, lastX: vp.x, lastY: vp.y }
-          : null;
+        // Pinch-corner-resize: when the frozen reticle sits in a widget's resize
+        // zone, drive the grab onto its resize HANDLE (running the widget's own
+        // resize logic) instead of the header — the same trusted pinch machine
+        // resizes rather than moves. Otherwise it's a normal move drag.
+        const target = hit?.resizeTarget ?? hit?.dragTarget ?? null;
+        if (hit && target) {
+          const kind: "resize" | "drag" = hit.resizeTarget ? "resize" : "drag";
+          grab.current = {
+            dragTarget: target,
+            pendingDown: true,
+            lastX: vp.x,
+            lastY: vp.y,
+            widgetId: hit.id,
+            kind,
+          };
+        } else {
+          grab.current = null;
+        }
         break;
       }
       case "grabMove": {
@@ -343,6 +412,13 @@ export function useHandPointerSynthesis(): void {
         if (g.pendingDown) {
           g.pendingDown = false;
           dispatchPointer("pointerdown", g.dragTarget, vp.x, vp.y, 1);
+          // Fire the seam START only once the drag actually begins (first move),
+          // so a grab dropped before any move never emits an orphaned start/end.
+          dispatchGestureInteraction({
+            widgetId: g.widgetId,
+            kind: g.kind,
+            active: true,
+          });
         } else {
           dispatchPointer("pointermove", g.dragTarget, vp.x, vp.y, 1);
         }
@@ -353,6 +429,11 @@ export function useHandPointerSynthesis(): void {
         grab.current = null;
         if (g?.dragTarget && !g.pendingDown) {
           dispatchPointer("pointerup", g.dragTarget, g.lastX, g.lastY, 0);
+          dispatchGestureInteraction({
+            widgetId: g.widgetId,
+            kind: g.kind,
+            active: false,
+          });
         }
         break;
       }
@@ -369,7 +450,14 @@ export function useHandPointerSynthesis(): void {
         }
         const w = getWidgetWindows().find((item) => item.id === phase.targetId);
         resize.current = w ? { id: w.id, w0: w.w, h0: w.h } : null;
-        if (resize.current) setResizeAffordance(resize.current.id, true);
+        if (resize.current) {
+          setResizeAffordance(resize.current.id, true);
+          dispatchGestureInteraction({
+            widgetId: resize.current.id,
+            kind: "resize",
+            active: true,
+          });
+        }
         break;
       }
       case "resizeMove": {
@@ -379,7 +467,14 @@ export function useHandPointerSynthesis(): void {
         break;
       }
       case "resizeEnd": {
-        if (resize.current) setResizeAffordance(resize.current.id, false);
+        if (resize.current) {
+          setResizeAffordance(resize.current.id, false);
+          dispatchGestureInteraction({
+            widgetId: resize.current.id,
+            kind: "resize",
+            active: false,
+          });
+        }
         resize.current = null;
         break;
       }
