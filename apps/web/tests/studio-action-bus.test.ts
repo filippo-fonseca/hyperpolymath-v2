@@ -54,7 +54,7 @@ describe("studio-action physical bus", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     physicalBus.on("studio-action", listener);
 
-    emitStudioAction({ action: "open", kind: "clock" } as never);
+    emitStudioAction({ action: "open", kind: "not-a-widget" } as never);
 
     expect(listener).not.toHaveBeenCalled();
   });
