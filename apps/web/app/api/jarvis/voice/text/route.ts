@@ -136,9 +136,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const receivedAt = Date.now();
-  emitPhysicalTranscript({ transcript: text, sttDoneAt: receivedAt, at: receivedAt });
-
+  // Mint the reply turnId BEFORE the echo emit and stamp it on the echo so the
+  // desktop reducer can pair the user bubble to its reply by identity (FIFO is
+  // the fallback for turnless echoes; identity is exact under any overlap).
   const turnId = crypto.randomUUID();
+  emitPhysicalTranscript({ transcript: text, sttDoneAt: receivedAt, at: receivedAt, turnId });
+
   const userTurnId = crypto.randomUUID();
   const userTurnCreatedAt = new Date();
   const assistantTurnCreatedAt = new Date(userTurnCreatedAt.getTime() + 1);
