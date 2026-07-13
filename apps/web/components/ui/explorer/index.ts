@@ -9,6 +9,7 @@ export {
   ExplorerContextMenuTrigger,
 } from "./ExplorerContextMenu";
 export { InspectorShell, MetaRow, MetaSection } from "./InspectorShell";
+export { Rail } from "./Rail";
 export { SelectionRubberBand } from "./SelectionRubberBand";
 export { SortSelect, type ExplorerSortValue } from "./SortSelect";
 export { Tile, type TileTag } from "./Tile";
