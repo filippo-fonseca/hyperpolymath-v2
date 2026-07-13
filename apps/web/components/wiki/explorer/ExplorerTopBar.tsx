@@ -1,9 +1,16 @@
 "use client";
 
+import { Toolbar } from "@/components/ui/explorer";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
+/**
+ * Wiki explorer top bar. Thin wrapper over the shared {@link Toolbar} chrome:
+ * it owns the wiki-specific navigation cluster (back/forward), and lays the
+ * breadcrumbs, search, and controls into the toolbar's left/center/right
+ * slots. The rendered DOM is identical to the pre-extraction bar.
+ */
 export function ExplorerTopBar({
   canGoBack,
   canGoForward,
@@ -24,31 +31,33 @@ export function ExplorerTopBar({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex h-12 items-center gap-3.5 border-b border-[var(--sd-sidebar-divider,var(--sd-line))] bg-[color-mix(in_srgb,var(--sd-app)_90%,transparent)] px-3.5 font-sans text-[0.8rem] text-[var(--sd-ink)] backdrop-blur-[18px]",
-        className
-      )}
-    >
-      <div className="flex items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)]">
-        <ExplorerNavButton side="left" label="Back" disabled={!canGoBack} onClick={onBack}>
-          <ChevronLeft size={16} strokeWidth={1.8} />
-        </ExplorerNavButton>
-        <ExplorerNavButton
-          side="right"
-          label="Forward"
-          disabled={!canGoForward}
-          onClick={onForward}
-        >
-          <ChevronRight size={16} strokeWidth={1.8} />
-        </ExplorerNavButton>
-      </div>
-      <div className="min-w-0 flex-1">{breadcrumbs}</div>
-      {search ? (
-        <div className="hidden min-w-[180px] max-w-[320px] flex-1 md:block">{search}</div>
-      ) : null}
-      {controls ? <div className="flex shrink-0 items-center gap-2">{controls}</div> : null}
-    </div>
+    <Toolbar
+      className={className}
+      left={
+        <div className="flex items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)]">
+          <ExplorerNavButton side="left" label="Back" disabled={!canGoBack} onClick={onBack}>
+            <ChevronLeft size={16} strokeWidth={1.8} />
+          </ExplorerNavButton>
+          <ExplorerNavButton
+            side="right"
+            label="Forward"
+            disabled={!canGoForward}
+            onClick={onForward}
+          >
+            <ChevronRight size={16} strokeWidth={1.8} />
+          </ExplorerNavButton>
+        </div>
+      }
+      center={
+        <>
+          <div className="min-w-0 flex-1">{breadcrumbs}</div>
+          {search ? (
+            <div className="hidden min-w-[180px] max-w-[320px] flex-1 md:block">{search}</div>
+          ) : null}
+        </>
+      }
+      right={controls ? <div className="flex shrink-0 items-center gap-2">{controls}</div> : null}
+    />
   );
 }
 
