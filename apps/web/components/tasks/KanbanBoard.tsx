@@ -7,7 +7,7 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { type CardFields, DEFAULT_CARD_FIELDS, TaskCard } from "./TaskCard";
@@ -27,17 +27,6 @@ const CARD_FIELD_LABELS: { key: keyof CardFields; label: string }[] = [
 // kanban in a separate tray, so it's excluded from the column render order.
 const ALL_STATUSES: Status[] = ["not started", "up next", "in progress", "almost done", "lesno"];
 const COLUMN_ORDER: Status[] = ["up next", "in progress", "almost done", "lesno"];
-
-// Shared accent for the tray. Derived from the dot via color-mix against
-// canvas/surface so the tray adapts to light + dark mode (was hardcoded
-// dark OKLCH lightness that turned into a murky band in light mode).
-const NOT_STARTED_DOT = "oklch(0.72 0.02 80)";
-const NOT_STARTED_ACCENT = {
-  dot: NOT_STARTED_DOT,
-  bg: `color-mix(in oklch, var(--canvas) 88%, ${NOT_STARTED_DOT})`,
-  rim: `color-mix(in oklch, var(--edge) 55%, ${NOT_STARTED_DOT})`,
-  cardBg: `color-mix(in oklch, var(--surface-raised) 90%, ${NOT_STARTED_DOT})`,
-};
 
 interface Props {
   tasks: TaskWithProjects[];
@@ -90,6 +79,22 @@ export function KanbanBoard({
     : setInternalDraggedTaskId;
   const [, startTransition] = useTransition();
   const [trayExpanded, setTrayExpanded] = useState(true);
+  // Id of the card that just landed in a column, for the drop success-moment
+  // spring (dossier §8). Cleared shortly after so the pop plays once. A single
+  // state set post-drop (not per dragover) keeps this off the jank path.
+  const [settledTaskId, setSettledTaskId] = useState<string | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markSettled = (id: string) => {
+    setSettledTaskId(id);
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(
+      () => setSettledTaskId((cur) => (cur === id ? null : cur)),
+      450
+    );
+  };
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
   // Which property pills show on each task card. Persisted so the user's
   // view preferences survive reloads. Shared by the tasks page + project page.
   const [cardFields, setCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS);
@@ -137,6 +142,9 @@ export function KanbanBoard({
   function dropTaskOnStatus(targetStatus: Status) {
     // External drop pipe — parent owns task lookup + dueDate side-effects.
     if (onExternalDropOnStatus) {
+      if (externalDraggedTaskId && externalDraggedFromStatus !== targetStatus) {
+        markSettled(externalDraggedTaskId);
+      }
       onExternalDropOnStatus(targetStatus);
       return;
     }
@@ -147,6 +155,7 @@ export function KanbanBoard({
     }
     const taskId = draggedTask.id;
     setDraggedTaskId(null);
+    markSettled(taskId);
 
     startTransition(async () => {
       addOptimistic({
@@ -250,6 +259,7 @@ export function KanbanBoard({
         selectedIds={selectedIds}
         onToggleSelected={onToggleSelected}
         onToggleColumnSelection={onToggleColumnSelection}
+        settledTaskId={settledTaskId}
       />
 
       <div className="flex flex-col @4xl/main:flex-row gap-3 @4xl/main:gap-4 pb-4 pr-2 @4xl/main:items-stretch">
@@ -272,6 +282,7 @@ export function KanbanBoard({
             selectedIds={selectedIds}
             onToggleSelected={onToggleSelected}
             onToggleColumnSelection={onToggleColumnSelection}
+            settledTaskId={settledTaskId}
           />
         ))}
       </div>
@@ -300,6 +311,7 @@ interface TrayProps {
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
   onToggleColumnSelection?: (status: Status, taskIds: string[]) => void;
+  settledTaskId?: string | null;
 }
 
 function NotStartedTray({
@@ -319,45 +331,53 @@ function NotStartedTray({
   selectedIds,
   onToggleSelected,
   onToggleColumnSelection,
+  settledTaskId,
 }: TrayProps) {
-  const [isOver, setIsOver] = useState(false);
-  const accent = NOT_STARTED_ACCENT;
-  const isValidTarget = draggedTaskId !== null && draggedFromStatus !== "not started";
-  const showDrop = isOver && isValidTarget;
+  const ref = useRef<HTMLDivElement>(null);
+  // Direct-DOM drop affordance (matches the column, D1d zero-jank): on a valid
+  // drag-over the tray washes to --sd-selected-item and gains a dashed accent
+  // outline. outline (not border) avoids any layout shift; no React state.
+  const isValidTargetFn = (): boolean =>
+    draggedTaskId !== null && draggedFromStatus !== "not started";
+  const lightUp = () => {
+    if (!ref.current) return;
+    ref.current.style.background = "var(--sd-selected-item)";
+    ref.current.style.outline = "2px dashed var(--sd-accent)";
+    ref.current.style.outlineOffset = "-2px";
+  };
+  const dimDown = () => {
+    if (!ref.current) return;
+    ref.current.style.background = "var(--sd-darker-box)";
+    ref.current.style.outline = "none";
+  };
   const trayIds = tasks.map((t) => t.id);
   const selectedInTray = selectedIds ? trayIds.filter((id) => selectedIds.has(id)).length : 0;
   const allSelected = trayIds.length > 0 && selectedInTray === trayIds.length;
 
   return (
     <div
-      className="rounded-2xl"
+      ref={ref}
+      className="rounded-lg border border-[var(--sd-line)]"
       data-status="not started"
       onDragOver={(e) => {
-        if (!draggedTaskId) return;
+        if (!isValidTargetFn()) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (!isOver) setIsOver(true);
+        lightUp();
       }}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-          setIsOver(false);
+          dimDown();
         }
       }}
       onDrop={(e) => {
         e.preventDefault();
-        setIsOver(false);
-        if (isValidTarget) onDropOnTray();
+        dimDown();
+        if (isValidTargetFn()) onDropOnTray();
       }}
-      style={
-        {
-          background: accent.bg,
-          boxShadow: showDrop
-            ? `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, var(--glass-raise), var(--glass-drop)`
-            : `inset 0 0 0 1px ${accent.rim}, var(--glass-raise), var(--glass-drop)`,
-          transition: "box-shadow 160ms ease-out",
-          ["--task-card-bg" as string]: accent.cardBg,
-        } as React.CSSProperties
-      }
+      // Recessed well matching the columns (seed §Columns): --sd-darker-box,
+      // 8px radius, 1px hairline, no glass.
+      style={{ background: "var(--sd-darker-box)", transition: "background-color 120ms ease-out" }}
     >
       <div className="group/trayhdr flex items-center gap-2 px-4 pt-3 pb-2">
         <button
@@ -367,21 +387,14 @@ function NotStartedTray({
           aria-expanded={expanded}
         >
           <ChevronDown
-            className={cn("h-3.5 w-3.5 transition-transform shrink-0", !expanded && "-rotate-90")}
-            style={{ color: accent.dot }}
+            className={cn(
+              "h-3.5 w-3.5 transition-transform shrink-0 text-[var(--sd-ink-dull)]",
+              !expanded && "-rotate-90"
+            )}
           />
-          <span
-            className="inline-block h-2 w-2 rounded-full shrink-0"
-            style={{ backgroundColor: accent.dot }}
-          />
-          <span
-            className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold"
-            style={{ color: accent.dot }}
-          >
-            Not Started
-          </span>
-          <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums">
-            ({tasks.length})
+          <span className="sd-stat-label">Not Started</span>
+          <span className="inline-flex items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-0.5 font-mono text-[10px] leading-none tabular-nums text-[var(--sd-ink-dull)] shrink-0">
+            {tasks.length}
           </span>
         </button>
         {onToggleColumnSelection && tasks.length > 0 ? (
@@ -391,10 +404,10 @@ function NotStartedTray({
             className={cn(
               "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
               allSelected
-                ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
+                ? "bg-[var(--sd-box)] text-[var(--sd-ink)] opacity-100"
                 : selectionActive || selectedInTray > 0
-                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] opacity-0 group-hover/trayhdr:opacity-100 hover:text-[var(--ink)]"
+                  ? "text-[var(--sd-ink-dull)] opacity-100 hover:text-[var(--sd-ink)]"
+                  : "text-[var(--sd-ink-dull)] opacity-0 group-hover/trayhdr:opacity-100 hover:text-[var(--sd-ink)]"
             )}
             title={allSelected ? "Deselect all in tray" : "Select all in tray"}
           >
@@ -418,6 +431,7 @@ function NotStartedTray({
                 selectionActive={selectionActive}
                 isSelected={selectedIds?.has(task.id) ?? false}
                 onToggleSelected={onToggleSelected}
+                justSettled={settledTaskId === task.id}
               />
             </div>
           ))}
