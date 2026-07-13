@@ -4,8 +4,8 @@ import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explore
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import { explorerItemId } from "@/components/wiki/explorer-types";
-import { FolderIcon } from "@/components/wiki/icons/FolderIcon";
-import { PageIcon } from "@/components/wiki/icons/PageIcon";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
