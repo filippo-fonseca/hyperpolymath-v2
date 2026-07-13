@@ -84,9 +84,9 @@ export function RecentCapturesWidget({
                 initial={reduced ? false : { opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  delay: reduced ? 0 : 0.04 * i,
-                  duration: 0.28,
-                  ease: [0.25, 1, 0.5, 1],
+                  delay: reduced ? 0 : 0.01 * Math.min(i, 24),
+                  duration: 0.16,
+                  ease: "easeOut",
                 }}
                 className="group relative rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] p-3 flex flex-col gap-2 transition-[border-color] duration-150 hover:border-[var(--edge-hud)]"
               >
