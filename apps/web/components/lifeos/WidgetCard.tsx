@@ -23,21 +23,20 @@ interface Props {
  *   - Layer 2 (z-10): the card's content, wrapped in <WidgetCardContent>,
  *     sits above the overlay so its buttons/links capture clicks directly.
  *
- * Hover (group/card):
- *   - Cyan-tinged border deepens
- *   - Inner cyan glow intensifies, outer halo grows softer + larger
- *   - Mirrors the glassy "Profile"pill in /settings nav
- *
- * Recipe: translucent surface + backdrop-blur, inset white top highlight,
- * inset cyan ambient glow, paired outer halo. No transform — glow does the
- * lifting, not motion.
+ * Chrome: the foundations `.sd-panel` entity-card grammar (constitution §A2/§B,
+ * decisions D1/D7) — `--sd-box` surface, 1px `--sd-line` hairline, white inset
+ * top hairline, 12px radius, no heavy shadow. Hover is a soft-landing on border
+ * + background only (`--ease-soft-landing`, 200ms) toward the accent — no scale,
+ * no lift, no glow halo. Both themes flip via the promoted `--sd-*` ladder.
  */
 export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
-        "group/card relative h-full",
-        "rounded-xl glass-tile",
+        "group/card sd-panel relative h-full",
+        "transition-[border-color,background-color] duration-200 ease-[var(--ease-soft-landing)]",
+        "hover:border-[color-mix(in_srgb,var(--sd-accent)_28%,var(--sd-line))]",
+        "hover:bg-[var(--sd-hover)]",
         className,
       )}
     >

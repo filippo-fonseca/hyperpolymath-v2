@@ -1488,6 +1488,46 @@ select:focus-visible,
   --sd-ink-faint: hsl(235 10% 55%);
 }
 
+/* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
+/* Promote the --sd-* surface / line / state + sidebar family to global
+   scope so the panel grammar resolves app-wide (Life OS, shell), not just
+   inside .wiki-explorer. ADD-ONLY: this remaps only the surface-ladder
+   mapping; accent + ink ladders were already promoted above.
+
+   Light scope: the app's light theme is warm parchment, not the cool
+   hsl(235 ...) neutral the wiki ships. Remap the sd surfaces onto the
+   existing --canvas / --surface / --surface-raised / --edge parchment
+   family so entity cards sit in-register on /lifeos in light mode. The
+   .wiki-explorer block below redeclares the full ladder locally, so the
+   wiki keeps its cool dark palette untouched (D3).
+
+   Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
+   we only fill in the sidebar / state members the global .dark block was
+   missing so consumers resolve them outside .wiki-explorer. */
+:root {
+  --sd-app: var(--canvas);
+  --sd-box: var(--surface-raised);
+  --sd-dark-box: var(--surface);
+  --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
+  --sd-input: var(--surface);
+  --sd-line: var(--edge);
+  --sd-divider: var(--edge);
+  --sd-hover: color-mix(in oklch, var(--ink) 5%, var(--surface));
+  --sd-selected: color-mix(in oklch, var(--ink) 9%, var(--surface));
+  --sd-selected-item: var(--surface);
+  --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
+  --sd-frame: var(--edge);
+  --sd-menu: var(--surface-raised);
+  --sd-menu-line: var(--edge);
+  --sd-menu-hover: var(--surface);
+}
+
+.dark {
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu-line: hsl(235 15% 14%);
+}
+
 /* --- 1. Panel grammar ----------------------------------------------- */
 /* Hairline chrome + 0.5-1px white inset top hairline, radius 12px. No
    heavy shadow (elevation via the grey ladder, D7). */

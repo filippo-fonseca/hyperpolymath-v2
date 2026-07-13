@@ -11,22 +11,24 @@ interface Props {
   bottom: ReactNode;
 }
 
+// Campaign motion signature (decision D4): entrances opacity 0->1, y 4->0,
+// 160ms easeOut, 10ms stagger. Transform/opacity only — zero layout shift.
 const container = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.18,
+      staggerChildren: 0.01,
+      delayChildren: 0.04,
     },
   },
 };
 
 const child = {
-  hidden: { opacity: 0, y: 6 },
+  hidden: { opacity: 0, y: 4 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.32, ease: [0.25, 1, 0.5, 1] as const },
+    transition: { duration: 0.16, ease: "easeOut" as const },
   },
 };
 
