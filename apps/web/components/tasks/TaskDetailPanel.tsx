@@ -29,8 +29,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  InspectorShell,
+  MetaRow,
+  MetaSection,
+} from "@/components/ui/explorer";
 import { HashtagDecorations } from "@/components/captures/hashtag-decorations";
 
 import { createPersonDecorations } from "@/components/captures/person-decorations";
@@ -38,7 +41,21 @@ import { createPersonSuggestion } from "@/components/captures/person-suggestions
 import { createHashtagSuggestion } from "@/components/captures/tiptap-suggestions";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle2,
+  CircleDot,
+  Clock,
+  Copy,
+  ExternalLink,
+  Flag,
+  FolderOpen,
+  Link2,
+  Repeat,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { UrlField } from "@/components/shared/UrlField";
@@ -128,10 +145,11 @@ const PRIORITY_PILL: { value: Priority; label: string; opacity: number }[] = [
 ];
 
 /**
- * Glassy single-select pill row. Each option is a backdrop-blurred pill with a
- * live indicator dot; the selected pill lights its accent ring + wash. Replaces
- * the shadcn Select for status/priority so the control reads like the kanban
- * columns it mirrors.
+ * Single-select pill row on the sd two-tier grammar (D6): the option's
+ * functional hue lives only in a 6-7px dot; selection is a NEUTRAL
+ * `--sd-selected` backplate, never an accent ring around the pill. Mirrors
+ * the kanban column colors through the dot while staying in inspector
+ * register (11px medium, ink-dull → ink on select).
  */
 function PillGroup<T extends string>({
   options,
@@ -156,32 +174,17 @@ function PillGroup<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "group inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
-              "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
-              "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
+              "group inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 cursor-pointer-always",
+              "text-[11px] font-medium tracking-[0.01em]",
+              "transition-[color,background-color,border-color] duration-100 ease-out motion-reduce:transition-none",
               selected
-                ? "text-[var(--ink)]"
-                : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]"
+                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                : "border-[var(--sd-line)] bg-transparent text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
             )}
-            style={
-              selected
-                ? {
-                    borderColor: opt.color,
-                    backgroundColor: `color-mix(in oklch, ${opt.color} 14%, transparent)`,
-                    boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${opt.color} 45%, transparent), 0 0 12px color-mix(in oklch, ${opt.color} 22%, transparent)`,
-                  }
-                : undefined
-            }
           >
             <span
-              className="inline-block h-2 w-2 rounded-full shrink-0 transition-opacity"
-              style={{
-                backgroundColor: opt.color,
-                opacity: selected ? 1 : 0.4,
-                boxShadow: selected
-                  ? `0 0 6px color-mix(in oklch, ${opt.color} 70%, transparent)`
-                  : "none",
-              }}
+              className="inline-block h-[7px] w-[7px] rounded-full shrink-0 transition-opacity duration-100 motion-reduce:transition-none"
+              style={{ backgroundColor: opt.color, opacity: selected ? 1 : 0.45 }}
             />
             {opt.label}
           </button>
@@ -600,24 +603,36 @@ export function TaskDetailPanel({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [open, dirty]);
 
-  // Intercept Sheet close attempts (Esc, click outside, × button). When
-  // dirty, surface the confirm dialog instead of closing immediately.
-  const handleSheetOpenChange = useCallback(
-    (next: boolean) => {
-      if (next) return;
-      // Create mode: nothing is persisted yet; closing is always safe.
-      if (isCreate) {
-        onClose();
-        return;
-      }
-      if (dirty) {
-        setPendingDiscardAction("close");
-        return;
-      }
+  // Intercept close attempts (Esc, click outside, × button). When dirty,
+  // surface the confirm dialog instead of closing immediately. With the Radix
+  // Sheet dropped (InspectorShell owns the single slide, D1d anti-jank), this
+  // is the shared dirty-guard the Esc listener and the outside-click backdrop
+  // both route through.
+  const requestClose = useCallback(() => {
+    // Create mode: nothing is persisted yet; closing is always safe.
+    if (isCreate) {
       onClose();
-    },
-    [dirty, onClose, isCreate]
-  );
+      return;
+    }
+    if (dirty) {
+      setPendingDiscardAction("close");
+      return;
+    }
+    onClose();
+  }, [dirty, onClose, isCreate]);
+
+  // Esc closes through the dirty-guard (re-added after dropping the Sheet,
+  // which used to own this). Scoped to when the panel is open.
+  useEffect(() => {
+    if (!open) return;
+    function onEsc(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      requestClose();
+    }
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [open, requestClose]);
 
   // Cancel button: confirm when dirty (edit mode only); otherwise close.
   const handleCancelClick = useCallback(() => {
@@ -638,6 +653,14 @@ export function TaskDetailPanel({
     setForm(initialForm);
     onClose();
   }, [initialForm, onClose]);
+
+  // Action-row: copy the task title (cheap copy-on-click affordance, seed §7).
+  const handleCopyTitle = useCallback(() => {
+    const t = (form.title || task?.title || "").trim();
+    if (!t) return;
+    void navigator.clipboard?.writeText(t);
+    toast("Copied.");
+  }, [form.title, task]);
 
   function handleDelete() {
     if (!task) return;
@@ -661,199 +684,256 @@ export function TaskDetailPanel({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-        {/* Warning 7 fix: bg-transparent SheetOverlay (no dimming — Linear style) */}
-        <SheetContent
-          side="right"
-          className="w-[420px] p-0 flex flex-col [background:var(--glass-bg)] [backdrop-filter:blur(12px)]"
-          showCloseButton={false}
-        >
-          {task && (
-            <>
-              {/* Header — Linear-style side panel chrome (UI-SPEC §5h) */}
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-[var(--glass-border)]">
-                <div className="flex items-start justify-between gap-3">
-                  <SheetTitle className="flex-1 p-0 m-0">
-                    <input
-                      type="text"
-                      value={form.title}
-                      onChange={(e) => set("title", e.target.value)}
-                      autoFocus={isCreate}
-                      placeholder={isCreate ? "Task title…" : undefined}
-                      className={cn(
-                        "font-serif text-xl font-semibold text-[var(--ink)] w-full",
-                        "bg-transparent focus:outline-none border-b border-transparent",
-                        "focus:border-[var(--edge-hud)] transition-colors duration-150 ease-out",
-                        "placeholder:text-[var(--ink-muted)] placeholder:font-normal"
-                      )}
-                      aria-label="Task title"
-                    />
-                  </SheetTitle>
-                  <button
-                    type="button"
-                    onClick={() => handleSheetOpenChange(false)}
-                    aria-label="Close detail panel"
-                    className="p-1 rounded hover:bg-[var(--surface)] transition-colors duration-150 ease-out flex-shrink-0 mt-1 cursor-pointer-always"
-                  >
-                    <X size={16} className="text-[var(--ink-muted)]" />
-                  </button>
-                </div>
-              </SheetHeader>
+      {/* Outside-click backdrop — transparent (no dimming, Linear/Spacedrive
+          register). Routes through the shared dirty-guard, mirroring the Radix
+          Sheet overlay we replaced. Rendered only while open. */}
+      {open ? (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={requestClose}
+          aria-hidden="true"
+        />
+      ) : null}
 
-              {/* Body — scrollable field sections */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5">
-                {/* 1. Status — glassy colored pills mirroring the kanban columns */}
-                <FieldSection label="Status">
-                  <PillGroup
-                    ariaLabel="Status"
-                    value={form.status}
-                    onChange={(v) => set("status", v)}
-                    options={STATUS_PILL.map((s) => ({
-                      value: s.value,
-                      label: s.label,
-                      color: s.dot,
-                    }))}
-                  />
-                </FieldSection>
-
-                {/* 2. Priority — same pill treatment on the amber ladder */}
-                <FieldSection label="Priority">
-                  <PillGroup
-                    ariaLabel="Priority"
-                    value={form.priority}
-                    onChange={(v) => set("priority", v)}
-                    options={PRIORITY_PILL.map((p) => ({
-                      value: p.value,
-                      label: p.label,
-                      color: `color-mix(in oklch, var(--ink-amber) ${Math.round(p.opacity * 100)}%, var(--edge))`,
-                    }))}
-                  />
-                </FieldSection>
-
-                {/* 3. Due date */}
-                <FieldSection label="Due date">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="date"
-                      value={form.dueDate}
-                      onChange={(e) => set("dueDate", e.target.value)}
-                      className="font-sans text-[13px] h-8 flex-1"
-                    />
-                    {/* I-2 (D-03): inline clear — empties the date → Inbox on save.
-                       Reversible, so no confirm dialog. Shown only when a date set. */}
-                    {form.dueDate && (
-                      <button
-                        type="button"
-                        onClick={() => set("dueDate", "")}
-                        title="Clear due date (move to Inbox)"
-                        aria-label="Clear due date (move to Inbox)"
-                        className="p-0.5 rounded text-[var(--ink-muted)] hover:text-[var(--ink-coral)] cursor-pointer-always transition-colors duration-150"
-                      >
-                        <X size={12} strokeWidth={1.5} />
-                      </button>
+      {/* Fixed host floats the shared InspectorShell on the right so the
+          primitive is consumed UNCHANGED (it owns the single slide — D1d, no
+          double-transform jank). pointer-events gate keeps the empty host inert
+          when closed. */}
+      <div className="pointer-events-none fixed inset-y-0 right-0 z-50 flex">
+        <InspectorShell
+          open={open}
+          className="pointer-events-auto h-full w-[340px]"
+          header={
+            task ? (
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  {/* Name stays serif (app content identity, D9). */}
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => set("title", e.target.value)}
+                    autoFocus={isCreate}
+                    placeholder={isCreate ? "Task title…" : undefined}
+                    className={cn(
+                      "min-w-0 flex-1 bg-transparent font-serif !text-base !font-bold text-[var(--sd-ink)]",
+                      "border-b border-transparent focus:border-[var(--sd-accent)] focus:outline-none",
+                      "transition-colors duration-[120ms] ease-out",
+                      "placeholder:font-normal placeholder:text-[var(--sd-ink-faint)]"
                     )}
-                    {/* MoveToMenu kept as the secondary clear path (D-03). */}
-                    <MoveToMenu
-                      variant="inline"
-                      allowClear
-                      onPick={(ymd) => set("dueDate", ymd ?? "")}
-                    />
-                  </div>
-                  {!form.dueDate && task?.dueDate && (
-                    <p className="font-mono text-[11px] text-[var(--ink-muted)]">
-                      Will move to Inbox
-                    </p>
-                  )}
-                </FieldSection>
-
-                {/* 3a. URL (issue #101) — Notion-style link property. Clickable
-                    link when set; inline input to add/edit/clear. */}
-                <FieldSection label="URL">
-                  <UrlField
-                    value={form.url}
-                    onChange={(next) => set("url", next)}
-                    disabled={isPending}
+                    aria-label="Task title"
                   />
-                </FieldSection>
-
-                {/* 3b. Recurrence (issue #144) — recurring TASK, distinct from
-                    Habits. Cyan-accented control + an "advance to next" action
-                    that rolls the due date forward when this occurrence is done. */}
-                <FieldSection label="Repeat">
-                  <TaskRecurrenceControl
-                    value={form.recurrence}
-                    onChange={(next) => set("recurrence", next)}
-                    disabled={isPending}
+                  <ActionIconButton
+                    icon={X}
+                    label="Close detail panel"
+                    onClick={requestClose}
                   />
-                  {!isCreate && form.recurrence && (
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => startTransition(() => void handleAdvanceOccurrence())}
-                      className={cn(
-                        "mt-1 inline-flex w-fit items-center gap-1.5 rounded-md px-2.5 py-1",
-                        "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
-                        "border border-[var(--hud-cyan)]/50 text-[var(--hud-cyan)]",
-                        "hover:bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)]",
-                        "transition-colors duration-150 ease-out disabled:opacity-40"
+                </div>
+                {/* Action row — quiet icon buttons, soft-landing hover (seed §7).
+                    Only affordances whose logic exists: copy title, open link. */}
+                <div className="-ml-1 flex items-center gap-0.5">
+                  <ActionIconButton
+                    icon={Copy}
+                    label="Copy task title"
+                    onClick={handleCopyTitle}
+                  />
+                  <ActionIconButton
+                    icon={ExternalLink}
+                    label="Open linked URL"
+                    disabled={!form.url}
+                    onClick={() => {
+                      if (form.url) window.open(form.url, "_blank", "noopener,noreferrer");
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null
+          }
+        >
+          {task ? (
+            <div className="flex min-h-full flex-col">
+              <div className="flex-1">
+                <MetaSection title="Details">
+                  <div className="flex flex-col gap-4 pt-1">
+                    {/* Status — sd two-tier pills mirroring the kanban columns */}
+                    <FieldSection label="Status" icon={CircleDot}>
+                      <PillGroup
+                        ariaLabel="Status"
+                        value={form.status}
+                        onChange={(v) => set("status", v)}
+                        options={STATUS_PILL.map((s) => ({
+                          value: s.value,
+                          label: s.label,
+                          color: s.dot,
+                        }))}
+                      />
+                    </FieldSection>
+
+                    {/* Priority — same pill treatment on the amber ladder */}
+                    <FieldSection label="Priority" icon={Flag}>
+                      <PillGroup
+                        ariaLabel="Priority"
+                        value={form.priority}
+                        onChange={(v) => set("priority", v)}
+                        options={PRIORITY_PILL.map((p) => ({
+                          value: p.value,
+                          label: p.label,
+                          color: `color-mix(in oklch, var(--ink-amber) ${Math.round(p.opacity * 100)}%, var(--edge))`,
+                        }))}
+                      />
+                    </FieldSection>
+
+                    {/* Due date — sd-input register, focus ring sd-accent */}
+                    <FieldSection label="Due date" icon={Clock}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={form.dueDate}
+                          onChange={(e) => set("dueDate", e.target.value)}
+                          className={cn(
+                            "h-8 flex-1 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] px-2",
+                            "font-sans text-[13px] text-[var(--sd-ink)] outline-none",
+                            "focus-visible:border-[var(--sd-accent)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                            "transition-colors duration-[120ms] ease-out"
+                          )}
+                        />
+                        {/* I-2 (D-03): inline clear — empties the date → Inbox on
+                           save. Reversible, so no confirm dialog. */}
+                        {form.dueDate && (
+                          <button
+                            type="button"
+                            onClick={() => set("dueDate", "")}
+                            title="Clear due date (move to Inbox)"
+                            aria-label="Clear due date (move to Inbox)"
+                            className="cursor-pointer-always rounded p-0.5 text-[var(--sd-ink-faint)] transition-colors duration-[120ms] hover:text-[var(--ink-coral)]"
+                          >
+                            <X size={12} strokeWidth={1.5} />
+                          </button>
+                        )}
+                        {/* MoveToMenu kept as the secondary clear path (D-03). */}
+                        <MoveToMenu
+                          variant="inline"
+                          allowClear
+                          onPick={(ymd) => set("dueDate", ymd ?? "")}
+                        />
+                      </div>
+                      {!form.dueDate && task?.dueDate && (
+                        <p className="font-sans text-[11px] text-[var(--sd-ink-faint)]">
+                          Will move to Inbox
+                        </p>
                       )}
-                    >
-                      Complete · advance to next
-                    </button>
-                  )}
-                </FieldSection>
+                    </FieldSection>
 
-                {/* 4. Linked projects */}
-                <FieldSection label="Projects">
-                  <ProjectAutocomplete
-                    value={form.projectIds}
-                    onChange={(ids) => set("projectIds", ids)}
-                    projects={projects}
-                    areas={areas}
-                    onCreateProject={onCreateProject}
-                  />
-                </FieldSection>
+                    {/* URL (issue #101) — Notion-style link property. */}
+                    <FieldSection label="URL" icon={Link2}>
+                      <UrlField
+                        value={form.url}
+                        onChange={(next) => set("url", next)}
+                        disabled={isPending}
+                      />
+                    </FieldSection>
 
-                {/* 4a. Linked people — first-class editable property. People are
-                    auto-derived from the title/notes (Haiku smart-match) and via
-                    inline `@`-mentions; add/remove them here too. */}
-                <FieldSection label="People">
-                  <PersonListField
-                    value={form.personNames}
-                    onChange={(next) => set("personNames", next)}
-                    suggestions={people}
-                    disabled={isPending}
-                  />
-                </FieldSection>
+                    {/* Recurrence (issue #144) — recurring TASK, distinct from
+                        Habits. Accent-toned "advance to next" action. */}
+                    <FieldSection label="Repeat" icon={Repeat}>
+                      <TaskRecurrenceControl
+                        value={form.recurrence}
+                        onChange={(next) => set("recurrence", next)}
+                        disabled={isPending}
+                      />
+                      {!isCreate && form.recurrence && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => startTransition(() => void handleAdvanceOccurrence())}
+                          className={cn(
+                            "mt-1 inline-flex w-fit items-center gap-1.5 rounded-[6px] px-2.5 py-1",
+                            "font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always",
+                            "border border-[var(--sd-accent)]/50 text-[var(--sd-accent)]",
+                            "hover:bg-[color-mix(in_oklch,var(--sd-accent)_12%,transparent)]",
+                            "transition-colors duration-[120ms] ease-out disabled:opacity-40"
+                          )}
+                        >
+                          Complete · advance to next
+                        </button>
+                      )}
+                    </FieldSection>
 
-                {/* 5. Description — TipTap editor with #hashtag and @person support */}
-                <FieldSection label="Description">
-                  <div className="rounded-md border border-[var(--edge)] focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] transition-colors duration-150">
+                    {/* Linked projects */}
+                    <FieldSection label="Projects" icon={FolderOpen}>
+                      <ProjectAutocomplete
+                        value={form.projectIds}
+                        onChange={(ids) => set("projectIds", ids)}
+                        projects={projects}
+                        areas={areas}
+                        onCreateProject={onCreateProject}
+                      />
+                    </FieldSection>
+
+                    {/* Linked people — first-class editable property. */}
+                    <FieldSection label="People" icon={Users}>
+                      <PersonListField
+                        value={form.personNames}
+                        onChange={(next) => set("personNames", next)}
+                        suggestions={people}
+                        disabled={isPending}
+                      />
+                    </FieldSection>
+                  </div>
+                </MetaSection>
+
+                {/* Description — TipTap editor stays serif (content identity, D9). */}
+                <MetaSection title="Description">
+                  <div className="rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors duration-[120ms] focus-within:border-[var(--sd-accent)]">
                     <EditorContent editor={notesEditor} />
                   </div>
-                </FieldSection>
+                </MetaSection>
+
+                {/* Activity — real read-only fields only (no updated/modified col). */}
+                {!isCreate && (
+                  <MetaSection title="Activity">
+                    <MetaRow
+                      label={
+                        <span className="flex items-center gap-1.5">
+                          <Calendar size={12} className="text-[var(--sd-ink-faint)]" />
+                          Created
+                        </span>
+                      }
+                      value={fmtDate(task.createdAt) ?? "--"}
+                    />
+                    <MetaRow
+                      label={
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 size={12} className="text-[var(--sd-ink-faint)]" />
+                          Completed
+                        </span>
+                      }
+                      value={fmtDate(task.completedAt) ?? "--"}
+                    />
+                  </MetaSection>
+                )}
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--glass-border)]">
+              {/* Footer — sticky, full-bleed divider (counters InspectorShell p-2). */}
+              <div className="sticky bottom-0 z-10 -mx-2 mt-2 flex items-center justify-between gap-2 border-t border-[var(--sd-line)] bg-[var(--sd-app)] px-4 py-3">
                 {isCreate ? (
                   <span />
                 ) : (
-                  <Button
+                  <button
                     type="button"
-                    variant="destructive"
-                    size="sm"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={isPending}
+                    className={cn(
+                      "cursor-pointer-always rounded-[6px] px-2.5 py-1.5 text-xs font-medium text-[var(--ink-coral)]",
+                      "transition-colors duration-[120ms] ease-out disabled:opacity-40",
+                      "hover:bg-[color-mix(in_oklch,var(--ink-coral)_12%,transparent)]"
+                    )}
                   >
                     Delete task
-                  </Button>
+                  </button>
                 )}
-                <div className="flex items-center gap-2">
-                  <Button
+                <div className="flex items-center gap-1.5">
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
                     onClick={handleCancelClick}
                     disabled={isPending}
                     title={
@@ -863,25 +943,33 @@ export function TaskDetailPanel({
                           ? "Discard unsaved changes"
                           : undefined
                     }
+                    className={cn(
+                      "cursor-pointer-always rounded-[6px] px-3 py-1.5 text-xs font-medium text-[var(--sd-ink-dull)]",
+                      "transition-colors duration-[120ms] ease-out disabled:opacity-40",
+                      "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+                    )}
                   >
                     Cancel
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="glass-button rounded-md px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink)]"
                     onClick={() => startTransition(() => void handleSave())}
                     disabled={!dirty || isPending}
+                    className={cn(
+                      "cursor-pointer-always rounded-[6px] px-4 py-1.5 text-xs font-semibold text-white",
+                      "bg-[var(--sd-accent)] transition-[background-color,opacity] duration-[120ms] ease-out",
+                      "hover:bg-[var(--sd-accent-deep)] disabled:opacity-40",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sd-app)]"
+                    )}
                   >
                     {isCreate ? "Create task" : "Save changes"}
-                  </Button>
+                  </button>
                 </div>
               </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+            </div>
+          ) : null}
+        </InspectorShell>
+      </div>
 
       {/* Discard-unsaved-changes confirm */}
       <AlertDialog
@@ -942,18 +1030,71 @@ export function TaskDetailPanel({
 
 function FieldSection({
   label,
+  icon: Icon,
   children,
 }: {
   label: string;
+  icon?: LucideIcon;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Mono uppercase chrome label per UI-SPEC §5h/§5k metadata register */}
-      <label className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+      {/* MetaRow-law label: text-xs dull, Phosphor-style leading icon (D §B). */}
+      <label className="flex items-center gap-1.5 text-xs font-medium tracking-[0.01em] text-[var(--sd-ink-dull)]">
+        {Icon ? (
+          <Icon size={13} strokeWidth={1.75} className="text-[var(--sd-ink-faint)]" />
+        ) : null}
         {label}
       </label>
       {children}
     </div>
   );
+}
+
+/**
+ * Quiet action-row / header icon button (seed §7): 18px glyph, soft-landing
+ * hover on the sd-hover backplate, focus ring on sd-accent. Disabled affordances
+ * dim rather than disappear so the row layout stays stable.
+ */
+function ActionIconButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] cursor-pointer-always",
+        "text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out",
+        "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+        "disabled:pointer-events-none disabled:opacity-35"
+      )}
+    >
+      <Icon size={18} strokeWidth={1.75} />
+    </button>
+  );
+}
+
+/** Format a real timestamp for the Activity read-only rows; null when absent. */
+function fmtDate(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
