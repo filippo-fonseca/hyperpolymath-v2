@@ -45,6 +45,10 @@ import {
   type OneEuroConfig,
 } from "../one-euro";
 import {
+  createFistScrollRecognizer,
+  type FistScrollRecognizer,
+} from "../fist-scroll-recognizer";
+import {
   createFourFingerScrollRecognizer,
   type FourFingerScrollRecognizer,
 } from "../four-finger-scroll-recognizer";
@@ -785,9 +789,19 @@ export function createHandGestureInterpreter(
   const indexScroll: IndexScrollRecognizer = createIndexScrollRecognizer((e) =>
     callbacks.onPhase(e),
   );
+  // Fist-drag scroll (PRIMARY scroll): a closed fist dragged vertically. The
+  // cursor is already frozen while a fist is held, so vertical palm translation
+  // drives wheel deltas cleanly. It ARBITRATES the committed fist by translation
+  // shape (vertical → scroll, lateral → swipe) and exposes `mode` so the swipe /
+  // collapse / palm-click siblings can stand down while it owns the fist.
+  // Targetless; the hub gates it on hover.
+  const fistScroll: FistScrollRecognizer = createFistScrollRecognizer((e) =>
+    callbacks.onPhase(e),
+  );
   // Four-finger-curl scroll: an open palm whose fingers curl/uncurl together, the
-  // openness velocity → wheel deltas. The PRIMARY scroll gesture (orthogonal to
-  // the point pose that steers the cursor). Targetless; the hub gates it on hover.
+  // openness velocity → wheel deltas. DEMOTED to a secondary path behind the
+  // fist-drag scroll (its curl band fought palm-click's close); kept for an
+  // open-hand scroll where a fist is awkward. Targetless; the hub gates it on hover.
   const fourFingerScroll: FourFingerScrollRecognizer =
     createFourFingerScrollRecognizer((e) => callbacks.onPhase(e));
   // Palm-click: a fist close-then-open within ~600ms. The PRIMARY hand click —
@@ -843,6 +857,7 @@ export function createHandGestureInterpreter(
     pinchBloom.reset();
     openHandResize.reset();
     indexScroll.reset();
+    fistScroll.reset();
     fourFingerScroll.reset();
     scrollCurlGate.reset();
     palmClick.reset();
@@ -1047,7 +1062,21 @@ export function createHandGestureInterpreter(
       engaged: pose === "point" && !pinchActive,
     });
 
-    // Four-finger-curl scroll (PRIMARY): an open palm whose fingers curl/uncurl
+    // Fist-drag scroll (PRIMARY scroll): a committed fist dragged vertically.
+    // Runs every frame (before the pinch early-return) so its falling edge fires
+    // `scrollEnd` on release. It arbitrates the fist by translation shape and
+    // latches `mode` (scroll / swipe / idle); the swipe, collapse, and palm-click
+    // siblings below stand down while `mode === "scroll"`. Uses the raw palm
+    // centroid (same signal as swipe) so the two agree on the fist's motion.
+    fistScroll.push({
+      t: tMs,
+      nx: palm.nx,
+      ny: palm.ny,
+      engaged: pose === "fist" && !pinchActive,
+    });
+    const fistScrolling = fistScroll.mode === "scroll";
+
+    // Four-finger-curl scroll (SECONDARY): an open palm whose fingers curl/uncurl
     // together drives the scroll. Reuses the same smoothed openness signal as
     // resize; the two separate by dynamics — a fast curl trips scroll's velocity
     // deadband before resize's 300ms arm dwell completes, while a slow, steady
@@ -1075,6 +1104,9 @@ export function createHandGestureInterpreter(
     // fist held long enough to already fire `collapse` must not ALSO fire a
     // click on release, since palm-click's own cancel window (`cancelMs`) is
     // deliberately longer than collapse's `holdMs`.
+    // `engaged` additionally drops while the fist-drag scroll owns this fist — a
+    // vertical drag is a scroll, not a click, so its eventual reopen must not
+    // also fire a tap.
     const preCurlAim = cursorHistory.sampleBefore(tMs, cfg.palmClickAimLeadMs);
     palmClick.push({
       t: tMs,
@@ -1082,7 +1114,7 @@ export function createHandGestureInterpreter(
       nx: preCurlAim ? preCurlAim.nx : lastCursor.nx,
       ny: preCurlAim ? preCurlAim.ny : lastCursor.ny,
       speed: cursorSpeed,
-      engaged: !pinchActive && !collapseFired,
+      engaged: !pinchActive && !collapseFired && !fistScrolling,
     });
 
     // Thumbs-up / thumbs-down confirm: classify the raw frame and feed the hold
@@ -1117,16 +1149,26 @@ export function createHandGestureInterpreter(
       collapseFired = false;
     }
 
-    // --- Swipe (shared recognizer). Engaged only while a fist is committed. ---
+    // --- Swipe (shared recognizer). Engaged only while a fist is committed AND
+    // the fist-drag scroll hasn't claimed a vertical drag. A lateral drag latches
+    // fist-scroll to `swipe` mode (not `scroll`), so `fistScrolling` is false and
+    // the swipe runs; a vertical drag makes `fistScrolling` true and starves it.
     // Its onSwipe callback sets swipeFired + emits, so feed it before collapse.
-    swipe.push({ t: tMs, nx: palm.nx, ny: palm.ny, engaged: pose === "fist" });
+    swipe.push({
+      t: tMs,
+      nx: palm.nx,
+      ny: palm.ny,
+      engaged: pose === "fist" && !fistScrolling,
+    });
 
-    // --- Collapse: sustained fist with no swipe. ---
+    // --- Collapse: sustained STATIONARY fist with no swipe and no scroll. A fist
+    // dragged into a scroll must never also collapse when held. ---
     if (
       pose === "fist" &&
       fistStart !== null &&
       !swipeFired &&
       !collapseFired &&
+      !fistScrolling &&
       tMs - fistStart >= cfg.holdMs
     ) {
       callbacks.onIntent({ type: "collapse" });
