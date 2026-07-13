@@ -13,17 +13,21 @@
  *   - pinch (thumb-index): camera navigation. A moving pinch pans (palm centroid)
  *     and dollies (palm-depth via pinch-dolly); the cursor is FROZEN throughout,
  *     and a pinch held over a widget past `grabHoldMs` becomes a grab (pinch-hold).
- *   - pinch-bloom: a quick pinch that springs back open under `grabHoldMs` emits
- *     `expand` (pinch-bloom recognizer). The exact `grabHoldMs` split gives grab
- *     and bloom mutual exclusion: still pinched at T ⇒ grab, released before ⇒ bloom.
+ *   - quick-pinch tap (PRIMARY click): a quick pinch that springs back open under
+ *     `grabHoldMs` emits `tap` (pinch-bloom recognizer). The exact `grabHoldMs`
+ *     split gives grab and tap mutual exclusion: still pinched at T ⇒ grab,
+ *     released before ⇒ tap. Reuses the trusted pinch freeze so the aim can't
+ *     drift mid-click.
  *
  * The fist family stays close-only, mutually exclusive with the above:
- *   - fist + lateral palm motion → swipe (shared recognizer), latches.
- *   - fist held >= holdMs (no swipe) → `collapse`, fired once at the threshold.
- *   - fist that reopens within ~600ms (before `collapse` would fire) → `tap`
- *     (palm-click, the PRIMARY hand click — see `palm-click-recognizer.ts`).
- *     `collapseFired` gates palm-click's `engaged`, so once a hold has already
- *     fired `collapse` its eventual release can never ALSO fire a click.
+ *   - fist + lateral (horizontal-dominant) palm motion → swipe, latches.
+ *   - fist + vertical-dominant palm motion → scroll (fist-drag scroll), the
+ *     PRIMARY scroll; the cursor freezes and vertical translation → wheel deltas.
+ *   - fist held stationary >= holdMs (no swipe / no scroll) → `collapse`.
+ *   - fist that reopens within ~600ms without translating → `tap` (palm-click,
+ *     the SECONDARY click — see `palm-click-recognizer.ts`). `collapseFired`
+ *     gates palm-click's `engaged`, so once a hold has already fired `collapse`
+ *     its eventual release can never ALSO fire a click.
  *
  * Cursor freeze — the cursor tracks the index fingertip, which curls into the
  * palm as a fist closes; so while a fist is held (or a pinch is engaged) the
@@ -737,13 +741,15 @@ export function createHandGestureInterpreter(
     { holdMs: cfg.haltHoldMs, maxDriftNx: cfg.haltMaxDriftNx, pushRatio: cfg.haltPushRatio },
   );
 
-  // Pinch-bloom opens a widget: a quick pinch released into an open hand under
-  // `grabHoldMs`. The cursor is FROZEN while pinched, so hover stays pinned to
-  // whatever the reticle was over at pinch-start; the hub upgrades the targetless
-  // `expand` from that pinned hover. Shares `grabHoldMs` with pinch-hold, so grab
-  // and bloom are mutually exclusive (held past T ⇒ grab, released before ⇒ bloom).
+  // Quick-pinch tap (PRIMARY click): a quick pinch released into an open hand
+  // under `grabHoldMs`. The cursor is FROZEN the instant the pinch engages (and
+  // re-anchored to the pre-pinch aim), so hover stays pinned to whatever the
+  // reticle was over at pinch-start; the hub upgrades the targetless `tap` from
+  // that pinned hover. Shares `grabHoldMs` with pinch-hold, so tap and grab are
+  // mutually exclusive (held past T ⇒ grab, released before ⇒ tap). Emits the
+  // SAME `tap` intent as palm-click, so downstream dispatch is unchanged.
   const pinchBloom: PinchBloomRecognizer = createPinchBloomRecognizer(
-    () => callbacks.onIntent({ type: "expand" }),
+    () => callbacks.onIntent({ type: "tap" }),
     { holdMs: cfg.grabHoldMs, bloomWindowMs: cfg.bloomWindowMs },
   );
 
