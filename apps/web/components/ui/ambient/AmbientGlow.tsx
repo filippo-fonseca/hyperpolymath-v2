@@ -7,27 +7,28 @@ import { useTabHidden } from "./useTabHidden";
 /**
  * AmbientGlow — the campaign's spacedrive.com / Raycast ambient flourish.
  *
- * Technique (design constitution §C, Scout B): flat low-alpha accent blobs +
- * a giant GPU blur, de-banded with an SVG feTurbulence noise overlay
- * (mix-blend overlay). No radial-gradient orbs, no canvas. The whole layer is
- * `pointer-events-none` and `aria-hidden`, so it never costs an interaction or
- * a screen-reader stop.
+ * Built on the foundations recipe (globals.css §4): `.sd-glow-wide` /
+ * `.sd-glow-core` are flat low-alpha `--sd-accent` (cyan, D1b) blobs under a
+ * giant GPU blur; `.sd-noise-overlay` is the feTurbulence de-band pass
+ * (mix-blend overlay). This unit adds what foundations left to it: the two
+ * intensity registers, the slow drift loop, and the motion-pause rules.
  *
- * Two registers:
- *   - "whisper" (default): static, very low alpha. Mounted behind the app
- *     shell on every route.
- *   - "bold": brighter blobs + a slow compositor drift (transform/scale only).
- *     Mounted behind the Life OS hero / stat strip.
+ * Registers:
+ *   - "whisper" (default): static, dampened. Mounted behind the app shell on
+ *     every route.
+ *   - "bold": the foundations opacities + a slow compositor drift (transform /
+ *     scale only). Mounted behind the Life OS hero / stat strip.
  *
- * Both themes are first-class (D1c): light mode gets roughly half the alpha so
- * text contrast stays AA over warm parchment. All motion is disabled under
- * `prefers-reduced-motion` (CSS) and paused while the tab is hidden (JS), so a
- * background tab never animates.
+ * Both themes are first-class (D1c): the foundations utilities already run a
+ * dampened light-theme alpha, and whisper dampens further, so text contrast
+ * stays AA over warm parchment. All motion is disabled under
+ * `prefers-reduced-motion` (CSS) and paused while the tab is hidden (JS).
  *
- * Positioning: defaults to a fixed full-viewport layer sitting behind content
- * via a negative z-index (the mount point must establish a stacking context,
- * e.g. `isolate`). Pass `className` to scope it to a section (`absolute inset-0`
- * inside a `relative` parent) — tailwind-merge lets your className win.
+ * The whole layer is `pointer-events-none` + `aria-hidden`. It defaults to a
+ * fixed full-viewport layer behind content via a negative z-index (the mount
+ * must establish a stacking context, e.g. `isolate`). Pass `className` to scope
+ * it to a section (`absolute inset-0` inside a `relative` parent); tailwind-merge
+ * lets your className win.
  */
 
 type Intensity = "whisper" | "bold";
@@ -39,16 +40,9 @@ interface Props {
   className?: string;
 }
 
-/**
- * feTurbulence fractal noise, inlined as a data-URI so it needs no network
- * round-trip and no extra file. baseFrequency 1.8 / 5 octaves per Scout B.
- */
-const NOISE_DATA_URI =
-  "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='220'%20height='220'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='1.8'%20numOctaves='5'%20stitchTiles='stitch'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E";
-
 /** Per-anchor blob geometry. Centering via negative margins keeps `transform`
  *  free for the drift animation. Sizes are viewport-relative so the field
- *  scales with the screen; overflow-hidden clips the bleed. */
+ *  scales with the screen; the container's overflow-hidden clips the bleed. */
 function blobGeometry(anchor: Anchor): { wide: CSSProperties; core: CSSProperties } {
   switch (anchor) {
     case "top":
@@ -85,77 +79,35 @@ export function AmbientGlow({ intensity = "whisper", anchor = "center", classNam
       )}
     >
       <style>{AMBIENT_CSS}</style>
-      <div className="sd-ambient__blob sd-ambient__wide" style={wide} />
-      <div className="sd-ambient__blob sd-ambient__core" style={core} />
-      <div className="sd-ambient__noise" />
+      <div className="sd-ambient__blob sd-glow-wide" style={wide} />
+      <div className="sd-ambient__blob sd-glow-core" style={core} />
+      <div className="sd-noise-overlay" />
     </div>
   );
 }
 
-/* Component-scoped CSS. Kept out of globals.css by design (the ambient layer is
- * self-contained). Duplicate injection across instances is idempotent.
- *
- * Alpha ladder: base values target the light theme (dampened, over parchment);
- * `.dark` overrides bump them up. Keying the brighter values off `.dark`
- * (rather than the light values off `:not(.dark)`) is robust to whether the
- * theme class lands on <html> or a wrapper. */
+/* Component-scoped CSS — purely additive over the foundations recipe. It never
+ * redefines the glow/noise look (foundations owns that); it only tunes the
+ * whisper register, drives the drift loop, and honours the motion rules.
+ * Duplicate injection across instances is idempotent. */
 const AMBIENT_CSS = `
-.sd-ambient {
-  --amb-wide-a: 0.05;
-  --amb-core-a: 0.035;
-  --amb-noise-o: 0.05;
-  --amb-wide-blur: 150px;
-  --amb-core-blur: 80px;
-}
-.sd-ambient[data-intensity="bold"] {
-  --amb-wide-a: 0.10;
-  --amb-core-a: 0.075;
-  --amb-noise-o: 0.14;
-}
-:where(.dark) .sd-ambient {
-  --amb-wide-a: 0.07;
-  --amb-core-a: 0.05;
-  --amb-noise-o: 0.10;
-}
-:where(.dark) .sd-ambient[data-intensity="bold"] {
-  --amb-wide-a: 0.20;
-  --amb-core-a: 0.15;
-  --amb-noise-o: 0.35;
-}
-.sd-ambient__blob {
-  position: absolute;
-  border-radius: 9999px;
-  transform: translate3d(0, 0, 0);
-}
-.sd-ambient__wide {
-  background: rgb(var(--hud-cyan-rgb) / var(--amb-wide-a));
-  filter: blur(var(--amb-wide-blur));
-}
-.sd-ambient__core {
-  background: rgb(var(--hud-cyan-rgb) / var(--amb-core-a));
-  filter: blur(var(--amb-core-blur));
-}
-.sd-ambient__noise {
-  position: absolute;
-  inset: 0;
-  background-image: url("${NOISE_DATA_URI}");
-  background-repeat: repeat;
-  background-size: 220px 220px;
-  opacity: var(--amb-noise-o);
-  mix-blend-mode: overlay;
-}
-.sd-ambient[data-intensity="bold"] .sd-ambient__blob {
-  will-change: transform;
-}
-.sd-ambient[data-intensity="bold"] .sd-ambient__wide {
-  animation: sdAmbientDriftA 24s ease-in-out infinite;
-}
-.sd-ambient[data-intensity="bold"] .sd-ambient__core {
-  animation: sdAmbientDriftB 31s ease-in-out infinite;
-}
-.sd-ambient[data-paused="true"] .sd-ambient__blob {
-  animation-play-state: paused;
-}
+/* Blobs are absolutely placed by this unit; foundations only styles their look. */
+.sd-ambient__blob { position: absolute; transform: translate3d(0, 0, 0); }
+
+/* Whisper: dampen the foundations opacities to a quiet background hum. */
+.sd-ambient[data-intensity="whisper"] .sd-glow-wide { opacity: 0.05; }
+.sd-ambient[data-intensity="whisper"] .sd-glow-core { opacity: 0.04; }
+.sd-ambient[data-intensity="whisper"] .sd-noise-overlay { opacity: 0.06; }
+:where(.dark) .sd-ambient[data-intensity="whisper"] .sd-glow-wide { opacity: 0.07; }
+:where(.dark) .sd-ambient[data-intensity="whisper"] .sd-glow-core { opacity: 0.05; }
+:where(.dark) .sd-ambient[data-intensity="whisper"] .sd-noise-overlay { opacity: 0.12; }
+
+/* Drift — bold only, compositor transform/scale on top of the blur. */
+.sd-ambient[data-intensity="bold"] .sd-ambient__blob { will-change: transform; }
+.sd-ambient[data-intensity="bold"] .sd-glow-wide { animation: sdAmbientDriftA 24s ease-in-out infinite; }
+.sd-ambient[data-intensity="bold"] .sd-glow-core { animation: sdAmbientDriftB 31s ease-in-out infinite; }
+.sd-ambient[data-paused="true"] .sd-ambient__blob { animation-play-state: paused; }
+
 @keyframes sdAmbientDriftA {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(4%, -3%, 0) scale(1.05); }
