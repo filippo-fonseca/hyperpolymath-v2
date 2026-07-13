@@ -106,12 +106,20 @@ export default function BrandingPage() {
   return (
     <main className="mx-auto w-full max-w-[960px] px-8 py-16 space-y-20">
       <header className="flex flex-col gap-4">
-        <Link
-          href="/"
-          className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
-        >
-          ← Hyperpolymath
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+          >
+            ← Hyperpolymath
+          </Link>
+          <Link
+            href="/design"
+            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+          >
+            Design →
+          </Link>
+        </div>
         <div>
           <SectionEyebrow label="§ 00 · BRAND" />
           <h1
