@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ListTodo } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,13 @@ import {
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { Chip, EntityCardHeader, StatusPill } from "./entity-card";
+
+/** High-priority tint (15%-alpha chip, D6). P3/P∞ stay untinted / hidden. */
+const priorityTone: Partial<Record<TaskWithProjects["priority"], string>> = {
+  P1: "var(--ink-coral)",
+  P2: "var(--ink-amber)",
+};
 
 interface Props {
   userId: string;
@@ -168,38 +175,43 @@ export function UpcomingTasksWidget({
     ? { duration: 0 }
     : { duration: 0.22, ease: [0.25, 1, 0.5, 1] as const };
 
+  const subtitle =
+    overdueCount > 0 || todayCount > 0 ? (
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em]">
+        {overdueCount > 0 && (
+          <span style={{ color: "var(--ink-coral)" }}>{overdueCount} overdue</span>
+        )}
+        {overdueCount > 0 && todayCount > 0 ? " · " : ""}
+        {todayCount > 0 && (
+          <span style={{ color: "var(--ink-amber)" }}>{todayCount} today</span>
+        )}
+      </span>
+    ) : (
+      `${open.length} scheduled`
+    );
+
   return (
     <div className="flex flex-col h-full">
-      <header className="mb-5 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h3
-            className={`font-serif font-semibold text-[var(--ink)] ${compact ? "text-base" : "text-lg"}`}
+      <EntityCardHeader
+        icon={<ListTodo size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        title="Tasks"
+        subtitle={subtitle}
+        pill={
+          upcoming.length > 0 ? (
+            <StatusPill tone="progress" label={`${upcoming.length} due`} />
+          ) : (
+            <StatusPill tone="idle" label="clear" />
+          )
+        }
+        action={
+          <Link
+            href="/tasks"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
           >
-            Upcoming
-          </h3>
-          {(overdueCount > 0 || todayCount > 0) && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-              {overdueCount > 0 && (
-                <span style={{ color: "var(--ink-coral)" }}>
-                  {overdueCount} overdue
-                </span>
-              )}
-              {overdueCount > 0 && todayCount > 0 ? " · " : ""}
-              {todayCount > 0 && (
-                <span style={{ color: "var(--ink-amber)" }}>
-                  {todayCount} today
-                </span>
-              )}
-            </span>
-          )}
-        </div>
-        <Link
-          href="/tasks"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
+            All →
+          </Link>
+        }
+      />
 
       {/* Inline composer — Enter to create with today's due date. */}
       <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 transition-colors duration-150 focus-within:border-[var(--edge-hud)]">
@@ -274,17 +286,23 @@ export function UpcomingTasksWidget({
                   <span className="font-serif text-[14px] text-[var(--ink)] flex-1 min-w-0 truncate">
                     {t.title}
                   </span>
-                  {project && (
-                    <span className="font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)] shrink-0 max-w-[120px] truncate">
-                      {project.name}
-                    </span>
-                  )}
-                  <span
-                    className="font-mono text-[10px] uppercase tracking-[0.10em] shrink-0 tabular-nums"
-                    style={{ color: tone.text }}
-                  >
-                    {tone.label || format(new Date(t.dueDate as string), "MMM d")}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {priorityTone[t.priority] && (
+                      <Chip tone={priorityTone[t.priority]}>{t.priority}</Chip>
+                    )}
+                    {project && (
+                      <span className="font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)] max-w-[110px] truncate">
+                        {project.name}
+                      </span>
+                    )}
+                    {u === "overdue" || u === "today" ? (
+                      <Chip tone={tone.text}>{tone.label}</Chip>
+                    ) : (
+                      <span className="font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
+                        {format(new Date(t.dueDate as string), "MMM d")}
+                      </span>
+                    )}
+                  </div>
                 </motion.li>
               );
             })}
