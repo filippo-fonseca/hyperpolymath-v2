@@ -246,7 +246,7 @@ export function AreasTree({
           chrome strip; pills on the right. Hairline border below the bar
           gives it just enough separation from the canvas without becoming
           a card. */}
-      <div className="flex items-center justify-between gap-4 px-2 pb-3 mb-4 border-b border-[var(--edge)]">
+      <div className="flex items-center justify-between gap-4 px-2 pb-3 mb-4 border-b border-[var(--sd-line)]">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
           View
         </span>
@@ -372,7 +372,7 @@ export function AreasTree({
               cx={v.cx}
               cy={v.cy}
               r="3"
-              fill="var(--canvas)"
+              fill="var(--sd-app)"
               stroke={PULSE}
               strokeWidth="1.5"
             />
@@ -389,7 +389,7 @@ export function AreasTree({
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
+          className="relative shrink-0 overflow-hidden rounded-xl border border-[var(--edge-hud)] bg-[var(--sd-box)]"
           style={{
             width: 72,
             height: 72,
@@ -495,8 +495,8 @@ function TogglePill({
         "transition-colors duration-[120ms] ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         active
-          ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-          : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+          ? "border-[var(--sd-line)] bg-[var(--sd-box)] text-[var(--ink)]"
+          : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--sd-line)]",
       )}
     >
       {icon}
@@ -595,10 +595,10 @@ function AreaBranch({
             // white inset top hairline (D7) for dimensionality, elevation via
             // the grey ladder rather than shadow weight. --glass-* knobs let
             // /lifeos (.lifeos-glass) run frostier than /areas.
-            "border border-[var(--edge)] bg-[var(--glass-bg)]",
+            "border border-[var(--sd-line)] bg-[var(--glass-bg)]",
             "[backdrop-filter:blur(var(--glass-blur,10px))] [-webkit-backdrop-filter:blur(var(--glass-blur,10px))]",
             "[box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)]",
-            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_90%,transparent)]",
+            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--sd-box)_90%,transparent)]",
             "transition-colors duration-[120ms] ease-out cursor-pointer-always",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
@@ -609,7 +609,7 @@ function AreaBranch({
                 AreaIcon (advisor: never drop user data). */}
             <span
               aria-hidden="true"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[var(--edge)] bg-[var(--surface)] text-[15px] leading-none"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-dark-box)] text-[15px] leading-none"
             >
               {area.emoji ? area.emoji : <AreaIcon size={20} />}
             </span>
@@ -642,7 +642,7 @@ function AreaBranch({
           className={cn(
             "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-[6px]",
             "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-            "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
+            "border border-transparent hover:border-[var(--sd-line)] hover:bg-[var(--sd-hover)]",
             "transition-colors duration-[120ms] ease-out cursor-pointer-always",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
@@ -726,7 +726,7 @@ function AreaBranch({
                           className={cn(
                             "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-[6px]",
                             "font-serif text-[13px]",
-                            "hover:bg-[var(--surface)] transition-colors duration-[120ms] ease-out",
+                            "hover:bg-[var(--sd-hover)] transition-colors duration-[120ms] ease-out",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
                             isArchived
                               ? "text-[var(--ink-muted)] italic"
@@ -801,7 +801,7 @@ function AreaBranch({
 
 function EmptyAreas() {
   return (
-    <div className="rounded-[8px] border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
+    <div className="rounded-[8px] border border-dashed border-[var(--sd-line)] px-6 py-8 text-center max-w-md mx-auto">
       <p className="font-serif italic text-base text-[var(--ink-muted)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
