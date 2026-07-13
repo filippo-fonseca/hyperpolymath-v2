@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, Archive } from "lucide-react";
+import { AreaIcon } from "@/components/ui/icons";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
@@ -51,7 +52,7 @@ const BRANCH_RISE = 32; // px the branch rises off the top of each card
 // Single neutral hairline for the whole tree backbone (theme-aware, faint
 // cyan tint via --edge-hud). The pulse + vertices carry the lone cyan accent.
 const CONNECTOR = "color-mix(in oklch, var(--edge-hud) 85%, transparent)";
-const PULSE = "var(--hud-cyan)";
+const PULSE = "var(--sd-accent)";
 
 export function AreasTree({
   areas,
@@ -393,7 +394,7 @@ export function AreasTree({
             width: 72,
             height: 72,
             boxShadow:
-              "0 0 0 1px color-mix(in oklch, var(--hud-cyan) 32%, transparent), 0 0 20px color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
+              "0 0 0 1px color-mix(in oklch, var(--sd-accent) 32%, transparent), 0 0 20px color-mix(in oklch, var(--sd-accent) 14%, transparent)",
           }}
         >
           {prefersReducedMotion ? null : (
@@ -402,7 +403,7 @@ export function AreasTree({
               className="pointer-events-none absolute inset-0 rounded-xl animate-pulse"
               style={{
                 boxShadow:
-                  "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
+                  "0 0 0 4px color-mix(in oklch, var(--sd-accent) 8%, transparent)",
               }}
             />
           )}
@@ -492,7 +493,7 @@ function TogglePill({
         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] border",
         "font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always",
         "transition-colors duration-[120ms] ease-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         active
           ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
           : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
@@ -599,21 +600,18 @@ function AreaBranch({
             "[box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)]",
             "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_90%,transparent)]",
             "transition-colors duration-[120ms] ease-out cursor-pointer-always",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
           <div className="flex items-center gap-2.5">
             {/* Icon in a subtle backplate (sd entity-card anatomy). Keeps the
-                user's chosen emoji; falls back to the area initial. */}
+                user's chosen emoji where set; defaults to the dimensional
+                AreaIcon (advisor: never drop user data). */}
             <span
               aria-hidden="true"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[var(--edge)] bg-[var(--surface)] text-[15px] leading-none"
             >
-              {area.emoji ?? (
-                <span className="font-mono text-[11px] uppercase text-[var(--ink-muted)]">
-                  {area.name.slice(0, 1)}
-                </span>
-              )}
+              {area.emoji ? area.emoji : <AreaIcon size={20} />}
             </span>
             <span className="min-w-0 flex-1 font-serif text-base font-semibold text-[var(--ink)] truncate">
               {area.name}
@@ -646,7 +644,7 @@ function AreaBranch({
             "text-[var(--ink-muted)] hover:text-[var(--ink)]",
             "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
             "transition-colors duration-[120ms] ease-out cursor-pointer-always",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
           <ChevronDown
@@ -727,7 +725,7 @@ function AreaBranch({
                             "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-[6px]",
                             "font-serif text-[13px]",
                             "hover:bg-[var(--surface)] transition-colors duration-[120ms] ease-out",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
                             isArchived
                               ? "text-[var(--ink-muted)] italic"
                               : "text-[var(--ink)]",
@@ -769,7 +767,7 @@ function AreaBranch({
                       />
                       <Link
                         href={`/areas/${area.id}`}
-                        className="inline-flex rounded-[6px] font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-[120ms] py-1 px-1 -ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
+                        className="inline-flex rounded-[6px] font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-[120ms] py-1 px-1 -ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
                       >
                         + {hiddenCount} more
                       </Link>
