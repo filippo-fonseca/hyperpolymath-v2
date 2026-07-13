@@ -1,7 +1,26 @@
+use serde::Serialize;
 use tauri::{
-    webview::WebviewBuilder, AppHandle, Manager, PhysicalPosition, PhysicalSize, Rect, Size,
-    WebviewUrl,
+    webview::{NewWindowResponse, WebviewBuilder},
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Rect, Size, WebviewUrl,
 };
+
+/// Payload for `STUDIO_WEBVIEW_POPUP_EVENT`. A page inside a promoted child
+/// webview asked to open a new window (`window.open`, `target="_blank"`, etc.);
+/// we deny the unmanaged OS window and hand the URL to the frontend so it opens
+/// a NEW managed browser widget instead.
+#[derive(Clone, Serialize)]
+struct WebviewPopupPayload {
+    /// The child webview label (== widget id) the popup originated from.
+    source: String,
+    /// The requested popup URL.
+    url: String,
+}
+
+/// Frontend event fired when a promoted child webview requests a popup. The
+/// frontend listener (see `wireStudioWebviewPopups`) routes the URL through
+/// `openBrowserUrl`, opening a managed browser widget. Keep the name in sync
+/// with the TS listener.
+const STUDIO_WEBVIEW_POPUP_EVENT: &str = "studio://webview-popup";
 
 fn external_url(value: &str) -> Result<tauri::Url, String> {
     let url = value
@@ -69,7 +88,41 @@ pub async fn studio_webview_create(
     let window = app
         .get_window("main")
         .ok_or_else(|| "main window not found".to_string())?;
-    let builder = WebviewBuilder::new(&label, WebviewUrl::External(url));
+    // Popup containment: a page inside the child webview may call
+    // `window.open`, use `target="_blank"`, etc. Left to the default, wry opens
+    // a full-size UNMANAGED OS window that overflows the widget and the HUD. We
+    // intercept every new-window request, deny the native window, and emit the
+    // requested URL to the frontend so it opens a NEW managed browser widget.
+    // NO unmanaged OS windows, ever.
+    let popup_app = app.clone();
+    let popup_source = label.clone();
+    let builder = WebviewBuilder::new(&label, WebviewUrl::External(url)).on_new_window(
+        move |target, _features| {
+            let requested = target.to_string();
+            // Only http/https popups map to a managed browser widget. Anything
+            // else (about:blank, javascript:, data:, custom schemes) is denied
+            // silently rather than leaked to an OS surface.
+            if matches!(target.scheme(), "http" | "https") {
+                eprintln!(
+                    "[studio_webview] popup denied+rerouted source={popup_source} url={requested}"
+                );
+                if let Err(error) = popup_app.emit(
+                    STUDIO_WEBVIEW_POPUP_EVENT,
+                    WebviewPopupPayload {
+                        source: popup_source.clone(),
+                        url: requested,
+                    },
+                ) {
+                    eprintln!("[studio_webview] popup emit err: {error}");
+                }
+            } else {
+                eprintln!(
+                    "[studio_webview] popup denied (non-http) source={popup_source} url={requested}"
+                );
+            }
+            NewWindowResponse::Deny
+        },
+    );
     let child = window
         .add_child(builder, bounds.position, bounds.size)
         .map_err(|error| {
