@@ -16,7 +16,10 @@ import {
   onPhysicalTranscript,
   onStudioAction,
 } from "@/physical-extender/sse-client";
-import { markStudioAvailable } from "@studio/actions/browser-router";
+import {
+  markStudioAvailable,
+  wireStudioWebviewPopups,
+} from "@studio/actions/browser-router";
 import { routeStudioAction } from "@studio/actions/studio-action-router";
 import { startMaterialization } from "@studio/actions/materialize";
 
@@ -77,6 +80,11 @@ export function startStudioBridge(): void {
   // Studio is mounted → open_url can route into the browser widget instead of
   // the system browser (dispatcher's routeOpenUrl gates on this).
   markStudioAvailable();
+
+  // Contain child-webview popups: a page inside a promoted browser widget that
+  // calls window.open() emits studio://webview-popup from Rust; route the URL
+  // into a NEW managed browser widget instead of an unmanaged OS window.
+  wireStudioWebviewPopups();
 
   onJarvisState((state) => emit("jarvisState", state));
   onPhysicalTranscript((payload) => {

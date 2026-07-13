@@ -25,6 +25,8 @@
 //      double-open collapses to one widget. The window is short enough that a
 //      user DELIBERATELY re-opening the same page a minute later still works.
 
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+
 import { summonWidget } from "../state/widget-windows";
 import { WIDGET_CATALOG } from "../windows/catalog";
 
@@ -173,10 +175,71 @@ export function openBrowserUrl(url: string, turnId?: string): boolean {
   return true;
 }
 
-/** Test hook: clear all router state (studio flag + both dedupe layers + clock). */
+/**
+ * Tauri event fired by `studio_webview.rs` when a page inside a promoted child
+ * webview requests a popup (`window.open`, `target="_blank"`, …). The Rust side
+ * denies the unmanaged OS window; we reopen the URL here as a managed browser
+ * widget. Keep the name in sync with `STUDIO_WEBVIEW_POPUP_EVENT` in Rust.
+ */
+export const STUDIO_WEBVIEW_POPUP_EVENT = "studio://webview-popup";
+
+interface WebviewPopupPayload {
+  /** The child webview label (== widget id) the popup came from. */
+  source: string;
+  /** The requested popup URL. */
+  url: string;
+}
+
+let popupUnlisten: UnlistenFn | null = null;
+
+/**
+ * Route child-webview popups into managed browser widgets. Subscribes to the
+ * `studio://webview-popup` Tauri event and hands each requested URL to
+ * `openBrowserUrl` (which spawns/reuses a browser widget). Idempotent: a second
+ * call is a no-op while a listener is already attached. Returns an unlisten fn.
+ *
+ * The popup carries no turn context, so it opens under the `NO_TURN` dedupe
+ * bucket AND passes through the cross-turn recency window: a page firing the
+ * same `window.open` twice in a row (or re-opening a URL a turn just opened) is
+ * suppressed, while a genuinely new popup URL still summons a widget.
+ */
+export function wireStudioWebviewPopups(): () => void {
+  if (popupUnlisten) return () => undefined;
+  let disposed = false;
+  void listen<WebviewPopupPayload>(STUDIO_WEBVIEW_POPUP_EVENT, (event) => {
+    const url = event.payload?.url;
+    if (typeof url !== "string" || url.length === 0) return;
+    openBrowserUrl(url);
+  })
+    .then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+      popupUnlisten = unlisten;
+    })
+    .catch(() => undefined);
+  return () => {
+    disposed = true;
+    if (popupUnlisten) {
+      popupUnlisten();
+      popupUnlisten = null;
+    }
+  };
+}
+
+/**
+ * Test hook: clear all router state — studio flag, both dedupe layers
+ * (per-turn LRU + cross-turn recency window), the injectable clock, and the
+ * popup listener.
+ */
 export function __resetBrowserRouter(): void {
   studioAvailable = false;
   openedByTurn.clear();
   recentByUrl.clear();
   now = () => Date.now();
+  if (popupUnlisten) {
+    popupUnlisten();
+    popupUnlisten = null;
+  }
 }
