@@ -7,9 +7,7 @@ import Link from "next/link";
 import { ChevronDown, ArrowUpRight, Github } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
 import { VoiceInputCard } from "./VoiceInputCard";
-import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
-import { AmbientGlow } from "./AmbientGlow";
-import { FocalOrb } from "./FocalOrb";
+import { AmbientGlow, FocalOrb } from "@/components/ui/ambient";
 
 // --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier
 // inference. An ease-OUT curve — the seed's sanctioned hero entrance.
@@ -23,8 +21,9 @@ const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
  * themes — the seed-sanctioned editorial choice, scoped via `.dark` so the
  * demo cards + inks resolve dark tokens without touching their internals),
  * a bold AmbientGlow + film-grain noise field, ONE glossy FocalOrb (the
- * brand's HudCoreBubble), an EB Garamond headline that punches out of the
- * glow via a heavy black drop-shadow, a dull lede, and pill CTAs.
+ * canonical `components/ui/ambient` sphere), an EB Garamond headline that
+ * punches out of the glow via a heavy black drop-shadow, a dull lede, and
+ * pill CTAs.
  *
  * Every copy string from the prior banner-card hero is preserved. Motion is
  * the sanctioned hero fade-up (500ms ease-out, 100ms stagger); `useReduced-
@@ -90,9 +89,11 @@ export function ThesisSection() {
         }}
       />
 
-      {/* Theatrical ambient field — bold glow pills + de-band noise, drifting
-          unless reduced-motion. Fills the whole plate behind the content. */}
-      <AmbientGlow intensity="theatrical" className="z-0" />
+      {/* Theatrical ambient field — canonical bold glow pills + de-band noise,
+          hero-anchored, drifting unless reduced-motion. Scoped to the plate
+          (absolute inset-0) so it fills the section behind the content rather
+          than the fixed full-viewport default. */}
+      <AmbientGlow intensity="bold" anchor="hero" className="absolute inset-0 z-0" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1080px] flex-col items-center text-center">
         {/* Crest row — mono brand meta, preserved verbatim. */}
@@ -115,18 +116,12 @@ export function ThesisSection() {
           </span>
         </motion.div>
 
-        {/* ONE glossy focal orb — the brand HudCoreBubble, staged by FocalOrb's
-            bloom. The bubble's intrinsic SVG is 280px; scaled to sit above the
-            headline like the reference composition. */}
-        <motion.div {...fade(1)} className="mt-8 md:mt-10">
-          <FocalOrb className="h-[176px] w-[176px]">
-            <div
-              className="select-none"
-              style={{ transform: "scale(0.62)", transformOrigin: "center" }}
-            >
-              <HudCoreBubble state="thinking" />
-            </div>
-          </FocalOrb>
+        {/* ONE glossy focal orb — the canonical CSS/SVG sphere, sitting above
+            the headline like the spacedrive.com reference composition. Its own
+            under-glow + slow bob carry the focal light source the headline
+            punches out of. */}
+        <motion.div {...fade(1)} className="mt-8 flex justify-center md:mt-10">
+          <FocalOrb size={176} />
         </motion.div>
 
         {/* Headline — EB Garamond editorial moment, punching out of the glow
