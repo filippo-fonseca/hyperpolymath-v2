@@ -12,6 +12,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { ConvertCaptureToTaskDialog } from "@/components/captures/ConvertCaptureToTaskDialog";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { Chip, ChipRow, EntityCardHeader, StatusPill } from "./entity-card";
 
 interface Props {
   userId: string;
@@ -48,22 +49,26 @@ export function RecentCapturesWidget({
 
   return (
     <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-            Recent captures
-          </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
-            {capturesData.length} total
-          </span>
-        </div>
-        <Link
-          href="/captures"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
+      <EntityCardHeader
+        icon={<Sparkles size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        title="Captures"
+        subtitle="Recent thoughts"
+        pill={
+          capturesData.length > 0 ? (
+            <StatusPill tone="progress" label={`${capturesData.length} total`} />
+          ) : (
+            <StatusPill tone="idle" label="empty" />
+          )
+        }
+        action={
+          <Link
+            href="/captures"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
+          >
+            All →
+          </Link>
+        }
+      />
       {recent.length === 0 ? (
         <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
           Nothing captured yet. Type into JARVIS to drop a note.
@@ -114,25 +119,21 @@ export function RecentCapturesWidget({
                   {c.content}
                 </p>
                 {(c.hashtags.length > 0 || c.projects.length > 0) && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <ChipRow>
                     {c.hashtags.slice(0, 2).map((h) => (
-                      <span
+                      <Chip
                         key={h.id}
-                        className="inline-flex items-center gap-0.5 font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)]"
+                        icon={<Hash size={8} strokeWidth={2} className="shrink-0" />}
                       >
-                        <Hash size={8} strokeWidth={2} />
                         {h.displayName}
-                      </span>
+                      </Chip>
                     ))}
                     {c.projects.slice(0, 1).map((p) => (
-                      <span
-                        key={p.id}
-                        className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] truncate max-w-[120px]"
-                      >
-                        / {p.name}
-                      </span>
+                      <Chip key={p.id} className="max-w-[130px]">
+                        {p.name}
+                      </Chip>
                     ))}
-                  </div>
+                  </ChipRow>
                 )}
                 {isJarvis && (
                   <button
