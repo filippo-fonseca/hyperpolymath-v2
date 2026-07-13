@@ -86,12 +86,12 @@ function metaForPath(pathname: string): {
 }
 
 /**
- * TopTabBar — Arc/Safari-style tab strip pinned above the main scroll area.
+ * TopTabBar — Spacedrive-style pill tab strip pinned above the main scroll
+ * area (sd token register, Design Constitution §B tab row).
  *
- * macOS-app aesthetic: hairline divider beneath the bar, soft pill tabs that
- * fill with --surface-raised when active (no thick borders, no halo glow).
- * JARVIS reads as the agent surface via a small cyan dot + ink-on-cyan label
- * — never a full chrome-flood.
+ * Two-tier selection: active tabs fill with the neutral --sd-selected
+ * backplate; JARVIS additionally reads as the agent surface via its accent
+ * dot + accent label/kbd color — never a cyan-tinted tile/ring.
  *
  * Split-screen affordance: a quiet vertical-split glyph between the two tabs.
  * When split is on, both routes render simultaneously (70% / 30%) so
@@ -175,8 +175,7 @@ export function TopTabBar({ userId }: { userId: string }) {
     <div
       role="tablist"
       aria-label="App tabs"
-      className="relative flex items-center gap-1 px-3 py-1.5 border-b border-[var(--edge)] bg-[var(--canvas)]"
-      style={{ minHeight: 40 }}
+      className="sd-topbar-blur relative flex items-center gap-1 px-3 h-9"
     >
       <NavArrows />
 
@@ -234,11 +233,12 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       aria-label={on ? "Exit split screen" : "Enter split screen"}
       title={on ? "Exit split screen" : "Split screen with JARVIS"}
       className={cn(
-        "agent-mode-scope inline-flex h-6 w-6 items-center justify-center rounded-md",
-        "transition-[background-color,color] duration-150 ease-out",
+        "inline-flex h-6 w-6 items-center justify-center rounded-md",
+        "transition-colors duration-[50ms] ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         on
-          ? "bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)] text-[var(--hud-cyan)]"
-          : "text-[var(--ink-muted)] hover:bg-[color-mix(in_oklch,var(--ink)_5%,transparent)] hover:text-[var(--ink)]"
+          ? "bg-[color-mix(in_oklch,var(--sd-accent)_14%,transparent)] text-[var(--sd-accent)]"
+          : "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
       )}
     >
       <Columns2 size={12} strokeWidth={1.75} />
@@ -268,19 +268,14 @@ function TabPill({
   /** Optional trailing indicator (e.g. JARVIS unread-message counter). */
   badge?: React.ReactNode;
 }) {
-  // accent (JARVIS) tab: scope cyan focus ring so amber doc ring doesn't show
-  // on tab focus. Plain tab keeps the default doc ring.
-  const scope = accent ? "agent-mode-scope" : "";
-
   return (
     <div
       className={cn(
-        "group/tab relative flex items-center",
-        scope,
-        "rounded-md transition-[background-color,color,box-shadow] duration-150 ease-out",
+        "group/tab relative flex items-center rounded-full",
+        "transition-colors duration-[50ms] ease-out",
         active
-          ? "bg-[color-mix(in_oklch,var(--hud-cyan)_10%,var(--surface-raised))] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_35%,transparent)]"
-          : "hover:bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
+          ? "bg-[var(--sd-selected)]"
+          : "bg-[color-mix(in_oklch,var(--sd-box)_35%,transparent)] hover:bg-[var(--sd-hover)]"
       )}
       role="tab"
       aria-selected={active}
@@ -289,11 +284,14 @@ function TabPill({
       <Link
         href={href}
         className={cn(
-          "flex items-center gap-2 pl-2.5 pr-2 py-1.5 font-sans text-[12px] outline-none rounded-md",
-          "tracking-[-0.005em]",
+          "flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-full font-sans text-[12px]",
+          "tracking-[-0.005em] outline-none",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           active
-            ? "text-[var(--hud-cyan)] font-medium"
-            : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            ? accent
+              ? "text-[var(--sd-accent)] font-medium"
+              : "text-[var(--sd-ink)] font-medium"
+            : "text-[color-mix(in_oklch,var(--sd-ink-faint)_60%,transparent)] hover:text-[var(--sd-ink)]"
         )}
       >
         {accent && active && (
@@ -301,32 +299,17 @@ function TabPill({
             aria-hidden
             className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
             style={{
-              backgroundColor: "var(--hud-cyan)",
-              boxShadow: "0 0 6px color-mix(in oklch, var(--hud-cyan) 70%, transparent)",
+              backgroundColor: "var(--sd-accent)",
+              boxShadow: "0 0 6px color-mix(in oklch, var(--sd-accent) 70%, transparent)",
             }}
           />
         )}
-        <span
-          className="shrink-0 inline-flex items-center"
-          style={
-            active
-              ? { color: "var(--hud-cyan)" }
-              : accent
-                ? { color: "var(--ink-muted)" }
-                : undefined
-          }
-        >
-          {icon}
-        </span>
+        <span className="shrink-0 inline-flex items-center">{icon}</span>
         <span className="truncate max-w-[160px]">{label}</span>
         {badge}
         {kbd && (
           <span
-            className={cn(
-              "ml-1 hidden md:inline font-mono text-[9px] tracking-[0.04em] uppercase",
-              active ? "opacity-50" : "opacity-40",
-              active ? "text-[var(--hud-cyan)]" : "text-[var(--ink-muted)]"
-            )}
+            className="ml-1 hidden md:inline font-mono text-[9px] tracking-[0.04em] uppercase opacity-60"
             aria-hidden
           >
             {kbd}
@@ -339,9 +322,9 @@ function TabPill({
           onClick={onClose}
           aria-label={`Close ${label} tab`}
           className={cn(
-            "mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm",
-            "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_8%,transparent)]",
-            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-100"
+            "mr-1 inline-flex items-center justify-center rounded p-1",
+            "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-selected)]",
+            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[50ms] ease-out"
           )}
         >
           <X size={10} strokeWidth={2} />
