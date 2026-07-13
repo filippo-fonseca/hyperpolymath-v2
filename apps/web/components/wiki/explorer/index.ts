@@ -1,15 +1,24 @@
-export { EmptyState } from "./EmptyState";
-export { ExplorerBreadcrumbs, type ExplorerBreadcrumbSegment } from "./ExplorerBreadcrumbs";
+// Wiki explorer barrel. The generic primitives now live in
+// `components/ui/explorer` (shared restyle home); this file re-exports them so
+// existing `@/components/wiki/explorer` imports keep resolving unchanged, and
+// adds the wiki-local `ExplorerTopBar` wrapper on top of the shared Toolbar.
 export {
+  EmptyState,
+  ExplorerBreadcrumbs,
+  type ExplorerBreadcrumbSegment,
   ExplorerContextMenu,
   ExplorerContextMenuContent,
   ExplorerContextMenuItem,
   ExplorerContextMenuSeparator,
   ExplorerContextMenuShortcut,
   ExplorerContextMenuTrigger,
-} from "./ExplorerContextMenu";
+  InspectorShell,
+  MetaRow,
+  MetaSection,
+  SelectionRubberBand,
+  SortSelect,
+  type ExplorerSortValue,
+  ViewToggle,
+  type ExplorerViewMode,
+} from "@/components/ui/explorer";
 export { ExplorerTopBar } from "./ExplorerTopBar";
-export { InspectorShell, MetaRow, MetaSection } from "./InspectorShell";
-export { SelectionRubberBand } from "./SelectionRubberBand";
-export { SortSelect, type ExplorerSortValue } from "./SortSelect";
-export { ViewToggle, type ExplorerViewMode } from "./ViewToggle";
