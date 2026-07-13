@@ -104,18 +104,40 @@ export function navigateNativeWebview(
 }
 
 /**
- * Scroll a promoted child webview by an in-page pixel delta. Runs
- * `window.scrollBy(dx, dy)` inside the child webview over IPC — the only way to
- * reach a native OS webview, which sits outside the host DOM and so cannot
- * receive a synthesized `WheelEvent` from the hand pointer-synth. Deltas are
- * logical (CSS) pixels; batch per animation frame at the call site.
+ * Scroll a promoted child webview by an in-page pixel delta. Runs script inside
+ * the child webview over IPC — the only way to reach a native OS webview, which
+ * sits outside the host DOM and so cannot receive a synthesized `WheelEvent`
+ * from the hand pointer-synth. When `x`/`y` (widget-content-relative logical
+ * pixels under the reticle) are given, the child scrolls the NEAREST SCROLLABLE
+ * ANCESTOR of `elementFromPoint(x, y)` so a page with a custom scroll container
+ * still scrolls, falling back to `window.scrollBy`. Deltas are logical (CSS)
+ * pixels; batch per animation frame at the call site.
  */
 export function scrollNativeWebview(
   label: string,
   dx: number,
   dy: number,
+  x?: number,
+  y?: number,
 ): Promise<void> {
-  return invoke("studio_webview_scroll", { label, dx, dy });
+  return invoke("studio_webview_scroll", { label, dx, dy, x, y });
+}
+
+/**
+ * Synthesize a click inside a promoted child webview at a widget-content-relative
+ * logical pixel point. Mirrors {@link scrollNativeWebview}: the OS child webview
+ * is not in the host DOM, so the hand pointer-synth's DOM click can't reach it —
+ * this runs script inside the child that hit-tests `elementFromPoint(x, y)`,
+ * focuses it, and dispatches a full pointer/mouse click sequence. Note the
+ * dispatched events are `isTrusted:false`, so some native default behaviors may
+ * not fire (see the Rust command's doc-comment).
+ */
+export function clickNativeWebview(
+  label: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  return invoke("studio_webview_click", { label, x, y });
 }
 
 export function useNativeWebviewSync(

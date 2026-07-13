@@ -139,5 +139,64 @@ describe("palm-click recognizer", () => {
   it("exposes tuning defaults with reopenWindowMs strictly under cancelMs", () => {
     expect(DEFAULT_PALM_CLICK.reopenWindowMs).toBeGreaterThan(0);
     expect(DEFAULT_PALM_CLICK.cancelMs).toBeGreaterThan(DEFAULT_PALM_CLICK.reopenWindowMs);
+    expect(DEFAULT_PALM_CLICK.maxEnterSpeed).toBeGreaterThan(0);
+    expect(DEFAULT_PALM_CLICK.refractoryMs).toBeGreaterThan(0);
+  });
+
+  describe("velocity gate (flick guard)", () => {
+    it("ignores a close that begins while the cursor is moving fast", () => {
+      const fast = DEFAULT_PALM_CLICK.maxEnterSpeed + 1;
+      const events = run([
+        { t: 0, closed: false, ...AIM, engaged: true },
+        { t: 16, closed: true, ...AIM, engaged: true, speed: fast }, // mid-flick close
+        { t: 200, closed: false, ...AIM, engaged: true },
+      ]);
+      expect(events).toEqual([]); // never entered "closing"
+    });
+
+    it("fires a close that begins once the cursor has settled", () => {
+      const slow = DEFAULT_PALM_CLICK.maxEnterSpeed - 0.5;
+      const events = run([
+        { t: 0, closed: false, ...AIM, engaged: true },
+        { t: 16, closed: true, ...AIM, engaged: true, speed: slow }, // settled close
+        { t: 200, closed: false, ...AIM, engaged: true },
+      ]);
+      expect(events).toEqual([{ type: "tap" }]);
+    });
+
+    it("treats an omitted speed as stationary (gate inert)", () => {
+      const events = run([
+        { t: 0, closed: false, ...AIM, engaged: true },
+        { t: 16, closed: true, ...AIM, engaged: true }, // no speed field
+        { t: 200, closed: false, ...AIM, engaged: true },
+      ]);
+      expect(events).toEqual([{ type: "tap" }]);
+    });
+  });
+
+  describe("refractory", () => {
+    it("suppresses a second close that starts inside the refractory window", () => {
+      const refract = DEFAULT_PALM_CLICK.refractoryMs;
+      const events = run([
+        { t: 0, closed: false, ...AIM, engaged: true },
+        { t: 16, closed: true, ...AIM, engaged: true }, // close #1
+        { t: 100, closed: false, ...AIM, engaged: true }, // reopen → tap #1
+        { t: 100 + refract - 20, closed: true, ...AIM, engaged: true }, // close #2 too soon
+        { t: 100 + refract - 5, closed: false, ...AIM, engaged: true }, // reopen — ignored
+      ]);
+      expect(events).toEqual([{ type: "tap" }]); // only one
+    });
+
+    it("allows a second close once the refractory window has elapsed", () => {
+      const refract = DEFAULT_PALM_CLICK.refractoryMs;
+      const events = run([
+        { t: 0, closed: false, ...AIM, engaged: true },
+        { t: 16, closed: true, ...AIM, engaged: true }, // close #1
+        { t: 100, closed: false, ...AIM, engaged: true }, // tap #1
+        { t: 100 + refract + 20, closed: true, ...AIM, engaged: true }, // close #2 ok now
+        { t: 100 + refract + 120, closed: false, ...AIM, engaged: true }, // tap #2
+      ]);
+      expect(events).toEqual([{ type: "tap" }, { type: "tap" }]);
+    });
   });
 });

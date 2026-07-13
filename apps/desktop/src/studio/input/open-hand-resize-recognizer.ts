@@ -64,13 +64,17 @@ export type OpenHandResizeConfig = {
 };
 
 export const DEFAULT_OPEN_HAND_RESIZE: OpenHandResizeConfig = {
-  armMs: 300,
-  deadband: 0.15,
+  // Demoted to the SECONDARY resize behind pinch-corner-resize, but no longer
+  // deadened: a shorter arm dwell and a ~2.5x faster rate limit make the
+  // open-hand fallback feel alive rather than laggy, while the deadband + gain
+  // keep it from twitching.
+  armMs: 220,
+  deadband: 0.12,
   gain: 0.9,
   minScale: 0.4,
   maxScale: 2.5,
-  maxScaleStepPerMs: 0.004,
-  emitEpsilon: 0.004,
+  maxScaleStepPerMs: 0.01,
+  emitEpsilon: 0.003,
 };
 
 export type OpenHandResizeRecognizer = {
