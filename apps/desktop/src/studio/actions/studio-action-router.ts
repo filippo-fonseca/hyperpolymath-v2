@@ -28,10 +28,12 @@ export function routeStudioAction(payload: StudioActionPayload): void {
       const existing = findWidgetByKind(payload.kind);
       if (existing) updateWidgetProps(existing.id, payload.props);
     }
-    // A studio-action browser open counts against this turn's dedupe set so a
+    // A studio-action browser open counts against the dedupe layers so a
     // sibling open_url tool-call for the same page doesn't open it a second
-    // time. The payload carries no turnId, so this lands in the no-turn bucket
-    // which the open_url path also consults.
+    // time. The server payload carries no turnId, so this lands in the no-turn
+    // bucket; the cross-turn recency window in browser-router is what actually
+    // backstops it, since the sibling open_url tool-call arrives under a real
+    // turnId (a different per-turn bucket) yet within the window.
     if (payload.kind === "browser") {
       const url = (payload.props as { url?: unknown } | undefined)?.url;
       if (typeof url === "string" && url.length > 0) noteBrowserUrl(url);
