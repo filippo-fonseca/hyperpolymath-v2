@@ -8,6 +8,8 @@ import type { ActivityWithType } from "@/lib/db/queries/training";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
+import { TrainingIcon } from "@/components/ui/icons";
+import { EntityCardHeader, ProgressRow, StatusPill } from "./entity-card";
 
 interface Props {
   userId: string;
@@ -61,27 +63,45 @@ export function TodayTrainingWidget({
   const visible = activities.filter(
     (a) => a.status !== "cancelled" && a.status !== "skipped",
   );
+  const doneCount = visible.filter((a) => a.status === "done").length;
+
+  const pill =
+    visible.length === 0 ? (
+      <StatusPill tone="idle" label="rest day" />
+    ) : doneCount === visible.length ? (
+      <StatusPill tone="active" label="done" />
+    ) : doneCount > 0 ? (
+      <StatusPill tone="progress" label={`${doneCount}/${visible.length}`} />
+    ) : (
+      <StatusPill tone="progress" label={`${visible.length} planned`} />
+    );
 
   return (
     <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-2.5">
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)]">
-            Training
-          </h3>
-          {visible.length > 0 && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] tabular-nums">
-              {visible.filter((a) => a.status === "done").length}/{visible.length}
-            </span>
-          )}
+      <EntityCardHeader
+        icon={<TrainingIcon size={26} />}
+        title="Training"
+        subtitle="Today"
+        pill={pill}
+        action={
+          <Link
+            href="/training"
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
+          >
+            Plan →
+          </Link>
+        }
+      />
+
+      {visible.length > 0 && (
+        <div className="mb-4">
+          <ProgressRow
+            label="Completed"
+            value={`${doneCount}/${visible.length}`}
+            ratio={doneCount / visible.length}
+          />
         </div>
-        <Link
-          href="/training"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          Plan →
-        </Link>
-      </header>
+      )}
 
       {visible.length === 0 ? (
         // Rest day — positive, intentional. Not "nothing to do".
