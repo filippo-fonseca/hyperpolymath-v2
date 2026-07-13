@@ -20,16 +20,32 @@
 //   • Reply events (start/chunk) carry a stable server `turnId`. Deltas route to
 //     the bubble keyed by THAT turnId — never a global "current" pointer, so two
 //     live turns never share a writer.
-//   • User echoes (the SSE `transcript` event and the POST fallback) do NOT
-//     carry a turnId — the server emits the transcript event moments before it
-//     mints the turnId (see voice/transcript/route.ts). They are paired to a
-//     turn by ARRIVAL ORDER (FIFO): a reply-start fills the oldest user turn
-//     still lacking a reply; a user echo fills the oldest reply-first turn still
-//     lacking a user bubble. Server per-turn ordering is sequential
-//     (transcript → start, per turn), so FIFO binds each reply to its own user.
-//   • A reply with no waiting user turn opens a NEW reply-first turn; its user
-//     echo, when it lands, slots ABOVE that reply within the same turn.
-//   • A user echo with no reply-first turn to fill opens a NEW user-first turn.
+//   • User echoes (the SSE `transcript` event) NOW carry the reply's `turnId`:
+//     the server mints it BEFORE emitting the echo and stamps it on the payload
+//     (see voice/transcript + voice/text routes; the routine-interception path
+//     threads it as echoTurnId onto the routine's first reply). When present,
+//     the echo and its reply-start pair by IDENTITY, which is exact under ANY
+//     arrival order — the fix for the row-swap when a fire-and-forget routine's
+//     response-start lands after a concurrent normal turn's:
+//     [transcript_A, transcript_B, start_B, start_A] still pairs A↔A, B↔B.
+//   • The POST fallback echo (onTranscriptReceived) is still TURNLESS. Turnless
+//     echoes/replies pair by ARRIVAL ORDER (FIFO): a reply-start fills the
+//     oldest user turn still lacking a reply; a user echo fills the oldest
+//     reply-first turn still lacking a user bubble.
+//   • PRECEDENCE (identity beats FIFO, and never steals across identities):
+//       - reduceReplyStart(turnId) first looks for a user-first turn whose echo
+//         recorded THIS turnId (exact identity). Only if none exists does it
+//         take the oldest turnless (turnId === null) user-first turn by FIFO.
+//         So an identified reply never steals a turnless slot that FIFO would
+//         owe to an older reply — it prefers its own partner, and reaches for a
+//         turnless slot only when its partner echo hasn't arrived (legitimate).
+//       - reduceUserEcho(text, turnId?) mirrors it: an identified echo first
+//         fills the reply-first turn bound to THAT turnId; else (or when the
+//         echo is turnless) the oldest reply-first turn awaiting a user, FIFO.
+//   • A reply with no waiting user turn opens a NEW reply-first turn (recording
+//     its turnId); its user echo, when it lands, slots ABOVE that reply.
+//   • A user echo with no reply-first turn to fill opens a NEW user-first turn,
+//     recording its turnId (when present) so its reply pairs by identity later.
 //
 // The reducer is a PURE function (state in, {state, ops} out): it emits ordered
 // RenderOps that main.ts replays against the DOM. Each op names a stable bubble
@@ -60,6 +76,12 @@ export interface Turn {
   /** Server turnId once a reply has attached; null for a user-first turn whose
    *  reply hasn't started yet. */
   turnId: string | null;
+  /** The reply turnId the user echo declared (stamped server-side before the
+   *  echo emit), if any. Lets a reply-start pair to its own user turn by
+   *  IDENTITY even when arrival order is inverted. null for turnless echoes
+   *  (POST fallback) — those pair by FIFO. Once a reply attaches, `turnId`
+   *  holds the bound id; `echoTurnId` records what the echo originally claimed. */
+  echoTurnId: string | null;
   /** Whether the user bubble has been created. */
   hasUser: boolean;
   /** Whether the reply bubble has been created. */
@@ -108,15 +130,36 @@ function anchorAfter(turns: Turn[], index: number): BubbleId | null {
 
 /**
  * A user echo arrived (already deduped upstream by decidePaintEcho). Fill the
- * oldest reply-first turn still awaiting its user bubble (the user slots ABOVE
+ * matching reply-first turn still awaiting its user bubble (the user slots ABOVE
  * that turn's reply); if none, open a new user-first turn at the end.
+ *
+ * `turnId` (when the SSE echo carried one) drives IDENTITY pairing: fill the
+ * reply-first turn bound to THAT id first. Absent it (turnless POST fallback),
+ * or when no identity match exists, fall back to the oldest reply-first turn
+ * awaiting a user (FIFO). A turnless echo never steals an identity slot: it only
+ * considers turnless-owed FIFO order, and an identified reply already recorded
+ * its own turnId on the turn, so FIFO here simply takes the oldest awaiting one.
  */
-export function reduceUserEcho(state: TranscriptState, text: string): ReduceResult {
-  const parkedIndex = state.turns.findIndex((t) => t.hasReply && !t.hasUser);
+export function reduceUserEcho(
+  state: TranscriptState,
+  text: string,
+  turnId?: string,
+): ReduceResult {
+  // Identity first: a reply-first turn whose reply-start recorded THIS turnId.
+  const identityIndex =
+    turnId === undefined
+      ? -1
+      : state.turns.findIndex((t) => t.hasReply && !t.hasUser && t.turnId === turnId);
+  // FIFO fallback: the oldest reply-first turn still awaiting a user bubble.
+  const parkedIndex =
+    identityIndex !== -1
+      ? identityIndex
+      : state.turns.findIndex((t) => t.hasReply && !t.hasUser);
   const parked = parkedIndex === -1 ? undefined : state.turns[parkedIndex];
   if (parked) {
     const turns = state.turns.slice();
-    const turn: Turn = { ...parked, hasUser: true };
+    // Record the echo's declared identity too, so it survives on the turn.
+    const turn: Turn = { ...parked, hasUser: true, echoTurnId: turnId ?? parked.echoTurnId };
     turns[parkedIndex] = turn;
     // The user bubble renders directly above its OWN reply bubble.
     return {
@@ -124,9 +167,16 @@ export function reduceUserEcho(state: TranscriptState, text: string): ReduceResu
       ops: [{ op: "create-user", id: userBubbleId(turn.key), text, beforeId: replyBubbleId(turn.key) }],
     };
   }
-  // No parked reply — a new user-first turn appended at the end.
+  // No parked reply — a new user-first turn appended at the end. Record the
+  // declared reply identity so a later reply-start pairs by id, not just FIFO.
   const { key, seq } = nextKey(state);
-  const turn: Turn = { key, turnId: null, hasUser: true, hasReply: false };
+  const turn: Turn = {
+    key,
+    turnId: null,
+    echoTurnId: turnId ?? null,
+    hasUser: true,
+    hasReply: false,
+  };
   const turns = [...state.turns, turn];
   return {
     state: { turns, seq },
@@ -144,9 +194,21 @@ export function reduceReplyStart(state: TranscriptState, turnId: string): Reduce
   if (boundIndex !== -1) {
     return { state, ops: [] };
   }
-  const waitingIndex = state.turns.findIndex(
-    (t) => t.hasUser && !t.hasReply && t.turnId === null,
+  // PRECEDENCE: identity beats FIFO. First bind to the user-first turn whose
+  // echo declared THIS turnId (exact identity — correct under any arrival skew).
+  // Only if no such turn exists take the oldest turnless user-first turn (FIFO).
+  // This ordering guarantees an identified reply never steals a turnless slot
+  // that FIFO owes to an OLDER reply: it prefers its own partner and reaches for
+  // a turnless slot only when its partner echo hasn't landed yet.
+  const identityIndex = state.turns.findIndex(
+    (t) => t.hasUser && !t.hasReply && t.echoTurnId === turnId,
   );
+  const waitingIndex =
+    identityIndex !== -1
+      ? identityIndex
+      : state.turns.findIndex(
+          (t) => t.hasUser && !t.hasReply && t.turnId === null && t.echoTurnId === null,
+        );
   const waiting = waitingIndex === -1 ? undefined : state.turns[waitingIndex];
   if (waiting) {
     const turns = state.turns.slice();
@@ -160,9 +222,10 @@ export function reduceReplyStart(state: TranscriptState, turnId: string): Reduce
       ops: [{ op: "create-reply", id: replyBubbleId(turn.key), beforeId }],
     };
   }
-  // Reply-first: open a new turn at the end. Its user echo (if any) slots above.
+  // Reply-first: open a new turn at the end. Its user echo (if any) slots above,
+  // pairing by identity: a later reduceUserEcho for THIS turnId targets it.
   const { key, seq } = nextKey(state);
-  const turn: Turn = { key, turnId, hasUser: false, hasReply: true };
+  const turn: Turn = { key, turnId, echoTurnId: null, hasUser: false, hasReply: true };
   const turns = [...state.turns, turn];
   return {
     state: { turns, seq },

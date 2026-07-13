@@ -305,23 +305,27 @@ const echoDedupeState = createEchoDedupeState();
  * through here; decidePaintEcho drops only a true second echo of the same
  * utterance, never a legitimately new one.
  */
-function paintTranscriptDeduped(input: EchoInput): void {
+function paintTranscriptDeduped(input: EchoInput, turnId?: string): void {
   // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
   // which the server echoes back as a user transcript turn. Drop that one echo
   // so wake never injects a fake typed user message into the conversation — the
   // spoken briefing and listening still happen; only the phantom bubble is gone.
   if (shouldSuppressBriefingEcho(input.text)) return;
   if (decidePaintEcho(input, echoDedupeState)) {
-    paintTranscript(input.text);
+    // Thread the reply turnId (when the SSE `transcript` event carried one) so
+    // the reducer pairs this user bubble to its reply by identity. The POST
+    // fallback source is turnless → FIFO pairing.
+    paintTranscript(input.text, turnId);
   }
 }
 
-function paintTranscript(text: string): void {
+function paintTranscript(text: string, turnId?: string): void {
   if (!text.trim()) return;
-  // Route through the pure reducer: a user echo fills the oldest reply-first
-  // turn awaiting a user bubble (rendering above that reply), else opens a new
-  // user-first turn at the end.
-  dispatchTranscript((s) => reduceUserEcho(s, text));
+  // Route through the pure reducer: a user echo fills the reply-first turn
+  // awaiting a user bubble (identity match when a turnId is present, else the
+  // oldest turnless one; rendering above that reply), else opens a new
+  // user-first turn at the end (recording the turnId so its reply pairs by id).
+  dispatchTranscript((s) => reduceUserEcho(s, text, turnId));
   // Keep the drawer QA row in sync.
   const panel = document.getElementById("transcript-panel");
   const out = document.getElementById("transcript-text");
@@ -871,7 +875,9 @@ async function boot(): Promise<void> {
   // when the POST response flushes. The POST-driven onTranscriptReceived below
   // stays as a fallback; paintTranscriptDeduped drops whichever fires second so
   // the same utterance never double-paints.
-  onPhysicalTranscript((p) => paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }));
+  onPhysicalTranscript((p) =>
+    paintTranscriptDeduped({ text: p.transcript, sttDoneAt: p.sttDoneAt }, p.turnId),
+  );
   // POST fallback. Threads the response's sttDoneAt through when the server
   // provides it so identity dedupe works from both sources.
   //
