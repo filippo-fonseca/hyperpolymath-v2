@@ -166,10 +166,13 @@ export function JarvisDemo() {
                 {example.receipts.map((r, i) => (
                   <motion.div
                     key={`${exampleIdx}-${i}`}
-                    initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+                    // SSR-safe: identical `initial` on server + first client
+                    // render; only the transition is branched, so reduced motion
+                    // settles instantly (0ms) with no hydration mismatch.
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      duration: 0.28,
+                      duration: reducedMotion ? 0 : 0.28,
                       delay: reducedMotion ? 0 : i * 0.22,
                       ease: [0.25, 1, 0.5, 1], // --ease-out-quart
                     }}
