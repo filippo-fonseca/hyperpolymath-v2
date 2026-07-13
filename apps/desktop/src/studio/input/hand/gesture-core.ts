@@ -1024,12 +1024,13 @@ export function createHandGestureInterpreter(
       size: sSize,
     });
 
-    // Pinch-bloom: a quick pinch released into an open hand emits `expand`. It
-    // runs every frame (before the pinch early-return below) so it observes both
-    // the engaged frames and the release edge. `openPose` gates the release: a
-    // pinch that springs open blooms; a pinch that curls into a fist never does.
-    // The cursor is frozen while pinched, so hover stays pinned to pinch-start and
-    // the hub upgrades the targetless `expand` from that pinned hover.
+    // Pinch-bloom: a quick pinch released into an open hand emits `tap` (the SAME
+    // intent as palm-click — see the recognizer wiring above). It runs every
+    // frame (before the pinch early-return below) so it observes both the engaged
+    // frames and the release edge. `openPose` gates the release: a pinch that
+    // springs open blooms; a pinch that curls into a fist never does. The cursor
+    // is frozen while pinched, so hover stays pinned to pinch-start and the hub
+    // upgrades the targetless `tap` from that pinned hover.
     pinchBloom.push({ t: tMs, engaged: pinchActive, openPose: pose === "open" });
 
     // Open-hand resize + index-finger scroll run every frame (before the pinch

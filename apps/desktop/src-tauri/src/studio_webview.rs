@@ -233,6 +233,13 @@ pub fn studio_webview_scroll(
     // Find the nearest scrollable ancestor of elementFromPoint and scroll IT;
     // fall back to the window so a document-scrolled page still works. The IIFE
     // keeps every symbol scoped so repeated evals never clash in the page.
+    //
+    // SECURITY INVARIANT — numbers-only interpolation. Every value spliced into
+    // this eval'd script ({px},{py},{dx},{dy}) is an `f64` already validated with
+    // `is_finite()` above, so it serializes to a bare numeric literal that cannot
+    // break out of the JS expression. Interpolating ANY string-typed field into
+    // this template (a URL, a label, a selector) would be a script-injection
+    // vector — do NOT add non-numeric `{...}` holes here.
     let script = format!(
         "(function(){{\
            var el=document.elementFromPoint({px},{py});\
@@ -282,6 +289,12 @@ pub fn studio_webview_click(
     // One IIFE, all symbols scoped. Dispatch the full sequence on the hit element
     // (and focus it if focusable) so pointer- and mouse-event consumers both see
     // it. Events are isTrusted:false (see the doc-comment limitation above).
+    //
+    // SECURITY INVARIANT — numbers-only interpolation. The only values spliced
+    // into this eval'd script ({x},{y}) are `f64`s validated with `is_finite()`
+    // above, so they serialize to bare numeric literals and cannot escape the JS.
+    // Interpolating ANY string-typed field into this template would be a
+    // script-injection vector — do NOT add non-numeric `{...}` holes here.
     let script = format!(
         "(function(){{\
            var el=document.elementFromPoint({x},{y});\
