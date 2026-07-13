@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
+import { z } from "zod";
 
 import type {
   PhysicalJarvisResponseChunk,
@@ -8,6 +9,7 @@ import type {
   PhysicalJarvisResponseStart,
   PhysicalJarvisRoutineProgress,
   PhysicalJarvisToolCall,
+  PhysicalStudioAction,
   PhysicalTranscript,
   PhysicalTrigger,
 } from "@/lib/voice/physical-extension/types";
@@ -28,9 +30,42 @@ const PHYSICAL_EVENTS = [
   "jarvis-response-start",
   "jarvis-response-chunk",
   "jarvis-tool-call",
+  "studio-action",
   "jarvis-response-end",
   "jarvis-routine-progress",
 ] as const;
+
+// MAJOR-6 — `userId` is threaded through so SSE subscribers can filter
+// (see /app/api/jarvis/physical/events/route.ts). Optional to keep the
+// gate in this file soft during rollout; the SSE consumer treats a
+// missing/mismatched userId as "not for me" and drops silently.
+const StudioActionSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("open"),
+      kind: z.enum([
+        "browser",
+        "whatsapp",
+        "weather",
+        "news",
+        "card",
+        "clock",
+        "camera",
+        "settings",
+      ]),
+      props: z.record(z.string(), z.unknown()).optional(),
+      userId: z.string().min(1).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("close"),
+      kind: z.string().min(1),
+      target: z.enum(["kind", "id"]).optional(),
+      userId: z.string().min(1).optional(),
+    })
+    .strict(),
+]);
 
 type PhysicalEventName = (typeof PHYSICAL_EVENTS)[number];
 
@@ -41,16 +76,13 @@ const CHANNEL_NAME = "jarvis-physical-events";
 // drops events across instances. Supabase Realtime broadcast is the
 // cross-instance transport; the local emit keeps same-instance latency at
 // zero. __origin tags let the receiving side drop our own echoes.
-const INSTANCE_ID =
-  globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+const INSTANCE_ID = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
 function getRealtimeChannel(): RealtimeChannel | null {
   if (g.__jarvisPhysicalChannel !== undefined) return g.__jarvisPhysicalChannel;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
     g.__jarvisPhysicalChannel = null;
     return null;
@@ -66,10 +98,7 @@ function getRealtimeChannel(): RealtimeChannel | null {
   channel.on("broadcast", { event: "*" }, (msg) => {
     const event = msg.event as PhysicalEventName;
     if (!PHYSICAL_EVENTS.includes(event)) return;
-    const payload = (msg.payload ?? {}) as { __origin?: string } & Record<
-      string,
-      unknown
-    >;
+    const payload = (msg.payload ?? {}) as { __origin?: string } & Record<string, unknown>;
     if (payload.__origin === INSTANCE_ID) return;
     const { __origin: _origin, ...data } = payload;
     physicalBus.emit(event, data);
@@ -120,6 +149,30 @@ export function emitJarvisResponseChunk(payload: PhysicalJarvisResponseChunk): v
 
 export function emitJarvisToolCall(payload: PhysicalJarvisToolCall): void {
   emitEverywhere("jarvis-tool-call", payload);
+}
+
+/**
+ * Emit a studio widget action onto the physical bus.
+ *
+ * INVARIANT: this bus is a single global EventEmitter that fans out to every
+ * SSE subscriber. The `/api/jarvis/physical/events` route currently gates
+ * subscribers to the owner user (`isOwnerUser`), but the studio-action
+ * pipeline itself has no per-user partition. The `userId` field on the
+ * payload is the forward-compat plumbing that lets subscribers filter
+ * (or a future partitioned bus route) events to the correct user.
+ *
+ * Callers should ALWAYS include `payload.userId` (the tool executor's
+ * ctx.userId). Emitters that omit it will only reach subscribers if the
+ * bus is ever relaxed to broadcast — hence the SSE consumer treats
+ * missing userId as "not for this subscriber" and drops silently.
+ */
+export function emitStudioAction(payload: PhysicalStudioAction): void {
+  const parsed = StudioActionSchema.safeParse(payload);
+  if (!parsed.success) {
+    console.warn("[physical-bus] refused invalid studio action", parsed.error.message);
+    return;
+  }
+  emitEverywhere("studio-action", parsed.data);
 }
 
 export function emitJarvisResponseEnd(payload: PhysicalJarvisResponseEnd): void {

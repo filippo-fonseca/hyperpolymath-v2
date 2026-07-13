@@ -1,13 +1,11 @@
-import {
-  ensurePhysicalRealtimeBridge,
-  physicalBus,
-} from "@/lib/voice/physical-extension/bus";
+import { ensurePhysicalRealtimeBridge, physicalBus } from "@/lib/voice/physical-extension/bus";
 import type {
   PhysicalJarvisResponseChunk,
   PhysicalJarvisResponseEnd,
   PhysicalJarvisResponseStart,
   PhysicalJarvisRoutineProgress,
   PhysicalJarvisToolCall,
+  PhysicalStudioAction,
   PhysicalTranscript,
   PhysicalTrigger,
 } from "@/lib/voice/physical-extension/types";
@@ -145,17 +143,32 @@ export async function GET(req: Request): Promise<Response> {
 
       const triggerHandler = (data: PhysicalTrigger) => send("trigger", data);
       const transcriptHandler = (data: PhysicalTranscript) => send("transcript", data);
-      const responseStartHandler = (data: PhysicalJarvisResponseStart) => send("jarvis-response-start", data);
-      const responseChunkHandler = (data: PhysicalJarvisResponseChunk) => send("jarvis-response-chunk", data);
+      const responseStartHandler = (data: PhysicalJarvisResponseStart) =>
+        send("jarvis-response-start", data);
+      const responseChunkHandler = (data: PhysicalJarvisResponseChunk) =>
+        send("jarvis-response-chunk", data);
       const toolCallHandler = (data: PhysicalJarvisToolCall) => send("jarvis-tool-call", data);
-      const responseEndHandler = (data: PhysicalJarvisResponseEnd) => send("jarvis-response-end", data);
-      const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) => send("jarvis-routine-progress", data);
+      // MAJOR-6 — the bus is a single global emitter. The route above
+      // gates subscribers to `isOwnerUser`, but the studio-action payloads
+      // now carry `userId` so we can drop foreign events at the SSE seam.
+      // A missing userId is treated as "not for me" (belt-and-braces:
+      // legacy emitters pre-fix are effectively dropped so the invariant
+      // doesn't silently regress).
+      const studioActionHandler = (data: PhysicalStudioAction) => {
+        if (data.userId !== userId) return;
+        send("studio-action", data);
+      };
+      const responseEndHandler = (data: PhysicalJarvisResponseEnd) =>
+        send("jarvis-response-end", data);
+      const routineProgressHandler = (data: PhysicalJarvisRoutineProgress) =>
+        send("jarvis-routine-progress", data);
 
       physicalBus.on("trigger", triggerHandler);
       physicalBus.on("transcript", transcriptHandler);
       physicalBus.on("jarvis-response-start", responseStartHandler);
       physicalBus.on("jarvis-response-chunk", responseChunkHandler);
       physicalBus.on("jarvis-tool-call", toolCallHandler);
+      physicalBus.on("studio-action", studioActionHandler);
       physicalBus.on("jarvis-response-end", responseEndHandler);
       physicalBus.on("jarvis-routine-progress", routineProgressHandler);
 
@@ -167,12 +180,20 @@ export async function GET(req: Request): Promise<Response> {
         }
       }, HEARTBEAT_MS);
 
+      // MINOR-5 — cleanup is called from three paths (enqueue failure,
+      // heartbeat failure, req.signal abort). Guard so listener detach and
+      // controller.close() run at most once, avoiding a benign but noisy
+      // double-cleanup on graceful disconnect.
+      let closed = false;
       const cleanup = () => {
+        if (closed) return;
+        closed = true;
         physicalBus.off("trigger", triggerHandler);
         physicalBus.off("transcript", transcriptHandler);
         physicalBus.off("jarvis-response-start", responseStartHandler);
         physicalBus.off("jarvis-response-chunk", responseChunkHandler);
         physicalBus.off("jarvis-tool-call", toolCallHandler);
+        physicalBus.off("studio-action", studioActionHandler);
         physicalBus.off("jarvis-response-end", responseEndHandler);
         physicalBus.off("jarvis-routine-progress", routineProgressHandler);
         clearInterval(heartbeat);

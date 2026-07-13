@@ -71,6 +71,18 @@ interface JarvisToolCallPayload {
   at: number;
 }
 
+export type StudioActionPayload =
+  | {
+      action: "open";
+      kind: string;
+      props?: Record<string, unknown>;
+    }
+  | {
+      action: "close";
+      kind: string;
+      target?: "kind" | "id";
+    };
+
 interface JarvisResponseEndPayload {
   turnId: string;
   at: number;
@@ -119,6 +131,7 @@ type PhysicalTranscriptListener = (payload: PhysicalTranscriptPayload) => void;
 type ResponseStartListener = (payload: JarvisResponseStartPayload) => void;
 type ResponseChunkListener = (payload: JarvisResponseChunkPayload) => void;
 type ToolCallListener = (payload: JarvisToolCallPayload) => void;
+type StudioActionListener = (payload: StudioActionPayload) => void;
 type ResponseEndListener = (payload: JarvisResponseEndPayload) => void;
 type RoutineProgressListener = (payload: JarvisRoutineProgressPayload) => void;
 
@@ -126,6 +139,7 @@ const physicalTranscriptListeners = new Set<PhysicalTranscriptListener>();
 const responseStartListeners = new Set<ResponseStartListener>();
 const responseChunkListeners = new Set<ResponseChunkListener>();
 const toolCallListeners = new Set<ToolCallListener>();
+const studioActionListeners = new Set<StudioActionListener>();
 const responseEndListeners = new Set<ResponseEndListener>();
 const routineProgressListeners = new Set<RoutineProgressListener>();
 
@@ -253,6 +267,11 @@ export function onJarvisToolCall(fn: ToolCallListener): () => void {
   return () => toolCallListeners.delete(fn);
 }
 
+export function onStudioAction(fn: StudioActionListener): () => void {
+  studioActionListeners.add(fn);
+  return () => studioActionListeners.delete(fn);
+}
+
 export function onJarvisResponseEnd(fn: ResponseEndListener): () => void {
   responseEndListeners.add(fn);
   return () => responseEndListeners.delete(fn);
@@ -366,6 +385,15 @@ export async function startPhysicalExtenderListener(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`[jarvis] tool-call ${payload.name} turnId=${payload.turnId}`);
     for (const fn of toolCallListeners) fn(payload);
+  });
+
+  source.addEventListener("studio-action", (e) => {
+    const messageEvent = e as MessageEvent<string>;
+    const payload = parseJson<StudioActionPayload>(messageEvent.data);
+    if (!payload) return;
+    // eslint-disable-next-line no-console
+    console.log(`[studio] action=${payload.action} kind=${payload.kind}`);
+    for (const fn of studioActionListeners) fn(payload);
   });
 
   source.addEventListener("jarvis-response-end", (e) => {

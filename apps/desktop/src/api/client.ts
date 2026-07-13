@@ -274,6 +274,83 @@ export async function postText(text: string): Promise<boolean> {
 }
 
 /**
+ * POST /api/jarvis/voice/history/clear
+ * Wipes the server-side conversation memory (jarvis_turns) for this user —
+ * the same table the voice agent reads as its 15-minute cross-turn memory.
+ * The HUD's Clear control calls this after emptying the visible transcript so
+ * a fresh conversation doesn't inherit stale turns (including curl-fired test
+ * turns). Best-effort: a failure is logged and surfaced as `false`.
+ */
+export async function clearHistory(): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/clear`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/clear] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/clear] error", err);
+    return false;
+  }
+}
+
+/**
+ * POST /api/jarvis/voice/history/receipt
+ *
+ * Records the true terminal outcome of a desktop-gated WhatsApp send into the
+ * server's cross-turn memory (jarvis_turns), so a following "did you send it?"
+ * turn is answered from a real receipt rather than a guess. Fire-and-forget:
+ * the send already succeeded/failed and was spoken; this only teaches the agent
+ * what happened. Failures to POST are logged, never surfaced.
+ */
+export async function postWhatsappReceipt(args: {
+  recipient: string;
+  jid?: string;
+  text: string;
+  success: boolean;
+  at?: string;
+}): Promise<boolean> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/jarvis/voice/history/receipt`, {
+      method: "POST",
+      headers: {
+        ...(await authHeaders(triggerSecret)),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        channel: "whatsapp",
+        recipient: args.recipient,
+        ...(args.jid ? { jid: args.jid } : {}),
+        text: args.text,
+        success: args.success,
+        at: args.at ?? new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[voice/history/receipt] ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[voice/history/receipt] error", err);
+    return false;
+  }
+}
+
+/**
  * POST /api/jarvis/voice/transcript
  * Sends the captured WAV to the server for Groq STT transcription.
  * The server fans the transcript out to browser tabs via physicalBus SSE.
@@ -538,6 +615,122 @@ export async function resolveRecentImessageHandles(name: string): Promise<string
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn("[imessage/resolve] GET failed", err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notification announcer — incoming-message polling.
+// The desktop watcher polls these two read-only endpoints on a short interval
+// while the HUD runs, passing the last-seen timestamp per channel so each poll
+// returns only what is new. Both are fail-safe: any non-ok/parse/transport
+// failure yields [] so a transient hiccup skips one tick rather than crashing
+// the watcher loop.
+// ---------------------------------------------------------------------------
+
+/** One incoming message from either channel, normalized for the announcer.
+ *  `chatJid` addresses the chat for the open-widget flow (WhatsApp); iMessage
+ *  has no in-app widget yet, so its jid is carried but unused for summoning. */
+export interface IncomingMessage {
+  channel: "whatsapp" | "imessage";
+  chatJid: string;
+  senderName: string;
+  body: string | null;
+  sentAt: string;
+}
+
+/**
+ * GET /api/studio/whatsapp?recent&since=<iso>
+ * Newest incoming (not-from-me) WhatsApp messages since `since`, normalized to
+ * IncomingMessage. Returns [] on any failure.
+ */
+export async function getWhatsappRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `&since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/studio/whatsapp?recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[whatsapp/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      receipt?: {
+        messages?: Array<{
+          chatJid?: unknown;
+          senderName?: unknown;
+          body?: unknown;
+          sentAt?: unknown;
+        }>;
+      };
+    };
+    const rows = json.receipt?.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "whatsapp" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : r.chatJid,
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[whatsapp/recent] GET failed", err);
+    return [];
+  }
+}
+
+/**
+ * GET /api/imessage/recent?since=<iso>
+ * Newest incoming iMessages since `since`, normalized to IncomingMessage.
+ * Returns [] on any failure.
+ */
+export async function getImessageRecent(since: string | null): Promise<IncomingMessage[]> {
+  const { apiBaseUrl, triggerSecret } = getEnv();
+  try {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+    const res = await fetch(`${apiBaseUrl}/api/imessage/recent${qs}`, {
+      method: "GET",
+      headers: await authHeaders(triggerSecret),
+    });
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[imessage/recent] GET ${res.status}`);
+      return [];
+    }
+    const json = (await res.json()) as {
+      messages?: Array<{
+        chatJid?: unknown;
+        senderName?: unknown;
+        body?: unknown;
+        sentAt?: unknown;
+      }>;
+    };
+    const rows = json.messages;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((r) => {
+      if (typeof r.chatJid !== "string" || typeof r.sentAt !== "string") return [];
+      return [
+        {
+          channel: "imessage" as const,
+          chatJid: r.chatJid,
+          senderName: typeof r.senderName === "string" ? r.senderName : "Someone",
+          body: typeof r.body === "string" ? r.body : null,
+          sentAt: r.sentAt,
+        },
+      ];
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[imessage/recent] GET failed", err);
     return [];
   }
 }

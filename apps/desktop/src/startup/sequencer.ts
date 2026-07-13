@@ -2,9 +2,13 @@
 // The configurable session-start sequence. On the FIRST invoke of an app
 // session (hotkey / tray / wake), run — in this exact order:
 //
-//   1. Briefing — the proactive spoken briefing (briefing/briefing.ts),
-//      AWAITED until its TTS has fully drained. Briefing audio and mic
-//      capture must NEVER overlap (zero AEC — JARVIS would hear itself).
+//   1. Briefing — the proactive spoken briefing (briefing/briefing.ts). OPT-IN
+//      (startupBriefingEnabled defaults to false): an unrequested "Good
+//      morning, sir" greeting on every wake reads as the app talking to
+//      itself, so this step only fires when the user has explicitly turned it
+//      on in settings. When it does run it is AWAITED until its TTS has fully
+//      drained — briefing audio and mic capture must NEVER overlap (zero AEC —
+//      JARVIS would hear itself).
 //   2. openOnStart — configured apps/URLs, all launched in PARALLEL via the
 //      existing open_url/open_app dispatcher plumbing.
 //   3. shortcuts — configured macOS Shortcuts names, run in PARALLEL with

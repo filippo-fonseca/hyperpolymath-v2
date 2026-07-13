@@ -113,6 +113,57 @@ import type {
   WebSearchAction,
 } from "@hyperpolymath/jarvis-core";
 import { validateCalendarId, validateProjectIds } from "./validate-references";
+import type { StudioCloseWidgetInput, StudioOpenWidgetInput } from "./studio-widget-tools";
+import { emitStudioAction } from "@/lib/voice/physical-extension/bus";
+
+// MAJOR-6 — tag every studio-action emit with the invoking user's id so
+// SSE subscribers can filter (see lib/voice/physical-extension/bus.ts and
+// app/api/jarvis/physical/events/route.ts). userId is optional in the type
+// for backward compat with any legacy caller, but ALL current call sites
+// (run-turn.ts) thread ctx.userId explicitly.
+export async function executeStudioOpenWidget(
+  input: StudioOpenWidgetInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "open",
+    kind: input.kind,
+    ...(input.url ? { props: { url: input.url } } : {}),
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_open_widget:${input.kind}:${ts}`,
+    receipt: {
+      kind: input.kind,
+      ...(input.url ? { url: input.url } : {}),
+      message: `Sent a request to open the ${input.kind} widget.`,
+    },
+  };
+}
+
+export async function executeStudioCloseWidget(
+  input: StudioCloseWidgetInput,
+  userId?: string
+): Promise<ExecutorResult> {
+  const ts = Date.now();
+  emitStudioAction({
+    action: "close",
+    kind: input.all ? "all" : (input.kind ?? "all"),
+    target: "kind",
+    ...(userId ? { userId } : {}),
+  });
+  return {
+    ok: true,
+    id: `studio_close_widget:${input.all ? "all" : input.kind}:${ts}`,
+    receipt: {
+      ...(input.kind ? { kind: input.kind } : {}),
+      all: input.all === true,
+      message: "Sent a request to close the Studio widget view.",
+    },
+  };
+}
 
 /**
  * Phase 5.1 D-P2 #3 / JARVIS-21 — check if all model-emitted project_ids
@@ -260,7 +311,7 @@ async function browserbaseFetchPage(url: string, apiKey: string): Promise<string
 
 async function enrichSparseWebSearchResults(
   results: WebSearchResult[],
-  apiKey: string,
+  apiKey: string
 ): Promise<WebSearchResult[]> {
   if (results.length === 0 || results.some((result) => result.snippet)) {
     return results;
@@ -268,12 +319,33 @@ async function enrichSparseWebSearchResults(
 
   const enrichable = results.slice(0, 2);
   const contents = await Promise.all(
-    enrichable.map((result) => browserbaseFetchPage(result.url, apiKey)),
+    enrichable.map((result) => browserbaseFetchPage(result.url, apiKey))
   );
   return results.map((result, index) => {
     const content = contents[index];
     return content ? { ...result, content } : result;
   });
+}
+
+// U1 jarvis-web-brain — pick the single best URL (first fetchable http(s)
+// result) and a short excerpt of any enriched page body, so the webSearch
+// receipt carries BOTH an answer source and a concrete URL for the browser
+// widget. Never returns a search-engine landing page — those are not results.
+function pickTopResult(results: WebSearchResult[]): {
+  top_url?: string;
+  content_excerpt?: string;
+} {
+  const top = results.find((r) => isFetchableWebUrl(r.url));
+  if (!top) return {};
+  const excerptSource = top.content ?? top.snippet;
+  const content_excerpt =
+    typeof excerptSource === "string" && excerptSource.trim()
+      ? excerptSource.trim().slice(0, 500)
+      : undefined;
+  return {
+    top_url: top.url,
+    ...(content_excerpt ? { content_excerpt } : {}),
+  };
 }
 
 async function browserbaseWebSearch(query: string): Promise<WebSearchResult[]> {
@@ -674,7 +746,7 @@ export function createServerExecutor(): ActionExecutor {
           const newNotes = set.notes !== undefined ? set.notes : prev.notes;
           const derivedUrl = deriveSingleUrl(
             [newTitle, newNotes].filter(Boolean).join("\n"),
-            prev.url,
+            prev.url
           );
           if (derivedUrl !== prev.url) {
             set.url = derivedUrl;
@@ -1118,7 +1190,7 @@ export function createServerExecutor(): ActionExecutor {
 
     async openWorkspace(
       input: OpenWorkspaceAction,
-      _ctx: ExecutionContext,
+      _ctx: ExecutionContext
     ): Promise<ExecutorResult> {
       // Pure echo — server-side Zod validation ran in run-turn.ts. The
       // desktop dispatcher fans the list out into parallel opens and the
@@ -1145,6 +1217,9 @@ export function createServerExecutor(): ActionExecutor {
 
       const results = await browserbaseWebSearch(input.query);
       if (results.length > 0) {
+        // U1 — expose the single best URL + a content excerpt so the model has
+        // BOTH an answer source and a concrete URL to hand studio_open_widget.
+        const { top_url, content_excerpt } = pickTopResult(results);
         return {
           ok: true,
           id: `web_search:${input.query}`,
@@ -1153,8 +1228,29 @@ export function createServerExecutor(): ActionExecutor {
             engine,
             provider: "browserbase",
             results,
+            ...(top_url ? { top_url } : {}),
+            ...(content_excerpt ? { content_excerpt } : {}),
             answer_hint:
-              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question.",
+              "Answer the user directly from these search results. Mention uncertainty when the snippets do not fully answer the question. To show your work, also open the browser widget on top_url via studio_open_widget{kind:\"browser\"}; never open a search-engine page as a substitute for answering.",
+          },
+        };
+      }
+
+      // No results. If Browserbase is unconfigured, degrade gracefully: the
+      // model still gets a turn (no crash), just a hint that live search is
+      // unavailable so it can say so plainly instead of dead-ending.
+      if (!process.env.BROWSERBASE_API_KEY) {
+        console.warn("[jarvis] web_search: BROWSERBASE_API_KEY missing — search unavailable");
+        return {
+          ok: true,
+          id: `web_search:${input.query}`,
+          receipt: {
+            query: input.query,
+            engine,
+            provider: "unavailable",
+            search_unavailable: true,
+            answer_hint:
+              "Live web search is unavailable right now (no search provider configured). Tell the user plainly you cannot look that up at the moment; do not fabricate a live answer.",
           },
         };
       }
@@ -1217,8 +1313,11 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async systemControl(input: SystemControlAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
-      if ((input.action === "volume" || input.action === "brightness")) {
+    async systemControl(
+      input: SystemControlAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
+      if (input.action === "volume" || input.action === "brightness") {
         const v = typeof input.value === "string" ? Number(input.value) : input.value;
         if (typeof v !== "number" || Number.isNaN(v) || v < 0 || v > 100) {
           return {
@@ -1238,7 +1337,10 @@ export function createServerExecutor(): ActionExecutor {
       return {
         ok: true,
         id: `system_control:${input.action}`,
-        receipt: { action: input.action, ...(input.value !== undefined ? { value: input.value } : {}) },
+        receipt: {
+          action: input.action,
+          ...(input.value !== undefined ? { value: input.value } : {}),
+        },
         action: {
           kind: "system_control",
           action: input.action,
@@ -1266,7 +1368,10 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async takeScreenshot(input: TakeScreenshotAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+    async takeScreenshot(
+      input: TakeScreenshotAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
       const describe = input.describe ?? true;
       return {
         ok: true,
@@ -1276,11 +1381,18 @@ export function createServerExecutor(): ActionExecutor {
       };
     },
 
-    async runApplescript(input: RunApplescriptAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
+    async runApplescript(
+      input: RunApplescriptAction,
+      _ctx: ExecutionContext
+    ): Promise<ExecutorResult> {
       const label = input.label.trim();
       const script = input.script.trim();
       if (!label || !script) {
-        return { ok: false, kind: "validation", error: "run_applescript requires label and script" };
+        return {
+          ok: false,
+          kind: "validation",
+          error: "run_applescript requires label and script",
+        };
       }
       return {
         ok: true,
@@ -1337,26 +1449,35 @@ export function createServerExecutor(): ActionExecutor {
 
     async getWeather(input: GetWeatherAction, _ctx: ExecutionContext): Promise<ExecutorResult> {
       // Fully server-side: Open-Meteo geocoding + forecast (free, keyless).
-      const location =
-        input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
+      const location = input.location?.trim() || process.env.JARVIS_DEFAULT_LOCATION || "Boston";
       try {
         const geoRes = await fetch(
           "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" +
-            encodeURIComponent(location),
+            encodeURIComponent(location)
         );
         if (!geoRes.ok) {
           return { ok: false, kind: "network", error: `Geocoding failed (${geoRes.status})` };
         }
         const geo = (await geoRes.json()) as {
-          results?: { latitude: number; longitude: number; name: string; admin1?: string; country?: string }[];
+          results?: {
+            latitude: number;
+            longitude: number;
+            name: string;
+            admin1?: string;
+            country?: string;
+          }[];
         };
         const place = geo.results?.[0];
         if (!place) {
-          return { ok: false, kind: "not_found", error: `No location found matching "${location}"` };
+          return {
+            ok: false,
+            kind: "not_found",
+            error: `No location found matching "${location}"`,
+          };
         }
         const fcRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
-            "&current=temperature_2m,weather_code,wind_speed_10m",
+            "&current=temperature_2m,weather_code,wind_speed_10m"
         );
         if (!fcRes.ok) {
           return { ok: false, kind: "network", error: `Forecast fetch failed (${fcRes.status})` };
@@ -1455,8 +1576,8 @@ export function createServerExecutor(): ActionExecutor {
                 metadataHeaders: ["From", "Subject", "Date"],
               })
               .then((r) => r.data)
-              .catch(() => null),
-          ),
+              .catch(() => null)
+          )
         );
 
         const messages = details
@@ -1464,9 +1585,7 @@ export function createServerExecutor(): ActionExecutor {
           .map((d) => {
             const headers = d.payload?.headers ?? [];
             const getHeader = (name: string): string | undefined => {
-              const h = headers.find(
-                (x) => (x.name ?? "").toLowerCase() === name.toLowerCase(),
-              );
+              const h = headers.find((x) => (x.name ?? "").toLowerCase() === name.toLowerCase());
               return h?.value ?? undefined;
             };
             return {
@@ -1492,7 +1611,7 @@ export function createServerExecutor(): ActionExecutor {
         const message = err instanceof Error ? err.message : String(err);
         const looksLikeScope =
           /insufficientPermissions|insufficient authentication scopes|Insufficient Permission/i.test(
-            message,
+            message
           );
         if (looksLikeScope) {
           return {
@@ -1534,9 +1653,7 @@ export function createServerExecutor(): ActionExecutor {
       if (topic) params.set("q", topic);
 
       try {
-        const res = await fetch(
-          `https://content.guardianapis.com/search?${params.toString()}`,
-        );
+        const res = await fetch(`https://content.guardianapis.com/search?${params.toString()}`);
         if (!res.ok) {
           return {
             ok: false,
@@ -1598,7 +1715,7 @@ export function createServerExecutor(): ActionExecutor {
           const pattern = `%${input.chat.trim()}%`;
           const chatFilter = or(
             ilike(whatsappMessages.chatName, pattern),
-            ilike(whatsappMessages.senderName, pattern),
+            ilike(whatsappMessages.senderName, pattern)
           );
           if (chatFilter) filters.push(chatFilter);
         }
@@ -1625,8 +1742,7 @@ export function createServerExecutor(): ActionExecutor {
               chats: [],
               totalCount: 0,
               windowHours,
-              note:
-                "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
+              note: "No synced WhatsApp messages yet — is the bridge + sync worker running? See tools/whatsapp-sync/README.md.",
             },
           };
         }
@@ -1636,7 +1752,12 @@ export function createServerExecutor(): ActionExecutor {
           string,
           {
             chatName: string;
-            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+            messages: Array<{
+              senderName: string | null;
+              fromMe: boolean;
+              body: string | null;
+              sentAt: string;
+            }>;
           }
         >();
         for (const r of rows) {
@@ -1697,7 +1818,7 @@ export function createServerExecutor(): ActionExecutor {
           const pattern = `%${input.chat.trim()}%`;
           const chatFilter = or(
             ilike(imessageMessages.chatName, pattern),
-            ilike(imessageMessages.senderName, pattern),
+            ilike(imessageMessages.senderName, pattern)
           );
           if (chatFilter) filters.push(chatFilter);
         }
@@ -1724,8 +1845,7 @@ export function createServerExecutor(): ActionExecutor {
               chats: [],
               totalCount: 0,
               windowHours,
-              note:
-                "No synced iMessages yet — is the local iMessage sync worker running? (It syncs Messages' chat.db into Postgres; see tools/ for the sync workers.)",
+              note: "No synced iMessages yet — is the local iMessage sync worker running? (It syncs Messages' chat.db into Postgres; see tools/ for the sync workers.)",
             },
           };
         }
@@ -1735,7 +1855,12 @@ export function createServerExecutor(): ActionExecutor {
           string,
           {
             chatName: string;
-            messages: Array<{ senderName: string | null; fromMe: boolean; body: string | null; sentAt: string }>;
+            messages: Array<{
+              senderName: string | null;
+              fromMe: boolean;
+              body: string | null;
+              sentAt: string;
+            }>;
           }
         >();
         for (const r of rows) {

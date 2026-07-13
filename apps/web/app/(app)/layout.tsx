@@ -11,7 +11,6 @@ import { FloatingJarvisStatus } from "@/components/voice/FloatingJarvisStatus";
 import { JarvisListenerMount } from "@/components/voice/JarvisListenerMount";
 import { PhysicalExtensionListener } from "@/components/voice/PhysicalExtensionListener";
 import { SearchProvider } from "@/components/search/SearchProvider";
-import { EnterStudioButton } from "@/components/studio/EnterStudioButton";
 import { getAuthAvatar, getUserOrRedirect } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getHashtagSuggestions } from "@/lib/db/queries/hashtags";
@@ -81,10 +80,6 @@ export default async function AppLayout({
           {/* Phase 6 Plan 06-03 (AES-05, D-02): Cmd+K focuses JARVIS Console input
             anywhere in (app). CommandMenu rebound to Cmd+Shift+K. */}
           <GlobalHotkeys />
-          {/* Cmd+\ (or the corner pill) toggles the 2D Page ↔ the 3D /studio,
-            remembering the prior 2D route. DOM/shell level — no three imports,
-            so the 2D bundle stays free of 3D bytes. */}
-          <EnterStudioButton />
           </NavHistoryProvider>
           {/* Quick 260607-g56: Cmd+K opens a lite JARVIS dialog from any (app)
             route EXCEPT /today (where GlobalHotkeys.focusJarvis wins). */}

@@ -266,7 +266,15 @@ export async function startCaptureTurn(): Promise<void> {
   emitExtended(extended);
   activeTurnFinished = false;
 
-  await postClaim();
+  // Fire-and-forget: postClaim is "belt-and-braces" (see its own docstring —
+  // non-fatal, a failed claim just means the browser may start its own mic for
+  // this turn) and must NEVER gate mic arm. Previously this was `await`ed
+  // BEFORE the audio-chunk listener + `start_capture`, so the FSM's orb-fly
+  // (jarvisState → "listening", which fires synchronously in the caller) ran a
+  // beat ahead of the mic actually opening — the user would start talking into
+  // a not-yet-recording turn and have to invoke a second time. Firing this in
+  // parallel means the very same click that flies the orb also arms the mic.
+  void postClaim();
 
   activeVad = new VadSilenceDetector({ ...VAD_DEFAULTS, silenceEndMs: vadSilenceMs });
   activeVad.start();

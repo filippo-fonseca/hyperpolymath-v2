@@ -16,13 +16,12 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
-import { postClaim, postWarmup } from "@/api/client";
+import { postClaim, postWarmup, clearHistory } from "@/api/client";
 import {
   cancelCaptureTurn,
   onCaptureState,
   onExtendedChange,
   onManualModeChange,
-  onMicAmplitude,
   onNoSpeechDetected,
   onTranscriptReceived,
   setManualMode,
@@ -50,10 +49,12 @@ import {
   ttsPlayer,
   type JarvisResponseComplete,
 } from "@/jarvis-response";
+import type { VoiceStatus } from "@/audio/tts-player";
 import { loadSettings, saveSetting } from "@/settings";
 import { getDeviceToken, setDeviceToken } from "@/auth/device-token";
-import { describeAction, handleAction, parseAction } from "@/actions/dispatcher";
-import { onConfirmPendingChange, startConfirmGate } from "@/actions/confirm-gate";
+import { describeAction, handleAction, parseAction, routeOpenUrl } from "@/actions/dispatcher";
+import { onConfirmPendingChange, onMessageSent, startConfirmGate } from "@/actions/confirm-gate";
+import { playSendSound } from "@/studio/sound/studio-sfx";
 import { startWhatsappQrOverlay } from "@/hud/whatsapp-qr";
 import { wireWhatsappSettings } from "@/hud/whatsapp-settings";
 import {
@@ -69,9 +70,9 @@ import {
   type EchoInput,
 } from "@/conversation/echo-dedupe";
 import { flashAckStrip, startAckStrip } from "@/hud/ack-strip";
-import { mountOrb } from "@/hud/orb";
 import { startRoutineLoader } from "@/hud/routine-loader";
 import { startBackgroundTasksMonitor } from "@/hud/background-tasks";
+import { startNotificationAnnouncer } from "@/hud/notification-announcer";
 import { wireStartupWakeSettings } from "@/hud/startup-settings";
 import {
   refreshIdleLoopForPhrases,
@@ -94,6 +95,14 @@ import {
 } from "@/routines/registry";
 import { syncHotkeys } from "@/routines/hotkeys";
 import { startScheduler, syncTimeRoutines } from "@/routines/scheduler";
+import { startStudioBridge } from "@studio/bridge";
+import { mountStudio } from "@studio/StudioApp";
+import {
+  isStudioAvailable,
+  openBrowserUrl,
+} from "@studio/actions/browser-router";
+import { shouldSuppressBriefingEcho } from "@/briefing/briefing";
+import { openSettingsWidget } from "@studio/actions/open-settings";
 
 const CLAIM_HEARTBEAT_MS = 10_000;
 // Re-fetch the owner's enabled routines on this cadence so the desktop's
@@ -342,6 +351,11 @@ const echoDedupeState = createEchoDedupeState();
  * utterance, never a legitimately new one.
  */
 function paintTranscriptDeduped(input: EchoInput): void {
+  // The proactive briefing fires by POSTing a synthetic "Daddy's home…" prompt,
+  // which the server echoes back as a user transcript turn. Drop that one echo
+  // so wake never injects a fake typed user message into the conversation — the
+  // spoken briefing and listening still happen; only the phantom bubble is gone.
+  if (shouldSuppressBriefingEcho(input.text)) return;
   if (decidePaintEcho(input, echoDedupeState)) {
     paintTranscript(input.text);
   }
@@ -390,6 +404,46 @@ function paintResponseChunk(delta: string): void {
   // Drawer QA mirror.
   const textEl = document.getElementById("response-text");
   if (textEl) textEl.textContent = appendWithBoundarySpacing(textEl.textContent ?? "", delta);
+}
+
+/**
+ * Clear the conversation "from scratch". Two halves must both happen:
+ *   1. Empty the visible transcript DOM and reset every turn-pairing/optimistic
+ *      pointer, so the next utterance starts a clean pair (a dangling pointer
+ *      into a removed bubble would mis-order the first new turn).
+ *   2. Wipe the server-side memory (jarvis_turns) via clearHistory(), so the
+ *      voice agent's recency-windowed context (buildRecentHistory) no longer
+ *      inherits stale turns — including test turns fired via curl.
+ * The DOM wipe is immediate and never blocks on the network; the server wipe is
+ * best-effort and merely disables the button for its round-trip.
+ */
+async function clearConversation(): Promise<void> {
+  const el = transcriptEl();
+  if (el) {
+    // Remove every turn bubble but keep the static empty-state hint node.
+    el.querySelectorAll(".turn").forEach((t) => t.remove());
+    el.classList.remove("has-content");
+  }
+  // Reset all live turn pointers so a fresh pair can't reference removed nodes.
+  currentReplyBody = null;
+  turnPairState = "neutral";
+  jarvisTurnAwaitingUser = null;
+  optimisticUserTurn = null;
+  optimisticUserBody = null;
+
+  // Clear the drawer QA mirrors too, so they don't strand a stale exchange.
+  const transcriptText = document.getElementById("transcript-text");
+  if (transcriptText) transcriptText.textContent = "";
+  const responseText = document.getElementById("response-text");
+  if (responseText) responseText.textContent = "";
+
+  const btn = document.getElementById("clear-convo-btn") as HTMLButtonElement | null;
+  if (btn) btn.disabled = true;
+  try {
+    await clearHistory();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // Append a receipt line to BOTH the pinned footer (most-recent kept, capped)
@@ -467,6 +521,29 @@ function paintTtsState(playing: boolean): void {
   idleLabel.style.display = playing ? "none" : "";
 }
 
+/**
+ * Toggle the "voice degraded" HUD chip. Shown while ElevenLabs is down and
+ * JARVIS is speaking through the local fallback voice; hidden on recovery so
+ * silence is never mysterious and a working ElevenLabs never leaves a stale
+ * warning up. The reason (key_missing / auth / transient) sharpens the tooltip.
+ */
+function paintVoiceStatus(status: VoiceStatus): void {
+  const el = document.getElementById("voice-degraded");
+  if (!el) return;
+  if (status.state === "degraded") {
+    el.hidden = false;
+    const detail =
+      status.reason === "key_missing" || status.reason === "auth"
+        ? "ElevenLabs key unavailable — using local voice"
+        : status.reason === "transient"
+          ? "ElevenLabs unreachable — using local voice"
+          : "ElevenLabs unavailable — using local voice";
+    el.setAttribute("title", detail);
+  } else {
+    el.hidden = true;
+  }
+}
+
 let _wakeRegistered = false;
 let _extendRegistered = false;
 
@@ -534,6 +611,14 @@ function wireStopButton(): void {
   btn.addEventListener("click", () => {
     ttsPlayer.stop();
     paintTtsState(false);
+  });
+}
+
+function wireClearButton(): void {
+  const btn = document.getElementById("clear-convo-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    void clearConversation();
   });
 }
 
@@ -865,10 +950,14 @@ async function boot(): Promise<void> {
   ttsPlayer.onStateChange((state) => {
     paintTtsState(state === "playing");
   });
+  // Voice-degraded HUD chip: reflects the ElevenLabs→local-voice fallback.
+  ttsPlayer.onVoiceStatusChange((status) => {
+    paintVoiceStatus(status);
+  });
 
   onJarvisResponseStart(() => paintResponseStart());
   onJarvisResponseChunk(({ delta }) => paintResponseChunk(delta));
-  onJarvisToolCall(({ name, result }) => {
+  onJarvisToolCall(({ name, result, turnId }) => {
     paintToolCall(name, result);
     // Computer-control tool results carry an `action` on their result. Key
     // strictly off result.action.kind (fixed contract with the backend agent):
@@ -878,6 +967,18 @@ async function boot(): Promise<void> {
     const action = parseAction(rawAction);
     if (action) {
       flashActionLine(describeAction(action));
+      // URL-LEAK FIX: an open_url must NOT launch the system browser for content
+      // JARVIS can show in the in-app browser widget. Route http(s) URLs into
+      // the widget whenever Studio is available (deduped per turn against the
+      // materialize + studio-action paths); the system opener stays only as the
+      // fallback (Studio unavailable) or for non-http schemes (mailto: etc.).
+      if (
+        action.kind === "open_url" &&
+        routeOpenUrl(action.url, { studioAvailable: isStudioAvailable() }) === "widget"
+      ) {
+        openBrowserUrl(action.url, turnId);
+        return;
+      }
       // FOCUS RULE (RESEARCH Q4): handleAction opens the URL/app which
       // foregrounds the target. We do NOT set_focus() the HUD after an open —
       // that would yank key focus back from the app the user wants to use. The
@@ -899,6 +1000,7 @@ async function boot(): Promise<void> {
   wireCancelButton();
   wireStopButton();
   wireWakeButton();
+  wireClearButton();
   wireExtendButton();
 
   // Route ESP32 `trigger` events through the conversation FSM so the physical
@@ -937,30 +1039,19 @@ async function boot(): Promise<void> {
   onConfirmPendingChange((confirmPending) => {
     document.body.dataset.confirmPending = confirmPending ? "true" : "false";
   });
+  // Subtle "sent" cue when an outgoing message (WhatsApp or iMessage) is
+  // confirmed dispatched. Mirrors the web app's send-to-JARVIS effect; gated
+  // on the Sound setting inside playSendSound.
+  onMessageSent(() => playSendSound());
   startConfirmGate();
 
-  // 5c. The single cyan arc-reactor orb (Task 2.4). One component, four states,
-  //     live amplitude: mic RMS while listening, TTS output while speaking.
-  let latestMicLevel = 0;
-  onMicAmplitude((level) => {
-    latestMicLevel = level;
-  });
-  const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement | null;
-  if (orbCanvas) {
-    mountOrb(orbCanvas, {
-      getState: () => getJarvisState(),
-      getMicLevel: () => latestMicLevel,
-      getSpeakingLevel: () => ttsPlayer.getSpeakingLevel(),
-    });
-  }
-
-  // 5c-bis. Acknowledge strip: auto-fading first-clause echo of each JARVIS
+  // 5c. Acknowledge strip: auto-fading first-clause echo of each JARVIS
   // utterance under the status line. Subscribes to the same SSE response
   // events painted above; purely presentational.
   startAckStrip();
 
   // 5c-ter. Routine HUD loader: on a synthesize(+parallel) voice routine ("I'm
-  // back home"), render the live progress ring around the orb + a ticking source
+  // back home"), render the live progress ring + a ticking source
   // checklist, driven by the jarvis-routine-progress SSE stream. Coexists with
   // the spoken brief (a normal response cycle) without overlapping the transcript.
   startRoutineLoader();
@@ -974,11 +1065,26 @@ async function boot(): Promise<void> {
   // fire-and-forget.
   startBackgroundTasksMonitor();
 
-  // 5d. Settings drawer (gear toggle) — chrome stays out of the way by default.
+  // 5c-quinquies. Incoming-message notification announcer: polls WhatsApp +
+  // iMessage for new messages FROM people and, when the "Message notifications"
+  // setting is on, surfaces a toast near the orb and opens the relevant chat
+  // widget; when "Auto-read aloud" is on it also speaks the message in the
+  // butler register (FSM-idle-gated so it never talks over a turn). Additive +
+  // fail-safe — a bad poll skips one tick.
+  startNotificationAnnouncer();
+
+  // 5d. Settings gear → opens the Settings widget on the studio stage.
+  // The gear was previously unclickable (studio layers painted over it and
+  // swallowed the hit — fixed by lifting .gear-btn above the studio stack in
+  // index.html) and toggled the legacy DOM settings sheet. It now summons the
+  // singleton Settings widget so the HUD's settings live in one surface,
+  // reachable by mouse AND the synthetic hand pointer (the button is a normal
+  // DOM target either driver can land on). The legacy DOM sheet stays wired for
+  // its close button and the disconnect banner (device-token recovery).
   const gearBtn = document.getElementById("gear-btn");
   const settingsEl = document.getElementById("settings");
   const settingsCloseBtn = document.getElementById("settings-close");
-  gearBtn?.addEventListener("click", () => settingsEl?.classList.toggle("open"));
+  gearBtn?.addEventListener("click", () => openSettingsWidget());
   settingsCloseBtn?.addEventListener("click", () => settingsEl?.classList.remove("open"));
 
   // The disconnect banner (shown only when body[data-sse="error"]) is a shortcut
@@ -1065,6 +1171,12 @@ async function boot(): Promise<void> {
     "[boot] JARVIS Desktop ready",
     settings.physicalExtenderEnabled ? "— Physical Extender mode" : "— Hotkey mode (Cmd+Shift+J)",
   );
+}
+
+const studioRoot = document.getElementById("studio-root");
+if (studioRoot) {
+  startStudioBridge();
+  mountStudio(studioRoot);
 }
 
 boot().catch((err) => {

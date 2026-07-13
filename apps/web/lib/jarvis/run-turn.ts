@@ -1,18 +1,20 @@
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { areas, captures, jarvisPersonalityConfig, projects, tasks, users } from "@/lib/db/schema";
+import { getAnthropicClient, JARVIS_MODEL } from "@/lib/jarvis/anthropic-client";
 import {
-  areas,
-  captures,
-  jarvisPersonalityConfig,
-  projects,
-  tasks,
-  users,
-} from "@/lib/db/schema";
+  createServerExecutor,
+  executeStudioCloseWidget,
+  executeStudioOpenWidget,
+} from "@/lib/jarvis/executor";
 import {
-  getAnthropicClient,
-  JARVIS_MODEL,
-} from "@/lib/jarvis/anthropic-client";
-import { createServerExecutor } from "@/lib/jarvis/executor";
+  STUDIO_WIDGET_TOOL_DEFINITIONS,
+  StudioCloseWidgetInputSchema,
+  StudioOpenWidgetInputSchema,
+  type StudioCloseWidgetInput,
+  type StudioOpenWidgetInput,
+} from "@/lib/jarvis/studio-widget-tools";
+import { detectStudioBackstop } from "@/lib/jarvis/studio-intent-backstop";
 import { logJarvisEvent } from "@/lib/jarvis/log-event";
 import type { SnapshotInputs } from "@/lib/jarvis/render-user-state";
 import * as stateCache from "@/lib/jarvis/state-snapshot-cache";
@@ -160,7 +162,12 @@ export interface RunTurnOptions {
    * Called when an ask_clarification tool fires. Optional — browser route
    * uses this to emit a `clarification` SSE event.
    */
-  onClarification?: (toolUseId: string, question: string, options: string[], suggestedAction: unknown) => void;
+  onClarification?: (
+    toolUseId: string,
+    question: string,
+    options: string[],
+    suggestedAction: unknown
+  ) => void;
   onAction: (toolUseId: string, name: string, result: unknown) => void;
   onDone: (usage: RunTurnUsage) => void;
   onError: (message: string) => void;
@@ -202,6 +209,8 @@ function buildToolValidators(voiceActive: boolean) {
     run_shortcut: RunShortcutInputSchema,
     play_music: PlayMusicInputSchema,
     get_weather: GetWeatherInputSchema,
+    studio_open_widget: StudioOpenWidgetInputSchema,
+    studio_close_widget: StudioCloseWidgetInputSchema,
     // Server-side data tools (Gmail read + Guardian news)
     read_gmail: ReadGmailInputSchema,
     get_news: GetNewsInputSchema,
@@ -355,7 +364,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     // (more chars could complete it), bounded so a long non-greeting opener
     // can't stall the stream.
     const stillPrefix = GREETING_PREFIXES.some(
-      (p) => p.startsWith(lower) && p.length > lower.length,
+      (p) => p.startsWith(lower) && p.length > lower.length
     );
     if (stillPrefix && greetingBuf.length < 24) return;
     greetingGuardDone = true;
@@ -407,10 +416,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       .where(eq(users.id, opts.userId))
       .limit(1),
     getJarvisFactsForUser(opts.userId),
-    db
-      .select({ id: areas.id, name: areas.name })
-      .from(areas)
-      .where(eq(areas.userId, opts.userId)),
+    db.select({ id: areas.id, name: areas.name }).from(areas).where(eq(areas.userId, opts.userId)),
     db
       .select({
         id: captures.id,
@@ -445,13 +451,16 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       .from(jarvisPersonalityConfig)
       .where(eq(jarvisPersonalityConfig.userId, opts.userId))
       .limit(1)
-      .catch(() => [] as Array<{
-        preset: string;
-        formality: string;
-        verbosity: string;
-        wit: string;
-        customInstructions: string | null;
-      }>),
+      .catch(
+        () =>
+          [] as Array<{
+            preset: string;
+            formality: string;
+            verbosity: string;
+            wit: string;
+            customInstructions: string | null;
+          }>
+      ),
   ]);
 
   const userRow = userRows[0];
@@ -460,7 +469,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   // Set here (before the stream starts) so the guard can correct a
   // contradicting leading greeting on the wire (bgsd/time-aware-greeting).
   expectedTimeOfDay = timeOfDayForHour(
-    currentHourInTimezone(userRow?.timezone ?? "America/New_York"),
+    currentHourInTimezone(userRow?.timezone ?? "America/New_York")
   );
 
   // Map the loaded row into the jarvis-core PersonalityConfig contract, or
@@ -499,9 +508,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
   });
 
   const stateVersion = userRow?.stateVersion ?? 1n;
-  const todayDate = formatTodayDateInTimezone(
-    userRow?.timezone ?? "America/New_York",
-  );
+  const todayDate = formatTodayDateInTimezone(userRow?.timezone ?? "America/New_York");
   const activeProjectsForSnapshot: SnapshotInputs["projectsActive"] = [];
   const upcomingProjectsForSnapshot: SnapshotInputs["projectsUpcoming"] = [];
   for (const p of userProjects) {
@@ -541,7 +548,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     cache_control: { type: "ephemeral" },
   });
 
-  const tools = buildToolDefinitions({ voiceActive });
+  const tools = [...buildToolDefinitions({ voiceActive }), ...STUDIO_WIDGET_TOOL_DEFINITIONS];
   const toolValidators = buildToolValidators(voiceActive);
 
   const preValidatedProjectIds = new Set<string>();
@@ -574,11 +581,8 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
   const promptBuiltAt_d = new Date();
 
-  const sttDoneAt_d: Date | null = opts.sttDoneAt
-    ? new Date(opts.sttDoneAt)
-    : null;
-  const sttDoneAtSafe =
-    sttDoneAt_d && !Number.isNaN(sttDoneAt_d.getTime()) ? sttDoneAt_d : null;
+  const sttDoneAt_d: Date | null = opts.sttDoneAt ? new Date(opts.sttDoneAt) : null;
+  const sttDoneAtSafe = sttDoneAt_d && !Number.isNaN(sttDoneAt_d.getTime()) ? sttDoneAt_d : null;
 
   // Phase 16: widened to accept content-block arrays alongside string content.
   const anthropicMessages: Array<{
@@ -638,9 +642,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       // AFTER the snapshot block. Do NOT add cache_control here — Pitfall 3.
       // The temporal-context block is also uncached (changes every minute).
       const scratchpadText = buildSessionEntitiesBlock(sessionEntities);
-      const temporalText = buildTemporalContextBlock(
-        userRow?.timezone ?? "America/New_York",
-      );
+      const temporalText = buildTemporalContextBlock(userRow?.timezone ?? "America/New_York");
       const passSystem = [
         ...system,
         { type: "text" as const, text: temporalText },
@@ -650,7 +652,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       const pendingActions: Promise<void>[] = [];
       const toolResultsThisPass: {
         id: string;
-        name: JarvisToolName;
+        name: ToolName;
         input: Record<string, unknown>;
         result: unknown;
       }[] = [];
@@ -666,10 +668,12 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
           tools: tools as unknown as never,
           // tool_choice: only forced on pass 1; subsequent passes let the model
           // choose end_turn vs more tools — anti-pattern prevention.
-          tool_choice: (passCount === 1 ? toolChoice : { type: "auto" as const }) as unknown as never,
+          tool_choice: (passCount === 1
+            ? toolChoice
+            : { type: "auto" as const }) as unknown as never,
           messages: loopMessages as unknown as never,
         },
-        { signal: upstream.signal },
+        { signal: upstream.signal }
       );
 
       anthStream.on("contentBlock", (block: unknown) => {
@@ -703,9 +707,11 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
             }
 
             actionTypes.push(b.name as string);
-            const toolName = b.name as JarvisToolName;
+            const toolName = b.name as ToolName;
             const toolInput = parsed.data as Record<string, unknown>;
-            let result;
+            let result: Awaited<
+              ReturnType<typeof executeStudioOpenWidget>
+            >;
 
             if (toolName === "create_task") {
               const taskData = {
@@ -716,22 +722,22 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
               }
               result = await executor.createTask(
                 taskData as Parameters<typeof executor.createTask>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "create_capture") {
               result = await executor.createCapture(
                 parsed.data as Parameters<typeof executor.createCapture>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "create_event") {
               result = await executor.createEvent(
                 parsed.data as Parameters<typeof executor.createEvent>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "remember_fact") {
               result = await executor.rememberFact(
                 parsed.data as Parameters<typeof executor.rememberFact>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "ask_clarification") {
               const cdata = parsed.data as {
@@ -744,162 +750,172 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
                   b.id ?? "",
                   cdata.question,
                   cdata.options ?? [],
-                  cdata.suggested_action ?? null,
+                  cdata.suggested_action ?? null
                 );
               }
               result = await executor.askClarification(
                 parsed.data as Parameters<typeof executor.askClarification>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "update_task") {
               result = await executor.updateTask(
                 parsed.data as Parameters<typeof executor.updateTask>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "delete_task") {
               result = await executor.deleteTask(
                 parsed.data as Parameters<typeof executor.deleteTask>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "update_capture") {
               result = await executor.updateCapture(
                 parsed.data as Parameters<typeof executor.updateCapture>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "delete_capture") {
               result = await executor.deleteCapture(
                 parsed.data as Parameters<typeof executor.deleteCapture>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "update_event") {
               result = await executor.updateEvent(
                 parsed.data as Parameters<typeof executor.updateEvent>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "delete_event") {
               result = await executor.deleteEvent(
                 parsed.data as Parameters<typeof executor.deleteEvent>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "find_tasks") {
               result = await executor.findTasks(
                 parsed.data as Parameters<typeof executor.findTasks>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "find_captures") {
               result = await executor.findCaptures(
                 parsed.data as Parameters<typeof executor.findCaptures>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "find_events") {
               result = await executor.findEvents(
                 parsed.data as Parameters<typeof executor.findEvents>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "create_person") {
               result = await executor.createPerson(
                 parsed.data as Parameters<typeof executor.createPerson>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "find_people") {
               result = await executor.findPeople(
                 parsed.data as Parameters<typeof executor.findPeople>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "link_people") {
               result = await executor.linkPeople(
                 parsed.data as Parameters<typeof executor.linkPeople>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "open_url") {
               result = await executor.openUrl(
                 parsed.data as Parameters<typeof executor.openUrl>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "open_app") {
               result = await executor.openApp(
                 parsed.data as Parameters<typeof executor.openApp>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "open_workspace") {
               result = await executor.openWorkspace(
                 parsed.data as Parameters<typeof executor.openWorkspace>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "web_search") {
               result = await executor.webSearch(
                 parsed.data as Parameters<typeof executor.webSearch>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "send_message") {
               result = await executor.sendMessage(
                 parsed.data as Parameters<typeof executor.sendMessage>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "system_control") {
               result = await executor.systemControl(
                 parsed.data as Parameters<typeof executor.systemControl>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "type_text") {
               result = await executor.typeText(
                 parsed.data as Parameters<typeof executor.typeText>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "press_key") {
               result = await executor.pressKey(
                 parsed.data as Parameters<typeof executor.pressKey>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "take_screenshot") {
               result = await executor.takeScreenshot(
                 parsed.data as Parameters<typeof executor.takeScreenshot>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "run_applescript") {
               result = await executor.runApplescript(
                 parsed.data as Parameters<typeof executor.runApplescript>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "run_shortcut") {
               result = await executor.runShortcut(
                 parsed.data as Parameters<typeof executor.runShortcut>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "play_music") {
               result = await executor.playMusic(
                 parsed.data as Parameters<typeof executor.playMusic>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "get_weather") {
               result = await executor.getWeather(
                 parsed.data as Parameters<typeof executor.getWeather>[0],
-                ctx,
+                ctx
+              );
+            } else if (toolName === "studio_open_widget") {
+              result = await executeStudioOpenWidget(
+                parsed.data as StudioOpenWidgetInput,
+                ctx.userId
+              );
+            } else if (toolName === "studio_close_widget") {
+              result = await executeStudioCloseWidget(
+                parsed.data as StudioCloseWidgetInput,
+                ctx.userId
               );
             } else if (toolName === "read_gmail") {
               result = await executor.readGmail(
                 parsed.data as Parameters<typeof executor.readGmail>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "get_news") {
               result = await executor.getNews(
                 parsed.data as Parameters<typeof executor.getNews>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "read_whatsapp") {
               result = await executor.readWhatsapp(
                 parsed.data as Parameters<typeof executor.readWhatsapp>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "read_imessage") {
               result = await executor.readImessage(
                 parsed.data as Parameters<typeof executor.readImessage>[0],
-                ctx,
+                ctx
               );
             } else if (toolName === "computer_use") {
               result = await executor.computerUse(
                 parsed.data as Parameters<typeof executor.computerUse>[0],
-                ctx,
+                ctx
               );
             } else {
               return;
@@ -943,8 +959,10 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       // Sum usage from this pass into the total
       totalUsage.input_tokens += final.usage.input_tokens ?? 0;
       totalUsage.output_tokens += final.usage.output_tokens ?? 0;
-      totalUsage.cache_read_input_tokens += (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0;
-      totalUsage.cache_creation_input_tokens += (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0;
+      totalUsage.cache_read_input_tokens +=
+        (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0;
+      totalUsage.cache_creation_input_tokens +=
+        (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0;
 
       // Per-pass cache-usage log. Verifies the 1h prefix cache is landing:
       // on the 2nd turn within TTL, cache_read should be ~9K (the stable
@@ -953,15 +971,15 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       console.log(
         `[jarvis] cache read/create pass=${passCount}`,
         (final.usage as RunTurnUsage).cache_read_input_tokens ?? 0,
-        (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0,
+        (final.usage as RunTurnUsage).cache_creation_input_tokens ?? 0
       );
 
       // Append newly-touched entities to session-entities scratchpad
       for (const r of toolResultsThisPass) {
         const entity = entityFromToolResult(
-          r.name,
+          r.name as JarvisToolName,
           r.input,
-          r.result as { ok: boolean; id?: string; receipt?: Record<string, unknown> },
+          r.result as { ok: boolean; id?: string; receipt?: Record<string, unknown> }
         );
         if (entity) sessionEntities.push(entity);
       }
@@ -982,7 +1000,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
       const executedIds = new Set(toolResultsThisPass.map((r) => r.id));
       const assistantContent = truncated
         ? (final.content as Array<{ type: string; id?: string }>).filter(
-            (b) => b.type !== "tool_use" || executedIds.has(b.id ?? ""),
+            (b) => b.type !== "tool_use" || executedIds.has(b.id ?? "")
           )
         : final.content;
       loopMessages.push({ role: "assistant", content: assistantContent as never });
@@ -1014,10 +1032,7 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
     const rawFinalTextBlocks = Array.isArray(finalContent)
       ? finalContent
           .filter(
-            (b) =>
-              b.type === "text" &&
-              typeof b.text === "string" &&
-              b.text.trim().length > 0,
+            (b) => b.type === "text" && typeof b.text === "string" && b.text.trim().length > 0
           )
           .map((b) => b.text as string)
       : [];
@@ -1066,6 +1081,29 @@ export async function runJarvisTurnStream(opts: RunTurnOptions): Promise<void> {
 
     if (!anyTextEmitted && actionTypes.length === 0) {
       opts.onTextDelta("I didn't quite catch that, sir — try rephrasing as a thing to file.");
+    }
+
+    // U1 jarvis-web-brain — deterministic studio-widget backstop. The model is
+    // told to pair ambient-data answers with the matching widget (weather →
+    // weather widget, news → news widget) and to open the WhatsApp widget for
+    // "open whatsapp / my messages" rather than launching the macOS app, but it
+    // sometimes answers without opening one (or wrongly reaches for open_app).
+    // If the raw utterance obviously asks for weather/news/whatsapp AND no
+    // studio_open_widget fired this turn, nudge the widget open server-side so
+    // "answer AND show" holds and "open whatsapp" always lands the HUD widget.
+    // Conservative matcher; live-web scores/prices are NOT backstopped (they
+    // need a real result URL only the model has).
+    {
+      const alreadyOpenedWidget = actionTypes.includes("studio_open_widget");
+      const backstopKind = detectStudioBackstop(opts.input ?? "", alreadyOpenedWidget);
+      if (backstopKind) {
+        try {
+          await executeStudioOpenWidget({ kind: backstopKind }, opts.userId);
+          actionTypes.push("studio_open_widget");
+        } catch {
+          // Never let the backstop break the turn — the answer already streamed.
+        }
+      }
     }
 
     opts.onDone(totalUsage);

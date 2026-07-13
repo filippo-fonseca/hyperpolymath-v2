@@ -42,6 +42,7 @@ import type { SendMessageAction } from "@/actions/dispatcher";
 import { ttsPlayer } from "@/jarvis-response";
 import { loadSettings } from "@/settings";
 import { startTask, resolveTask } from "@/hud/background-tasks";
+import { postWhatsappReceipt } from "@/api/client";
 
 /** Outcome of an actual send. `ok:true` only when the transport confirmed
  *  delivery (a 2xx from the WhatsApp bridge, or AppleScript running clean).
@@ -56,6 +57,10 @@ interface SendResult {
    *  "Sent to <name>, sir" confirmation so the user is never left guessing
    *  whether — and to whom — a message went. Falls back to what the user said. */
   resolvedRecipient?: string;
+  /** On a successful WhatsApp send, the chat JID the bridge actually delivered
+   *  to (from its `{ jid }` success body). Lets the widget focus that exact chat
+   *  after a confirmed send without a fuzzy name match. Absent for iMessage. */
+  resolvedJid?: string;
   /** True when the failure line has ALREADY been spoken by executeSend itself
    *  (e.g. the iMessage recipient couldn't be resolved to a real contact, so a
    *  specific "I couldn't find Rohan, sir" line was said). dispatchAndReport
@@ -146,8 +151,11 @@ const DEDUPE_WINDOW_MS = 30_000;
  *  to the same person still works: the user just confirms it again. */
 const DISPATCH_LATCH_MS = 15_000;
 /** Hard backstop: a pending confirm never outlives this, even if the
- *  conversation somehow stays active. */
-const PENDING_TTL_MS = 120_000;
+ *  conversation somehow stays active. Short enough that a forgotten "shall I
+ *  send it, sir?" doesn't leave the gate silently guarding a stale send for
+ *  minutes — after this the pending is auto-cancelled and JARVIS says so, so
+ *  the user is never left wondering why later turns seem to do nothing. */
+const PENDING_TTL_MS = 45_000;
 /** Fail-fast timeout on the POST to the WhatsApp bridge. Without this, a dead
  *  or wedged bridge (process crashed, unpaired mid-QR, tunnel down) would leave
  *  the send `fetch` hanging indefinitely — the failure line never speaks, the
@@ -191,6 +199,69 @@ function emitPendingChange(isPending: boolean): void {
   for (const fn of pendingListeners) fn(isPending);
 }
 
+/** How a pending send resolved — drives the confirm-gesture panel's dismissal
+ *  flourish (tick vs cross). "sent" covers voice-yes / gesture-approve /
+ *  pre-confirm; "cancelled" covers voice-no / gesture-cancel / replacement;
+ *  "expired" is the silent TTL backstop. Purely presentational. */
+export type ConfirmResolution = "sent" | "cancelled" | "expired";
+type ConfirmResolvedListener = (resolution: ConfirmResolution) => void;
+const resolvedListeners = new Set<ConfirmResolvedListener>();
+
+export function onConfirmResolved(fn: ConfirmResolvedListener): () => void {
+  resolvedListeners.add(fn);
+  return () => {
+    resolvedListeners.delete(fn);
+  };
+}
+
+function emitResolved(resolution: ConfirmResolution): void {
+  for (const fn of resolvedListeners) fn(resolution);
+}
+
+/** Fired after a WhatsApp send is CONFIRMED and successfully delivered by the
+ *  bridge. The Studio WhatsApp widget listens (via bridge.ts) to open itself to
+ *  the target chat and pulse-highlight the just-sent message. Purely a UX echo —
+ *  no gate logic keys off it, and it fires only on `ok:true` from the bridge. */
+export interface WhatsappSendConfirmed {
+  /** Contact/chat name the bridge resolved to (falls back to the spoken name). */
+  recipient: string;
+  /** True chat JID the bridge delivered to, when it reported one. */
+  jid?: string;
+  /** The message text that went out — matched to highlight the bubble. */
+  text: string;
+}
+type WhatsappSendConfirmedListener = (payload: WhatsappSendConfirmed) => void;
+const whatsappSendListeners = new Set<WhatsappSendConfirmedListener>();
+
+export function onWhatsappSendConfirmed(fn: WhatsappSendConfirmedListener): () => void {
+  whatsappSendListeners.add(fn);
+  return () => {
+    whatsappSendListeners.delete(fn);
+  };
+}
+
+function emitWhatsappSendConfirmed(payload: WhatsappSendConfirmed): void {
+  for (const fn of whatsappSendListeners) fn(payload);
+}
+
+/** Fired once any outgoing message (WhatsApp OR iMessage) is confirmed
+ *  delivered by its transport. Transport-agnostic and payload-free: it exists
+ *  purely so the HUD can play a subtle "sent" cue at the true dispatch moment.
+ *  No gate logic keys off it. */
+type MessageSentListener = () => void;
+const messageSentListeners = new Set<MessageSentListener>();
+
+export function onMessageSent(fn: MessageSentListener): () => void {
+  messageSentListeners.add(fn);
+  return () => {
+    messageSentListeners.delete(fn);
+  };
+}
+
+function emitMessageSent(): void {
+  for (const fn of messageSentListeners) fn();
+}
+
 function clearPendingState(): void {
   const hadPending = pending !== null;
   pending = null;
@@ -201,13 +272,22 @@ function clearPendingState(): void {
   if (hadPending) emitPendingChange(false);
 }
 
-function discardPending(reason: string): void {
+function discardPending(reason: string, speak?: string): void {
   if (!pending) return;
   // eslint-disable-next-line no-console
   console.log(
     `[confirm] pending send_message to "${pending.action.recipient}" discarded — ${reason}`,
   );
+  // A TTL expiry / an unrelated turn moving on are silent-ish backstops (no
+  // explicit "no"); an actual spoken/gesture decline is a deliberate cancel.
+  // The panel shows a cross for a decline, nothing for expiry/supersede.
+  const resolution: ConfirmResolution = reason.startsWith("TTL") ? "expired" : "cancelled";
   clearPendingState();
+  emitResolved(resolution);
+  // Tell the user the confirmation lapsed so "why did nothing send" is never a
+  // mystery — but only for the backstops (TTL / unrelated-turn), where there
+  // was no explicit "no" already implying the user knows it's off.
+  if (speak) ttsPlayer.speakNow(speak);
 }
 
 /** Best-effort parse of the bridge's JSON error body (it always writes JSON via
@@ -287,10 +367,14 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     // name (empty for raw JID/number sends). Never throw on a malformed body —
     // fall back to what the user said.
     let resolvedRecipient = action.recipient;
+    let resolvedJid: string | undefined;
     try {
-      const body = (await res.json()) as { recipient?: unknown };
+      const body = (await res.json()) as { recipient?: unknown; jid?: unknown };
       if (typeof body?.recipient === "string" && body.recipient.trim()) {
         resolvedRecipient = body.recipient.trim();
+      }
+      if (typeof body?.jid === "string" && body.jid.trim()) {
+        resolvedJid = body.jid.trim();
       }
     } catch {
       // Non-JSON / empty success body — keep the spoken recipient.
@@ -300,7 +384,7 @@ async function executeWhatsappSend(action: SendMessageAction): Promise<SendResul
     console.log(
       `[confirm] whatsapp send dispatched to "${action.recipient}" → "${resolvedRecipient}" (${action.text.length} chars) via ${target}`,
     );
-    return { ok: true, resolvedRecipient };
+    return { ok: true, resolvedRecipient, resolvedJid };
   } catch (err) {
     const aborted = ctrl.signal.aborted || (err as { name?: string })?.name === "AbortError";
     if (aborted) {
@@ -414,6 +498,8 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
   const result = await executeSend(action);
   resolveTask(taskId, result.ok ? "done" : "failed");
   if (result.ok) {
+    // Subtle "sent" cue at the true dispatch moment, for both transports.
+    emitMessageSent();
     // Speak an honest, terminal delivery confirmation naming the contact the
     // message ACTUALLY went to. Before this, success was silent — the user had
     // no way to know a send succeeded (or, worse, that a resolved-but-wrong or
@@ -422,7 +508,38 @@ async function dispatchAndReport(action: SendMessageAction): Promise<void> {
     // when the spoken name was a partial/nickname.
     const who = (result.resolvedRecipient ?? action.recipient).trim() || action.recipient;
     ttsPlayer.speakNow(`Sent to ${who}, sir.`);
+    // UX echo (WhatsApp only): tell the Studio widget to open THIS chat and
+    // pulse the just-sent message. Fires only on a confirmed, delivered send —
+    // never gates or blocks the send path.
+    if (action.app === "whatsapp") {
+      emitWhatsappSendConfirmed({
+        recipient: who,
+        ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+        text: action.text,
+      });
+      // Teach the server what actually happened so a following "did you send
+      // it?" voice turn is grounded (buildRecentHistory reads jarvis_turns).
+      // Fire-and-forget — the send already succeeded and was spoken.
+      void postWhatsappReceipt({
+        recipient: who,
+        ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+        text: action.text,
+        success: true,
+      });
+    }
     return;
+  }
+  // Failure path. For WhatsApp, still record a receipt so the agent knows the
+  // send did NOT go through — otherwise the next turn would only see the model's
+  // pre-send prose and might claim success. iMessage failures aren't yet mirrored
+  // (no widget/receipt plumbing); WhatsApp is the reported case.
+  if (action.app === "whatsapp") {
+    void postWhatsappReceipt({
+      recipient: (result.resolvedRecipient ?? action.recipient).trim() || action.recipient,
+      ...(result.resolvedJid ? { jid: result.resolvedJid } : {}),
+      text: action.text,
+      success: false,
+    });
   }
   // executeSend already spoke a specific, category-appropriate line — for
   // WhatsApp: not-connected vs contact-not-found vs ambiguous (see
@@ -522,7 +639,10 @@ export function holdSendMessage(action: SendMessageAction): void {
   emitPendingChange(true);
   pendingTtlTimer = setTimeout(() => {
     pendingTtlTimer = null;
-    discardPending(`TTL expired (${PENDING_TTL_MS}ms) with no spoken answer`);
+    discardPending(
+      `TTL expired (${PENDING_TTL_MS}ms) with no spoken answer`,
+      "No confirmation, sir — cancelled.",
+    );
   }, PENDING_TTL_MS);
   // eslint-disable-next-line no-console
   console.log(
@@ -530,11 +650,51 @@ export function holdSendMessage(action: SendMessageAction): void {
   );
 }
 
+/** True while a send_message is held awaiting a yes/no answer. Lets a gesture
+ *  consumer (thumbs-up/down) know whether there's anything to answer without
+ *  reaching into the module's internals. */
+export function hasPendingSend(): boolean {
+  return pending !== null;
+}
+
+/**
+ * Programmatically CONFIRM the pending send — the non-voice answer path (a
+ * thumbs-up gesture, or any future UI affordance). Equivalent to the user saying
+ * "yes": it dispatches the held send and clears the pending. Returns true when a
+ * pending existed and was dispatched, false when there was nothing to confirm.
+ * Voice confirmation stays valid simultaneously — whichever answer lands first
+ * clears the pending, and the other becomes a no-op.
+ */
+export function confirmPendingSend(): boolean {
+  if (!pending) return false;
+  const action = pending.action;
+  clearPendingState();
+  emitResolved("sent");
+  // eslint-disable-next-line no-console
+  console.log("[confirm] gesture confirmation (thumbs-up) received — sending");
+  // Load-bearing fire-and-forget, exactly as the transcript path: clearing the
+  // pending has already dropped the amber HUD ring, so nothing waits on the send.
+  void dispatchAndReport(action);
+  return true;
+}
+
+/**
+ * Programmatically CANCEL the pending send — the non-voice decline path (a
+ * thumbs-down gesture). Equivalent to the user saying "no". Returns true when a
+ * pending existed and was discarded, false when there was nothing to cancel.
+ */
+export function cancelPendingSend(): boolean {
+  if (!pending) return false;
+  discardPending("gesture cancellation (thumbs-down)");
+  return true;
+}
+
 /**
  * Try to resolve the pending send with a fresh transcript from the
  * continue-listening window. Returns true when the transcript was consumed as
- * a confirm/deny; anything else leaves the pending in place (the user may be
- * amending — a replacement action will arrive) until the window closes.
+ * a confirm/deny. Any OTHER (unrelated) transcript discards the pending —
+ * the gate no longer blocks on it — so the new turn is free to run normally;
+ * see the discardPending call at the bottom of this function.
  */
 function resolvePendingWithTranscript(text: string): boolean {
   if (!pending) return false;
@@ -544,6 +704,7 @@ function resolvePendingWithTranscript(text: string): boolean {
   if (AFFIRM_RE.test(text) || hasUnnegatedSendVerb(text)) {
     const action = pending.action;
     clearPendingState();
+    emitResolved("sent");
     // eslint-disable-next-line no-console
     console.log(`[confirm] spoken confirmation received ("${text}") — sending`);
     // No client-side ack here — see the pre-confirm branch above. The model's
@@ -565,6 +726,18 @@ function resolvePendingWithTranscript(text: string): boolean {
   if (NEGATE_RE.test(text) || NEGATOR_RE.test(text)) {
     discardPending(`user declined ("${text}")`);
     return true;
+  }
+  // Unrelated turn: the user said something that is neither a yes/no answer to
+  // "shall I send it, sir?" nor a decline. Previously this left `pending` (and
+  // its amber confirm-pending ring) hanging indefinitely — the ONLY escape was
+  // the 2-minute TTL — so a real follow-up question right after a pending send
+  // looked like the app had stopped responding. Drop the stale pending here so
+  // the new turn is free to proceed and produce its own reply/actions; return
+  // `false` (not "consumed" as a yes/no) so the transcript is still recorded as
+  // `lastTranscript` for the normal two-turn pre-confirm path on its own next
+  // action, same as if there had been no pending send at all.
+  if (text.trim().length > 0) {
+    discardPending(`superseded by unrelated turn ("${text}")`);
   }
   return false;
 }

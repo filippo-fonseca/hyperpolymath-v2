@@ -8,9 +8,7 @@
         color-scheme: dark;
         font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         /* Locked HUD palette (p2 design spec). Near-black base, cyan as the
-           canonical Stark signature (#00d4ff — also hardcoded in hud/orb.ts
-           for the canvas orb; keep the two in sync), amber reserved for the
-           guarded-confirm state. */
+           canonical Stark signature, amber reserved for guarded confirmation. */
         --bg: #050608;
         --surface: #0b1018;
         --fg: #dce8ee;
@@ -39,7 +37,7 @@
       }
 
       /* ── Stage: three fixed regions in a column grid ───────────────────────
-         [header/orb]  auto — never scrolls, never shrinks
+         [header]      auto — never scrolls, never shrinks
          [transcript]  1fr  — the ONLY scroll region; text can never overlap
          [footer/btn]  auto — pinned to the bottom
          The min-height:0 on the middle row is what lets it scroll instead of
@@ -47,6 +45,7 @@
          window resize because every dimension is relative / clamped. */
       .stage {
         position: relative;
+        z-index: 1;
         height: 100vh;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
@@ -54,7 +53,7 @@
         padding: 16px 18px 18px;
       }
 
-      /* ── Header: orb + status, centered, fixed height ── */
+      /* ── Header: compact status and optional routine progress ── */
       .hud-header {
         display: flex;
         flex-direction: column;
@@ -62,51 +61,18 @@
         gap: 8px;
         padding-top: 4px;
       }
-      .orb-wrap {
+      .routine-ring-slot {
         position: relative;
-        width: clamp(128px, 36vh, 220px);
-        height: clamp(128px, 36vh, 220px);
+        width: 112px;
+        height: 0;
         display: grid; place-items: center;
+        opacity: 0;
+        transition: height 0.3s ease, opacity 0.3s ease;
       }
-      #orb-canvas { width: 100%; height: 100%; display: block; }
-
-      /* 4 tick marks at 0/90/180/270° just outside the canvas ring (Stark
-         targeting feel) — a CSS-only overlay so hud/orb.ts stays untouched.
-         The canvas ring radius is 0.28 × the box; this overlay's circle sits
-         at 0.33 × so ticks ride just outside the stroke + glow.
-         Guarded confirm: while a send_message is held awaiting a spoken
-         confirmation (body[data-confirm-pending="true"], driven by
-         actions/confirm-gate.ts via main.ts), the ticks cross-fade cyan →
-         amber and a thin amber guard ring appears. That fade and the
-         acknowledge strip are the only new motion — nothing else animates. */
-      .orb-ticks {
-        position: absolute;
-        width: 66%; height: 66%;
-        left: 50%; top: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        border: 1px solid transparent;
-        transition: border-color 0.35s ease;
-        pointer-events: none;
+      body[data-routine="active"] .routine-ring-slot {
+        height: 112px;
+        opacity: 1;
       }
-      body[data-confirm-pending="true"] .orb-ticks {
-        border-color: color-mix(in srgb, var(--amber) 40%, transparent);
-      }
-      .orb-ticks::before,
-      .orb-ticks::after {
-        content: "";
-        position: absolute; inset: -1px; /* cover the border box so ticks sit on the guard ring */
-        background:
-          linear-gradient(currentColor, currentColor) center top    / 1.5px 7px no-repeat,
-          linear-gradient(currentColor, currentColor) center bottom / 1.5px 7px no-repeat,
-          linear-gradient(currentColor, currentColor) left   center / 7px 1.5px no-repeat,
-          linear-gradient(currentColor, currentColor) right  center / 7px 1.5px no-repeat;
-        transition: opacity 0.35s ease;
-      }
-      .orb-ticks::before { color: color-mix(in srgb, var(--accent) 50%, transparent); }
-      .orb-ticks::after  { color: color-mix(in srgb, var(--amber) 80%, transparent); opacity: 0; }
-      body[data-confirm-pending="true"] .orb-ticks::before { opacity: 0; }
-      body[data-confirm-pending="true"] .orb-ticks::after  { opacity: 1; }
 
       /* Status glyph — tiny mono line under the orb (font-mono-stats). */
       .status-line {
@@ -130,6 +96,30 @@
         background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
       }
       body[data-sse="error"] .status-line .conn-dot { background: var(--err); }
+      /* Voice-degraded chip: amber (the guarded/attention register), sits after
+         the status word. Hidden via the [hidden] attribute until TTS falls back
+         to the local voice; a soft pulse draws the eye without shouting. */
+      .status-line .voice-degraded {
+        display: inline-flex; align-items: center;
+        margin-left: 9px; padding: 1px 6px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+        color: var(--amber);
+        background: color-mix(in srgb, var(--amber) 12%, transparent);
+        letter-spacing: 0.1em;
+        animation: voice-degraded-pulse 2s ease-in-out infinite;
+      }
+      .status-line .voice-degraded[hidden] { display: none; }
+      .status-line .voice-degraded::before {
+        content: ""; display: inline-block;
+        width: 5px; height: 5px; border-radius: 50%;
+        margin-right: 5px; background: var(--amber);
+        box-shadow: 0 0 6px color-mix(in srgb, var(--amber) 80%, transparent);
+      }
+      @keyframes voice-degraded-pulse {
+        0%, 100% { opacity: 0.72; }
+        50% { opacity: 1; }
+      }
 
       /* Disconnect banner — an always-visible top strip whenever the JARVIS
          server / device-token link is down, so the user never has to open
@@ -173,10 +163,8 @@
       }
       .ack-strip.visible { opacity: 1; }
 
-      /* ── Routine progress ring — a conic-gradient arc that fills around the
-         orb as a synthesize routine's sources settle (src/hud/routine-loader.ts).
-         Sits just outside the canvas ring / tick overlay (orb ring = 0.28 of the
-         box, ticks = 0.33; this ring rides at ~0.40 so it frames both). The fill
+      /* ── Routine progress ring — a conic-gradient arc that fills as a
+         synthesize routine's sources settle (src/hud/routine-loader.ts). The fill
          is driven by a single CSS custom property, --progress (an angle 0→360deg),
          so advancing a source is one cheap GPU transition — no rAF loop (the orb
          already owns one). The track is a faint full circle; the arc is the cyan
@@ -441,6 +429,68 @@
         .task-chip[data-status="running"] .task-dot { animation: none; }
       }
 
+      /* ── Incoming-message notification toasts: a compact panel per new
+         WhatsApp/iMessage message near the orb, same glassy near-black / cyan /
+         mono register as the task chips + routine loader so they read as one
+         system. Stacked bottom-center, above the orb, each fading out after a
+         linger. Non-interactive (pointer-events: none) — the OPEN-the-chat side
+         effect fires from the announcer, not a click. ── */
+      #notification-toasts {
+        position: fixed;
+        left: 50%; bottom: 128px;
+        transform: translateX(-50%);
+        z-index: 41;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        max-width: 60vw;
+        pointer-events: none;
+      }
+      #notification-toasts:empty { display: none; }
+
+      .noti-toast {
+        display: flex; align-items: baseline; gap: 8px;
+        max-width: 100%;
+        padding: 8px 13px;
+        border-radius: 11px;
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--rule));
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
+        backdrop-filter: blur(10px) saturate(122%);
+        -webkit-backdrop-filter: blur(10px) saturate(122%);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.52),
+                    0 0 16px color-mix(in srgb, var(--accent) 16%, transparent);
+        opacity: 0;
+        animation: noti-toast-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transition: opacity 0.4s ease;
+      }
+      .noti-toast[data-leaving="true"] { opacity: 0; }
+      .noti-channel {
+        flex: none;
+        font-family: var(--mono);
+        font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase;
+        color: var(--accent);
+      }
+      .noti-sender {
+        flex: none;
+        font-family: var(--mono);
+        font-size: 10.5px; letter-spacing: 0.03em;
+        color: var(--fg);
+      }
+      .noti-preview {
+        min-width: 0;
+        font-size: 11.5px; line-height: 1.3;
+        color: color-mix(in srgb, var(--fg) 78%, transparent);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      @keyframes noti-toast-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .noti-toast { animation: none; opacity: 1; transition: opacity 0.001s linear; }
+      }
+
       /* ── Transcript: the scrollable middle region. Never overlaps anything.
          Auto-scrolls to the latest text; wraps; readable type. ── */
       .transcript {
@@ -477,6 +527,56 @@
         max-width: 260px;
       }
       .transcript.has-content .transcript-empty { display: none; }
+
+      /* ── Region 2 wrapper: nested grid so the toolbar (auto) sits above the
+         scroll region (1fr) without eating the transcript's flex height. ── */
+      .transcript-region {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 6px;
+      }
+      /* Slim toolbar strip. Hidden until the transcript has content, so an
+         empty session shows only the idle hint — no orphaned control. */
+      .transcript-toolbar {
+        display: none;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 2px;
+        min-height: 0;
+      }
+      .transcript-region:has(.transcript.has-content) .transcript-toolbar {
+        display: flex;
+      }
+      /* Chrome button: mono, hairline border, cyan hover — matches HUD chrome. */
+      .chrome-btn {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 7px;
+        padding: 3px 9px;
+        cursor: pointer;
+        transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+      .chrome-btn:hover {
+        color: var(--accent);
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--rule));
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+      }
+      .chrome-btn:active {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+      }
+      .chrome-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+        color: var(--muted);
+        border-color: var(--rule);
+        background: transparent;
+      }
 
       /* A single turn bubble: the user line (right) or JARVIS line (left). */
       .turn {
@@ -597,6 +697,12 @@
       /* ── Settings drawer (behind a gear toggle; auto-hidden by default) ── */
       .gear-btn {
         position: fixed; top: 12px; right: 12px;
+        /* The studio layers (#studio-widget-root at z-index 2, its foreground
+           scrims, and any widget) paint ABOVE the gear when it has no stacking
+           context of its own, so the click landed on a studio layer instead of
+           the button. Lift the gear above the whole studio stack and force its
+           own pointer surface so it is always the top hit at the corner. */
+        z-index: 70; pointer-events: auto;
         appearance: none; background: transparent; border: none;
         color: var(--muted); cursor: pointer; font-size: 15px;
         padding: 6px; border-radius: 8px; line-height: 1;
@@ -726,6 +832,9 @@
     </style>
   </head>
   <body data-jarvis-state="idle">
+    <!-- React-owned full-window studio canvas. Legacy HUD controls and overlays
+         stay later in the DOM so they remain interactive above this layer. -->
+    <div id="studio-root"></div>
     <button class="disconnect-banner" id="disconnect-banner" type="button">
       ⚠ Disconnected from JARVIS server — tap to check the device token in Settings
     </button>
@@ -739,21 +848,26 @@
       </div>
     </div>
     <main class="stage">
-      <!-- Region 1: fixed orb header + status. Never scrolls. -->
+      <!-- Region 1: compact status and routine progress. Never scrolls. -->
       <header class="hud-header">
-        <div class="orb-wrap">
-          <canvas id="orb-canvas" aria-hidden="true"></canvas>
-          <div class="orb-ticks" aria-hidden="true"></div>
-          <!-- Routine progress ring (src/hud/routine-loader.ts). A conic-gradient
-               arc that fills around the orb as a synthesize routine's sources
-               settle. Hidden until the loader is visible; the center label reads
-               "3/5" then "✓". CSS-only fill via the --progress angle var. -->
+        <div class="routine-ring-slot">
+          <!-- Hidden until the loader is visible; the label reads "3/5" then
+               "✓". CSS-only fill via the --progress angle var. -->
           <div class="routine-ring" id="routine-ring" aria-hidden="true">
             <span class="routine-ring-label" id="routine-ring-label"></span>
           </div>
         </div>
         <div class="status-line" id="status-line">
           <span class="conn-dot" aria-hidden="true"></span><span id="status-word">standing by</span>
+          <!-- Voice-degraded indicator: shown only while ElevenLabs is down and
+               JARVIS is speaking through the local fallback voice. Hidden on
+               recovery. -->
+          <span
+            class="voice-degraded"
+            id="voice-degraded"
+            hidden
+            title="ElevenLabs unavailable — using local voice"
+          >voice degraded</span>
         </div>
         <div class="ack-strip" id="ack-strip" aria-hidden="true"></div>
       </header>
@@ -761,8 +875,8 @@
       <!-- Routine loader card (src/hud/routine-loader.ts). A fixed glassy panel
            on the top-left rail, clear of the transcript scroll region, that
            lists every source of a synthesize routine and ticks each as it
-           settles. Visible only while a routine is in flight; the ring around
-           the orb is its sibling. Never overlaps the transcript. -->
+           settles. Visible only while a routine is in flight; its compact ring
+           appears above the status line. Never overlaps the transcript. -->
       <aside class="routine-loader" id="routine-loader" aria-live="polite">
         <div class="routine-loader-head">
           <span class="routine-loader-dot" aria-hidden="true"></span>
@@ -772,14 +886,32 @@
         <div class="routine-loader-phase" id="routine-loader-phase">One moment…</div>
       </aside>
 
-      <!-- Region 2: the ONLY scroll area. Conversation turns land here and it
-           auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
-      <section class="transcript" id="transcript" aria-live="polite">
-        <div class="transcript-empty" id="transcript-empty">
-          Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
-          Your words and JARVIS's replies appear here.
+      <!-- Region 2 wrapper: occupies the single 1fr grid row. A nested grid
+           stacks a slim toolbar (auto) over the scroll region (1fr) so adding
+           the toolbar never steals the transcript's flex height. -->
+      <div class="transcript-region">
+        <!-- Transcript toolbar: minimal HUD chrome above the scroll region.
+             Holds the Clear control, which empties the visible transcript AND
+             wipes the server-side conversation memory (jarvis_turns) so a fresh
+             session never inherits stale turns. Hidden until there's content. -->
+        <div class="transcript-toolbar" id="transcript-toolbar">
+          <button
+            class="chrome-btn"
+            id="clear-convo-btn"
+            type="button"
+            title="Clear conversation — wipes the transcript and JARVIS's memory of it"
+          >Clear</button>
         </div>
-      </section>
+
+        <!-- The ONLY scroll area. Conversation turns land here and it
+             auto-scrolls to the latest. Wraps; readable type; never overlaps. -->
+        <section class="transcript" id="transcript" aria-live="polite">
+          <div class="transcript-empty" id="transcript-empty">
+            Press <strong>Talk to JARVIS</strong> or ⌘⌃J to begin.<br />
+            Your words and JARVIS's replies appear here.
+          </div>
+        </section>
+      </div>
 
       <!-- Region 3: pinned footer — invoke button + inline action receipts. -->
       <footer class="hud-footer">
@@ -881,12 +1013,12 @@
         <span class="label">Briefing</span>
         <span class="value">
           <label class="toggle-pill">
-            <input type="checkbox" id="startup-briefing-enabled" checked />
+            <input type="checkbox" id="startup-briefing-enabled" />
             <span class="toggle-track"></span>
           </label>
         </span>
       </div>
-      <p class="note">Spoken briefing on the first invoke of each session.</p>
+      <p class="note">Opt-in: speak a proactive briefing on the first invoke of each session. Off by default — waking/talking starts with a clean transcript unless you turn this on.</p>
 
       <div class="row">
         <span class="label">Open on start</span>
