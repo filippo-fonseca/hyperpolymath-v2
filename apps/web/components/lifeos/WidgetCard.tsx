@@ -23,23 +23,28 @@ interface Props {
  *   - Layer 2 (z-10): the card's content, wrapped in <WidgetCardContent>,
  *     sits above the overlay so its buttons/links capture clicks directly.
  *
- * Hover (group/card):
- *   - Cyan-tinged border deepens
- *   - Inner cyan glow intensifies, outer halo grows softer + larger
- *   - Mirrors the glassy "Profile"pill in /settings nav
- *
- * Recipe: translucent surface + backdrop-blur, inset white top highlight,
- * inset cyan ambient glow, paired outer halo. No transform — glow does the
- * lifting, not motion.
+ * Chrome: the Spacedrive entity-card panel (constitution §A2/§B, decisions
+ * D1/D7). A near-opaque surface fill, a 1px --edge hairline border, a 0.5px
+ * white inset top hairline for the dimensional gloss, and a quiet ≤10% drop.
+ * 12px radius. Hover is a soft-landing on border + background only (200ms
+ * cubic-bezier(0.23,1,0.32,1)) — no scale, no lift, no glow halo. Both themes
+ * flip automatically via the token ladder.
  */
 export function WidgetCard({ href, ariaLabel, children, className }: Props) {
   return (
     <div
       className={cn(
-        "group/card relative h-full",
-        "rounded-xl glass-tile",
+        "group/card relative h-full rounded-xl border border-[var(--edge)]",
+        "bg-[color-mix(in_oklch,var(--surface-raised)_82%,transparent)]",
+        "transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        "hover:border-[color-mix(in_oklch,var(--hud-cyan)_28%,var(--edge))]",
+        "hover:bg-[color-mix(in_oklch,var(--surface-raised)_92%,transparent)]",
         className,
       )}
+      style={{
+        boxShadow:
+          "inset 0 1px 0 rgb(255 255 255 / 0.10), 0 1px 3px color-mix(in oklch, var(--ink) 8%, transparent)",
+      }}
     >
       {/* Margin click target — sits below content. */}
       <Link
