@@ -15,7 +15,7 @@ import {
 // also builds a DOM-free "render model" so tests can assert the resulting
 // on-screen order without a real DOM — exactly the invariant that matters.
 type Event =
-  | { kind: "user"; text: string }
+  | { kind: "user"; text: string; turnId?: string }
   | { kind: "start"; turnId: string }
   | { kind: "delta"; turnId: string; delta: string }
   | { kind: "clear" };
@@ -58,7 +58,7 @@ function drive(events: Event[]): { state: TranscriptState; bubbles: Bubble[] } {
   const bubbles: Bubble[] = [];
   for (const e of events) {
     let res;
-    if (e.kind === "user") res = reduceUserEcho(state, e.text);
+    if (e.kind === "user") res = reduceUserEcho(state, e.text, e.turnId);
     else if (e.kind === "start") res = reduceReplyStart(state, e.turnId);
     else if (e.kind === "delta") res = reduceReplyDelta(state, e.turnId, e.delta);
     else res = reduceClear(state);
@@ -145,11 +145,14 @@ describe("transcript-order — the reported defect: interleaved overlapping turn
     ]);
   });
 
-  // Even when a later turn's reply-start beats an earlier turn's within the
-  // client (SSE arrival skew), FIFO pairing keeps each reply under its own user
-  // bubble: the two user echoes arrived in order, so reply-starts fill them
-  // oldest-first regardless of which turnId's start landed first.
-  it("reply-starts arriving out of order still pair oldest-user-first", () => {
+  // TURNLESS legacy path (POST fallback echoes carry no turnId). With no
+  // identity to pair on, FIFO keeps each reply under the oldest waiting user
+  // bubble: the two echoes arrived in order, so reply-starts fill them
+  // oldest-first regardless of which turnId's start landed first. NOTE this is a
+  // best-effort ordering — it is CORRECT only because the server truly emitted
+  // A's reply before B's; the turnId'd test below proves true identity even when
+  // the server inverts that order.
+  it("turnless reply-starts arriving out of order pair oldest-user-first (FIFO)", () => {
     const { bubbles } = drive([
       { kind: "user", text: "qA" },
       { kind: "user", text: "qB" },
@@ -165,6 +168,78 @@ describe("transcript-order — the reported defect: interleaved overlapping turn
       "jarvis:answerToA",
       "user:qB",
       "jarvis:answerToB",
+    ]);
+  });
+
+  // IDENTITY path (the real fix): when the user echoes carry their reply's
+  // turnId (server mints it before the echo — routine-interception threads it as
+  // echoTurnId), reply-starts pair by identity even when the SERVER inverts
+  // relative order. The exact [echo_A, echo_B, start_B, start_A] interleaving
+  // the review flagged: start_B must attach to B's user (qB), start_A to A's
+  // (qA) — the OPPOSITE of what FIFO would give here, proving true turn identity.
+  it("turnId'd echoes pair each reply to its OWN user even when starts invert", () => {
+    const { bubbles } = drive([
+      { kind: "user", text: "qA", turnId: "A" },
+      { kind: "user", text: "qB", turnId: "B" },
+      // Server inverts: B's reply-start lands before A's at the client.
+      { kind: "start", turnId: "B" },
+      { kind: "delta", turnId: "B", delta: "answerToB" },
+      { kind: "start", turnId: "A" },
+      { kind: "delta", turnId: "A", delta: "answerToA" },
+    ]);
+    // Identity, not arrival order: qA↔answerToA, qB↔answerToB.
+    expect(render(bubbles)).toEqual([
+      "user:qA",
+      "jarvis:answerToA",
+      "user:qB",
+      "jarvis:answerToB",
+    ]);
+  });
+
+  // Reply-first ordering with identity: the reply arrives before its echo (SSE
+  // beats the echo) and the echo, when it lands, carries the SAME turnId — it
+  // must slot above ITS reply, not an unrelated earlier reply-first turn.
+  it("identity pairs a reply-first turn to its own late echo", () => {
+    const { bubbles } = drive([
+      { kind: "start", turnId: "A" },
+      { kind: "delta", turnId: "A", delta: "answerToA" },
+      { kind: "start", turnId: "B" },
+      { kind: "delta", turnId: "B", delta: "answerToB" },
+      // Echoes land after both replies, in REVERSE, each carrying its turnId.
+      { kind: "user", text: "qB", turnId: "B" },
+      { kind: "user", text: "qA", turnId: "A" },
+    ]);
+    expect(render(bubbles)).toEqual([
+      "user:qA",
+      "jarvis:answerToA",
+      "user:qB",
+      "jarvis:answerToB",
+    ]);
+  });
+
+  // MIXED stream (backward compatibility): one turn is turnId'd, one is turnless.
+  // An identified reply must take its OWN partner and must NOT steal the turnless
+  // echo that FIFO owes to the turnless reply. Order: turnless echo qX arrives
+  // first, then identified echo qA(turnId A); reply-start A must pair with qA (by
+  // identity), and the turnless reply-start must pair with qX (FIFO) — never the
+  // reverse, which would strand qA.
+  it("identity never steals a turnless FIFO slot in a mixed stream", () => {
+    const { bubbles } = drive([
+      { kind: "user", text: "qX" }, // turnless (POST-fallback style)
+      { kind: "user", text: "qA", turnId: "A" }, // identified
+      // A's reply-start lands FIRST even though qA is the newer user turn.
+      { kind: "start", turnId: "A" },
+      { kind: "delta", turnId: "A", delta: "answerToA" },
+      // The turnless turn's reply lands second.
+      { kind: "start", turnId: "X" },
+      { kind: "delta", turnId: "X", delta: "answerToX" },
+    ]);
+    // A binds to qA by identity (not the older qX); X takes qX by FIFO.
+    expect(render(bubbles)).toEqual([
+      "user:qX",
+      "jarvis:answerToX",
+      "user:qA",
+      "jarvis:answerToA",
     ]);
   });
 
