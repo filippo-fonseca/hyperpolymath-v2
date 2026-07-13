@@ -8,16 +8,13 @@ import { cn } from "@/lib/utils";
  * Entity-card grammar — the Spacedrive "Overview" device-card anatomy adapted
  * to Life OS (design constitution §A2, decisions D2/D6/D7).
  *
- * These are the shared primitives every /lifeos widget composes: a header with
- * a dimensional icon backplate + title + one-line subtitle + right-aligned
- * status pill, an optional labeled progress row with a solid accent fill and a
- * 45deg hatched projected segment, and rounded chip pills with a "+N more"
- * overflow.
- *
- * Everything is token-driven (--hud-cyan is the app accent per D1b; chrome via
- * --canvas/--surface/--surface-raised/--ink/--ink-muted/--edge) so both themes
- * flip automatically (D1c) and no globals.css changes are needed. Accent stays
- * cyan; functional hues (green/amber/coral) appear only as 6px status dots and
+ * These primitives compose the foundations panel-grammar utilities shipped by
+ * the sd-campaign block in globals.css (`.sd-status-pill`, `.sd-dot-*`,
+ * `.sd-progress` / `.sd-progress-fill` / `.sd-progress-hatched`) rather than
+ * re-declaring the CSS locally. Everything resolves through the promoted
+ * `--sd-*` ladder (accent = JARVIS cyan per D1b; surfaces map to the parchment
+ * neutrals in light scope per the D11 promotion) so both themes flip
+ * automatically (D1c). Functional hues appear only as 6px status dots and
  * 15%-alpha tinted chips, never as chrome (D6).
  */
 
@@ -25,54 +22,18 @@ import { cn } from "@/lib/utils";
 
 export type StatusTone = "active" | "progress" | "idle";
 
-const statusDot: Record<StatusTone, string> = {
-  active: "var(--ink-sage)", // green — active / done-today
-  progress: "var(--hud-cyan)", // cyan — in-progress / synced
-  idle: "var(--ink-muted)", // gray — idle / empty
-};
-
-const statusGlow: Record<StatusTone, string | undefined> = {
-  active: "0 0 5px color-mix(in oklch, var(--ink-sage) 45%, transparent)",
-  progress: "0 0 5px color-mix(in oklch, var(--hud-cyan) 55%, transparent)",
-  idle: undefined,
+/** Maps a semantic tone to the foundations dot utility. */
+const statusDotClass: Record<StatusTone, string> = {
+  active: "sd-dot-active", // green — active / done-today
+  progress: "sd-dot-synced", // accent cyan — in-progress / synced
+  idle: "sd-dot-idle", // faint — idle / empty
 };
 
 export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--edge)] bg-[color-mix(in_oklch,var(--surface-raised)_70%,transparent)] px-2 py-[3px]">
-      <span
-        aria-hidden
-        className="h-1.5 w-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: statusDot[tone], boxShadow: statusGlow[tone] }}
-      />
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] tabular-nums text-[var(--ink-muted)]">
-        {label}
-      </span>
-    </span>
-  );
-}
-
-/* --------------------------------------------------------- icon backplate */
-
-/**
- * Dimensional icon backplate — a subtle raised tile that seats a widget's
- * glyph. The gradient + inset top hairline give the flat lucide icon the
- * dimensional read the reference calls for, without the (not-yet-extracted)
- * components/ui/icons SVG set. 8px radius per D7.
- */
-export function IconBackplate({ children }: { children: ReactNode }) {
-  return (
-    <span
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]"
-      style={{
-        background:
-          "linear-gradient(160deg, color-mix(in oklch, var(--surface-raised) 90%, transparent), color-mix(in oklch, var(--surface) 88%, var(--ink)))",
-        border: "1px solid var(--edge)",
-        boxShadow:
-          "inset 0 1px 0 rgb(255 255 255 / 0.10), 0 1px 2px color-mix(in oklch, var(--ink) 8%, transparent)",
-      }}
-    >
-      {children}
+    <span className="sd-status-pill font-mono uppercase tracking-[0.12em] tabular-nums">
+      <span aria-hidden className={cn("sd-dot", statusDotClass[tone])} />
+      {label}
     </span>
   );
 }
@@ -86,6 +47,7 @@ export function EntityCardHeader({
   pill,
   action,
 }: {
+  /** Dimensional icon from components/ui/icons (carries its own depth). */
   icon: ReactNode;
   title: string;
   subtitle?: ReactNode;
@@ -96,13 +58,13 @@ export function EntityCardHeader({
   return (
     <header className="mb-4 flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2.5">
-        <IconBackplate>{icon}</IconBackplate>
+        <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="truncate font-serif text-base font-medium leading-tight text-[var(--ink)]">
+          <h3 className="truncate font-serif text-base font-medium leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (
-            <div className="truncate text-[12px] leading-tight text-[var(--ink-muted)]">
+            <div className="truncate text-[12px] leading-tight text-[var(--sd-ink-dull)]">
               {subtitle}
             </div>
           )}
@@ -121,9 +83,9 @@ export function EntityCardHeader({
 /* ----------------------------------------------------------- progress row */
 
 /**
- * Labeled progress row. The filled portion is a solid cyan bar; the projected
- * / remaining portion shows a 45deg hatched cyan segment beneath it. The fill
- * animates via transform:scaleX (GPU-safe, D1d) — never width tweening.
+ * Labeled progress row. The track shows a 45deg hatched cyan projected segment
+ * (`.sd-progress-hatched`) beneath a solid cyan fill (`.sd-progress-fill`); the
+ * fill animates via transform:scaleX (GPU-safe, D1d) — never width tweening.
  */
 export function ProgressRow({
   label,
@@ -140,32 +102,18 @@ export function ProgressRow({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm text-[var(--ink-muted)]">{label}</span>
-        <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">
+        <span className="text-sm text-[var(--sd-ink-dull)]">{label}</span>
+        <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink)]">
           {value}
         </span>
       </div>
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_oklch,var(--ink)_9%,transparent)]">
+      <div className="sd-progress relative">
         {/* Projected / remaining — hatched cyan under the solid fill. */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, color-mix(in oklch, var(--hud-cyan) 24%, transparent) 0 3px, transparent 3px 7px)",
-          }}
-        />
+        <div aria-hidden className="sd-progress-hatched absolute inset-0" />
         {/* Solid fill — left-anchored scaleX so it clips the hatch where done. */}
         <motion.div
           aria-hidden
-          className="absolute inset-y-0 left-0 w-full origin-left"
-          style={{
-            background: "var(--hud-cyan)",
-            boxShadow:
-              clamped > 0
-                ? "0 0 6px color-mix(in oklch, var(--hud-cyan) 40%, transparent)"
-                : undefined,
-          }}
+          className="sd-progress-fill absolute inset-y-0 left-0 w-full origin-left"
           initial={reduced ? false : { scaleX: 0 }}
           animate={{ scaleX: clamped }}
           transition={
@@ -194,15 +142,15 @@ export function Chip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-md border border-[var(--edge)] bg-[color-mix(in_oklch,var(--surface-raised)_60%,transparent)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--ink-muted)]",
+        "inline-flex max-w-full items-center gap-1 rounded-md border border-[var(--sd-line)] bg-[color-mix(in_srgb,var(--sd-box)_60%,transparent)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.10em] text-[var(--sd-ink-dull)]",
         className,
       )}
       style={
         tone
           ? {
               color: tone,
-              borderColor: `color-mix(in oklch, ${tone} 30%, var(--edge))`,
-              background: `color-mix(in oklch, ${tone} 15%, transparent)`,
+              borderColor: `color-mix(in srgb, ${tone} 30%, var(--sd-line))`,
+              background: `color-mix(in srgb, ${tone} 15%, var(--sd-box))`,
             }
           : undefined
       }
@@ -215,7 +163,7 @@ export function Chip({
 
 export function OverflowChip({ count }: { count: number }) {
   return (
-    <span className="inline-flex items-center rounded-md border border-[var(--edge)] bg-[color-mix(in_oklch,var(--surface-raised)_60%,transparent)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums tracking-[0.10em] text-[var(--ink-muted)]">
+    <span className="inline-flex items-center rounded-md border border-[var(--sd-line)] bg-[color-mix(in_srgb,var(--sd-box)_60%,transparent)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums tracking-[0.10em] text-[var(--sd-ink-dull)]">
       +{count} more
     </span>
   );
