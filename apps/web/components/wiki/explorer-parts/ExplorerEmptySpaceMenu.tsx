@@ -6,7 +6,7 @@ import {
   ExplorerContextMenuItem,
   ExplorerContextMenuSeparator,
   ExplorerContextMenuTrigger,
-} from "@/components/wiki/explorer/ExplorerContextMenu";
+} from "@/components/ui/explorer";
 import type { ReactNode } from "react";
 
 export interface ExplorerEmptySpaceMenuProps {

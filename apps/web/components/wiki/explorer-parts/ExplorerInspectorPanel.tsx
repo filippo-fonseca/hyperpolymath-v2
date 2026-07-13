@@ -1,7 +1,7 @@
 "use client";
 
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
-import { MetaRow, MetaSection } from "@/components/wiki/explorer/InspectorShell";
+import { MetaRow, MetaSection } from "@/components/ui/explorer";
 import { FolderIcon } from "@/components/ui/icons/FolderIcon";
 import { PagePreviewThumb } from "@/components/wiki/preview/PagePreviewThumb";
 import { extractPreviewModel } from "@/lib/pages/preview";
