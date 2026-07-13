@@ -48,6 +48,32 @@ interface Props {
 export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => void;
 
 /**
+ * Sidebar surface — the dossier's darkest-surface sd "sidebar family"
+ * (SPACEDRIVE-TOKENS §Sidebar) rendered at ~65% vibrancy over the app canvas
+ * (D1). Solid `--sd-darker-box` is the fallback where backdrop-filter is
+ * unsupported. Consumes the darkest promoted global sd surface today; the
+ * dedicated `--sd-sidebar` token lands with entity-cards' D11 promotion, at
+ * which point this single constant is repointed (re-merge on the Conductor's
+ * signal) — no other site changes.
+ */
+export const SIDEBAR_SURFACE =
+  "bg-[var(--sd-darker-box)] supports-[backdrop-filter]:bg-[color-mix(in_oklch,var(--sd-darker-box)_65%,transparent)] supports-[backdrop-filter]:backdrop-blur-xl";
+
+/** Nav/tree row grammar: 6px radius, ink-dull idle, quiet sidebar-button hover
+ *  @120ms. No neumorphic shadow (retires `.sidebar-row`). */
+export const SB_ROW =
+  "rounded-[6px] text-[var(--sd-ink-dull)] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]";
+/** Active row — neutral selected backplate + ink text (two-tier: surface +
+ *  text emphasis). No cyan whisper, no ring (retires `.sidebar-row-active*`). */
+export const SB_ROW_ACTIVE = "bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)] text-[var(--sd-ink)]";
+/** Quiet 6px icon-button / emoji-chip backplate (retires `.sidebar-ghost-btn`
+ *  / `.sidebar-chip`). */
+export const SB_GHOST =
+  "rounded-[6px] transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]";
+/** Keyboard focus convention (D6). */
+export const SB_FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]";
+
+/**
  * Sidebar — M3 owner of the areas useOptimistic state.
  *
  * AreaCreateDialog and SidebarTree are SIBLINGS of this component. Both consume
@@ -61,19 +87,17 @@ export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => 
  * so subscribing at the shared parent guarantees one channel per (table, userId)
  * regardless of how many sub-rows mount.
  *
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5e + §7a + §12e):
+ * Spacedrive restyle (sesh-1783963573841): the sidebar migrates onto the
+ * darkest-surface sd "sidebar family" (SPACEDRIVE-TOKENS §Sidebar), consuming
+ * the global --sd-* register. Surface renders at ~65% vibrancy over the app
+ * canvas (D1); rows use the 6px sidebar-button/selected grammar with two-tier
+ * active state (neutral --sd-selected/40 backplate + ink text, NO cyan
+ * whisper glow); section labels use .sd-stat-label (mono 10px). Cyan touches
+ * chrome only as focus rings and the JARVIS-current dot (D1b/D6). The
+ * frosted-white neumorphic .sidebar-* pills are retired from this surface.
  *
- * Diplomatic chrome. --surface background, 1px --edge right border. Section
- * labels render as mono 12px uppercase tracking-wide (AREAS / JARVIS /
- * NAVIGATE per UI-SPEC §12e). The active route's nav link gets a 1px
- * --edge-hud LEFT-edge accent (not a background fill); the JARVIS link
- * additionally gets a 4px --hud-cyan dot when /jarvis is current — the one
- * place cyan touches diplomatic chrome (UI-SPEC §5e). Hover transitions
- * 100ms text-muted → ink.
- *
- * Layout grid carries forward unchanged (UI-SPEC §14). Mechanism for
- * optimistic state + Realtime + collapse state is untouched — ONLY
- * typography + edges + copy register update.
+ * Mechanism for optimistic state + Realtime + collapse state is untouched —
+ * this is a presentation-layer restyle only.
  */
 export function Sidebar({
   userId,
@@ -155,7 +179,7 @@ export function Sidebar({
       aria-label="Sidebar"
       className={cn(
         "relative h-full shrink-0",
-        "transition-[width] duration-200 ease-in-out",
+        "transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
         collapsed ? "w-16" : "w-[260px]",
         !mounted && "invisible"
       )}
@@ -166,24 +190,26 @@ export function Sidebar({
         }}
         onMouseLeave={() => setHovered(false)}
         className={cn(
-          "group/sidebar absolute inset-y-0 left-0 flex flex-col bg-[var(--surface)] border-r border-[var(--edge)] overflow-hidden",
-          "transition-[width,box-shadow] duration-200 ease-in-out",
+          "group/sidebar absolute inset-y-0 left-0 flex flex-col overflow-hidden",
+          "border-r border-[var(--sd-line)]",
+          SIDEBAR_SURFACE,
+          "transition-[width,box-shadow,border-radius] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]",
           effectiveCollapsed ? "w-16" : "w-[260px]",
-          // When hover-expanded, float above the page content with a soft
-          // raised shadow so it reads as a temporary overlay, not a reflow.
+          // Collapsed hover-expand floats above the page as a temporary overlay:
+          // rounded sidebar-family panel + soft raised shadow (dossier §8).
           collapsed &&
             hovered &&
-            "z-50 shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
+            "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
         {/* Header: collapsed mode centers the H with no chevron. Expanded
           (truly or via hover) shows Wordmark + chevron/pin. */}
         {effectiveCollapsed ? (
-          <div className="flex items-center justify-center px-3 py-3 border-b border-[var(--edge)]">
+          <div className="flex items-center justify-center px-3 py-3 border-b border-[var(--sd-divider)]">
             <Wordmark collapsed />
           </div>
         ) : (
-          <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--edge)]">
+          <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--sd-divider)]">
             <Wordmark collapsed={false} />
             <TooltipProvider delayDuration={300}>
               <Tooltip>
@@ -193,7 +219,7 @@ export function Sidebar({
                     size="icon-sm"
                     onClick={handleChevronClick}
                     aria-label={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-                    className="shrink-0 text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 ease-out"
+                    className="shrink-0 text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out"
                   >
                     {collapsed ? (
                       <Pin size={13} strokeWidth={1.5} />
@@ -210,8 +236,10 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
+        {/* Scrollable content area. Mask-fade-out over the last ~40px so rows
+          dissolve into the footer rather than hard-clipping (dossier §8). The
+          mask is static, so it is reduced-motion-safe. */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 [mask-image:linear-gradient(to_bottom,black_calc(100%-40px),transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_calc(100%-40px),transparent)]">
           {/* Primary nav — labels speak for themselves now; section header
             removed for the cleaner Arc-style layout. */}
           <PersistentNav collapsed={effectiveCollapsed} />
@@ -233,7 +261,7 @@ export function Sidebar({
                     variant="ghost"
                     size="icon-xs"
                     aria-label="Create area"
-                    className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+                    className="text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out"
                   >
                     <Plus size={12} strokeWidth={1.5} />
                   </Button>
@@ -258,7 +286,7 @@ export function Sidebar({
                           variant="ghost"
                           size="icon-xs"
                           aria-label="Create area"
-                          className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+                          className="text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out"
                         >
                           <Plus size={12} strokeWidth={1.5} />
                         </Button>
@@ -288,9 +316,7 @@ export function Sidebar({
           {/* JARVIS section — agent-adjacent surfaces (memory + future agent destinations) */}
           {!effectiveCollapsed && (
             <div className="mt-6 px-4 mb-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] select-none">
-                JARVIS
-              </span>
+              <span className="sd-stat-label select-none">JARVIS</span>
             </div>
           )}
           {!effectiveCollapsed && (
@@ -305,7 +331,7 @@ export function Sidebar({
           identity at top (avatar + display name), icon controls in the
           middle (eye / theme / settings, all uniform size), brand meta
           at the bottom. */}
-        <div className="border-t border-[var(--edge)] px-3 py-3 shrink-0 space-y-3">
+        <div className="border-t border-[var(--sd-divider)] px-3 py-3 shrink-0 space-y-3">
           <UserChip collapsed={effectiveCollapsed} profile={profile} />
 
           <SidebarIconRow
@@ -315,9 +341,9 @@ export function Sidebar({
           />
 
           {!effectiveCollapsed ? (
-            <div className="pt-3 border-t border-[var(--edge)] space-y-2">
+            <div className="pt-3 border-t border-[var(--sd-divider)] space-y-2">
               <TooltipProvider delayDuration={300}>
-                <div className="flex items-center justify-around text-[var(--ink-muted)]">
+                <div className="flex items-center justify-around text-[var(--sd-ink-dull)]">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <a
@@ -325,7 +351,11 @@ export function Sidebar({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="MIT License"
-                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                        className={cn(
+                          SB_GHOST,
+                          SB_FOCUS,
+                          "inline-flex w-7 h-7 items-center justify-center hover:text-[var(--sd-ink)]"
+                        )}
                       >
                         <Scale size={13} strokeWidth={1.5} />
                       </a>
@@ -339,7 +369,11 @@ export function Sidebar({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="GitHub repo"
-                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                        className={cn(
+                          SB_GHOST,
+                          SB_FOCUS,
+                          "inline-flex w-7 h-7 items-center justify-center hover:text-[var(--sd-ink)]"
+                        )}
                       >
                         <Github size={13} strokeWidth={1.5} />
                       </a>
@@ -353,7 +387,11 @@ export function Sidebar({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="filippofonseca.com"
-                        className="sidebar-ghost-btn inline-flex w-7 h-7 items-center justify-center hover:text-[var(--ink)]"
+                        className={cn(
+                          SB_GHOST,
+                          SB_FOCUS,
+                          "inline-flex w-7 h-7 items-center justify-center hover:text-[var(--sd-ink)]"
+                        )}
                       >
                         <Globe size={13} strokeWidth={1.5} />
                       </a>
@@ -362,12 +400,12 @@ export function Sidebar({
                   </Tooltip>
                 </div>
               </TooltipProvider>
-              <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--ink-muted)] px-1">
+              <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--sd-ink-faint)] px-1">
                 how you do one thing is how you do everything.
               </p>
             </div>
           ) : (
-            <div className="pt-2 border-t border-[var(--edge)] text-center">
+            <div className="pt-2 border-t border-[var(--sd-divider)] text-center">
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -375,7 +413,7 @@ export function Sidebar({
                       href="https://github.com/filippo-fonseca/hyperpolymath-v2"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-block text-[14px] text-[var(--ink-muted)] opacity-40 hover:opacity-100 hover:text-[var(--ink)] transition-all select-none"
+                      className="inline-block text-[14px] text-[var(--sd-ink-dull)] opacity-40 hover:opacity-100 hover:text-[var(--sd-ink)] transition-all select-none"
                       aria-label="MIT licensed · github.com/filippo-fonseca"
                     >
                       ⚜
@@ -412,10 +450,11 @@ function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
               aria-label="Areas homepage"
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex w-7 h-7 items-center justify-center rounded-md transition-colors duration-100 cursor-pointer-always",
+                "inline-flex w-7 h-7 items-center justify-center rounded-[6px] transition-colors duration-[120ms] cursor-pointer-always",
+                SB_FOCUS,
                 active
-                  ? "text-[var(--ink)] bg-[color-mix(in_oklch,var(--hud-cyan)_14%,transparent)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                  ? "text-[var(--sd-ink)] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
+                  : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]"
               )}
             >
               <Network size={14} strokeWidth={1.5} />
@@ -432,12 +471,12 @@ function AreasParentLink({ collapsed = false }: { collapsed?: boolean }) {
       href="/areas"
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm px-2 py-1 -mx-1",
-        "font-mono text-[10px] uppercase tracking-[0.12em]",
-        "transition-colors duration-100 cursor-pointer-always",
+        "sd-stat-label inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 -mx-1",
+        "transition-colors duration-[120ms] cursor-pointer-always",
+        SB_FOCUS,
         active
-          ? "text-[var(--ink)]"
-          : "text-[color-mix(in_oklch,var(--ink-muted)_75%,transparent)] hover:text-[var(--ink)]"
+          ? "!text-[var(--sd-ink)]"
+          : "hover:!text-[var(--sd-ink)]"
       )}
     >
       <Network
@@ -472,7 +511,7 @@ function AvatarOrInitial({
   if (showInitial) {
     return (
       <span
-        className={`w-full h-full flex items-center justify-center bg-[var(--surface)] font-serif ${textSize} text-[var(--ink-muted)]`}
+        className={`w-full h-full flex items-center justify-center bg-[var(--sd-box)] font-serif ${textSize} text-[var(--sd-ink-dull)]`}
       >
         {initial}
       </span>
@@ -514,7 +553,10 @@ function UserChip({
             <a
               href="/settings"
               aria-label={`Open settings — signed in as ${primaryLabel}`}
-              className="block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--edge)] hover:border-[var(--edge-hud)] transition-colors duration-150 cursor-pointer-always"
+              className={cn(
+                "block mx-auto w-8 h-8 rounded-full overflow-hidden border border-[var(--sd-line)] hover:border-[var(--edge-hud)] transition-colors duration-[120ms] cursor-pointer-always",
+                SB_FOCUS
+              )}
             >
               <AvatarOrInitial src={src} initial={initial} textSize="text-sm" />
             </a>
@@ -528,19 +570,23 @@ function UserChip({
   return (
     <a
       href="/settings"
-      className="sidebar-row group flex items-center gap-3 -mx-1 px-2 py-1.5 cursor-pointer-always"
+      className={cn(
+        SB_ROW,
+        SB_FOCUS,
+        "group flex items-center gap-3 -mx-1 px-2 py-1.5 cursor-pointer-always"
+      )}
     >
-      <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--edge)] group-hover:border-[var(--edge-hud)] transition-colors duration-150 shrink-0">
+      <div className="w-9 h-9 rounded-full overflow-hidden border border-[var(--sd-line)] group-hover:border-[var(--edge-hud)] transition-colors duration-[120ms] shrink-0">
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
-        <span className="font-serif text-sm text-[var(--ink)] truncate">{primaryLabel}</span>
+        <span className="font-serif text-sm text-[var(--sd-ink)] truncate">{primaryLabel}</span>
         {profile.displayName?.trim() ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)] truncate">
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] truncate">
             {profile.email}
           </span>
         ) : (
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
             Open settings
           </span>
         )}
@@ -615,10 +661,11 @@ function SidebarIconButton({
   children: React.ReactNode;
 }) {
   const cls = cn(
-    "inline-flex items-center justify-center w-7 h-7 transition-colors duration-150 cursor-pointer-always",
+    "inline-flex items-center justify-center w-7 h-7 rounded-[6px] transition-colors duration-[120ms] ease-out cursor-pointer-always",
+    SB_FOCUS,
     active
-      ? "sidebar-row-active text-[var(--ink)]"
-      : "sidebar-ghost-btn text-[var(--ink-muted)] hover:text-[var(--ink)]"
+      ? "bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)] text-[var(--sd-ink)]"
+      : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
   );
   return (
     <TooltipProvider delayDuration={300}>
@@ -647,14 +694,12 @@ function SidebarIconButton({
 }
 
 /**
- * Local sibling component used by the JARVIS sub-section. Mirrors the
- * active-edge accent style used by PersistentNav so behavior is consistent.
- * Kept local to avoid a circular export chain with PersistentNav.
+ * Local sibling component used by the JARVIS sub-section. Kept local to avoid
+ * a circular export chain with PersistentNav.
  *
  * Active-route detection mirrors PersistentNav's `pathname?.startsWith(href)`
- * convention. When active, the link draws a 1px --edge-hud LEFT-edge accent
- * (UI-SPEC §5e — diplomatic chrome active-state register). Hover transition
- * runs at 100ms per UI-SPEC §7a Sidebar motion.
+ * convention. Active = the two-tier sidebar-family state (neutral
+ * --sd-selected/40 backplate + ink text, no accent ring); hover runs at 120ms.
  */
 function SidebarSectionLink({
   href,
@@ -670,12 +715,13 @@ function SidebarSectionLink({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "sidebar-row mx-2 flex items-center gap-3 px-3 h-9",
+        "mx-2 flex items-center gap-3 rounded-[6px] px-3 h-9",
         "font-serif text-[14px] tracking-tight",
-        "transition-colors duration-150 ease-out cursor-pointer-always",
+        "transition-colors duration-[120ms] ease-out cursor-pointer-always",
+        SB_FOCUS,
         isActive
-          ? "sidebar-row-active sidebar-row-active-area text-[var(--hud-cyan)] font-medium"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          ? cn(SB_ROW_ACTIVE, "font-medium")
+          : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
       )}
     >
       {label}
