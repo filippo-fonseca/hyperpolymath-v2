@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Circle, Repeat } from "lucide-react";
+import { Check, Circle } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/habits";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { HabitIcon } from "@/components/ui/icons";
 import { EntityCardHeader, ProgressRow, StatusPill } from "./entity-card";
 
 interface Props {
@@ -110,7 +111,7 @@ export function TodayHabitsWidget({
   return (
     <div className="flex flex-col h-full">
       <EntityCardHeader
-        icon={<Repeat size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        icon={<HabitIcon size={26} />}
         title="Habits"
         subtitle="Today"
         pill={pill}

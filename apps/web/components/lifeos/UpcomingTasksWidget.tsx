@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, ListTodo } from "lucide-react";
+import { Plus } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import {
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { TaskWithProjects } from "@/lib/db/queries/tasks";
+import { TaskIcon } from "@/components/ui/icons";
 import { Chip, EntityCardHeader, StatusPill } from "./entity-card";
 
 /** High-priority tint (15%-alpha chip, D6). P3/P∞ stay untinted / hidden. */
@@ -193,7 +194,7 @@ export function UpcomingTasksWidget({
   return (
     <div className="flex flex-col h-full">
       <EntityCardHeader
-        icon={<ListTodo size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        icon={<TaskIcon size={26} />}
         title="Tasks"
         subtitle={subtitle}
         pill={

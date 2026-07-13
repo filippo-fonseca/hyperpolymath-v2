@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Moon, Activity } from "lucide-react";
+import { Moon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listActivitiesInRange } from "@/app/actions/training";
 import type { ActivityWithType } from "@/lib/db/queries/training";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
+import { TrainingIcon } from "@/components/ui/icons";
 import { EntityCardHeader, ProgressRow, StatusPill } from "./entity-card";
 
 interface Props {
@@ -78,7 +79,7 @@ export function TodayTrainingWidget({
   return (
     <div className="flex flex-col h-full">
       <EntityCardHeader
-        icon={<Activity size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        icon={<TrainingIcon size={26} />}
         title="Training"
         subtitle="Today"
         pill={pill}

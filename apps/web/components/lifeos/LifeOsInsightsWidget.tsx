@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3 } from "lucide-react";
+import { InsightIcon } from "@/components/ui/icons";
 import { EntityCardHeader, StatusPill } from "./entity-card";
 
 interface Stat {
@@ -37,7 +37,7 @@ export function LifeOsInsightsWidget({
   return (
     <div className="flex h-full flex-col">
       <EntityCardHeader
-        icon={<BarChart3 size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        icon={<InsightIcon size={26} />}
         title="Insights"
         subtitle="This week"
         pill={

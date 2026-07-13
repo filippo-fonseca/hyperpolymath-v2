@@ -12,6 +12,7 @@ import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
 import { ConvertCaptureToTaskDialog } from "@/components/captures/ConvertCaptureToTaskDialog";
 import type { ProjectMultiSelectOption } from "@/components/shared/ProjectMultiSelect";
+import { CaptureIcon } from "@/components/ui/icons";
 import { Chip, ChipRow, EntityCardHeader, StatusPill } from "./entity-card";
 
 interface Props {
@@ -50,7 +51,7 @@ export function RecentCapturesWidget({
   return (
     <div className="flex flex-col h-full">
       <EntityCardHeader
-        icon={<Sparkles size={15} strokeWidth={1.75} className="text-[var(--ink-muted)]" />}
+        icon={<CaptureIcon size={26} />}
         title="Captures"
         subtitle="Recent thoughts"
         pill={
