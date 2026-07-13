@@ -59,15 +59,22 @@ export type PalmClickSample = {
    */
   closed: boolean;
   /**
-   * The current smoothed cursor position (from the one-euro cursor filter),
-   * palm-relative frame's aim. Only read on the close-START frame (frozen from
-   * there on); a closed fist distorts the fingertip signal, so the caller should
-   * stop feeding fresh values into its own cursor pipeline while closed — this
-   * recognizer doesn't do that suppression itself, it only freezes what it's
-   * given at the moment of closing.
+   * The aim point to freeze at close-START. gesture-core hands in the pre-curl
+   * aim recovered from its cursor history (the openness FALLING edge, before the
+   * curl drags the fingertip), not the current fist-distorted fingertip — a
+   * click should land where the reticle WAS when the hand began closing.
    */
   nx: number;
   ny: number;
+  /**
+   * Cursor speed this frame (normalized stage-units/sec). A close that begins
+   * while the cursor is still moving fast is almost never a deliberate click
+   * (the user is mid-aim); the velocity gate suppresses entering the close so a
+   * flick-then-curl never mis-clicks. gesture-core computes it from the filtered
+   * cursor deltas. Optional — omitted samples read as stationary (0), so the gate
+   * is inert unless a caller supplies a speed.
+   */
+  speed?: number;
   /**
    * True while palm-click is a candidate: not pinching (gesture-core gates this
    * exactly like tap-click did). A false sample resets any in-flight close
@@ -81,11 +88,24 @@ export type PalmClickConfig = {
   reopenWindowMs: number;
   /** Ms a fist can be held before it's treated as cancelled (not a click). */
   cancelMs: number;
+  /**
+   * Max cursor speed (normalized units/sec) at which a close may START. Above
+   * this the hand is still aiming, so the close is ignored (no candidate) until
+   * the cursor settles — kills the "flick into a curl mis-click".
+   */
+  maxEnterSpeed: number;
+  /**
+   * Refractory (ms) after any fired tap during which a fresh close cannot begin.
+   * Debounces a double-click / curl-bounce into a single tap.
+   */
+  refractoryMs: number;
 };
 
 export const DEFAULT_PALM_CLICK: PalmClickConfig = {
   reopenWindowMs: 600,
   cancelMs: 700,
+  maxEnterSpeed: 1.6,
+  refractoryMs: 250,
 };
 
 export type PalmClickState = "idle" | "closing";
@@ -112,6 +132,10 @@ export function createPalmClickRecognizer(
   let state: PalmClickState = "idle";
   let closeStart = 0;
   let frozen: { nx: number; ny: number } | null = null;
+  // Wall-clock ms until which a fresh close is refused after a fired tap. Kept
+  // across reset() (a refractory outlives the click that armed it), so cleared
+  // only by the passage of time or a full lifecycle reset via `hardReset`.
+  let refractoryUntil = 0;
 
   function reset(): void {
     state = "idle";
@@ -127,8 +151,12 @@ export function createPalmClickRecognizer(
     }
 
     if (state === "idle") {
-      if (sample.closed) {
-        // Close-START: freeze the aim at the current smoothed cursor position.
+      if (
+        sample.closed &&
+        sample.t >= refractoryUntil && // debounce a curl-bounce / double-tap
+        (sample.speed ?? 0) <= cfg.maxEnterSpeed // not still mid-aim (flick guard)
+      ) {
+        // Close-START: freeze the aim at the pre-curl point the caller hands in.
         state = "closing";
         closeStart = sample.t;
         frozen = { nx: sample.nx, ny: sample.ny };
@@ -146,6 +174,7 @@ export function createPalmClickRecognizer(
       const point = frozen;
       reset();
       if (dt <= cfg.reopenWindowMs && point) {
+        refractoryUntil = sample.t + cfg.refractoryMs;
         onTap({ type: "tap" });
       }
       return;

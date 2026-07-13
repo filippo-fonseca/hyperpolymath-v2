@@ -251,6 +251,15 @@ export type HandGestureConfig = {
   pinchAnchorLeadMs: number;
   /** Ring-buffer retention (ms) for pre-pinch cursor anchoring. */
   cursorHistoryMs: number;
+  /**
+   * Pre-curl aim latency (ms) for the SECONDARY palm-click. The whole hand
+   * curling drags the fingertip, so the cursor at the fist-commit frame is off
+   * the target; palm-click's aim is anchored to the buffered position from this
+   * many ms before (the openness falling edge), so a close-to-click lands where
+   * the reticle was when the hand began closing. Larger than the pinch lead
+   * because a full-hand curl drifts the fingertip more than a two-finger pinch.
+   */
+  palmClickAimLeadMs: number;
 };
 
 export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
@@ -289,6 +298,9 @@ export const DEFAULT_HAND_GESTURE: HandGestureConfig = {
   // enough that a fast-moving hand still anchors near its current position.
   pinchAnchorLeadMs: 110,
   cursorHistoryMs: 220,
+  // A full-hand curl drifts the fingertip more (and slower) than a pinch, so
+  // reach a touch further back for the pre-curl aim.
+  palmClickAimLeadMs: 140,
 };
 
 // ---- Pure pose math ---------------------------------------------------------
@@ -690,6 +702,12 @@ export function createHandGestureInterpreter(
   // back to where the hand was aiming ~`pinchAnchorLeadMs` before the pinch
   // closed (the fingertip drifts as thumb+index draw together).
   const cursorHistory = createCursorHistory(cfg.cursorHistoryMs);
+  // Last emitted cursor sample (pos + time) for deriving cursor speed, the
+  // palm-click velocity gate's input. Null until the first cursor emission.
+  let lastCursorSample: { t: number; nx: number; ny: number } | null = null;
+  // Smoothed cursor speed (normalized units/sec). Fed to palm-click so a close
+  // that begins mid-flick is rejected. Decays to 0 while the cursor is frozen.
+  let cursorSpeed = 0;
 
   // Fist-gesture tracking.
   let fistStart: number | null = null;
@@ -806,6 +824,8 @@ export function createHandGestureInterpreter(
     candidateCount = 0;
     lastCursor = { nx: 0.5, ny: 0.5 };
     cursorHistory.reset();
+    lastCursorSample = null;
+    cursorSpeed = 0;
     fistStart = null;
     fistOrigin = null;
     swipeFired = false;
@@ -1042,24 +1062,26 @@ export function createHandGestureInterpreter(
       engaged: scrollCurlGate.push(tMs, pose === "open" && !pinchActive, sOpenness),
     });
 
-    // Palm-click (PRIMARY click): a whole-hand close-then-open. `closed` is
+    // Palm-click (SECONDARY click): a whole-hand close-then-open. `closed` is
     // gated on BOTH the pose classifier reading "fist" (which itself requires
     // all four fingers individually curled, via `poseFromFingers`'s hysteresis
     // + debounce) AND the smoothed openness scalar dropping below its own
     // threshold — belt-and-suspenders so a partial curl (e.g. mid-scroll)
-    // never reads as a click candidate. `nx/ny` come from `lastCursor` (the
-    // last real index-fingertip aim, frozen since cursor emission stops the
-    // instant pose leaves open/point) rather than the current (fist-distorted)
-    // fingertip, so the recognizer freezes the correct pre-close aim point.
-    // `engaged` also drops once `collapseFired` — a fist held long enough to
-    // already fire `collapse` must not ALSO fire a click on release, since
-    // palm-click's own cancel window (`cancelMs`) is deliberately longer than
-    // collapse's `holdMs` to give the click a full, unhurried reopen window.
+    // never reads as a click candidate. `nx/ny` come from the cursor history at
+    // the openness FALLING edge (~palmClickAimLeadMs ago), not the drifted
+    // fist-frame fingertip, so the click lands where the reticle WAS when the
+    // hand began closing. `speed` feeds the recognizer's flick guard (a close
+    // begun mid-aim is ignored). `engaged` also drops once `collapseFired` — a
+    // fist held long enough to already fire `collapse` must not ALSO fire a
+    // click on release, since palm-click's own cancel window (`cancelMs`) is
+    // deliberately longer than collapse's `holdMs`.
+    const preCurlAim = cursorHistory.sampleBefore(tMs, cfg.palmClickAimLeadMs);
     palmClick.push({
       t: tMs,
       closed: pose === "fist" && sOpenness < cfg.palmClickOpennessThreshold,
-      nx: lastCursor.nx,
-      ny: lastCursor.ny,
+      nx: preCurlAim ? preCurlAim.nx : lastCursor.nx,
+      ny: preCurlAim ? preCurlAim.ny : lastCursor.ny,
+      speed: cursorSpeed,
       engaged: !pinchActive && !collapseFired,
     });
 
@@ -1115,8 +1137,20 @@ export function createHandGestureInterpreter(
     if (pose === "open" || pose === "point") {
       const target = computeCursorTarget(landmarks, cfg);
       const sm = filter.filter(tMs, target.nx, target.ny);
+      // Cursor speed (normalized units/sec) for palm-click's flick guard: an
+      // EMA of the per-frame displacement rate so a single jittery frame can't
+      // spuriously trip or clear the gate.
+      if (lastCursorSample) {
+        const dtSec = (tMs - lastCursorSample.t) / 1000;
+        if (dtSec > 0) {
+          const inst =
+            Math.hypot(sm.x - lastCursorSample.nx, sm.y - lastCursorSample.ny) / dtSec;
+          cursorSpeed = cursorSpeed * 0.6 + inst * 0.4;
+        }
+      }
+      lastCursorSample = { t: tMs, nx: sm.x, ny: sm.y };
       lastCursor = { nx: sm.x, ny: sm.y };
-      // Record the pre-drift aim so a subsequent pinch can recover it.
+      // Record the pre-drift aim so a subsequent pinch/curl can recover it.
       cursorHistory.push(tMs, sm.x, sm.y);
       callbacks.onCursorMove(sm.x, sm.y);
     }
