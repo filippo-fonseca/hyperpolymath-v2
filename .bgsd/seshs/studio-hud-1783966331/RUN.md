@@ -20,13 +20,13 @@ Plus: extensive research on hand-cursor / MediaPipe gesture interaction patterns
 ## Status
 - [x] Doctor gate
 - [x] Scale/routing/verification selected (Feature / adaptive / full ladder)
-- [ ] Scouts: implementation deep-dive + gesture-interaction research
-- [ ] Decomposition + unit briefs
+- [x] Scouts: implementation deep-dive + gesture-interaction research
+- [x] Decomposition + unit briefs (4 units, AGENTS.md)
 - [x] Epic issue: [#279](https://github.com/filippo-fonseca/hyperpolymath-v2/issues/279)
-- [ ] Per-unit GitHub issues (after decomposition)
-- [ ] Wave 1 build
-- [ ] Loop 1 verify→fix
-- [ ] Merge to `bgsd/studio-hud` + Loop 2
+- [x] Per-unit issues: #283 (U1), #280 (U2), #281 (U3), #282 (U4)
+- [x] Wave 1 build: U1 251t / U2 245t / U3 245t+cargo / U4 277t+cargo — all green, atomic commits, worktrees harvested
+- [x] Loop 1 verify→fix (per-unit suites green; U4 stopped+resumed cleanly mid-pause for user call)
+- [~] Merge to `bgsd/studio-hud` (integration agent running) + Loop 2 pending
 - [ ] Review gate + landing PR
 - [ ] Gesture breakdown doc for user
 
