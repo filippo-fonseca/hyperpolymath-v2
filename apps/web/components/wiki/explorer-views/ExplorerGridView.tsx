@@ -1,5 +1,6 @@
 "use client";
 
+import { Tile } from "@/components/ui/explorer";
 import { partitionExplorerItems } from "@/components/wiki/explorer-hooks/explorer-items";
 import type { SelectionClickModifiers } from "@/components/wiki/explorer-hooks/useExplorerSelection";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
@@ -218,45 +219,33 @@ function ExplorerGridTile({
         rejected && !reduceMotion && "animate-[explorer-drop-denied_180ms_ease-in-out_2]"
       )}
     >
-      <div
-        className={cn(
-          "relative grid aspect-square w-full max-w-[110px] place-items-center rounded-[8px]",
-          (selected || isOver) && "bg-[var(--sd-selected-item)]"
-        )}
-      >
-        {item.kind === "folder" ? (
-          <FolderIcon
-            size={78}
-            variant={isOver ? "open" : "closed"}
-            dropTarget={isOver}
-            className={cn(
-              dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
-            )}
-          />
-        ) : (
-          <>
-            <PageIcon size={74} kind="note" />
-            {item.page.emoji ? (
-              <span className="absolute bottom-3 right-3 grid size-6 place-items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[13px] shadow-sm">
-                {item.page.emoji}
-              </span>
-            ) : null}
-          </>
-        )}
-      </div>
-      <div className="mt-1 min-w-0 max-w-full">
-        <div
-          className={cn(
-            "truncate rounded-[6px] px-1.5 py-0.5 font-sans text-[0.8rem] font-medium text-[var(--sd-ink)]",
-            selected && "bg-[var(--sd-accent)] text-white"
-          )}
-        >
-          {name}
-        </div>
-        <div className="truncate rounded-[6px] px-1.5 py-px font-sans text-[0.65rem] text-[var(--sd-ink-dull)]">
-          {caption}
-        </div>
-      </div>
+      <Tile
+        selected={selected}
+        dropTarget={isOver}
+        media={
+          item.kind === "folder" ? (
+            <FolderIcon
+              size={78}
+              variant={isOver ? "open" : "closed"}
+              dropTarget={isOver}
+              className={cn(
+                dropSucceeded && !reduceMotion && "animate-[explorer-folder-swallow_160ms_ease-out]"
+              )}
+            />
+          ) : (
+            <>
+              <PageIcon size={74} kind="note" />
+              {item.page.emoji ? (
+                <span className="absolute bottom-3 right-3 grid size-6 place-items-center rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] text-[13px] shadow-sm">
+                  {item.page.emoji}
+                </span>
+              ) : null}
+            </>
+          )
+        }
+        label={name}
+        caption={caption}
+      />
     </button>
   );
 }
