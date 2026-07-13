@@ -46,17 +46,13 @@ import { KiwiAboutDialog } from "./KiwiAboutDialog";
  * so the user always has a one-click path back even if they aren't on
  * /calendar at the moment.
  *
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5e + §12e):
- *
- * The JARVIS entry is the home destination. Per UI-SPEC §12e the link label
- * is "JARVIS" (not "Today", not "Home") — the destination IS the agent. The
- * route still points to /today (where JarvisConsole mounts) until a future
- * plan rewires the route. Active link gets 1px --edge-hud LEFT-edge accent
- * (not a bg fill); the JARVIS link additionally gets a 4px --hud-cyan dot
- * when active — the one place cyan touches diplomatic chrome per UI-SPEC §5e.
- *
- * Mono uppercase tracking-wide nav labels per UI-SPEC §5e. Hover opacity
- * 0.7 → 1 over 100ms per UI-SPEC §7a.
+ * Spacedrive restyle (sesh-1783963573841): the primary rail shares the sd
+ * sidebar-family register with the AREAS tree so the whole sidebar speaks one
+ * dialect (no drift). Rows use the 6px sidebar-button grammar; active = the
+ * two-tier neutral --sd-selected/40 backplate (slid between items via
+ * layoutId, static under reduced motion) + ink text — NO cyan whisper glow.
+ * Cyan is reserved for focus rings and the functional "Voice via desktop"
+ * status pill. Hover text-ink-dull → ink at 120ms.
  */
 // JARVIS is intentionally NOT here — it lives in the TopTabBar (the cyan agent
 // pill), so duplicating it in the sidebar rail was redundant.
@@ -160,17 +156,17 @@ export function PersistentNav({ collapsed }: Props) {
           const inner = (
             <span
               className={cn(
-                // Glassy pill nav row — matches the AREAS/projects tree register.
-                // Idle = bare; hover = soft pill; active = raised pill (below).
-                "group relative flex items-center gap-3 rounded-[0.7rem] px-3 h-9 w-full",
+                // sd sidebar-family nav row — one register with the AREAS tree.
+                // Idle = bare, hover = soft sidebar-button; active = neutral
+                // selected/40 backplate (below). No cyan whisper glow (seed).
+                "group relative flex items-center gap-3 rounded-[6px] px-3 h-9 w-full",
                 "font-serif text-[14px] tracking-tight",
-                "transition-colors duration-150 ease-out",
-                !item.disabled && "sidebar-row",
+                "transition-colors duration-[120ms] ease-out",
                 active && !item.disabled
-                  ? "text-[var(--hud-cyan)]"
+                  ? "text-[var(--sd-ink)]"
                   : !item.disabled
-                    ? "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-                    : "text-[var(--ink-muted)]",
+                    ? "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
+                    : "text-[var(--sd-ink-dull)]",
                 item.disabled && "opacity-40 cursor-not-allowed"
               )}
               aria-label={item.label}
@@ -183,13 +179,13 @@ export function PersistentNav({ collapsed }: Props) {
                 !item.disabled &&
                 (reduceMotion ? (
                   <span
-                    className="sidebar-row-active sidebar-row-active-area absolute inset-0 rounded-[0.7rem]"
+                    className="absolute inset-0 rounded-[6px] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
                     aria-hidden="true"
                   />
                 ) : (
                   <motion.span
                     layoutId="nav-active-pill"
-                    className="sidebar-row-active sidebar-row-active-area absolute inset-0 rounded-[0.7rem]"
+                    className="absolute inset-0 rounded-[6px] bg-[color-mix(in_oklch,var(--sd-selected)_40%,transparent)]"
                     transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                     aria-hidden="true"
                   />
@@ -199,7 +195,7 @@ export function PersistentNav({ collapsed }: Props) {
                 <Icon size={18} strokeWidth={active ? 2 : 1.5} />
                 {renderBadge && collapsed && (
                   <span
-                    className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--surface)]"
+                    className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--sd-darker-box)]"
                     style={{ backgroundColor: "var(--ink-coral)" }}
                     aria-label="Google Calendar disconnected"
                   />
@@ -212,10 +208,10 @@ export function PersistentNav({ collapsed }: Props) {
               )}
               {item.disabled && !collapsed && (
                 <span
-                  className="relative z-10 shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--ink-muted)]"
+                  className="relative z-10 shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]"
                   style={{
-                    background: "color-mix(in oklch, var(--ink) 6%, transparent)",
-                    boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--ink) 10%, transparent)",
+                    background: "color-mix(in oklch, var(--sd-ink) 6%, transparent)",
+                    boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-ink) 10%, transparent)",
                   }}
                   aria-hidden="true"
                 >
@@ -271,7 +267,7 @@ export function PersistentNav({ collapsed }: Props) {
         {/* Phase 7 Plan 07-03 — voice status row (D-01 two-element pattern).
             Now also hosts the "Voice via desktop" pill (moved here from the
             JarvisConsole overlay so it stops covering conversation elements). */}
-        <div className="flex items-center gap-2 px-2 py-1.5 mt-1 border-t border-[var(--edge)] pt-2">
+        <div className="flex items-center gap-2 px-2 py-1.5 mt-1 border-t border-[var(--sd-divider)] pt-2">
           <div className="agent-mode-scope inline-flex items-center">
             <MicIndicatorDotContainer />
           </div>
@@ -327,10 +323,10 @@ export function PersistentNav({ collapsed }: Props) {
           <button
             type="button"
             className={cn(
-              "sidebar-row group relative flex items-center gap-3 px-3 h-9 w-full",
-              "font-serif text-[14px] tracking-tight text-[var(--ink-muted)]",
-              "transition-colors duration-150 ease-out",
-              "hover:text-[var(--ink)]"
+              "group relative flex items-center gap-3 rounded-[6px] px-3 h-9 w-full",
+              "font-serif text-[14px] tracking-tight text-[var(--sd-ink-dull)]",
+              "transition-colors duration-[120ms] ease-out",
+              "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
             )}
             aria-label="About Kiwi"
           >
