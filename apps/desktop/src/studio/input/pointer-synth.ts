@@ -39,7 +39,7 @@ import {
   getWidgetWindows,
   resizeWidget,
 } from "../state/widget-windows";
-import { scrollNativeWebview } from "../windows/native-webview";
+import { clickNativeWebview, scrollNativeWebview } from "../windows/native-webview";
 import { confirmPendingSend, cancelPendingSend } from "@/actions/confirm-gate";
 
 /** A synthetic pointer id, far from any real (1+) pointer, so shims can target it. */
@@ -238,6 +238,26 @@ function nativeWebviewLabelAt(vx: number, vy: number): string | null {
   const el = document.elementFromPoint(vx, vy);
   const marker = el?.closest<HTMLElement>("[data-native-webview-active]");
   return marker?.dataset.nativeWebviewActive ?? null;
+}
+
+/**
+ * Convert a viewport point to a promoted child webview's CONTENT-relative logical
+ * pixel point, or null when the content element for `label` is gone. The child
+ * webview's bounds are set from `[data-native-webview-content]`'s rect, so its
+ * own `(0,0)` is that element's top-left — subtract it to hand the child the
+ * point in ITS coordinate space for `elementFromPoint`.
+ */
+function nativeWebviewLocalPoint(
+  label: string,
+  vx: number,
+  vy: number,
+): { x: number; y: number } | null {
+  const el = document.querySelector<HTMLElement>(
+    `[data-native-webview-content="${CSS.escape(label)}"]`,
+  );
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: vx - r.left, y: vy - r.top };
 }
 
 /** The live widget-window frame element for an id, or null. */
@@ -506,10 +526,28 @@ export function useHandPointerSynthesis(): void {
           s.lastX = vp.x;
           s.lastY = vp.y;
         }
+        // Re-resolve the native target if promotion completed mid-scroll: a
+        // surface that was a DOM placeholder at scrollStart may now be a live
+        // child webview. Once native, stay native for the rest of the gesture.
+        if (!s.nativeLabel) {
+          const nowNative = nativeWebviewLabelAt(s.lastX, s.lastY);
+          if (nowNative) {
+            s.nativeLabel = nowNative;
+            s.domTarget = null;
+          }
+        }
         if (s.nativeLabel) {
-          void scrollNativeWebview(s.nativeLabel, 0, phase.dy).catch(
-            () => undefined,
-          );
+          // Pass the widget-content-relative point so the child scrolls the
+          // scrollable element under the reticle (custom scroll containers), not
+          // just the document.
+          const local = nativeWebviewLocalPoint(s.nativeLabel, s.lastX, s.lastY);
+          void scrollNativeWebview(
+            s.nativeLabel,
+            0,
+            phase.dy,
+            local?.x,
+            local?.y,
+          ).catch(() => undefined);
         } else if (s.domTarget) {
           dispatchWheel(s.domTarget, s.lastX, s.lastY, phase.dy);
         }
@@ -527,12 +565,15 @@ export function useHandPointerSynthesis(): void {
   });
 
   // Click intents → a press at the reticle: summon a tile, restore a chip, or
-  // click a widget button / drawer entry / news row. `tap` (palm close-then-
-  // open) is the primary click; `expand` (pinch-bloom) is the legacy click, kept alongside
-  // it — both synthesize the same pointerdown→up→click through the widget DOM's
-  // own handlers, so everything hittable responds. `confirmApprove`/`confirmCancel`
-  // (thumbs-up/down) answer the send confirm gate directly. collapse/swipe drive
-  // reticle pulses only.
+  // click a widget button / drawer entry / news row. `tap` (quick-pinch) is the
+  // primary click; `expand` (legacy pinch-bloom) is kept alongside it — both
+  // synthesize the same pointerdown→up→click through the widget DOM's own
+  // handlers, so everything hittable responds. A tap over a LIVE promoted child
+  // webview routes to the `studio_webview_click` IPC instead (same
+  // `[data-native-webview-active]` discrimination the scroll path uses), since
+  // the OS child webview is not in this document and no synthetic DOM event can
+  // reach it. `confirmApprove`/`confirmCancel` (thumbs-up/down) answer the send
+  // confirm gate directly. collapse/swipe drive reticle pulses only.
   useStudioIntent((intent) => {
     if (intent.type === "confirmApprove") {
       confirmPendingSend();
@@ -545,6 +586,18 @@ export function useHandPointerSynthesis(): void {
     if (intent.type !== "expand" && intent.type !== "tap") return;
     const vp = cursorViewport();
     if (!vp) return;
+    // Native child webview under the reticle → click over IPC in widget-content
+    // coords; a synthesized DOM click can't reach an OS-level child webview.
+    const nativeLabel = nativeWebviewLabelAt(vp.x, vp.y);
+    if (nativeLabel) {
+      const local = nativeWebviewLocalPoint(nativeLabel, vp.x, vp.y);
+      if (local) {
+        void clickNativeWebview(nativeLabel, local.x, local.y).catch(
+          () => undefined,
+        );
+      }
+      return;
+    }
     const hit = hitTest(vp.x, vp.y);
     if (!hit) return;
     dispatchPointer("pointerdown", hit.pressTarget, vp.x, vp.y, 1);
