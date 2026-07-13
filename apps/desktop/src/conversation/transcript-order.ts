@@ -113,9 +113,10 @@ function anchorAfter(turns: Turn[], index: number): BubbleId | null {
  */
 export function reduceUserEcho(state: TranscriptState, text: string): ReduceResult {
   const parkedIndex = state.turns.findIndex((t) => t.hasReply && !t.hasUser);
-  if (parkedIndex !== -1) {
+  const parked = parkedIndex === -1 ? undefined : state.turns[parkedIndex];
+  if (parked) {
     const turns = state.turns.slice();
-    const turn = { ...turns[parkedIndex], hasUser: true };
+    const turn: Turn = { ...parked, hasUser: true };
     turns[parkedIndex] = turn;
     // The user bubble renders directly above its OWN reply bubble.
     return {
@@ -146,9 +147,10 @@ export function reduceReplyStart(state: TranscriptState, turnId: string): Reduce
   const waitingIndex = state.turns.findIndex(
     (t) => t.hasUser && !t.hasReply && t.turnId === null,
   );
-  if (waitingIndex !== -1) {
+  const waiting = waitingIndex === -1 ? undefined : state.turns[waitingIndex];
+  if (waiting) {
     const turns = state.turns.slice();
-    const turn = { ...turns[waitingIndex], turnId, hasReply: true };
+    const turn: Turn = { ...waiting, turnId, hasReply: true };
     turns[waitingIndex] = turn;
     // The reply renders directly under its user bubble: anchor before the NEXT
     // turn's first bubble (null = append at the end of the transcript).

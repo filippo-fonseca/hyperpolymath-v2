@@ -236,7 +236,7 @@ describe("transcript-order — idempotence & clear", () => {
     ]);
     expect(render(bubbles)).toEqual(["user:q", "jarvis:a"]);
     expect(state.turns).toHaveLength(1);
-    expect(state.turns[0].hasReply).toBe(true);
+    expect(state.turns[0]?.hasReply).toBe(true);
   });
 
   it("clear resets ordering so the next turn starts fresh", () => {
