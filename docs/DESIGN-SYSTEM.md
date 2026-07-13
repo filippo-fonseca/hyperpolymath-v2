@@ -1,4 +1,4 @@
-# Hyperpolymath Design System — "Spacedrive × Raycast × Renaissance"
+# Hyperpolymath Design System: "Spacedrive × Raycast × Renaissance"
 
 The canonical reference for every surface and every agent working on this codebase. If a change disagrees with this document, the change is wrong or this document gets amended first (never silently).
 
@@ -16,7 +16,7 @@ One chrome dialect app-wide: the `--sd-*` register. Engineered density (Spacedri
 - Accent: JARVIS cyan owns the app — `--sd-accent` = `--hud-cyan` (oklch 72% 0.13 210), `-faint`, `-deep`; light theme uses the dampened base. One hue. Functional hues (green active, amber warn, red danger) appear ONLY as 6px status dots and 15%-alpha tinted chips, never as chrome.
 - NO new hex literals in components. Consume tokens.
 
-## 3. Selection — the two-tier law
+## 3. Selection: the two-tier law
 
 Selected tiles/rows get the NEUTRAL backplate (`--sd-selected-item`) plus an accent chip on the LABEL only. Never an accent ring or accent-filled row. Focus is `focus-visible:ring-2 ring-[var(--sd-accent)]` with `outline-none`.
 
