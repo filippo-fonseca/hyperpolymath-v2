@@ -1,6 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   DndContext,
@@ -25,13 +26,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { toast } from "sonner";
-import {
-  Plus,
-  MoreHorizontal,
-  Folder,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, MoreHorizontal, ChevronDown, ChevronRight } from "lucide-react";
 import { reorderAreas } from "@/app/actions/areas";
 import {
   reorderProjects,
@@ -43,6 +38,7 @@ import {
 } from "@/app/actions/projects";
 import { AreaActionsMenu } from "@/components/areas/AreaContextMenu";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
+import { AreaIcon, FolderIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useUndoToast } from "@/components/shared/use-undo-toast";
 import { archiveArea, unarchiveArea } from "@/app/actions/areas";
@@ -67,7 +63,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SidebarArea, SidebarProject } from "@/lib/db/queries/sidebar";
-import type { AreaOptimisticDispatch } from "./Sidebar";
+import { SB_FOCUS, SB_GHOST, SB_ROW, SB_ROW_ACTIVE, type AreaOptimisticDispatch } from "./Sidebar";
 import { useAreaCollapsed } from "@/lib/ui/useAreaCollapsed";
 import { cn } from "@/lib/utils";
 
@@ -267,7 +263,7 @@ export function SidebarTree({
       // avoid wrapping the EmptyState H2 in a 48px-wide rail. Mono register
       // matches the surrounding sidebar chrome (UI-SPEC §5e).
       return (
-        <div className="px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           No areas yet.
         </div>
       );
@@ -332,36 +328,31 @@ export function SidebarTree({
 
       <DragOverlay dropAnimation={dropAnimation}>
         {activeArea ? (
-          // Drag overlay for an area row — preserve the mono uppercase register
-          // (UI-SPEC §5e) so the visual matches what the user grabbed.
+          // Drag overlay for an area row — floating sd sidebar-family pill so
+          // the visual matches the row the user grabbed.
           <div
             className={cn(
-              "glass-button flex items-center gap-2.5 rounded-xl px-2 py-1.5 select-none cursor-grabbing",
-              "font-serif text-[13px] tracking-tight font-medium text-[var(--ink)]",
+              "flex items-center gap-2.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5 select-none cursor-grabbing shadow-lg",
+              "font-serif text-[13px] tracking-tight font-medium text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
           >
-            <span className="sidebar-chip shrink-0 text-[13px] leading-none">
-              {activeArea.emoji ?? "·"}
-            </span>
+            <AreaGlyph emoji={activeArea.emoji ?? null} />
             {!collapsed && (
               <span className="truncate flex-1 min-w-0">{activeArea.name}</span>
             )}
           </div>
         ) : activeProject ? (
-          // Drag overlay for a project row — serif register (UI-SPEC §5e
-          // project sub-rows render serif).
+          // Drag overlay for a project row — same floating pill, serif sub-row
+          // register.
           <div
             className={cn(
-              "glass-button flex items-center gap-2 rounded-lg px-2 py-1 select-none cursor-grabbing",
-              "font-serif text-[13px] tracking-tight text-[var(--ink)]",
+              "flex items-center gap-2 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1 select-none cursor-grabbing shadow-lg",
+              "font-serif text-[13px] tracking-tight text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
           >
-            <DynamicIcon name={activeProject.icon} size={14} />
-            {!activeProject.icon && (
-              <span className="opacity-40">·</span>
-            )}
+            <ProjectGlyph icon={activeProject.icon ?? null} />
             {!collapsed && (
               <span className="truncate flex-1 min-w-0">
                 {activeProject.name}
@@ -372,6 +363,34 @@ export function SidebarTree({
       </DragOverlay>
     </DndContext>
   );
+}
+
+// ─── Leading glyphs ──────────────────────────────────────────────────────────
+
+/**
+ * Area leading glyph. The user's emoji is the area's identity, so it stays —
+ * shown in a quiet 6px sidebar-button backplate. Areas with no emoji fall back
+ * to the dimensional AreaIcon (18px per seed) rather than a bare "·".
+ */
+function AreaGlyph({ emoji }: { emoji: string | null }) {
+  if (emoji) {
+    return (
+      <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[6px] bg-[var(--sd-hover)] text-[11px] leading-none shrink-0">
+        {emoji}
+      </span>
+    );
+  }
+  return <AreaIcon size={18} className="shrink-0" />;
+}
+
+/**
+ * Project leading glyph. A user-chosen icon (DynamicIcon) is personalization
+ * and stays; projects with no icon get the dimensional FolderIcon (18px per
+ * seed) instead of the old flat lucide Folder.
+ */
+function ProjectGlyph({ icon }: { icon: string | null }) {
+  if (icon) return <DynamicIcon name={icon} size={16} className="shrink-0" />;
+  return <FolderIcon size={18} className="shrink-0" />;
 }
 
 // ─── Sortable Area Row ────────────────────────────────────────────────────────
@@ -405,6 +424,7 @@ function SortableAreaRow({
   } = useSortable({ id: area.id });
 
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const isActive = pathname === `/areas/${area.id}`;
   const [rightClickOpen, setRightClickOpen] = useState(false);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
@@ -440,7 +460,8 @@ function SortableAreaRow({
       style={style}
       className={cn("flex flex-col", isDragging && "opacity-0")}
     >
-      {/* Area row — glassy pill register: emoji chip + serif label */}
+      {/* Area row — sd sidebar-family row: emoji/dimensional glyph + serif
+          label, two-tier active (neutral backplate + ink). */}
       <div
         {...attributes}
         {...listeners}
@@ -449,11 +470,13 @@ function SortableAreaRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "group/area sidebar-row flex items-center gap-2.5 px-2 py-1.5 select-none",
-          // Clean serif label — pill-based register replaces the flat mono caps
-          "font-serif text-[13px] tracking-tight text-[var(--ink)]",
+          "group/area flex items-center gap-2.5 rounded-[6px] px-2 py-1.5 select-none",
+          "font-serif text-[13px] tracking-tight",
+          "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
-          isActive && "sidebar-row-active sidebar-row-active-area",
+          isActive
+            ? SB_ROW_ACTIVE
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
           // D-02: no opacity dim on pending — UI stays instant
           area.archivedAt && "opacity-50 italic line-through",
         )}
@@ -471,9 +494,10 @@ function SortableAreaRow({
               onToggleAreaCollapsed();
             }}
             className={cn(
-              "sidebar-ghost-btn flex items-center justify-center h-4 w-4 shrink-0",
-              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-              "transition-colors duration-100 ease-out outline-none",
+              "flex items-center justify-center h-4 w-4 shrink-0 rounded-[4px]",
+              "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
+              "transition-colors duration-[120ms] ease-out",
+              SB_FOCUS,
             )}
           >
             {areaCollapsed ? (
@@ -483,9 +507,7 @@ function SortableAreaRow({
             )}
           </button>
         )}
-        <span className="sidebar-chip shrink-0 text-[13px] leading-none">
-          {area.emoji ?? "·"}
-        </span>
+        <AreaGlyph emoji={area.emoji ?? null} />
         {!collapsed && (
           <>
             <span className="truncate flex-1 min-w-0 font-medium">
@@ -501,10 +523,11 @@ function SortableAreaRow({
                 openProjectCreate();
               }}
               className={cn(
-                "sidebar-ghost-btn flex items-center justify-center h-5 w-5",
-                "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-                "opacity-0 group-hover/area:opacity-100 transition-opacity duration-100 ease-out",
-                "outline-none",
+                SB_FOCUS,
+                "flex items-center justify-center h-5 w-5 rounded-[6px]",
+                "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
+                "opacity-0 group-hover/area:opacity-100",
+                "transition-[opacity,color,background-color] duration-[120ms] ease-out",
               )}
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -522,26 +545,44 @@ function SortableAreaRow({
         )}
       </div>
 
-      {/* Project list — hidden when the sidebar is rail-collapsed OR
-          the user has collapsed this specific area via the chevron. */}
-      {!collapsed && !areaCollapsed && (
-        <SortableContext
-          id={`sidebar-projects-${area.id}`}
-          items={projectIds}
-          strategy={verticalListSortingStrategy}
-        >
-          <ul className="sidebar-tree flex flex-col gap-0.5 mt-1 ml-3 pl-[0.85rem]">
-            {area.projects.map((project) => (
-              <SortableProjectRow
-                key={project.id}
-                project={project}
-                areaId={area.id}
-                allAreas={allAreas}
-              />
-            ))}
-          </ul>
-        </SortableContext>
-      )}
+      {/* Project list — hidden when the sidebar is rail-collapsed OR the user
+          has collapsed this specific area via the chevron. AnimatePresence
+          height collapse on [0.32,0.72,0,1] (D4); initial={false} guards the
+          first paint (no mount flash) and reduced motion collapses to 0 (D1d).
+          Hairline left rail replaces the old .sidebar-tree pseudo connectors. */}
+      <AnimatePresence initial={false}>
+        {!collapsed && !areaCollapsed && (
+          <motion.div
+            key="projects"
+            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.24, ease: [0.32, 0.72, 0, 1] }
+            }
+            style={{ overflow: "hidden" }}
+          >
+            <SortableContext
+              id={`sidebar-projects-${area.id}`}
+              items={projectIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="flex flex-col gap-0.5 mt-1 ml-[1.15rem] border-l border-[var(--sd-line)] pl-3">
+                {area.projects.map((project) => (
+                  <SortableProjectRow
+                    key={project.id}
+                    project={project}
+                    areaId={area.id}
+                    allAreas={allAreas}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lazy-loaded ProjectCreateDialog */}
       {ProjectCreateDialogComponent && (
@@ -590,10 +631,7 @@ function SortableProjectRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "sidebar-branch group/project relative",
-        isDragging && "opacity-0",
-      )}
+      className={cn("group/project relative", isDragging && "opacity-0")}
     >
       <div
         {...attributes}
@@ -603,23 +641,19 @@ function SortableProjectRow({
           setRightClickOpen(true);
         }}
         className={cn(
-          "sidebar-row group/project flex items-center gap-2 px-2 py-1 select-none",
+          "group/project flex items-center gap-2 rounded-[6px] px-2 py-1 select-none",
           // Serif sub-row register (UI-SPEC §5e — project sub-rows in serif)
           "font-serif text-[13px] tracking-tight",
+          "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
-          // Active project lifts into a soft glass pill (was a hard left edge).
+          // Two-tier active: neutral sidebar-selected backplate + ink text.
           isActive
-            ? "sidebar-row-active text-[var(--ink)]"
-            : "text-[var(--ink-muted)] hover:text-[var(--ink)]",
+            ? SB_ROW_ACTIVE
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
           project.archivedAt && "opacity-50 italic line-through",
         )}
       >
-        {/* Icon or placeholder */}
-        {project.icon ? (
-          <DynamicIcon name={project.icon} size={14} className="shrink-0" />
-        ) : (
-          <Folder size={14} strokeWidth={1.5} className="shrink-0 opacity-40" />
-        )}
+        <ProjectGlyph icon={project.icon ?? null} />
 
         {/* Clickable name → navigate */}
         <Link
@@ -782,11 +816,11 @@ function ProjectActionsMenu({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "sidebar-ghost-btn flex items-center justify-center h-5 w-5",
-              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-              "opacity-0 group-hover/project:opacity-100",
-              "data-[state=open]:opacity-100 transition-opacity duration-100 ease-out",
-              "outline-none",
+              SB_FOCUS,
+              "flex items-center justify-center h-5 w-5 rounded-[6px]",
+              "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
+              "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100",
+              "transition-[opacity,color,background-color] duration-[120ms] ease-out",
             )}
           >
             <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
