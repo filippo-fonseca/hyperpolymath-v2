@@ -5,40 +5,53 @@
 // (turnPairState + one `jarvisTurnAwaitingUser` slot + one global
 // `currentReplyBody`) could only represent ONE open user↔reply pair at a time.
 // When two turns overlap — a partial-utterance turn and the full-question turn,
-// each with its own server turnId — the events interleave:
+// each with its own server turnId — the events interleave at the client:
 //
 //   user_A → reply_A_start → user_B → reply_B_start → …deltas for A and B…
 //
 // With one parking slot and one "current" reply body, bubbles inserted in the
-// wrong DOM order and streamed deltas from two live turns wrote into whichever
-// bubble happened to be "current". The transcript read out of order.
+// wrong sibling order and streamed deltas from two live turns wrote into
+// whichever bubble happened to be "current". The transcript read out of order.
 //
-// THE MODEL here: an ordered list of TURNS. Each turn is one user bubble plus
-// its reply bubble, and a reply ALWAYS renders under ITS user turn even if a
-// later turn's reply streams first. Reducer facts:
+// THE MODEL here: an ordered list of TURNS, each turn owning up to two sibling
+// bubbles — a user bubble then its reply bubble. A reply ALWAYS renders under
+// ITS user turn even if a later turn's reply-start arrives first. Reducer facts:
 //
 //   • Reply events (start/chunk) carry a stable server `turnId`. Deltas route to
-//     the bubble keyed by THAT turnId — never a global "current" pointer.
+//     the bubble keyed by THAT turnId — never a global "current" pointer, so two
+//     live turns never share a writer.
 //   • User echoes (the SSE `transcript` event and the POST fallback) do NOT
-//     carry a turnId. They are paired to a turn by ARRIVAL ORDER: an echo fills
-//     the earliest turn that is still missing its user text. If a reply opened
-//     first (SSE beat the local echo), its turn is already parked awaiting a
-//     user echo, so the echo slots into it and the pair renders user-above-reply.
-//   • A reply with no matching parked user turn opens a NEW turn (reply-first).
-//   • A user echo with no reply-first turn to fill opens a NEW turn (user-first);
-//     the next reply-start with a fresh turnId attaches to it.
+//     carry a turnId — the server emits the transcript event moments before it
+//     mints the turnId (see voice/transcript/route.ts). They are paired to a
+//     turn by ARRIVAL ORDER (FIFO): a reply-start fills the oldest user turn
+//     still lacking a reply; a user echo fills the oldest reply-first turn still
+//     lacking a user bubble. Server per-turn ordering is sequential
+//     (transcript → start, per turn), so FIFO binds each reply to its own user.
+//   • A reply with no waiting user turn opens a NEW reply-first turn; its user
+//     echo, when it lands, slots ABOVE that reply within the same turn.
+//   • A user echo with no reply-first turn to fill opens a NEW user-first turn.
 //
-// The reducer is a PURE function (state in, {state, ops} out): it emits an
-// ordered list of RenderOps that main.ts replays against the DOM. main.ts holds
-// no ordering logic of its own — it only maps a turnKey to a pair of elements
-// and executes each op. That keeps every interleaving unit-testable with zero
-// DOM, and preserves the invariant "exactly one writer per bubble body" (deltas
-// are addressed by turnKey, so two live turns never share a writer).
+// The reducer is a PURE function (state in, {state, ops} out): it emits ordered
+// RenderOps that main.ts replays against the DOM. Each op names a stable bubble
+// id and an optional `beforeId` anchor, so main.ts holds NO ordering logic — it
+// only maps a bubble id to an element and inserts/writes. That keeps every
+// interleaving unit-testable with zero DOM and preserves the invariant "exactly
+// one writer per bubble body".
 
-/** A monotonic, reducer-assigned key identifying a turn's DOM bubbles. Distinct
- *  from the server turnId (which only replies carry) so user-first turns — which
- *  have no server turnId until their reply lands — are still addressable. */
+/** A monotonic, reducer-assigned key identifying a turn. Distinct from the
+ *  server turnId (which only replies carry) so user-first turns are addressable
+ *  before their reply's turnId exists. */
 export type TurnKey = string;
+
+/** Stable id of a single bubble element (`${turnKey}:user` / `${turnKey}:reply`). */
+export type BubbleId = string;
+
+export function userBubbleId(key: TurnKey): BubbleId {
+  return `${key}:user`;
+}
+export function replyBubbleId(key: TurnKey): BubbleId {
+  return `${key}:reply`;
+}
 
 /** One turn in the transcript: a user bubble and (optionally) its reply. */
 export interface Turn {
@@ -60,13 +73,14 @@ export interface TranscriptState {
   seq: number;
 }
 
-/** DOM operations the reducer asks main.ts to perform, in order. `beforeKey` is
- *  the key of the turn the new bubble must render ABOVE (null = append at end),
- *  so a reply-first turn's user echo lands above the already-rendered reply. */
+/** DOM operations the reducer asks main.ts to perform, in order.
+ *  `beforeId` is the id of the existing bubble the new bubble must render
+ *  ABOVE (null = append at the end of the transcript). Deltas address a bubble
+ *  by its stable id — never a "current" pointer. */
 export type RenderOp =
-  | { op: "create-user"; key: TurnKey; text: string; beforeKey: TurnKey | null }
-  | { op: "create-reply"; key: TurnKey; beforeKey: TurnKey | null }
-  | { op: "append-delta"; key: TurnKey; delta: string };
+  | { op: "create-user"; id: BubbleId; text: string; beforeId: BubbleId | null }
+  | { op: "create-reply"; id: BubbleId; beforeId: BubbleId | null }
+  | { op: "append-delta"; id: BubbleId; delta: string };
 
 export interface ReduceResult {
   state: TranscriptState;
@@ -83,57 +97,52 @@ function nextKey(state: TranscriptState): { key: TurnKey; seq: number } {
   return { key: `t${seq}`, seq };
 }
 
-/** Key of the turn AFTER `index` (the render anchor a new bubble goes before),
- *  or null when `index` is the last turn (append at end). */
-function beforeKeyAt(turns: Turn[], index: number): TurnKey | null {
+/** The bubble id that renders first for the turn at `index + 1` (the anchor a
+ *  new turn's bubbles must go before), or null when `index` is the last turn. A
+ *  turn's first bubble is its user bubble if present, else its reply. */
+function anchorAfter(turns: Turn[], index: number): BubbleId | null {
   const next = turns[index + 1];
-  return next ? next.key : null;
+  if (!next) return null;
+  return next.hasUser ? userBubbleId(next.key) : replyBubbleId(next.key);
 }
 
 /**
  * A user echo arrived (already deduped upstream by decidePaintEcho). Fill the
- * earliest reply-first turn still awaiting its user bubble; if none, open a new
- * user-first turn at the end.
+ * oldest reply-first turn still awaiting its user bubble (the user slots ABOVE
+ * that turn's reply); if none, open a new user-first turn at the end.
  */
 export function reduceUserEcho(state: TranscriptState, text: string): ReduceResult {
-  // Find the earliest turn that has a reply but no user bubble yet (reply-first,
-  // parked awaiting its echo). The user bubble slots ABOVE that reply.
   const parkedIndex = state.turns.findIndex((t) => t.hasReply && !t.hasUser);
   if (parkedIndex !== -1) {
     const turns = state.turns.slice();
     const turn = { ...turns[parkedIndex], hasUser: true };
     turns[parkedIndex] = turn;
-    // The user bubble renders directly above its own reply bubble. Both live in
-    // the SAME turn container downstream, so beforeKey targets the NEXT turn.
-    const beforeKey = beforeKeyAt(turns, parkedIndex);
+    // The user bubble renders directly above its OWN reply bubble.
     return {
       state: { ...state, turns },
-      ops: [{ op: "create-user", key: turn.key, text, beforeKey }],
+      ops: [{ op: "create-user", id: userBubbleId(turn.key), text, beforeId: replyBubbleId(turn.key) }],
     };
   }
-  // No parked reply — this is a new user-first turn appended at the end.
+  // No parked reply — a new user-first turn appended at the end.
   const { key, seq } = nextKey(state);
   const turn: Turn = { key, turnId: null, hasUser: true, hasReply: false };
   const turns = [...state.turns, turn];
   return {
     state: { turns, seq },
-    ops: [{ op: "create-user", key, text, beforeKey: null }],
+    ops: [{ op: "create-user", id: userBubbleId(key), text, beforeId: null }],
   };
 }
 
 /**
- * A reply started for `turnId`. Attach to the earliest user-first turn still
+ * A reply started for `turnId`. Attach to the oldest user-first turn still
  * awaiting a reply; if none, open a new reply-first turn at the end. Idempotent:
  * a duplicate response-start for a turnId already bound returns no ops.
  */
 export function reduceReplyStart(state: TranscriptState, turnId: string): ReduceResult {
-  // Already bound to this turnId (duplicate response-start) — no-op.
   const boundIndex = state.turns.findIndex((t) => t.turnId === turnId && t.hasReply);
   if (boundIndex !== -1) {
     return { state, ops: [] };
   }
-  // Earliest user-first turn awaiting a reply (has user, no reply, not yet bound
-  // to any turnId). The reply renders directly under it.
   const waitingIndex = state.turns.findIndex(
     (t) => t.hasUser && !t.hasReply && t.turnId === null,
   );
@@ -141,28 +150,28 @@ export function reduceReplyStart(state: TranscriptState, turnId: string): Reduce
     const turns = state.turns.slice();
     const turn = { ...turns[waitingIndex], turnId, hasReply: true };
     turns[waitingIndex] = turn;
-    const beforeKey = beforeKeyAt(turns, waitingIndex);
+    // The reply renders directly under its user bubble: anchor before the NEXT
+    // turn's first bubble (null = append at the end of the transcript).
+    const beforeId = anchorAfter(turns, waitingIndex);
     return {
       state: { ...state, turns },
-      ops: [{ op: "create-reply", key: turn.key, beforeKey }],
+      ops: [{ op: "create-reply", id: replyBubbleId(turn.key), beforeId }],
     };
   }
-  // No waiting user turn — reply-first. Open a new turn at the end; its user
-  // echo (if any) will slot in above via reduceUserEcho's parked path.
+  // Reply-first: open a new turn at the end. Its user echo (if any) slots above.
   const { key, seq } = nextKey(state);
   const turn: Turn = { key, turnId, hasUser: false, hasReply: true };
   const turns = [...state.turns, turn];
   return {
     state: { turns, seq },
-    ops: [{ op: "create-reply", key, beforeKey: null }],
+    ops: [{ op: "create-reply", id: replyBubbleId(key), beforeId: null }],
   };
 }
 
 /**
  * A streamed delta for `turnId`. Routes to the bubble keyed by that turnId —
- * never a global "current". If no reply bubble exists yet for the turnId (a
- * chunk raced ahead of its start), synthesize the start first so the delta has
- * a home; the emitted ops carry the implicit create.
+ * never a global "current". If no reply bubble exists yet (a chunk raced ahead
+ * of its start), synthesize the start first so the delta has a home.
  */
 export function reduceReplyDelta(
   state: TranscriptState,
@@ -171,14 +180,12 @@ export function reduceReplyDelta(
 ): ReduceResult {
   const turn = state.turns.find((t) => t.turnId === turnId && t.hasReply);
   if (turn) {
-    return { state, ops: [{ op: "append-delta", key: turn.key, delta }] };
+    return { state, ops: [{ op: "append-delta", id: replyBubbleId(turn.key), delta }] };
   }
-  // Chunk before its start — open the reply, then append. Deltas are still
-  // addressed by turnKey, so this never leaks into another live turn's bubble.
   const started = reduceReplyStart(state, turnId);
   const opened = started.state.turns.find((t) => t.turnId === turnId);
   const ops: RenderOp[] = [...started.ops];
-  if (opened) ops.push({ op: "append-delta", key: opened.key, delta });
+  if (opened) ops.push({ op: "append-delta", id: replyBubbleId(opened.key), delta });
   return { state: started.state, ops };
 }
 
