@@ -154,19 +154,98 @@ pub fn studio_webview_navigate(app: AppHandle, label: String, url: String) -> Re
 /// webview is a separate OS webview NOT in the host DOM, so a synthesized
 /// `WheelEvent` from the hand pointer-synth can never reach it — the only way in
 /// is to run script inside it. `dx`/`dy` are logical (CSS) pixels, matching the
-/// `window.scrollBy` contract the caller batches per animation frame. Non-finite
-/// deltas are rejected so a landmark pop can't inject `NaN` into the page.
+/// `window.scrollBy` contract the caller batches per animation frame. `x`/`y`
+/// are the widget-content-relative logical pixel point under the reticle: we
+/// hit-test the element there and scroll its NEAREST SCROLLABLE ANCESTOR, so a
+/// page whose real scroll container is a custom `overflow:auto` div (not the
+/// document) still scrolls, falling back to `window.scrollBy` when nothing under
+/// the point is scrollable. Non-finite values are rejected so a landmark pop
+/// can't inject `NaN` into the page.
 #[tauri::command]
 pub fn studio_webview_scroll(
     app: AppHandle,
     label: String,
     dx: f64,
     dy: f64,
+    x: Option<f64>,
+    y: Option<f64>,
 ) -> Result<(), String> {
     if !dx.is_finite() || !dy.is_finite() {
         return Err("scroll deltas must be finite".to_string());
     }
+    // Point defaults to (0,0) when the caller has none; the ancestor walk then
+    // just resolves the document scroller, i.e. the old window.scrollBy behavior.
+    let px = x.filter(|v| v.is_finite()).unwrap_or(0.0);
+    let py = y.filter(|v| v.is_finite()).unwrap_or(0.0);
+    // Find the nearest scrollable ancestor of elementFromPoint and scroll IT;
+    // fall back to the window so a document-scrolled page still works. The IIFE
+    // keeps every symbol scoped so repeated evals never clash in the page.
+    let script = format!(
+        "(function(){{\
+           var el=document.elementFromPoint({px},{py});\
+           var canScroll=function(n){{\
+             if(!(n instanceof Element))return false;\
+             var s=getComputedStyle(n);\
+             var oy=s.overflowY;\
+             return (oy==='auto'||oy==='scroll'||oy==='overlay')&&n.scrollHeight>n.clientHeight;\
+           }};\
+           var node=el;\
+           while(node&&node!==document.body&&node!==document.documentElement){{\
+             if(canScroll(node)){{node.scrollBy({dx},{dy});return;}}\
+             node=node.parentElement;\
+           }}\
+           window.scrollBy({dx},{dy});\
+         }})();"
+    );
     webview(&app, &label)?
-        .eval(format!("window.scrollBy({dx}, {dy});"))
+        .eval(script)
+        .map_err(|error| error.to_string())
+}
+
+/// Synthesize a click inside a promoted child webview at a widget-content-relative
+/// logical pixel point. Mirrors `studio_webview_scroll`: the OS child webview is
+/// not in the host DOM, so the hand pointer-synth's DOM click never reaches it —
+/// the only way in is to run script inside it. We hit-test `elementFromPoint`,
+/// focus it if focusable, and dispatch a full pointerdown/mousedown/pointerup/
+/// mouseup/click sequence so both pointer- and mouse-event handlers fire.
+///
+/// LIMITATION: events dispatched via `dispatchEvent` from script are
+/// `isTrusted:false`. Most app handlers (React onClick, link navigation via a
+/// click handler, buttons) respond fine, but some native/default behaviors that
+/// require a trusted gesture — e.g. starting media playback, opening a file
+/// picker, or a raw `<a href>` default navigation triggered purely by trust —
+/// may not fire. `x`/`y` are logical (CSS) pixels. Non-finite values are
+/// rejected so a landmark pop can't inject `NaN`.
+#[tauri::command]
+pub fn studio_webview_click(
+    app: AppHandle,
+    label: String,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    if !x.is_finite() || !y.is_finite() {
+        return Err("click coordinates must be finite".to_string());
+    }
+    // One IIFE, all symbols scoped. Dispatch the full sequence on the hit element
+    // (and focus it if focusable) so pointer- and mouse-event consumers both see
+    // it. Events are isTrusted:false (see the doc-comment limitation above).
+    let script = format!(
+        "(function(){{\
+           var el=document.elementFromPoint({x},{y});\
+           if(!el)return;\
+           if(typeof el.focus==='function'){{try{{el.focus();}}catch(e){{}}}}\
+           var opts={{bubbles:true,cancelable:true,composed:true,clientX:{x},clientY:{y},button:0}};\
+           var seq=['pointerdown','mousedown','pointerup','mouseup','click'];\
+           for(var i=0;i<seq.length;i++){{\
+             var type=seq[i];\
+             var Ctor=type.indexOf('pointer')===0?window.PointerEvent:window.MouseEvent;\
+             var ev;\
+             try{{ev=new Ctor(type,opts);}}catch(e){{ev=new MouseEvent(type,opts);}}\
+             el.dispatchEvent(ev);\
+           }}\
+         }})();"
+    );
+    webview(&app, &label)?
+        .eval(script)
         .map_err(|error| error.to_string())
 }
