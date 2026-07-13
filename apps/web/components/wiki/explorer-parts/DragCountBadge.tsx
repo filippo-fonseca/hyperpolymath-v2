@@ -1,7 +1,7 @@
 "use client";
 
-import { FolderIcon } from "@/components/wiki/icons/FolderIcon";
-import { PageIcon } from "@/components/wiki/icons/PageIcon";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
+import { PageIcon } from "@/components/ui/icons/PageIcon";
 import { cn } from "@/lib/utils";
 
 /**

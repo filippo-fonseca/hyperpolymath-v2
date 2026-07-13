@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ChevronDown, Archive } from "lucide-react";
+import { AreaIcon } from "@/components/ui/icons";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
@@ -33,41 +35,24 @@ const PER_AREA_COLLAPSED_PREFIX = "areas-tree-collapsed-";
  *   - Paths terminate at the TOP of each area card. They never pass over
  *     or behind any text — text-not-in-the-way was the explicit fix.
  *
- * Animation: per-area SVG path with `animateMotion + mpath`. Pulses stagger
- * (begin += 0.35s per branch) so the feed reads as ambient circulation
- * rather than a synchronized loading bar. A larger blurred halo trails a
- * sharp nucleus for a comet-tail feel.
+ * Register: Spacedrive sd grammar. Connectors are a single neutral hairline
+ * (--edge-hud) rather than a per-node rainbow; the one accent moment is the
+ * cyan feed pulse + vertex node, honoring the one-hue-owns-the-app law (D6).
+ * The pulse is ambient and infinite, so it is gated behind reduced-motion.
  *
  * Measurement: ResizeObserver on container + root + each card ref lets us
  * recompute path coordinates on resize without locking the layout to math
- * assumptions about area count or card width.
+ * assumptions about area count or card width. Card tops stay put when a
+ * sub-branch expands below them, so connectors never shift during a collapse.
  */
 
 const TRUNK_DROP = 36; // px the trunk falls before reaching the junction
 const BRANCH_RISE = 32; // px the branch rises off the top of each card
 
-/**
- * Per-area accent palette. Six soft oklch hues — pinks, turquoise, purple,
- * mint, amber, cyan — chosen to read as a constellation of distinct nodes
- * without breaking the journal-paper restraint. Each area is assigned a
- * stable color via a tiny string hash of its id (deterministic across
- * reloads). The same color drives both the SVG branch stroke AND the area
- * card's left-edge accent + top vertex dot.
- */
-const NODE_PALETTE = [
-  "oklch(72% 0.13 210)", // cyan (brand)
-  "oklch(74% 0.14 350)", // pink
-  "oklch(72% 0.14 305)", // purple
-  "oklch(74% 0.13 175)", // turquoise
-  "oklch(76% 0.15 155)", // mint / light green
-  "oklch(80% 0.13 70)",  // amber / peach
-] as const;
-
-function pickNodeColor(id: string): string {
-  let h = 5381;
-  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
-  return NODE_PALETTE[Math.abs(h) % NODE_PALETTE.length];
-}
+// Single neutral hairline for the whole tree backbone (theme-aware, faint
+// cyan tint via --edge-hud). The pulse + vertices carry the lone cyan accent.
+const CONNECTOR = "color-mix(in oklch, var(--edge-hud) 85%, transparent)";
+const PULSE = "var(--sd-accent)";
 
 export function AreasTree({
   areas,
@@ -75,6 +60,7 @@ export function AreasTree({
   rootInitial,
   rootLabel,
 }: Props) {
+  const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
@@ -252,11 +238,6 @@ export function AreasTree({
     };
   }, [areas.length]);
 
-  // Trunk + junctions stay neutral cyan (they belong to the whole tree, not
-  // any one area), but bumped from 40% → 70% opacity and 1.25 → 1.75 stroke
-  // so the backbone reads at a glance instead of fading into the canvas.
-  const trunkColor = "color-mix(in oklch, var(--hud-cyan) 70%, transparent)";
-
   return (
     <div ref={containerRef} className="relative w-full">
       {/* Top control bar — pinned at the top of the tree section so the
@@ -315,8 +296,8 @@ export function AreasTree({
             y1={trunkLine.y1}
             x2={trunkLine.x}
             y2={trunkLine.y2}
-            stroke={trunkColor}
-            strokeWidth="1.75"
+            stroke={CONNECTOR}
+            strokeWidth="1.25"
             strokeLinecap="round"
           />
         ) : null}
@@ -331,105 +312,101 @@ export function AreasTree({
             y1={j.y}
             x2={j.x2}
             y2={j.y}
-            stroke={trunkColor}
-            strokeWidth="1.75"
+            stroke={CONNECTOR}
+            strokeWidth="1.25"
             strokeLinecap="round"
           />
         ))}
 
-        {paths.map((p, i) => {
-          const accent = pickNodeColor(p.id);
-          const stroke = `color-mix(in oklch, ${accent} 75%, transparent)`;
-          return (
-            <g key={p.id}>
-              <path
-                id={`feed-path-${p.id}`}
-                d={p.d}
-                fill="none"
-                stroke={stroke}
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-              <circle
-                r="4"
-                fill={accent}
-                filter="url(#feed-glow)"
-                opacity="0.85"
-              >
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
-              <circle r="1.75" fill={accent}>
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
-            </g>
-          );
-        })}
+        {paths.map((p, i) => (
+          <g key={p.id}>
+            <path
+              id={`feed-path-${p.id}`}
+              d={p.d}
+              fill="none"
+              stroke={CONNECTOR}
+              strokeWidth="1.25"
+              strokeLinecap="round"
+            />
+            {/* Cyan feed pulse — the single accent moment. Ambient + infinite,
+                so it is disabled entirely under reduced motion (D1d). */}
+            {prefersReducedMotion ? null : (
+              <>
+                <circle r="3.5" fill={PULSE} filter="url(#feed-glow)" opacity="0.7">
+                  <animateMotion
+                    dur="2.6s"
+                    repeatCount="indefinite"
+                    begin={`${(i * 0.35).toFixed(2)}s`}
+                  >
+                    <mpath href={`#feed-path-${p.id}`} />
+                  </animateMotion>
+                </circle>
+                <circle r="1.5" fill={PULSE}>
+                  <animateMotion
+                    dur="2.6s"
+                    repeatCount="indefinite"
+                    begin={`${(i * 0.35).toFixed(2)}s`}
+                  >
+                    <mpath href={`#feed-path-${p.id}`} />
+                  </animateMotion>
+                </circle>
+              </>
+            )}
+          </g>
+        ))}
 
-        {/* Vertex dots — solid filled circles at the top of every area card
-            where its branch terminates. Outer halo + inner nucleus reads as
-            a "node" in graph-theory sense, so the tree visualises actual
-            graph vertices instead of just lines disappearing into cards. */}
-        {cardVertices.map((v) => {
-          const accent = pickNodeColor(v.id);
-          return (
-            <g key={`vertex-${v.id}`}>
-              <circle
-                cx={v.cx}
-                cy={v.cy}
-                r="6"
-                fill={accent}
-                opacity="0.18"
-                filter="url(#feed-glow)"
-              />
-              <circle
-                cx={v.cx}
-                cy={v.cy}
-                r="3.25"
-                fill="var(--canvas)"
-                stroke={accent}
-                strokeWidth="1.5"
-              />
-            </g>
-          );
-        })}
+        {/* Vertex dots — a cyan node at the top of every area card where its
+            branch terminates. Outer halo + canvas-filled ring reads as a
+            graph vertex, and carries the lone accent hue alongside the pulse. */}
+        {cardVertices.map((v) => (
+          <g key={`vertex-${v.id}`}>
+            <circle
+              cx={v.cx}
+              cy={v.cy}
+              r="5.5"
+              fill={PULSE}
+              opacity="0.16"
+              filter="url(#feed-glow)"
+            />
+            <circle
+              cx={v.cx}
+              cy={v.cy}
+              r="3"
+              fill="var(--canvas)"
+              stroke={PULSE}
+              strokeWidth="1.5"
+            />
+          </g>
+        ))}
       </svg>
 
       {/* Root — just the avatar. Strict pixel width AND height on both the
           wrapper AND the <img> defends against any global rule that might
           stretch <img> elements (which was happening; the user reported the
           PFP filling the page). The ambient cyan pulse is a sibling span,
-          not a parent — keeps the photo's bounding box untouched. */}
+          not a parent — keeps the photo's bounding box untouched, and is
+          suppressed under reduced motion. */}
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
+          className="relative shrink-0 overflow-hidden rounded-xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
           style={{
             width: 72,
             height: 72,
             boxShadow:
-              "0 0 0 1px color-mix(in oklch, var(--hud-cyan) 40%, transparent), 0 0 22px color-mix(in oklch, var(--hud-cyan) 18%, transparent)",
+              "0 0 0 1px color-mix(in oklch, var(--sd-accent) 32%, transparent), 0 0 20px color-mix(in oklch, var(--sd-accent) 14%, transparent)",
           }}
         >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
-            style={{
-              boxShadow:
-                "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
-            }}
-          />
+          {prefersReducedMotion ? null : (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-xl animate-pulse"
+              style={{
+                boxShadow:
+                  "0 0 0 4px color-mix(in oklch, var(--sd-accent) 8%, transparent)",
+              }}
+            />
+          )}
           {rootAvatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -483,6 +460,7 @@ export function AreasTree({
                 collapsed={hideAllProjects || collapsedAreas.has(area.id)}
                 onToggleCollapse={() => toggleArea(area.id)}
                 showArchived={showArchived}
+                reducedMotion={!!prefersReducedMotion}
               />
             ))
           )}
@@ -512,9 +490,10 @@ function TogglePill({
       aria-pressed={active}
       title={title}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] border",
         "font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always",
-        "transition-colors duration-150 ease-out",
+        "transition-colors duration-[120ms] ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         active
           ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
           : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
@@ -537,7 +516,7 @@ function TogglePill({
  *               ticks read more as "branches", shorter as "bullets".
  */
 const STEM_DROP = 14;
-const TICK_TOP = 11;
+const TICK_TOP = 13;
 const TICK_WIDTH = 14;
 
 function AreaBranch({
@@ -546,12 +525,14 @@ function AreaBranch({
   collapsed,
   onToggleCollapse,
   showArchived,
+  reducedMotion,
 }: {
   area: SidebarArea;
   setRef: (el: HTMLAnchorElement | null) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   showArchived: boolean;
+  reducedMotion: boolean;
 }) {
   // Server fetches the full set (active + archived) so we can flip the
   // archived view without a round-trip. Filter here based on toggle.
@@ -564,7 +545,43 @@ function AreaBranch({
   const archivedCount = area.projects.length - activeCount;
   const previewProjects = visibleProjects.slice(0, 6);
   const hiddenCount = visibleProjects.length - previewProjects.length;
-  const lineColor = "color-mix(in oklch, var(--edge-hud) 70%, transparent)";
+  const lineColor = "color-mix(in oklch, var(--edge-hud) 60%, transparent)";
+
+  // Collapse choreography — height:auto reveal on the campaign easing, with
+  // leaf rows staggered in beneath it. AnimatePresence initial={false}
+  // suppresses the enter animation on first paint (no mount flash, D1d), and
+  // the durations collapse to 0 under reduced motion.
+  const container = {
+    hidden: {
+      height: 0,
+      opacity: 0,
+      transition: {
+        duration: reducedMotion ? 0 : 0.2,
+        ease: [0.32, 0.72, 0, 1] as const,
+        when: "afterChildren" as const,
+        staggerChildren: reducedMotion ? 0 : 0.01,
+        staggerDirection: -1 as const,
+      },
+    },
+    show: {
+      height: "auto" as const,
+      opacity: 1,
+      transition: {
+        duration: reducedMotion ? 0 : 0.2,
+        ease: [0.32, 0.72, 0, 1] as const,
+        when: "beforeChildren" as const,
+        staggerChildren: reducedMotion ? 0 : 0.01,
+      },
+    },
+  };
+  const leaf = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 4 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0 : 0.16, ease: "easeOut" as const },
+    },
+  };
 
   return (
     <div className="flex flex-col items-stretch w-[240px] shrink-0">
@@ -573,27 +590,34 @@ function AreaBranch({
           ref={setRef}
           href={`/areas/${area.id}`}
           className={cn(
-            "group relative flex flex-col gap-1 rounded-xl px-4 py-3 pr-9",
-            // Glassier tile — translucent surface + backdrop blur. Reads the
-            // --glass-* knobs so /lifeos (under .lifeos-glass) runs frostier
-            // than /areas, both glassier than the old solid fill.
+            "group relative flex flex-col gap-2 rounded-xl px-3.5 py-3 pr-9",
+            // sd entity-card grammar: translucent surface + hairline border +
+            // white inset top hairline (D7) for dimensionality, elevation via
+            // the grey ladder rather than shadow weight. --glass-* knobs let
+            // /lifeos (.lifeos-glass) run frostier than /areas.
             "border border-[var(--edge)] bg-[var(--glass-bg)]",
-            "[backdrop-filter:blur(var(--glass-blur,12px))] [-webkit-backdrop-filter:blur(var(--glass-blur,12px))]",
-            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_88%,transparent)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "[backdrop-filter:blur(var(--glass-blur,10px))] [-webkit-backdrop-filter:blur(var(--glass-blur,10px))]",
+            "[box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)]",
+            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_90%,transparent)]",
+            "transition-colors duration-[120ms] ease-out cursor-pointer-always",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
-          <div className="flex items-baseline gap-2">
-            {area.emoji ? (
-              <span className="text-base leading-none" aria-hidden="true">
-                {area.emoji}
-              </span>
-            ) : null}
-            <span className="font-serif text-base font-semibold text-[var(--ink)] truncate">
+          <div className="flex items-center gap-2.5">
+            {/* Icon in a subtle backplate (sd entity-card anatomy). Keeps the
+                user's chosen emoji where set; defaults to the dimensional
+                AreaIcon (advisor: never drop user data). */}
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[var(--edge)] bg-[var(--surface)] text-[15px] leading-none"
+            >
+              {area.emoji ? area.emoji : <AreaIcon size={20} />}
+            </span>
+            <span className="min-w-0 flex-1 font-serif text-base font-semibold text-[var(--ink)] truncate">
               {area.name}
             </span>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="text-right font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
             {activeCount} project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
               <span className="ml-1 text-[var(--ink-muted)]/70">
@@ -605,7 +629,7 @@ function AreaBranch({
         {/* Per-area collapse toggle. Lives OUTSIDE the parent <Link> so the
             click doesn't navigate to the area page. Positioned absolutely
             in the card's top-right corner so it doesn't disturb the card's
-            content flow. */}
+            content flow. Single chevron rotates on state (soft-landing). */}
         <button
           type="button"
           onClick={(e) => {
@@ -616,20 +640,25 @@ function AreaBranch({
           aria-label={collapsed ? "Show projects" : "Hide projects"}
           aria-expanded={!collapsed}
           className={cn(
-            "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md",
+            "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-[6px]",
             "text-[var(--ink-muted)] hover:text-[var(--ink)]",
             "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "transition-colors duration-[120ms] ease-out cursor-pointer-always",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
-          {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          <ChevronDown
+            size={13}
+            className="transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+            style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+          />
         </button>
       </div>
 
-      {/* Sub-branches — hidden when the per-area chevron is collapsed OR
-          the global "Hide projects" is on. When hidden we render NOTHING
-          (no empty space) so the area cards collapse vertically and the
-          tree feels responsive to the control.
+      {/* Sub-branches — animate height:auto on toggle, and render NOTHING
+          when collapsed (no empty space) so the area cards collapse
+          vertically and the tree feels responsive. Card tops stay fixed
+          while this grows below them, so the SVG connectors never shift.
 
           Geometry inside the visible branch:
             1. A short vertical STEM dropping from the spine origin down.
@@ -637,125 +666,142 @@ function AreaBranch({
                the same x as the stem.
             3. A horizontal TICK leaving the spine to each leaf row. The
                LEAF (icon + label) sits to the RIGHT of where the tick
-               ENDS — earlier the tick spanned UNDER the icon, producing a
-               cyan line that looked like a strikethrough on the glyph. */}
-      {collapsed ? null : previewProjects.length > 0 ? (
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="absolute left-3 -top-px w-px"
-            style={{ height: STEM_DROP, background: lineColor }}
-          />
-          <ul
-            className="flex flex-col gap-1.5 pl-3 relative"
-            style={{ marginTop: STEM_DROP - 2 }}
+               ENDS so the tick never strikes through the glyph. */}
+      <AnimatePresence initial={false}>
+        {collapsed ? null : (
+          <motion.div
+            key="branch"
+            variants={container}
+            initial="hidden"
+            animate="show"
+            exit="hidden"
+            // overflow-hidden clips content cleanly during the height reveal;
+            // pb-1 keeps the last leaf's focus ring off the clip edge.
+            className="relative overflow-hidden pb-1"
           >
-            <span
-              aria-hidden="true"
-              className="absolute left-3 top-0 w-px"
-              style={{
-                background: lineColor,
-                height: `calc(100% - ${28 - TICK_TOP}px)`,
-              }}
-            />
-            {previewProjects.map((p) => {
-              const isArchived = p.archivedAt !== null;
-              return (
-                <li
-                  key={p.id}
-                  className="relative"
-                  // Leaf content starts AFTER the tick. tick spans
-                  // x = [12, 12 + TICK_WIDTH]; leaf must start at
-                  // ≥ tick.end + small breathing room. Hence pad by
-                  // TICK_WIDTH + 12 (tick.start = 12 from li-left).
-                  style={{ paddingLeft: TICK_WIDTH + 12 }}
+            {previewProjects.length > 0 ? (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="absolute left-3 -top-px w-px"
+                  style={{ height: STEM_DROP, background: lineColor }}
+                />
+                <ul
+                  className="flex flex-col gap-1.5 pl-3 relative"
+                  style={{ marginTop: STEM_DROP - 2 }}
                 >
                   <span
                     aria-hidden="true"
-                    className="absolute h-px"
+                    className="absolute left-3 top-0 w-px"
                     style={{
-                      left: 12,
-                      top: TICK_TOP,
-                      width: TICK_WIDTH,
                       background: lineColor,
+                      height: `calc(100% - ${28 - TICK_TOP}px)`,
                     }}
                   />
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className={cn(
-                      "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-md",
-                      "font-serif text-[13px]",
-                      "hover:bg-[var(--surface)] transition-colors duration-100",
-                      isArchived
-                        ? "text-[var(--ink-muted)] italic"
-                        : "text-[var(--ink)]",
-                    )}
-                  >
-                    <DynamicIcon
-                      name={p.icon}
-                      size={12}
-                      strokeWidth={1.5}
-                      className="text-[var(--ink-muted)] shrink-0"
-                    />
-                    <span className="truncate">{p.name}</span>
-                    {isArchived ? (
-                      <Archive
-                        size={10}
-                        className="text-[var(--ink-muted)]/70 shrink-0"
-                        aria-label="archived"
+                  {previewProjects.map((p) => {
+                    const isArchived = p.archivedAt !== null;
+                    return (
+                      <motion.li
+                        key={p.id}
+                        variants={leaf}
+                        className="relative"
+                        // Leaf content starts AFTER the tick. tick spans
+                        // x = [12, 12 + TICK_WIDTH]; leaf must start at
+                        // ≥ tick.end + small breathing room. Hence pad by
+                        // TICK_WIDTH + 12 (tick.start = 12 from li-left).
+                        style={{ paddingLeft: TICK_WIDTH + 12 }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="absolute h-px"
+                          style={{
+                            left: 12,
+                            top: TICK_TOP,
+                            width: TICK_WIDTH,
+                            background: lineColor,
+                          }}
+                        />
+                        <Link
+                          href={`/projects/${p.id}`}
+                          className={cn(
+                            "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-[6px]",
+                            "font-serif text-[13px]",
+                            "hover:bg-[var(--surface)] transition-colors duration-[120ms] ease-out",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                            isArchived
+                              ? "text-[var(--ink-muted)] italic"
+                              : "text-[var(--ink)]",
+                          )}
+                        >
+                          <DynamicIcon
+                            name={p.icon}
+                            size={12}
+                            strokeWidth={1.5}
+                            className="text-[var(--ink-muted)] shrink-0"
+                          />
+                          <span className="truncate">{p.name}</span>
+                          {isArchived ? (
+                            <Archive
+                              size={10}
+                              className="text-[var(--ink-muted)]/70 shrink-0"
+                              aria-label="archived"
+                            />
+                          ) : null}
+                        </Link>
+                      </motion.li>
+                    );
+                  })}
+                  {hiddenCount > 0 ? (
+                    <motion.li
+                      variants={leaf}
+                      className="relative"
+                      style={{ paddingLeft: TICK_WIDTH + 12 }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="absolute h-px"
+                        style={{
+                          left: 12,
+                          top: TICK_TOP,
+                          width: TICK_WIDTH,
+                          background: lineColor,
+                        }}
                       />
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-            {hiddenCount > 0 ? (
-              <li
-                className="relative"
-                style={{ paddingLeft: TICK_WIDTH + 12 }}
-              >
+                      <Link
+                        href={`/areas/${area.id}`}
+                        className="inline-flex rounded-[6px] font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-[120ms] py-1 px-1 -ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                      >
+                        + {hiddenCount} more
+                      </Link>
+                    </motion.li>
+                  ) : null}
+                </ul>
+              </>
+            ) : (
+              <>
                 <span
                   aria-hidden="true"
-                  className="absolute h-px"
-                  style={{
-                    left: 12,
-                    top: TICK_TOP,
-                    width: TICK_WIDTH,
-                    background: lineColor,
-                  }}
+                  className="absolute left-3 -top-px w-px"
+                  style={{ height: STEM_DROP, background: lineColor }}
                 />
-                <Link
-                  href={`/areas/${area.id}`}
-                  className="inline-flex font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors py-1"
+                <p
+                  className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
+                  style={{ marginTop: STEM_DROP + 2 }}
                 >
-                  + {hiddenCount} more
-                </Link>
-              </li>
-            ) : null}
-          </ul>
-        </div>
-      ) : (
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="absolute left-3 -top-px w-px"
-            style={{ height: STEM_DROP, background: lineColor }}
-          />
-          <p
-            className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
-            style={{ marginTop: STEM_DROP + 2 }}
-          >
-            No projects yet.
-          </p>
-        </div>
-      )}
+                  No projects yet.
+                </p>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 function EmptyAreas() {
   return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
+    <div className="rounded-[8px] border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
       <p className="font-serif italic text-base text-[var(--ink-muted)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
