@@ -7,3 +7,4 @@ export { HabitIcon } from "./HabitIcon";
 export { CaptureIcon } from "./CaptureIcon";
 export { TrainingIcon } from "./TrainingIcon";
 export { InsightIcon } from "./InsightIcon";
+export { WidgetIcon } from "./WidgetIcon";
