@@ -1,7 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 import { useTabHidden } from "./useTabHidden";
 
 /**
@@ -47,19 +47,60 @@ function blobGeometry(anchor: Anchor): { wide: CSSProperties; core: CSSPropertie
   switch (anchor) {
     case "top":
       return {
-        wide: { left: "50%", top: "2%", width: "72vw", height: "46vh", marginLeft: "-36vw", marginTop: "-23vh" },
-        core: { left: "47%", top: "-2%", width: "34vw", height: "32vh", marginLeft: "-17vw", marginTop: "-16vh" },
+        wide: {
+          left: "50%",
+          top: "2%",
+          width: "72vw",
+          height: "46vh",
+          marginLeft: "-36vw",
+          marginTop: "-23vh",
+        },
+        core: {
+          left: "47%",
+          top: "-2%",
+          width: "34vw",
+          height: "32vh",
+          marginLeft: "-17vw",
+          marginTop: "-16vh",
+        },
       };
     case "hero":
       return {
-        wide: { left: "44%", top: "12%", width: "66vw", height: "48vh", marginLeft: "-33vw", marginTop: "-24vh" },
-        core: { left: "33%", top: "6%", width: "30vw", height: "30vh", marginLeft: "-15vw", marginTop: "-15vh" },
+        wide: {
+          left: "44%",
+          top: "12%",
+          width: "66vw",
+          height: "48vh",
+          marginLeft: "-33vw",
+          marginTop: "-24vh",
+        },
+        core: {
+          left: "33%",
+          top: "6%",
+          width: "30vw",
+          height: "30vh",
+          marginLeft: "-15vw",
+          marginTop: "-15vh",
+        },
       };
-    case "center":
     default:
       return {
-        wide: { left: "50%", top: "46%", width: "68vw", height: "52vh", marginLeft: "-34vw", marginTop: "-26vh" },
-        core: { left: "43%", top: "40%", width: "34vw", height: "34vh", marginLeft: "-17vw", marginTop: "-17vh" },
+        wide: {
+          left: "50%",
+          top: "46%",
+          width: "68vw",
+          height: "52vh",
+          marginLeft: "-34vw",
+          marginTop: "-26vh",
+        },
+        core: {
+          left: "43%",
+          top: "40%",
+          width: "34vw",
+          height: "34vh",
+          marginLeft: "-17vw",
+          marginTop: "-17vh",
+        },
       };
   }
 }
@@ -75,7 +116,7 @@ export function AmbientGlow({ intensity = "whisper", anchor = "center", classNam
       data-paused={hidden ? "true" : "false"}
       className={cn(
         "sd-ambient pointer-events-none overflow-hidden fixed inset-0 -z-10",
-        className,
+        className
       )}
     >
       <style>{AMBIENT_CSS}</style>
