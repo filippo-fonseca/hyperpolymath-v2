@@ -328,7 +328,7 @@ export function AreasTree({
           style={{
             width: 56,
             height: 56,
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.09)",
+            boxShadow: "inset 0 1px 0 var(--glass-hi)",
           }}
         >
           {rootAvatarUrl ? (
@@ -501,15 +501,20 @@ function AreaBranch({
       <div className="relative">
         {/* Mini entity card (§7 + §6 chrome): solid --sd-box raised off the
             canvas by a hairline and an inset top highlight. No blur, no
-            gradient, no glow. Hover moves the border and nothing else. */}
+            gradient, no glow. Hover moves the border and nothing else.
+            §6 states the edge/bevel as literal white-alpha, but those are
+            dark-theme values: on light parchment a white 6% hairline is
+            invisible and the card loses its edge. Per D11 the surfaces
+            resolve through tokens instead, which land on §6's intended
+            values in dark and their parchment equivalents in light. */}
         <Link
           ref={setRef}
           href={`/areas/${area.id}`}
           className={cn(
             "group relative flex flex-col gap-2 rounded-[12px] px-3 py-3 pr-8",
-            "border border-[rgba(255,255,255,0.06)] bg-[var(--sd-box)]",
-            "[box-shadow:inset_0_1px_0_rgba(255,255,255,0.09)]",
-            "transition-colors duration-150 ease-out hover:border-[rgba(255,255,255,0.10)]",
+            "border border-[var(--sd-line)] bg-[var(--sd-box)]",
+            "[box-shadow:inset_0_1px_0_var(--glass-hi)]",
+            "transition-colors duration-150 ease-out hover:border-[var(--sd-active)]",
             "cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
