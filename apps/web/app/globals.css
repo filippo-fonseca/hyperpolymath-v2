@@ -16,8 +16,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 @theme {
-  --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Space Grotesk is the app-wide sans (UI contract R2). It is the default for
+     body and every surface.
+
+     `--font-serif` deliberately ALSO resolves to Space Grotesk. The codebase
+     carries ~560 legacy `font-serif` utility usages, several baked into the
+     shadcn primitives (button, card, dialog, input) that every page renders,
+     so remapping the token is what makes the sans uniform app-wide rather than
+     chasing the class through ~180 files. The utility survives as a no-op
+     alias; treat it as dead and drop it on sight.
+
+     EB Garamond is now reachable through exactly one token, `--font-logotype`,
+     whose only consumer is components/ui/Logotype.tsx (the wordmark). */
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
@@ -1004,9 +1019,15 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 body {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Space Grotesk runs loose at display sizes. Greetings and stat values pull it
+   back in (UI contract §8). */
+.tracking-display {
+  letter-spacing: -0.01em;
 }
 
 /* Phase 6 Plan 06-01 — D-09: universal cursor pointer on clickable elements.

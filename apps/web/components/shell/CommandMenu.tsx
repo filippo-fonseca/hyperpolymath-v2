@@ -50,7 +50,7 @@ export function CommandMenu({ hashtags, projects }: Props) {
       {compose ? (
         <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="font-serif italic text-base text-[var(--ink)]">Capture a thought</span>
+            <span className="text-base text-[var(--ink)]">Capture a thought</span>
             <button
               type="button"
               onClick={() => setCompose(false)}

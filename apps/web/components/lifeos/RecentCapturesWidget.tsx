@@ -71,7 +71,7 @@ export function RecentCapturesWidget({
         }
       />
       {recent.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
+        <p className="text-[13px] text-[var(--ink-muted)]">
           Nothing captured yet. Type into JARVIS to drop a note.
         </p>
       ) : (
@@ -116,7 +116,7 @@ export function RecentCapturesWidget({
                     })}
                   </span>
                 </div>
-                <p className="font-serif text-[13px] leading-[1.45] text-[var(--ink)] line-clamp-3">
+                <p className="text-[13px] leading-[1.45] text-[var(--ink)] line-clamp-3">
                   {c.content}
                 </p>
                 {(c.hashtags.length > 0 || c.projects.length > 0) && (

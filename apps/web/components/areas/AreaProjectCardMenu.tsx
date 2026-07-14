@@ -246,7 +246,7 @@ export function AreaProjectCardMenu({
               />
             </div>
             {isClass && (
-              <p className="font-serif text-sm text-[var(--ink-muted)]">
+              <p className="text-sm text-[var(--ink-muted)]">
                 Edit class fields on the{" "}
                 <Link
                   href={`/projects/${projectId}`}

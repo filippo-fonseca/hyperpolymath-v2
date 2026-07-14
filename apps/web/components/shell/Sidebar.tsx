@@ -400,7 +400,7 @@ export function Sidebar({
                   </Tooltip>
                 </div>
               </TooltipProvider>
-              <p className="text-center font-serif italic text-[11px] leading-[1.45] text-[var(--sd-ink-faint)] px-1">
+              <p className="text-center text-[11px] leading-[1.45] text-[var(--sd-ink-faint)] px-1">
                 how you do one thing is how you do everything.
               </p>
             </div>
@@ -511,7 +511,7 @@ function AvatarOrInitial({
   if (showInitial) {
     return (
       <span
-        className={`w-full h-full flex items-center justify-center bg-[var(--sd-box)] font-serif ${textSize} text-[var(--sd-ink-dull)]`}
+        className={`w-full h-full flex items-center justify-center bg-[var(--sd-box)] ${textSize} text-[var(--sd-ink-dull)]`}
       >
         {initial}
       </span>
@@ -580,7 +580,7 @@ function UserChip({
         <AvatarOrInitial src={src} initial={initial} textSize="text-base" />
       </div>
       <div className="flex flex-col min-w-0 leading-tight">
-        <span className="font-serif text-sm text-[var(--sd-ink)] truncate">{primaryLabel}</span>
+        <span className="text-sm text-[var(--sd-ink)] truncate">{primaryLabel}</span>
         {profile.displayName?.trim() ? (
           <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] truncate">
             {profile.email}
@@ -716,7 +716,7 @@ function SidebarSectionLink({
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "mx-2 flex items-center gap-3 rounded-[6px] px-3 h-9",
-        "font-serif text-[14px] tracking-tight",
+        "text-[14px] tracking-tight",
         "transition-colors duration-[120ms] ease-out cursor-pointer-always",
         SB_FOCUS,
         isActive

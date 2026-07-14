@@ -425,7 +425,7 @@ export function AreasTree({
             />
           ) : (
             <span
-              className="font-serif text-2xl text-[var(--ink-muted)] flex items-center justify-center"
+              className="text-2xl text-[var(--ink-muted)] flex items-center justify-center"
               style={{ width: 72, height: 72 }}
             >
               {rootInitial}
@@ -613,7 +613,7 @@ function AreaBranch({
             >
               {area.emoji ? area.emoji : <AreaIcon size={20} />}
             </span>
-            <span className="min-w-0 flex-1 font-serif text-base font-semibold text-[var(--ink)] truncate">
+            <span className="min-w-0 flex-1 text-base font-semibold text-[var(--ink)] truncate">
               {area.name}
             </span>
           </div>
@@ -725,7 +725,7 @@ function AreaBranch({
                           href={`/projects/${p.id}`}
                           className={cn(
                             "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-[6px]",
-                            "font-serif text-[13px]",
+                            "text-[13px]",
                             "hover:bg-[var(--sd-hover)] transition-colors duration-[120ms] ease-out",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
                             isArchived
@@ -785,7 +785,7 @@ function AreaBranch({
                   style={{ height: STEM_DROP, background: lineColor }}
                 />
                 <p
-                  className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
+                  className="text-[13px] text-[var(--ink-muted)] pl-7"
                   style={{ marginTop: STEM_DROP + 2 }}
                 >
                   No projects yet.
@@ -802,7 +802,7 @@ function AreaBranch({
 function EmptyAreas() {
   return (
     <div className="rounded-[8px] border border-dashed border-[var(--sd-line)] px-6 py-8 text-center max-w-md mx-auto">
-      <p className="font-serif italic text-base text-[var(--ink-muted)]">
+      <p className="text-base text-[var(--ink-muted)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
     </div>

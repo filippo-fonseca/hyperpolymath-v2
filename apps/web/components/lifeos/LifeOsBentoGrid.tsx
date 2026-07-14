@@ -83,7 +83,7 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
     <section className="mb-12">
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
+          <h2 className="text-xl font-semibold tracking-tight text-[var(--ink)]">
             Widgets
           </h2>
           <CollapseChevron collapsed={collapsed} onClick={toggle} label="widgets" />

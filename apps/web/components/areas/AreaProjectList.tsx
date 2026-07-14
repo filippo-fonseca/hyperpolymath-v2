@@ -67,7 +67,7 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
   if (projects.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-10 text-center">
-        <p className="font-serif italic text-base text-[var(--ink-muted)]">
+        <p className="text-base text-[var(--ink-muted)]">
           No projects in this area yet.
         </p>
         <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]/70 mt-2">
@@ -116,7 +116,7 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
 
       {list.length === 0 ? (
         <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center">
-          <p className="font-serif italic text-base text-[var(--ink-muted)]">
+          <p className="text-base text-[var(--ink-muted)]">
             {tab === "archived"
               ? "Nothing archived or past its end date."
               : hideClasses
@@ -145,7 +145,7 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-serif text-lg font-semibold text-[var(--ink)] leading-tight truncate">
+                      <span className="text-lg font-semibold text-[var(--ink)] leading-tight truncate">
                         {p.name}
                       </span>
                       {p.isClass ? (
@@ -171,7 +171,7 @@ export function AreaProjectList({ areaId, projects, allAreas }: Props) {
                   </div>
                 </div>
                 {p.description ? (
-                  <p className="font-serif text-sm text-[var(--ink-muted)] line-clamp-2">
+                  <p className="text-sm text-[var(--ink-muted)] line-clamp-2">
                     {p.description}
                   </p>
                 ) : null}

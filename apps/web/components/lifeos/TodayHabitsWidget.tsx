@@ -125,7 +125,7 @@ export function TodayHabitsWidget({
         }
       />
       {total === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
+        <p className="text-[13px] text-[var(--ink-muted)]">
           No habits yet.
         </p>
       ) : (
@@ -182,7 +182,7 @@ export function TodayHabitsWidget({
                       )}
                     </motion.span>
                     <span
-                      className={`font-serif text-[14px] truncate ${
+                      className={`text-[14px] truncate ${
                         done
                           ? "text-[var(--ink-muted)] line-through"
                           : "text-[var(--ink)]"
