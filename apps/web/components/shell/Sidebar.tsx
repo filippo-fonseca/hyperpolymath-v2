@@ -219,7 +219,10 @@ export function Sidebar({
               label="Areas"
               href="/areas"
               collapsed={effectiveCollapsed}
-              count={activeAreas.length}
+              // Counts what the tree actually renders, not the active list.
+              // `areas` follows the archived-eye toggle and the optimistic add,
+              // so the badge can never contradict the rows beneath it.
+              count={areas.length}
               action={
                 <AreaCreateDialog
                   userId={userId}
