@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Moon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listActivitiesInRange } from "@/app/actions/training";
 import type { ActivityWithType } from "@/lib/db/queries/training";
@@ -9,7 +8,15 @@ import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { formatDistance, type DistanceUnit } from "@/lib/training/distance";
 import { TrainingIcon } from "@/components/ui/icons";
-import { EntityCardHeader, ProgressRow, StatusPill } from "./entity-card";
+import {
+  ActionLink,
+  Chip,
+  EmptyState,
+  EntityCardHeader,
+  ProgressRow,
+  StatusPill,
+} from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
   userId: string;
@@ -31,7 +38,8 @@ interface Props {
  *
  * "Rest day" empty state (CONTEXT specifics): when today has zero planned
  * activities, render a deliberate, positive state — not a generic "nothing
- * here". Moon glyph + serif copy that frames recovery as intentional.
+ * here". Plain sans copy over a dimmed dimensional icon (UI-CONTRACT §6 bans
+ * the italic-serif empty state) that frames recovery as intentional.
  *
  * Each row is a Link to `/training` — completion modals live inside the
  * planner, so the widget routes the user into the surface where logging
@@ -76,94 +84,101 @@ export function TodayTrainingWidget({
       <StatusPill tone="progress" label={`${visible.length} planned`} />
     );
 
+  const plannedMinutes = visible.reduce((sum, a) => sum + (a.plannedDurationMin ?? 0), 0);
+  const plannedKmTotal = visible.reduce(
+    (sum, a) =>
+      sum + (a.type.hasDistance && a.plannedDistanceKm ? Number(a.plannedDistanceKm) : 0),
+    0,
+  );
+
   return (
-    <div className="flex flex-col h-full">
-      <EntityCardHeader
-        icon={<TrainingIcon size={26} />}
-        title="Training"
-        subtitle="Today"
-        pill={pill}
-        action={
-          <Link
-            href="/training"
-            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-          >
-            Plan →
-          </Link>
-        }
-      />
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<TrainingIcon size={36} />}
+          title="Training"
+          subtitle="Today"
+          pill={pill}
+          action={
+            <Link href="/training" className="group/action cursor-pointer-always">
+              <ActionLink>Plan →</ActionLink>
+            </Link>
+          }
+        />
 
-      {visible.length > 0 && (
-        <div className="mb-4">
-          <ProgressRow
-            label="Completed"
-            value={`${doneCount}/${visible.length}`}
-            ratio={doneCount / visible.length}
-          />
-        </div>
-      )}
+        {visible.length > 0 && (
+          <div className="mt-3.5">
+            <ProgressRow
+              label="Completed"
+              value={`${doneCount}/${visible.length}`}
+              ratio={doneCount / visible.length}
+            />
+          </div>
+        )}
 
-      {visible.length === 0 ? (
-        // Rest day — positive, intentional. Not "nothing to do".
-        <div className="flex flex-1 flex-col items-start justify-center gap-2 py-2">
-          <Moon
-            size={18}
-            strokeWidth={1.5}
-            className="text-[var(--ink-muted)]"
-            aria-hidden
-          />
-          <p className="text-[14px] text-[var(--ink)]">
-            Rest day.
-          </p>
-          <p className="text-[13px] text-[var(--ink-muted)]">
-            Recover well — tomorrow earns more.
-          </p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2.5 flex-1">
-          {visible.map((a) => {
-            const done = a.status === "done";
-            const plannedMin = a.plannedDurationMin;
-            const plannedKm = a.plannedDistanceKm
-              ? Number(a.plannedDistanceKm)
-              : null;
-            return (
-              <li key={a.id}>
-                <Link
-                  href="/training"
-                  className="flex w-full items-center gap-2.5 text-left cursor-pointer-always group/training"
-                >
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: a.type.color }}
-                    aria-hidden
-                  />
-                  <span
-                    className={`text-[14px] truncate flex-1 min-w-0 ${
-                      done
-                        ? "text-[var(--ink-muted)] line-through"
-                        : "text-[var(--ink)] group-hover/training:text-[var(--ink)]"
-                    }`}
+        {visible.length === 0 ? (
+          // Rest day — positive, intentional. Not "nothing to do".
+          <EmptyState icon={<TrainingIcon size={40} />}>
+            Rest day. Recover well; tomorrow earns more.
+          </EmptyState>
+        ) : (
+          <ul className="mt-3.5 flex flex-1 flex-col gap-2.5">
+            {visible.map((a) => {
+              const done = a.status === "done";
+              const plannedMin = a.plannedDurationMin;
+              const plannedKm = a.plannedDistanceKm ? Number(a.plannedDistanceKm) : null;
+              return (
+                <li key={a.id}>
+                  <Link
+                    href="/training"
+                    className="group/training flex w-full cursor-pointer-always items-center gap-2.5 text-left"
                   >
-                    {a.title}
-                  </span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] shrink-0">
-                    {plannedMin != null ? `${plannedMin}m` : null}
-                    {plannedMin != null &&
-                    a.type.hasDistance &&
-                    plannedKm != null
-                      ? " · "
-                      : null}
-                    {a.type.hasDistance && plannedKm != null
-                      ? formatDistance(plannedKm, distanceUnit)
-                      : null}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
+                    <span
+                      className="inline-block size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: a.type.color }}
+                      aria-hidden
+                    />
+                    <span
+                      className={`min-w-0 flex-1 truncate text-[14px] ${
+                        done
+                          ? "text-[var(--sd-ink-faint)] line-through"
+                          : "text-[var(--sd-ink)]"
+                      }`}
+                    >
+                      {a.title}
+                    </span>
+                    <span className="shrink-0 text-[12px] tabular-nums text-[var(--sd-ink-faint)]">
+                      {plannedMin != null ? `${plannedMin}m` : null}
+                      {plannedMin != null && a.type.hasDistance && plannedKm != null
+                        ? " · "
+                        : null}
+                      {a.type.hasDistance && plannedKm != null
+                        ? formatDistance(plannedKm, distanceUnit)
+                        : null}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </WidgetBody>
+
+      <WidgetFooter>
+        {visible.length === 0 ? (
+          <Chip>Rest day</Chip>
+        ) : (
+          <>
+            <Chip>
+              {visible.length === 1 ? "1 session" : `${visible.length} sessions`}
+            </Chip>
+            {plannedMinutes > 0 && <Chip>{plannedMinutes}m planned</Chip>}
+            {plannedKmTotal > 0 && (
+              <Chip>{formatDistance(plannedKmTotal, distanceUnit)}</Chip>
+            )}
+          </>
+        )}
+      </WidgetFooter>
+    </>
   );
 }
