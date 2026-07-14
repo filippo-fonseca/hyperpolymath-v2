@@ -207,7 +207,7 @@ export function LifeOsHero({
           <span aria-hidden className="inline-block h-px w-6 bg-[var(--sd-line)]" />
           <span className="sd-stat-label">{format(now, "EEEE · MMMM d, yyyy")}</span>
         </div>
-        <h1 className="font-serif text-[40px] leading-[1.05] font-semibold tracking-tight text-[var(--sd-ink)]">
+        <h1 className="text-[40px] leading-[1.05] font-semibold tracking-tight text-[var(--sd-ink)]">
           {greeting(now.getHours())}
           {firstName ? (
             <>

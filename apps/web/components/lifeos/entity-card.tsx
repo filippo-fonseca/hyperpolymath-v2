@@ -60,7 +60,7 @@ export function EntityCardHeader({
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="truncate font-serif text-base font-medium leading-tight text-[var(--sd-ink)]">
+          <h3 className="truncate text-base font-medium leading-tight text-[var(--sd-ink)]">
             {title}
           </h3>
           {subtitle != null && (

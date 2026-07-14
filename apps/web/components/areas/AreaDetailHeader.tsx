@@ -88,7 +88,7 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
                 {area.emoji}
               </span>
             ) : null}
-            <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
+            <h1 className="text-4xl font-semibold tracking-tight text-[var(--ink)]">
               {area.name}
             </h1>
           </div>
@@ -122,7 +122,7 @@ export function AreaDetailHeader({ area, allAreas, graduationYear, projectCount 
             </Button>
           </div>
         </div>
-        <p className="font-serif text-base text-[var(--ink-muted)]">
+        <p className="text-base text-[var(--ink-muted)]">
           {projectCount} active project{projectCount === 1 ? "" : "s"}.
         </p>
       </header>

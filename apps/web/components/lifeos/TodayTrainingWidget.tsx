@@ -112,10 +112,10 @@ export function TodayTrainingWidget({
             className="text-[var(--ink-muted)]"
             aria-hidden
           />
-          <p className="font-serif text-[14px] text-[var(--ink)]">
+          <p className="text-[14px] text-[var(--ink)]">
             Rest day.
           </p>
-          <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
+          <p className="text-[13px] text-[var(--ink-muted)]">
             Recover well — tomorrow earns more.
           </p>
         </div>
@@ -139,7 +139,7 @@ export function TodayTrainingWidget({
                     aria-hidden
                   />
                   <span
-                    className={`font-serif text-[14px] truncate flex-1 min-w-0 ${
+                    className={`text-[14px] truncate flex-1 min-w-0 ${
                       done
                         ? "text-[var(--ink-muted)] line-through"
                         : "text-[var(--ink)] group-hover/training:text-[var(--ink)]"

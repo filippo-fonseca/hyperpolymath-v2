@@ -234,7 +234,7 @@ export function UpcomingTasksWidget({
           }}
           placeholder="New task — Enter to add"
           disabled={creating}
-          className="flex-1 min-w-0 bg-transparent outline-none font-serif text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+          className="flex-1 min-w-0 bg-transparent outline-none text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
         />
         {newTitle.trim() && (
           <span className="font-mono text-[9px] uppercase tracking-[0.10em] text-[var(--ink-muted)] tabular-nums">
@@ -245,7 +245,7 @@ export function UpcomingTasksWidget({
 
       {upcoming.length === 0 ? (
         <div className="flex flex-1 items-center">
-          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+          <p className="text-[14px] text-[var(--ink-muted)]">
             Nothing due. Breathe.
           </p>
         </div>
@@ -284,7 +284,7 @@ export function UpcomingTasksWidget({
                       style={{ backgroundColor: tone.dot }}
                     />
                   </button>
-                  <span className="font-serif text-[14px] text-[var(--ink)] flex-1 min-w-0 truncate">
+                  <span className="text-[14px] text-[var(--ink)] flex-1 min-w-0 truncate">
                     {t.title}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">

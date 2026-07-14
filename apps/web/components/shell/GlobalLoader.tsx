@@ -143,7 +143,7 @@ export function GlobalLoader({ message, fullscreen = true }: Props) {
 
       {/* Quote — serif italic, hairline divider above attribution */}
       <figure className="mt-6 max-w-md px-6 text-center">
-        <blockquote className="font-serif italic text-[15px] leading-[1.55] text-[var(--ink)]">
+        <blockquote className="text-[15px] leading-[1.55] text-[var(--ink)]">
           &ldquo;{quote.text}&rdquo;
         </blockquote>
         <figcaption className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">

@@ -57,7 +57,7 @@ export function LifeOsInsightsWidget({
         {stats.map((s) => (
           <div key={s.label} className="flex flex-col gap-1">
             <dd className="font-mono text-2xl tabular-nums text-[var(--ink)]">{s.value}</dd>
-            <dt className="font-serif text-[12px] text-[var(--ink-muted)]">{s.label}</dt>
+            <dt className="text-[12px] text-[var(--ink-muted)]">{s.label}</dt>
           </div>
         ))}
       </dl>

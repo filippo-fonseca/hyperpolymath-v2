@@ -33,7 +33,7 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
     <motion.section className="mb-12" {...animProps}>
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <h2 className="font-serif text-xl font-semibold tracking-tight text-[var(--ink)]">
+          <h2 className="text-xl font-semibold tracking-tight text-[var(--ink)]">
             Areas
           </h2>
           <CollapseChevron collapsed={collapsed} onClick={toggle} label="areas" />

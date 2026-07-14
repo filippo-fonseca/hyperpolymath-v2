@@ -160,7 +160,7 @@ export function PersistentNav({ collapsed }: Props) {
                 // Idle = bare, hover = soft sidebar-button; active = neutral
                 // selected/40 backplate (below). No cyan whisper glow (seed).
                 "group relative flex items-center gap-3 rounded-[6px] px-3 h-9 w-full",
-                "font-serif text-[14px] tracking-tight",
+                "text-[14px] tracking-tight",
                 "transition-colors duration-[120ms] ease-out",
                 active && !item.disabled
                   ? "text-[var(--sd-ink)]"
@@ -324,7 +324,7 @@ export function PersistentNav({ collapsed }: Props) {
             type="button"
             className={cn(
               "group relative flex items-center gap-3 rounded-[6px] px-3 h-9 w-full",
-              "font-serif text-[14px] tracking-tight text-[var(--sd-ink-dull)]",
+              "text-[14px] tracking-tight text-[var(--sd-ink-dull)]",
               "transition-colors duration-[120ms] ease-out",
               "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
             )}
