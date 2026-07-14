@@ -33,14 +33,14 @@ export function LifeOsAreasShell({ children }: { children: ReactNode }) {
     <motion.section className="mb-12" {...animProps}>
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <h2 className="text-xl font-semibold tracking-tight text-[var(--ink)]">
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
             Areas
           </h2>
           <CollapseChevron collapsed={collapsed} onClick={toggle} label="areas" />
         </div>
         <Link
           href="/areas"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
+          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors duration-100 cursor-pointer-always"
         >
           Open full view →
         </Link>
