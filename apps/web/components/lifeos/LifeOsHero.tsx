@@ -71,8 +71,17 @@ function dotColor(tone: DotTone): string | undefined {
   }
 }
 
-/** Dimensional icon size in the stat strip (UI-CONTRACT §5). */
+/** Dimensional icon slot in the stat strip (UI-CONTRACT §5). */
 const ICON_SIZE = 40;
+/**
+ * Optical size for AreaIcon. Every sibling draws a 54/80 rounded square that
+ * fills its box, but AreaIcon's diamond spans 50/80 with only half the fill
+ * area of a square that wide, so at a nominal 40 it reads about a third
+ * smaller than the rest of the strip. Rendering it 1.3x brings its mass level;
+ * the glyph still lands at 32.5px, inside the 40px slot, so the icon column
+ * and every text baseline stay put.
+ */
+const DIAMOND_ICON_SIZE = 52;
 /** Presence orb diameter (UI-CONTRACT §4; §9 bans orbs > 40px). */
 const ORB_SIZE = 36;
 
@@ -133,7 +142,7 @@ export function LifeOsHero({
     },
     {
       key: "habits",
-      icon: <HabitIcon size={ICON_SIZE} />,
+      icon: <HabitIcon size={ICON_SIZE} className="lifeos-stat-icon--habit" />,
       label: "Habits today",
       value: habitsTotal === 0 ? "0" : String(habitsDone),
       unit: habitsTotal === 0 ? undefined : `/${habitsTotal}`,
@@ -182,7 +191,7 @@ export function LifeOsHero({
     },
     {
       key: "projects",
-      icon: <AreaIcon size={ICON_SIZE} />,
+      icon: <AreaIcon size={DIAMOND_ICON_SIZE} />,
       label: "Projects",
       value: String(projectsActive),
       caption: "active",
@@ -237,7 +246,8 @@ export function LifeOsHero({
       </motion.div>
 
       {/* Stat strip — icon-left anatomy, no chrome (§5). */}
-      <div className="mb-7 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="lifeos-stats mb-7 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+        <style>{STAT_ICON_CSS}</style>
         {stats.map((s, i) => {
           const color = dotColor(s.dot);
           const cellAnim = reduced
@@ -257,7 +267,9 @@ export function LifeOsHero({
                 href={s.href}
                 className="group/stat flex items-center gap-3 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
-                <span className="inline-flex shrink-0">{s.icon}</span>
+                <span className="inline-flex size-10 shrink-0 items-center justify-center">
+                  {s.icon}
+                </span>
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
                     {s.label}
@@ -297,4 +309,13 @@ export function LifeOsHero({
    component's own reduced-motion rule still wins (it kills the animation). */
 const PRESENCE_CSS = `
 .lifeos-presence .sd-orb__bob { animation-duration: 6s; }
+`;
+
+/* HabitIcon is a ring, not a filled body: on the dark canvas its indigo band
+   sits close enough to the surface that the streak barely reads, while the
+   solid siblings carry a lit face. A brightness lift on the dark theme only
+   pulls the band clear of the canvas; light keeps the icon exactly as drawn.
+   Scoped to this mount so /habits and the sidebar are untouched. */
+const STAT_ICON_CSS = `
+.dark .lifeos-stats .lifeos-stat-icon--habit { filter: brightness(1.35) saturate(1.08); }
 `;
