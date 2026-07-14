@@ -1691,6 +1691,51 @@ select:focus-visible,
   color: var(--sd-ink-faint);
 }
 
+/* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
+
+/* The chip/pill type step from the Spacedrive source. Sits below text-xs and
+   is the size the count badges, SOON chips, and footer chips all speak. */
+.text-tiny {
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
+/* Rows dissolve into the footer instead of hard-clipping at the scroll edge
+   (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
+.mask-fade-out {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
+/* Scrollbar stays invisible until the pointer is actually in the column
+   (§1.8). The gutter is reserved at all times so revealing the thumb never
+   reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
+   rule further up this file. */
+.sd-scroll-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar {
+  width: 6px;
+}
+.sd-scroll-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.sd-scroll-hover:hover {
+  scrollbar-color: var(--sd-selected) transparent;
+}
+.sd-scroll-hover:hover::-webkit-scrollbar-thumb {
+  background: var(--sd-selected);
+}
+
 /* --- 6. Lit-from-above buttons -------------------------------------- */
 /* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not
    the constitution's pre-cyan blue literal) + white top bevel + inset
