@@ -1530,6 +1530,11 @@ select:focus-visible,
   --sd-box: var(--surface-raised);
   --sd-dark-box: var(--surface);
   --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
+  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
+     the family. An alias rather than a new colour: both themes already ship a
+     correct darkest surface, and custom properties resolve lazily, so this
+     picks up whichever --sd-darker-box is in scope at the consuming element. */
+  --sd-sidebar: var(--sd-darker-box);
   --sd-input: var(--surface);
   --sd-line: var(--edge);
   --sd-divider: var(--edge);
