@@ -258,15 +258,20 @@ export function Sidebar({
             )}
           </section>
 
-          {/* SYSTEM — JARVIS, Insights, Settings (§1.3). */}
+        </div>
+
+        {/* Footer stack: SYSTEM → status → identity → utility strip (§1.3, §1.5–§1.7).
+            SYSTEM is PINNED here rather than living at the bottom of the scroll
+            column. In the column it fell below the fold on a 900px viewport, so
+            Settings — the row you reach for when something is wrong — was only
+            reachable by scrolling past fifteen others. Pinned, it keeps the §1.3
+            vertical order (still below AREAS) and is always visible. */}
+        <div className="shrink-0 space-y-1">
           <section>
             <SectionHeader label="System" collapsed={effectiveCollapsed} />
             <SidebarSystemNav collapsed={effectiveCollapsed} />
           </section>
-        </div>
 
-        {/* Footer stack: status → identity → utility strip (§1.5–§1.7). */}
-        <div className="shrink-0 space-y-1">
           <SidebarStatusRow collapsed={effectiveCollapsed} />
           <IdentityBlock collapsed={effectiveCollapsed} profile={profile} />
           <UtilityStrip
