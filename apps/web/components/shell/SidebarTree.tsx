@@ -526,7 +526,10 @@ function SortableAreaRow({
                 SB_FOCUS,
                 "flex items-center justify-center h-5 w-5 rounded-[6px]",
                 "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-                "opacity-0 group-hover/area:opacity-100",
+                // focus-visible forces the reveal back: the control is tabbable,
+                // so without this a keyboard user lands a focus ring on an
+                // opacity-0 element and cannot see where they are.
+                "opacity-0 group-hover/area:opacity-100 focus-visible:!opacity-100",
                 "transition-[opacity,color,background-color] duration-[120ms] ease-out",
               )}
             >
@@ -819,7 +822,8 @@ function ProjectActionsMenu({
               SB_FOCUS,
               "flex items-center justify-center h-5 w-5 rounded-[6px]",
               "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-              "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100",
+              // See the area-row note: keyboard focus must un-hide the control.
+              "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100 focus-visible:!opacity-100",
               "transition-[opacity,color,background-color] duration-[120ms] ease-out",
             )}
           >
