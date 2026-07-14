@@ -1,1 +1,28 @@
-{"unit_id":"explorer-foundation","run_id":"sesh-1783700667211","scale":"project","title":"Explorer foundation: Spacedrive tokens, SVG icon set, chrome primitives","scope":"BINDING: read .planning/SPEC.md then .planning/UNIT-BRIEF.md and implement exactly that unit. Commit atomically and often with explicit pathspecs. Run pnpm install if node_modules missing; build via 'pnpm --filter web build' from the worktree root.","criteria":["--sd-* token ladder added to globals.css (dark verbatim + light equivalents), no existing tokens modified","Dimensional FolderIcon + PageIcon SVG components, crisp 16-80px","ExplorerTopBar, ExplorerBreadcrumbs, ViewToggle, SortSelect, ExplorerContextMenu, InspectorShell, SelectionRubberBand, EmptyState primitives per brief","Gallery route renders all primitives both themes, no console errors","Accent only var(--hud-cyan); no Garamond in chrome; build+typecheck green"],"touched":["apps/web/app/globals.css","apps/web/components/wiki/icons/","apps/web/components/wiki/explorer/"]}
+{
+  "unit_id": "unit-sidebar-overhaul-s1d1",
+  "run_id": "sesh-sd2-overhaul",
+  "scale": "feature",
+  "title": "unit-sidebar-overhaul-s1d1",
+  "scope": "See .planning/fable-plan.md + UI-CONTRACT",
+  "criteria": [
+    "contract sections implemented exactly",
+    "iter-1 screenshot for Conductor review",
+    "both themes",
+    "zero jank"
+  ],
+  "touched": [],
+  "model": "claude-opus-4-8",
+  "model_assignment": {
+    "tier": "heavy",
+    "effort": "high",
+    "reason": "design-critical overhaul unit"
+  },
+  "advisor_path": "/Users/filippofonseca/Developer/Projects/hyperpolymath-v2/.bgsd/runs/sesh-sd2-overhaul/advisor/unit-sidebar-overhaul-s1d1.md",
+  "advisor_checkpoints": [
+    "after planning",
+    "after every commit",
+    "on blocker or assumption",
+    "before verification",
+    "after every verification result"
+  ]
+}
