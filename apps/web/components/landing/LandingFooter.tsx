@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Github, Globe, Palette, Scale, FileText, Mail } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
 
@@ -137,6 +138,28 @@ export function LandingFooter() {
           <KiwiIcon size={14} />
           <KiwiIcon size={14} />
           <KiwiIcon size={14} />
+        </div>
+
+        {/* ── Quiet system links: the campaign design system ── */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          <Link
+            href="/design"
+            className="transition-colors hover:text-[var(--hud-cyan)]"
+          >
+            Design system
+          </Link>
+          <span aria-hidden="true" className="opacity-40">
+            ·
+          </span>
+          <a
+            href="https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/docs/DESIGN-SYSTEM.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 transition-colors hover:text-[var(--hud-cyan)]"
+          >
+            DESIGN-SYSTEM.md
+            <span aria-hidden="true">↗</span>
+          </a>
         </div>
 
         {/* ── Sign-off + signature ── */}
