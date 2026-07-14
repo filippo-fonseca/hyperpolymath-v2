@@ -15,7 +15,16 @@ import {
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { HabitIcon } from "@/components/ui/icons";
-import { EntityCardHeader, ProgressRow, StatusPill } from "./entity-card";
+import {
+  ActionLink,
+  Chip,
+  EmptyState,
+  EntityCardHeader,
+  OverflowChip,
+  ProgressRow,
+  StatusPill,
+} from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
   userId: string;
@@ -109,99 +118,85 @@ export function TodayHabitsWidget({
     );
 
   return (
-    <div className="flex flex-col h-full">
-      <EntityCardHeader
-        icon={<HabitIcon size={26} />}
-        title="Habits"
-        subtitle="Today"
-        pill={pill}
-        action={
-          <Link
-            href="/habits"
-            className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-          >
-            All →
-          </Link>
-        }
-      />
-      {total === 0 ? (
-        <p className="text-[13px] text-[var(--ink-muted)]">
-          No habits yet.
-        </p>
-      ) : (
-        <>
-          <div className="mb-4">
-            <ProgressRow
-              label="Completed"
-              value={`${doneCount}/${total}`}
-              ratio={doneCount / total}
-            />
-          </div>
-          <ul className="flex flex-col gap-1 flex-1">
-            {habits.slice(0, 6).map((h) => {
-              const done = isDone(h.id);
-              return (
-                <li key={h.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(h.id)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-1.5 py-1 text-left cursor-pointer-always group/habit transition-colors duration-100 ${
-                      done
-                        ? "bg-[color-mix(in_oklch,var(--ink)_4%,transparent)]"
-                        : "hover:bg-[color-mix(in_oklch,var(--ink)_3%,transparent)]"
-                    }`}
-                  >
-                    <motion.span
-                      initial={false}
-                      animate={
-                        reduced
-                          ? undefined
-                          : done
-                            ? { scale: [1, 1.18, 1] }
-                            : { scale: 1 }
-                      }
-                      transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-                      className="inline-flex shrink-0"
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<HabitIcon size={36} />}
+          title="Habits"
+          subtitle="Today"
+          pill={pill}
+          action={
+            <Link href="/habits" className="group/action cursor-pointer-always">
+              <ActionLink>All →</ActionLink>
+            </Link>
+          }
+        />
+        {total === 0 ? (
+          <EmptyState icon={<HabitIcon size={40} />}>No habits yet.</EmptyState>
+        ) : (
+          <>
+            <div className="mt-3.5">
+              <ProgressRow
+                label="Completed"
+                value={`${doneCount}/${total}`}
+                ratio={doneCount / total}
+              />
+            </div>
+            <ul className="mt-3.5 flex flex-1 flex-col gap-0.5">
+              {habits.slice(0, 6).map((h) => {
+                const done = isDone(h.id);
+                return (
+                  <li key={h.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(h.id)}
+                      className="group/habit flex w-full cursor-pointer-always items-center gap-2.5 rounded-md px-1.5 py-1 text-left transition-colors duration-100 hover:bg-[var(--sd-hover)]"
                     >
-                      {done ? (
-                        <Check
-                          size={14}
-                          strokeWidth={2}
-                          className="text-[var(--hud-cyan)]"
-                          style={{
-                            filter:
-                              "drop-shadow(0 0 5px color-mix(in oklch, var(--hud-cyan) 55%, transparent))",
-                          }}
-                        />
-                      ) : (
-                        <Circle
-                          size={14}
-                          strokeWidth={1.5}
-                          className="text-[var(--ink-muted)] group-hover/habit:text-[var(--ink)] transition-colors duration-100"
-                        />
-                      )}
-                    </motion.span>
-                    <span
-                      className={`text-[14px] truncate ${
-                        done
-                          ? "text-[var(--ink-muted)] line-through"
-                          : "text-[var(--ink)]"
-                      }`}
-                    >
-                      {h.name}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-            {total > 6 && (
-              <li className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] pl-[30px] pt-0.5">
-                +{total - 6} more
-              </li>
-            )}
-          </ul>
-        </>
-      )}
-    </div>
+                      <motion.span
+                        initial={false}
+                        animate={
+                          reduced ? undefined : done ? { scale: [1, 1.18, 1] } : { scale: 1 }
+                        }
+                        transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                        className="inline-flex shrink-0"
+                      >
+                        {done ? (
+                          <Check
+                            size={14}
+                            strokeWidth={2}
+                            className="text-[var(--sd-accent)]"
+                          />
+                        ) : (
+                          <Circle
+                            size={14}
+                            strokeWidth={1.5}
+                            className="text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/habit:text-[var(--sd-ink)]"
+                          />
+                        )}
+                      </motion.span>
+                      <span
+                        className={`truncate text-[14px] ${
+                          done
+                            ? "text-[var(--sd-ink-faint)] line-through"
+                            : "text-[var(--sd-ink)]"
+                        }`}
+                      >
+                        {h.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </WidgetBody>
+
+      <WidgetFooter>
+        <Chip>{total === 1 ? "1 habit" : `${total} habits`}</Chip>
+        {doneCount > 0 && <Chip tone="var(--ink-sage)">{doneCount} done</Chip>}
+        {total > 6 && <OverflowChip count={total - 6} />}
+      </WidgetFooter>
+    </>
   );
 }
