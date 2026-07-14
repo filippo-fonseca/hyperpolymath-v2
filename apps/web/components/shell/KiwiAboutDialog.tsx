@@ -21,13 +21,18 @@ import { KiwiIcon } from "@/components/shared/KiwiIcon";
  */
 
 interface KiwiAboutDialogProps {
-  children: ReactNode; // the trigger element
+  /** The trigger element. Omit when driving the dialog with `open`. */
+  children?: ReactNode;
+  /** Controlled mode — the sidebar opens this from its overflow menu, where
+   *  there is no trigger element to wrap (a menu item unmounts on select). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function KiwiAboutDialog({ children }: KiwiAboutDialogProps) {
+export function KiwiAboutDialog({ children, open, onOpenChange }: KiwiAboutDialogProps) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-[var(--edge)]">
         {/* Hero band — mirrors the readmehero flyer: kiwi glyph + serif
             wordmark on a cream surface, with a single italic tagline under
