@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { format } from "date-fns";
+import { FocalOrb } from "@/components/ui/ambient";
 import {
   AreaIcon,
   CaptureIcon,
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/icons";
 
 /**
- * A single dot tone. Functional hues appear ONLY as 6px status dots (D6);
+ * A single dot tone. Functional hues appear ONLY as small status dots (D6);
  * numerals themselves stay in `--sd-ink`, never tinted.
  */
 type DotTone = "danger" | "warn" | "active" | "synced" | null;
@@ -23,10 +24,10 @@ interface Stat {
   key: string;
   icon: ReactNode;
   label: string;
-  /** Primary numeral (large, bold, `--sd-ink`). */
+  /** Primary numeral (large, `font-black tabular-nums`, `--sd-ink`). */
   value: string;
-  /** Optional muted denominator, e.g. the "/5" in "3/5". */
-  secondary?: string;
+  /** Optional unit/suffix riding the same baseline, e.g. the "/5" in "3/5". */
+  unit?: string;
   caption: string;
   dot: DotTone;
   href: string;
@@ -54,7 +55,7 @@ function greeting(hour: number): string {
   return "Burning late";
 }
 
-/** 6px functional dot. Reuses the ladder inks (D6); never a raw hex. */
+/** Functional dot colour. Reuses the ladder inks (D6); never a raw hex. */
 function dotColor(tone: DotTone): string | undefined {
   switch (tone) {
     case "danger":
@@ -70,20 +71,28 @@ function dotColor(tone: DotTone): string | undefined {
   }
 }
 
-const ICON_SIZE = 30;
+/** Dimensional icon size in the stat strip (UI-CONTRACT §5). */
+const ICON_SIZE = 40;
+/** Presence orb diameter (UI-CONTRACT §4; §9 bans orbs > 40px). */
+const ORB_SIZE = 36;
 
 /**
- * LifeOsHero — the /lifeos page header, rebuilt as the Spacedrive "Overview"
- * stat strip (design constitution §A1, decisions D2).
+ * LifeOsHero — the /lifeos header: a greeting row and a stat strip, both
+ * sitting directly on the canvas (UI-CONTRACT §4 + §5). The hero plate, the
+ * bold ambient field and the 148px planet orb are gone (R1): no banner, no
+ * gradient wash, no vignette.
  *
- * Two registers on one header. The greeting is EB Garamond — the page's one
- * sanctioned editorial accent (D1). Everything below it is strictly the sd
- * register: a row of stats, each a dimensional icon + bold `--sd-ink` numeral
- * + mono uppercase `.sd-stat-label` + one dull caption line, with a 6px
- * functional dot the only splash of colour. No card chrome around the strip
- * (§A1). Each stat links into the surface it summarises; the focus ring is the
- * accent (D6). All numbers derive from props the server already fetched — no
- * new queries (oracle Q2).
+ * Greeting row: mono date line above a Space Grotesk 26px greeting whose only
+ * colour is the terminal period in `--sd-accent` (R2 — no serif outside the
+ * logotype, R4 — no glow). Right of it, a 36px presence orb reads as JARVIS's
+ * presence lamp rather than a planet; it bobs gently at 6s and is static under
+ * reduced motion.
+ *
+ * Stat strip: six stats, each an icon-left row of dimensional icon + text
+ * stack (label / value / caption), no card chrome. Values are `font-black
+ * tabular-nums` with a muted unit on the same baseline (§11); the caption
+ * carries the one functional dot. Every stat links into the surface it
+ * summarises. All numbers derive from props the server already fetched.
  *
  * Motion is the campaign signature (D4): opacity 0→1, y 4→0 at 160ms easeOut,
  * 10ms stagger per stat, `useReducedMotion` guard. Transform/opacity only and
@@ -127,7 +136,7 @@ export function LifeOsHero({
       icon: <HabitIcon size={ICON_SIZE} />,
       label: "Habits today",
       value: habitsTotal === 0 ? "0" : String(habitsDone),
-      secondary: habitsTotal === 0 ? undefined : `/${habitsTotal}`,
+      unit: habitsTotal === 0 ? undefined : `/${habitsTotal}`,
       caption:
         habitsTotal === 0
           ? "none set"
@@ -156,7 +165,7 @@ export function LifeOsHero({
       icon: <TrainingIcon size={ICON_SIZE} />,
       label: "Training",
       value: trainingPlanned === 0 ? "—" : String(trainingDone),
-      secondary: trainingPlanned === 0 ? undefined : `/${trainingPlanned}`,
+      unit: trainingPlanned === 0 ? undefined : `/${trainingPlanned}`,
       caption:
         trainingPlanned === 0
           ? "rest day"
@@ -200,35 +209,35 @@ export function LifeOsHero({
       };
 
   return (
-    <section className="flex flex-col gap-6">
-      {/* Greeting — the page's one editorial (serif) accent (D1). */}
-      <motion.div className="flex flex-col gap-2" {...headerAnim}>
-        <div className="flex items-center gap-3">
-          <span aria-hidden className="inline-block h-px w-6 bg-[var(--sd-line)]" />
-          <span className="sd-stat-label">{format(now, "EEEE · MMMM d, yyyy")}</span>
+    <section>
+      {/* Greeting row — canvas only, no plate (§4). */}
+      <motion.div
+        className="mt-2 mb-5 flex items-center justify-between gap-6"
+        {...headerAnim}
+      >
+        <div className="flex flex-col gap-1.5">
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--sd-ink-faint)]">
+            {format(now, "EEEE · MMMM d, yyyy")}
+          </span>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+            {greeting(now.getHours())}
+            {firstName ? `, ${firstName}` : ""}
+            <span className="text-[var(--sd-accent)]">.</span>
+          </h1>
         </div>
-        <h1 className="text-[40px] leading-[1.05] font-semibold tracking-tight text-[var(--sd-ink)]">
-          {greeting(now.getHours())}
-          {firstName ? (
-            <>
-              ,{" "}
-              <span
-                style={{
-                  color: "var(--sd-accent)",
-                  textShadow:
-                    "0 0 18px color-mix(in oklch, var(--sd-accent) 25%, transparent)",
-                }}
-              >
-                {firstName}
-              </span>
-            </>
-          ) : null}
-          <span className="text-[var(--sd-ink-faint)]">.</span>
-        </h1>
+
+        {/* Presence lamp: JARVIS is here. Not a planet (R1). */}
+        <div className="lifeos-presence flex shrink-0 flex-col items-center gap-1.5">
+          <style>{PRESENCE_CSS}</style>
+          <FocalOrb size={ORB_SIZE} />
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+            JARVIS
+          </span>
+        </div>
       </motion.div>
 
-      {/* Stat strip — strictly sd-register, no card chrome (§A1). */}
-      <div className="grid grid-cols-2 gap-x-2 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Stat strip — icon-left anatomy, no chrome (§5). */}
+      <div className="mb-7 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s, i) => {
           const color = dotColor(s.dot);
           const cellAnim = reduced
@@ -246,26 +255,28 @@ export function LifeOsHero({
             <motion.div key={s.key} {...cellAnim}>
               <Link
                 href={s.href}
-                className="group flex flex-col gap-2 rounded-[8px] px-3 py-2.5 -mx-3 outline-none transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                className="group/stat flex items-center gap-3 rounded-[8px] -mx-2 px-2 py-1.5 outline-none transition-colors duration-150 ease-out hover:bg-[var(--sd-hover)] focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
               >
-                <span className="inline-flex">{s.icon}</span>
-                <span className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold leading-none tabular-nums text-[var(--sd-ink)]">
-                    {s.value}
+                <span className="inline-flex shrink-0">{s.icon}</span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+                    {s.label}
                   </span>
-                  {s.secondary ? (
-                    <span className="text-base font-medium tabular-nums text-[var(--sd-ink-faint)]">
-                      {s.secondary}
+                  <span className="flex items-baseline leading-none">
+                    <span className="text-2xl font-black tabular-nums tracking-[-0.01em] text-[var(--sd-ink)]">
+                      {s.value}
                     </span>
-                  ) : null}
-                </span>
-                <span className="flex flex-col gap-1">
-                  <span className="sd-stat-label">{s.label}</span>
-                  <span className="flex items-center gap-1.5 text-[11px] text-[var(--sd-ink-dull)]">
+                    {s.unit ? (
+                      <span className="ml-1 text-[16px] font-medium tabular-nums text-[var(--sd-ink-faint)]">
+                        {s.unit}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex items-center gap-1.5 truncate text-[12px] text-[var(--sd-ink-dull)]">
                     {color ? (
                       <span
                         aria-hidden
-                        className="sd-dot"
+                        className="size-[5px] shrink-0 rounded-full"
                         style={{ backgroundColor: color }}
                       />
                     ) : null}
@@ -280,3 +291,10 @@ export function LifeOsHero({
     </section>
   );
 }
+
+/* The shared FocalOrb bobs at 8s; as a presence lamp it runs a gentler 6s
+   (§4). Scoped to this mount so the landing hero orb is untouched, and the
+   component's own reduced-motion rule still wins (it kills the animation). */
+const PRESENCE_CSS = `
+.lifeos-presence .sd-orb__bob { animation-duration: 6s; }
+`;
