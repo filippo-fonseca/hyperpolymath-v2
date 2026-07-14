@@ -9,7 +9,6 @@ import { TodayHabitsWidget } from "@/components/lifeos/TodayHabitsWidget";
 import { TodayTrainingWidget } from "@/components/lifeos/TodayTrainingWidget";
 import { UpcomingTasksWidget } from "@/components/lifeos/UpcomingTasksWidget";
 import { WidgetCard } from "@/components/lifeos/WidgetCard";
-import { AmbientGlow, FocalOrb } from "@/components/ui/ambient";
 import { requireOnboarded } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { getCapturesForUser } from "@/lib/db/queries/captures";
@@ -25,7 +24,7 @@ export const dynamic = "force-dynamic";
  * /lifeos — canonical homepage for the life-OS view.
  *
  * Composition top-to-bottom:
- *   1. Hero — greeting, date, day-summary chips
+ *   1. Hero — greeting row + stat strip, directly on the canvas
  *   2. JARVIS quick-send composer
  *   3. Areas tree (centerpiece)
  *   4. Bento grid — Tasks (hero) · Habits · Training · Captures (full-width)
@@ -94,33 +93,24 @@ export default async function LifeOsPage() {
   const projectsActive = availableProjects.length;
 
   return (
-    <main className="relative min-h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
-      <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
-        {/* Hero band: the bold ambient glow + one glossy focal orb sit behind
-            the stat strip (D5); the whisper field already runs app-shell-wide.
-            The isolate + inset clip keep the bleed from ever shifting layout. */}
-        <section className="relative isolate mb-10">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 overflow-hidden isolate"
-          >
-            <AmbientGlow intensity="bold" anchor="hero" className="absolute inset-0" />
-            <FocalOrb size={148} className="absolute right-[4%] top-1" />
-          </div>
-          <LifeOsHero
-            displayName={user.displayName ?? user.email}
-            openTasksTotal={openTasks.length}
-            tasksDueToday={tasksDueToday}
-            tasksOverdue={tasksOverdue}
-            habitsDone={habitsDone}
-            habitsTotal={habitsTotal}
-            capturesThisWeek={capturesThisWeek}
-            trainingPlanned={trainingPlanned}
-            trainingDone={trainingDone}
-            projectsActive={projectsActive}
-            jarvisTurns={insights.totalTurns}
-          />
-        </section>
+    <main className="min-h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
+      {/* Edge-to-edge canvas: no max-width rail, no hero plate, no bold ambient
+          field (UI-CONTRACT §0/R1). The AppShell whisper is the only glow on
+          this page. Sections stack on a 28px rhythm. */}
+      <div className="flex w-full flex-col gap-7 px-6 pt-5 pb-12">
+        <LifeOsHero
+          displayName={user.displayName ?? user.email}
+          openTasksTotal={openTasks.length}
+          tasksDueToday={tasksDueToday}
+          tasksOverdue={tasksOverdue}
+          habitsDone={habitsDone}
+          habitsTotal={habitsTotal}
+          capturesThisWeek={capturesThisWeek}
+          trainingPlanned={trainingPlanned}
+          trainingDone={trainingDone}
+          projectsActive={projectsActive}
+          jarvisTurns={insights.totalTurns}
+        />
         <LifeOsQuickSend />
         <LifeOsAreasSection />
         <LifeOsBentoGrid
