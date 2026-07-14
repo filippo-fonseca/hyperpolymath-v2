@@ -26,10 +26,12 @@ import {
 } from "./entity-card";
 import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
-/** High-priority tint (15%-alpha chip, D6). P3/P∞ stay untinted / hidden. */
+/**
+ * Only P1 earns a tint (coral = danger, §6). P2 and below fall back to the
+ * neutral Pill grammar: §9 permits exactly one accent hue, so amber is out.
+ */
 const priorityTone: Partial<Record<TaskWithProjects["priority"], string>> = {
   P1: "var(--ink-coral)",
-  P2: "var(--ink-amber)",
 };
 
 interface Props {
@@ -60,8 +62,8 @@ const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }
     label: "OVERDUE",
   },
   today: {
-    dot: "var(--ink-amber)",
-    text: "var(--ink-amber)",
+    dot: "var(--hud-cyan)",
+    text: "var(--hud-cyan)",
     label: "TODAY",
   },
   soon: {
@@ -82,8 +84,8 @@ const urgencyToken: Record<Urgency, { dot: string; text: string; label: string }
  * Reuses tableKey("tasks", userId) verbatim from TasksClient so Realtime
  * invalidation drives both surfaces. Optimistic check-off via local Set;
  * AnimatePresence handles the slide-out. Per-row urgency tint surfaces what
- * matters at a glance — coral for overdue, amber for today, cyan for the
- * coming week, muted for later.
+ * matters at a glance — coral for overdue, cyan for today and the coming week,
+ * muted for later. One accent hue only (§9).
  */
 export function UpcomingTasksWidget({
   userId,
@@ -310,7 +312,7 @@ export function UpcomingTasksWidget({
         {overdueCount > 0 && (
           <Chip tone="var(--ink-coral)">{overdueCount} overdue</Chip>
         )}
-        {todayCount > 0 && <Chip tone="var(--ink-amber)">{todayCount} today</Chip>}
+        {todayCount > 0 && <Chip tone="var(--hud-cyan)">{todayCount} today</Chip>}
         {open.length > upcoming.length && (
           <OverflowChip count={open.length - upcoming.length} />
         )}

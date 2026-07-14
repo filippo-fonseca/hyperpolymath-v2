@@ -23,9 +23,12 @@ import { cn } from "@/lib/utils";
 
 export type StatusTone = "active" | "progress" | "idle" | "danger";
 
-/** Functional hue per tone — cyan = count/active, coral = danger, gray = idle. */
+/**
+ * Functional hue per tone — cyan = count/active, coral = danger, gray = idle.
+ * §9 permits one accent hue, so "active" rides the accent rather than sage.
+ */
 const toneDot: Record<StatusTone, string> = {
-  active: "var(--ink-sage)",
+  active: "var(--sd-accent)",
   progress: "var(--sd-accent)",
   idle: "var(--sd-ink-faint)",
   danger: "var(--ink-coral)",

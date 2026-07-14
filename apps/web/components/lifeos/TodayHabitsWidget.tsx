@@ -194,7 +194,8 @@ export function TodayHabitsWidget({
 
       <WidgetFooter>
         <Chip>{total === 1 ? "1 habit" : `${total} habits`}</Chip>
-        {doneCount > 0 && <Chip tone="var(--ink-sage)">{doneCount} done</Chip>}
+        {/* cyan, not sage: §9 allows exactly one accent hue on this surface. */}
+        {doneCount > 0 && <Chip tone="var(--hud-cyan)">{doneCount} done</Chip>}
         {total > 6 && <OverflowChip count={total - 6} />}
       </WidgetFooter>
     </>
