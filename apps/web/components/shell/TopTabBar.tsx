@@ -1,29 +1,10 @@
 "use client";
 
-import { KiwiIcon } from "@/components/shared/KiwiIcon";
 import { NavArrows } from "./NavArrows";
 import { useTodayDailyPage } from "@/lib/pages/useTodayDailyPage";
 import { useSplitScreen } from "@/lib/ui/useSplitScreen";
 import { cn } from "@/lib/utils";
-import {
-  BarChart2,
-  BookOpen,
-  Calendar,
-  CalendarDays,
-  CheckSquare,
-  Columns2,
-  Dumbbell,
-  Folder,
-  LayoutDashboard,
-  MessageSquare,
-  Network,
-  Repeat,
-  Settings,
-  Users,
-  UtensilsCrossed,
-  Waypoints,
-  X,
-} from "lucide-react";
+import { Columns2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -37,40 +18,23 @@ const STORAGE_KEY = "top-tab-last-route";
 // Ctrl+3 to it without re-querying.
 const TODAY_ROUTE_KEY = "top-tab-today-route";
 
-const ROUTE_META: Record<
-  string,
-  {
-    label: string;
-    icon: (props: {
-      size?: number;
-      strokeWidth?: number;
-      className?: string;
-    }) => React.ReactNode;
-  }
-> = {
-  "/lifeos": { label: "LifeOS", icon: LayoutDashboard },
-  "/tasks": { label: "Tasks", icon: CheckSquare },
-  "/habits": { label: "Habits", icon: Repeat },
-  "/training": { label: "Training", icon: Dumbbell },
-  "/nutrition": { label: "Nutrition", icon: UtensilsCrossed },
-  "/captures": { label: "Captures", icon: MessageSquare },
-  "/calendar": { label: "Calendar", icon: Calendar },
-  "/graph": { label: "Graph", icon: Waypoints },
-  "/insights": { label: "Insights", icon: BarChart2 },
-  "/settings": { label: "Settings", icon: Settings },
-  "/journaling": { label: "Journal", icon: BookOpen },
-  "/areas": { label: "Areas", icon: Network },
-  "/people": { label: "People", icon: Users },
+const ROUTE_META: Record<string, { label: string }> = {
+  "/lifeos": { label: "LifeOS" },
+  "/tasks": { label: "Tasks" },
+  "/habits": { label: "Habits" },
+  "/training": { label: "Training" },
+  "/nutrition": { label: "Nutrition" },
+  "/captures": { label: "Captures" },
+  "/calendar": { label: "Calendar" },
+  "/graph": { label: "Graph" },
+  "/insights": { label: "Insights" },
+  "/settings": { label: "Settings" },
+  "/journaling": { label: "Journal" },
+  "/areas": { label: "Areas" },
+  "/people": { label: "People" },
 };
 
-function metaForPath(pathname: string): {
-  label: string;
-  icon: (props: {
-    size?: number;
-    strokeWidth?: number;
-    className?: string;
-  }) => React.ReactNode;
-} {
+function metaForPath(pathname: string): { label: string } {
   if (ROUTE_META[pathname]) return ROUTE_META[pathname];
   const segs = pathname.split("/").filter(Boolean);
   while (segs.length > 0) {
@@ -79,23 +43,22 @@ function metaForPath(pathname: string): {
     segs.pop();
   }
   const first = pathname.split("/").filter(Boolean)[0] ?? "Page";
-  return {
-    label: first.charAt(0).toUpperCase() + first.slice(1),
-    icon: Folder,
-  };
+  return { label: first.charAt(0).toUpperCase() + first.slice(1) };
 }
 
 /**
- * TopTabBar — Spacedrive-style pill tab strip pinned above the main scroll
- * area (sd token register, Design Constitution §B tab row).
+ * TopTabBar — the full-width segmented tab bar (UI-CONTRACT §3 + §11).
  *
- * Two-tier selection: active tabs fill with the neutral --sd-selected
- * backplate; JARVIS additionally reads as the agent surface via its accent
- * dot + accent label/kbd color — never a cyan-tinted tile/ring.
+ * Their pattern, exactly: the tabs divide the whole bar between them rather
+ * than huddling left. Each is a flex-1 pill (min 220px, max 480px) with a
+ * centred label; the active one fills with the neutral `--sd-selected`
+ * backplate, the rest sit transparent on the canvas. Selection is carried by
+ * the fill alone — no accent tint, no icon, no glow dot (R4). The close ✕
+ * lives inside the pill at left and reveals on hover; the ^N hint sits right.
  *
- * Split-screen affordance: a quiet vertical-split glyph between the two tabs.
- * When split is on, both routes render simultaneously (70% / 30%) so
- * switching tabs swaps the left pane only.
+ * Split-screen affordance: a quiet vertical-split glyph after the tabs. When
+ * split is on, both routes render simultaneously (70% / 30%) so switching
+ * tabs swaps the left pane only. The "+" cell opens the command palette.
  *
  * Keyboard shortcuts (handled in GlobalHotkeys, NOT here):
  *   Ctrl+1 → left tab · Ctrl+2 → JARVIS. Both no-op while split-screen is on.
@@ -140,7 +103,6 @@ export function TopTabBar({ userId }: { userId: string }) {
   const onJarvis = pathname === JARVIS_PATH || pathname.startsWith(JARVIS_PATH + "/");
   const leftPath = onJarvis || onToday ? lastRoute : pathname || FALLBACK_LEFT_PATH;
   const leftMeta = metaForPath(leftPath);
-  const LeftIcon = leftMeta.icon;
 
   // Soft "pop" when the active feature tab actually changes — not on drill-in
   // navigations within a feature (e.g. /tasks → /tasks/123) or first mount.
@@ -171,53 +133,78 @@ export function TopTabBar({ userId }: { userId: string }) {
     setSplitOn(true);
   };
 
+  // The "+" cell is their new-tab affordance; here it opens the command
+  // palette, which is how a new surface actually gets reached in this app.
+  const onNewTab = () => {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "k",
+        metaKey: true,
+        shiftKey: true,
+        bubbles: true,
+      })
+    );
+  };
+
   return (
     <div
       role="tablist"
       aria-label="App tabs"
-      className="sd-topbar-blur relative flex items-center gap-1 px-3 h-9"
+      className="relative flex h-11 w-full items-center gap-1.5 px-2 mb-1"
     >
       <NavArrows />
 
-      <TabPill
-        href={leftPath}
-        active={!onJarvis && !onToday && !splitOn}
-        accent={false}
-        label={leftMeta.label}
-        icon={<LeftIcon size={13} strokeWidth={1.75} />}
-        kbd="⌃1"
-        onClose={
-          onJarvis
-            ? undefined
-            : () => {
-                router.push(JARVIS_PATH);
-              }
-        }
-      />
-
-      <TabPill
-        href={JARVIS_PATH}
-        active={onJarvis || splitOn}
-        accent
-        label="JARVIS"
-        kbd="⌃2"
-        icon={<KiwiIcon size={13} aria-hidden="true" />}
-        dataTour="top-tab-jarvis"
-        badge={<JarvisUnreadBadge />}
-      />
-
-      {todayPath && (
+      {/* The tabs divide the bar between them (§3). */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <TabPill
-          href={todayPath}
-          active={onToday && !splitOn}
-          accent={false}
-          label="Today"
-          icon={<CalendarDays size={13} strokeWidth={1.75} />}
-          kbd="⌃3"
+          href={leftPath}
+          active={!onJarvis && !onToday && !splitOn}
+          label={leftMeta.label}
+          kbd="⌃1"
+          onClose={
+            onJarvis
+              ? undefined
+              : () => {
+                  router.push(JARVIS_PATH);
+                }
+          }
         />
-      )}
 
-      <div className="ml-auto pl-2" data-tour="top-split-toggle">
+        <TabPill
+          href={JARVIS_PATH}
+          active={onJarvis || splitOn}
+          label="JARVIS"
+          kbd="⌃2"
+          dataTour="top-tab-jarvis"
+          badge={<JarvisUnreadBadge />}
+        />
+
+        {todayPath && (
+          <TabPill
+            href={todayPath}
+            active={onToday && !splitOn}
+            label="Today"
+            kbd="⌃3"
+          />
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onNewTab}
+        aria-label="Open command palette"
+        title="Open command palette (⌘⇧K)"
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center rounded-md p-1.5",
+          "text-[var(--sd-ink-faint)] transition-colors duration-[80ms] ease-out",
+          "hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+        )}
+      >
+        <Plus size={14} strokeWidth={2.5} />
+      </button>
+
+      <div className="shrink-0" data-tour="top-split-toggle">
         <SplitToggle on={splitOn} onClick={onSplitToggle} />
       </div>
     </div>
@@ -246,12 +233,15 @@ function SplitToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
+/**
+ * One segment of the bar: a flex-1 pill with a centred label, a hover-revealed
+ * close ✕ inside at left and the shortcut hint inside at right. Both affordances
+ * are absolutely placed so they never shift the label off centre.
+ */
 function TabPill({
   href,
   active,
-  accent,
   label,
-  icon,
   kbd,
   onClose,
   dataTour,
@@ -259,9 +249,7 @@ function TabPill({
 }: {
   href: string;
   active: boolean;
-  accent: boolean;
   label: string;
-  icon: React.ReactNode;
   kbd?: string;
   onClose?: () => void;
   dataTour?: string;
@@ -271,11 +259,11 @@ function TabPill({
   return (
     <div
       className={cn(
-        "group/tab relative flex items-center rounded-full",
-        "transition-colors duration-[50ms] ease-out",
+        "group/tab relative flex h-9 min-w-[220px] max-w-[480px] flex-1 items-center rounded-full",
+        "transition-colors duration-[80ms] ease-out",
         active
           ? "bg-[var(--sd-selected)]"
-          : "bg-[color-mix(in_oklch,var(--sd-box)_35%,transparent)] hover:bg-[var(--sd-hover)]"
+          : "bg-transparent hover:bg-[color-mix(in_oklch,var(--sd-hover)_40%,transparent)]"
       )}
       role="tab"
       aria-selected={active}
@@ -284,51 +272,41 @@ function TabPill({
       <Link
         href={href}
         className={cn(
-          "flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-full font-sans text-[12px]",
-          "tracking-[-0.005em] outline-none",
+          "flex h-full w-full items-center justify-center gap-1.5 rounded-full px-9",
+          "font-sans text-[14px] font-medium tracking-[-0.005em] outline-none",
+          "transition-colors duration-[80ms] ease-out",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           active
-            ? accent
-              ? "text-[var(--sd-accent)] font-medium"
-              : "text-[var(--sd-ink)] font-medium"
-            : "text-[color-mix(in_oklch,var(--sd-ink-faint)_60%,transparent)] hover:text-[var(--sd-ink)]"
+            ? "text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
         )}
       >
-        {accent && active && (
-          <span
-            aria-hidden
-            className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-            style={{
-              backgroundColor: "var(--sd-accent)",
-              boxShadow: "0 0 6px color-mix(in oklch, var(--sd-accent) 70%, transparent)",
-            }}
-          />
-        )}
-        <span className="shrink-0 inline-flex items-center">{icon}</span>
-        <span className="truncate max-w-[160px]">{label}</span>
+        <span className="truncate">{label}</span>
         {badge}
-        {kbd && (
-          <span
-            className="ml-1 hidden md:inline font-mono text-[9px] tracking-[0.04em] uppercase opacity-60"
-            aria-hidden
-          >
-            {kbd}
-          </span>
-        )}
       </Link>
+
       {onClose && (
         <button
           type="button"
           onClick={onClose}
           aria-label={`Close ${label} tab`}
           className={cn(
-            "mr-1 inline-flex items-center justify-center rounded p-1",
-            "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-selected)]",
-            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[50ms] ease-out"
+            "absolute left-2 inline-flex items-center justify-center rounded p-1",
+            "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+            "opacity-0 group-hover/tab:opacity-100 transition-opacity duration-[80ms] ease-out"
           )}
         >
-          <X size={10} strokeWidth={2} />
+          <X size={14} strokeWidth={2} />
         </button>
+      )}
+
+      {kbd && (
+        <span
+          className="pointer-events-none absolute right-3 hidden font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--sd-ink-faint)] md:inline"
+          aria-hidden
+        >
+          {kbd}
+        </span>
       )}
     </div>
   );
