@@ -14,22 +14,27 @@ import { subscribeToMicState } from "@/lib/voice/mic-state-bus";
 import type { MicState } from "@/lib/voice/types";
 import { useVoiceSourceStatus } from "@/lib/voice/use-voice-source-status";
 import {
-  BarChart2,
-  BookOpen,
-  Bot,
+  CaptureIcon,
+  type DimensionalIconProps,
+  FolderIcon,
+  HabitIcon,
+  InsightIcon,
+  JarvisIcon,
+  PageIcon,
+  TaskIcon,
+  TrainingIcon,
+  WidgetIcon,
+} from "@/components/ui/icons";
+import {
   Calendar,
-  CheckSquare,
-  Dumbbell,
-  LayoutDashboard,
   type LucideIcon,
-  MessageSquare,
-  Repeat,
   Search,
   Settings,
   Users,
   UtensilsCrossed,
   Waypoints,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import { Laptop } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
@@ -51,10 +56,26 @@ import { useEffect, useState } from "react";
  * one active-pill layoutId so the backplate slides between them.
  */
 
+/**
+ * Two icon registers, per UI-CONTRACT §12.
+ *
+ * NOUNS (the things the app is made of — LifeOS, Tasks, Habits, Training,
+ * Journal, Captures, Wiki, Insights, JARVIS) carry the dimensional icon family
+ * at 18px. They are the register's mascots, and giving them the material icon
+ * is what makes the column feel like this app rather than a generic shell.
+ *
+ * VERBS (Search, Calendar, Graph, People, Settings — things you *do*, or plain
+ * utilities) stay 16px lucide line icons. Rendering a verb as a lit indigo
+ * object would over-claim: it promises a destination that has no substance
+ * behind it.
+ */
 interface NavItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  /** Verb register — 16px lucide. */
+  icon?: LucideIcon;
+  /** Noun register — 18px dimensional. Wins when both are set. */
+  dimensional?: ComponentType<DimensionalIconProps>;
   disabled?: boolean;
   tooltip?: string;
 }
@@ -62,21 +83,23 @@ interface NavItem {
 /** MAIN rail — the unheadered top block (§1.3). */
 const MAIN_ITEMS: readonly NavItem[] = [
   { href: "/search", label: "Search", icon: Search },
-  { href: "/lifeos", label: "LifeOS", icon: LayoutDashboard },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
-  { href: "/habits", label: "Habits", icon: Repeat },
-  { href: "/training", label: "Training", icon: Dumbbell },
+  { href: "/lifeos", label: "LifeOS", dimensional: WidgetIcon },
+  { href: "/tasks", label: "Tasks", dimensional: TaskIcon },
+  { href: "/habits", label: "Habits", dimensional: HabitIcon },
+  { href: "/training", label: "Training", dimensional: TrainingIcon },
   {
+    // No dimensional nutrition icon exists and the route is not built yet, so
+    // it stays a lucide glyph until it earns a mascot.
     href: "/nutrition",
     label: "Nutrition",
     icon: UtensilsCrossed,
     disabled: true,
     tooltip: "Coming soon",
   },
-  { href: "/journaling", label: "Journal", icon: BookOpen },
-  { href: "/captures", label: "Captures", icon: MessageSquare },
+  { href: "/journaling", label: "Journal", dimensional: PageIcon },
+  { href: "/captures", label: "Captures", dimensional: CaptureIcon },
   { href: "/people", label: "People", icon: Users },
-  { href: "/wiki", label: "Wiki", icon: BookOpen },
+  { href: "/wiki", label: "Wiki", dimensional: FolderIcon },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/graph", label: "Graph", icon: Waypoints },
   // /areas is NOT here — the AREAS section header below is the link, with the
@@ -85,8 +108,8 @@ const MAIN_ITEMS: readonly NavItem[] = [
 
 /** SYSTEM rail — sits below AREAS (§1.3). */
 const SYSTEM_ITEMS: readonly NavItem[] = [
-  { href: "/jarvis", label: "JARVIS", icon: Bot },
-  { href: "/insights", label: "Insights", icon: BarChart2 },
+  { href: "/jarvis", label: "JARVIS", dimensional: JarvisIcon },
+  { href: "/insights", label: "Insights", dimensional: InsightIcon },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -143,8 +166,14 @@ function NavRow({
           />
         ))}
 
-      <span className="relative z-10 shrink-0">
-        <item.icon size={16} strokeWidth={1.75} />
+      {/* Both registers occupy the same 18px slot so every label in the column
+          starts on one vertical line, regardless of which icon it carries. */}
+      <span className="relative z-10 flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+        {item.dimensional ? (
+          <item.dimensional size={18} />
+        ) : item.icon ? (
+          <item.icon size={16} strokeWidth={1.75} />
+        ) : null}
         {badge && collapsed && (
           <span
             className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-2 ring-[var(--sd-sidebar)]"
