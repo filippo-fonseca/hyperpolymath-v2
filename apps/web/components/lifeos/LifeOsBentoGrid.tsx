@@ -84,7 +84,7 @@ export function LifeOsBentoGrid({ hero, topRight, midRight, bottom }: Props) {
   );
 
   return (
-    <section className="mb-12">
+    <section className="mb-7">
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <h2 className="text-base font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">
