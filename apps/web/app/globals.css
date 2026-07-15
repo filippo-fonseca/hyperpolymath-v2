@@ -598,54 +598,28 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 /* =====================================================================
-   Glass surface system — single source of truth for the neumorphic-glassy
-   register (user-locked, June 2026).
-
-     .glass-tile    — card/panel tier. Translucent surface + backdrop blur +
-                      specular top edge + recessed bottom edge + faint inset
-                      cyan glow + soft drop shadow. Hover deepens toward
-                      --hud-cyan.
-     .glass-button  — control tier. Same family with tighter shadows and a
-                      pressed (:active) inset state.
-
-   Strengths are driven by the --glass-* knobs so dark mode runs a QUIETER
-   highlight (bright white smears on dark canvas were explicitly rejected)
-   and deeper blacks. Tune the knobs here — never restate shadow stacks at
-   call sites. Border-radius is the caller's job (rounded-xl tiles,
-   rounded-md/full controls).
-
-   Per-callsite accent override (e.g. amber focus, kanban column rims):
-   set --glass-border and/or --glass-glow-color via arbitrary property,
-   e.g. className="glass-tile [--glass-glow-color:var(--ink-amber)]".
-   ===================================================================== */
+   --glass-* depth primitives — soft-UI shadow tokens (originally the glass
+   register's engine). The glass-tile/glass-button/sidebar-pill/lifeos-glass
+   CLASSES were excised in sd3 (unit-closeout); these tokens survive because
+   live sd surfaces still compose them directly as inset hairlines + soft
+   raise/drop shadows (landing side nav, areas tree, project autocomplete,
+   page-property inputs, receipt cards). Only the still-consumed knobs remain
+   — the glow/button/small-shadow knobs were dropped with the classes (grep
+   proof in .planning/sd3-VERIFICATION.md). Dark mode keeps the highlight
+   nearly off (bright white smears on dark canvas were rejected). */
 :root {
-  /* Soft-UI pairing (Dribbble reference, June 2026): card and canvas sit in
-     the same family; depth comes from a raised highlight (top-left) paired
-     with a soft shade (bottom-right). Borders are whisper-thin. */
   --glass-raise: -6px -6px 16px oklch(100% 0 0 / 0.75);
   --glass-drop: 7px 7px 18px oklch(45% 0.02 260 / 0.16);
   --glass-hi: oklch(100% 0 0 / 0.6);
   --glass-lo: oklch(30% 0.01 75 / 0.05);
-  --glass-glow-color: var(--hud-cyan);
-  --glass-glow: 3%;
-  --glass-glow-hover: 8%;
   --glass-border: color-mix(in oklch, var(--edge) 45%, transparent);
   --glass-bg: color-mix(in oklch, var(--surface) 92%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 85%, transparent);
-  --glass-raise-sm: -3px -3px 8px oklch(100% 0 0 / 0.7);
-  --glass-drop-sm: 3px 3px 9px oklch(45% 0.02 260 / 0.16);
 }
 .dark {
-  /* Dark mode: highlight nearly off (bright white smears rejected); depth
-     reads through deeper blacks and a slightly stronger cyan breath. */
   --glass-raise: -4px -4px 12px oklch(100% 0 0 / 0.025);
   --glass-drop: 8px 8px 22px oklch(0% 0 0 / 0.55);
   --glass-hi: oklch(100% 0 0 / 0.05);
   --glass-lo: oklch(0% 0 0 / 0.35);
-  --glass-glow: 5%;
-  --glass-glow-hover: 11%;
-  --glass-raise-sm: -2px -2px 6px oklch(100% 0 0 / 0.03);
-  --glass-drop-sm: 3px 3px 10px oklch(0% 0 0 / 0.5);
 }
 
 @keyframes explorer-drop-denied {
@@ -677,152 +651,25 @@ html::-webkit-scrollbar-thumb:hover,
   }
 }
 
-.glass-tile {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
-  backdrop-filter: blur(var(--glass-blur, 12px));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
-    var(--glass-lo), inset 0 0 24px
-    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow), transparent);
-  transition: border-color 200ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 200ms
-    cubic-bezier(0.25, 1, 0.5, 1), background-color 200ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-.glass-tile:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0
-    var(--glass-lo), inset 0 0 32px
-    color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
-}
+/* .glass-tile / .glass-button / .glass-pressed excised in sd3 (unit-closeout):
+   zero consumers once the Pages surface + sonner toast moved to the sd register.
+   The --glass-* depth tokens above are deliberately retained — they still back
+   sd shadow primitives (landing side nav, areas tree, project autocomplete,
+   page-property inputs, receipt cards). Only the classes were dead. */
 
-.glass-button {
-  background: var(--glass-bg-button);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi);
-  transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 150ms
-    cubic-bezier(0.25, 1, 0.5, 1), background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
-}
-.glass-button:hover {
-  border-color: color-mix(in oklch, var(--hud-cyan) 35%, var(--glass-border));
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
-    14px color-mix(in oklch, var(--glass-glow-color) var(--glass-glow-hover), transparent);
-}
-.glass-button:active,
-.glass-pressed {
-  background: color-mix(in oklch, var(--surface) 96%, var(--ink));
-  box-shadow: inset 2px 2px 6px var(--glass-lo), inset -2px -2px 5px var(--glass-hi);
-}
+/* .sidebar-* soft pills + .lifeos-glass excised in sd3 (unit-closeout): the
+   sidebar was rebuilt on the sd hairline rail (SidebarTree.tsx) and the LifeOS
+   canvas moved to the sd widget grid, leaving every class here consumer-free.
+   Grep proof recorded in .planning/sd3-VERIFICATION.md. */
 
-/* =====================================================================
-   Sidebar soft pills (June 2026 redesign) — glassy, pill-based rows for the
-   AREAS / projects tree. Idle rows are bare; hover and active lift into a soft
-   raised glass pill so the tree reads like the neumorphic sidebar reference
-   (Dribbble, user-locked) instead of the flat hairline list it was. All depth
-   reuses the glass-* tokens so dark mode stays quiet automatically.
-   ===================================================================== */
-.sidebar-row {
-  position: relative;
-  border-radius: 0.7rem;
-  transition: background-color 140ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 140ms
-    cubic-bezier(0.25, 1, 0.5, 1), color 120ms ease-out;
-}
-.sidebar-row:hover {
-  background: color-mix(in oklch, var(--surface-raised) 55%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
-    color-mix(in oklch, var(--ink) 7%, transparent);
-}
-.sidebar-row-active,
-.sidebar-row-active:hover {
-  background: color-mix(in oklch, var(--surface-raised) 82%, transparent);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
-    0 1px color-mix(in oklch, var(--edge) 55%, transparent);
-}
-/* Area whose detail page is open — same soft pill with a whisper of cyan. */
-.sidebar-row-active-area,
-.sidebar-row-active-area:hover {
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0 0
-    0 1px color-mix(in oklch, var(--hud-cyan) 26%, transparent), inset 0 0 18px
-    color-mix(in oklch, var(--hud-cyan) 5%, transparent);
-}
-
-/* Emoji / icon chip — soft rounded tile so area glyphs read as buttons. */
-.sidebar-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.55rem;
-  background: color-mix(in oklch, var(--surface-raised) 72%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
-    color-mix(in oklch, var(--ink) 6%, transparent);
-}
-
-/* Tiny ghost control (the + and ⋯ affordances) — appear on row hover. */
-.sidebar-ghost-btn {
-  border-radius: 0.45rem;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
-}
-.sidebar-ghost-btn:hover {
-  background: color-mix(in oklch, var(--ink) 8%, transparent);
-}
-
-/* Tree connector for nested project rows — a hairline vertical guide with a
-   short tick branching to each row, echoing the reference's tree sidebar.
-   Layout (indent + left padding) stays in JSX; this owns only the lines. */
-.sidebar-tree {
-  position: relative;
-}
-.sidebar-tree::before {
-  content: "";
-  position: absolute;
-  left: 0.25rem;
-  top: -0.15rem;
-  bottom: 0.9rem;
-  width: 1px;
-  background: color-mix(in oklch, var(--edge) 78%, transparent);
-}
-.sidebar-branch::before {
-  content: "";
-  position: absolute;
-  left: -0.6rem;
-  top: 50%;
-  width: 0.6rem;
-  height: 1px;
-  background: color-mix(in oklch, var(--edge) 78%, transparent);
-}
-
-/* LifeOS glassier register — scoped knob override so the homepage tiles read
-   as frosted glass over the canvas (more translucent + deeper blur) WITHOUT
-   touching the calmer glass tier used on settings, kanban, detail panels, etc.
-   Any .glass-tile / .glass-button nested under .lifeos-glass inherits these. */
-.lifeos-glass {
-  --glass-bg: color-mix(in oklch, var(--surface) 70%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 62%, transparent);
-  --glass-blur: 22px;
-}
-.dark .lifeos-glass {
-  /* Dark canvas: keep tiles readable — slightly less see-through than light. */
-  --glass-bg: color-mix(in oklch, var(--surface) 64%, transparent);
-  --glass-bg-button: color-mix(in oklch, var(--surface) 56%, transparent);
-  --glass-blur: 24px;
-}
-
-/* Glassy sonner toasts — frosted translucent surface + backdrop blur, matching
-   the app's glass tier. !important overrides sonner's injected --normal-bg
-   surface styles. Applied via <Toaster toastOptions={{ className }} />. */
-.glass-toast {
-  background: color-mix(in oklch, var(--surface) 72%, transparent) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  backdrop-filter: blur(16px) !important;
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi) !important;
-  color: var(--ink) !important;
-}
-.dark .glass-toast {
-  background: color-mix(in oklch, var(--surface) 60%, transparent) !important;
+/* sd toasts — solid --sd-box surface, hairline --sd-line, no backdrop-blur
+   (the sd register bans blur). !important overrides sonner's injected
+   --normal-bg surface styles. Applied via <Toaster toastOptions={{ className }} />. */
+.sd-toast {
+  background: var(--sd-box) !important;
+  border: 1px solid var(--sd-line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  color: var(--sd-ink) !important;
 }
 
 /* =====================================================================
