@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Settings2, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
 import { copyYesterdayAction, listFoodLogsForDayAction } from "@/app/actions/nutrition";
 import type { NutritionTargetPcts } from "@/lib/nutrition/macro-math";
@@ -49,10 +51,10 @@ interface Props {
  *   3. Realtime fires → invalidateQueries(tableKey(table, userId)) → refetch.
  *      Realtime payloads are NEVER merged into the cache directly (Critical Pattern 3).
  *
- * Layout (top to bottom):
- *   1. DayNavigator — ← {date} → + "Copy yesterday" when day is empty
- *   2. DailyMacroSummary — sticky below header
- *   3. MealSlotPillBar — glass pill rail
+ * Layout (top to bottom), inside the page's sd title shell:
+ *   1. Toolbar — DayNavigator (← {date} →) + Meals / Stats ghost verbs
+ *   2. DailyMacroSummary — sticky stat strip
+ *   3. MealSlotPillBar — sd segmented tabs
  *   4. NutritionDayView — active slot content or empty state
  */
 export function NutritionClient({
@@ -98,51 +100,52 @@ export function NutritionClient({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-16 pb-32">
-      <div className="flex flex-col gap-4">
-        {/* Header row — Stats link + Meals button */}
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setMealsOpen(true)}
-            className="glass-button rounded-md px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
-          >
-            Meals
-          </button>
-          <Link
-            href="/nutrition/stats"
-            className="glass-button rounded-md px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          >
-            Stats
-          </Link>
-        </div>
-
-        {/* 1. Day navigator */}
+    <div className="flex flex-col gap-5">
+      {/* Toolbar — day navigator on the left, Meals + Stats verbs on the right */}
+      <div className="flex items-center justify-between gap-4">
         <DayNavigator
           date={date}
           onChange={setDate}
           onCopyYesterday={handleCopyYesterday}
           showCopyYesterday={logs.length === 0}
         />
-
-        {/* 2. Daily macro summary — sticky */}
-        <DailyMacroSummary logs={logs} targets={targets} />
-
-        {/* 3. Meal slot pill bar */}
-        <div className="flex justify-center">
-          <MealSlotPillBar value={mealSlot} onChange={setMealSlot} />
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMealsOpen(true)}
+            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+          >
+            <Settings2 size={13} /> Meals
+          </Button>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="font-mono text-[11px] uppercase tracking-[0.06em]"
+          >
+            <Link href="/nutrition/stats">
+              <BarChart3 size={13} /> Stats
+            </Link>
+          </Button>
         </div>
-
-        {/* 4. Active day view — empty state or slot content */}
-        <NutritionDayView
-          logs={logs}
-          mealSlot={mealSlot}
-          userId={userId}
-          date={date}
-          foodHistory={foodHistory}
-          onAddFood={(slot) => setSearchState({ open: true, slot })}
-        />
       </div>
+
+      {/* Daily macro summary — sticky stat strip */}
+      <DailyMacroSummary logs={logs} targets={targets} />
+
+      {/* Meal slot segmented tabs */}
+      <MealSlotPillBar value={mealSlot} onChange={setMealSlot} />
+
+      {/* Active day view — empty state or slot content */}
+      <NutritionDayView
+        logs={logs}
+        mealSlot={mealSlot}
+        userId={userId}
+        date={date}
+        foodHistory={foodHistory}
+        onAddFood={(slot) => setSearchState({ open: true, slot })}
+      />
 
       {/* Food search sheet — wired to onAddFood from MealSlot (Plan 04) */}
       <FoodSearch
