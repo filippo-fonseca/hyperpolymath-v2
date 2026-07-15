@@ -24,11 +24,11 @@ interface StatCellProps {
 function StatCell({ label, value }: StatCellProps) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+      <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
         {label}
       </span>
       <span
-        className="font-mono-stats text-[20px] text-[var(--ink)]"
+        className="font-mono-stats text-[20px] tabular-nums text-[var(--sd-ink)]"
         style={{ lineHeight: 1.2 }}
       >
         {value}
@@ -39,7 +39,7 @@ function StatCell({ label, value }: StatCellProps) {
 
 export function PersonalBestsStrip({ bests }: PersonalBestsStripProps) {
   return (
-    <div className="grid grid-cols-3 gap-4 rounded-xl border border-[var(--edge)] bg-[var(--surface)] p-6">
+    <div className="grid grid-cols-3 gap-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]">
       <StatCell
         label="Longest Streak"
         value={`${bests.longestStreakDays} days`}

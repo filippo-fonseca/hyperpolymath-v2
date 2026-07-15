@@ -8,12 +8,13 @@ import type { DailyAdherence } from "@/lib/nutrition/nutrition-service";
 // ---------------------------------------------------------------------------
 
 function levelColor(level: 0 | 1 | 2 | 3 | 4): string {
+  // Single-hue cyan ramp from the empty --sd-hover track up to the --sd-accent.
   return [
-    "var(--surface)",
+    "var(--sd-hover)",
     "oklch(30% 0.08 210)",
     "oklch(45% 0.13 210)",
     "oklch(60% 0.18 210)",
-    "var(--hud-cyan)",
+    "var(--sd-accent)",
   ][level];
 }
 
@@ -31,10 +32,10 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
   if (isEmpty) {
     return (
       <div className="flex flex-col gap-2 py-4 text-center">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           No Logs Yet
         </p>
-        <p className="text-[var(--ink-muted)]" style={{ fontFamily: "var(--font-serif)" }}>
+        <p className="text-[13px] text-[var(--sd-ink-dull)]">
           Your history will appear here as you log meals.
         </p>
       </div>
@@ -67,7 +68,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
         {/* Empty offset for day labels alignment */}
         <div style={{ width: 10 * firstDayOfWeek + 2 * firstDayOfWeek }} />
         <span
-          className="font-mono text-[9px] text-[var(--ink-muted)]"
+          className="font-mono text-[9px] text-[var(--sd-ink-faint)]"
           style={{ lineHeight: "10px" }}
         />
       </div>
@@ -103,7 +104,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
                 width: 10,
                 height: 10,
                 backgroundColor: levelColor(level),
-                border: level === 0 ? "1px solid var(--edge)" : undefined,
+                border: level === 0 ? "1px solid var(--sd-line)" : undefined,
               }}
               role="img"
               aria-label={`${dateStr}: ${kcal} kcal`}
@@ -115,7 +116,7 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
 
       {/* Legend */}
       <div className="mt-3 flex items-center gap-2">
-        <span className="font-mono text-[9px] text-[var(--ink-muted)]">Less</span>
+        <span className="font-mono text-[9px] text-[var(--sd-ink-faint)]">Less</span>
         {([0, 1, 2, 3, 4] as const).map((lvl) => (
           <div
             key={lvl}
@@ -124,11 +125,11 @@ export function NutritionHeatMap({ data }: NutritionHeatMapProps) {
               width: 10,
               height: 10,
               backgroundColor: levelColor(lvl),
-              border: lvl === 0 ? "1px solid var(--edge)" : undefined,
+              border: lvl === 0 ? "1px solid var(--sd-line)" : undefined,
             }}
           />
         ))}
-        <span className="font-mono text-[9px] text-[var(--ink-muted)]">More</span>
+        <span className="font-mono text-[9px] text-[var(--sd-ink-faint)]">More</span>
       </div>
     </div>
   );
