@@ -216,7 +216,7 @@ export function CreateActivityDialog({
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Anything to remember…"
-              className="min-h-[60px] resize-y rounded border border-[var(--edge)] bg-[var(--surface)] px-2 py-1.5 text-sm outline-none focus:border-[var(--edge-hud)]"
+              className="min-h-[60px] resize-y rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 py-1.5 text-sm outline-none focus:border-[var(--sd-accent)]"
             />
           </Field>
         </div>
@@ -262,7 +262,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
         {label}
       </div>
       {children}
