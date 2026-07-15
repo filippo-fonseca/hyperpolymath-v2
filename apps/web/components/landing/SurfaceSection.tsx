@@ -1,6 +1,13 @@
 import { Keyboard, Monitor, Cpu, ExternalLink } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
 import { LifeosCanvasPreview } from "./LifeosCanvasPreview";
+import { Reveal } from "./Reveal";
+
+const SURFACES = [
+  "LifeOS", "Today", "Search", "Areas", "Projects", "Tasks", "Captures",
+  "Wiki", "Calendar", "Habits", "Training", "Health", "Graph", "Insights",
+  "JARVIS",
+] as const;
 
 /**
  * §07 — The Surface (LifeOS canvas + two input paths).
@@ -24,14 +31,14 @@ const POLYPAD_REPO_URL =
 
 export function SurfaceSection() {
   return (
-    <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
+    <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 07 · THE SURFACE" />
 
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
+      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         One canvas. Any input.
       </h2>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Areas, projects, tasks, captures, wiki pages, habits, training,
         health, your Google Calendar, the relationship graph between all of
         it, and the insights that fall out: every signal worth tracking lives on a
@@ -43,18 +50,26 @@ export function SurfaceSection() {
         is one substring away.
       </p>
 
-      <p className="mt-4 font-mono text-[13px] leading-[1.6] tracking-[0.02em] text-[var(--ink-muted)]">
-        SURFACES&nbsp;·&nbsp; LifeOS · Today · Search · Areas · Projects ·
-        Tasks · Captures · Wiki · Calendar · Habits · Training · Health ·
-        Graph · Insights · JARVIS
-      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
+          Surfaces
+        </span>
+        {SURFACES.map((s) => (
+          <span
+            key={s}
+            className="inline-flex items-center rounded border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-[1px] text-tiny font-medium tracking-wide text-[var(--sd-ink-dull)]"
+          >
+            {s}
+          </span>
+        ))}
+      </div>
 
       {/* Twin visual artifact: the Areas tree (spine) + the Knowledge
           Graph (relationships). Renders what "one canvas" actually means
           before pivoting into the input-paths card grid below. */}
       <LifeosCanvasPreview />
 
-      <p className="mt-12 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-12 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Getting sentences <em>into</em> JARVIS has two paths. Neither
         depends on the other. Both feed the same agent, the same router,
         the same hierarchy.
@@ -62,62 +77,63 @@ export function SurfaceSection() {
 
       <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1 — Desktop App (software middleman) */}
-        <div
-          className="border border-[var(--edge)] rounded-lg bg-[var(--surface)] p-6 flex flex-col"
-          style={{
-            boxShadow:
-              "0 1px 0 color-mix(in oklch, white 70%, transparent) inset, 0 8px 24px -16px color-mix(in oklch, black 28%, transparent)",
-          }}
-        >
+        <div className="flex flex-col rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6 shadow-[0_1px_0_rgba(255,255,255,0.06)_inset]">
           <div className="flex items-center gap-2">
-            <Monitor size={16} className="text-[var(--ink-muted)]" aria-hidden="true" />
-            <p className="font-mono text-[14px] font-medium uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <span
+              className="inline-flex size-7 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-faint)]"
+              aria-hidden="true"
+            >
+              <Monitor size={15} strokeWidth={1.75} />
+            </span>
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
               DESKTOP APP
             </p>
           </div>
 
-          <h3 className="mt-4 font-serif font-semibold text-[22px] leading-[1.2] text-[var(--ink)]">
+          <h3 className="mt-4 font-semibold text-[22px] leading-[1.2] text-[var(--sd-ink)]">
             The default path.
           </h3>
 
-          <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink)]">
+          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink)]">
             A small Mac app sits in your menu bar, listens for a global
             hotkey, opens a single composer, and ships the sentence
             straight to JARVIS. No hardware, no setup beyond installing
             the app. If you only want one path, this is it.
           </p>
 
-          <ul className="mt-4 space-y-1.5 font-serif text-[15px] text-[var(--ink-muted)]">
+          <ul className="mt-4 space-y-1.5 text-[15px] text-[var(--sd-ink-faint)]">
             <li>· Global hotkey, anywhere on macOS</li>
             <li>· Voice or text, same composer</li>
             <li>· Always-on; no browser needed</li>
           </ul>
         </div>
 
-        {/* Card 2 — Polypad (hardware middleman, open-source) */}
+        {/* Card 2 — Polypad (hardware middleman, open-source). The accent
+            path: a cyan-tinted edge (no glow) marks it as the optional one. */}
         <div
-          className="rounded-lg bg-[var(--surface-raised)] p-6 flex flex-col"
+          className="flex flex-col rounded-[14px] bg-[var(--sd-box)] p-6 shadow-[0_1px_0_rgba(255,255,255,0.06)_inset]"
           style={{
-            border: "1px solid var(--edge-hud)",
-            boxShadow:
-              "var(--glow-hud-subtle), 0 1px 0 color-mix(in oklch, white 50%, transparent) inset, 0 10px 28px -18px color-mix(in oklch, black 35%, transparent)",
+            border:
+              "1px solid color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
           }}
         >
           <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-            <Cpu size={16} style={{ color: "var(--hud-cyan-light)" }} aria-hidden="true" />
-            <p
-              className="font-mono text-[14px] font-medium uppercase tracking-[0.14em]"
-              style={{ color: "var(--hud-cyan-light)" }}
+            <span
+              className="inline-flex size-7 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-accent)]"
+              aria-hidden="true"
             >
+              <Cpu size={15} strokeWidth={1.75} />
+            </span>
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-accent)]">
               MACROPAD + VOICE DETECTOR HARDWARE
             </p>
           </div>
 
-          <h3 className="mt-4 font-serif font-semibold text-[22px] leading-[1.2] text-[var(--ink)]">
+          <h3 className="mt-4 font-semibold text-[22px] leading-[1.2] text-[var(--sd-ink)]">
             The Polypad.
           </h3>
 
-          <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink)]">
+          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink)]">
             I built a small ESP32-based macropad that sits on the desk and
             fires JARVIS turns over a USB-serial bridge. Push a key to
             talk, push another to capture. The firmware, bridge, and CAD
@@ -125,7 +141,7 @@ export function SurfaceSection() {
             different switches, ship your own.
           </p>
 
-          <ul className="mt-4 space-y-1.5 font-serif text-[15px] text-[var(--ink-muted)]">
+          <ul className="mt-4 space-y-1.5 text-[15px] text-[var(--sd-ink-faint)]">
             <li>
               <Keyboard
                 size={12}
@@ -142,7 +158,7 @@ export function SurfaceSection() {
             href={POLYPAD_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-1.5 font-mono text-[13px] font-medium tracking-[0.04em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+            className="mt-5 inline-flex items-center gap-1.5 font-mono text-[13px] font-medium tracking-[0.04em] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors w-fit"
           >
             <span>Build your own →</span>
             <ExternalLink size={12} aria-hidden="true" />
@@ -150,10 +166,10 @@ export function SurfaceSection() {
         </div>
       </div>
 
-      <p className="mt-6 font-mono text-[14px] text-[var(--ink-muted)]">
+      <p className="mt-6 font-mono text-[14px] text-[var(--sd-ink-faint)]">
         Same agent. Same contract. Two surfaces. Pick whichever fits your
         hands.
       </p>
-    </section>
+    </Reveal>
   );
 }
