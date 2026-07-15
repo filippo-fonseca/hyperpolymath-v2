@@ -205,18 +205,14 @@
   }
 }
 
-/* JARVIS composer focus ring (sd register). sd3 closeout / Tester-r5 D1:
-   the breathing 8→14px --hud-cyan-glow blur layer is stripped (glow rings are
-   banned, UI-CONTRACT §0). Only the flat 2px cyan ring remains — static, no
-   blur, no breathe. Kept as a keyframe so the JarvisInput class binding is
-   untouched; both stops are identical, so the "animation" is a no-op ring. */
+/* Focus ring breathes on idle-focused JARVIS input (2400ms cycle) */
 @keyframes hud-focus-breathe {
   0%,
   100% {
-    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan);
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 8px var(--hud-cyan-glow);
   }
   50% {
-    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan);
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 1.5px var(--hud-cyan), 0 0 14px var(--hud-cyan-glow);
   }
 }
 
