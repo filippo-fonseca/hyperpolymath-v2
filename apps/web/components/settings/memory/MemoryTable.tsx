@@ -67,7 +67,7 @@ function FactCard({
       </div>
 
       {/* Key + body — serif (content register per UI-SPEC §5d). */}
-      <div className="font-serif text-base text-[var(--ink)] leading-snug">
+      <div className="text-base text-[var(--ink)] leading-snug">
         <span className="font-semibold">{fact.key}</span>
         <span className="text-[var(--ink-muted)] mx-2">·</span>
         <span>{fact.value}</span>

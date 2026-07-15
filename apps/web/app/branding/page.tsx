@@ -20,7 +20,7 @@ import { AssetTile } from "./AssetTile";
 export const metadata: Metadata = {
   title: "Brand · Hyperpolymath",
   description:
-    "Canonical marks, lockups, and color treatments for Hyperpolymath, Kiwi, and JARVIS.",
+ "Canonical marks, lockups, and color treatments for Hyperpolymath, Kiwi, and JARVIS.",
 };
 
 const THEME_OPTIONS: { key: ThemeKey; label: string }[] = [
@@ -45,13 +45,13 @@ function Section({
       <div>
         <SectionEyebrow label={label} />
         <h2
-          className="mt-3 font-serif font-semibold text-[24px] text-[var(--ink)]"
+          className="mt-3 font-semibold text-[24px] text-[var(--ink)]"
           style={{ letterSpacing: "-0.02em" }}
         >
           {title}
         </h2>
         {caption ? (
-          <p className="mt-2 font-serif text-[14px] text-[var(--ink-muted)] max-w-[640px]">
+          <p className="mt-2 text-[14px] text-[var(--ink-muted)] max-w-[640px]">
             {caption}
           </p>
         ) : null}
@@ -84,7 +84,7 @@ function BannerGroup({
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
         <h3
-          className="font-serif font-semibold text-[18px] text-[var(--ink)]"
+          className="font-semibold text-[18px] text-[var(--ink)]"
           style={{ letterSpacing: "-0.01em" }}
         >
           {label}
@@ -123,12 +123,12 @@ export default function BrandingPage() {
         <div>
           <SectionEyebrow label="§ 00 · BRAND" />
           <h1
-            className="mt-4 font-serif font-semibold text-[32px] text-[var(--ink)]"
+            className="mt-4 font-semibold text-[32px] text-[var(--ink)]"
             style={{ letterSpacing: "-0.02em" }}
           >
             Brand
           </h1>
-          <p className="mt-2 font-serif text-[15px] text-[var(--ink-muted)] max-w-[640px]">
+          <p className="mt-2 text-[15px] text-[var(--ink-muted)] max-w-[640px]">
             Canonical marks, lockups, and color treatments for Hyperpolymath,
             Kiwi, and JARVIS. Click any tile to view fullscreen.
           </p>

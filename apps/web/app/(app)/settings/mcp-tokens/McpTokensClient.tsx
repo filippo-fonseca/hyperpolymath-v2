@@ -54,7 +54,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
     }
     if (hasExisting) {
       const confirmed = confirm(
-        "You already have an MCP token. Minting a new one will REPLACE it — the previous token will stop working immediately. Continue?",
+ "You already have an MCP token. Minting a new one will REPLACE it — the previous token will stop working immediately. Continue?",
       );
       if (!confirmed) return;
     }
@@ -81,7 +81,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
 
   async function onRevoke() {
     const confirmed = confirm(
-      "Revoke this token? Any device using it will immediately stop working.",
+ "Revoke this token? Any device using it will immediately stop working.",
     );
     if (!confirmed) return;
     startTransition(async () => {
@@ -114,7 +114,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
           size={16}
           className="shrink-0 mt-0.5 text-[var(--ink-amber)]"
         />
-        <p className="font-serif text-[14px] leading-[1.55] text-[var(--ink-muted)]">
+        <p className="text-[14px] leading-[1.55] text-[var(--ink-muted)]">
           <span className="font-semibold text-[var(--ink)]">
             One token per account.
           </span>{" "}
@@ -126,10 +126,10 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
 
       {/* Mint form */}
       <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-6">
-        <h2 className="font-serif text-lg text-[var(--ink)]">
+        <h2 className="text-lg text-[var(--ink)]">
           {hasExisting ? "Replace token" : "Mint token"}
         </h2>
-        <p className="mt-1 font-serif text-[14px] text-[var(--ink-muted)]">
+        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
           Give the token a label you&rsquo;ll recognize (e.g. &ldquo;Claude
           Desktop on Mac&rdquo;).
         </p>
@@ -140,7 +140,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Claude Desktop on Mac"
             maxLength={100}
-            className="flex-1 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-serif text-[15px] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)]"
+            className="flex-1 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 text-[15px] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)]"
             disabled={pending}
           />
           <button
@@ -181,7 +181,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
                 )}
               </button>
             </div>
-            <p className="mt-3 font-serif text-[13px] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[13px] text-[var(--ink-muted)]">
               The server stores only the SHA-256 hash; the plaintext above
               never lands on disk again.
             </p>
@@ -191,9 +191,9 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
 
       {/* Existing token list */}
       <section>
-        <h2 className="font-serif text-lg text-[var(--ink)]">Active token</h2>
+        <h2 className="text-lg text-[var(--ink)]">Active token</h2>
         {tokens.length === 0 ? (
-          <p className="mt-3 font-serif text-[14px] text-[var(--ink-muted)]">
+          <p className="mt-3 text-[14px] text-[var(--ink-muted)]">
             None yet. Mint one above to get started.
           </p>
         ) : (
@@ -204,7 +204,7 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
                 className="flex items-center justify-between gap-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="font-serif text-[15px] text-[var(--ink)] truncate">
+                  <p className="text-[15px] text-[var(--ink)] truncate">
                     {t.name}
                   </p>
                   <p className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--ink-muted)]">
@@ -237,10 +237,10 @@ export function McpTokensClient({ existing, mcpUrl }: Props) {
 
       {/* Connection instructions */}
       <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-6">
-        <h2 className="font-serif text-lg text-[var(--ink)]">
+        <h2 className="text-lg text-[var(--ink)]">
           Connect from an MCP client
         </h2>
-        <p className="mt-1 font-serif text-[14px] text-[var(--ink-muted)]">
+        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
           Point a Streamable-HTTP MCP client (Claude Code, Claude Desktop,
           claude.ai web) at this URL with your token as a Bearer header.
         </p>

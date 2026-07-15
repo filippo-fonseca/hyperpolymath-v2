@@ -65,14 +65,14 @@ export default async function GraphPage() {
       <main className="grid min-h-full place-items-center bg-[var(--canvas)] px-6 text-center text-[var(--ink)]">
         <div
           className={
-            "max-w-md rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-8 " +
-            "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-            "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
-            "transition-[border-color,box-shadow] duration-200 ease-out"
+ "max-w-md rounded-xl border border-[color-mix(in_oklch,var(--edge)_70%,transparent)] bg-[var(--surface)] p-8 " +
+ "shadow-[6px_6px_18px_color-mix(in_oklch,var(--ink)_8%,transparent),-4px_-4px_14px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+ "hover:border-[var(--edge-hud)] hover:shadow-[8px_8px_22px_color-mix(in_oklch,var(--ink)_12%,transparent),-5px_-5px_16px_color-mix(in_oklch,var(--surface)_70%,white),inset_0_1px_0_color-mix(in_oklch,white_60%,transparent)] " +
+ "transition-[border-color,box-shadow] duration-200 ease-out"
           }
         >
-          <h1 className="font-serif text-3xl font-semibold">Knowledge graph</h1>
-          <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+          <h1 className="text-3xl font-semibold">Knowledge graph</h1>
+          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--ink-muted)]">
             No snapshot has been built yet. The nightly job assembles your graph
             at 00:00 ET — or build one now from settings, then come back.
           </p>

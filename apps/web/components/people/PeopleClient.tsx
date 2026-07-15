@@ -94,7 +94,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
     <div className="flex h-full min-h-0 flex-col p-6 gap-4 overflow-hidden">
       <div className="flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2">
-          <h1 className="font-serif text-2xl text-[var(--ink)]">People</h1>
+          <h1 className="text-2xl text-[var(--ink)]">People</h1>
           <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] tabular-nums">
             {people.length}
           </span>
@@ -126,7 +126,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
             type="button"
             onClick={() => setActiveTag(null)}
             className={cn(
-              "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
+ "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
               activeTag === null
                 ? "border-[var(--edge-hud)] text-[var(--ink)]"
                 : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -140,7 +140,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
               type="button"
               onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
               className={cn(
-                "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
+ "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
                 activeTag === t
                   ? "border-[var(--edge-hud)] text-[var(--ink)]"
                   : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -160,7 +160,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
             action={{ label: "Add your first person", onClick: openCreate }}
           />
         ) : filtered.length === 0 ? (
-          <p className="font-serif text-[var(--ink-muted)] italic pt-4">
+          <p className="text-[var(--ink-muted)] italic pt-4">
             No people match this filter.
           </p>
         ) : (

@@ -110,10 +110,10 @@ export default async function ContextSettingsPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
               JARVIS · Personal Context
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
+            <h1 className="mt-1 text-3xl font-semibold text-[var(--ink)]">
               Personal context
             </h1>
-            <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--ink-muted)]">
               What external agents see about you, refreshed nightly. Rebuild
               on demand to fold in changes you made since the last snapshot.
               Rows you flag <span className="font-mono text-[13px]">no-export</span>{" "}

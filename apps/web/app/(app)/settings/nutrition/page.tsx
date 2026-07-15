@@ -24,13 +24,13 @@ export default async function NutritionSettingsPage() {
         <header className="mb-8">
           <h1
             className="text-[28px] leading-[1.2] text-[var(--ink)]"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--)" }}
           >
             Nutrition targets
           </h1>
           <p
             className="mt-2 text-[16px] leading-[1.5] text-[var(--ink-muted)]"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--)" }}
           >
             Set your daily calorie target and the macro split.
           </p>

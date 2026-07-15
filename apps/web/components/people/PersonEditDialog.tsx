@@ -131,7 +131,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">
+          <DialogTitle className="text-xl">
             {isEdit ? "Edit person" : "Add person"}
           </DialogTitle>
         </DialogHeader>
@@ -155,7 +155,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 />
                 <span
                   className={cn(
-                    "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-150",
+ "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-150",
                     uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   )}
                 >
@@ -187,7 +187,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Who is this?"
-              className="font-serif"
+              className=""
               autoFocus
             />
           </Field>
@@ -215,7 +215,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
               onChange={(e) => setBio(e.target.value)}
               rows={3}
               placeholder="A line or two of context."
-              className="font-serif resize-none"
+              className="resize-none"
             />
           </Field>
 
@@ -283,9 +283,9 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 Saving…
               </>
             ) : isEdit ? (
-              "Save"
+ "Save"
             ) : (
-              "Add person"
+ "Add person"
             )}
           </Button>
         </div>

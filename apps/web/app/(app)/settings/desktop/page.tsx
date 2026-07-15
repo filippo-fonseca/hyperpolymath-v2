@@ -27,10 +27,10 @@ export default async function DesktopDevicesPage() {
           <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
             Settings · Desktop
           </p>
-          <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
+          <h1 className="mt-1 text-3xl font-semibold text-[var(--ink)]">
             Desktop devices
           </h1>
-          <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+          <p className="mt-3 text-[16px] leading-[1.55] text-[var(--ink-muted)]">
             Authorize the Hyperpolymath desktop app on each machine you use.
             Mint a token here, paste it once into the app&rsquo;s settings, and
             every request from that machine is signed as you. Revoke a token

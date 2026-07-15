@@ -41,7 +41,7 @@ export function MicDevicePicker({ value, onChange, disabled }: Props) {
         // the listener doesn't silently fail to open the correct stream.
         if (value && !inputs.some((d) => d.deviceId === value)) {
           console.warn(
-            "[voice] persisted micDeviceId no longer present; resetting to default",
+ "[voice] persisted micDeviceId no longer present; resetting to default",
           );
           onChange(null);
         }
@@ -64,11 +64,11 @@ export function MicDevicePicker({ value, onChange, disabled }: Props) {
       disabled={disabled || devices.length === 0}
       aria-label="Microphone device"
       className={cn(
-        "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
-        "font-serif text-sm text-[var(--ink)]",
-        "focus:outline-none focus:border-[var(--edge-hud)]",
-        "transition-colors duration-150 ease-out",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
+ "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
+ "text-sm text-[var(--ink)]",
+ "focus:outline-none focus:border-[var(--edge-hud)]",
+ "transition-colors duration-150 ease-out",
+ "disabled:opacity-50 disabled:cursor-not-allowed",
       )}
     >
       <option value="">Default microphone</option>

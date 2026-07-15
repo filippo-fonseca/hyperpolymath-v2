@@ -85,7 +85,7 @@ export function VoiceSettingsSection() {
       } catch (err) {
         console.warn("[voice] re-enable failed", err);
         toast.error(
-          "Microphone access is required to enable voice. Check your browser's site permissions.",
+ "Microphone access is required to enable voice. Check your browser's site permissions.",
         );
       }
     } else if (!next) {
@@ -122,10 +122,10 @@ export function VoiceSettingsSection() {
       <Card className="p-6 space-y-6 hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out">
         {/* Section header */}
         <div>
-          <h2 className="font-serif text-2xl font-semibold text-[var(--ink)]">
+          <h2 className="text-2xl font-semibold text-[var(--ink)]">
             Voice
           </h2>
-          <p className="font-serif text-base text-[var(--ink-muted)] mt-1">
+          <p className="text-base text-[var(--ink-muted)] mt-1">
             Speak to JARVIS. Hear receipts spoken aloud in a British voice.
           </p>
         </div>
@@ -133,10 +133,10 @@ export function VoiceSettingsSection() {
         {/* 1. Enable voice toggle */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-serif text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--ink)]">
               Enable voice
             </p>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--ink-muted)]">
               Enables wake-word detection and spoken receipts.
             </p>
           </div>
@@ -146,7 +146,7 @@ export function VoiceSettingsSection() {
             aria-checked={settings.voiceEnabled}
             onClick={() => handleEnableToggle(!settings.voiceEnabled)}
             className={cn(
-              "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
+ "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.voiceEnabled
                 ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
                 : "bg-[var(--surface-raised)] border-[var(--edge)]",
@@ -154,7 +154,7 @@ export function VoiceSettingsSection() {
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
+ "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
                 settings.voiceEnabled ? "translate-x-5" : "translate-x-0",
               )}
             />
@@ -171,7 +171,7 @@ export function VoiceSettingsSection() {
         <div className="space-y-2">
           <label
             htmlFor="wake-word-phrase"
-            className="block font-serif text-base text-[var(--ink)]"
+            className="block text-base text-[var(--ink)]"
           >
             Wake-word phrase
           </label>
@@ -183,14 +183,14 @@ export function VoiceSettingsSection() {
             disabled={voiceDisabled}
             placeholder="Hey Jarvis"
             className={cn(
-              "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
-              "font-serif text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-              "focus:outline-none focus:border-[var(--edge-hud)]",
-              "transition-colors duration-150 ease-out",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
+ "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
+ "text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
+ "focus:outline-none focus:border-[var(--edge-hud)]",
+ "transition-colors duration-150 ease-out",
+ "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
           />
-          <p className="font-serif text-xs text-[var(--ink-muted)]">
+          <p className="text-xs text-[var(--ink-muted)]">
             Only <strong>&ldquo;Hey Jarvis&rdquo;</strong> is pre-trained.
             Custom phrases require a .ppn file from{" "}
             <a
@@ -208,10 +208,10 @@ export function VoiceSettingsSection() {
         {/* 3. Clap-clap activation */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-serif text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--ink)]">
               Clap activation
             </p>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--ink-muted)]">
               Clap twice in quick succession to activate JARVIS.
             </p>
           </div>
@@ -224,7 +224,7 @@ export function VoiceSettingsSection() {
             }
             disabled={voiceDisabled}
             className={cn(
-              "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
+ "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.clapEnabled && !voiceDisabled
                 ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
                 : "bg-[var(--surface-raised)] border-[var(--edge)]",
@@ -233,7 +233,7 @@ export function VoiceSettingsSection() {
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
+ "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
                 settings.clapEnabled && !voiceDisabled
                   ? "translate-x-5"
                   : "translate-x-0",
@@ -249,7 +249,7 @@ export function VoiceSettingsSection() {
         <div className="space-y-2">
           <label
             htmlFor="tts-provider"
-            className="block font-serif text-base text-[var(--ink)]"
+            className="block text-base text-[var(--ink)]"
           >
             TTS provider
           </label>
@@ -266,11 +266,11 @@ export function VoiceSettingsSection() {
             }
             disabled={voiceDisabled}
             className={cn(
-              "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
-              "font-serif text-sm text-[var(--ink)]",
-              "focus:outline-none focus:border-[var(--edge-hud)]",
-              "transition-colors duration-150 ease-out",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
+ "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
+ "text-sm text-[var(--ink)]",
+ "focus:outline-none focus:border-[var(--edge-hud)]",
+ "transition-colors duration-150 ease-out",
+ "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
           >
             <option value="elevenlabs">ElevenLabs (British voice)</option>
@@ -281,8 +281,8 @@ export function VoiceSettingsSection() {
 
         {/* 5. Voice ID picker */}
         <div className="space-y-2">
-          <p className="font-serif text-base text-[var(--ink)]">Voice</p>
-          <p className="font-serif text-sm text-[var(--ink-muted)]">
+          <p className="text-base text-[var(--ink)]">Voice</p>
+          <p className="text-sm text-[var(--ink-muted)]">
             Choose a British voice for spoken receipts. Click Play to audition.
           </p>
           <VoiceIdPicker
@@ -295,10 +295,10 @@ export function VoiceSettingsSection() {
         {/* 6. Discreet mode */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-serif text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--ink)]">
               Discreet mode
             </p>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--ink-muted)]">
               Silences voice output and disables wake-word. Text Console still
               works.{" "}
               <kbd className="font-mono text-xs bg-[var(--surface-raised)] border border-[var(--edge)] px-1 py-0.5 rounded">
@@ -317,7 +317,7 @@ export function VoiceSettingsSection() {
             }
             disabled={voiceDisabled}
             className={cn(
-              "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
+ "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.discreetMode && !voiceDisabled
                 ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
                 : "bg-[var(--surface-raised)] border-[var(--edge)]",
@@ -326,7 +326,7 @@ export function VoiceSettingsSection() {
           >
             <span
               className={cn(
-                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
+ "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out",
                 settings.discreetMode && !voiceDisabled
                   ? "translate-x-5"
                   : "translate-x-0",
@@ -340,10 +340,10 @@ export function VoiceSettingsSection() {
 
         {/* 7. Mic device picker */}
         <div className="space-y-2">
-          <label className="block font-serif text-base text-[var(--ink)]">
+          <label className="block text-base text-[var(--ink)]">
             Microphone
           </label>
-          <p className="font-serif text-sm text-[var(--ink-muted)]">
+          <p className="text-sm text-[var(--ink-muted)]">
             Choose the input device for wake-word detection and voice commands.
           </p>
           <MicDevicePicker
@@ -364,11 +364,11 @@ export function VoiceSettingsSection() {
           <div>
             <label
               htmlFor="physical-extension-toggle"
-              className="block font-serif text-base text-[var(--ink)]"
+              className="block text-base text-[var(--ink)]"
             >
               Physical Extension Mode
             </label>
-            <p className="font-serif text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--ink-muted)]">
               Use an external hardware wake-word device (Arduino + DF2301Q) as
               the trigger. When on, the browser stops ambient listening — the
               mic only acquires when the physical device fires.{" "}

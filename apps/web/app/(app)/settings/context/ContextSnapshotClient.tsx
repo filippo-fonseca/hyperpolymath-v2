@@ -81,7 +81,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
       <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="font-serif text-lg text-[var(--ink)]">
+            <h2 className="text-lg text-[var(--ink)]">
               Latest snapshot
             </h2>
             {latest ? (
@@ -101,7 +101,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 ) : null}
               </p>
             ) : (
-              <p className="mt-1 font-serif text-[14px] text-[var(--ink-muted)]">
+              <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
                 No snapshot yet. The nightly cron runs at 00:00 ET, or you can
                 build one now.
               </p>
@@ -128,7 +128,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
                   Total nodes
                 </dt>
-                <dd className="mt-1 font-serif text-2xl text-[var(--ink)]">
+                <dd className="mt-1 text-2xl text-[var(--ink)]">
                   {latest.totalNodes}
                 </dd>
               </div>
@@ -136,7 +136,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
                   Total edges
                 </dt>
-                <dd className="mt-1 font-serif text-2xl text-[var(--ink)]">
+                <dd className="mt-1 text-2xl text-[var(--ink)]">
                   {latest.totalEdges}
                 </dd>
               </div>
@@ -144,7 +144,7 @@ export function ContextSnapshotClient({ latest, history }: Props) {
                 <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
                   Hidden (no-export)
                 </dt>
-                <dd className="mt-1 font-serif text-2xl text-[var(--ink)]">
+                <dd className="mt-1 text-2xl text-[var(--ink)]">
                   {latest.excludedNoExportCount}
                 </dd>
               </div>
@@ -181,11 +181,11 @@ export function ContextSnapshotClient({ latest, history }: Props) {
 
       {/* History */}
       <section>
-        <h2 className="font-serif text-lg text-[var(--ink)]">
+        <h2 className="text-lg text-[var(--ink)]">
           Recent snapshots
         </h2>
         {history.length === 0 ? (
-          <p className="mt-3 font-serif text-[14px] text-[var(--ink-muted)]">
+          <p className="mt-3 text-[14px] text-[var(--ink-muted)]">
             None yet.
           </p>
         ) : (

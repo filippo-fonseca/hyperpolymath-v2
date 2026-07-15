@@ -96,7 +96,7 @@ function ApiKeyRow({
     <div className="space-y-2.5 rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="font-serif text-lg font-semibold text-[var(--ink)]">
+          <span className="text-lg font-semibold text-[var(--ink)]">
             {meta.label}
           </span>
           {meta.required ? (
@@ -122,7 +122,7 @@ function ApiKeyRow({
         </a>
       </div>
 
-      <p className="font-serif text-sm text-[var(--ink-muted)]">{meta.powers}</p>
+      <p className="text-sm text-[var(--ink-muted)]">{meta.powers}</p>
 
       {configured ? (
         <div className="flex items-center justify-between gap-3 pt-1">
@@ -139,7 +139,7 @@ function ApiKeyRow({
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              "Remove"
+ "Remove"
             )}
           </Button>
         </div>
@@ -173,14 +173,14 @@ function ApiKeyRow({
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              "Save"
+ "Save"
             )}
           </Button>
         </div>
       )}
 
       {error ? (
-        <p className="font-serif text-xs text-[var(--ink-coral)]">{error}</p>
+        <p className="text-xs text-[var(--ink-coral)]">{error}</p>
       ) : null}
     </div>
   );

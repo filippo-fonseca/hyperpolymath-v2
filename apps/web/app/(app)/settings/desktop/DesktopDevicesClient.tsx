@@ -70,8 +70,8 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
     <div className="space-y-10">
       {/* Mint form */}
       <section className="rounded-2xl border border-[var(--edge)] bg-[var(--surface)] p-6">
-        <h2 className="font-serif text-lg text-[var(--ink)]">New device</h2>
-        <p className="mt-1 font-serif text-[14px] text-[var(--ink-muted)]">
+        <h2 className="text-lg text-[var(--ink)]">New device</h2>
+        <p className="mt-1 text-[14px] text-[var(--ink-muted)]">
           Give the device a name you&rsquo;ll recognize (e.g. &ldquo;MacBook
           Pro&rdquo;).
         </p>
@@ -81,7 +81,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="MacBook Pro"
-            className="flex-1 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 font-serif text-[15px] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)]"
+            className="flex-1 rounded-md border border-[var(--edge)] bg-[var(--surface-raised)] px-3 py-2 text-[15px] text-[var(--ink)] outline-none focus:border-[var(--hud-cyan)]"
             disabled={pending}
           />
           <button
@@ -122,7 +122,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
                 )}
               </button>
             </div>
-            <p className="mt-3 font-serif text-[13px] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[13px] text-[var(--ink-muted)]">
               Open the desktop app → Settings → paste this token. The server
               stores only the hash; the plaintext above never lands on disk
               again.
@@ -133,11 +133,11 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
 
       {/* Device list */}
       <section>
-        <h2 className="font-serif text-lg text-[var(--ink)]">
+        <h2 className="text-lg text-[var(--ink)]">
           Authorized devices
         </h2>
         {devices.length === 0 ? (
-          <p className="mt-3 font-serif text-[14px] text-[var(--ink-muted)]">
+          <p className="mt-3 text-[14px] text-[var(--ink-muted)]">
             None yet. Mint one above to get started.
           </p>
         ) : (
@@ -148,7 +148,7 @@ export function DesktopDevicesClient({ initialDevices }: Props) {
                 className="flex items-center justify-between gap-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="font-serif text-[15px] text-[var(--ink)] truncate">
+                  <p className="text-[15px] text-[var(--ink)] truncate">
                     {d.name}
                   </p>
                   <p className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--ink-muted)]">

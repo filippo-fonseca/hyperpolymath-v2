@@ -65,7 +65,7 @@ export default async function McpTokensPage() {
   // production sees the deployed origin.
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "https://<your-app>";
+ "https://<your-app>";
   const mcpUrl = `${appUrl}/api/mcp`;
 
   return (
@@ -76,10 +76,10 @@ export default async function McpTokensPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
               Settings · MCP Tokens
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
+            <h1 className="mt-1 text-3xl font-semibold text-[var(--ink)]">
               MCP tokens
             </h1>
-            <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--ink-muted)]">
               Bearer tokens for external agents (Claude Desktop, Claude Code,
               claude.ai web) to read your personal-context snapshot. The
               server stores only the SHA-256 hash — the plaintext is shown
