@@ -45,13 +45,13 @@ function Section({
       <div>
         <SectionEyebrow label={label} />
         <h2
-          className="mt-3 font-semibold text-[24px] text-[var(--ink)]"
+          className="mt-3 font-semibold text-[24px] text-[var(--sd-ink)]"
           style={{ letterSpacing: "-0.02em" }}
         >
           {title}
         </h2>
         {caption ? (
-          <p className="mt-2 text-[14px] text-[var(--ink-muted)] max-w-[640px]">
+          <p className="mt-2 text-[14px] text-[var(--sd-ink-dull)] max-w-[640px]">
             {caption}
           </p>
         ) : null}
@@ -84,12 +84,12 @@ function BannerGroup({
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
         <h3
-          className="font-semibold text-[18px] text-[var(--ink)]"
+          className="font-semibold text-[18px] text-[var(--sd-ink)]"
           style={{ letterSpacing: "-0.01em" }}
         >
           {label}
         </h3>
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--sd-ink-dull)]">
           {usage}
         </p>
       </div>
@@ -109,13 +109,13 @@ export default function BrandingPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/"
-            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors w-fit"
           >
             ← Hyperpolymath
           </Link>
           <Link
             href="/design"
-            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+            className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors w-fit"
           >
             Design →
           </Link>
@@ -123,12 +123,12 @@ export default function BrandingPage() {
         <div>
           <SectionEyebrow label="§ 00 · BRAND" />
           <h1
-            className="mt-4 font-semibold text-[32px] text-[var(--ink)]"
+            className="mt-4 font-semibold text-[32px] text-[var(--sd-ink)]"
             style={{ letterSpacing: "-0.02em" }}
           >
             Brand
           </h1>
-          <p className="mt-2 text-[15px] text-[var(--ink-muted)] max-w-[640px]">
+          <p className="mt-2 text-[15px] text-[var(--sd-ink-dull)] max-w-[640px]">
             Canonical marks, lockups, and color treatments for Hyperpolymath,
             Kiwi, and JARVIS. Click any tile to view fullscreen.
           </p>
@@ -187,7 +187,7 @@ export default function BrandingPage() {
               width: 280,
               height: 280,
               background: "var(--surface-raised)",
-              border: "1px solid var(--edge-hud)",
+              border: "1px solid var(--sd-accent)",
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
@@ -196,7 +196,7 @@ export default function BrandingPage() {
               </div>
             </div>
           </div>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)]">
             HUDCOREBUBBLE · agent-mode-scope · --hud-cyan
           </p>
         </div>

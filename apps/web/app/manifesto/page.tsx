@@ -32,12 +32,12 @@ function Article({
     <section className="space-y-4">
       <SectionEyebrow label={label} />
       <h2
-        className="font-semibold text-[28px] leading-[1.2] text-[var(--ink)]"
+        className="font-semibold text-[28px] leading-[1.2] text-[var(--sd-ink)]"
         style={{ letterSpacing: "-0.015em" }}
       >
         {title}
       </h2>
-      <div className="space-y-4 text-[18px] leading-[1.65] text-[var(--ink)]">
+      <div className="space-y-4 text-[18px] leading-[1.65] text-[var(--sd-ink)]">
         {children}
       </div>
     </section>
@@ -50,19 +50,19 @@ export default function ManifestoPage() {
       <header className="flex flex-col gap-4">
         <Link
           href="/"
-          className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors w-fit"
+          className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors w-fit"
         >
           ← Hyperpolymath
         </Link>
         <div>
           <SectionEyebrow label="§ 00 · MANIFESTO" />
           <h1
-            className="mt-4 font-semibold text-[40px] md:text-[48px] leading-[1.05] text-[var(--ink)]"
+            className="mt-4 font-semibold text-[40px] md:text-[48px] leading-[1.05] text-[var(--sd-ink)]"
             style={{ letterSpacing: "-0.02em" }}
           >
             Manifesto.
           </h1>
-          <p className="mt-3 italic text-[18px] leading-[1.55] text-[var(--ink-muted)]">
+          <p className="mt-3 italic text-[18px] leading-[1.55] text-[var(--sd-ink-dull)]">
             The thesis behind the system, written plainly, in one sitting.
           </p>
         </div>
@@ -195,11 +195,11 @@ export default function ManifestoPage() {
         </p>
       </Article>
 
-      <footer className="pt-8 border-t border-[var(--edge)]">
-        <p className="italic text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+      <footer className="pt-8 border-t border-[var(--sd-line)]">
+        <p className="italic text-[16px] leading-[1.55] text-[var(--sd-ink-dull)]">
           how you do one thing is how you do everything. love what you do.
         </p>
-        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--ink-muted)]">
+        <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--sd-ink-dull)]">
           ❦  Filippo Fonseca  ·  New Haven
         </p>
       </footer>
