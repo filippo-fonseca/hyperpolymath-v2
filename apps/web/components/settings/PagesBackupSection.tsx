@@ -117,10 +117,10 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
       {/* Enable / disable the daily automatic backup */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-medium text-[var(--ink)]">
+          <div className="text-sm font-medium text-[var(--sd-ink)]">
             Daily automatic backup
           </div>
-          <div className="text-xs text-[var(--ink-muted)]">
+          <div className="text-xs text-[var(--sd-ink-dull)]">
             Exports every page as Markdown to a “Hyperpolymath Wiki Backups”
             folder in your Google Drive, once a day.
           </div>
@@ -128,7 +128,7 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
         <div
           role="radiogroup"
           aria-label="Daily automatic backup"
-          className="inline-flex shrink-0 rounded-md border border-[var(--edge)] bg-[var(--canvas)] p-0.5"
+          className="inline-flex shrink-0 rounded-md border border-[var(--sd-line)] bg-[var(--sd-app)] p-0.5"
         >
           {toggleOptions.map((opt) => {
             const selected = opt.value === enabled;
@@ -142,8 +142,8 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
                 onClick={() => handleToggle(opt.value)}
                 className={`font-mono text-xs uppercase tracking-[0.08em] px-3 py-1.5 rounded-sm transition-colors duration-100 cursor-pointer-always disabled:opacity-50 ${
                   selected
-                    ? "bg-[var(--surface)] text-[var(--ink)] border border-[var(--edge-hud)]"
-                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                    ? "bg-[var(--sd-box)] text-[var(--sd-ink)] border border-[var(--sd-accent)]"
+                    : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
                 }`}
               >
                 {opt.label}
@@ -156,11 +156,11 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
       {/* Last-backup status line */}
       <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-medium text-[var(--ink)]">
+          <div className="text-sm font-medium text-[var(--sd-ink)]">
             Last backup
           </div>
           {meta && lastRunLabel ? (
-            <div className="flex items-center gap-2 text-xs text-[var(--ink-muted)]">
+            <div className="flex items-center gap-2 text-xs text-[var(--sd-ink-dull)]">
               <span
                 className={`h-2 w-2 rounded-full ${meta.dotClass}`}
                 aria-hidden
@@ -170,7 +170,7 @@ export function PagesBackupSection({ settings, gcalConnected }: Props) {
               </span>
             </div>
           ) : (
-            <div className="text-xs text-[var(--ink-muted)]">
+            <div className="text-xs text-[var(--sd-ink-dull)]">
               No backup has run yet.
             </div>
           )}

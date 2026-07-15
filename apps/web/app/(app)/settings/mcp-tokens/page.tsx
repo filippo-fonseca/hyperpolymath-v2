@@ -65,21 +65,21 @@ export default async function McpTokensPage() {
   // production sees the deployed origin.
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "https://<your-app>";
+ "https://<your-app>";
   const mcpUrl = `${appUrl}/api/mcp`;
 
   return (
-    <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <main className="relative min-h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
       <div className="mx-auto w-full max-w-[720px] px-6 md:px-10 pt-10 pb-16">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-dull)]">
               Settings · MCP Tokens
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold text-[var(--ink)]">
+            <h1 className="mt-1 text-3xl font-semibold text-[var(--sd-ink)]">
               MCP tokens
             </h1>
-            <p className="mt-3 font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
+            <p className="mt-3 text-[16px] leading-[1.55] text-[var(--sd-ink-dull)]">
               Bearer tokens for external agents (Claude Desktop, Claude Code,
               claude.ai web) to read your personal-context snapshot. The
               server stores only the SHA-256 hash — the plaintext is shown
@@ -88,7 +88,7 @@ export default async function McpTokensPage() {
           </div>
           <Link
             href="/settings"
-            className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 ease-out"
+            className="shrink-0 mt-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] transition-colors duration-100 ease-out"
           >
             ← settings
           </Link>
