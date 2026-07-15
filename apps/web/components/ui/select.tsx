@@ -40,7 +40,7 @@ function SelectTrigger({
         // sd field trigger — same chrome contract as Input.
         "flex w-fit items-center justify-between gap-2 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 text-sm whitespace-nowrap",
         "text-[var(--sd-ink)] transition-colors duration-[120ms] ease-out outline-none",
-        "focus-visible:outline-none focus-visible:border-[var(--sd-accent)]",
+        "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)]",
         "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none",
         "aria-invalid:border-[var(--ink-coral)]",
         "data-[placeholder]:text-[var(--sd-ink-faint)]",
