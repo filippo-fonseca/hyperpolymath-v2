@@ -320,7 +320,7 @@ export function FoodSearch({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[85dvh] overflow-y-auto rounded-t-xl bg-[var(--surface-raised)] px-4 pb-8 pt-6"
+        className="h-[85dvh] overflow-y-auto px-4 pb-8 pt-6"
       >
         <SheetHeader className="mb-4">
           <SheetTitle className="sr-only">Search foods</SheetTitle>
@@ -330,7 +330,7 @@ export function FoodSearch({
           <div className="flex flex-col gap-4">
             {/* Search input */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--ink-muted)]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--sd-ink-faint)]" />
               <Input
                 ref={inputRef}
                 aria-label="Search foods"
@@ -342,7 +342,7 @@ export function FoodSearch({
                   setFocusedIndex(-1);
                 }}
                 onKeyDown={handleKeyDown}
-                className="pl-9 focus-visible:ring-[var(--ring-hud)]"
+                className="pl-9"
               />
             </div>
 
@@ -350,8 +350,8 @@ export function FoodSearch({
             {historyResults.length > 0 && (
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 px-1 mb-1">
-                  <Clock className="h-3 w-3 text-[var(--ink-muted)]" />
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                  <Clock className="h-3 w-3 text-[var(--sd-ink-faint)]" />
+                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
                     Recent
                   </span>
                 </div>
@@ -372,14 +372,14 @@ export function FoodSearch({
             {deferredQ.length >= 2 && (
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5 px-1 mb-1">
-                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                  <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
                     From Open Food Facts
                   </span>
                 </div>
 
                 {isLoadingOff ? (
                   // Skeleton loading row
-                  <div className="hud-receipt-shimmer h-12 rounded-md bg-[var(--surface)] animate-pulse" />
+                  <div className="hud-receipt-shimmer h-12 rounded-md bg-[var(--sd-hover)] animate-pulse" />
                 ) : offResultsMapped.length > 0 ? (
                   <div role="listbox" className="flex flex-col gap-0.5">
                     {offResultsMapped.map((result, i) => (
@@ -396,16 +396,13 @@ export function FoodSearch({
                 ) : (
                   // No results — manual entry fallback
                   <div className="flex flex-col gap-3 px-1 py-3">
-                    <p
-                      className="text-[16px] leading-[1.5] text-[var(--ink-muted)]"
-                      style={{ fontFamily: "var(--font-serif)" }}
-                    >
+                    <p className="text-[13px] leading-relaxed text-[var(--sd-ink-dull)]">
                       No matches found. Try a different name or add it manually.
                     </p>
                     <button
                       type="button"
                       onClick={() => setView({ kind: "manual" })}
-                      className="self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--hud-cyan)] hover:opacity-80 transition-opacity duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-hud)]"
+                      className="self-start font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-accent)] transition-opacity duration-[120ms] ease-out hover:opacity-80 focus:outline-none"
                     >
                       Can't find it? Enter it manually.
                     </button>
@@ -420,7 +417,7 @@ export function FoodSearch({
                 <button
                   type="button"
                   onClick={() => setView({ kind: "manual" })}
-                  className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none"
+                  className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] transition-colors duration-[120ms] ease-out hover:text-[var(--sd-ink)] focus:outline-none"
                 >
                   Can't find it? Enter it manually.
                 </button>

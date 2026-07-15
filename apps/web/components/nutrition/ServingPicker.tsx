@@ -3,11 +3,11 @@
 /**
  * ServingPicker — shown after a food is selected in FoodSearch.
  *
- * UI-SPEC §"Serving Picker":
- *   - shadcn Select lists serving options (default option first per isDefault)
- *   - shadcn Input for quantity multiplier (numeric, default 1)
- *   - Live macro preview: "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" in mono 10.5px ink-muted
- *   - Confirm: "Log" glass-button OR Enter key
+ * sd register:
+ *   - sd Select lists serving options (default option first per isDefault)
+ *   - sd Input for quantity multiplier (numeric, default 1)
+ *   - Live macro preview: "→ {kcal} kcal · P {p}g · C {c}g · F {f}g" in mono 11px ink-faint
+ *   - Confirm: accent "Log" Button OR Enter key; Cancel = ghost Button
  */
 
 import { useMemo, useState } from "react";
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { computeMacros, resolveBaseAmount } from "@/lib/nutrition/macro-math";
 import type { FoodSearchResultData } from "./FoodSearchResult";
 
@@ -117,17 +118,11 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
     >
       {/* Food name recap */}
       <div>
-        <p
-          className="text-[16px] leading-[1.5] text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
+        <p className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
           {food.name}
         </p>
         {food.brand && (
-          <p
-            className="text-[16px] leading-[1.5] text-[var(--ink-muted)]"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
+          <p className="text-[13px] leading-tight text-[var(--sd-ink-dull)]">
             {food.brand}
           </p>
         )}
@@ -139,7 +134,7 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
           value={selectedId}
           onValueChange={setSelectedId}
         >
-          <SelectTrigger className="flex-1 h-9 text-sm focus:ring-[var(--ring-hud)]">
+          <SelectTrigger className="flex-1 h-9 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -161,33 +156,36 @@ export function ServingPicker({ food, servingOptions, onConfirm, onCancel }: Pro
             min="0"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="h-9 text-sm focus-visible:ring-[var(--ring-hud)]"
+            className="h-9 text-sm tabular-nums"
             aria-label="Quantity"
           />
         </div>
       </div>
 
       {/* Live macro preview */}
-      <p className="font-mono text-[10.5px] text-[var(--ink-muted)]">
+      <p className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
         {`→ ${preview.kcal} kcal · P ${preview.proteinG}g · C ${preview.carbsG}g · F ${preview.fatG}g`}
       </p>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={handleConfirm}
-          className="glass-button rounded-md px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-hud)]"
+          className="font-mono text-[11px] uppercase tracking-[0.06em]"
         >
           Log
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onCancel}
-          className="px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none"
+          className="font-mono text-[11px] uppercase tracking-[0.06em]"
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );
