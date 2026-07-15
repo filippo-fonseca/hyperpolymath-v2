@@ -921,7 +921,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           Daily Pages (daily_date IS NOT NULL) surface these. */}
       {isDailyPage && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] glass-tile">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] text-[var(--hud-cyan)] border border-[var(--sd-line)] bg-[var(--sd-box)]">
             <CalendarDays size={11} strokeWidth={1.75} />
             Daily Page
           </span>
@@ -930,7 +930,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
             onClick={handleProcessDailyPage}
             disabled={processing}
             title="Run the whole page through JARVIS to extract tasks, events, and captures"
-            className="glass-button inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border border-[var(--sd-line)] bg-[var(--sd-box)] hover:bg-[var(--sd-hover)] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-serif text-[var(--ink)] hover:text-[var(--hud-cyan)] transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {processing ? (
               <Loader2 size={12} strokeWidth={1.75} className="animate-spin" />

@@ -35,6 +35,15 @@ import {
 } from "@/components/lifeos/entity-card";
 import { WidgetBody, WidgetCard, WidgetFooter } from "@/components/lifeos/WidgetCard";
 import { TokenLadder } from "./TokenSwatches";
+import { SfxPlayground } from "./SfxPlayground";
+
+// sd3 data-series color law (§21): cyan is always the primary series; the
+// functional inks encode additional series, and a mono legend is required.
+const TREND_SERIES = [
+  { label: "Protein", color: "var(--sd-accent)" },
+  { label: "Carbs", color: "var(--ink-amber)" },
+  { label: "Fat", color: "var(--ink-coral)" },
+];
 
 export const metadata: Metadata = {
   title: "Design System · Hyperpolymath",
@@ -634,6 +643,90 @@ export default function DesignSystemPage() {
               </li>
             ))}
           </ul>
+        </Section>
+
+        <Section
+          eyebrow="§ 12 · SFX"
+          title="The space-console core pack"
+          caption="Eight tiny, pitch-coherent cues synthesized at runtime (lib/ui/sfx.ts) — every cue < 180ms, quiet, never stacking, silent until a gesture unlocks the AudioContext. Two mute keys: hp:sfx-muted is the master (kills chimes too); ui:sfx is this pack's own toggle."
+        >
+          <SfxPlayground />
+        </Section>
+
+        <Section
+          eyebrow="§ 13 · DATA SERIES"
+          title="Cyan-primary series + a required legend"
+          caption="Charts are the one sanctioned exception to the single-hue rule, and only as data encoding. Cyan (--sd-accent) is always the primary series; --ink-amber and --ink-coral encode the second and third. A mono legend is REQUIRED whenever more than one series is plotted."
+        >
+          <Specimen label="Legend chips mirror the plotted series 1:1 (MacroTrendChart)">
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {TREND_SERIES.map((s) => (
+                <li key={s.label} className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="h-[3px] w-3.5 rounded-full"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+                    {s.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Specimen>
+        </Section>
+
+        <Section
+          eyebrow="§ 14 · JARVIS CONSOLE"
+          title="Mono voice, receipts, functional pills"
+          caption="JARVIS speaks a mono instrument voice. Every action lands as a solid --sd-box receipt plate (hairline border, no blur/bevel/glow) led by a flat intent pill. Cyan marks actions; functional red marks destructive deletes and errors; passive finds stay neutral — the one place the functional inks carry semantic weight, always through the chip grammar."
+        >
+          <Specimen label="Intent pills — action (cyan) · delete (coral) · find (neutral)">
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { label: "Task", ink: "var(--sd-accent)" },
+                { label: "Delete", ink: "var(--ink-coral)" },
+                { label: "Find", ink: "var(--sd-ink-faint)" },
+              ].map((p) => (
+                <span
+                  key={p.label}
+                  className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide"
+                  style={{
+                    color: p.ink,
+                    background: "var(--sd-input)",
+                    borderColor: "var(--sd-line)",
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: p.ink }}
+                  />
+                  {p.label}
+                </span>
+              ))}
+            </div>
+          </Specimen>
+        </Section>
+
+        <Section
+          eyebrow="§ 15 · SCAN-GAP ESCAPE"
+          title="Inline-style token routing"
+          caption="Tailwind's Oxide scan can miss an arbitrary utility used in only one file (bg-[var(--sd-sidebar)], font-logotype were never emitted). When a token lookup is genuinely one-off: reuse an already-emitted utility, add a real class in globals.css, or route the token through an inline style — as the samples on this very page do. Always verify the class emitted before claiming done."
+        >
+          <Specimen label='style={{ backgroundColor: "var(--sd-box)", fontFamily: "var(--font-mono)" }}'>
+            <span
+              className="rounded-[8px] border px-3 py-1.5 text-[12px] uppercase tracking-[0.08em]"
+              style={{
+                backgroundColor: "var(--sd-box)",
+                borderColor: "var(--sd-line)",
+                color: "var(--sd-ink-dull)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              routed via inline style
+            </span>
+          </Specimen>
         </Section>
       </div>
     </main>
