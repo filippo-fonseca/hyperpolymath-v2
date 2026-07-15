@@ -208,7 +208,7 @@ export function TrainingHeatmap({
           {monthLabels.map((m) => (
             <span
               key={`${m.col}-${m.text}`}
-              className="absolute top-0 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              className="absolute top-0 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
               style={{ left: m.col * (CELL + GAP) }}
             >
               {m.text}
@@ -229,7 +229,7 @@ export function TrainingHeatmap({
               <span
                 key={i}
                 style={{ height: CELL, lineHeight: `${CELL}px` }}
-                className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+                className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]"
               >
                 {label}
               </span>
@@ -315,11 +315,14 @@ const HeatmapCell = memo(function HeatmapCell({
               data-iso={iso}
               disabled={isFuture}
               className={cn(
-                "rounded-[2px] border border-[var(--edge)]/40 outline-none transition-[transform,box-shadow] duration-100",
-                "hover:scale-[1.4] hover:border-[var(--ink)]/40 hover:shadow-[0_0_0_1px_var(--edge)]",
-                "focus-visible:scale-[1.4] focus-visible:border-[var(--ink)]/60",
-                isFuture && "opacity-30 hover:scale-100 cursor-default",
-                !hasActivity && "hover:bg-[var(--surface-2)]",
+                // Zero-jank (§14/§16): no hover-scale. The hover affordance is
+                // an instant 1px ink outline via box-shadow (no transition,
+                // no transform), and focus rides the accent ring (§4).
+                "relative rounded-[2px] border border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] outline-none",
+                "hover:z-10 hover:[box-shadow:0_0_0_1px_var(--sd-ink)]",
+                "focus-visible:z-10 focus-visible:[box-shadow:0_0_0_2px_var(--sd-accent)]",
+                isFuture && "cursor-default opacity-30 hover:[box-shadow:none]",
+                !hasActivity && "hover:bg-[var(--sd-hover)]",
               )}
               style={{
                 width: CELL,
