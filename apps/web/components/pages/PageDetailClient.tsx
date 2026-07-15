@@ -742,7 +742,7 @@ export function PageDetailClient({ userId, page: initialPage, initialActiveProje
           under it stays hidden. */}
       <div className="sticky top-0 z-10 self-end ml-auto flex items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-darker-box)] px-2 py-1 shadow-[0_1px_0_hsl(235_15%_0%_/_0.12)]">
         {showSaved && (
-          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] animate-fade-in mr-0.5">
+          <span className="flex items-center gap-1 text-[11px] font-mono text-[var(--ink-muted)] sd-fade-in mr-0.5">
             <Check size={11} strokeWidth={2} />
             Saved
           </span>
