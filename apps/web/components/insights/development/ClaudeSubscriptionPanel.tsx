@@ -6,9 +6,7 @@ import type {
   WeekUsage,
 } from '@/lib/integrations/claude-code/subscription';
 import { MAX_5X_LIMITS, pct } from '@/lib/integrations/claude-code/limits';
-import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
-
-const ACCENT_VAR = 'var(--hud-cyan)';
+import { DevEmpty, DevPanel, DevPanelHeader, Eyebrow } from './dev-chrome';
 
 interface Props {
   result: Result<SubscriptionUsage>;
@@ -31,30 +29,18 @@ function formatWindow(start: string | null, end: string | null): string | null {
     if (!iso) return '?';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '?';
-    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return d.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   };
   return `${fmt(start)} to ${fmt(end)}`;
 }
 
 const APPROX_CAPTION = 'approximate, vs configurable Max-5x limits';
 
-function PanelChrome({ children }: { children: React.ReactNode }) {
-  return (
-    <section
-      className={`group ${NEUMORPHIC_TILE} p-6`}
-      style={
-        {
-          ['--panel-accent']: ACCENT_VAR,
-          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
-        } as React.CSSProperties
-      }
-    >
-      {children}
-    </section>
-  );
-}
-
 // Subtle approximate-usage bar. percentage is clamped 0..100 or null (hidden).
+// The fill is cyan — the console's single accent.
 function ApproxBar({
   label,
   percentage,
@@ -66,22 +52,24 @@ function ApproxBar({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+      <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
         <span>{label}</span>
-        <span className="text-[var(--ink)]">
+        <span className="text-[var(--sd-ink)] tabular-nums">
           {detail}
           {percentage != null ? (
-            <span className="ml-2 text-[var(--ink-muted)]">~{percentage.toFixed(0)}%</span>
+            <span className="ml-2 text-[var(--sd-ink-faint)]">
+              ~{percentage.toFixed(0)}%
+            </span>
           ) : null}
         </span>
       </div>
       {percentage != null ? (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--edge)]/40">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--sd-input)]">
           <div
             className="h-full rounded-full"
             style={{
               width: `${percentage}%`,
-              backgroundColor: 'var(--hud-cyan)',
+              backgroundColor: 'var(--sd-accent)',
             }}
           />
         </div>
@@ -93,30 +81,27 @@ function ApproxBar({
 export function ClaudeSubscriptionPanel({ result }: Props) {
   if (!result.ok) {
     return (
-      <PanelChrome>
-        <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        </header>
-        <p className="font-mono text-xs text-[var(--ink-muted)]">
+      <DevPanel>
+        <DevPanelHeader eyebrow="Claude Code" />
+        <p className="mt-3 font-mono text-xs text-[var(--sd-ink-faint)]">
           Couldn&apos;t load subscription usage. {result.error}
         </p>
-      </PanelChrome>
+      </DevPanel>
     );
   }
 
   const { session, weeks } = result.data;
-  const latestWeek: WeekUsage | null = weeks.length > 0 ? weeks[weeks.length - 1] : null;
+  const latestWeek: WeekUsage | null =
+    weeks.length > 0 ? weeks[weeks.length - 1] : null;
 
   if (!session && !latestWeek) {
     return (
-      <PanelChrome>
-        <header className="mb-2 flex items-baseline justify-between">
-          <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        </header>
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
-          No subscription session synced yet.
-        </p>
-      </PanelChrome>
+      <DevPanel>
+        <DevPanelHeader eyebrow="Claude Code" />
+        <div className="mt-3">
+          <DevEmpty heading="No subscription session synced yet" />
+        </div>
+      </DevPanel>
     );
   }
 
@@ -125,21 +110,23 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
     : null;
 
   return (
-    <PanelChrome>
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-serif text-lg text-[var(--ink)]">Claude Code</h3>
-        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-          subscription
-        </span>
-      </header>
+    <DevPanel>
+      <DevPanelHeader
+        eyebrow="Claude Code"
+        right={
+          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+            subscription
+          </span>
+        }
+      />
 
-      <div className="flex flex-col gap-6">
+      <div className="mt-4 flex flex-col gap-6">
         {/* Current 5-hour session block */}
         <div className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between">
-            <h4 className="font-serif text-sm text-[var(--ink)]">Current session</h4>
+            <Eyebrow className="tracking-[0.08em]">Current session</Eyebrow>
             {sessionWindow ? (
-              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 {sessionWindow}
               </span>
             ) : null}
@@ -147,17 +134,25 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
 
           {session ? (
             <>
-              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 <span>
-                  <span className="text-[var(--ink)]">{formatUsd(session.costUsd)}</span> cost
+                  <span className="text-[var(--sd-ink)] tabular-nums">
+                    {formatUsd(session.costUsd)}
+                  </span>{' '}
+                  cost
                 </span>
                 <span>
-                  <span className="text-[var(--ink)]">{formatTokens(session.totalTokens)}</span> tok
+                  <span className="text-[var(--sd-ink)] tabular-nums">
+                    {formatTokens(session.totalTokens)}
+                  </span>{' '}
+                  tok
                 </span>
                 {session.projectedCostUsd != null ? (
                   <span>
                     proj{' '}
-                    <span className="text-[var(--ink)]">{formatUsd(session.projectedCostUsd)}</span>
+                    <span className="text-[var(--sd-ink)] tabular-nums">
+                      {formatUsd(session.projectedCostUsd)}
+                    </span>
                   </span>
                 ) : null}
               </div>
@@ -171,36 +166,48 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
                 <ApproxBar
                   label="tokens of block"
                   detail={formatTokens(session.totalTokens)}
-                  percentage={pct(session.totalTokens, MAX_5X_LIMITS.sessionTokens)}
+                  percentage={pct(
+                    session.totalTokens,
+                    MAX_5X_LIMITS.sessionTokens,
+                  )}
                 />
               </div>
             </>
           ) : (
-            <p className="font-serif text-xs text-[var(--ink-muted)]">
+            <p className="text-[13px] text-[var(--sd-ink-faint)]">
               No active session block.
             </p>
           )}
 
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
             {APPROX_CAPTION}
           </p>
         </div>
 
         {/* Weekly */}
         <div className="flex flex-col gap-3">
-          <h4 className="font-serif text-sm text-[var(--ink)]">This week</h4>
+          <Eyebrow className="tracking-[0.08em]">This week</Eyebrow>
 
           {latestWeek ? (
             <>
-              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 <span>
-                  <span className="text-[var(--ink)]">{formatUsd(latestWeek.costUsd)}</span> cost
+                  <span className="text-[var(--sd-ink)] tabular-nums">
+                    {formatUsd(latestWeek.costUsd)}
+                  </span>{' '}
+                  cost
                 </span>
                 <span>
-                  <span className="text-[var(--ink)]">{formatTokens(latestWeek.totalTokens)}</span> tok
+                  <span className="text-[var(--sd-ink)] tabular-nums">
+                    {formatTokens(latestWeek.totalTokens)}
+                  </span>{' '}
+                  tok
                 </span>
                 <span>
-                  week of <span className="text-[var(--ink)]">{latestWeek.weekStart}</span>
+                  week of{' '}
+                  <span className="text-[var(--sd-ink)] tabular-nums">
+                    {latestWeek.weekStart}
+                  </span>
                 </span>
               </div>
 
@@ -208,26 +215,32 @@ export function ClaudeSubscriptionPanel({ result }: Props) {
                 <ApproxBar
                   label="cost of week"
                   detail={formatUsd(latestWeek.costUsd)}
-                  percentage={pct(latestWeek.costUsd, MAX_5X_LIMITS.weeklyCostUsd)}
+                  percentage={pct(
+                    latestWeek.costUsd,
+                    MAX_5X_LIMITS.weeklyCostUsd,
+                  )}
                 />
                 <ApproxBar
                   label="tokens of week"
                   detail={formatTokens(latestWeek.totalTokens)}
-                  percentage={pct(latestWeek.totalTokens, MAX_5X_LIMITS.weeklyTokens)}
+                  percentage={pct(
+                    latestWeek.totalTokens,
+                    MAX_5X_LIMITS.weeklyTokens,
+                  )}
                 />
               </div>
             </>
           ) : (
-            <p className="font-serif text-xs text-[var(--ink-muted)]">
+            <p className="text-[13px] text-[var(--sd-ink-faint)]">
               No weekly usage synced yet.
             </p>
           )}
 
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
             {APPROX_CAPTION}
           </p>
         </div>
       </div>
-    </PanelChrome>
+    </DevPanel>
   );
 }
