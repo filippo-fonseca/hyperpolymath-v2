@@ -21,18 +21,21 @@ export function Reveal({
   i = 0,
   className,
   as = "div",
+  id,
 }: {
   children: ReactNode;
   /** Stagger index — delays the reveal by `i * 60ms`. */
   i?: number;
   className?: string;
   as?: "div" | "li" | "section";
+  id?: string;
 }) {
   const reducedMotion = useReducedMotion();
   const MotionTag = motion[as];
 
   return (
     <MotionTag
+      id={id}
       className={className}
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
