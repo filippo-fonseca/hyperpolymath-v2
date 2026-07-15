@@ -144,7 +144,7 @@ export function FloatingJarvisStatus() {
           muted
             ? "bg-[var(--surface-raised)]/95 border-[var(--edge)] text-[var(--ink-muted)]"
             : active
-              ? "bg-[var(--surface-raised)]/98 border-[var(--hud-cyan)] text-[var(--hud-cyan)]"
+              ? "bg-[var(--surface-raised)]/95 border-[var(--hud-cyan)] text-[var(--hud-cyan)]"
               : "bg-[var(--surface-raised)]/95 border-[var(--edge-hud)] text-[var(--ink-muted)]",
         )}
         style={{
@@ -189,7 +189,7 @@ function HudStateIndicator({
   }
   if (kind === "thinking") {
     return (
-      <span className="flex items-center gap-[3px]" aria-hidden>
+      <span className="flex items-center" style={{ gap: "3px" }} aria-hidden>
         {[0, 1, 2].map((i) => (
           <span
             key={i}
@@ -202,7 +202,11 @@ function HudStateIndicator({
   }
   if (kind === "wave") {
     return (
-      <span className="flex items-end gap-[2px] h-3" aria-hidden>
+      <span
+        className="flex items-end"
+        style={{ gap: "2px", height: "12px" }}
+        aria-hidden
+      >
         {[0, 1, 2].map((i) => (
           <span
             key={i}
