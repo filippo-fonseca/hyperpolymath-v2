@@ -221,7 +221,7 @@ export function LifeOsHero({
     <section>
       {/* Greeting row — canvas only, no plate (§4). */}
       <motion.div
-        className="mt-2 mb-5 flex items-center justify-between gap-6"
+        className="mb-4 flex items-center justify-between gap-6"
         {...headerAnim}
       >
         <div className="flex flex-col gap-1.5">
@@ -246,7 +246,7 @@ export function LifeOsHero({
       </motion.div>
 
       {/* Stat strip — icon-left anatomy, no chrome (§5). */}
-      <div className="lifeos-stats mb-7 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="lifeos-stats mb-5 grid max-w-[1200px] grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
         <style>{STAT_ICON_CSS}</style>
         {stats.map((s, i) => {
           const color = dotColor(s.dot);

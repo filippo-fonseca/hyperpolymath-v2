@@ -40,7 +40,7 @@ export function LifeOsQuickSend() {
       };
 
   return (
-    <motion.section className="mb-7" {...animProps}>
+    <motion.section {...animProps}>
       <LiteJarvisComposer onSubmit={handleSubmit} />
     </motion.section>
   );
