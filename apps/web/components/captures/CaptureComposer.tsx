@@ -18,6 +18,7 @@ import { Spinner } from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import type { SuggestedTag } from "@/lib/captures/suggest-tags";
 import type { CaptureWithLinks } from "@/lib/db/queries/captures";
+import { sfx } from "@/lib/ui/sfx";
 import { mergeContentUrls } from "@/lib/url";
 import { HashtagChip } from "./HashtagChip";
 import { HashtagDecorations } from "./hashtag-decorations";
@@ -174,7 +175,7 @@ export function CaptureComposer({
     editorProps: {
       attributes: {
         class:
-          "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 font-serif text-base",
+          "capture-composer-content focus:outline-none min-h-[48px] max-h-[160px] overflow-y-auto p-3 text-[15px]",
         "data-placeholder": "What's on your mind? Use #tags to organize.",
       },
       // Cmd/Ctrl+K opens the inline `#`-token dropdown at the caret (#145).
@@ -404,6 +405,9 @@ export function CaptureComposer({
         return;
       }
       toast("Captured.");
+      // sesh-sd3 SFX core pack — subtle "sent" cue on a successful dispatch.
+      // Single-line, never throws, silent when muted / gesture-locked.
+      sfx.play("captureSent");
       editor?.commands.clearContent();
       setSuggestions([]);
       // Reset to the original seed so a project-scoped composer keeps that
@@ -439,10 +443,10 @@ export function CaptureComposer({
   }, [editor, handleSubmit]);
 
   return (
-    // Glass tile composer — focus-within flips the glass accent to the shared
-    // cyan focus color (#140) so the composer reads "live" while typing and
-    // matches every other focused input across the app.
-    <div className="rounded-xl glass-tile focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] focus-within:[--glass-glow:12%]">
+    // sd writing surface — recessed --sd-input field, 1px --sd-line hairline,
+    // no glow ring. focus-within brings the border to the single cyan accent so
+    // the composer reads "live" while typing, matching every sd input.
+    <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors focus-within:border-[var(--sd-accent)]">
       <EditorContent editor={editor} />
       {/* Blocker 4: project multi-select below the editor (CAPT-07 UI path) */}
       <div className="px-3 pb-2">
@@ -457,7 +461,7 @@ export function CaptureComposer({
           tag to the note; the small x dismisses it. Nothing applies on its own. */}
       {suggestions.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
-          <span className="font-mono text-[11px] text-[var(--ink-muted)] mr-0.5">Suggested:</span>
+          <span className="font-mono text-[11px] text-[var(--sd-ink-faint)] mr-0.5">Suggested:</span>
           {suggestions.map((tag) => (
             <span key={tag.name} className="inline-flex items-center gap-0.5">
               <HashtagChip
@@ -469,7 +473,7 @@ export function CaptureComposer({
                 type="button"
                 aria-label={`Dismiss ${tag.name}`}
                 onClick={() => dismissSuggestion(tag)}
-                className="font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always px-0.5"
+                className="font-mono text-xs text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] cursor-pointer-always px-0.5"
               >
                 &times;
               </button>
@@ -477,12 +481,12 @@ export function CaptureComposer({
           ))}
         </div>
       ) : null}
-      <div className="flex items-center justify-between p-2 border-t border-[var(--edge)]">
+      <div className="flex items-center justify-between p-2 border-t border-[var(--sd-line)]">
         <button
           type="button"
           onClick={handleSuggestTags}
           disabled={suggesting || !editor}
-          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-50 cursor-pointer-always"
+          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] disabled:opacity-50 cursor-pointer-always"
         >
           {suggesting ? (
             <Spinner size={12} label="Suggesting tags" />
@@ -493,7 +497,7 @@ export function CaptureComposer({
         </button>
         <div className="flex items-center gap-3">
           <span
-            className="font-mono text-xs text-[var(--ink-muted)]"
+            className="font-mono text-xs text-[var(--sd-ink-faint)]"
             title="Press ⌘K (Ctrl+K) in the editor to insert a #tag"
           >
             <span className="font-mono">⌘K</span> for tags ·{" "}

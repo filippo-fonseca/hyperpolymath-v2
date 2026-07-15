@@ -137,10 +137,10 @@ export function ConvertCaptureToTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-serif text-[20px]">
+          <DialogTitle className="text-[20px]">
             Convert capture to task
           </DialogTitle>
-          <DialogDescription className="font-serif text-base">
+          <DialogDescription className="text-base">
             The capture is deleted in the same transaction.
           </DialogDescription>
         </DialogHeader>
