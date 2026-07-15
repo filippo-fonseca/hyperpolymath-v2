@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Github, Globe, Palette, Scale, FileText, Mail } from "lucide-react";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { Logotype } from "@/components/ui/Logotype";
 
 /**
  * Landing footer — banner-aesthetic close-out.
@@ -67,20 +68,20 @@ const LINKS: LinkTile[] = [
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-[var(--edge)] pt-16 md:pt-20 pb-14">
+    <footer className="border-t border-[var(--sd-line)] pt-16 md:pt-20 pb-14">
       <div className="max-w-[1080px] mx-auto px-6 md:px-10 space-y-12">
         {/* ── Top: wordmark row ── */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex items-center gap-4">
             <KiwiIcon
               size={48}
-              className="text-[var(--ink)]"
+              className="text-[var(--sd-ink)]"
             />
-            <span className="font-serif font-semibold text-[40px] md:text-[44px] leading-none tracking-[-0.01em] text-[var(--ink)]">
-              Hyperpolymath.
+            <span className="text-[40px] md:text-[44px] leading-none text-[var(--sd-ink)]">
+              <Logotype />.
             </span>
           </div>
-          <p className="font-serif italic text-[16px] md:text-[18px] leading-[1.5] text-[var(--ink-muted)] max-w-[320px] md:text-right">
+          <p className="italic text-[16px] md:text-[18px] leading-[1.5] text-[var(--sd-ink-faint)] max-w-[320px] md:text-right">
             A personal life-OS for people who refuse to specialize.
           </p>
         </div>
@@ -97,29 +98,29 @@ export function LandingFooter() {
                 key={link.label}
                 href={link.href}
                 {...externalProps}
-                className="group flex items-start gap-3 rounded-lg border border-[var(--edge)] bg-[var(--surface)] px-4 py-3.5 transition-all hover:border-[var(--ink)]/30 hover:bg-[var(--surface-raised)] hover:-translate-y-px"
+                className="group flex items-start gap-3 rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-4 py-3.5 transition-all hover:border-[var(--sd-accent)]/40"
                 style={{
                   boxShadow:
-                    "0 1px 0 color-mix(in oklch, white 60%, transparent) inset",
+                    "0 1px 0 rgba(255,255,255,0.06) inset",
                 }}
               >
                 <span
-                  className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-[var(--surface-raised)] border border-[var(--edge)] text-[var(--ink)] transition-colors group-hover:text-[var(--hud-cyan)] group-hover:border-[var(--hud-cyan)]/40"
+                  className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-[var(--sd-input)] border border-[var(--sd-line)] text-[var(--sd-ink)] transition-colors group-hover:text-[var(--sd-accent)]"
                   aria-hidden="true"
                 >
                   <Icon size={15} strokeWidth={1.8} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--ink)]">
+                  <p className="font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink)]">
                     {link.label}
                   </p>
-                  <p className="mt-0.5 font-serif text-[13px] leading-[1.4] text-[var(--ink-muted)] truncate">
+                  <p className="mt-0.5 text-[13px] leading-[1.4] text-[var(--sd-ink-faint)] truncate">
                     {link.hint}
                   </p>
                 </div>
                 {link.external && (
                   <span
-                    className="font-mono text-[11px] text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity self-center"
+                    className="font-mono text-[11px] text-[var(--sd-ink-faint)] opacity-0 group-hover:opacity-100 transition-opacity self-center"
                     aria-hidden="true"
                   >
                     ↗
@@ -132,7 +133,7 @@ export function LandingFooter() {
 
         {/* ── Three-kiwi ornament (matches SectionDivider) ── */}
         <div
-          className="flex items-center justify-center gap-[4em] text-[var(--ink-muted)] opacity-60"
+          className="flex items-center justify-center gap-[4em] text-[var(--sd-ink-faint)] opacity-60"
           aria-hidden="true"
         >
           <KiwiIcon size={14} />
@@ -141,10 +142,10 @@ export function LandingFooter() {
         </div>
 
         {/* ── Quiet system links: the campaign design system ── */}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           <Link
             href="/design"
-            className="transition-colors hover:text-[var(--hud-cyan)]"
+            className="transition-colors hover:text-[var(--sd-accent)]"
           >
             Design system
           </Link>
@@ -155,7 +156,7 @@ export function LandingFooter() {
             href="https://github.com/filippo-fonseca/hyperpolymath-v2/blob/main/docs/DESIGN-SYSTEM.md"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 transition-colors hover:text-[var(--hud-cyan)]"
+            className="inline-flex items-center gap-1 transition-colors hover:text-[var(--sd-accent)]"
           >
             DESIGN-SYSTEM.md
             <span aria-hidden="true">↗</span>
@@ -164,14 +165,14 @@ export function LandingFooter() {
 
         {/* ── Sign-off + signature ── */}
         <div className="space-y-2 text-center">
-          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+          <p className="italic text-[14px] text-[var(--sd-ink-faint)]">
             how you do one thing is how you do everything. love what you do.
           </p>
-          <p className="font-serif text-[14px] text-[var(--ink-muted)]">
+          <p className="text-[14px] text-[var(--sd-ink-faint)]">
             Made with{" "}
             <span
               aria-label="love"
-              style={{ color: "var(--hud-cyan)" }}
+              style={{ color: "var(--sd-accent)" }}
               className="align-middle"
             >
               ♥
@@ -181,7 +182,7 @@ export function LandingFooter() {
               href="https://filippofonseca.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline decoration-[var(--ink-muted)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--hud-cyan)] hover:decoration-[var(--hud-cyan)]"
+              className="underline decoration-[var(--sd-ink-faint)] decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--sd-accent)] hover:decoration-[var(--sd-accent)]"
             >
               Filippo Fonseca
             </a>

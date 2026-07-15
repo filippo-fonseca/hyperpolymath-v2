@@ -11,7 +11,7 @@ import { KiwiIcon } from "@/components/shared/KiwiIcon";
 export function SectionDivider() {
   return (
     <div
-      className="flex items-center justify-center gap-[4em] text-[var(--ink-muted)] select-none"
+      className="flex items-center justify-center gap-[4em] text-[var(--sd-ink-faint)] select-none"
       aria-hidden="true"
     >
       <KiwiIcon size={14} />

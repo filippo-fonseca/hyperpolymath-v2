@@ -1,5 +1,6 @@
 import { Plug, ScrollText, Brain } from "lucide-react";
 import { SectionEyebrow } from "./SectionEyebrow";
+import { Reveal } from "./Reveal";
 
 /**
  * §06.5 — THE MCP SERVER.
@@ -36,20 +37,20 @@ const EXPOSED: ReadonlyArray<{ icon: typeof Plug; label: string; hint: string }>
 
 export function MCPSection() {
   return (
-    <section className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
+    <Reveal as="section" className="py-16 max-w-[920px] mx-auto px-6 md:px-10">
       <SectionEyebrow label="§ 06.5 · THE MCP SERVER" />
 
-      <h2 className="mt-2 font-serif font-semibold text-[32px] leading-[1.2] text-[var(--ink)]">
+      <h2 className="mt-2 font-semibold text-[32px] leading-[1.15] tracking-[-0.01em] text-[var(--sd-ink)]">
         Your life, available to any LLM.
       </h2>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         Hyperpolymath ships a{" "}
         <span
           className="font-mono text-[15px] px-1.5 py-0.5 rounded"
           style={{
-            background: "var(--surface-raised)",
-            border: "1px solid var(--edge)",
+            background: "var(--sd-input)",
+            border: "1px solid var(--sd-line)",
           }}
         >
           Model Context Protocol
@@ -61,7 +62,7 @@ export function MCPSection() {
         knows about your life from a single source.
       </p>
 
-      <p className="mt-4 font-serif text-[18px] leading-[1.6] text-[var(--ink)]">
+      <p className="mt-4 text-[18px] leading-[1.6] text-[var(--sd-ink)]">
         No exporting. No copy-paste. No bespoke integration per tool.
         The MCP server <em>is</em> the integration.
       </p>
@@ -73,27 +74,23 @@ export function MCPSection() {
           return (
             <div
               key={row.label}
-              className="rounded-lg border border-[var(--edge)] bg-[var(--surface)] p-4"
-              style={{
-                boxShadow:
-                  "0 1px 0 color-mix(in oklch, white 65%, transparent) inset",
-              }}
+              className="rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-4 shadow-[0_1px_0_rgba(255,255,255,0.06)_inset]"
             >
               <div className="flex items-center gap-2 mb-2">
                 <span
-                  className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--edge)] text-[var(--ink)]"
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-[7px] bg-[var(--sd-input)] border border-[var(--sd-line)] text-[var(--sd-accent)]"
                   aria-hidden="true"
                 >
                   <Icon size={13} strokeWidth={1.8} />
                 </span>
-                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--ink)]">
+                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
                   Exposed
                 </p>
               </div>
-              <p className="font-serif text-[15px] leading-[1.45] text-[var(--ink)]">
+              <p className="text-[15px] leading-[1.45] text-[var(--sd-ink)]">
                 {row.label}
               </p>
-              <p className="mt-1 font-serif text-[13px] leading-[1.45] text-[var(--ink-muted)]">
+              <p className="mt-1 text-[13px] leading-[1.45] text-[var(--sd-ink-faint)]">
                 {row.hint}
               </p>
             </div>
@@ -103,35 +100,37 @@ export function MCPSection() {
 
       {/* Config snippet — looks like the Claude Desktop / MCP config */}
       <div
-        className="mt-8 rounded-lg overflow-hidden border"
+        className="mt-8 rounded-[12px] overflow-hidden border"
         style={{
-          borderColor: "var(--edge-hud)",
-          boxShadow: "var(--glow-hud-subtle)",
+          // Single accent surface: cyan-tinted hairline, no glow (banned).
+          borderColor:
+            "color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
         }}
       >
         <div
           className="flex items-center justify-between px-4 py-2 border-b"
           style={{
-            background: "var(--surface-raised)",
-            borderColor: "var(--edge-hud)",
+            background: "var(--sd-input)",
+            borderColor:
+              "color-mix(in oklch, var(--sd-accent) 30%, var(--sd-line))",
           }}
         >
           <span
             className="font-mono text-[11px] tracking-[0.14em] uppercase"
-            style={{ color: "var(--hud-cyan-light)" }}
+            style={{ color: "var(--sd-accent)" }}
           >
             ~/.config/claude_desktop_config.json
           </span>
           <span
             className="font-mono text-[10px] tracking-[0.14em] uppercase opacity-60"
-            style={{ color: "var(--ink-muted)" }}
+            style={{ color: "var(--sd-ink-faint)" }}
           >
             Example
           </span>
         </div>
         <pre
           className="px-5 py-4 m-0 font-mono text-[13px] leading-[1.6] overflow-x-auto custom-scrollbar"
-          style={{ background: "var(--surface)", color: "var(--ink)" }}
+          style={{ background: "var(--sd-dark-box)", color: "var(--sd-ink)" }}
         >
 {`{
   "mcpServers": {
@@ -146,10 +145,10 @@ export function MCPSection() {
         </pre>
       </div>
 
-      <p className="mt-6 font-mono text-[14px] text-[var(--ink-muted)]">
+      <p className="mt-6 font-mono text-[14px] text-[var(--sd-ink-faint)]">
         One token. One endpoint. Any model that speaks MCP can now
         reason about everything in your life.
       </p>
-    </section>
+    </Reveal>
   );
 }
