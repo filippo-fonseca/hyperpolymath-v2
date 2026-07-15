@@ -13,10 +13,10 @@ import {
 import type { Result } from '@/lib/integrations/result';
 import type { AnthropicDailyUsage } from '@/lib/integrations/anthropic-api/usage';
 import type { AnthropicDailyRequests } from '@/lib/integrations/anthropic-api/trends';
-import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
+import { CHART, DevEmpty, DevPanel, DevPanelHeader } from './dev-chrome';
 
 /**
- * Anthropic API usage panel (issue #133).
+ * Anthropic API usage panel (issue #133), sd console register.
  *
  * Surfaces the three asks: token consumption (input/output), request counts,
  * and usage trends over time with a daily/weekly/monthly granularity toggle.
@@ -25,20 +25,15 @@ import { NEUMORPHIC_TILE, glassyTileShadow } from '../tile-style';
  * `requests` prop (the trends.ts Usage Report helper), which degrades quietly
  * when no admin key is configured.
  *
- * Sensitive: never renders any key. The empty state points the user to
- * Settings to connect their Anthropic admin key — no key, no fallback, nothing
- * leaked.
+ * Sensitive: never renders any key. The empty state points the user to Settings
+ * to connect their Anthropic admin key — no key, no fallback, nothing leaked.
+ * This panel is the known-inert one until an admin key is set; its empty state
+ * stays calm rather than alarming.
  *
- * recharts cannot resolve var(--*) at render time, so chart strokes/fills use
- * sRGB hex literals; hud-cyan (#22b8cf) is the canonical JARVIS accent. Per
- * project convention (and to avoid a known blank-render bug in spanning grid
- * cells), ResponsiveContainer is always given explicit width/height.
+ * Chart strokes/fills use `var(--sd-*)` tokens (recharts resolves them as SVG
+ * presentation attributes), so the bars read correctly in BOTH themes — cyan is
+ * the primary spend series.
  */
-
-const ACCENT_HEX = '#22b8cf';
-const ACCENT_VAR = 'var(--hud-cyan)';
-const EDGE = '#d4cfc4';
-const INK_MUTED = '#7c7669';
 
 type Granularity = 'daily' | 'weekly' | 'monthly';
 type Metric = 'cost' | 'tokens' | 'requests';
@@ -158,28 +153,12 @@ function bucketByGranularity(
   return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
-function PanelChrome({ children }: { children: React.ReactNode }) {
+/** Inline mono readout: value in ink, label after — the panel's headline totals. */
+function Total({ value, label }: { value: string; label: string }) {
   return (
-    <section
-      className={`group ${NEUMORPHIC_TILE} p-6`}
-      style={
-        {
-          ['--panel-accent']: ACCENT_VAR,
-          boxShadow: glassyTileShadow({ withPanelAccentHalo: true }),
-        } as React.CSSProperties
-      }
-    >
-      {children}
-    </section>
-  );
-}
-
-function PanelHeading({ children }: { children?: React.ReactNode }) {
-  return (
-    <header className="mb-2 flex items-baseline justify-between">
-      <h3 className="font-serif text-lg text-[var(--ink)]">Anthropic API</h3>
-      {children}
-    </header>
+    <span>
+      <span className="text-[var(--sd-ink)]">{value}</span> {label}
+    </span>
   );
 }
 
@@ -205,31 +184,32 @@ export function AnthropicApiPanel({ result, requests }: Props) {
   if (!result.ok) {
     const looksLikeMissingKey = /key|configured|sign|admin/i.test(result.error);
     return (
-      <PanelChrome>
-        <PanelHeading />
-        {looksLikeMissingKey ? (
-          <p className="font-serif text-sm text-[var(--ink-muted)]">
-            Connect your Anthropic admin key in{' '}
-            <span className="font-mono text-[var(--ink)]">Settings</span> to see
-            API token usage, request counts, and spend trends.
-          </p>
-        ) : (
-          <p className="font-mono text-xs text-[var(--ink-muted)]">
-            Couldn&apos;t load Anthropic API usage. {result.error}
-          </p>
-        )}
-      </PanelChrome>
+      <DevPanel>
+        <DevPanelHeader eyebrow="Anthropic API" />
+        <div className="mt-3">
+          {looksLikeMissingKey ? (
+            <DevEmpty
+              heading="Admin key not connected"
+              body="Connect your Anthropic admin key in Settings to see API token usage, request counts, and spend trends."
+            />
+          ) : (
+            <p className="font-mono text-xs text-[var(--sd-ink-faint)]">
+              Couldn&apos;t load Anthropic API usage. {result.error}
+            </p>
+          )}
+        </div>
+      </DevPanel>
     );
   }
 
   if (usage.length === 0) {
     return (
-      <PanelChrome>
-        <PanelHeading />
-        <p className="font-serif text-sm text-[var(--ink-muted)]">
-          No API usage recorded yet.
-        </p>
-      </PanelChrome>
+      <DevPanel>
+        <DevPanelHeader eyebrow="Anthropic API" />
+        <div className="mt-3">
+          <DevEmpty heading="No API usage recorded yet" />
+        </div>
+      </DevPanel>
     );
   }
 
@@ -259,44 +239,27 @@ export function AnthropicApiPanel({ result, requests }: Props) {
   const active = metricMeta[activeMetric];
 
   return (
-    <PanelChrome>
-      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-y-2">
-        <h3 className="font-serif text-lg text-[var(--ink)]">Anthropic API</h3>
-        <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
-          <span>
-            <span className="text-[var(--ink)]">{formatUsd(totalCost)}</span>{' '}
-            spend
-          </span>
-          <span>
-            <span className="text-[var(--ink)]">{formatTokens(totalInput)}</span>{' '}
-            in
-          </span>
-          <span>
-            <span className="text-[var(--ink)]">
-              {formatTokens(totalOutput)}
-            </span>{' '}
-            out
-          </span>
-          {hasRequestData ? (
-            <span>
-              <span className="text-[var(--ink)]">
-                {formatCount(totalRequests)}
-              </span>{' '}
-              req
-            </span>
-          ) : (
-            <span title="Total tokens across input, output, and cache">
-              <span className="text-[var(--ink)]">
-                {formatTokens(totalTokens)}
-              </span>{' '}
-              tok
-            </span>
-          )}
-        </div>
-      </header>
+    <DevPanel>
+      <DevPanelHeader
+        eyebrow="Anthropic API"
+        right={
+          <div className="flex items-baseline gap-4 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
+            <Total value={formatUsd(totalCost)} label="spend" />
+            <Total value={formatTokens(totalInput)} label="in" />
+            <Total value={formatTokens(totalOutput)} label="out" />
+            {hasRequestData ? (
+              <Total value={formatCount(totalRequests)} label="req" />
+            ) : (
+              <span title="Total tokens across input, output, and cache">
+                <Total value={formatTokens(totalTokens)} label="tok" />
+              </span>
+            )}
+          </div>
+        }
+      />
 
       {/* Controls: what to plot (left) + how to bucket time (right). */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-2">
         <SegmentedControl
           ariaLabel="Metric"
           value={activeMetric}
@@ -330,48 +293,40 @@ export function AnthropicApiPanel({ result, requests }: Props) {
 
       <div style={{ width: '100%', height: 200 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={rows}
-            margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-          >
+          <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid
-              stroke={EDGE}
+              stroke={CHART.grid}
               strokeDasharray="2 4"
               vertical={false}
             />
             <XAxis
               dataKey="key"
               tickFormatter={(v) => formatBucketLabel(String(v), granularity)}
-              tick={{ fontSize: 10, fill: INK_MUTED }}
+              style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: CHART.axis }}
               axisLine={false}
               tickLine={false}
               minTickGap={20}
             />
             <YAxis
               tickFormatter={(v) => active.fmt(Number(v))}
-              tick={{ fontSize: 10, fill: INK_MUTED }}
+              style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: CHART.axis }}
               axisLine={false}
               tickLine={false}
               width={48}
             />
             <Tooltip
-              cursor={{ fill: 'rgba(34, 184, 207, 0.08)' }}
-              contentStyle={{
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--edge)',
-                borderRadius: 8,
-                fontSize: 11,
-              }}
-              labelFormatter={(v) =>
-                formatBucketLabel(String(v), granularity)
-              }
+              cursor={{ fill: 'color-mix(in srgb, var(--sd-accent) 10%, transparent)' }}
+              contentStyle={CHART.tooltip}
+              labelFormatter={(v) => formatBucketLabel(String(v), granularity)}
               formatter={(v) =>
                 [active.fmt(Number(v)), active.label] as [string, string]
               }
             />
             <Bar
               dataKey={active.dataKey as string}
-              fill={ACCENT_HEX}
+              fill={CHART.accent}
               radius={[2, 2, 0, 0]}
               isAnimationActive={false}
             />
@@ -382,11 +337,11 @@ export function AnthropicApiPanel({ result, requests }: Props) {
       {/* When the request-count source is unavailable, say so quietly rather
           than silently dropping a requested metric. */}
       {requests && !requests.ok ? (
-        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           Request counts unavailable — {requests.error}
         </p>
       ) : null}
-    </PanelChrome>
+    </DevPanel>
   );
 }
 
@@ -405,7 +360,7 @@ function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex items-center gap-0.5 border border-[var(--edge)] rounded-md p-0.5 bg-[var(--surface)]"
+      className="flex items-center gap-0.5 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] p-0.5"
     >
       {options.map(([v, label]) => (
         <button
@@ -414,10 +369,10 @@ function SegmentedControl<T extends string>({
           role="radio"
           aria-checked={value === v}
           onClick={() => onChange(v)}
-          className={`px-2.5 py-1 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors ${
+          className={`cursor-pointer rounded-sm px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors duration-150 ${
             value === v
-              ? 'bg-[var(--hud-cyan)]/15 text-[var(--ink)] ring-1 ring-inset ring-[var(--hud-cyan)]/40'
-              : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+              ? 'bg-[var(--sd-selected)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--sd-line)]'
+              : 'text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]'
           }`}
         >
           {label}
