@@ -29,6 +29,7 @@ import {
   type Routine,
   type StartupConfig,
 } from "@hyperpolymath/jarvis-core";
+import { JarvisIcon } from "@/components/ui/icons";
 import { JarvisClient, type JarvisSection } from "./JarvisClient";
 
 export const dynamic = "force-dynamic";
@@ -65,17 +66,24 @@ export default async function JarvisPage({
   const initialRoutines: Routine[] = routinesRes.success ? routinesRes.data : [];
 
   return (
-    <main className="relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <main className="relative min-h-full text-[var(--sd-ink)]" style={{ background: "var(--sd-app)" }}>
       <div className="mx-auto w-full max-w-[1160px] px-6 md:px-10 pt-10 pb-16">
-        <header className="mb-8">
-          <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-            JARVIS · Command
-          </p>
-          <h1 className="mt-1 font-serif text-4xl font-semibold text-[var(--ink)]">JARVIS</h1>
-          <p className="mt-3 max-w-[600px] font-serif text-[16px] leading-[1.55] text-[var(--ink-muted)]">
-            One home for the agent. Compose routines, shape its spoken voice, and set what it does
-            the moment it wakes — plus jump to everything it remembers about you.
-          </p>
+        <header className="mb-8 flex items-start gap-3.5">
+          <span className="inline-flex shrink-0 items-center justify-center pt-0.5">
+            <JarvisIcon size={30} />
+          </span>
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+              JARVIS · Command
+            </span>
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+              JARVIS<span className="text-[var(--sd-accent)]">.</span>
+            </h1>
+            <p className="mt-0.5 max-w-[600px] text-[13px] leading-snug text-[var(--sd-ink-dull)]">
+              One home for the agent. Compose routines, shape its spoken voice, and set what it does
+              the moment it wakes — plus jump to everything it remembers about you.
+            </p>
+          </div>
         </header>
 
         <JarvisClient

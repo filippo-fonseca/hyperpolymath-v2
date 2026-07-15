@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * PersonalityEditor — tune JARVIS's spoken voice.
+ * PersonalityEditor — tune JARVIS's spoken voice (Spacedrive register).
  *
  * A preset selector (Canon / Minimal / Storyteller), three dials as segmented
  * radio groups (formality, verbosity, wit), and a freeform custom-instructions
  * textarea. Save calls updatePersonalityConfig; the fetched config seeds the
  * form, and the Save button reflects pending + dirty state.
  *
- * The visual vocabulary matches the routines settings page: .glass-tile cards,
- * mono uppercase section labels, EB Garamond body, cyan accent on the active
- * segment. No new design language is invented here.
+ * sd form grammar: WidgetCard-v2 section plates, 11px uppercase mono headers,
+ * --sd-input fields, cyan-tint active segments. Single cyan accent, no glow.
  */
 
 import { useState } from "react";
@@ -108,11 +107,11 @@ export function PersonalityEditor({ initial }: Props) {
   const activePreset = PRESETS.find((p) => p.value === config.preset);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Preset */}
-      <section className="glass-tile rounded-xl p-6">
+      <SectionCard>
         <SectionLabel>Preset</SectionLabel>
-        <p className="mt-1 mb-4 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+        <p className="mt-1 mb-4 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
           A starting point for the voice. The dials below fine-tune it.
         </p>
         <div
@@ -129,23 +128,29 @@ export function PersonalityEditor({ initial }: Props) {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setConfig((c) => ({ ...c, preset: p.value }))}
-                className={cn(
-                  "flex flex-col items-start gap-1.5 rounded-lg border p-4 text-left",
-                  "transition-colors duration-150 ease-out cursor-pointer-always",
+                style={
                   active
-                    ? "border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)] bg-[color-mix(in_oklch,var(--hud-cyan)_6%,transparent)]"
-                    : "border-[var(--edge)] hover:border-[color-mix(in_oklch,var(--ink)_25%,transparent)]"
+                    ? {
+                        borderColor: "color-mix(in oklch, var(--sd-accent) 45%, transparent)",
+                        background: "color-mix(in oklch, var(--sd-accent) 8%, var(--sd-box))",
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "flex flex-col items-start gap-1.5 rounded-[10px] border p-4 text-left",
+                  "transition-colors duration-[140ms] ease-out cursor-pointer-always",
+                  !active && "border-[var(--sd-line)] hover:bg-[var(--sd-hover)]",
                 )}
               >
                 <span
                   className={cn(
-                    "font-serif text-[16px] font-semibold",
-                    active ? "text-[var(--hud-cyan)]" : "text-[var(--ink)]"
+                    "text-[15px] font-semibold",
+                    active ? "text-[var(--sd-accent)]" : "text-[var(--sd-ink)]",
                   )}
                 >
                   {p.label}
                 </span>
-                <span className="font-serif text-[13px] leading-[1.45] text-[var(--ink-muted)]">
+                <span className="text-[12.5px] leading-[1.45] text-[var(--sd-ink-dull)]">
                   {p.blurb}
                 </span>
               </button>
@@ -153,18 +158,18 @@ export function PersonalityEditor({ initial }: Props) {
           })}
         </div>
         {activePreset && (
-          <p className="mt-4 font-mono text-[11px] leading-[1.5] text-[var(--ink-muted)]">
-            Selected: <span className="text-[var(--ink)]">{activePreset.label}</span> —{" "}
+          <p className="mt-4 font-mono text-[11px] leading-[1.5] text-[var(--sd-ink-dull)]">
+            Selected: <span className="text-[var(--sd-ink)]">{activePreset.label}</span> —{" "}
             {activePreset.blurb}
           </p>
         )}
-      </section>
+      </SectionCard>
 
       {/* Dials */}
-      <section className="glass-tile rounded-xl p-6 space-y-6">
+      <SectionCard className="space-y-6">
         <div>
           <SectionLabel>Voice dials</SectionLabel>
-          <p className="mt-1 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+          <p className="mt-1 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
             Nudge the tone independent of the preset.
           </p>
         </div>
@@ -190,12 +195,12 @@ export function PersonalityEditor({ initial }: Props) {
           value={config.wit}
           onChange={(v) => setConfig((c) => ({ ...c, wit: v }))}
         />
-      </section>
+      </SectionCard>
 
       {/* Custom instructions */}
-      <section className="glass-tile rounded-xl p-6">
+      <SectionCard>
         <SectionLabel>Custom instructions</SectionLabel>
-        <p className="mt-1 mb-3 font-serif text-[14px] leading-[1.5] text-[var(--ink-muted)]">
+        <p className="mt-1 mb-3 text-[13.5px] leading-[1.5] text-[var(--sd-ink-dull)]">
           Freeform directives layered on top of the dials. Optional — leave blank
           for none.
         </p>
@@ -210,17 +215,18 @@ export function PersonalityEditor({ initial }: Props) {
           maxLength={2000}
           rows={4}
           placeholder="e.g. Call me by my first name. Never open with a greeting. Prefer metric units."
+          style={{ background: "var(--sd-input)" }}
           className={cn(
-            "w-full resize-y rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] px-3.5 py-3",
-            "font-serif text-[15px] leading-[1.55] text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
-            "focus:outline-none focus:border-[color-mix(in_oklch,var(--hud-cyan)_45%,transparent)]",
-            "transition-colors duration-150 ease-out"
+            "w-full resize-y rounded-[10px] border border-[var(--sd-line)] px-3.5 py-3",
+            "text-[14px] leading-[1.55] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)]",
+            "focus:outline-none focus:border-[var(--sd-accent)]",
+            "transition-colors duration-[140ms] ease-out",
           )}
         />
-        <p className="mt-1.5 text-right font-mono text-[10px] text-[var(--ink-muted)]">
+        <p className="mt-1.5 text-right font-mono text-[10px] text-[var(--sd-ink-faint)]">
           {(config.customInstructions ?? "").length} / 2000
         </p>
-      </section>
+      </SectionCard>
 
       {/* Save bar */}
       <div className="flex items-center gap-3">
@@ -229,10 +235,10 @@ export function PersonalityEditor({ initial }: Props) {
           onClick={handleSave}
           disabled={pending || !dirty}
           className={cn(
-            "inline-flex items-center gap-2 rounded-md bg-[var(--ink)] px-4 py-2",
-            "font-mono text-[12px] uppercase tracking-[0.06em] text-[var(--canvas)]",
+            "sd-btn-solid inline-flex items-center gap-2 rounded-[8px] px-4 py-2",
+            "font-mono text-[12px] uppercase tracking-[0.06em]",
             "transition-opacity duration-100 cursor-pointer-always",
-            "hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            "disabled:opacity-40 disabled:cursor-not-allowed",
           )}
         >
           {pending ? (
@@ -244,7 +250,7 @@ export function PersonalityEditor({ initial }: Props) {
           )}
         </button>
         {justSaved && !dirty && (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--hud-cyan)]">
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-accent)]">
             <Check size={13} /> Saved
           </span>
         )}
@@ -256,9 +262,29 @@ export function PersonalityEditor({ initial }: Props) {
   );
 }
 
+function SectionCard({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={cn(
+        "rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] p-6",
+        "dark:border-white/[0.06] dark:[box-shadow:rgba(255,255,255,0.09)_0_1px_0_inset]",
+        className,
+      )}
+    >
+      {children}
+    </section>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
       {children}
     </p>
   );
@@ -280,13 +306,14 @@ function Dial<T extends string>({
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <span className="font-serif text-[15px] font-medium text-[var(--ink)]">{label}</span>
-        <span className="font-serif text-[13px] text-[var(--ink-muted)]">{hint}</span>
+        <span className="text-[14px] font-medium text-[var(--sd-ink)]">{label}</span>
+        <span className="text-[12.5px] text-[var(--sd-ink-dull)]">{hint}</span>
       </div>
       <div
         role="radiogroup"
         aria-label={label}
-        className="inline-flex w-full items-center gap-1 rounded-lg border border-[var(--edge)] bg-[var(--surface-raised)] p-1"
+        style={{ background: "var(--sd-input)" }}
+        className="inline-flex w-full items-center gap-1 rounded-[10px] border border-[var(--sd-line)] p-1"
       >
         {options.map((o) => {
           const active = value === o.value;
@@ -297,13 +324,21 @@ function Dial<T extends string>({
               role="radio"
               aria-checked={active}
               onClick={() => onChange(o.value)}
-              className={cn(
-                "flex-1 rounded-md px-3 h-8",
-                "font-mono text-[11px] uppercase tracking-[0.06em]",
-                "transition-colors duration-150 ease-out cursor-pointer-always",
+              style={
                 active
-                  ? "bg-[color-mix(in_oklch,var(--hud-cyan)_12%,transparent)] text-[var(--hud-cyan)] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--hud-cyan)_28%,transparent)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                  ? {
+                      background: "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
+                      boxShadow: "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 30%, transparent)",
+                    }
+                  : undefined
+              }
+              className={cn(
+                "flex-1 rounded-[7px] px-3 h-8",
+                "font-mono text-[11px] uppercase tracking-[0.06em]",
+                "transition-colors duration-[140ms] ease-out cursor-pointer-always",
+                active
+                  ? "text-[var(--sd-accent)]"
+                  : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
               )}
             >
               {o.label}

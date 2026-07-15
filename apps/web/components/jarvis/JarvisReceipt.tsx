@@ -28,13 +28,15 @@ import type { ScrollbackAction } from "./jarvis-types";
 import { useUndoCountdown } from "./use-undo-countdown";
 
 /**
- * JARVIS receipt card (July 2026 redesign).
+ * JARVIS receipt card (Spacedrive register).
  *
- * A single softly-extruded neumorphic surface per action, tinted by an
- * inset intent chip. Cyan is a hover/focus accent only. Undo folds into
- * a fading pill plus a hairline that depletes across the bottom edge.
- * The data contract (ScrollbackAction) and undo wiring in JarvisScrollback
- * are untouched — only the presentation moves.
+ * A single solid --sd-box plate per action with a hairline border — no blur,
+ * no glass bevels, no glow. The intent chip is a flat sd inset pill; a single
+ * cyan accent marks actions, functional red (--ink-coral) marks deletes/errors,
+ * and passive finds stay neutral. Undo folds into a cyan pill plus a hairline
+ * that depletes across the bottom edge. The data contract (ScrollbackAction)
+ * and undo wiring in JarvisScrollback are untouched — only the presentation
+ * moves. The .receipt-* classes are retuned additively in globals.css.
  */
 
 type IntentMeta = {
@@ -43,24 +45,27 @@ type IntentMeta = {
   ink: string;
 };
 
+// Single cyan accent (UI-CONTRACT §0): every intent chip speaks --sd-accent,
+// except destructive deletes (functional red --ink-coral) and passive finds
+// (neutral --sd-ink-faint — a lookup is not an accent-worthy action).
 const INTENT_META = {
-  create_task: { label: "Task", icon: ListTodo, ink: "var(--ink-amber)" },
-  create_capture: { label: "Capture", icon: FileText, ink: "var(--ink-sage)" },
-  create_event: { label: "Event", icon: CalendarDays, ink: "var(--ink-coral)" },
-  remember_fact: { label: "Memory", icon: Brain, ink: "var(--hud-cyan-light)" },
-  ask_clarification: { label: "Question", icon: HelpCircle, ink: "var(--hud-cyan-light)" },
-  update_task: { label: "Update task", icon: Edit3, ink: "var(--ink-amber)" },
+  create_task: { label: "Task", icon: ListTodo, ink: "var(--sd-accent)" },
+  create_capture: { label: "Capture", icon: FileText, ink: "var(--sd-accent)" },
+  create_event: { label: "Event", icon: CalendarDays, ink: "var(--sd-accent)" },
+  remember_fact: { label: "Memory", icon: Brain, ink: "var(--sd-accent)" },
+  ask_clarification: { label: "Question", icon: HelpCircle, ink: "var(--sd-accent)" },
+  update_task: { label: "Update task", icon: Edit3, ink: "var(--sd-accent)" },
   delete_task: { label: "Delete task", icon: Trash2, ink: "var(--ink-coral)" },
-  update_capture: { label: "Update capture", icon: Edit3, ink: "var(--ink-amber)" },
+  update_capture: { label: "Update capture", icon: Edit3, ink: "var(--sd-accent)" },
   delete_capture: { label: "Delete capture", icon: Trash2, ink: "var(--ink-coral)" },
-  update_event: { label: "Update event", icon: Edit3, ink: "var(--ink-amber)" },
+  update_event: { label: "Update event", icon: Edit3, ink: "var(--sd-accent)" },
   delete_event: { label: "Delete event", icon: Trash2, ink: "var(--ink-coral)" },
-  find_tasks: { label: "Find tasks", icon: Search, ink: "var(--ink-muted)" },
-  find_captures: { label: "Find captures", icon: Search, ink: "var(--ink-muted)" },
-  find_events: { label: "Find events", icon: Search, ink: "var(--ink-muted)" },
-  find_people: { label: "Find people", icon: Search, ink: "var(--ink-muted)" },
-  create_person: { label: "Person", icon: UserPlus, ink: "var(--ink-sage)" },
-  link_people: { label: "Linked", icon: Link2, ink: "var(--hud-cyan-light)" },
+  find_tasks: { label: "Find tasks", icon: Search, ink: "var(--sd-ink-faint)" },
+  find_captures: { label: "Find captures", icon: Search, ink: "var(--sd-ink-faint)" },
+  find_events: { label: "Find events", icon: Search, ink: "var(--sd-ink-faint)" },
+  find_people: { label: "Find people", icon: Search, ink: "var(--sd-ink-faint)" },
+  create_person: { label: "Person", icon: UserPlus, ink: "var(--sd-accent)" },
+  link_people: { label: "Linked", icon: Link2, ink: "var(--sd-accent)" },
 } as const satisfies Record<string, IntentMeta>;
 
 interface Props {
@@ -96,7 +101,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
         {!shouldReduce ? <div className="receipt-shimmer" aria-hidden="true" /> : null}
         <div className="relative flex items-center gap-2">
           <IntentChip meta={meta} icon={Icon} />
-          <span className="font-mono text-[11px] tracking-[0.06em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] tracking-[0.06em] text-[var(--sd-ink-dull)]">
             queued
             <AnimatedDots reduced={shouldReduce ?? false} />
           </span>
@@ -247,11 +252,11 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
   const dataStatus = isError ? "error" : "done";
 
   const titleCls = cn(
-    "font-serif leading-snug",
+    "leading-snug",
     variant === "compact" ? "text-[14px]" : "text-[15px]",
-    undone && "line-through text-[var(--ink-muted)]"
+    undone && "line-through text-[var(--sd-ink-dull)]"
   );
-  const metaCls = "font-mono text-[11px] tracking-[0.02em] text-[var(--ink-muted)] mt-1";
+  const metaCls = "font-mono text-[11px] tracking-[0.02em] text-[var(--sd-ink-dull)] mt-1";
 
   return (
     <motion.div
@@ -294,13 +299,13 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {navHref ? (
             <ArrowUpRight
               className="h-3.5 w-3.5 opacity-0 transition-opacity duration-150 group-hover/receipt:opacity-100 shrink-0"
-              style={{ color: "var(--hud-cyan)" }}
+              style={{ color: "var(--sd-accent)" }}
               aria-hidden="true"
             />
           ) : null}
         </div>
         {undone ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
             Undone
           </span>
         ) : undoEligible ? (
@@ -412,30 +417,30 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                       }}
                       className={cn(
                         "flex w-full items-center gap-2 text-left rounded-md px-1.5 py-1 -mx-1.5",
-                        "hover:bg-[color-mix(in_oklch,var(--hud-cyan)_8%,transparent)]",
+                        "hover:bg-[color-mix(in_oklch,var(--sd-accent)_8%,transparent)]",
                         "transition-colors duration-150"
                       )}
                     >
                       <code className="font-mono text-[10px] opacity-60 shrink-0">
                         {rowId.slice(0, 8)}
                       </code>
-                      <span className="font-serif truncate">{label}</span>
+                      <span className="truncate">{label}</span>
                     </button>
                   ) : (
                     <div
                       key={rowId || idx}
                       className="flex items-center gap-2 px-1.5 py-1 -mx-1.5"
-                      style={{ color: "var(--ink-muted)" }}
+                      style={{ color: "var(--sd-ink-dull)" }}
                     >
                       <code className="font-mono text-[10px] opacity-60 shrink-0">
                         {rowId.slice(0, 8)}
                       </code>
-                      <span className="font-serif truncate">{label}</span>
+                      <span className="truncate">{label}</span>
                     </div>
                   );
                 })}
               {((receipt.matches ?? []) as unknown[]).length === 0 && (
-                <em className="font-mono text-[11px]" style={{ color: "var(--ink-muted)" }}>
+                <em className="font-mono text-[11px]" style={{ color: "var(--sd-ink-dull)" }}>
                   no matches
                 </em>
               )}
@@ -459,25 +464,25 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                       <Fragment key={field}>
                         <dt
                           className="font-mono text-[11px] tracking-[0.02em] self-center uppercase"
-                          style={{ color: "var(--ink-muted)" }}
+                          style={{ color: "var(--sd-ink-dull)" }}
                         >
                           {prettifyFieldName(field)}
                         </dt>
-                        <dd className="font-serif text-sm leading-snug">
+                        <dd className="text-sm leading-snug">
                           {hasBefore ? (
                             <>
                               <span
                                 className="line-through"
-                                style={{ color: "var(--ink-muted)" }}
+                                style={{ color: "var(--sd-ink-dull)" }}
                               >
                                 {fmtChangeValue(field, beforeVal)}
                               </span>
-                              <span className="mx-1.5 text-[var(--ink-muted)]">→</span>
+                              <span className="mx-1.5 text-[var(--sd-ink-dull)]">→</span>
                             </>
                           ) : (
-                            <span className="text-[var(--ink-muted)] mr-1">→</span>
+                            <span className="text-[var(--sd-ink-dull)] mr-1">→</span>
                           )}
-                          <span style={{ color: "var(--ink-amber)" }}>
+                          <span style={{ color: "var(--sd-accent)" }}>
                             {fmtChangeValue(field, value)}
                           </span>
                         </dd>
@@ -488,7 +493,7 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
                     <Fragment>
                       <dt
                         className="font-mono text-[11px] col-span-2"
-                        style={{ color: "var(--ink-muted)" }}
+                        style={{ color: "var(--sd-ink-dull)" }}
                       >
                         {String(receipt.title ?? receipt.content ?? receipt.id ?? "")}
                       </dt>
@@ -506,14 +511,14 @@ export function JarvisReceipt({ action, variant = "default", onUndo }: Props) {
           {action.name.startsWith("delete_") ? (
             <div className="flex items-baseline gap-2">
               <span
-                className="font-serif line-through"
-                style={{ color: "color-mix(in oklch, var(--ink-coral) 70%, var(--ink-muted))" }}
+                className="line-through"
+                style={{ color: "color-mix(in oklch, var(--ink-coral) 70%, var(--sd-ink-dull))" }}
               >
                 {String(receipt.title ?? receipt.content ?? "(deleted)")}
               </span>
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.08em]"
-                style={{ color: "var(--ink-muted)" }}
+                style={{ color: "var(--sd-ink-dull)" }}
               >
                 deleted
               </span>
@@ -679,7 +684,7 @@ function SuggestedFactReceipt({
   const suggestedChip: IntentMeta = {
     label: "Suggested memory",
     icon: Sparkles,
-    ink: "var(--hud-cyan-light)",
+    ink: "var(--sd-accent)",
   };
 
   return (
@@ -693,11 +698,11 @@ function SuggestedFactReceipt({
     >
       <div className="relative flex items-center justify-between gap-3">
         <IntentChip meta={suggestedChip} icon={Sparkles} />
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
           {receipt.type}
         </span>
       </div>
-      <div className="relative font-serif text-[15px] mt-2 leading-snug">
+      <div className="relative text-[15px] mt-2 leading-snug">
         <strong className="font-semibold">{receipt.key}</strong>
         {": "}
         {receipt.value}
@@ -721,7 +726,7 @@ function SuggestedFactReceipt({
         >
           Discard
         </Button>
-        <span className="ml-auto font-mono text-[11px] text-[var(--ink-muted)]">
+        <span className="ml-auto font-mono text-[11px] text-[var(--sd-ink-dull)]">
           {kept ? "kept" : seconds > 0 ? `auto-keep in ${seconds}s` : "kept"}
         </span>
       </div>

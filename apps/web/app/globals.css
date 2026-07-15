@@ -1916,3 +1916,63 @@ select:focus-visible,
     rgba(255, 255, 255, 0.09) 0 1px 0 inset,
     0 24px 60px rgba(0, 0, 0, 0.5);
 }
+
+/* =====================================================================
+   sesh-sd3 unit-jarvis — JARVIS receipt cards to the Spacedrive register.
+   ADD-ONLY override: the .receipt-* classes are consumed ONLY by
+   components/jarvis/JarvisReceipt.tsx (this unit's fence). These rules sit
+   after the Phase-6.1 glass definitions above and win the cascade, retiring
+   the backdrop-blur + glass bevels + cyan glow halo for a solid --sd-box
+   plate with a hairline. Single cyan accent; the intent chip drops its white
+   bevel for a flat sd inset. The undo pill/hairline/shimmer already speak
+   --hud-cyan (=== --sd-accent) so they carry over unchanged.
+   ===================================================================== */
+.receipt-card {
+  background: var(--sd-box);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: none;
+  transition:
+    border-color 140ms var(--ease-out-quart),
+    background-color 140ms var(--ease-out-quart);
+}
+.dark .receipt-card {
+  box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
+}
+.receipt-card:hover {
+  border-color: color-mix(in oklch, var(--sd-accent) 40%, var(--sd-line));
+  box-shadow: none;
+}
+.dark .receipt-card:hover {
+  border-color: color-mix(in oklch, var(--sd-accent) 40%, var(--sd-line));
+  box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset;
+}
+.receipt-card:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklch, var(--sd-accent) 55%, var(--sd-line));
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--sd-accent) 30%, transparent);
+}
+.receipt-card[data-status="error"] {
+  border-left: 2px solid color-mix(in oklch, var(--ink-coral) 80%, transparent);
+}
+
+/* Intent chip — flat sd inset pill. Drops the white top bevel; keeps the
+   per-intent --chip-ink for the glyph tint (constrained by the JSX to cyan
+   for actions, coral for deletes, faint ink for passive finds). */
+.receipt-chip {
+  --chip-ink: var(--sd-ink-dull);
+  padding: 3px 8px 3px 6px;
+  color: var(--sd-ink-dull);
+  background: var(--sd-input);
+  box-shadow: inset 0 0 0 1px var(--sd-line);
+}
+.dark .receipt-chip {
+  color: var(--sd-ink-dull);
+  background: var(--sd-input);
+  box-shadow: inset 0 0 0 1px var(--sd-line);
+}
+.receipt-chip svg {
+  color: var(--chip-ink);
+}
