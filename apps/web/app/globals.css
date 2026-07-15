@@ -1705,6 +1705,16 @@ select:focus-visible,
   line-height: 1rem;
 }
 
+/* Sidebar column surface (UI-CONTRACT §1). A real class rather than the
+   `bg-[var(--sd-sidebar)]` arbitrary utility: that utility appeared ONLY in
+   Sidebar.tsx and was dropped by the Tailwind scan gap, so the panel rendered
+   transparent over whatever scrolled beneath it. Resolving --sd-sidebar here
+   guarantees the darkest sd surface in both themes (the var is aliased per
+   theme in :root / .dark). */
+.sd-sidebar-surface {
+  background: var(--sd-sidebar);
+}
+
 /* Rows dissolve into the footer instead of hard-clipping at the scroll edge
    (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
 .mask-fade-out {
