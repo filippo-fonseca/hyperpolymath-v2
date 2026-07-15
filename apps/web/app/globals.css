@@ -1328,6 +1328,72 @@ select:focus-visible,
   animation: jarvis-pulse 1.1s ease-in-out infinite;
 }
 
+/* ── unit-orb-sfx: HUD pill brand-mark + state-indicator micro-motion ──
+   All transform/opacity only, short, reduced-motion guarded (below). */
+
+/* Pill enter/exit: fade + 4px slide, 150ms. */
+@keyframes orb-sfx-pill-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes orb-sfx-pill-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(4px); }
+}
+.orb-sfx-pill-enter { animation: orb-sfx-pill-enter 150ms ease-out both; }
+.orb-sfx-pill-leave { animation: orb-sfx-pill-leave 150ms ease-in both; }
+
+/* Brand mark: a single 2deg tilt-settle on each state change. */
+@keyframes orb-sfx-bird-tilt {
+  0% { transform: rotate(0deg); }
+  45% { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+.orb-sfx-bird {
+  display: inline-flex;
+  transform-origin: 50% 65%;
+  animation: orb-sfx-bird-tilt 240ms ease-out;
+}
+
+/* Thinking dots — three staggered bounces in the pill's currentColor. */
+@keyframes orb-sfx-dot {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+.orb-sfx-dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: orb-sfx-dot 900ms ease-in-out infinite;
+}
+
+/* Recording/speaking mini equalizer — transform-only scaleY on 11px bars. */
+@keyframes orb-sfx-bar {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+.orb-sfx-bar {
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: orb-sfx-bar 700ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-sfx-pill-enter,
+  .orb-sfx-pill-leave,
+  .orb-sfx-bird,
+  .orb-sfx-dot,
+  .orb-sfx-bar {
+    animation: none !important;
+  }
+}
+
 /* HudCoreBubble — dramatic wake burst when JARVIS first hears the user
    addressing it, plus an ongoing pulsate while mic is active. The bubble
    takes over as the focal point (scale + bright glow); the parent
