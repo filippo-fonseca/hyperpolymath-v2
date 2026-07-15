@@ -64,9 +64,9 @@ export function MicDevicePicker({ value, onChange, disabled }: Props) {
       disabled={disabled || devices.length === 0}
       aria-label="Microphone device"
       className={cn(
- "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
- "text-sm text-[var(--ink)]",
- "focus:outline-none focus:border-[var(--edge-hud)]",
+ "w-full rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2",
+ "text-sm text-[var(--sd-ink)]",
+ "focus:outline-none focus:border-[var(--sd-accent)]",
  "transition-colors duration-150 ease-out",
  "disabled:opacity-50 disabled:cursor-not-allowed",
       )}

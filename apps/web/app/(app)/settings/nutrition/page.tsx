@@ -19,17 +19,17 @@ export default async function NutritionSettingsPage() {
   const targets = await getNutritionTargets(user.id);
 
   return (
-    <main className="min-h-screen bg-[var(--canvas)] px-6 py-10">
+    <main className="min-h-screen bg-[var(--sd-app)] px-6 py-10">
       <div className="mx-auto max-w-2xl">
         <header className="mb-8">
           <h1
-            className="text-[28px] leading-[1.2] text-[var(--ink)]"
+            className="text-[28px] leading-[1.2] text-[var(--sd-ink)]"
             style={{ fontFamily: "var(--)" }}
           >
             Nutrition targets
           </h1>
           <p
-            className="mt-2 text-[16px] leading-[1.5] text-[var(--ink-muted)]"
+            className="mt-2 text-[16px] leading-[1.5] text-[var(--sd-ink-dull)]"
             style={{ fontFamily: "var(--)" }}
           >
             Set your daily calorie target and the macro split.

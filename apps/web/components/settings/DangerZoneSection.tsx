@@ -45,7 +45,7 @@ export function DangerZoneSection({ email }: { email: string }) {
         <h3 className="text-2xl font-semibold text-[var(--ink-coral)]">
           Delete account
         </h3>
-        <p className="text-sm text-[var(--ink-muted)]">
+        <p className="text-sm text-[var(--sd-ink-dull)]">
           Permanently erase your account and everything in it: tasks, captures, projects, notes,
           calendar connection, and all other data. This cannot be undone.
         </p>
@@ -60,9 +60,9 @@ export function DangerZoneSection({ email }: { email: string }) {
           <div className="space-y-2">
             <label
               htmlFor="delete-account-confirm"
-              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--ink-muted)]"
+              className="block font-mono text-[10.5px] uppercase tracking-[0.18em] text-[var(--sd-ink-dull)]"
             >
-              Type <span className="text-[var(--ink)] normal-case tracking-normal">{email}</span> to
+              Type <span className="text-[var(--sd-ink)] normal-case tracking-normal">{email}</span> to
               confirm
             </label>
             <Input

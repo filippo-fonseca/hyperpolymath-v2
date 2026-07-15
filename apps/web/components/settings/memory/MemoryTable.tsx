@@ -55,26 +55,26 @@ function FactCard({
   const sourceLabel = fact.source === "user_explicit" ? "you" : "jarvis";
   return (
     <article
-      className="relative bg-[var(--surface)] p-4"
+      className="relative bg-[var(--sd-box)] p-4"
       style={{
-        borderLeft: "1px solid var(--edge)",
+        borderLeft: "1px solid var(--sd-line)",
         boxShadow: "0 0 24px var(--hud-cyan-glow-soft)",
       }}
     >
       {/* Metadata top row — mono uppercase tracking-wide. */}
-      <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] mb-2">
+      <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] mb-2">
         FACT · {fact.type}
       </div>
 
       {/* Key + body — serif (content register per UI-SPEC §5d). */}
-      <div className="text-base text-[var(--ink)] leading-snug">
+      <div className="text-base text-[var(--sd-ink)] leading-snug">
         <span className="font-semibold">{fact.key}</span>
-        <span className="text-[var(--ink-muted)] mx-2">·</span>
+        <span className="text-[var(--sd-ink-dull)] mx-2">·</span>
         <span>{fact.value}</span>
       </div>
 
       {/* Source row — mono dim. */}
-      <div className="font-mono text-[11px] text-[var(--ink-muted)] mt-2 opacity-70 flex items-center gap-2 flex-wrap">
+      <div className="font-mono text-[11px] text-[var(--sd-ink-dull)] mt-2 opacity-70 flex items-center gap-2 flex-wrap">
         <span>{sourceLabel}</span>
         <span aria-hidden="true">·</span>
         <span>
@@ -90,8 +90,8 @@ function FactCard({
           type="button"
           onClick={onEdit}
           aria-label="Edit fact"
-          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always px-2 py-1 transition-colors duration-100 ease-out"
-          style={{ border: "1px solid var(--edge-hud)" }}
+          className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] cursor-pointer-always px-2 py-1 transition-colors duration-100 ease-out"
+          style={{ border: "1px solid var(--sd-accent)" }}
         >
           Edit
         </button>
@@ -170,7 +170,7 @@ export function MemoryTable({ userId, initialFacts }: Props) {
           if (list.length === 0) return null;
           return (
             <section key={type} className="space-y-3">
-              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
                 {TYPE_LABELS[type]}
               </h2>
               <div className="space-y-3">

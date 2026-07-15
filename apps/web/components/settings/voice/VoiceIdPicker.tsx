@@ -68,8 +68,8 @@ export function VoiceIdPicker({ value, onChange, disabled }: Props) {
             className={cn(
  "flex items-center justify-between gap-3 rounded-md border px-4 py-3 transition-colors duration-150 ease-out",
               isSelected
-                ? "border-[var(--hud-cyan)] bg-[var(--surface-raised)]"
-                : "border-[var(--edge)] bg-[var(--surface)] hover:border-[var(--edge-hud)]",
+                ? "border-[var(--sd-accent)] bg-[var(--sd-hover)]"
+                : "border-[var(--sd-line)] bg-[var(--sd-box)] hover:border-[var(--sd-accent)]",
               disabled && "opacity-50 cursor-not-allowed",
             )}
           >
@@ -87,16 +87,16 @@ export function VoiceIdPicker({ value, onChange, disabled }: Props) {
                 className={cn(
  "h-4 w-4 rounded-full border-2 flex-shrink-0 transition-colors duration-150",
                   isSelected
-                    ? "border-[var(--hud-cyan)] bg-[var(--hud-cyan)]"
-                    : "border-[var(--edge-hud)] bg-transparent",
+                    ? "border-[var(--sd-accent)] bg-[var(--sd-accent)]"
+                    : "border-[var(--sd-accent)] bg-transparent",
                 )}
                 aria-hidden="true"
               />
               <span className="min-w-0">
-                <span className="font-semibold text-sm text-[var(--ink)]">
+                <span className="font-semibold text-sm text-[var(--sd-ink)]">
                   {v.name}
                 </span>
-                <span className="text-sm text-[var(--ink-muted)] ml-2">
+                <span className="text-sm text-[var(--sd-ink-dull)] ml-2">
                   {v.desc}
                 </span>
               </span>
@@ -107,7 +107,7 @@ export function VoiceIdPicker({ value, onChange, disabled }: Props) {
               disabled={disabled || auditioning !== null}
               className={cn(
  "flex-shrink-0 font-mono text-xs uppercase tracking-wider px-3 py-1 rounded border transition-colors duration-150",
- "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
+ "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
  "disabled:opacity-40 disabled:cursor-not-allowed",
               )}
             >

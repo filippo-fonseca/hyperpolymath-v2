@@ -43,7 +43,7 @@ export function VoiceSettingsSection() {
   // Same pattern as ThemeToggle.tsx (ThemeToggle mount-guard, lines 35-45).
   if (!mounted) {
     return (
-      <Card className="p-6 space-y-4 hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out">
+      <Card className="p-6 space-y-4 hover:border-[var(--sd-accent)] transition-colors duration-150 ease-out">
         <div className="h-64" aria-hidden="true" />
       </Card>
     );
@@ -119,13 +119,13 @@ export function VoiceSettingsSection() {
 
   return (
     <>
-      <Card className="p-6 space-y-6 hover:border-[var(--edge-hud)] transition-colors duration-150 ease-out">
+      <Card className="p-6 space-y-6 hover:border-[var(--sd-accent)] transition-colors duration-150 ease-out">
         {/* Section header */}
         <div>
-          <h2 className="text-2xl font-semibold text-[var(--ink)]">
+          <h2 className="text-2xl font-semibold text-[var(--sd-ink)]">
             Voice
           </h2>
-          <p className="text-base text-[var(--ink-muted)] mt-1">
+          <p className="text-base text-[var(--sd-ink-dull)] mt-1">
             Speak to JARVIS. Hear receipts spoken aloud in a British voice.
           </p>
         </div>
@@ -133,10 +133,10 @@ export function VoiceSettingsSection() {
         {/* 1. Enable voice toggle */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--sd-ink)]">
               Enable voice
             </p>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--sd-ink-dull)]">
               Enables wake-word detection and spoken receipts.
             </p>
           </div>
@@ -148,8 +148,8 @@ export function VoiceSettingsSection() {
             className={cn(
  "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.voiceEnabled
-                ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
-                : "bg-[var(--surface-raised)] border-[var(--edge)]",
+                ? "bg-[var(--sd-accent)] border-[var(--sd-accent)]"
+                : "bg-[var(--sd-hover)] border-[var(--sd-line)]",
             )}
           >
             <span
@@ -165,13 +165,13 @@ export function VoiceSettingsSection() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-[var(--edge)]" />
+        <div className="border-t border-[var(--sd-line)]" />
 
         {/* 2. Wake-word phrase */}
         <div className="space-y-2">
           <label
             htmlFor="wake-word-phrase"
-            className="block text-base text-[var(--ink)]"
+            className="block text-base text-[var(--sd-ink)]"
           >
             Wake-word phrase
           </label>
@@ -183,21 +183,21 @@ export function VoiceSettingsSection() {
             disabled={voiceDisabled}
             placeholder="Hey Jarvis"
             className={cn(
- "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
- "text-sm text-[var(--ink)] placeholder:text-[var(--ink-muted)]",
- "focus:outline-none focus:border-[var(--edge-hud)]",
+ "w-full rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2",
+ "text-sm text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-dull)]",
+ "focus:outline-none focus:border-[var(--sd-accent)]",
  "transition-colors duration-150 ease-out",
  "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
           />
-          <p className="text-xs text-[var(--ink-muted)]">
+          <p className="text-xs text-[var(--sd-ink-dull)]">
             Only <strong>&ldquo;Hey Jarvis&rdquo;</strong> is pre-trained.
             Custom phrases require a .ppn file from{" "}
             <a
               href="https://console.picovoice.ai/"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-[var(--ink)]"
+              className="underline hover:text-[var(--sd-ink)]"
             >
               Picovoice Console
             </a>
@@ -208,10 +208,10 @@ export function VoiceSettingsSection() {
         {/* 3. Clap-clap activation */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--sd-ink)]">
               Clap activation
             </p>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--sd-ink-dull)]">
               Clap twice in quick succession to activate JARVIS.
             </p>
           </div>
@@ -226,8 +226,8 @@ export function VoiceSettingsSection() {
             className={cn(
  "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.clapEnabled && !voiceDisabled
-                ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
-                : "bg-[var(--surface-raised)] border-[var(--edge)]",
+                ? "bg-[var(--sd-accent)] border-[var(--sd-accent)]"
+                : "bg-[var(--sd-hover)] border-[var(--sd-line)]",
               voiceDisabled && "opacity-50 cursor-not-allowed",
             )}
           >
@@ -249,7 +249,7 @@ export function VoiceSettingsSection() {
         <div className="space-y-2">
           <label
             htmlFor="tts-provider"
-            className="block text-base text-[var(--ink)]"
+            className="block text-base text-[var(--sd-ink)]"
           >
             TTS provider
           </label>
@@ -266,9 +266,9 @@ export function VoiceSettingsSection() {
             }
             disabled={voiceDisabled}
             className={cn(
- "w-full rounded-md border border-[var(--edge)] bg-[var(--surface)] px-3 py-2",
- "text-sm text-[var(--ink)]",
- "focus:outline-none focus:border-[var(--edge-hud)]",
+ "w-full rounded-md border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2",
+ "text-sm text-[var(--sd-ink)]",
+ "focus:outline-none focus:border-[var(--sd-accent)]",
  "transition-colors duration-150 ease-out",
  "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
@@ -281,8 +281,8 @@ export function VoiceSettingsSection() {
 
         {/* 5. Voice ID picker */}
         <div className="space-y-2">
-          <p className="text-base text-[var(--ink)]">Voice</p>
-          <p className="text-sm text-[var(--ink-muted)]">
+          <p className="text-base text-[var(--sd-ink)]">Voice</p>
+          <p className="text-sm text-[var(--sd-ink-dull)]">
             Choose a British voice for spoken receipts. Click Play to audition.
           </p>
           <VoiceIdPicker
@@ -295,13 +295,13 @@ export function VoiceSettingsSection() {
         {/* 6. Discreet mode */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-base text-[var(--ink)]">
+            <p className="text-base text-[var(--sd-ink)]">
               Discreet mode
             </p>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--sd-ink-dull)]">
               Silences voice output and disables wake-word. Text Console still
               works.{" "}
-              <kbd className="font-mono text-xs bg-[var(--surface-raised)] border border-[var(--edge)] px-1 py-0.5 rounded">
+              <kbd className="font-mono text-xs bg-[var(--sd-hover)] border border-[var(--sd-line)] px-1 py-0.5 rounded">
                 Cmd+Shift+J
               </kbd>{" "}
               still arms voice on demand.
@@ -319,8 +319,8 @@ export function VoiceSettingsSection() {
             className={cn(
  "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none",
               settings.discreetMode && !voiceDisabled
-                ? "bg-[var(--hud-cyan)] border-[var(--hud-cyan)]"
-                : "bg-[var(--surface-raised)] border-[var(--edge)]",
+                ? "bg-[var(--sd-accent)] border-[var(--sd-accent)]"
+                : "bg-[var(--sd-hover)] border-[var(--sd-line)]",
               voiceDisabled && "opacity-50 cursor-not-allowed",
             )}
           >
@@ -340,10 +340,10 @@ export function VoiceSettingsSection() {
 
         {/* 7. Mic device picker */}
         <div className="space-y-2">
-          <label className="block text-base text-[var(--ink)]">
+          <label className="block text-base text-[var(--sd-ink)]">
             Microphone
           </label>
-          <p className="text-sm text-[var(--ink-muted)]">
+          <p className="text-sm text-[var(--sd-ink-dull)]">
             Choose the input device for wake-word detection and voice commands.
           </p>
           <MicDevicePicker
@@ -353,7 +353,7 @@ export function VoiceSettingsSection() {
           />
         </div>
 
-        <div className="border-t border-[var(--edge)]" />
+        <div className="border-t border-[var(--sd-line)]" />
 
         {/* 8. Physical Extension Mode — hardware wake-word proxy
             (Arduino + DF2301Q via Node bridge). When ON, the browser
@@ -364,11 +364,11 @@ export function VoiceSettingsSection() {
           <div>
             <label
               htmlFor="physical-extension-toggle"
-              className="block text-base text-[var(--ink)]"
+              className="block text-base text-[var(--sd-ink)]"
             >
               Physical Extension Mode
             </label>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-[var(--sd-ink-dull)]">
               Use an external hardware wake-word device (Arduino + DF2301Q) as
               the trigger. When on, the browser stops ambient listening — the
               mic only acquires when the physical device fires.{" "}
