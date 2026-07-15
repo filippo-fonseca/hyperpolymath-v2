@@ -111,7 +111,7 @@ export function HabitDialog(props: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif">
+          <DialogTitle>
             {props.mode === "create" ? "New habit" : "Edit habit"}
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -124,7 +124,7 @@ export function HabitDialog(props: Props) {
         <div className="flex flex-col gap-4 mt-2">
           {/* Name */}
           <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Name
             </span>
             <Input
@@ -138,7 +138,7 @@ export function HabitDialog(props: Props) {
 
           {/* Description */}
           <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Description <span className="opacity-60">(optional)</span>
             </span>
             <Textarea
@@ -152,7 +152,7 @@ export function HabitDialog(props: Props) {
 
           {/* Schedule */}
           <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Schedule
             </span>
             <HabitFrequencySelector
@@ -161,10 +161,10 @@ export function HabitDialog(props: Props) {
             />
             <span
               className={cn(
-                "font-serif italic text-[12px]",
+                "text-[12px]",
                 noDaysSelected
                   ? "text-[var(--ink-coral)]"
-                  : "text-[var(--ink-muted)]",
+                  : "text-[var(--sd-ink-dull)]",
               )}
             >
               {noDaysSelected
@@ -179,11 +179,11 @@ export function HabitDialog(props: Props) {
 
           {/* Areas */}
           <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Areas <span className="opacity-60">(zero or more)</span>
             </span>
             {areas.length === 0 ? (
-              <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
+              <p className="text-[13px] text-[var(--sd-ink-dull)]">
                 No areas yet — create one from the sidebar first.
               </p>
             ) : (
@@ -203,13 +203,23 @@ export function HabitDialog(props: Props) {
                       }
                       aria-pressed={selected}
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md",
-                        "font-serif text-[13px]",
+                        "inline-flex items-center gap-1.5 rounded-md px-2 py-1",
+                        "text-[13px]",
                         "border transition-colors duration-150 ease-out cursor-pointer-always",
                         selected
-                          ? "border-[var(--ink-amber)] bg-[color-mix(in_oklch,var(--ink-amber)_14%,var(--surface))] text-[var(--ink)]"
-                          : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+                          ? "border-transparent text-[var(--sd-accent)]"
+                          : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:border-[color-mix(in_srgb,var(--sd-ink)_18%,var(--sd-line))] hover:text-[var(--sd-ink)]",
                       )}
+                      style={
+                        selected
+                          ? {
+                              borderColor:
+                                "color-mix(in srgb, var(--sd-accent) 40%, var(--sd-line))",
+                              background:
+                                "color-mix(in srgb, var(--sd-accent) 14%, var(--sd-input))",
+                            }
+                          : undefined
+                      }
                     >
                       {selected ? (
                         <Check size={12} className="shrink-0" />
