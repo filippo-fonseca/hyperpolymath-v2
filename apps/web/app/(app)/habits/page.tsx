@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/habits";
 import { HabitsClient } from "@/components/habits/HabitsClient";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
+import { HabitIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -51,17 +52,31 @@ export default async function HabitsPage() {
   ]);
 
   return (
-    <main className="min-h-full bg-[var(--canvas)] text-[var(--ink)]">
+    <main
+      className="min-h-full text-[var(--sd-ink)]"
+      style={{ background: "var(--sd-app)" }}
+    >
       <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-6 pb-20">
         <Breadcrumbs items={[{ label: "Habits" }]} className="mb-6" />
-        <header className="mb-8 space-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight text-[var(--ink)]">
-            Habits
-          </h1>
-          <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
-            “We are what we repeatedly do. Excellence, then, is not an act,
-            but a habit.” — Aristotle (via Will Durant)
-          </p>
+        <header className="mb-8 flex items-start gap-3.5">
+          <span className="inline-flex shrink-0 items-center justify-center pt-0.5">
+            <HabitIcon size={30} />
+          </span>
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)]">
+              Repetition · Streaks
+            </span>
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-[var(--sd-ink)]">
+              Habits<span className="text-[var(--sd-accent)]">.</span>
+            </h1>
+            <p className="mt-0.5 text-[13px] leading-snug text-[var(--sd-ink-dull)]">
+              We are what we repeatedly do. Excellence, then, is not an act,
+              but a habit.{" "}
+              <span className="text-[var(--sd-ink-faint)]">
+                — Aristotle (via Will Durant)
+              </span>
+            </p>
+          </div>
         </header>
 
         <HabitsClient
