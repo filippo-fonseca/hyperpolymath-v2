@@ -738,10 +738,10 @@ export function TasksClient({
         </button>
       </header>
 
-      {/* Toolbar: filters + view toggle in the Spacedrive translucent chrome
-          bar (.sd-pill-blur — saturated backdrop-blur over a 60%-alpha box, a
-          50%-alpha hairline). Filters render their own sd pills inside it. */}
-      <div className="sd-pill-blur flex items-center justify-between gap-4 mb-5 rounded-[8px] px-3 py-2">
+      {/* Toolbar: filters + view toggle in a solid Spacedrive chrome bar
+          (--sd-box fill, --sd-line hairline; no backdrop-blur per sd register).
+          Filters render their own sd pills inside it. */}
+      <div className="flex items-center justify-between gap-4 mb-5 rounded-[8px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-3 py-2">
         <TaskFilters projects={projects} />
         {/* Show / hide completed "lesno"tasks. Off by default per user spec —
             the kanban + list + day views all read from `filtered`, which

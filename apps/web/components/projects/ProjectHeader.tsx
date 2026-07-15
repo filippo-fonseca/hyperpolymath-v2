@@ -1,11 +1,13 @@
 "use client";
 
-import { updateProject } from "@/app/actions/projects";
+import { moveProjectToArea, updateProject } from "@/app/actions/projects";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
-import { ImagePlus, Settings2 } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { ChevronDown, ImagePlus, Settings2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { AreaPicker } from "./AreaPicker";
 import { BannerPicker } from "./BannerPicker";
 import { DynamicIcon } from "./DynamicIcon";
 import { IconPicker } from "./IconPicker";
@@ -93,6 +95,30 @@ export function ProjectHeader({
   allAreas,
 }: Props) {
   const [, startTransition] = useTransition();
+  const router = useRouter();
+
+  // Optimistic parent-area override for the inline badge picker. Holds the
+  // freshly-picked area so the badge label swaps instantly; cleared once the
+  // canonical `area` prop (re-fetched via router.refresh) catches up.
+  const [optimisticArea, setOptimisticArea] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (optimisticArea && area?.id === optimisticArea.id) setOptimisticArea(null);
+  }, [area?.id, optimisticArea]);
+
+  function handleAreaChange(newAreaId: string) {
+    const target = allAreas.find((a) => a.id === newAreaId);
+    if (!target) return;
+    setOptimisticArea(target);
+    startTransition(async () => {
+      const result = await moveProjectToArea({ projectId: project.id, newAreaId });
+      if (!result.success) {
+        toast.error(result.error);
+        setOptimisticArea(null);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(project.name);
@@ -166,6 +192,11 @@ export function ProjectHeader({
 
   const classMeta = project.isClass ? buildClassMeta(project) : "";
 
+  // The badge shows the optimistic pick first (name only — emoji is unknown
+  // until the canonical area re-fetches), otherwise the server-supplied area.
+  const displayedArea = optimisticArea ?? (area ? { id: area.id, name: area.name } : null);
+  const displayedEmoji = optimisticArea ? null : (area?.emoji ?? null);
+
   return (
     <>
       {/* Banner — flush, edge-to-edge, no rounded corners (UI-SPEC §5j) */}
@@ -201,28 +232,45 @@ export function ProjectHeader({
           md:px-12) so the title's left edge lines up exactly with the TASKS
           heading and kanban columns below. */}
       <div className="mx-auto w-full max-w-[1080px] px-8 md:px-12 pt-8 pb-4 flex flex-col gap-2">
-        {/* Area badge — small clickable pill above the title so the project's
-            place in the hierarchy is always one glance away. Renders nothing
-            when the area isn't supplied (e.g. server fetch failure). */}
-        {area ? (
-          <a
-            href={`/areas/${area.id}`}
-            className={cn(
-              "self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm",
-              "font-mono text-[11px] uppercase tracking-[0.08em]",
-              "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
-              "border border-[var(--sd-line)] hover:border-[var(--sd-accent)]",
-              "bg-[var(--sd-box)] hover:bg-[var(--sd-hover)]",
-              "transition-colors duration-150 ease-out cursor-pointer-always"
-            )}
-          >
-            {area.emoji ? (
-              <span aria-hidden="true" className="leading-none">
-                {area.emoji}
-              </span>
-            ) : null}
-            <span>{area.name}</span>
-          </a>
+        {/* Area badge — click-to-change parent-area pill above the title. Opens
+            the AreaPicker (same grammar as the icon's IconPicker) so the
+            project's place in the hierarchy is one glance away and one click to
+            move. Renders nothing when the area isn't supplied (server fetch
+            failure). */}
+        {displayedArea ? (
+          <AreaPicker
+            currentAreaId={displayedArea.id}
+            areas={allAreas}
+            onSelect={handleAreaChange}
+            renderTrigger={
+              <button
+                type="button"
+                aria-label={`Area: ${displayedArea.name}. Click to move this project to another area.`}
+                className={cn(
+                  "self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm",
+                  "font-mono text-[11px] uppercase tracking-[0.08em]",
+                  "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                  "border border-[var(--sd-line)] hover:border-[var(--sd-accent)]",
+                  "bg-[var(--sd-box)] hover:bg-[var(--sd-hover)]",
+                  "transition-colors duration-150 ease-out cursor-pointer-always",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                )}
+              >
+                {displayedEmoji ? (
+                  <span aria-hidden="true" className="leading-none">
+                    {displayedEmoji}
+                  </span>
+                ) : null}
+                <span>{displayedArea.name}</span>
+                <ChevronDown
+                  size={11}
+                  strokeWidth={2}
+                  className="text-[var(--sd-ink-faint)]"
+                  aria-hidden="true"
+                />
+              </button>
+            }
+          />
         ) : null}
 
         <div className="flex items-start gap-3">

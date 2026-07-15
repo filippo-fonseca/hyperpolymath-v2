@@ -20,13 +20,22 @@ import type { DailyMacros } from "@/lib/nutrition/nutrition-service";
 
 const tickFormatter = (d: string) => format(parseISO(d), "EEE");
 
+// Legend chips mirror the three plotted series 1:1 (same tokens as the <Line>
+// strokes below), so the colour → macro mapping is legible without hovering.
+const TREND_SERIES = [
+  { label: "Protein", color: "var(--sd-accent)" },
+  { label: "Carbs", color: "var(--ink-amber)" },
+  { label: "Fat", color: "var(--ink-coral)" },
+] as const;
+
 interface MacroTrendChartProps {
   data: DailyMacros[];
 }
 
 export function MacroTrendChart({ data }: MacroTrendChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <div className="flex flex-col gap-2.5">
+      <ResponsiveContainer width="100%" height={240}>
       <LineChart data={data}>
         <CartesianGrid stroke="var(--sd-line)" strokeWidth={1} vertical={false} />
         <XAxis
@@ -91,5 +100,20 @@ export function MacroTrendChart({ data }: MacroTrendChartProps) {
         />
       </LineChart>
     </ResponsiveContainer>
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-1">
+        {TREND_SERIES.map((s) => (
+          <li key={s.label} className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="h-[3px] w-3.5 rounded-full"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
+              {s.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

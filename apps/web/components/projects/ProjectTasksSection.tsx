@@ -279,16 +279,16 @@ export function ProjectTasksSection({
           aria-controls="project-tasks-body"
           className="group flex items-center gap-2 -ml-1 px-1 py-1 rounded-sm hover:bg-[var(--surface)] transition-colors cursor-pointer"
         >
-          <span className="text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <span className="text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] group-hover:text-[var(--ink)] transition-colors">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] group-hover:text-[var(--sd-ink)] transition-colors">
             Tasks
           </h2>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
             ({projectTasks.length}
             {!showLesno && lesnoCount > 0 ? (
-              <span className="text-[var(--ink-muted)]/70"> · {lesnoCount} lesno hidden</span>
+              <span className="text-[var(--sd-ink-dull)]/70"> · {lesnoCount} lesno hidden</span>
             ) : null}
             )
           </span>
@@ -304,8 +304,8 @@ export function ProjectTasksSection({
               className={cn(
                 "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out border",
                 showLesno
-                  ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
+                  ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--sd-ink)]"
+                  : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--edge)]"
               )}
               title={showLesno ? "Hide completed (lesno) tasks" : "Show completed (lesno) tasks"}
             >
@@ -428,8 +428,8 @@ function ViewToggle({
       className={cn(
         "px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ease-out inline-flex items-center gap-1.5",
         active
-          ? "bg-[var(--surface-raised)] text-[var(--ink)] ring-1 ring-inset ring-[var(--edge)]"
-          : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          ? "bg-[var(--surface-raised)] text-[var(--sd-ink)] ring-1 ring-inset ring-[var(--edge)]"
+          : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
       )}
     >
       {icon}

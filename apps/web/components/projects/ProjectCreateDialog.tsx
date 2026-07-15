@@ -172,7 +172,7 @@ export function ProjectCreateDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">New Project</DialogTitle>
+          <DialogTitle className="font-sans text-xl">New Project</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">

@@ -164,6 +164,29 @@
   animation: collapsible-up 180ms ease-out;
 }
 
+/* sd-fade-in — real entrance for conditionally-mounted micro-feedback (e.g. the
+   page "Saved" chip). Replaces the tailwindcss-animate `animate-in`/`fade-in-0`
+   utilities, which are inert here since that plugin is not installed. Opacity +
+   a 3px lift, 140ms, reduced-motion collapses to an instant appearance. */
+@keyframes sd-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.sd-fade-in {
+  animation: sd-fade-in 140ms var(--ease-out-quart, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-fade-in {
+    animation: none;
+  }
+}
+
 /* =====================================================================
    Phase 6.1 Plan 06.1-01 — @keyframes library (UI-SPEC §6).
    Consumed by Wave 2+ (JARVIS Console state machine, receipt

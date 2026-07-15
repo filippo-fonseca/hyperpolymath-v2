@@ -13,6 +13,7 @@ import {
   updateTaskStatus,
 } from "@/app/actions/tasks";
 import { shortRuleLabel } from "@/lib/tasks/recurrence";
+import { sfx } from "@/lib/ui/sfx";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -130,6 +131,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
     // Issue #144 — a recurring task never gets permanently completed from the
     // checkbox: completing the current occurrence advances it to the next date.
     if (task.recurrence && !isLesno) {
+      // Completing the current occurrence of a recurring task.
+      sfx.play("taskComplete");
       startTransition(async () => {
         const r = await advanceRecurringTask({ id: task.id, mode: "complete" });
         if (!r.success) {
@@ -146,6 +149,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       return;
     }
     const newStatus: Status = isLesno ? "not started" : "lesno";
+    // Cue only on the completing direction (checking off), never on un-complete.
+    if (newStatus === "lesno") sfx.play("taskComplete");
     startTransition(async () => {
       addOptimistic({
         type: "update",

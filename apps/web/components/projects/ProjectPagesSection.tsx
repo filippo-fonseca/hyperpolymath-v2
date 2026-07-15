@@ -268,13 +268,13 @@ export function ProjectPagesSection({ userId, projectId, initialPages }: Props) 
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-0",
           )}
         >
-          <span className="text-[var(--ink-muted)] transition-colors group-hover:text-[var(--ink)]">
+          <span className="text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
             {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </span>
-          <h2 className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)] transition-colors group-hover:text-[var(--ink)]">
+          <h2 className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[var(--sd-ink-dull)] transition-colors group-hover:text-[var(--sd-ink)]">
             Wiki
           </h2>
-          <span className="font-mono text-[0.68rem] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[0.68rem] tabular-nums text-[var(--sd-ink-dull)]">
             ({projectPages.length})
           </span>
         </button>
@@ -435,10 +435,10 @@ function ProjectGridTile({
       >
         <FolderIcon size={72} variant="closed" />
         <div className="min-w-0 space-y-0.5">
-          <div className="truncate font-sans text-[0.82rem] font-medium text-[var(--ink)]">
+          <div className="truncate font-sans text-[0.82rem] font-medium text-[var(--sd-ink)]">
             {item.folder.name}
           </div>
-          <div className="font-mono text-[0.65rem] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <div className="font-mono text-[0.65rem] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
             {item.itemCount === 0
               ? "Empty"
               : `${item.itemCount} item${item.itemCount === 1 ? "" : "s"}`}
@@ -495,7 +495,7 @@ function ChromeButton({
       aria-busy={busy || undefined}
       title={title}
       className={cn(
-        "flex h-7 items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 text-[0.75rem] text-[var(--ink)] cursor-pointer",
+        "flex h-7 items-center gap-1.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 text-[0.75rem] text-[var(--sd-ink)] cursor-pointer",
         "transition-[background-color,border-color] duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
         "focus-visible:outline-none focus-visible:border-[var(--hud-cyan)]",
         "disabled:cursor-not-allowed disabled:opacity-40",
@@ -519,7 +519,7 @@ function EmptyProjectPages({
   return (
     <div className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-[var(--sd-line)] px-6 py-10 text-center">
       <FolderIcon size={64} variant="closed" />
-      <p className="font-serif text-[15px] italic text-[var(--ink-muted)]">
+      <p className="font-sans text-[15px] italic text-[var(--sd-ink-dull)]">
         No pages here yet. Add a page or folder to keep notes, meeting logs, or reference docs.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-1">

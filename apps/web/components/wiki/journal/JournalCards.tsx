@@ -58,7 +58,7 @@ export function JournalTodayCard({ iso, page, exists, loading, onActivate }: Jou
       aria-label={`${exists ? "Open" : "Create"} today's daily page`}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="min-w-0 truncate font-serif text-[16px] leading-tight text-[var(--ink)]">
+        <span className="min-w-0 truncate font-sans text-[16px] leading-tight text-[var(--sd-ink)]">
           {format(parseISO(iso), "EEEE, MMMM d")}
         </span>
         <span className="rounded-full bg-[var(--sd-accent)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
@@ -99,7 +99,7 @@ export function JournalTrailCard({ iso, page, exists, loading, onActivate }: Jou
       )}
       aria-label={`${exists ? "Open" : "Create"} daily page for ${dailyPageTitle(iso)}`}
     >
-      <span className="font-serif text-[17px] leading-none text-[var(--ink)]">
+      <span className="font-sans text-[17px] leading-none text-[var(--sd-ink)]">
         {format(parseISO(iso), "d MMM")}
       </span>
       <span className="mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--sd-ink-faint)]">
