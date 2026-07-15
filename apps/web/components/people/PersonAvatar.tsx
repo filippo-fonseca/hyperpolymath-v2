@@ -31,7 +31,7 @@ export function PersonAvatar({
   return (
     <span
       className={cn(
- "shrink-0 rounded-full overflow-hidden border border-[var(--edge)] bg-[var(--surface)] flex items-center justify-center",
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--sd-line)] bg-[var(--sd-input)]",
         sizeClass,
         className
       )}
@@ -45,7 +45,7 @@ export function PersonAvatar({
           onError={() => setBroken(true)}
         />
       ) : (
-        <span className={cn("text-[var(--ink-muted)]", textClass)}>
+        <span className={cn("text-[var(--sd-ink-dull)]", textClass)}>
           {personInitials(name)}
         </span>
       )}

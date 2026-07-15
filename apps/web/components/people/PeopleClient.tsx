@@ -94,8 +94,8 @@ export function PeopleClient({ userId, initialPeople }: Props) {
     <div className="flex h-full min-h-0 flex-col p-6 gap-4 overflow-hidden">
       <div className="flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl text-[var(--ink)]">People</h1>
-          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)] tabular-nums">
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-[var(--sd-ink)]">People</h1>
+          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)] tabular-nums">
             {people.length}
           </span>
         </div>
@@ -109,13 +109,13 @@ export function PeopleClient({ userId, initialPeople }: Props) {
         <div className="relative flex-1 max-w-sm">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--sd-ink-faint)]"
           />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email"
-            className="pl-9 font-sans"
+            className="pl-9"
           />
         </div>
       </div>
@@ -126,10 +126,10 @@ export function PeopleClient({ userId, initialPeople }: Props) {
             type="button"
             onClick={() => setActiveTag(null)}
             className={cn(
- "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
+              "rounded-[8px] border px-2.5 h-[26px] font-mono text-[10px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out cursor-pointer-always",
               activeTag === null
-                ? "border-[var(--edge-hud)] text-[var(--ink)]"
-                : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                ? "border-transparent bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
             )}
           >
             All
@@ -140,10 +140,10 @@ export function PeopleClient({ userId, initialPeople }: Props) {
               type="button"
               onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
               className={cn(
- "font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border px-2.5 py-0.5 transition-colors",
+                "rounded-[8px] border px-2.5 h-[26px] font-mono text-[10px] uppercase tracking-[0.06em] transition-colors duration-150 ease-out cursor-pointer-always",
                 activeTag === t
-                  ? "border-[var(--edge-hud)] text-[var(--ink)]"
-                  : "border-[var(--edge)] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                  ? "border-transparent bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                  : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
               )}
             >
               {t}
@@ -160,7 +160,7 @@ export function PeopleClient({ userId, initialPeople }: Props) {
             action={{ label: "Add your first person", onClick: openCreate }}
           />
         ) : filtered.length === 0 ? (
-          <p className="text-[var(--ink-muted)] italic pt-4">
+          <p className="pt-4 text-[13px] text-[var(--sd-ink-faint)]">
             No people match this filter.
           </p>
         ) : (

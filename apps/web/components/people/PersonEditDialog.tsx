@@ -176,7 +176,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   if (f) handleAvatarPick(f);
                 }}
               />
-              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                 Click to upload · max 5MB
               </p>
             </div>
@@ -221,7 +221,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
 
           {/* Tags */}
           <div className="space-y-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
               Tags
             </span>
             {tags.length > 0 ? (
@@ -229,14 +229,14 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                 {tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--edge-hud)] px-2 py-0.5 text-[var(--ink)]"
+                    className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-accent)] px-2 py-0.5 text-[var(--sd-ink)]"
                   >
                     {t}
                     <button
                       type="button"
                       onClick={() => removeTag(t)}
                       aria-label={`Remove ${t}`}
-                      className="text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                      className="text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]"
                     >
                       <X size={10} />
                     </button>
@@ -262,7 +262,7 @@ export function PersonEditDialog({ userId, open, person, onClose, onSaved }: Pro
                   key={t}
                   type="button"
                   onClick={() => addTag(t)}
-                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--edge)] px-2 py-0.5 text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)] transition-colors"
+                  className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] rounded-full border border-[var(--sd-line)] px-2 py-0.5 text-[var(--sd-ink-faint)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)] transition-colors"
                 >
                   <Plus size={9} />
                   {t}
@@ -303,7 +303,7 @@ function Field({
 }) {
   return (
     <div className="block space-y-2">
-      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
         {label}
       </span>
       {children}
