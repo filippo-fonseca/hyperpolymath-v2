@@ -14,66 +14,23 @@ import {
 } from "@/app/actions/habits";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { HabitIcon } from "@/components/ui/icons";
+import {
+  ActionLink,
+  Chip,
+  EmptyState,
+  EntityCardHeader,
+  OverflowChip,
+  ProgressRow,
+  StatusPill,
+} from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Props {
   userId: string;
   initialHabits: HabitWithAreas[];
   initialCompletions: Array<{ habitId: string; completedDate: string }>;
   todayISO: string;
-}
-
-/**
- * Ring progress in the header — a quiet visualization of "how much of today
- * have I claimed". Stroke is a thin ring (~3px) using --hud-cyan; track is
- * --edge. Numbers in the centre stay font-mono so they don't compete with
- * the serif habit rows.
- */
-function RingProgress({ done, total }: { done: number; total: number }) {
-  const size = 36;
-  const stroke = 3;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const ratio = total === 0 ? 0 : done / total;
-  const dash = c * ratio;
-
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="rotate-[-90deg]">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="var(--edge)"
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="var(--hud-cyan)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
-          animate={{ strokeDashoffset: c - dash }}
-          transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
-          style={{
-            filter:
-              ratio > 0
-                ? "drop-shadow(0 0 4px color-mix(in oklch, var(--hud-cyan) 50%, transparent))"
-                : undefined,
-          }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-mono text-[10px] tabular-nums text-[var(--ink)]">
-          {done}/{total}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 export function TodayHabitsWidget({
@@ -147,88 +104,100 @@ export function TodayHabitsWidget({
   }
 
   const doneCount = habits.filter((h) => isDone(h.id)).length;
+  const total = habits.length;
+
+  const pill =
+    total === 0 ? (
+      <StatusPill tone="idle" label="empty" />
+    ) : doneCount === total ? (
+      <StatusPill tone="active" label="all done" />
+    ) : doneCount > 0 ? (
+      <StatusPill tone="progress" label={`${doneCount} done`} />
+    ) : (
+      <StatusPill tone="idle" label="none yet" />
+    );
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <RingProgress done={doneCount} total={habits.length} />
-          <h3 className="font-serif text-base font-semibold text-[var(--ink)] truncate">
-            Today
-          </h3>
-        </div>
-        <Link
-          href="/habits"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-100 cursor-pointer-always"
-        >
-          All →
-        </Link>
-      </header>
-      {habits.length === 0 ? (
-        <p className="font-serif italic text-[13px] text-[var(--ink-muted)]">
-          No habits yet.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2 flex-1">
-          {habits.slice(0, 6).map((h) => {
-            const done = isDone(h.id);
-            return (
-              <li key={h.id}>
-                <button
-                  type="button"
-                  onClick={() => handleToggle(h.id)}
-                  className="flex w-full items-center gap-2.5 text-left cursor-pointer-always group/habit"
-                >
-                  <motion.span
-                    initial={false}
-                    animate={
-                      reduced
-                        ? undefined
-                        : done
-                          ? { scale: [1, 1.18, 1] }
-                          : { scale: 1 }
-                    }
-                    transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-                    className="inline-flex shrink-0"
-                  >
-                    {done ? (
-                      <Check
-                        size={14}
-                        strokeWidth={2}
-                        className="text-[var(--hud-cyan)]"
-                        style={{
-                          filter:
-                            "drop-shadow(0 0 5px color-mix(in oklch, var(--hud-cyan) 55%, transparent))",
-                        }}
-                      />
-                    ) : (
-                      <Circle
-                        size={14}
-                        strokeWidth={1.5}
-                        className="text-[var(--ink-muted)] group-hover/habit:text-[var(--ink)] transition-colors duration-100"
-                      />
-                    )}
-                  </motion.span>
-                  <span
-                    className={`font-serif text-[14px] truncate ${
-                      done
-                        ? "text-[var(--ink-muted)] line-through"
-                        : "text-[var(--ink)]"
-                    }`}
-                  >
-                    {h.name}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-          {habits.length > 6 && (
-            <li className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] pl-[22px]">
-              +{habits.length - 6} more
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<HabitIcon size={36} />}
+          title="Habits"
+          subtitle="Today"
+          pill={pill}
+          action={
+            <Link href="/habits" className="group/action cursor-pointer-always">
+              <ActionLink>All →</ActionLink>
+            </Link>
+          }
+        />
+        {total === 0 ? (
+          <EmptyState icon={<HabitIcon size={40} />}>No habits yet.</EmptyState>
+        ) : (
+          <>
+            <div className="mt-3.5">
+              <ProgressRow
+                label="Completed"
+                value={`${doneCount}/${total}`}
+                ratio={doneCount / total}
+              />
+            </div>
+            <ul className="mt-3.5 flex flex-1 flex-col gap-0.5">
+              {habits.slice(0, 6).map((h) => {
+                const done = isDone(h.id);
+                return (
+                  <li key={h.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(h.id)}
+                      className="group/habit flex w-full cursor-pointer-always items-center gap-2.5 rounded-md px-1.5 py-1 text-left transition-colors duration-100 hover:bg-[var(--sd-hover)]"
+                    >
+                      <motion.span
+                        initial={false}
+                        animate={
+                          reduced ? undefined : done ? { scale: [1, 1.18, 1] } : { scale: 1 }
+                        }
+                        transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                        className="inline-flex shrink-0"
+                      >
+                        {done ? (
+                          <Check
+                            size={14}
+                            strokeWidth={2}
+                            className="text-[var(--sd-accent)]"
+                          />
+                        ) : (
+                          <Circle
+                            size={14}
+                            strokeWidth={1.5}
+                            className="text-[var(--sd-ink-faint)] transition-colors duration-100 group-hover/habit:text-[var(--sd-ink)]"
+                          />
+                        )}
+                      </motion.span>
+                      <span
+                        className={`truncate text-[14px] ${
+                          done
+                            ? "text-[var(--sd-ink-faint)] line-through"
+                            : "text-[var(--sd-ink)]"
+                        }`}
+                      >
+                        {h.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </WidgetBody>
+
+      <WidgetFooter>
+        <Chip>{total === 1 ? "1 habit" : `${total} habits`}</Chip>
+        {/* cyan, not sage: §9 allows exactly one accent hue on this surface. */}
+        {doneCount > 0 && <Chip tone="var(--hud-cyan)">{doneCount} done</Chip>}
+        {total > 6 && <OverflowChip count={total - 6} />}
+      </WidgetFooter>
+    </>
   );
 }

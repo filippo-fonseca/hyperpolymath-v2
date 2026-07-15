@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  * /lifeos — canonical homepage for the life-OS view.
  *
  * Composition top-to-bottom:
- *   1. Hero — greeting, date, day-summary chips
+ *   1. Hero — greeting row + stat strip, directly on the canvas
  *   2. JARVIS quick-send composer
  *   3. Areas tree (centerpiece)
  *   4. Bento grid — Tasks (hero) · Habits · Training · Captures (full-width)
@@ -84,17 +84,32 @@ export default async function LifeOsPage() {
   const trainingPlanned = visibleTraining.length;
   const trainingDone = visibleTraining.filter((a) => a.status === "done").length;
 
+  // Additional stat-strip figures, all derived from data already fetched above
+  // (no new queries — oracle Q2). "This week" = the trailing 7 days.
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const capturesThisWeek = initialCaptures.filter(
+    (c) => new Date(c.createdAt) >= weekAgo
+  ).length;
+  const projectsActive = availableProjects.length;
+
   return (
-    <main className="lifeos-glass relative min-h-full bg-[var(--canvas)] text-[var(--ink)]">
-      <div className="relative z-10 mx-auto w-full max-w-[1280px] px-6 md:px-10 pt-6 pb-12">
+    <main className="min-h-full bg-[var(--sd-app)] text-[var(--sd-ink)]">
+      {/* Edge-to-edge canvas: no max-width rail, no hero plate, no bold ambient
+          field (UI-CONTRACT §0/R1). The AppShell whisper is the only glow on
+          this page. Sections stack on a 28px rhythm. */}
+      <div className="flex w-full flex-col gap-7 px-6 pt-5 pb-12">
         <LifeOsHero
           displayName={user.displayName ?? user.email}
-          habitsDone={habitsDone}
-          habitsTotal={habitsTotal}
+          openTasksTotal={openTasks.length}
           tasksDueToday={tasksDueToday}
           tasksOverdue={tasksOverdue}
+          habitsDone={habitsDone}
+          habitsTotal={habitsTotal}
+          capturesThisWeek={capturesThisWeek}
           trainingPlanned={trainingPlanned}
           trainingDone={trainingDone}
+          projectsActive={projectsActive}
+          jarvisTurns={insights.totalTurns}
         />
         <LifeOsQuickSend />
         <LifeOsAreasSection />

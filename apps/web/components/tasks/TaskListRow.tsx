@@ -3,8 +3,8 @@
 import { useState, useRef, useTransition } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { motion } from "motion/react";
-import { GripVertical, MoreHorizontal, Repeat } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { Check, GripVertical, MoreHorizontal, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityChip } from "./PriorityChip";
 import {
@@ -47,14 +47,14 @@ interface Props {
 /**
  * Phase 06.1 Plan 04 (UI-SPEC §5h, §7c) — document-tier task list row.
  *
- * Visual register:
- *  - bg --canvas (no card chrome)
- *  - 1px transparent left edge at rest; 1px --edge left edge on hover
- *    (fades over 150ms — felt-quality mandate)
- *  - lesno state: 2px --ink-sage persistent left edge + line-through + 70% opacity
- *  - Title in font-serif --ink (or --ink-muted line-through when lesno)
- *  - PriorityChip uses the amber opacity ladder + Infinity icon (no pills)
- *  - Status + Due in mono metadata register, --ink-muted
+ * Visual register (sd dossier list-row):
+ *  - 6px-radius row, neutral --sd-hover backplate on hover (and persistent when
+ *    lesno) — no card chrome, no left-edge accent.
+ *  - Completion: crisp --sd-accent check box (Life OS habit affordance).
+ *  - Title in font-serif --sd-ink (line-through + --sd-ink-faint when lesno).
+ *  - PriorityChip uses the amber opacity ladder + Infinity icon (no pills).
+ *  - Status + Due in mono metadata register (--sd-ink-dull); an overdue due
+ *    date reads as a 15%-alpha coral tinted chip + 6px sd-dot (D6).
  *
  * Motion (Motion 12 / motion/react):
  *  - `layout` prop drives reorder choreography (--ease-out-quart over 280ms)
@@ -71,6 +71,7 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
   const [editTitle, setEditTitle] = useState(task.title);
   const [, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const reduced = useReducedMotion();
 
   const {
     attributes,
@@ -165,25 +166,26 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
     <motion.div
       ref={setNodeRef}
       layout
-      initial={{ opacity: 0, y: 4 }}
+      initial={reduced ? false : { opacity: 0, y: 4 }}
       animate={{ opacity: isDragging ? 0 : 1, y: 0 }}
       exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
-      transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+      transition={{ duration: reduced ? 0 : 0.16, ease: [0.25, 1, 0.5, 1] }}
       style={dndStyle}
       className={cn(
-        // Flat row on --canvas — no card chrome.
-        "group flex items-center gap-2 h-10 px-2 cursor-pointer",
-        // Hover left edge accent (felt-quality grep target: hover:border-l-[var(--edge)])
-        "border-l-2 transition-colors duration-150 ease-out",
+        // Dossier list row on the sd register — 6px radius, hover backplate.
+        "group flex items-center gap-2 h-10 px-2 rounded-[6px] cursor-pointer",
+        "transition-colors duration-[120ms] ease-out",
+        // Two-tier "done": neutral sd-hover backplate + dimmed ink (the accent
+        // check on the box carries the completion signal).
         isLesno
-          ? "border-l-[var(--ink-sage)] opacity-70"
-          : "border-l-transparent hover:border-l-[var(--edge)]",
+          ? "bg-[var(--sd-hover)]"
+          : "hover:bg-[var(--sd-hover)]",
       )}
     >
       {/* Drag handle */}
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="cursor-grab active:cursor-grabbing text-[var(--sd-ink-faint)] opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
@@ -194,34 +196,27 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
         <GripVertical size={14} />
       </button>
 
-      {/* Lesno checkbox — sage fill when checked */}
+      {/* Completion checkbox — crisp sd-accent check (matches the Life OS habit
+          affordance): outline box at rest, accent fill + white check when done. */}
       <button
         type="button"
         onClick={toggleLesno}
         className={cn(
-          "w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors duration-150 ease-out",
+          "w-4 h-4 rounded-[5px] border flex-shrink-0 flex items-center justify-center",
+          "transition-colors duration-[120ms] ease-out",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           isLesno
-            ? "bg-[var(--ink-sage)] border-[var(--ink-sage)]"
-            : "border-[var(--edge)]",
+            ? "bg-[var(--sd-accent)] border-[var(--sd-accent)]"
+            : "border-[var(--sd-line)] hover:border-[var(--sd-accent)]",
         )}
         aria-label={isLesno ? "Mark incomplete" : "Mark complete"}
       >
         {isLesno && (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            style={{ color: "var(--canvas)" }}
-          >
-            <path
-              d="M2 5l2.5 2.5L8 3"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Check
+            size={11}
+            strokeWidth={2.5}
+            style={{ color: "hsl(235 45% 9%)" }}
+          />
         )}
       </button>
 
@@ -249,8 +244,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             onBlur={commitTitle}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "w-full bg-transparent font-serif text-base text-[var(--ink)]",
-              "focus:outline-none border-b border-[var(--ink-amber)]",
+              "w-full bg-transparent font-serif text-base text-[var(--sd-ink)]",
+              "focus:outline-none border-b border-[var(--sd-accent)]",
             )}
           />
         ) : (
@@ -259,8 +254,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
             className={cn(
               "font-serif text-base truncate block",
               isLesno
-                ? "line-through text-[var(--ink-muted)]"
-                : "text-[var(--ink)]",
+                ? "line-through text-[var(--sd-ink-faint)]"
+                : "text-[var(--sd-ink)]",
             )}
           >
             {task.title}
@@ -270,17 +265,17 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
 
       {/* Project */}
       {task.projects.length > 0 && (
-        <span className="font-mono text-xs text-[var(--ink-muted)] truncate max-w-[120px] flex-shrink-0">
+        <span className="font-mono text-xs text-[var(--sd-ink-faint)] truncate max-w-[120px] flex-shrink-0">
           {task.projects[0]!.name}
           {task.projects.length > 1 && ` +${task.projects.length - 1}`}
         </span>
       )}
 
-      {/* Recurring marker (issue #144) — cyan, distinct from one-offs/habits. */}
+      {/* Recurring marker (issue #144) — accent cyan, distinct from one-offs. */}
       {task.recurrence && (
         <span
           title={shortRuleLabel(task.recurrence)}
-          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--hud-cyan)] flex-shrink-0 uppercase tracking-[0.04em]"
+          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--sd-accent)] flex-shrink-0 uppercase tracking-[0.04em]"
         >
           <Repeat size={11} strokeWidth={2} />
           {shortRuleLabel(task.recurrence)}
@@ -288,21 +283,34 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
       )}
 
       {/* Status badge — mono metadata register */}
-      <span className="font-mono text-xs text-[var(--ink-muted)] flex-shrink-0 uppercase tracking-[0.04em]">
+      <span className="font-mono text-xs text-[var(--sd-ink-dull)] flex-shrink-0 uppercase tracking-[0.04em]">
         {STATUS_LABELS[task.status as Status]}
       </span>
 
-      {/* Due date */}
-      {task.dueDate && (
-        <span
-          className={cn(
-            "font-mono text-xs flex-shrink-0",
-            isOverdue ? "text-[var(--ink-coral)]" : "text-[var(--ink-muted)]",
-          )}
-        >
-          {formatDate(task.dueDate)}
-        </span>
-      )}
+      {/* Due date — overdue reads as a 15%-alpha coral tint chip with a 6px dot;
+          on-track dates stay quiet mono metadata. */}
+      {task.dueDate &&
+        (isOverdue ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] flex-shrink-0"
+            style={{
+              color: "var(--ink-coral)",
+              borderColor: "color-mix(in srgb, var(--ink-coral) 30%, var(--sd-line))",
+              background: "color-mix(in srgb, var(--ink-coral) 15%, var(--sd-box))",
+            }}
+          >
+            <span
+              aria-hidden
+              className="sd-dot"
+              style={{ background: "var(--ink-coral)" }}
+            />
+            {formatDate(task.dueDate)}
+          </span>
+        ) : (
+          <span className="font-mono text-xs text-[var(--sd-ink-dull)] flex-shrink-0">
+            {formatDate(task.dueDate)}
+          </span>
+        ))}
 
       {/* Actions menu */}
       <DropdownMenu>
@@ -310,8 +318,8 @@ export function TaskListRow({ task, onRowClick, addOptimistic }: Props) {
           <button
             type="button"
             className={cn(
-              "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded",
-              "hover:bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]",
+              "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-[5px]",
+              "hover:bg-[var(--sd-selected)] text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)]",
             )}
             aria-label="Task options"
             onPointerDown={(e) => e.stopPropagation()}

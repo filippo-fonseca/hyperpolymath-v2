@@ -105,8 +105,9 @@ interface Props {
  * select-all + select-all-across-panel) feeds a mass-reschedule via the shared
  * MoveToMenu affordance.
  *
- * Aesthetic: glass-tile surfaces, cyan reserved for drag-over/focus, amber for
- * selection (matching TaskCard), coral for the overdue accent.
+ * Aesthetic (sd register): .sd-panel surface, coral as the overdue functional
+ * hue expressed only as 6px sd-dots + 15%-alpha tinted chips (D6), neutral
+ * --sd-selected backplates for the select toggles, accent cyan for focus.
  */
 export function OverdueTasksPanel({
   overdueTasks,
@@ -204,28 +205,30 @@ export function OverdueTasksPanel({
   return (
     <section
       aria-label="Overdue tasks"
-      className="glass-tile rounded-xl mb-4 overflow-hidden [--glass-glow-color:var(--ink-coral)]"
+      className="sd-panel mb-4 overflow-hidden"
     >
-      {/* Panel header — toggle open/closed + summary count. */}
+      {/* Panel header — toggle open/closed + summary count. Overdue reads as a
+          coral functional hue kept to a 6px sd-dot + the status label (D6). */}
       <header className="flex items-center justify-between gap-3 px-4 py-2.5">
         <button
           type="button"
           onClick={() => setPanelOpen(!panelOpen)}
           aria-expanded={panelOpen}
-          className="group/header flex items-center gap-2 cursor-pointer-always text-left"
+          className="group/header flex items-center gap-2 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
         >
-          <span className="text-[var(--ink-coral)]">
+          <span className="text-[var(--sd-ink-dull)]">
             {panelOpen ? (
               <ChevronDown size={15} strokeWidth={2} />
             ) : (
               <ChevronRight size={15} strokeWidth={2} />
             )}
           </span>
+          <span aria-hidden className="sd-dot" style={{ background: "var(--ink-coral)" }} />
           <AlarmClock size={14} strokeWidth={1.75} className="text-[var(--ink-coral)]" />
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--ink-coral)]">
             Overdue
           </span>
-          <span className="font-mono text-[11px] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--sd-ink-dull)]">
             {overdueTasks.length}
           </span>
         </button>
@@ -236,10 +239,10 @@ export function OverdueTasksPanel({
             onClick={toggleSelectAll}
             aria-pressed={allSelected}
             className={cn(
-              "rounded-md border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-150 ease-out shrink-0",
+              "rounded-[6px] border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
               allSelected
-                ? "border-[var(--ink-amber)]/50 bg-[var(--surface-raised)] text-[var(--ink)]"
-                : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]"
+                ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                : "border-transparent text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-line)]"
             )}
           >
             {allSelected ? "Deselect all" : "Select all"}
@@ -300,11 +303,11 @@ export function OverdueTasksPanel({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 12, opacity: 0 }}
             transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-            className="flex items-center justify-between gap-3 border-t border-[var(--edge)] px-4 py-2.5"
+            className="flex items-center justify-between gap-3 border-t border-[var(--sd-line)] px-4 py-2.5"
             role="toolbar"
             aria-label="Overdue bulk actions"
           >
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
               {selectedIds.size} selected
             </span>
             <div className="flex items-center gap-2">
@@ -312,7 +315,7 @@ export function OverdueTasksPanel({
               <button
                 type="button"
                 onClick={clearSelection}
-                className="rounded-full p-1 text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer-always"
+                className="rounded-full p-1 text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
                 aria-label="Clear overdue selection"
               >
                 <X size={14} strokeWidth={1.75} />
@@ -365,30 +368,39 @@ function OverdueDateGroup({
   const relative = daysAgo === 1 ? "Yesterday" : daysAgo > 1 ? `${daysAgo} days ago` : "";
 
   return (
-    <div className="rounded-lg border border-[var(--edge)] bg-[var(--surface)]/40">
+    <div className="rounded-[6px] border border-[var(--sd-line)] bg-[color-mix(in_srgb,var(--sd-box)_40%,transparent)]">
       <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
         <button
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
-          className="flex min-w-0 items-center gap-1.5 cursor-pointer-always text-left"
+          className="flex min-w-0 items-center gap-1.5 cursor-pointer-always text-left rounded-[6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
         >
-          <span className="text-[var(--ink-muted)]">
+          <span className="text-[var(--sd-ink-dull)]">
             {collapsed ? (
               <ChevronRight size={13} strokeWidth={2} />
             ) : (
               <ChevronDown size={13} strokeWidth={2} />
             )}
           </span>
-          <span className="font-sans text-[13px] text-[var(--ink)]">
+          <span className="font-sans text-[13px] text-[var(--sd-ink)]">
             {format(date, "EEE, MMM d")}
           </span>
           {relative ? (
-            <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-coral)]/80">
+            // "how overdue" as a 15%-alpha coral tinted chip + 6px dot (D6).
+            <span
+              className="inline-flex items-center gap-1 rounded-md border px-1.5 py-px font-mono text-[10px] uppercase tracking-[0.06em]"
+              style={{
+                color: "var(--ink-coral)",
+                borderColor: "color-mix(in srgb, var(--ink-coral) 30%, var(--sd-line))",
+                background: "color-mix(in srgb, var(--ink-coral) 15%, var(--sd-box))",
+              }}
+            >
+              <span aria-hidden className="sd-dot" style={{ background: "var(--ink-coral)" }} />
               {relative}
             </span>
           ) : null}
-          <span className="font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
+          <span className="font-mono text-[10px] tabular-nums text-[var(--sd-ink-faint)]">
             · {group.tasks.length}
           </span>
         </button>
@@ -398,10 +410,10 @@ function OverdueDateGroup({
             onClick={onToggleGroupSelection}
             aria-pressed={groupAllSelected}
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-150 ease-out",
+              "rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] cursor-pointer-always transition-colors duration-[120ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
               groupAllSelected
-                ? "text-[var(--ink-amber)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                ? "text-[var(--sd-accent)]"
+                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
             )}
           >
             {groupAllSelected ? "Clear" : "Select"}

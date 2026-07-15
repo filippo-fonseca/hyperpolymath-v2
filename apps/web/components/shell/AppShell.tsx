@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AmbientGlow } from "@/components/ui/ambient";
 import { Sidebar } from "./Sidebar";
 import { TopTabBar } from "./TopTabBar";
 import { DailyAutoOpen } from "./DailyAutoOpen";
@@ -67,7 +68,14 @@ export function AppShell({
   const showPanel = splitOn && !onJarvis && !onOnboarding;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+    <div className="isolate flex h-screen w-screen overflow-hidden bg-[var(--canvas)] text-[var(--ink)]">
+      {/* Whisper-level ambient glow behind every route. `isolate` on the root
+          scopes this fixed, negative-z layer so it paints above the canvas fill
+          and below the sidebar/main content. Static (no drift) at whisper, and
+          halved again here: with the Life OS hero plate gone this is the only
+          glow left in the app, and it must stay barely-there (UI-CONTRACT §0). */}
+      <AmbientGlow intensity="whisper" className="opacity-50" />
+
       {/* Product tour — mounts once globally; runs only when hp_tour_pending
           is set in localStorage (written by onboarding-flow before redirect)
           and hp_tour_v1_done is NOT set. Client-side only. */}

@@ -16,8 +16,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 @theme {
-  --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Space Grotesk is the app-wide sans (UI contract R2). It is the default for
+     body and every surface.
+
+     `--font-serif` deliberately ALSO resolves to Space Grotesk. The codebase
+     carries ~560 legacy `font-serif` utility usages, several baked into the
+     shadcn primitives (button, card, dialog, input) that every page renders,
+     so remapping the token is what makes the sans uniform app-wide rather than
+     chasing the class through ~180 files. The utility survives as a no-op
+     alias; treat it as dead and drop it on sight.
+
+     EB Garamond is now reachable through exactly one token, `--font-logotype`,
+     whose only consumer is components/ui/Logotype.tsx (the wordmark). */
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
@@ -1004,9 +1019,15 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 body {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Space Grotesk runs loose at display sizes. Greetings and stat values pull it
+   back in (UI contract §8). */
+.tracking-display {
+  letter-spacing: -0.01em;
 }
 
 /* Phase 6 Plan 06-01 — D-09: universal cursor pointer on clickable elements.
@@ -1409,9 +1430,13 @@ select:focus-visible,
    Journal rail and the rest of the application retain their own register. */
 .wiki-explorer {
   color-scheme: dark;
-  --sd-accent: #2599ff;
-  --sd-accent-faint: #47a9ff;
-  --sd-accent-deep: #0080f0;
+  /* D1b (sanctioned accent retint) — JARVIS cyan supersedes #2599ff. The
+     wiki is always a dark surface (color-scheme: dark) so it takes the
+     dark cyan family; --hud-cyan is theme-invariant, so the wiki reads
+     cyan in both app themes. */
+  --sd-accent: var(--hud-cyan);
+  --sd-accent-faint: var(--hud-cyan-bright);
+  --sd-accent-deep: var(--hud-cyan-dim);
   --sd-ink: hsl(235 35% 92%);
   --sd-ink-dull: hsl(235 10% 70%);
   --sd-ink-faint: hsl(235 10% 55%);
@@ -1435,4 +1460,323 @@ select:focus-visible,
   --ink: var(--sd-ink);
   --ink-muted: var(--sd-ink-dull);
   scrollbar-color: hsl(235 20% 25%) transparent;
+}
+
+/* =====================================================================
+   sd-campaign — Spacedrive x Raycast restyle shared foundations
+   Design Constitution: sesh-1783963573841 (Kiwi, Conductor/Designer).
+
+   ADD-ONLY block. Everything Wave 1+ (Life OS, sidebar, tasks) consumes
+   lands here so the restyle speaks one chrome dialect. The single
+   sanctioned edit to an EXISTING value lives further up in .wiki-explorer
+   (the D1b accent retint); everything below is net-new.
+
+   No `transition`/`animation` is declared in this block: consumers own
+   their motion and must guard it with `prefers-reduced-motion`. That
+   keeps foundations free of transition-on-first-paint flashes (D1d).
+   ===================================================================== */
+
+/* --- Tokens: accent trio + ink ladder + campaign easings ------------- */
+/* D1b — one hue owns the app and it is JARVIS cyan. The trio references
+   the shipped --hud-cyan* family instead of duplicating literals. Light
+   theme uses the dampened --hud-cyan-light base with faint/deep derived
+   in-family (hue 210). The wiki retints automatically via --sd-accent.
+   The --sd-ink* ladder is promoted to global scope (previously only
+   defined inside .wiki-explorer) so the whole --sd-* register — and the
+   utilities below — resolve app-wide in both themes (D1c). */
+:root {
+  --sd-accent: var(--hud-cyan-light);
+  --sd-accent-faint: oklch(54% 0.14 210);
+  --sd-accent-deep: oklch(40% 0.11 210);
+
+  --sd-ink: hsl(235 20% 16%);
+  --sd-ink-dull: hsl(235 12% 40%);
+  --sd-ink-faint: hsl(235 10% 52%);
+
+  /* Campaign easings. --ease-out-back already exists in @theme (identical
+     value) so it is intentionally not re-declared; use it directly. */
+  --ease-soft-landing: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-collapse: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.dark {
+  --sd-accent: var(--hud-cyan);
+  --sd-accent-faint: var(--hud-cyan-bright);
+  --sd-accent-deep: var(--hud-cyan-dim);
+
+  --sd-ink: hsl(235 35% 92%);
+  --sd-ink-dull: hsl(235 10% 70%);
+  --sd-ink-faint: hsl(235 10% 55%);
+}
+
+/* --- D11 (Conductor amendment, sesh-1783963573841) ------------------ */
+/* Promote the --sd-* surface / line / state + sidebar family to global
+   scope so the panel grammar resolves app-wide (Life OS, shell), not just
+   inside .wiki-explorer. ADD-ONLY: this remaps only the surface-ladder
+   mapping; accent + ink ladders were already promoted above.
+
+   Light scope: the app's light theme is warm parchment, not the cool
+   hsl(235 ...) neutral the wiki ships. Remap the sd surfaces onto the
+   existing --canvas / --surface / --surface-raised / --edge parchment
+   family so entity cards sit in-register on /lifeos in light mode. The
+   .wiki-explorer block below redeclares the full ladder locally, so the
+   wiki keeps its cool dark palette untouched (D3).
+
+   Dark scope: the cool hsl(235 ...) sd ladder already reads correctly;
+   we only fill in the sidebar / state members the global .dark block was
+   missing so consumers resolve them outside .wiki-explorer. */
+:root {
+  --sd-app: var(--canvas);
+  --sd-box: var(--surface-raised);
+  --sd-dark-box: var(--surface);
+  --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
+  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
+     the family. An alias rather than a new colour: both themes already ship a
+     correct darkest surface, and custom properties resolve lazily, so this
+     picks up whichever --sd-darker-box is in scope at the consuming element. */
+  --sd-sidebar: var(--sd-darker-box);
+  --sd-input: var(--surface);
+  --sd-line: var(--edge);
+  --sd-divider: var(--edge);
+  --sd-hover: color-mix(in oklch, var(--ink) 5%, var(--surface));
+  --sd-selected: color-mix(in oklch, var(--ink) 9%, var(--surface));
+  --sd-selected-item: var(--surface);
+  --sd-active: color-mix(in oklch, var(--ink) 13%, var(--surface));
+  --sd-frame: var(--edge);
+  --sd-menu: var(--surface-raised);
+  --sd-menu-line: var(--edge);
+  --sd-menu-hover: var(--surface);
+}
+
+.dark {
+  --sd-selected-item: hsl(235 15% 18%);
+  --sd-frame: hsl(235 15% 25%);
+  --sd-menu-line: hsl(235 15% 14%);
+}
+
+/* --- 1. Panel grammar ----------------------------------------------- */
+/* Hairline chrome + 0.5-1px white inset top hairline, radius 12px. No
+   heavy shadow (elevation via the grey ladder, D7). */
+.sd-panel {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset;
+}
+
+/* Raycast universal overlay/menu fill (intentionally dark, theme-agnostic
+   command-palette surface). */
+.sd-panel-gradient {
+  background: linear-gradient(137deg, rgba(17, 18, 20, 0.75), rgba(12, 13, 15, 0.9));
+  border: 1px solid var(--sd-line);
+  border-radius: 12px;
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset;
+}
+
+/* --- 2. Status pill + dots + tinted chips --------------------------- */
+.sd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  padding: 3px 8px;
+  font-size: 10.4px; /* text-tiny */
+  line-height: 1;
+  color: var(--sd-ink-dull);
+}
+
+/* 6px functional dots. Functional hues (D6) reuse the academic intent
+   inks so no new hex enters the ladder. */
+.sd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex: none;
+}
+.sd-dot-active {
+  background: var(--ink-sage);
+} /* green = active/LAN */
+.sd-dot-synced {
+  background: var(--sd-accent);
+} /* accent = synced/relay */
+.sd-dot-idle {
+  background: var(--sd-ink-faint);
+} /* faint = idle/offline */
+.sd-dot-warn {
+  background: var(--ink-amber);
+} /* amber = warn */
+
+/* 15%-alpha tinted chip variants (functional hue over the box surface,
+   30% border). Compose on .sd-status-pill; declared after it so the
+   border-color wins. */
+.sd-tint-active {
+  background: color-mix(in srgb, var(--ink-sage) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--ink-sage) 30%, var(--sd-line));
+}
+.sd-tint-synced {
+  background: color-mix(in srgb, var(--sd-accent) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--sd-accent) 30%, var(--sd-line));
+}
+.sd-tint-idle {
+  background: color-mix(in srgb, var(--sd-ink-faint) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--sd-ink-faint) 30%, var(--sd-line));
+}
+.sd-tint-warn {
+  background: color-mix(in srgb, var(--ink-amber) 15%, var(--sd-box));
+  border-color: color-mix(in srgb, var(--ink-amber) 30%, var(--sd-line));
+}
+
+/* --- 3. Progress bar ------------------------------------------------ */
+.sd-progress {
+  height: 6px; /* h-1.5 */
+  border-radius: 9999px;
+  background: var(--sd-input);
+  overflow: hidden;
+}
+.sd-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--sd-accent);
+}
+/* Projected/secondary segment: 45deg accent hatch at ~35%. */
+.sd-progress-hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--sd-accent) 35%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* --- 4. Ambient glow ------------------------------------------------ */
+/* The spacedrive.com technique: flat low-alpha accent divs + giant blur,
+   de-banded with SVG noise (D5). Static here by default; the drift loops
+   and focal orb ship in the ambient/Life OS unit and must be disabled
+   under prefers-reduced-motion. Light theme runs a dampened alpha (D1c). */
+.sd-glow-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sd-glow-wide {
+  border-radius: 9999px;
+  background: var(--sd-accent);
+  opacity: 0.12;
+  filter: blur(150px);
+}
+.sd-glow-core {
+  border-radius: 9999px;
+  background: var(--sd-accent);
+  opacity: 0.1;
+  filter: blur(80px);
+}
+.dark .sd-glow-wide {
+  opacity: 0.2;
+}
+.dark .sd-glow-core {
+  opacity: 0.15;
+}
+/* feTurbulence fractalNoise de-band overlay (constitution Scout B). */
+.sd-noise-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='sdNoise'><feTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='5' stitchTiles='stitch'/></filter><rect width='120' height='120' filter='url(%23sdNoise)'/></svg>");
+}
+
+/* --- 5. Selective-mono stat label ----------------------------------- */
+.sd-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sd-ink-faint);
+}
+
+/* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
+
+/* The chip/pill type step from the Spacedrive source. Sits below text-xs and
+   is the size the count badges, SOON chips, and footer chips all speak. */
+.text-tiny {
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
+/* Rows dissolve into the footer instead of hard-clipping at the scroll edge
+   (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
+.mask-fade-out {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
+/* Scrollbar stays invisible until the pointer is actually in the column
+   (§1.8). The gutter is reserved at all times so revealing the thumb never
+   reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
+   rule further up this file. */
+.sd-scroll-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar {
+  width: 6px;
+}
+.sd-scroll-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.sd-scroll-hover:hover {
+  scrollbar-color: var(--sd-selected) transparent;
+}
+.sd-scroll-hover:hover::-webkit-scrollbar-thumb {
+  background: var(--sd-selected);
+}
+
+/* --- 6. Lit-from-above buttons -------------------------------------- */
+/* Accent fill + ambient glow tied to --sd-accent (cyan per D1b/D6, not
+   the constitution's pre-cyan blue literal) + white top bevel + inset
+   floor. Dark cool text stays legible on the bright accent in both
+   themes. */
+.sd-btn-primary {
+  background: var(--sd-accent);
+  border-radius: 9999px;
+  color: hsl(235 45% 9%);
+  box-shadow:
+    color-mix(in srgb, var(--sd-accent) 30%, transparent) 0 4px 20px,
+    rgba(255, 255, 255, 0.2) 0 2px 0 inset,
+    rgba(0, 0, 0, 0.1) 0 -2px 0 inset;
+}
+.sd-btn-ghost {
+  background: rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 9999px;
+  color: var(--sd-ink);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: rgba(255, 255, 255, 0.15) 0 1px 0 inset; /* white top bevel */
+}
+
+/* --- 7. Spacedrive translucency (D1 addendum) ----------------------- */
+/* Toolbar chrome. The sidebar surface (sidebar unit) runs at ~65%
+   opacity in the same spirit. */
+.sd-topbar-blur {
+  -webkit-backdrop-filter: saturate(120%) blur(18px);
+  backdrop-filter: saturate(120%) blur(18px);
+  background: color-mix(in srgb, var(--sd-app) 90%, transparent);
+  border-bottom: 1px solid var(--sd-divider);
+}
+.sd-pill-blur {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid color-mix(in srgb, var(--sd-line) 50%, transparent);
+  background: color-mix(in srgb, var(--sd-box) 60%, transparent);
 }

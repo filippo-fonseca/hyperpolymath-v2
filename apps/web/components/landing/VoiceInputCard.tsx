@@ -72,9 +72,12 @@ export function VoiceInputCard() {
         border: "1px solid var(--edge-hud)",
         boxShadow: "var(--glow-hud-subtle)",
       }}
-      initial={reducedMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
+      // SSR-safe: `initial` is identical on server and first client render;
+      // only the transition is branched, so reduced motion settles instantly
+      // (0ms) with no hydration mismatch (matches HeroJarvisLine + the hero).
+      initial={{ opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.55, ease: EASE_OUT_QUART }}
+      transition={{ duration: reducedMotion ? 0 : 0.55, ease: EASE_OUT_QUART }}
     >
       {/* Mode badge */}
       <div className="flex items-center justify-between w-full pb-1 mb-1 border-b border-[var(--edge-hud)] opacity-80">

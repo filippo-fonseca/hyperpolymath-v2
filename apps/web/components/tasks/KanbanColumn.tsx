@@ -17,33 +17,6 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   lesno: "Lesno",
 };
 
-// Each status gets a vibrant hue (the dot). bg, rim, and cardBg are
-// derived from the dot via color-mix against canvas/surface tokens so
-// they adapt automatically to light vs dark mode — no hardcoded dark
-// OKLCH lightness values (which were the previous design and turned
-// into murky dark blocks on the light parchment canvas).
-const STATUS_ACCENT: Record<TaskStatus, { dot: string }> = {
-  "not started": { dot: "oklch(0.72 0.02 80)" },
-  "up next": { dot: "oklch(0.78 0.16 80)" },
-  "in progress": { dot: "oklch(0.74 0.16 240)" },
-  "almost done": { dot: "oklch(0.78 0.16 305)" },
-  lesno: { dot: "oklch(0.78 0.18 160)" },
-};
-
-function deriveAccent(dot: string) {
-  return {
-    dot,
-    // Light wash of the hue against the canvas, kept partly translucent
-    // so the column reads as a glass tile (backdrop-blur shows through)
-    // while still carrying its status hue.
-    bg: `color-mix(in oklch, color-mix(in oklch, var(--canvas) 88%, ${dot}) 82%, transparent)`,
-    // Slightly more saturated for the inset border.
-    rim: `color-mix(in oklch, var(--edge) 55%, ${dot})`,
-    // Card background sits just above the column wash.
-    cardBg: `color-mix(in oklch, var(--surface-raised) 90%, ${dot})`,
-  };
-}
-
 interface Props {
   status: TaskStatus;
   tasks: TaskWithProjects[];
@@ -64,6 +37,9 @@ interface Props {
   selectedIds?: Set<string>;
   onToggleSelected?: (id: string, ev: React.MouseEvent | React.KeyboardEvent) => void;
   onToggleColumnSelection?: (status: TaskStatus, taskIds: string[]) => void;
+  /** Id of the card that just settled into a column, so it gets the drop
+   * success-moment spring. Threaded down to the matching TaskCard. */
+  settledTaskId?: string | null;
 }
 
 export function KanbanColumn({
@@ -83,41 +59,46 @@ export function KanbanColumn({
   selectedIds,
   onToggleSelected,
   onToggleColumnSelection,
+  settledTaskId,
 }: Props) {
   const taskIds = tasks.map((t) => t.id);
   const selectedInColumn = selectedIds ? taskIds.filter((id) => selectedIds.has(id)).length : 0;
   const allSelected = taskIds.length > 0 && selectedInColumn === taskIds.length;
   const ref = useRef<HTMLDivElement>(null);
-  const accent = deriveAccent(STATUS_ACCENT[status].dot);
+  const slotRef = useRef<HTMLDivElement>(null);
 
-  // Glass surface system: the shadow stack references the --glass-* knobs
-  // from globals.css (single source of truth) with the per-status accent
-  // ring composed on top — 1px at rest, 2px + inner wash as a drop target.
-  // Inline (not .glass-tile) because the v1 drop affordance mutates
-  // style.boxShadow directly, which would clobber a class-provided stack.
-  const glass =
-    "var(--glass-raise), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 var(--glass-lo)";
-  const restingShadow = `inset 0 0 0 1px ${accent.rim}, ${glass}`;
-  const hoverShadow = `inset 0 0 0 2px ${accent.dot}, inset 0 0 24px ${accent.rim}, ${glass}`;
-
-  // v1 pattern: drop-target affordance via direct DOM mutation, NOT React state.
-  // Setting React state on every dragover triggers a re-render of the column +
-  // its task cards, which competes with Motion's layout animation on drop and
-  // produces a visible "recoil"snap. Mutating boxShadow on the DOM node bypasses
-  // React entirely — the affordance lights up instantly, no churn on the children.
+  // Drop-target affordance via DIRECT DOM mutation, NOT React state (preserved
+  // from the v1 pattern for D1d zero-jank). Setting React state on every
+  // dragover re-renders the column + its task cards, which competes with
+  // Motion's layout animation on drop and produces a visible recoil snap.
+  // Mutating the node's style bypasses React: the column washes to
+  // --sd-selected-item and a dashed accent insertion slot fades in — instantly,
+  // no churn on the children. Writes are idempotent (dragover fires repeatedly;
+  // re-setting identical values is a no-op), and only opacity animates on the
+  // slot, so revealing it is a single reflow, never a per-frame height tween.
   const isValidTarget = (): boolean => draggedTaskId !== null && draggedFromStatus !== status;
 
   const lightUp = () => {
-    if (ref.current) ref.current.style.boxShadow = hoverShadow;
+    if (ref.current) ref.current.style.background = "var(--sd-selected-item)";
+    if (slotRef.current) {
+      slotRef.current.style.height = "2.75rem";
+      slotRef.current.style.marginTop = "0.625rem";
+      slotRef.current.style.opacity = "1";
+    }
   };
   const dimDown = () => {
-    if (ref.current) ref.current.style.boxShadow = restingShadow;
+    if (ref.current) ref.current.style.background = "var(--sd-darker-box)";
+    if (slotRef.current) {
+      slotRef.current.style.height = "0px";
+      slotRef.current.style.marginTop = "0px";
+      slotRef.current.style.opacity = "0";
+    }
   };
 
   return (
     <div
       ref={ref}
-      className="flex flex-col w-full @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0 rounded-2xl backdrop-blur-md border border-[var(--glass-border)]"
+      className="flex flex-col w-full @4xl/main:flex-1 @4xl/main:basis-0 @4xl/main:min-w-0 rounded-lg border border-[var(--sd-line)]"
       data-status={status}
       onDragOver={(e) => {
         if (!isValidTarget()) return;
@@ -135,28 +116,15 @@ export function KanbanColumn({
         dimDown();
         if (isValidTarget()) onDropOnColumn(status);
       }}
-      style={
-        {
-          background: accent.bg,
-          boxShadow: restingShadow,
-          transition: "box-shadow 140ms ease-out",
-          ["--task-card-bg" as string]: accent.cardBg,
-        } as React.CSSProperties
-      }
+      // Recessed well (seed §Columns): --sd-darker-box sits below the cards'
+      // --sd-box surface in both themes; elevation via the grey ladder + a 1px
+      // hairline, no shadow (D7).
+      style={{ background: "var(--sd-darker-box)", transition: "background-color 120ms ease-out" }}
     >
       <div className="group/colhdr flex items-center gap-2 px-4 pt-3 pb-2 min-w-0">
-        <span
-          className="inline-block h-2 w-2 rounded-full shrink-0"
-          style={{ backgroundColor: accent.dot }}
-        />
-        <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em] font-semibold truncate"
-          style={{ color: accent.dot }}
-        >
-          {STATUS_LABELS[status]}
-        </span>
-        <span className="font-mono text-[11px] text-[var(--ink-muted)] tabular-nums shrink-0">
-          ({tasks.length})
+        <span className="sd-stat-label truncate">{STATUS_LABELS[status]}</span>
+        <span className="inline-flex items-center rounded-full border border-[var(--sd-line)] bg-[var(--sd-box)] px-1.5 py-0.5 font-mono text-[10px] leading-none tabular-nums text-[var(--sd-ink-dull)] shrink-0">
+          {tasks.length}
         </span>
         {onToggleColumnSelection && tasks.length > 0 ? (
           <button
@@ -165,10 +133,10 @@ export function KanbanColumn({
             className={cn(
               "ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always transition-opacity",
               allSelected
-                ? "bg-[var(--surface-raised)] text-[var(--ink)] opacity-100"
+                ? "bg-[var(--sd-box)] text-[var(--sd-ink)] opacity-100"
                 : selectionActive || selectedInColumn > 0
-                  ? "text-[var(--ink-muted)] opacity-100 hover:text-[var(--ink)]"
-                  : "text-[var(--ink-muted)] opacity-0 group-hover/colhdr:opacity-100 hover:text-[var(--ink)]"
+                  ? "text-[var(--sd-ink-dull)] opacity-100 hover:text-[var(--sd-ink)]"
+                  : "text-[var(--sd-ink-dull)] opacity-0 group-hover/colhdr:opacity-100 hover:text-[var(--sd-ink)]"
             )}
             title={allSelected ? "Deselect all in column" : "Select all in column"}
           >
@@ -179,9 +147,11 @@ export function KanbanColumn({
 
       {/* Two-part column body: task list + "Add task"footer. The whole
           board scrolls at the page level now (no per-column internal scroll),
-          so the column grows to its content and the footer follows the list. */}
+          so the column grows to its content and the footer follows the list.
+          The card list carries the wiki quiet-scrollbar convention so it stays
+          in-register if a bounded height is ever introduced. */}
       <div className="flex flex-col px-3 pb-3">
-        <div className="flex flex-col gap-2.5 pr-1 -mr-1">
+        <div className="custom-scrollbar flex flex-col gap-2.5 pr-1 -mr-1">
           <AnimatePresence mode="popLayout" initial={false}>
             {tasks.map((task) => (
               <TaskCard
@@ -197,12 +167,31 @@ export function KanbanColumn({
                 selectionActive={selectionActive}
                 isSelected={selectedIds?.has(task.id) ?? false}
                 onToggleSelected={onToggleSelected}
+                justSettled={settledTaskId === task.id}
               />
             ))}
           </AnimatePresence>
         </div>
 
-        <div className="mt-2 pt-2 border-t border-[color:color-mix(in_oklch,var(--edge)_50%,transparent)]">
+        {/* Dashed accent insertion slot — the drop indicator. Collapsed to 0
+            height at rest; lightUp()/dimDown() toggle it via direct DOM so it
+            never re-renders the card list. Only opacity transitions. */}
+        <div
+          ref={slotRef}
+          aria-hidden
+          className="rounded-lg border-2 border-dashed border-[var(--sd-accent)]"
+          style={{
+            height: "0px",
+            marginTop: "0px",
+            opacity: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            background: "color-mix(in srgb, var(--sd-accent) 8%, transparent)",
+            transition: "opacity 120ms ease-out",
+          }}
+        />
+
+        <div className="mt-2 pt-2 border-t border-[color:color-mix(in_oklch,var(--sd-line)_60%,transparent)]">
           <TaskCreateInline
             status={status}
             onCreateTask={onCreateTask}

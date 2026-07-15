@@ -12,7 +12,7 @@ import { createPage, deletePage, getPagesForCurrentUser, updatePage } from "@/ap
 import { getProjectsForCurrentUser } from "@/app/actions/projects";
 import { WikiFolderNameDialog } from "@/components/pages/WikiFolderNameDialog";
 import { ExplorerItemContextMenu } from "@/components/wiki/explorer-parts/ExplorerItemContextMenu";
-import { FolderIcon } from "@/components/wiki/icons/FolderIcon";
+import { FolderIcon } from "@/components/ui/icons/FolderIcon";
 import { PagePreviewCard } from "@/components/wiki/preview/PagePreviewCard";
 import type { ExplorerItem } from "@/components/wiki/explorer-types";
 import type { FolderProjectLink, FolderRow } from "@/lib/pages/folder-projects";

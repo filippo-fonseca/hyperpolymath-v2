@@ -1,29 +1,33 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ArrowUpRight, Github } from "lucide-react";
 import { HeroJarvisLine } from "./HeroJarvisLine";
 import { VoiceInputCard } from "./VoiceInputCard";
-import { HudCoreBubble } from "@/components/shared/HudCoreBubble";
+import { AmbientGlow, FocalOrb } from "@/components/ui/ambient";
 
-// --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier inference.
+// --ease-out-quart token, typed as a 4-tuple for Motion's cubic-bezier
+// inference. An ease-OUT curve — the seed's sanctioned hero entrance.
 const EASE_OUT_QUART: [number, number, number, number] = [0.25, 1, 0.5, 1];
 
 /**
- * §01 — Thesis section / cold open.
+ * §01 — Thesis section / cold open, restyled onto the campaign register.
  *
- * The hero now wears the same banner dress as the README GitHub hero:
- * cream-paper card with a soft neumorphic shadow, mono crest row up
- * top, an EB Garamond wordmark, italic tagline, a hairline + fleuron
- * spacer, and a centered brand statement with italic+extra-bold on
- * "Renaissance Human" and "JARVIS". The HudCoreBubble (the animated
- * cyan kiwi-in-aura — the actual JARVIS visual) keeps its place as
- * the focal point above the wordmark.
+ * This is the shop window: the spacedrive.com hero composition rendered in
+ * the Renaissance voice. A near-black "printed plate" (dark in BOTH app
+ * themes — the seed-sanctioned editorial choice, scoped via `.dark` so the
+ * demo cards + inks resolve dark tokens without touching their internals),
+ * a bold AmbientGlow + film-grain noise field, ONE glossy FocalOrb (the
+ * canonical `components/ui/ambient` sphere), an EB Garamond headline that
+ * punches out of the glow via a heavy black drop-shadow, a dull lede, and
+ * pill CTAs.
  *
- * Live demo line (HeroJarvisLine) + the Abdaal pull-quote sit BELOW
- * the banner card as separate beats. The Learn-more chevron stays
- * pinned to the bottom of the section.
+ * Every copy string from the prior banner-card hero is preserved. Motion is
+ * the sanctioned hero fade-up (500ms ease-out, 100ms stagger); `useReduced-
+ * Motion` freezes all of it and the plate stays fully legible.
  */
 export function ThesisSection() {
   const reducedMotion = useReducedMotion();
@@ -37,157 +41,187 @@ export function ThesisSection() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const enter = reducedMotion
-    ? { initial: false, animate: { opacity: 1, y: 0 } }
-    : {
-        initial: { opacity: 0, y: 12 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.7, ease: EASE_OUT_QUART },
-      };
+  // Sanctioned hero entrance: opacity 0→1, y 12→0, 500ms ease-out, 100ms
+  // stagger by index. The rendered `initial` is identical on server and
+  // client (SSR can't read the motion preference), so only the transition
+  // is branched — reduced motion resolves the same values in 0ms with no
+  // travel, and there is no hydration mismatch.
+  const fade = (i: number) => ({
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0 },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : { duration: 0.5, ease: EASE_OUT_QUART, delay: i * 0.1 },
+  });
 
   return (
     <section
-      className="relative min-h-[100vh] flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-12"
+      className="dark relative isolate flex min-h-[100vh] flex-col items-center justify-center overflow-hidden px-6 py-24 md:px-10 md:py-28"
       aria-labelledby="thesis-headline"
+      style={
+        {
+          // Near-black blue-tinted field (constitution §C, #0b0d12 register).
+          background:
+            "radial-gradient(120% 80% at 50% 22%, #0d1017 0%, #08090d 55%, #060709 100%)",
+          color: "var(--ink)",
+          // Force the theatrical accent to the bright, theme-invariant cyan so
+          // the glow + primary CTA read identically in both app themes on the
+          // hard dark plate.
+          "--sd-accent": "var(--hud-cyan)",
+        } as CSSProperties
+      }
     >
-      <div className="w-full max-w-[1080px] mx-auto">
-        {/* ── Banner card — mirrors the README GitHub hero ── */}
+      {/* Plate edges: a whisper cyan hairline up top and a soft vignette that
+          eases the dark field into the body below (graceful transition). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in oklch, var(--hud-cyan) 22%, transparent), transparent)",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-32"
+        style={{
+          background: "linear-gradient(180deg, transparent, rgba(4,5,7,0.9))",
+        }}
+      />
+
+      {/* Theatrical ambient field — canonical bold glow pills + de-band noise,
+          hero-anchored, drifting unless reduced-motion. Scoped to the plate
+          (absolute inset-0) so it fills the section behind the content rather
+          than the fixed full-viewport default. */}
+      <AmbientGlow intensity="bold" anchor="hero" className="absolute inset-0 z-0" />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-[1080px] flex-col items-center text-center">
+        {/* Crest row — mono brand meta, preserved verbatim. */}
         <motion.div
-          {...enter}
-          className="relative overflow-hidden rounded-[24px]"
-          style={{
-            // Theme-aware banner dress: --surface-raised/--surface are the warm
-            // parchment tones in light mode and dark panel tones in dark mode,
-            // so the card tracks the theme instead of staying cream while the
-            // --ink text flips to near-white (the old dark-mode breakage).
-            background:
-              "linear-gradient(180deg, color-mix(in oklch, var(--surface-raised) 96%, transparent), color-mix(in oklch, var(--surface) 96%, transparent))",
-            // Glass shadow tokens already invert between light/dark in globals.css.
-            boxShadow: "inset 0 1px 0 var(--glass-hi), var(--glass-drop)",
-            color: "var(--ink)",
-          }}
+          {...fade(0)}
+          className="flex w-full flex-col items-center justify-between gap-2 sm:flex-row"
         >
-          {/* Hairline inner stroke — --edge tracks theme (dark stroke on a
-              light card, subtle light stroke on a dark card). */}
-          <div
-            className="absolute inset-[0.5px] rounded-[23.5px] pointer-events-none"
-            style={{
-              border: "1px solid color-mix(in oklch, var(--edge) 80%, transparent)",
-            }}
-          />
-
-          <div className="relative px-8 md:px-12 pt-5 md:pt-6 pb-5 md:pb-6">
-            {/* Crest row — left meta and right meta in mono uppercase */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span
-                  className="inline-flex gap-1.5 opacity-50"
-                  aria-hidden="true"
-                >
-                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
-                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
-                  <span className="block w-[5px] h-[5px] rounded-full bg-[var(--ink)]" />
-                </span>
-                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-60">
-                  My life operating system framework, open sourced  ·  v2
-                </span>
-              </div>
-              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-60">
-                MIT  ·  Open source
-              </span>
-            </div>
-
-            {/* HudCoreBubble — animated cyan kiwi-in-aura. Visually scaled
-                down so the whole banner fits the viewport without
-                scrolling; the bubble's intrinsic SVG is 280px. */}
-            <div
-              className="mt-2 md:mt-3 mx-auto flex items-center justify-center select-none"
-              style={{ height: 168 }}
-            >
-              <div style={{ transform: "scale(0.6)", transformOrigin: "center" }}>
-                <HudCoreBubble state="thinking" />
-              </div>
-            </div>
-
-            {/* Wordmark — EB Garamond */}
-            <h1
-              id="thesis-headline"
-              className="mt-2 md:mt-3 font-serif font-semibold text-center text-[52px] md:text-[72px] leading-[1] tracking-[-0.02em] text-[var(--ink)]"
-            >
-              Hyperpolymath
-            </h1>
-
-            {/* Primary italic tagline */}
-            <p className="mt-3 font-serif italic text-center text-[16px] md:text-[19px] leading-[1.4] text-[var(--ink)] opacity-75">
-              A personal life-OS for people who refuse to specialize.
-            </p>
-
-            {/* Hairline + fleuron spacer */}
-            <div
-              className="mt-5 md:mt-6 flex items-center justify-center gap-4"
-              aria-hidden="true"
-            >
-              <span className="h-px w-14 md:w-20 bg-[var(--ink)] opacity-15" />
-              <span className="font-mono text-[11px] tracking-[0.3em] opacity-45">
-                ❦
-              </span>
-              <span className="h-px w-14 md:w-20 bg-[var(--ink)] opacity-15" />
-            </div>
-
-            {/* Centered brand statement — single line on desktop. The
-                size is constrained so the full sentence fits without
-                wrapping at the card's max width. */}
-            <p className="mt-5 md:mt-6 font-serif font-semibold text-center text-[18px] md:text-[22px] leading-[1.35] text-[var(--ink)] max-w-[1000px] mx-auto whitespace-normal md:whitespace-nowrap">
-              I brought back the{" "}
-              <em className="font-extrabold italic">Renaissance Human</em>
-              . And gave them{" "}
-              <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
-              <span className="italic">All in one.</span>
-            </p>
-
-            {/* Footer brand spine */}
-            <div className="mt-5 md:mt-6 flex items-center justify-between border-t border-[var(--ink)]/10 pt-3 md:pt-4">
-              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-55">
-                ❦  Hyperpolymath  ·  by Filippo Fonseca
-              </span>
-              <span className="font-mono text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-[var(--ink)] opacity-55">
-                How you do one thing is how you do everything
-              </span>
-            </div>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex gap-1.5 opacity-50" aria-hidden="true">
+              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
+              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
+              <span className="block h-[5px] w-[5px] rounded-full bg-[var(--ink)]" />
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+              My life operating system framework, open sourced  ·  v2
+            </span>
           </div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+            MIT  ·  Open source
+          </span>
         </motion.div>
 
-        {/* Typed + Spoken input cards sit side-by-side under the banner
-            so visitors see both modalities advertised at once. */}
+        {/* ONE glossy focal orb — the canonical CSS/SVG sphere, sitting above
+            the headline like the spacedrive.com reference composition. Its own
+            under-glow + slow bob carry the focal light source the headline
+            punches out of. */}
+        <motion.div {...fade(1)} className="mt-8 flex justify-center md:mt-10">
+          <FocalOrb size={176} />
+        </motion.div>
+
+        {/* Headline — EB Garamond editorial moment, punching out of the glow
+            via a heavy black drop-shadow (constitution §Scout-B). */}
+        <motion.h1
+          {...fade(2)}
+          id="thesis-headline"
+          className="mt-6 font-serif text-[64px] font-semibold leading-[0.98] tracking-[-0.02em] text-white md:text-[92px]"
+          style={{ filter: "drop-shadow(rgba(0,0,0,0.95) 0 16px 50px)" }}
+        >
+          Hyperpolymath
+        </motion.h1>
+
+        {/* Lede — dull ink, the reference site's muted sub-headline. */}
+        <motion.p
+          {...fade(3)}
+          className="mt-5 max-w-[640px] font-serif text-[18px] leading-[1.45] text-[var(--ink-muted)] md:text-[21px]"
+        >
+          A personal life-OS for people who refuse to specialize.
+        </motion.p>
+
+        {/* Brand statement — the Renaissance/JARVIS thesis, preserved. */}
+        <motion.p
+          {...fade(4)}
+          className="mt-5 max-w-[760px] font-serif text-[17px] font-semibold leading-[1.4] text-[var(--ink)] md:text-[20px]"
+        >
+          I brought back the{" "}
+          <em className="font-extrabold italic">Renaissance Human</em>. And gave
+          them <em className="font-extrabold italic">JARVIS</em> from Tony Stark.{" "}
+          <span className="italic text-[var(--ink-muted)]">All in one.</span>
+        </motion.p>
+
+        {/* Pill CTAs — lit-from-above primary + glass ghost (constitution §C,
+            §6). Labels: xs semibold uppercase tracking-[0.12em]. */}
         <motion.div
-          className="mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={
-            reducedMotion
-              ? undefined
-              : { duration: 0.7, delay: 0.45, ease: EASE_OUT_QUART }
-          }
+          {...fade(5)}
+          className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
+        >
+          <Link
+            href="/sign-in"
+            className="sd-btn-primary group inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-transform duration-150 ease-out active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+          >
+            <span>Get started</span>
+            <ArrowUpRight
+              size={14}
+              strokeWidth={2.2}
+              aria-hidden="true"
+              className="transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            />
+          </Link>
+          <a
+            href="https://github.com/filippo-fonseca/hyperpolymath-v2"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sd-btn-ghost group inline-flex items-center gap-2 px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] transition-colors duration-150 hover:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08090d]"
+          >
+            <Github size={14} strokeWidth={2} aria-hidden="true" />
+            <span>View the source</span>
+          </a>
+        </motion.div>
+
+        {/* Typed + Spoken input cards — both modalities advertised at once.
+            They resolve dark tokens under the .dark plate scope, so they read
+            exactly as they do in dark mode regardless of the app theme. */}
+        <motion.div
+          {...fade(6)}
+          className="mt-12 grid w-full grid-cols-1 gap-4 md:grid-cols-2"
         >
           <HeroJarvisLine />
           <VoiceInputCard />
         </motion.div>
+
+        {/* Brand spine — preserved mono meta, quiet under the fold of content. */}
+        <motion.div
+          {...fade(7)}
+          className="mt-10 flex w-full flex-col items-center justify-between gap-2 border-t border-white/10 pt-5 sm:flex-row"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+            ❦  Hyperpolymath  ·  by Filippo Fonseca
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--ink-muted)] md:text-[11px]">
+            How you do one thing is how you do everything
+          </span>
+        </motion.div>
       </div>
 
-      {/* Learn more */}
+      {/* Learn more — pinned scroll affordance, unchanged behavior. */}
       {!scrolled && (
         <motion.button
           type="button"
           onClick={() => {
-            const target = document.getElementById("why");
+            const target = document.getElementById("bio");
             if (!target) return;
             target.scrollIntoView({
               behavior: reducedMotion ? "auto" : "smooth",
               block: "start",
             });
           }}
-          className="absolute bottom-10 inline-flex flex-col items-center gap-1 px-3 py-2 rounded text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors cursor-pointer"
-          initial={{ opacity: reducedMotion ? 0.7 : 0.5 }}
+          className="absolute bottom-8 z-10 inline-flex cursor-pointer flex-col items-center gap-1 rounded px-3 py-2 text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hud-cyan)]"
+          initial={{ opacity: 0.5 }}
           animate={
             reducedMotion ? { opacity: 0.7 } : { opacity: [0.45, 0.85, 0.45] }
           }

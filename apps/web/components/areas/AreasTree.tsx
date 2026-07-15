@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ChevronDown, Archive } from "lucide-react";
+import { AreaIcon } from "@/components/ui/icons";
 import { DynamicIcon } from "@/components/projects/DynamicIcon";
 import { cn } from "@/lib/utils";
 import type { SidebarArea } from "@/lib/db/queries/sidebar";
@@ -25,48 +27,47 @@ const PER_AREA_COLLAPSED_PREFIX = "areas-tree-collapsed-";
  * Layout discipline:
  *   - Root (PFP) sits centered at the top.
  *   - Single vertical TRUNK drops out of the PFP.
- *   - A horizontal JUNCTION spans the area row.
- *   - Each area gets a vertical BRANCH from the junction down to its card.
- *   - Connectors are ORTHOGONAL (not curved) so the tree reads as a tree
- *     rather than as a circulatory diagram, AND the animated feed dots
- *     travel cleanly along right-angled paths.
- *   - Paths terminate at the TOP of each area card. They never pass over
- *     or behind any text — text-not-in-the-way was the explicit fix.
+ *   - Each area gets a branch off the trunk, elbowing into the top of its card.
+ *   - Connectors are ORTHOGONAL with soft 6px corners so the tree reads as a
+ *     tree rather than a circulatory diagram, and never pass over any text.
  *
- * Animation: per-area SVG path with `animateMotion + mpath`. Pulses stagger
- * (begin += 0.35s per branch) so the feed reads as ambient circulation
- * rather than a synchronized loading bar. A larger blurred halo trails a
- * sharp nucleus for a comet-tail feel.
+ * Register: UI CONTRACT v2 §7. The tree is de-glowed — connectors are a flat
+ * 1px --sd-line hairline, the terminals are 3px unlit accent dots, and the
+ * avatar carries a hairline instead of a glow ring. No traveling pulse, no
+ * blur filters, no glassmorphism: the structure carries the drawing, not light.
  *
- * Measurement: ResizeObserver on container + root + each card ref lets us
- * recompute path coordinates on resize without locking the layout to math
- * assumptions about area count or card width.
+ * Measurement: ResizeObserver on container + root + each card ref recomputes
+ * path coordinates on resize, so the geometry never hard-codes an area count
+ * or a card width. Card tops stay put when a card's chips expand below them,
+ * so connectors never shift during a collapse.
  */
 
-const TRUNK_DROP = 36; // px the trunk falls before reaching the junction
-const BRANCH_RISE = 32; // px the branch rises off the top of each card
+const TRUNK_DROP = 32; // px the trunk falls before reaching the junction
+const BRANCH_RISE = 28; // px the branch rises off the top of each card
+const ELBOW = 6; // corner radius where a branch turns down into its card
+
+const CONNECTOR = "var(--sd-line)";
+const DOT = "var(--sd-accent)";
 
 /**
- * Per-area accent palette. Six soft oklch hues — pinks, turquoise, purple,
- * mint, amber, cyan — chosen to read as a constellation of distinct nodes
- * without breaking the journal-paper restraint. Each area is assigned a
- * stable color via a tiny string hash of its id (deterministic across
- * reloads). The same color drives both the SVG branch stroke AND the area
- * card's left-edge accent + top vertex dot.
+ * Orthogonal path from the trunk (x0) across to a card's center (x1), turning
+ * down into the card top. The turn is rounded by ELBOW via a quadratic whose
+ * control point sits on the corner, which keeps the curve tangent to both legs.
+ * Degenerate cases (card sitting on the trunk, or a run shorter than the
+ * radius) fall back to a straight line so we never emit a backwards arc.
  */
-const NODE_PALETTE = [
-  "oklch(72% 0.13 210)", // cyan (brand)
-  "oklch(74% 0.14 350)", // pink
-  "oklch(72% 0.14 305)", // purple
-  "oklch(74% 0.13 175)", // turquoise
-  "oklch(76% 0.15 155)", // mint / light green
-  "oklch(80% 0.13 70)",  // amber / peach
-] as const;
-
-function pickNodeColor(id: string): string {
-  let h = 5381;
-  for (let i = 0; i < id.length; i++) h = ((h << 5) + h + id.charCodeAt(i)) | 0;
-  return NODE_PALETTE[Math.abs(h) % NODE_PALETTE.length];
+function elbowPath(x0: number, x1: number, y: number, yEnd: number): string {
+  const run = x1 - x0;
+  const drop = yEnd - y;
+  const r = Math.min(ELBOW, Math.abs(run), Math.max(drop, 0));
+  if (r < 1) return `M ${x0} ${y} H ${x1} V ${yEnd}`;
+  const dir = run > 0 ? 1 : -1;
+  return [
+    `M ${x0} ${y}`,
+    `H ${x1 - dir * r}`,
+    `Q ${x1} ${y} ${x1} ${y + r}`,
+    `V ${yEnd}`,
+  ].join(" ");
 }
 
 export function AreasTree({
@@ -75,6 +76,7 @@ export function AreasTree({
   rootInitial,
   rootLabel,
 }: Props) {
+  const prefersReducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
@@ -82,9 +84,6 @@ export function AreasTree({
   const [paths, setPaths] = useState<{ id: string; d: string }[]>([]);
   const [cardVertices, setCardVertices] = useState<
     { id: string; cx: number; cy: number }[]
-  >([]);
-  const [junctionLines, setJunctionLines] = useState<
-    { x1: number; x2: number; y: number }[]
   >([]);
   const [trunkLine, setTrunkLine] = useState<{
     x: number;
@@ -170,15 +169,13 @@ export function AreasTree({
       if (cardCenters.length === 0) {
         setPaths([]);
         setCardVertices([]);
-        setJunctionLines([]);
         setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
         return;
       }
 
-      // Bucket cards into rows by `top` coordinate. Cards within 8px of each
-      // other are treated as part of the same row (handles minor sub-pixel
-      // jitter from getBoundingClientRect on different viewports).
+      // Bucket cards into rows by `top`. Cards within 8px of each other are
+      // one row (absorbs sub-pixel jitter from getBoundingClientRect).
       const sortedByTop = [...cardCenters].sort((a, b) => a.top - b.top);
       const rows: { id: string; cx: number; top: number }[][] = [];
       for (const c of sortedByTop) {
@@ -190,40 +187,32 @@ export function AreasTree({
         }
       }
 
-      // Special case: single card (also single row of 1). Straight vertical
-      // from root to card with no junction needed.
+      // Single card: a straight drop from root to card, no elbow needed.
       if (cardCenters.length === 1) {
         const only = cardCenters[0];
         const branchEndY = Math.max(rootBottom + TRUNK_DROP, only.top - 2);
-        setPaths([{ id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` }]);
+        setPaths([
+          { id: only.id, d: `M ${rootCx} ${rootBottom} V ${branchEndY}` },
+        ]);
         setCardVertices([{ id: only.id, cx: rootCx, cy: branchEndY }]);
-        setJunctionLines([]);
         setTrunkLine(null);
         setSvgSize({ w: containerRect.width, h: containerRect.height });
         return;
       }
 
-      // For each row: junction sits BRANCH_RISE above the cards' top. Include
-      // rootCx in the junction span so the trunk visually connects in even if
-      // all cards in a row lie to one side.
-      const junctions: { x1: number; x2: number; y: number }[] = [];
+      // One branch per card, elbowing off the trunk at its row's junction Y.
+      // The union of these paths draws the horizontal junction run, so no
+      // separate junction segment is needed.
       const nextPaths: { id: string; d: string }[] = [];
       const nextVertices: { id: string; cx: number; cy: number }[] = [];
       let lastJunctionY = rootBottom + TRUNK_DROP;
       for (const row of rows) {
-        const rowMinX = Math.min(...row.map((c) => c.cx));
-        const rowMaxX = Math.max(...row.map((c) => c.cx));
         const rowJunctionY = row[0].top - BRANCH_RISE;
-        junctions.push({
-          x1: Math.min(rowMinX, rootCx),
-          x2: Math.max(rowMaxX, rootCx),
-          y: rowJunctionY,
-        });
         for (const c of row) {
           const branchEndY = Math.max(rowJunctionY, c.top - 2);
           nextPaths.push({
             id: c.id,
-            d: `M ${rootCx} ${rowJunctionY} H ${c.cx} V ${branchEndY}`,
+            d: elbowPath(rootCx, c.cx, rowJunctionY, branchEndY),
           });
           nextVertices.push({ id: c.id, cx: c.cx, cy: branchEndY });
         }
@@ -231,11 +220,10 @@ export function AreasTree({
       }
 
       // One continuous trunk spine from rootBottom down to the LAST row's
-      // junction Y. Passes through every intermediate junction (they share
-      // x=rootCx by construction), visually unifying multi-row layouts.
+      // junction Y. It passes through every intermediate junction (they all
+      // share x=rootCx), visually unifying multi-row layouts.
       setPaths(nextPaths);
       setCardVertices(nextVertices);
-      setJunctionLines(junctions);
       setTrunkLine({ x: rootCx, y1: rootBottom, y2: lastJunctionY });
       setSvgSize({ w: containerRect.width, h: containerRect.height });
     }
@@ -252,25 +240,16 @@ export function AreasTree({
     };
   }, [areas.length]);
 
-  // Trunk + junctions stay neutral cyan (they belong to the whole tree, not
-  // any one area), but bumped from 40% → 70% opacity and 1.25 → 1.75 stroke
-  // so the backbone reads at a glance instead of fading into the canvas.
-  const trunkColor = "color-mix(in oklch, var(--hud-cyan) 70%, transparent)";
-
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* Top control bar — pinned at the top of the tree section so the
-          view controls live in their own band, separate from the tree
-          itself. Mono "VIEW" eyebrow on the left grounds the bar as a
-          chrome strip; pills on the right. Hairline border below the bar
-          gives it just enough separation from the canvas without becoming
-          a card. */}
-      <div className="flex items-center justify-between gap-4 px-2 pb-3 mb-4 border-b border-[var(--edge)]">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+      {/* Controls strip — chip grammar (§7). Mono "VIEW" eyebrow grounds the
+          band as chrome; the toggles read as the same chips the cards use. */}
+      <div className="mb-4 flex items-center justify-between gap-4 border-b border-[var(--sd-line)] px-2 pb-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)]">
           View
         </span>
         <div className="flex items-center gap-2">
-          <TogglePill
+          <ChipButton
             active={!hideAllProjects}
             onClick={() => setHideAllProjects((v) => !v)}
             label={hideAllProjects ? "Show projects" : "Hide projects"}
@@ -280,7 +259,7 @@ export function AreasTree({
                 : "Hide all project sub-branches"
             }
           />
-          <TogglePill
+          <ChipButton
             active={showArchived}
             onClick={() => setShowArchived((v) => !v)}
             label={showArchived ? "Hiding archived" : "Show archived"}
@@ -289,167 +268,89 @@ export function AreasTree({
                 ? "Hide archived projects"
                 : "Include archived projects in the tree"
             }
-            icon={<Archive size={11} />}
+            icon={<Archive size={13} />}
           />
         </div>
       </div>
+
       <svg
         aria-hidden="true"
         width={svgSize.w}
         height={svgSize.h}
         viewBox={`0 0 ${svgSize.w} ${svgSize.h}`}
-        className="absolute inset-0 pointer-events-none"
+        className="pointer-events-none absolute inset-0"
         style={{ overflow: "visible" }}
       >
-        <defs>
-          <filter id="feed-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2.5" />
-          </filter>
-        </defs>
-
         {/* Trunk spine — one continuous vertical from root through every row's
-            junction. Multi-row layouts get a single visual backbone. */}
+            junction, so multi-row layouts get a single visual backbone. */}
         {trunkLine ? (
           <line
             x1={trunkLine.x}
             y1={trunkLine.y1}
             x2={trunkLine.x}
             y2={trunkLine.y2}
-            stroke={trunkColor}
-            strokeWidth="1.75"
-            strokeLinecap="round"
+            stroke={CONNECTOR}
+            strokeWidth="1"
           />
         ) : null}
 
-        {/* Per-row junctions — one horizontal segment per wrapped row, drawn
-            separately from the per-area paths so animated dots don't
-            double-travel along the junction. */}
-        {junctionLines.map((j, i) => (
-          <line
-            key={`junction-${i}`}
-            x1={j.x1}
-            y1={j.y}
-            x2={j.x2}
-            y2={j.y}
-            stroke={trunkColor}
-            strokeWidth="1.75"
-            strokeLinecap="round"
+        {paths.map((p) => (
+          <path
+            key={p.id}
+            d={p.d}
+            fill="none"
+            stroke={CONNECTOR}
+            strokeWidth="1"
           />
         ))}
 
-        {paths.map((p, i) => {
-          const accent = pickNodeColor(p.id);
-          const stroke = `color-mix(in oklch, ${accent} 75%, transparent)`;
-          return (
-            <g key={p.id}>
-              <path
-                id={`feed-path-${p.id}`}
-                d={p.d}
-                fill="none"
-                stroke={stroke}
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-              <circle
-                r="4"
-                fill={accent}
-                filter="url(#feed-glow)"
-                opacity="0.85"
-              >
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
-              <circle r="1.75" fill={accent}>
-                <animateMotion
-                  dur="2.6s"
-                  repeatCount="indefinite"
-                  begin={`${(i * 0.35).toFixed(2)}s`}
-                >
-                  <mpath href={`#feed-path-${p.id}`} />
-                </animateMotion>
-              </circle>
-            </g>
-          );
-        })}
-
-        {/* Vertex dots — solid filled circles at the top of every area card
-            where its branch terminates. Outer halo + inner nucleus reads as
-            a "node" in graph-theory sense, so the tree visualises actual
-            graph vertices instead of just lines disappearing into cards. */}
-        {cardVertices.map((v) => {
-          const accent = pickNodeColor(v.id);
-          return (
-            <g key={`vertex-${v.id}`}>
-              <circle
-                cx={v.cx}
-                cy={v.cy}
-                r="6"
-                fill={accent}
-                opacity="0.18"
-                filter="url(#feed-glow)"
-              />
-              <circle
-                cx={v.cx}
-                cy={v.cy}
-                r="3.25"
-                fill="var(--canvas)"
-                stroke={accent}
-                strokeWidth="1.5"
-              />
-            </g>
-          );
-        })}
+        {/* Junction dots — 3px unlit accent terminals where each branch meets
+            its card. The lone accent moment in the drawing; no halo, no blur. */}
+        {cardVertices.map((v) => (
+          <circle
+            key={`dot-${v.id}`}
+            cx={v.cx}
+            cy={v.cy}
+            r="1.5"
+            fill={DOT}
+            opacity="0.7"
+          />
+        ))}
       </svg>
 
-      {/* Root — just the avatar. Strict pixel width AND height on both the
-          wrapper AND the <img> defends against any global rule that might
-          stretch <img> elements (which was happening; the user reported the
-          PFP filling the page). The ambient cyan pulse is a sibling span,
-          not a parent — keeps the photo's bounding box untouched. */}
+      {/* Root — the avatar, 56px, hairline + inset top highlight, no glow ring
+          (§7). Strict pixel width AND height on the wrapper AND the <img>
+          defends against any global rule that would stretch <img> elements. */}
       <div className="relative z-10 flex justify-center pt-1 pb-1">
         <div
           ref={rootRef}
-          className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--edge-hud)] bg-[var(--surface-raised)]"
+          className="relative shrink-0 overflow-hidden rounded-[12px] border border-[var(--sd-line)] bg-[var(--sd-box)]"
           style={{
-            width: 72,
-            height: 72,
-            boxShadow:
-              "0 0 0 1px color-mix(in oklch, var(--hud-cyan) 40%, transparent), 0 0 22px color-mix(in oklch, var(--hud-cyan) 18%, transparent)",
+            width: 56,
+            height: 56,
+            boxShadow: "inset 0 1px 0 var(--glass-hi)",
           }}
         >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-2xl animate-pulse"
-            style={{
-              boxShadow:
-                "0 0 0 4px color-mix(in oklch, var(--hud-cyan) 8%, transparent)",
-            }}
-          />
           {rootAvatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={rootAvatarUrl}
               alt={rootLabel}
-              width={72}
-              height={72}
+              width={56}
+              height={56}
               style={{
-                width: 72,
-                height: 72,
-                maxWidth: 72,
-                maxHeight: 72,
+                width: 56,
+                height: 56,
+                maxWidth: 56,
+                maxHeight: 56,
                 display: "block",
                 objectFit: "cover",
               }}
             />
           ) : (
             <span
-              className="font-serif text-2xl text-[var(--ink-muted)] flex items-center justify-center"
-              style={{ width: 72, height: 72 }}
+              className="flex items-center justify-center text-xl text-[var(--sd-ink-dull)]"
+              style={{ width: 56, height: 56 }}
             >
               {rootInitial}
             </span>
@@ -458,15 +359,15 @@ export function AreasTree({
       </div>
 
       {/* Spacer matches TRUNK_DROP so the trunk has room to draw without
-          colliding with the label above or the area row below. */}
+          colliding with the avatar above or the area row below. */}
       <div style={{ height: TRUNK_DROP }} aria-hidden="true" />
 
       {/* Area row. Wraps onto multiple rows when width is exceeded — the
-          measurement pass buckets cards into rows and emits one junction
-          segment per row plus a continuous trunk through them all. */}
+          measurement pass buckets cards into rows and elbows each branch off
+          the shared trunk. */}
       <div className="relative z-10">
         <div
-          className="flex flex-wrap items-start justify-center gap-x-8 gap-y-12 px-4 pb-4"
+          className="flex flex-wrap items-start justify-center gap-x-8 gap-y-10 px-4 pb-4"
           style={{ paddingTop: BRANCH_RISE }}
         >
           {areas.length === 0 ? (
@@ -483,6 +384,7 @@ export function AreasTree({
                 collapsed={hideAllProjects || collapsedAreas.has(area.id)}
                 onToggleCollapse={() => toggleArea(area.id)}
                 showArchived={showArchived}
+                reducedMotion={!!prefersReducedMotion}
               />
             ))
           )}
@@ -492,7 +394,11 @@ export function AreasTree({
   );
 }
 
-function TogglePill({
+/** Chip grammar (§6): h-26px rounded-[8px] --sd-input on a --sd-line hairline. */
+const CHIP_BASE =
+  "inline-flex h-[26px] items-center gap-1.5 rounded-[8px] border px-2 text-[12px] font-medium";
+
+function ChipButton({
   active,
   onClick,
   label,
@@ -512,12 +418,12 @@ function TogglePill({
       aria-pressed={active}
       title={title}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border",
-        "font-mono text-[10px] uppercase tracking-[0.08em] cursor-pointer-always",
-        "transition-colors duration-150 ease-out",
+        CHIP_BASE,
+        "cursor-pointer-always transition-colors duration-150 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
         active
-          ? "border-[var(--edge)] bg-[var(--surface-raised)] text-[var(--ink)]"
-          : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge)]",
+          ? "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink)]"
+          : "border-transparent text-[var(--sd-ink-faint)] hover:border-[var(--sd-line)] hover:text-[var(--sd-ink-dull)]",
       )}
     >
       {icon}
@@ -526,86 +432,114 @@ function TogglePill({
   );
 }
 
-/**
- * Sub-branch geometry — tuned so the tree feels like a tree:
- *   STEM_DROP   how far the trunk falls from the area card bottom to the
- *               first horizontal tick. A clear vertical pause sells the
- *               "another level down" reading.
- *   TICK_TOP    the y-offset of each horizontal tick inside its <li>. Aligns
- *               the tick to the project row's visual midline.
- *   TICK_WIDTH  how far the horizontal tick extends to the right. Longer
- *               ticks read more as "branches", shorter as "bullets".
- */
-const STEM_DROP = 14;
-const TICK_TOP = 11;
-const TICK_WIDTH = 14;
-
 function AreaBranch({
   area,
   setRef,
   collapsed,
   onToggleCollapse,
   showArchived,
+  reducedMotion,
 }: {
   area: SidebarArea;
   setRef: (el: HTMLAnchorElement | null) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   showArchived: boolean;
+  reducedMotion: boolean;
 }) {
   // Server fetches the full set (active + archived) so we can flip the
   // archived view without a round-trip. Filter here based on toggle.
   const visibleProjects = showArchived
     ? area.projects
     : area.projects.filter((p) => p.archivedAt === null);
-  const activeCount = area.projects.filter(
-    (p) => p.archivedAt === null,
-  ).length;
+  const activeCount = area.projects.filter((p) => p.archivedAt === null).length;
   const archivedCount = area.projects.length - activeCount;
   const previewProjects = visibleProjects.slice(0, 6);
   const hiddenCount = visibleProjects.length - previewProjects.length;
-  const lineColor = "color-mix(in oklch, var(--edge-hud) 70%, transparent)";
+
+  // Collapse choreography — height:auto reveal on the campaign easing, with
+  // chips staggered in beneath it. AnimatePresence initial={false} suppresses
+  // the enter animation on first paint (no mount flash), and every duration
+  // collapses to 0 under reduced motion.
+  const container = {
+    hidden: {
+      height: 0,
+      opacity: 0,
+      transition: {
+        duration: reducedMotion ? 0 : 0.2,
+        ease: [0.32, 0.72, 0, 1] as const,
+        when: "afterChildren" as const,
+        staggerChildren: reducedMotion ? 0 : 0.01,
+        staggerDirection: -1 as const,
+      },
+    },
+    show: {
+      height: "auto" as const,
+      opacity: 1,
+      transition: {
+        duration: reducedMotion ? 0 : 0.2,
+        ease: [0.32, 0.72, 0, 1] as const,
+        when: "beforeChildren" as const,
+        staggerChildren: reducedMotion ? 0 : 0.01,
+      },
+    },
+  };
+  const leaf = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 4 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? 0 : 0.16,
+        ease: "easeOut" as const,
+      },
+    },
+  };
 
   return (
-    <div className="flex flex-col items-stretch w-[240px] shrink-0">
+    <div className="flex w-[200px] shrink-0 flex-col items-stretch">
       <div className="relative">
+        {/* Mini entity card (§7 + §6 chrome): solid --sd-box raised off the
+            canvas by a hairline and an inset top highlight. No blur, no
+            gradient, no glow. Hover moves the border and nothing else.
+            §6 states the edge/bevel as literal white-alpha, but those are
+            dark-theme values: on light parchment a white 6% hairline is
+            invisible and the card loses its edge. Per D11 the surfaces
+            resolve through tokens instead, which land on §6's intended
+            values in dark and their parchment equivalents in light. */}
         <Link
           ref={setRef}
           href={`/areas/${area.id}`}
           className={cn(
-            "group relative flex flex-col gap-1 rounded-xl px-4 py-3 pr-9",
-            // Glassier tile — translucent surface + backdrop blur. Reads the
-            // --glass-* knobs so /lifeos (under .lifeos-glass) runs frostier
-            // than /areas, both glassier than the old solid fill.
-            "border border-[var(--edge)] bg-[var(--glass-bg)]",
-            "[backdrop-filter:blur(var(--glass-blur,12px))] [-webkit-backdrop-filter:blur(var(--glass-blur,12px))]",
-            "hover:border-[var(--edge-hud)] hover:bg-[color-mix(in_oklch,var(--surface-raised)_88%,transparent)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "group relative flex flex-col gap-2 rounded-[12px] px-3 py-3 pr-8",
+            "border border-[var(--sd-line)] bg-[var(--sd-box)]",
+            "[box-shadow:inset_0_1px_0_var(--glass-hi)]",
+            "transition-colors duration-150 ease-out hover:border-[var(--sd-active)]",
+            "cursor-pointer-always focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
-          <div className="flex items-baseline gap-2">
-            {area.emoji ? (
-              <span className="text-base leading-none" aria-hidden="true">
-                {area.emoji}
-              </span>
-            ) : null}
-            <span className="font-serif text-base font-semibold text-[var(--ink)] truncate">
+          <div className="flex items-center gap-2.5">
+            {/* 28px icon backplate. Keeps the user's chosen emoji where set;
+                defaults to the dimensional AreaIcon (never drop user data). */}
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--sd-line)] bg-[var(--sd-input)] text-[15px] leading-none"
+            >
+              {area.emoji ? area.emoji : <AreaIcon size={18} />}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--sd-ink)]">
               {area.name}
             </span>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
             {activeCount} project{activeCount === 1 ? "" : "s"}
             {showArchived && archivedCount > 0 ? (
-              <span className="ml-1 text-[var(--ink-muted)]/70">
-                · {archivedCount} archived
-              </span>
+              <span className="ml-1">· {archivedCount} archived</span>
             ) : null}
           </span>
         </Link>
         {/* Per-area collapse toggle. Lives OUTSIDE the parent <Link> so the
-            click doesn't navigate to the area page. Positioned absolutely
-            in the card's top-right corner so it doesn't disturb the card's
-            content flow. */}
+            click doesn't navigate to the area page. */}
         <button
           type="button"
           onClick={(e) => {
@@ -616,147 +550,99 @@ function AreaBranch({
           aria-label={collapsed ? "Show projects" : "Hide projects"}
           aria-expanded={!collapsed}
           className={cn(
-            "absolute top-2 right-2 inline-flex items-center justify-center w-6 h-6 rounded-md",
-            "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-            "border border-transparent hover:border-[var(--edge)] hover:bg-[var(--surface)]",
-            "transition-colors duration-150 ease-out cursor-pointer-always",
+            "absolute top-2.5 right-2 inline-flex h-6 w-6 items-center justify-center rounded-[6px]",
+            "text-[var(--sd-ink-faint)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
+            "cursor-pointer-always transition-colors duration-150 ease-out",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
           )}
         >
-          {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          <ChevronDown
+            size={14}
+            className="transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+            style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+          />
         </button>
       </div>
 
-      {/* Sub-branches — hidden when the per-area chevron is collapsed OR
-          the global "Hide projects" is on. When hidden we render NOTHING
-          (no empty space) so the area cards collapse vertically and the
-          tree feels responsive to the control.
-
-          Geometry inside the visible branch:
-            1. A short vertical STEM dropping from the spine origin down.
-            2. A vertical SPINE down the left side of the project list at
-               the same x as the stem.
-            3. A horizontal TICK leaving the spine to each leaf row. The
-               LEAF (icon + label) sits to the RIGHT of where the tick
-               ENDS — earlier the tick spanned UNDER the icon, producing a
-               cyan line that looked like a strikethrough on the glyph. */}
-      {collapsed ? null : previewProjects.length > 0 ? (
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="absolute left-3 -top-px w-px"
-            style={{ height: STEM_DROP, background: lineColor }}
-          />
-          <ul
-            className="flex flex-col gap-1.5 pl-3 relative"
-            style={{ marginTop: STEM_DROP - 2 }}
+      {/* Child projects — chip grammar (§7). Renders NOTHING when collapsed so
+          the card packs tight; card tops stay fixed while chips grow below, so
+          the SVG connectors never shift. */}
+      <AnimatePresence initial={false}>
+        {collapsed ? null : (
+          <motion.div
+            key="branch"
+            variants={container}
+            initial="hidden"
+            animate="show"
+            exit="hidden"
+            className="overflow-hidden"
           >
-            <span
-              aria-hidden="true"
-              className="absolute left-3 top-0 w-px"
-              style={{
-                background: lineColor,
-                height: `calc(100% - ${28 - TICK_TOP}px)`,
-              }}
-            />
-            {previewProjects.map((p) => {
-              const isArchived = p.archivedAt !== null;
-              return (
-                <li
-                  key={p.id}
-                  className="relative"
-                  // Leaf content starts AFTER the tick. tick spans
-                  // x = [12, 12 + TICK_WIDTH]; leaf must start at
-                  // ≥ tick.end + small breathing room. Hence pad by
-                  // TICK_WIDTH + 12 (tick.start = 12 from li-left).
-                  style={{ paddingLeft: TICK_WIDTH + 12 }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="absolute h-px"
-                    style={{
-                      left: 12,
-                      top: TICK_TOP,
-                      width: TICK_WIDTH,
-                      background: lineColor,
-                    }}
-                  />
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className={cn(
-                      "flex items-center gap-1.5 py-1 px-1.5 -ml-1.5 rounded-md",
-                      "font-serif text-[13px]",
-                      "hover:bg-[var(--surface)] transition-colors duration-100",
-                      isArchived
-                        ? "text-[var(--ink-muted)] italic"
-                        : "text-[var(--ink)]",
-                    )}
-                  >
-                    <DynamicIcon
-                      name={p.icon}
-                      size={12}
-                      strokeWidth={1.5}
-                      className="text-[var(--ink-muted)] shrink-0"
-                    />
-                    <span className="truncate">{p.name}</span>
-                    {isArchived ? (
-                      <Archive
-                        size={10}
-                        className="text-[var(--ink-muted)]/70 shrink-0"
-                        aria-label="archived"
+            {previewProjects.length > 0 ? (
+              <ul className="flex flex-wrap gap-2 pt-2.5">
+                {previewProjects.map((p) => (
+                  <motion.li key={p.id} variants={leaf}>
+                    <Link
+                      href={`/projects/${p.id}`}
+                      className={cn(
+                        CHIP_BASE,
+                        "max-w-full border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)]",
+                        "cursor-pointer-always transition-colors duration-150 ease-out hover:text-[var(--sd-ink)]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                      )}
+                    >
+                      <DynamicIcon
+                        name={p.icon}
+                        size={13}
+                        strokeWidth={1.5}
+                        className="shrink-0"
                       />
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-            {hiddenCount > 0 ? (
-              <li
-                className="relative"
-                style={{ paddingLeft: TICK_WIDTH + 12 }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute h-px"
-                  style={{
-                    left: 12,
-                    top: TICK_TOP,
-                    width: TICK_WIDTH,
-                    background: lineColor,
-                  }}
-                />
-                <Link
-                  href={`/areas/${area.id}`}
-                  className="inline-flex font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors py-1"
-                >
-                  + {hiddenCount} more
-                </Link>
-              </li>
-            ) : null}
-          </ul>
-        </div>
-      ) : (
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="absolute left-3 -top-px w-px"
-            style={{ height: STEM_DROP, background: lineColor }}
-          />
-          <p
-            className="font-serif italic text-[13px] text-[var(--ink-muted)] pl-7"
-            style={{ marginTop: STEM_DROP + 2 }}
-          >
-            No projects yet.
-          </p>
-        </div>
-      )}
+                      <span className="truncate">{p.name}</span>
+                      {p.archivedAt !== null ? (
+                        <Archive
+                          size={11}
+                          className="shrink-0 text-[var(--sd-ink-faint)]"
+                          aria-label="archived"
+                        />
+                      ) : null}
+                    </Link>
+                  </motion.li>
+                ))}
+                {hiddenCount > 0 ? (
+                  <motion.li variants={leaf}>
+                    <Link
+                      href={`/areas/${area.id}`}
+                      className={cn(
+                        CHIP_BASE,
+                        "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-faint)]",
+                        "cursor-pointer-always transition-colors duration-150 ease-out hover:text-[var(--sd-ink)]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]",
+                      )}
+                    >
+                      +{hiddenCount} more
+                    </Link>
+                  </motion.li>
+                ) : null}
+              </ul>
+            ) : (
+              <p className="pt-2.5 text-[12px] text-[var(--sd-ink-faint)]">
+                No projects yet
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+/** Plain empty state (§7): no dashed box, no italic serif. */
 function EmptyAreas() {
   return (
-    <div className="rounded-md border border-dashed border-[var(--edge)] px-6 py-8 text-center max-w-md mx-auto">
-      <p className="font-serif italic text-base text-[var(--ink-muted)]">
+    <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
+      <span aria-hidden="true">
+        <AreaIcon size={40} className="opacity-40" />
+      </span>
+      <p className="text-[13px] text-[var(--sd-ink-faint)]">
         No areas yet. Create one from the sidebar to start branching.
       </p>
     </div>
