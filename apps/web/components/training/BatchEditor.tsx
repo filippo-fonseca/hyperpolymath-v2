@@ -143,7 +143,7 @@ export function BatchEditor({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
         Batches
       </div>
 
@@ -187,13 +187,13 @@ export function BatchEditor({
         className={cn(
           "group flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors",
           selectedBatchId === "__ungrouped__"
-            ? "bg-[var(--surface)] text-[var(--ink)]"
-            : "text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]",
+            ? "bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]",
         )}
       >
         <span className="w-3.5 shrink-0" aria-hidden />
-        <span className="flex-1 truncate font-serif italic">Ungrouped</span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="flex-1 truncate italic">Ungrouped</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
           {ungroupedCount}
         </span>
       </button>
@@ -216,7 +216,7 @@ export function BatchEditor({
           type="button"
           onClick={() => void handleCreate()}
           aria-label="Add batch"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)]"
         >
           <Plus size={14} strokeWidth={1.5} />
         </button>
@@ -272,7 +272,7 @@ function BatchRow({
       <button
         type="button"
         aria-label="Drag to reorder"
-        className="flex h-6 w-3.5 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--ink-muted)] opacity-0 hover:text-[var(--ink)] group-hover:opacity-100 active:cursor-grabbing"
+        className="flex h-6 w-3.5 shrink-0 cursor-grab touch-none items-center justify-center text-[var(--sd-ink-dull)] opacity-0 hover:text-[var(--sd-ink)] group-hover:opacity-100 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
@@ -286,8 +286,8 @@ function BatchRow({
         className={cn(
           "flex flex-1 items-center gap-2 rounded px-1.5 py-1 text-left text-sm transition-colors",
           selected
-            ? "bg-[var(--surface)] text-[var(--ink)]"
-            : "text-[var(--ink)] hover:bg-[var(--surface)]",
+            ? "bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+            : "text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
         )}
       >
         {editing ? (
@@ -309,9 +309,9 @@ function BatchRow({
             className="h-6 text-xs"
           />
         ) : (
-          <span className="flex-1 truncate font-serif">{batch.name}</span>
+          <span className="flex-1 truncate">{batch.name}</span>
         )}
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]">
           {count}
         </span>
       </button>
@@ -321,7 +321,7 @@ function BatchRow({
           <button
             type="button"
             aria-label="Batch actions"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--ink-muted)] opacity-0 hover:bg-[var(--surface)] group-hover:opacity-100 focus-visible:opacity-100"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sd-ink-dull)] opacity-0 hover:bg-[var(--sd-hover)] group-hover:opacity-100 focus-visible:opacity-100"
           >
             <MoreHorizontal size={12} strokeWidth={1.5} />
           </button>

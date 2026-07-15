@@ -162,10 +162,10 @@ export function TrainingMonthView({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="rounded px-2 py-1 font-serif text-base text-[var(--ink)] hover:bg-[var(--surface)]"
+              className="rounded-[6px] px-2 py-1 text-base font-semibold tracking-[-0.01em] text-[var(--sd-ink)] transition-colors duration-150 hover:bg-[var(--sd-hover)]"
             >
               <span className="mr-2">{monthLabel}</span>
-              <span className="font-mono text-sm tracking-[0.04em] text-[var(--ink-muted)]">
+              <span className="font-mono text-sm tracking-[0.04em] text-[var(--sd-ink-dull)]">
                 {yearLabel}
               </span>
             </button>
@@ -175,7 +175,7 @@ export function TrainingMonthView({
             align="end"
           >
             <div className="flex flex-col gap-1.5">
-              <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+              <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
                 Month
               </div>
               <div className="grid grid-cols-3 gap-1">
@@ -200,8 +200,8 @@ export function TrainingMonthView({
                     className={cn(
                       "rounded border px-2 py-1 font-mono text-[11px] uppercase",
                       anchor.getMonth() === i
-                        ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                        : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
+                        ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                        : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
                     )}
                   >
                     {m}
@@ -211,7 +211,7 @@ export function TrainingMonthView({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+              <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
                 Year
               </div>
               <div className="grid grid-cols-4 gap-1">
@@ -223,8 +223,8 @@ export function TrainingMonthView({
                     className={cn(
                       "rounded border px-2 py-1 font-mono text-[11px]",
                       anchor.getFullYear() === y
-                        ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-                        : "border-[var(--edge)] text-[var(--ink-muted)] hover:border-[var(--edge-hud)] hover:text-[var(--ink)]",
+                        ? "border-[var(--sd-line)] bg-[var(--sd-selected)] text-[var(--sd-ink)]"
+                        : "border-[var(--sd-line)] text-[var(--sd-ink-dull)] hover:border-[var(--sd-accent)] hover:text-[var(--sd-ink)]",
                       y === thisYear &&
                         anchor.getFullYear() !== y &&
                         "italic",
@@ -240,11 +240,11 @@ export function TrainingMonthView({
       </div>
 
       {/* Weekday header */}
-      <div className="grid grid-cols-7 border-b border-[var(--edge)] pb-1">
+      <div className="grid grid-cols-7 border-b border-[var(--sd-line)] pb-1">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div
             key={d}
-            className="px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]"
+            className="px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
           >
             {d}
           </div>
@@ -252,7 +252,7 @@ export function TrainingMonthView({
       </div>
 
       {/* Month grid */}
-      <div className="grid flex-1 grid-cols-7 auto-rows-fr gap-px overflow-hidden bg-[var(--edge)]">
+      <div className="grid flex-1 grid-cols-7 auto-rows-fr gap-px overflow-hidden bg-[var(--sd-line)]">
         {days.map((d) => {
           const iso = toISO(d);
           const inMonth = isSameMonth(d, anchor);
@@ -265,23 +265,23 @@ export function TrainingMonthView({
               type="button"
               onClick={() => onDayClick?.(iso)}
               className={cn(
-                "flex flex-col gap-1 bg-[var(--bg)] p-1.5 text-left transition-colors hover:bg-[var(--surface)]",
+                "flex flex-col gap-1 bg-[var(--sd-box)] p-1.5 text-left transition-colors duration-150 hover:bg-[var(--sd-hover)]",
                 !inMonth && "opacity-40",
               )}
             >
               <div className="flex items-center justify-between">
                 <span
                   className={cn(
-                    "font-mono text-[11px] tracking-[0.04em]",
+                    "font-mono text-[11px] tabular-nums tracking-[0.04em]",
                     isToday
-                      ? "rounded-full bg-[var(--ink)] px-1.5 text-[var(--bg)]"
-                      : "text-[var(--ink-muted)]",
+                      ? "rounded-full bg-[var(--sd-ink)] px-1.5 text-[var(--sd-app)]"
+                      : "text-[var(--sd-ink-dull)]",
                   )}
                 >
                   {d.getDate()}
                 </span>
                 {acts.length > 0 ? (
-                  <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                     {acts.length}
                   </span>
                 ) : null}
@@ -299,7 +299,7 @@ export function TrainingMonthView({
                     )}
                     style={{
                       backgroundColor: `color-mix(in oklch, ${a.type.color} 18%, transparent)`,
-                      color: "var(--ink)",
+                      color: "var(--sd-ink)",
                     }}
                     title={a.title}
                   >
@@ -316,11 +316,11 @@ export function TrainingMonthView({
                         style={{ backgroundColor: a.type.color }}
                       />
                     )}
-                    <span className="truncate font-serif">{a.title}</span>
+                    <span className="truncate">{a.title}</span>
                   </div>
                 ))}
                 {extra > 0 ? (
-                  <div className="px-1 font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+                  <div className="px-1 font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
                     +{extra} more
                   </div>
                 ) : null}

@@ -19,12 +19,8 @@ interface Props {
   windowLabel: string;
 }
 
-// Glassy pill tile — mirrors /settings PROFILE pill (translucent surface,
-// backdrop blur, inset cyan glow, thin cyan-tinged border, soft outer halo).
-const TILE =
-  "rounded-xl p-4 " +
-  "glass-tile " +
-  "";
+// sd plate — shipped .sd-panel primitive (UI-CONTRACT §0). No glass/blur/glow.
+const TILE = "sd-panel p-4";
 
 interface TypeAgg {
   typeId: string;
@@ -114,7 +110,7 @@ export function BatchTotalsTable({
   return (
     <div className={TILE}>
       <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+        <h3 className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
           By batch · {windowLabel}
         </h3>
       </div>
@@ -137,7 +133,7 @@ export function BatchTotalsTable({
           />
         )}
         {byBatch.length === 0 && ungrouped.length === 0 && (
-          <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+          <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
             No activity types defined yet.
           </div>
         )}
@@ -163,17 +159,17 @@ function BatchSection({
 
   return (
     <div>
-      <div className="flex items-baseline justify-between border-b border-[var(--edge)]/60 pb-1">
+      <div className="flex items-baseline justify-between border-b border-[color-mix(in_srgb,var(--sd-line)_60%,transparent)] pb-1">
         <span
           className={
             muted
-              ? "font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]"
-              : "font-serif text-sm text-[var(--ink)]"
+              ? "font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]"
+              : "text-sm font-semibold tracking-[-0.01em] text-[var(--sd-ink)]"
           }
         >
           {title}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--ink-muted)]">
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
           {formatMinutes(totalDone)}
           {hasAnyDistance && totalKm > 0 && (
             <> · {formatDistance(totalKm, distanceUnit)}</>
@@ -181,7 +177,7 @@ function BatchSection({
         </span>
       </div>
       {typeAggs.length === 0 ? (
-        <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+        <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-faint)]">
           No types in this batch.
         </div>
       ) : (
@@ -197,11 +193,11 @@ function BatchSection({
                   className="inline-block h-2 w-2 shrink-0 rounded-sm"
                   style={{ backgroundColor: t.color }}
                 />
-                <span className="truncate font-serif text-[13px] text-[var(--ink)]">
+                <span className="truncate text-[13px] text-[var(--sd-ink)]">
                   {t.name}
                 </span>
               </span>
-              <span className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--ink-muted)]">
+              <span className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums text-[var(--sd-ink-dull)]">
                 <span>{formatMinutes(t.doneMin)}</span>
                 {t.plannedMin > 0 && (
                   <span className="opacity-60">

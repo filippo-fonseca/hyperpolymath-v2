@@ -49,21 +49,21 @@ export function TrainingDayColumn({
       <div
         className={cn(
           "flex items-baseline justify-between px-1 pb-1",
-          isToday && "border-b border-[var(--hud-cyan,var(--ink))]"
+          isToday && "border-b border-[var(--sd-accent)]"
         )}
       >
         <span
           className={cn(
             "font-mono text-[10px] uppercase tracking-[0.08em]",
-            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
+            isToday ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-faint)]"
           )}
         >
           {format(date, "EEE")}
         </span>
         <span
           className={cn(
-            "font-serif text-xs",
-            isToday ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
+            "text-xs tabular-nums",
+            isToday ? "text-[var(--sd-ink)]" : "text-[var(--sd-ink-faint)]"
           )}
         >
           {format(date, "d")}
@@ -73,9 +73,9 @@ export function TrainingDayColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-[80px] flex-col gap-1.5 rounded-md p-1.5 transition-colors",
-          isAnyDragging && "ring-1 ring-[var(--edge)]",
-          isOver && "bg-[var(--surface)] ring-1 ring-[var(--ink)]"
+          "flex min-h-[80px] flex-col gap-1.5 rounded-[8px] p-1.5 transition-colors duration-150",
+          isAnyDragging && "ring-1 ring-[var(--sd-line)]",
+          isOver && "bg-[var(--sd-hover)] ring-1 ring-[var(--sd-accent)]"
         )}
       >
         {activities.map((a) => (

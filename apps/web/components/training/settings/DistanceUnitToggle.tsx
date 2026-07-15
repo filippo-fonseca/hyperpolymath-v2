@@ -51,7 +51,7 @@ export function DistanceUnitToggle({ value }: Props) {
     <div
       role="radiogroup"
       aria-label="Distance unit"
-      className="inline-flex rounded-md border border-[var(--edge)] bg-[var(--canvas)] p-0.5"
+      className="inline-flex rounded-md border border-[var(--sd-line)] bg-[var(--sd-app)] p-0.5"
     >
       {options.map((opt) => {
         const selected = opt.value === current;
@@ -65,8 +65,8 @@ export function DistanceUnitToggle({ value }: Props) {
             onClick={() => handleSelect(opt.value)}
             className={`font-mono text-xs uppercase tracking-[0.08em] px-3 py-1.5 rounded-sm transition-colors duration-100 cursor-pointer-always disabled:opacity-50 ${
               selected
-                ? "bg-[var(--surface)] text-[var(--ink)] border border-[var(--edge-hud)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                ? "bg-[var(--sd-selected)] text-[var(--sd-ink)] border border-[var(--sd-accent)]"
+                : "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
             }`}
           >
             {opt.label}

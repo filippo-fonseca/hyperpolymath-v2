@@ -96,7 +96,7 @@ export function CreateTypeDialog({
           <div className="flex items-center gap-3">
             <div
               aria-label="Selected color preview"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-[var(--edge)]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ring-[var(--sd-line)]"
               style={{ backgroundColor: color }}
             >
               {icon ? (
@@ -125,7 +125,7 @@ export function CreateTypeDialog({
 
           {/* Color picker */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
               Color
             </div>
             <ColorPicker value={color} onChange={setColor} />
@@ -133,7 +133,7 @@ export function CreateTypeDialog({
 
           {/* Icon picker */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
               Icon
             </div>
             <IconPicker value={icon} onChange={setIcon} />
@@ -141,7 +141,7 @@ export function CreateTypeDialog({
 
           {/* Batch select */}
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sd-ink-dull)]">
               Batch
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -163,16 +163,16 @@ export function CreateTypeDialog({
           </div>
 
           {/* Distance toggle */}
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-[var(--edge)] bg-[var(--surface)] px-3 py-2 transition-colors hover:border-[var(--edge-hud)]">
+          <label className="flex cursor-pointer items-center gap-2 rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-3 py-2 transition-colors hover:border-[var(--sd-accent)]">
             <input
               type="checkbox"
               checked={hasDistance}
               onChange={(e) => setHasDistance(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--ink)]"
+              className="h-3.5 w-3.5 accent-[var(--sd-ink)]"
             />
             <span className="flex flex-1 flex-col">
-              <span className="font-serif text-sm">Track distance</span>
-              <span className="text-xs text-[var(--ink-muted)]">
+              <span className="text-sm">Track distance</span>
+              <span className="text-xs text-[var(--sd-ink-dull)]">
                 Logs distance per completion (km / mi).
               </span>
             </span>
@@ -220,10 +220,10 @@ function BatchPill({
       aria-pressed={selected}
       className={cn(
         "rounded-full border px-3 py-1 text-xs transition-colors",
-        italic && "font-serif italic",
+        italic && "italic",
         selected
-          ? "border-[var(--ink)] bg-[var(--surface-raised)] text-[var(--ink)]"
-          : "border-[var(--edge)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+          ? "border-[var(--sd-ink)] bg-[var(--sd-box)] text-[var(--sd-ink)]"
+          : "border-[var(--sd-line)] bg-[var(--sd-input)] text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]",
       )}
     >
       {label}
