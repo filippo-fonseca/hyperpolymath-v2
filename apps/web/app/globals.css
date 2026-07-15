@@ -1846,3 +1846,63 @@ select:focus-visible,
   border: 1px solid color-mix(in srgb, var(--sd-line) 50%, transparent);
   background: color-mix(in srgb, var(--sd-box) 60%, transparent);
 }
+
+/* --- 8. Shared shadcn primitive surfaces (unit-primitives, sesh-sd3) --- */
+/* ADD-ONLY. Converts the app-wide shadcn primitives (button / dialog /
+   menus / fields) to the sd register without touching a single consumer:
+   the primitives keep their exported names, variants, and props and simply
+   consume these classes. Kept as real CSS (not one-off arbitrary Tailwind
+   utilities) so on-accent ink and the dark-only inset hairline resolve
+   reliably in BOTH themes and sidestep the Tailwind scan gap (§0). Zero
+   theatrics: flat fills, hairlines, one accent. No glow, no blur, no bevel.
+   The retired .glass-* / .sd-btn-primary utilities are intentionally left
+   intact for surfaces the feature waves have not landed yet. */
+
+/* Primary button — flat accent fill, dark on-accent ink. No glow, no pill. */
+.sd-btn-solid {
+  background: var(--sd-accent);
+  color: hsl(235 45% 9%);
+}
+.sd-btn-solid:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--sd-accent) 90%, black);
+}
+.sd-btn-solid:active:not(:disabled) {
+  background: color-mix(in oklch, var(--sd-accent) 80%, black);
+}
+
+/* Outline / secondary button — recessed field surface + hairline, no blur. */
+.sd-btn-outline {
+  background: var(--sd-input);
+  border: 1px solid var(--sd-line);
+  color: var(--sd-ink-dull);
+}
+.sd-btn-outline:hover:not(:disabled) {
+  background: var(--sd-hover);
+  color: var(--sd-ink);
+}
+.sd-btn-outline:active:not(:disabled) {
+  background: var(--sd-selected);
+}
+
+/* Floating menu surface — dropdown / select / popover / command / tooltip. */
+.sd-menu-surface {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.dark .sd-menu-surface {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Modal / sheet surface — solid box fill, hairline, dark-only inset top
+   hairline (card v2 grammar, §9). Light mode lifts off the parchment ladder
+   alone. */
+.sd-modal-surface {
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+}
+.dark .sd-modal-surface {
+  box-shadow:
+    rgba(255, 255, 255, 0.09) 0 1px 0 inset,
+    0 24px 60px rgba(0, 0, 0, 0.5);
+}

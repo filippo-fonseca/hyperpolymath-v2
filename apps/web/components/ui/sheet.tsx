@@ -7,18 +7,12 @@ import { Dialog as SheetPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 /**
- * Phase 6.1 Plan 06.1-05 (UI-SPEC §5f + §9c):
+ * sd register (sesh-sd3, unit-primitives) — Sheet.
  *
- * Sheets slide from the side (Phase 4's gcal event editor + Phase 2's
- * capture detail panel both use right-side sheets). Surface tier matches
- * Dialog — --surface-raised bg + 1px --edge border. Hard-coded box-shadow
- * per UI-SPEC §9c. Motion uses tailwindcss-animate's slide-in-from-{side}
- * + the existing 300ms/500ms durations — the slide-in is the dominant
- * visual gesture, and 200ms enter from UI-SPEC §5f modal spec is too
- * snappy for a 560px-wide panel sliding across the viewport. The 500ms
- * enter / 300ms exit values inherit from shadcn defaults and read well.
- *
- * Neumorphic shadow tokens retired (UI-SPEC §14a).
+ * Side-anchored panel. Surface matches the modal plate: solid `--sd-box`
+ * fill + 1px `--sd-line` seam on the exposed edge + a side-aware 14px inner
+ * radius. Overlay is a plain rgba dim (no blur). The slide-in is the
+ * dominant, compositor-only gesture (translate/opacity per §14).
  */
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -50,7 +44,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-transparent data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-black/40 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
       {...props}
@@ -78,25 +72,25 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-[var(--surface-raised)] transition ease-in-out",
+          "fixed z-50 flex flex-col gap-4 bg-[var(--sd-box)] transition ease-in-out",
           "shadow-[0_12px_32px_rgba(0,0,0,0.3)]",
           "data-[state=closed]:animate-out data-[state=closed]:duration-150",
           "data-[state=open]:animate-in data-[state=open]:duration-200",
           side === "right" &&
-            "inset-y-0 right-0 h-full w-3/4 border-l border-[var(--edge)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+            "inset-y-0 right-0 h-full w-3/4 rounded-l-[14px] border-l border-[var(--sd-line)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
           side === "left" &&
-            "inset-y-0 left-0 h-full w-3/4 border-r border-[var(--edge)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+            "inset-y-0 left-0 h-full w-3/4 rounded-r-[14px] border-r border-[var(--sd-line)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
           side === "top" &&
-            "inset-x-0 top-0 h-auto border-b border-[var(--edge)] data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+            "inset-x-0 top-0 h-auto rounded-b-[14px] border-b border-[var(--sd-line)] data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           side === "bottom" &&
-            "inset-x-0 bottom-0 h-auto border-t border-[var(--edge)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+            "inset-x-0 bottom-0 h-auto rounded-t-[14px] border-t border-[var(--sd-line)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
           className
         )}
         {...props}
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-[var(--canvas)] transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-[var(--surface)]">
+          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-[6px] text-[var(--sd-ink-dull)] opacity-70 transition-opacity hover:opacity-100 hover:text-[var(--sd-ink)] focus:outline-hidden disabled:pointer-events-none">
             <XIcon className="size-4" strokeWidth={1.5} />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
@@ -133,7 +127,7 @@ function SheetTitle({
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("font-serif font-semibold text-[var(--ink)]", className)}
+      className={cn("font-semibold text-[var(--sd-ink)]", className)}
       {...props}
     />
   )
@@ -146,7 +140,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("font-serif text-sm text-[var(--ink-muted)]", className)}
+      className={cn("text-sm text-[var(--sd-ink-dull)]", className)}
       {...props}
     />
   )

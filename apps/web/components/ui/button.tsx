@@ -5,50 +5,47 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 /**
- * Phase 06.1 Plan 04 (UI-SPEC §9a) — Document-tier Button.
+ * sd register (sesh-sd3, unit-primitives) — Button.
  *
- * Every variant has explicit hover + active + disabled states; 150ms
- * transition-colors duration; cursor-pointer-always universal rule from
- * Phase 6 06-01; `focus-visible:outline-none` defers to the global
- * :focus-visible rule in globals.css which paints the shared cyan
- * --ring-focus token (#140).
+ * Full structural commitment, zero theatrics: flat fills, hairlines, one
+ * accent. 120ms color-only transitions; cursor-pointer-always; and
+ * `focus-visible:outline-none` defers to the global :focus-visible rule in
+ * globals.css, which paints the shared cyan focus identity (#140) on every
+ * control alike.
  *
- * Outline/secondary ride the .glass-button utility (globals.css glass
- * surface system) — translucent, blurred, specular edge, pressed inset.
- * Default (solid ink) and ghost/link stay flat to preserve hierarchy.
- *
- * Destructive stays bordered + colored in coral but its focus ring is the
- * same shared cyan as every other control, not a per-variant hue (#140).
+ * default  = accent (cyan) solid fill, dark on-accent ink (.sd-btn-solid).
+ * outline / secondary = recessed --sd-input surface + --sd-line hairline,
+ *   ink-dull text, no blur, no glow (.sd-btn-outline).
+ * ghost    = transparent, hover tints to --sd-hover.
+ * destructive = functional coral, bordered.
+ * The .sd-btn-* classes live in globals.css so on-accent ink resolves in
+ * both themes without a Tailwind scan-gap miss.
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-serif whitespace-nowrap cursor-pointer-always " +
-    "transition-colors duration-150 ease-out " +
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md whitespace-nowrap cursor-pointer-always " +
+    "transition-colors duration-[120ms] ease-out " +
     "focus-visible:outline-none " +
     "disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none " +
     "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        // Document primary — solid ink fill
-        default:
-          "bg-[var(--ink)] text-[var(--canvas)] hover:opacity-90 active:opacity-80",
-        // Destructive — bordered coral, shared cyan ring on focus (#140)
+        // Primary — flat accent fill, dark on-accent ink
+        default: "sd-btn-solid",
+        // Destructive — bordered functional coral, shared cyan focus ring (#140)
         destructive:
           "bg-transparent border border-[var(--ink-coral)] text-[var(--ink-coral)] " +
-          "hover:bg-[color:rgb(220_38_38_/_0.08)] active:bg-[color:rgb(220_38_38_/_0.16)]",
-        // Outline / Secondary — glass control tier (.glass-button in
-        // globals.css): translucent surface, backdrop blur, specular top
-        // edge, cyan-tinged border + inner glow on hover, pressed inset on
-        // active. Single source of truth for the look lives in the
-        // --glass-* knobs.
-        outline: "glass-button text-[var(--ink)]",
-        secondary: "glass-button text-[var(--ink)]",
-        // Ghost — no border at rest; surface on hover
+          "hover:bg-[color-mix(in_oklch,var(--ink-coral)_10%,transparent)] " +
+          "active:bg-[color-mix(in_oklch,var(--ink-coral)_18%,transparent)]",
+        // Outline / Secondary — recessed sd field surface + hairline, no blur
+        outline: "sd-btn-outline",
+        secondary: "sd-btn-outline",
+        // Ghost — transparent at rest; surface tint on hover
         ghost:
-          "bg-transparent text-[var(--ink)] hover:bg-[var(--surface)] active:bg-[var(--surface-raised)]",
+          "bg-transparent text-[var(--sd-ink-dull)] hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] active:bg-[var(--sd-selected)]",
         // Link — underlined affordance
         link:
-          "bg-transparent text-[var(--ink)] underline-offset-4 hover:underline active:opacity-80",
+          "bg-transparent text-[var(--sd-ink)] underline-offset-4 hover:underline active:opacity-80",
       },
       size: {
         default: "h-9 px-4 py-2 text-base has-[>svg]:px-3",
