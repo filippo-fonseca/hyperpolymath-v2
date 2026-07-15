@@ -386,7 +386,7 @@ export function CaptureDetailPanel({
       editorProps: {
         attributes: {
           class:
-            "capture-detail-editor focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto p-4 font-serif text-base",
+            "capture-detail-editor focus:outline-none min-h-[160px] max-h-[400px] overflow-y-auto p-4 text-[15px]",
         },
       },
       content: initialDoc,
@@ -719,7 +719,7 @@ export function CaptureDetailPanel({
             <>
               {/* Header — minimal, journal-paper feel. Avatar mirrors the Twitter-
                   style rhythm of the feed cards for visual continuity across surfaces. */}
-              <SheetHeader className="px-6 pt-6 pb-3 border-b border-border">
+              <SheetHeader className="px-6 pt-6 pb-3 border-b border-[var(--sd-line)]">
                 <div className="flex items-start gap-3">
                   <Avatar className="h-10 w-10 flex-shrink-0 mt-0.5">
                     {userAvatarUrl ? (
@@ -729,15 +729,15 @@ export function CaptureDetailPanel({
                         referrerPolicy="no-referrer"
                       />
                     ) : null}
-                    <AvatarFallback className="font-sans text-[13px] text-muted-foreground">
+                    <AvatarFallback className="text-[13px] text-[var(--sd-ink-faint)]">
                       {userInitials ?? "·"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <SheetTitle className="font-serif text-[20px] font-semibold leading-tight text-foreground p-0 m-0">
+                    <SheetTitle className="text-[20px] font-semibold leading-tight text-[var(--sd-ink)] p-0 m-0">
                       Capture
                     </SheetTitle>
-                    <p className="font-sans text-[13px] text-muted-foreground">
+                    <p className="text-[13px] text-[var(--sd-ink-faint)]">
                       <RelativeTime date={capture.createdAt} />
                       <span aria-hidden> · </span>
                       <span title={format(capture.createdAt, "PPpp")}>
@@ -749,9 +749,9 @@ export function CaptureDetailPanel({
                     type="button"
                     onClick={() => handleSheetOpenChange(false)}
                     aria-label="Close detail panel"
-                    className="p-1 rounded hover:bg-secondary transition-colors flex-shrink-0 mt-1"
+                    className="p-1 rounded hover:bg-[var(--sd-hover)] transition-colors flex-shrink-0 mt-1"
                   >
-                    <X size={16} className="text-muted-foreground" />
+                    <X size={16} className="text-[var(--sd-ink-faint)]" />
                   </button>
                 </div>
               </SheetHeader>
@@ -760,20 +760,20 @@ export function CaptureDetailPanel({
               <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-6 py-5">
                 {/* Content editor — generous whitespace, journal-paper aesthetic */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     Content
                   </h3>
-                  <div className="rounded-xl glass-tile focus-within:border-[var(--hud-cyan)] focus-within:[--glass-glow-color:var(--hud-cyan)] focus-within:[--glass-glow:12%]">
+                  <div className="rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-input)] transition-colors focus-within:border-[var(--sd-accent)]">
                     <EditorContent editor={editor} />
                   </div>
-                  <p className="font-sans text-[13px] text-muted-foreground italic">
+                  <p className="text-[13px] text-[var(--sd-ink-faint)] italic">
                     Type # to add a hashtag. Plain #words are picked up too.
                   </p>
                 </section>
 
                 {/* Project links */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     Linked projects
                   </h3>
                   <ProjectMultiSelect
@@ -792,7 +792,7 @@ export function CaptureDetailPanel({
                     auto-derived from the body (Haiku smart-match) and via inline
                     `@`-mentions; add/remove them here too. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     Linked people
                   </h3>
                   <PersonListField
@@ -808,7 +808,7 @@ export function CaptureDetailPanel({
                 {/* URL property (issue #101) — Notion-style multi-link field.
                     Links auto-derive from the body; add/remove extra links here. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     {form.urls.length > 1 ? "URLs" : "URL"}
                   </h3>
                   <UrlListField
@@ -822,7 +822,7 @@ export function CaptureDetailPanel({
                     to have this capture reappear in the /captures "Resurfacing
                     today" section; clear it to stop. */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     Resurface
                   </h3>
                   <div className="flex items-center gap-2">
@@ -834,7 +834,7 @@ export function CaptureDetailPanel({
                       }
                       disabled={isPending}
                       aria-label="Resurface date"
-                      className="font-sans text-[13px] h-8 flex-1 rounded-md border border-border bg-transparent px-2 text-foreground focus:outline-none focus:border-[var(--hud-cyan)]"
+                      className="text-[13px] h-8 flex-1 rounded-md border border-[var(--sd-line)] bg-[var(--sd-input)] px-2 text-[var(--sd-ink)] focus:outline-none focus:border-[var(--sd-accent)]"
                     />
                     {form.resurfaceAt && (
                       <button
@@ -842,43 +842,43 @@ export function CaptureDetailPanel({
                         onClick={() => setForm((prev) => ({ ...prev, resurfaceAt: "" }))}
                         title="Clear resurface date"
                         aria-label="Clear resurface date"
-                        className="p-1 rounded text-muted-foreground hover:text-[var(--ink-coral)] transition-colors"
+                        className="p-1 rounded text-[var(--sd-ink-faint)] hover:text-[var(--ink-coral)] transition-colors"
                       >
                         <X size={14} strokeWidth={1.5} />
                       </button>
                     )}
                   </div>
-                  <p className="font-sans text-[13px] text-muted-foreground italic">
+                  <p className="text-[13px] text-[var(--sd-ink-faint)] italic">
                     Reappears in “Resurfacing today” on this day.
                   </p>
                 </section>
 
                 {/* Metadata */}
                 <section className="flex flex-col gap-2">
-                  <h3 className="font-sans text-[13px] text-muted-foreground uppercase tracking-wider">
+                  <h3 className="font-mono text-[11px] text-[var(--sd-ink-faint)] uppercase tracking-[0.12em]">
                     Info
                   </h3>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-sans text-[13px] p-4 rounded-xl glass-tile">
-                    <dt className="text-muted-foreground">Created</dt>
-                    <dd className="text-foreground">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px] p-4 rounded-[14px] border border-[var(--sd-line)] bg-[var(--sd-box)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                    <dt className="text-[var(--sd-ink-faint)]">Created</dt>
+                    <dd className="text-[var(--sd-ink)]">
                       {format(capture.createdAt, "PPpp")}
                     </dd>
-                    <dt className="text-muted-foreground">Updated</dt>
-                    <dd className="text-foreground">
+                    <dt className="text-[var(--sd-ink-faint)]">Updated</dt>
+                    <dd className="text-[var(--sd-ink)]">
                       {format(capture.updatedAt, "PPpp")}
                     </dd>
                     {capture.sourceChannel && (
                       <>
-                        <dt className="text-muted-foreground">Channel</dt>
-                        <dd className="text-foreground">
+                        <dt className="text-[var(--sd-ink-faint)]">Channel</dt>
+                        <dd className="text-[var(--sd-ink)]">
                           {capture.sourceChannel === "email" ? "Email" : capture.sourceChannel}
                         </dd>
                       </>
                     )}
                     {(capture.sourceDevice || capture.sourceInput) && (
                       <>
-                        <dt className="text-muted-foreground">Source</dt>
-                        <dd className="text-foreground">
+                        <dt className="text-[var(--sd-ink-faint)]">Source</dt>
+                        <dd className="text-[var(--sd-ink)]">
                           {capture.sourceDevice ?? "Unknown device"}
                           {capture.sourceInput
                             ? ` · ${
@@ -897,7 +897,7 @@ export function CaptureDetailPanel({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+              <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--sd-line)]">
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -926,7 +926,7 @@ export function CaptureDetailPanel({
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      "font-sans text-[13px] text-muted-foreground transition-opacity",
+                      "text-[13px] text-[var(--sd-ink-faint)] transition-opacity",
                       dirty ? "opacity-100" : "opacity-0",
                     )}
                     aria-hidden={!dirty}
@@ -971,12 +971,12 @@ export function CaptureDetailPanel({
           if (!v) setPendingDiscardAction(null);
         }}
       >
-        <AlertDialogContent className="font-serif">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif text-[20px]">
+            <AlertDialogTitle className="text-[20px]">
               Discard changes?
             </AlertDialogTitle>
-            <AlertDialogDescription className="font-serif text-base">
+            <AlertDialogDescription className="text-base">
               Your edits to this capture will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1025,10 +1025,10 @@ export function CaptureDetailPanel({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl font-semibold">
+            <DialogTitle className="text-xl font-semibold">
               Delete this capture?
             </DialogTitle>
-            <DialogDescription className="font-serif text-base">
+            <DialogDescription className="text-base">
               This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
