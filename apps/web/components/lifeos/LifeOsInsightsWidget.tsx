@@ -1,11 +1,15 @@
 "use client";
 
-import { InsightIcon } from "@/components/ui/icons";
-import { EntityCardHeader, StatusPill } from "./entity-card";
+import type { ReactNode } from "react";
+import { HabitIcon, InsightIcon, TrainingIcon } from "@/components/ui/icons";
+import { ActionLink, Chip, EntityCardHeader, StatusPill } from "./entity-card";
+import { WidgetBody, WidgetFooter } from "./WidgetCard";
 
 interface Stat {
+  icon: ReactNode;
   label: string;
   value: string;
+  unit?: string;
 }
 
 interface Props {
@@ -17,9 +21,12 @@ interface Props {
 }
 
 /**
- * LifeOsInsightsWidget — a slim gateway tile that summarizes the week and
- * links into the Insights "Life" tab. Rendered inside a WidgetCard whose
- * margin-click overlay routes to /insights?tab=life.
+ * LifeOsInsightsWidget — the full-width gateway tile that summarizes the week and
+ * links into the Insights "Life" tab.
+ *
+ * §6 gives this card a stat-strip-style mini row: each stat is the §5 anatomy at
+ * reduced scale (dimensional icon left, uppercase micro-label, then a bold
+ * tabular value with its suffix riding the same baseline).
  */
 export function LifeOsInsightsWidget({
   jarvisTurns,
@@ -29,38 +36,82 @@ export function LifeOsInsightsWidget({
   trainingPlanned,
 }: Props) {
   const stats: Stat[] = [
-    { label: "JARVIS turns · 7d", value: String(jarvisTurns) },
-    { label: "Habits today", value: `${habitsDone}/${habitsTotal}` },
-    { label: "Training today", value: `${trainingDone}/${trainingPlanned}` },
+    {
+      icon: <InsightIcon size={32} />,
+      label: "JARVIS turns",
+      value: String(jarvisTurns),
+      unit: "7d",
+    },
+    {
+      icon: <HabitIcon size={32} />,
+      label: "Habits today",
+      value: String(habitsDone),
+      unit: `/ ${habitsTotal}`,
+    },
+    {
+      icon: <TrainingIcon size={32} />,
+      label: "Training today",
+      value: String(trainingDone),
+      unit: `/ ${trainingPlanned}`,
+    },
   ];
 
   return (
-    <div className="flex h-full flex-col">
-      <EntityCardHeader
-        icon={<InsightIcon size={26} />}
-        title="Insights"
-        subtitle="This week"
-        pill={
-          jarvisTurns > 0 ? (
-            <StatusPill tone="progress" label="7d" />
-          ) : (
-            <StatusPill tone="idle" label="quiet" />
-          )
-        }
-        action={
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-            Open →
-          </span>
-        }
-      />
-      <dl className="grid grid-cols-3 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="flex flex-col gap-1">
-            <dd className="font-mono text-2xl tabular-nums text-[var(--ink)]">{s.value}</dd>
-            <dt className="font-serif text-[12px] text-[var(--ink-muted)]">{s.label}</dt>
-          </div>
-        ))}
-      </dl>
-    </div>
+    <>
+      <WidgetBody>
+        <EntityCardHeader
+          icon={<InsightIcon size={36} />}
+          title="Insights"
+          subtitle="This week"
+          pill={
+            jarvisTurns > 0 ? (
+              <StatusPill tone="progress" label="7d" />
+            ) : (
+              <StatusPill tone="idle" label="quiet" />
+            )
+          }
+          action={<ActionLink>Open →</ActionLink>}
+        />
+        <dl className="mt-4 grid grid-cols-1 gap-5 @lg/main:grid-cols-3">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-center gap-3">
+              <span aria-hidden className="inline-flex shrink-0">
+                {s.icon}
+              </span>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--sd-ink-faint)]">
+                  {s.label}
+                </dt>
+                <dd className="flex items-baseline gap-1">
+                  <span className="text-[22px] font-bold leading-none tracking-[-0.01em] tabular-nums text-[var(--sd-ink)]">
+                    {s.value}
+                  </span>
+                  {s.unit != null && (
+                    <span className="text-[13px] font-medium text-[var(--sd-ink-dull)]">
+                      {s.unit}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            </div>
+          ))}
+        </dl>
+      </WidgetBody>
+
+      <WidgetFooter>
+        <Chip>Trailing 7 days</Chip>
+        {jarvisTurns > 0 && <Chip>{jarvisTurns} turns</Chip>}
+        {habitsTotal > 0 && (
+          <Chip>
+            {habitsDone}/{habitsTotal} habits
+          </Chip>
+        )}
+        {trainingPlanned > 0 && (
+          <Chip>
+            {trainingDone}/{trainingPlanned} sessions
+          </Chip>
+        )}
+      </WidgetFooter>
+    </>
   );
 }

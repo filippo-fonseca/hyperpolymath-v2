@@ -16,8 +16,23 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 @theme {
-  --font-serif: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Space Grotesk is the app-wide sans (UI contract R2). It is the default for
+     body and every surface.
+
+     `--font-serif` deliberately ALSO resolves to Space Grotesk. The codebase
+     carries ~560 legacy `font-serif` utility usages, several baked into the
+     shadcn primitives (button, card, dialog, input) that every page renders,
+     so remapping the token is what makes the sans uniform app-wide rather than
+     chasing the class through ~180 files. The utility survives as a no-op
+     alias; treat it as dead and drop it on sight.
+
+     EB Garamond is now reachable through exactly one token, `--font-logotype`,
+     whose only consumer is components/ui/Logotype.tsx (the wordmark). */
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-space-grotesk), system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --font-logotype: var(--font-eb-garamond), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), "Fira Code", Menlo, monospace;
 
   /* =====================================================================
@@ -1004,9 +1019,15 @@ html::-webkit-scrollbar-thumb:hover,
 }
 
 body {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Space Grotesk runs loose at display sizes. Greetings and stat values pull it
+   back in (UI contract §8). */
+.tracking-display {
+  letter-spacing: -0.01em;
 }
 
 /* Phase 6 Plan 06-01 — D-09: universal cursor pointer on clickable elements.
@@ -1509,6 +1530,11 @@ select:focus-visible,
   --sd-box: var(--surface-raised);
   --sd-dark-box: var(--surface);
   --sd-darker-box: color-mix(in oklch, var(--ink) 6%, var(--surface));
+  /* The sidebar column's own surface (UI-CONTRACT §1) — the darkest member of
+     the family. An alias rather than a new colour: both themes already ship a
+     correct darkest surface, and custom properties resolve lazily, so this
+     picks up whichever --sd-darker-box is in scope at the consuming element. */
+  --sd-sidebar: var(--sd-darker-box);
   --sd-input: var(--surface);
   --sd-line: var(--edge);
   --sd-divider: var(--edge);
@@ -1668,6 +1694,51 @@ select:focus-visible,
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sd-ink-faint);
+}
+
+/* --- 5b. Sidebar chrome primitives (UI-CONTRACT §1, §11) ------------- */
+
+/* The chip/pill type step from the Spacedrive source. Sits below text-xs and
+   is the size the count badges, SOON chips, and footer chips all speak. */
+.text-tiny {
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
+/* Rows dissolve into the footer instead of hard-clipping at the scroll edge
+   (§1.8). Static — nothing animates, so it needs no reduced-motion guard. */
+.mask-fade-out {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
+/* Scrollbar stays invisible until the pointer is actually in the column
+   (§1.8). The gutter is reserved at all times so revealing the thumb never
+   reflows the rows. Class specificity beats the global `*::-webkit-scrollbar`
+   rule further up this file. */
+.sd-scroll-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar {
+  width: 6px;
+}
+.sd-scroll-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-scroll-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.sd-scroll-hover:hover {
+  scrollbar-color: var(--sd-selected) transparent;
+}
+.sd-scroll-hover:hover::-webkit-scrollbar-thumb {
+  background: var(--sd-selected);
 }
 
 /* --- 6. Lit-from-above buttons -------------------------------------- */

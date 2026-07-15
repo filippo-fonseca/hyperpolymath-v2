@@ -52,21 +52,28 @@ const SURFACE_TOKENS = [
   "--sd-box",
   "--sd-dark-box",
   "--sd-darker-box",
+  "--sd-sidebar",
   "--sd-input",
   "--sd-line",
+  "--sd-divider",
   "--sd-hover",
   "--sd-selected",
   "--sd-selected-item",
+  "--sd-active",
 ] as const;
 
 const INK_TOKENS = ["--sd-ink", "--sd-ink-dull", "--sd-ink-faint"] as const;
 
 const ACCENT_TOKENS = ["--sd-accent", "--sd-accent-faint", "--sd-accent-deep"] as const;
 
+/** Functional hues. Dots and 15%-alpha tinted chips only, never chrome. */
+const FUNCTIONAL_TOKENS = ["--ink-sage", "--ink-amber", "--ink-coral"] as const;
+
 export function TokenLadder() {
   const surfaces = useComputedTokens(SURFACE_TOKENS);
   const inks = useComputedTokens(INK_TOKENS);
   const accents = useComputedTokens(ACCENT_TOKENS);
+  const functional = useComputedTokens(FUNCTIONAL_TOKENS);
 
   return (
     <div className="space-y-8">
@@ -92,11 +99,21 @@ export function TokenLadder() {
       </div>
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-3">
-          Accent (JARVIS cyan)
+          Accent (JARVIS cyan) · the only hue
         </p>
         <div className="grid grid-cols-3 gap-4">
           {ACCENT_TOKENS.map((name) => (
             <Swatch key={name} name={name} value={accents[name]} />
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--sd-ink-faint)] mb-3">
+          Functional inks · dots and 15% chips only, never chrome
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          {FUNCTIONAL_TOKENS.map((name) => (
+            <Swatch key={name} name={name} value={functional[name]} />
           ))}
         </div>
       </div>

@@ -1,10 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { EB_Garamond, JetBrains_Mono } from "next/font/google";
+import { EB_Garamond, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
 
+// The app-wide sans. Everything reads in Space Grotesk; see globals.css @theme.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+
+// Retained for the "Hyperpolymath" logotype only, via --font-logotype.
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
   weight: ["400", "600"],
@@ -87,7 +96,11 @@ export const themeColor = [
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${ebGaramond.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${spaceGrotesk.variable} ${ebGaramond.variable} ${jetbrainsMono.variable}`}
+    >
       <body>
         <Providers>{children}</Providers>
         <Analytics />

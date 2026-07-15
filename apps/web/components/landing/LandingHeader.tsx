@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { Logotype } from "@/components/ui/Logotype";
 
 /**
  * Landing header — sticky chrome. The left mono eyebrow now carries the
@@ -21,9 +22,7 @@ export function LandingHeader() {
           aria-label="Hyperpolymath · home"
         >
           <KiwiIcon size={18} aria-hidden="true" className="shrink-0" />
-          <span className="font-serif text-[17px] font-semibold tracking-tight leading-none">
-            Hyperpolymath
-          </span>
+          <Logotype className="text-[17px] leading-none" />
           <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink-muted)] pl-2 border-l border-[var(--edge)] ml-1">
             MANIFESTO
           </span>

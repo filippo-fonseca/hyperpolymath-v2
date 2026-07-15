@@ -333,7 +333,7 @@ export function SidebarTree({
           <div
             className={cn(
               "flex items-center gap-2.5 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1.5 select-none cursor-grabbing shadow-lg",
-              "font-serif text-[13px] tracking-tight font-medium text-[var(--sd-ink)]",
+              "text-[13px] tracking-tight font-medium text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 244 }}
           >
@@ -348,7 +348,7 @@ export function SidebarTree({
           <div
             className={cn(
               "flex items-center gap-2 rounded-[6px] border border-[var(--sd-line)] bg-[var(--sd-box)] px-2 py-1 select-none cursor-grabbing shadow-lg",
-              "font-serif text-[13px] tracking-tight text-[var(--sd-ink)]",
+              "text-[13px] tracking-tight text-[var(--sd-ink)]",
             )}
             style={{ width: collapsed ? 48 : 220 }}
           >
@@ -471,7 +471,7 @@ function SortableAreaRow({
         }}
         className={cn(
           "group/area flex items-center gap-2.5 rounded-[6px] px-2 py-1.5 select-none",
-          "font-serif text-[13px] tracking-tight",
+          "text-[13px] tracking-tight",
           "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
           isActive
@@ -526,7 +526,10 @@ function SortableAreaRow({
                 SB_FOCUS,
                 "flex items-center justify-center h-5 w-5 rounded-[6px]",
                 "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-                "opacity-0 group-hover/area:opacity-100",
+                // focus-visible forces the reveal back: the control is tabbable,
+                // so without this a keyboard user lands a focus ring on an
+                // opacity-0 element and cannot see where they are.
+                "opacity-0 group-hover/area:opacity-100 focus-visible:!opacity-100",
                 "transition-[opacity,color,background-color] duration-[120ms] ease-out",
               )}
             >
@@ -643,7 +646,7 @@ function SortableProjectRow({
         className={cn(
           "group/project flex items-center gap-2 rounded-[6px] px-2 py-1 select-none",
           // Serif sub-row register (UI-SPEC §5e — project sub-rows in serif)
-          "font-serif text-[13px] tracking-tight",
+          "text-[13px] tracking-tight",
           "transition-colors duration-[120ms] ease-out",
           "cursor-grab active:cursor-grabbing",
           // Two-tier active: neutral sidebar-selected backplate + ink text.
@@ -819,7 +822,8 @@ function ProjectActionsMenu({
               SB_FOCUS,
               "flex items-center justify-center h-5 w-5 rounded-[6px]",
               "text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] hover:bg-[var(--sd-hover)]",
-              "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100",
+              // See the area-row note: keyboard focus must un-hide the control.
+              "opacity-0 group-hover/project:opacity-100 data-[state=open]:opacity-100 focus-visible:!opacity-100",
               "transition-[opacity,color,background-color] duration-[120ms] ease-out",
             )}
           >

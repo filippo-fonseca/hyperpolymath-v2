@@ -1,4 +1,5 @@
 import { KiwiIcon } from "@/components/shared/KiwiIcon";
+import { Logotype } from "@/components/ui/Logotype";
 import { SignInButton } from "@/components/sign-in-button";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -35,11 +36,11 @@ export default async function SignInPage() {
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center gap-3 text-[var(--ink)]">
               <KiwiIcon size={44} aria-hidden="true" />
-              <h1 className="font-serif text-[44px] leading-none font-semibold tracking-[-0.01em] m-0">
-                Hyperpolymath
+              <h1 className="text-[44px] leading-none m-0">
+                <Logotype />
               </h1>
             </div>
-            <p className="mt-4 font-serif text-[15px] italic text-[var(--ink-muted)]">
+            <p className="mt-4 text-[15px] text-[var(--ink-muted)]">
               A personal life-OS for people who refuse to specialize.
             </p>
           </div>

@@ -400,7 +400,7 @@ export function ProductTour() {
                 >
                   Step {stepIdx + 1} of {STEPS.length}
                 </span>
-                <h3 className="font-serif font-semibold text-[1.05rem] leading-tight text-[var(--ink)]">
+                <h3 className="font-semibold text-[1.05rem] leading-tight text-[var(--ink)]">
                   {step.title}
                 </h3>
               </div>
@@ -423,7 +423,7 @@ export function ProductTour() {
               </button>
             </div>
 
-            <p className="font-serif text-sm leading-relaxed text-[var(--ink-muted)]">
+            <p className="text-sm leading-relaxed text-[var(--ink-muted)]">
               {step.body}
             </p>
 

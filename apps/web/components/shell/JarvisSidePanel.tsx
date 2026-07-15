@@ -60,7 +60,7 @@ export function JarvisSidePanel() {
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="font-serif text-[14px] text-[var(--ink)]">
+        <p className="text-[14px] text-[var(--ink)]">
           JARVIS panel failed to load
         </p>
         <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
