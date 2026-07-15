@@ -6,14 +6,16 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import type { DailyMacros } from "@/lib/nutrition/nutrition-service";
 
 // ---------------------------------------------------------------------------
-// MacroTrendChart — 7-day macro trend, three academic ink lines
-// protein = ink-sage, carbs = ink-amber, fat = ink-coral
+// MacroTrendChart — 7-day macro trend, sd register.
+// protein = --sd-accent (cyan primary series), carbs = --ink-amber,
+// fat = --ink-coral (functional). 1px --sd-line grid, mono axis labels.
 // ---------------------------------------------------------------------------
 
 const tickFormatter = (d: string) => format(parseISO(d), "EEE");
@@ -26,17 +28,18 @@ export function MacroTrendChart({ data }: MacroTrendChartProps) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <LineChart data={data}>
+        <CartesianGrid stroke="var(--sd-line)" strokeWidth={1} vertical={false} />
         <XAxis
           dataKey="date"
           tickFormatter={tickFormatter}
           style={{ fontSize: 10.5, fontFamily: "var(--font-mono)" }}
-          tick={{ fill: "var(--ink-muted)" }}
+          tick={{ fill: "var(--sd-ink-faint)" }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           style={{ fontSize: 10.5, fontFamily: "var(--font-mono)" }}
-          tick={{ fill: "var(--ink-muted)" }}
+          tick={{ fill: "var(--sd-ink-faint)" }}
           axisLine={false}
           tickLine={false}
           width={36}
@@ -45,10 +48,10 @@ export function MacroTrendChart({ data }: MacroTrendChartProps) {
           contentStyle={{
             fontFamily: "var(--font-mono)",
             fontSize: 10.5,
-            backgroundColor: "var(--surface-raised)",
-            border: "1px solid var(--edge)",
+            backgroundColor: "var(--sd-box)",
+            border: "1px solid var(--sd-line)",
             borderRadius: 8,
-            color: "var(--ink)",
+            color: "var(--sd-ink)",
           }}
           labelFormatter={(label) =>
             typeof label === "string" ? format(parseISO(label), "EEE, MMM d") : String(label)
@@ -65,10 +68,10 @@ export function MacroTrendChart({ data }: MacroTrendChartProps) {
         <Line
           type="monotone"
           dataKey="proteinG"
-          stroke="var(--ink-sage)"
+          stroke="var(--sd-accent)"
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 3, fill: "var(--ink-sage)" }}
+          activeDot={{ r: 3, fill: "var(--sd-accent)" }}
         />
         <Line
           type="monotone"

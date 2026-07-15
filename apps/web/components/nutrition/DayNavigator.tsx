@@ -1,7 +1,8 @@
 "use client";
 
 import { addDays, format, isToday, parseISO, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CopyPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   date: string;
@@ -21,12 +22,10 @@ function formatDateLabel(dateStr: string): string {
 }
 
 /**
- * DayNavigator — left / right arrow day nav with "Copy yesterday" affordance.
- *
- * UI-SPEC §"Day Navigator":
- *   - ChevronLeft / ChevronRight in glass-button rounded-full 32px circles
- *   - Center: date label in serif 16px ("Today", "Yesterday", "Mon, Jun 10")
- *   - "Copy yesterday" mono 10.5px ink-muted — visible ONLY when showCopyYesterday is true
+ * DayNavigator — prev / label / next day nav in the sd ghost grammar shared
+ * with journaling + habits: `Button variant="ghost"` icon steppers around a
+ * semibold date label, with a "Copy yesterday" ghost verb when the day is empty.
+ * No glass, no serif — sd tokens throughout.
  */
 export function DayNavigator({
   date,
@@ -39,43 +38,40 @@ export function DayNavigator({
   const label = formatDateLabel(date);
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Previous day"
-          onClick={() => onChange(prev)}
-          className="glass-button inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150"
-        >
-          <ChevronLeft size={16} strokeWidth={1.75} />
-        </button>
-
-        <span
-          className="font-serif text-[16px] text-[var(--ink)] min-w-[120px] text-center"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {label}
-        </span>
-
-        <button
-          type="button"
-          aria-label="Next day"
-          onClick={() => onChange(next)}
-          className="glass-button inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150"
-        >
-          <ChevronRight size={16} strokeWidth={1.75} />
-        </button>
-      </div>
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Previous day"
+        onClick={() => onChange(prev)}
+      >
+        <ChevronLeft size={14} />
+      </Button>
+      <span
+        className="min-w-[120px] px-1 text-center text-[15px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {label}
+      </span>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Next day"
+        onClick={() => onChange(next)}
+      >
+        <ChevronRight size={14} />
+      </Button>
 
       {showCopyYesterday && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onCopyYesterday}
-          className="font-mono text-[10.5px] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)] rounded"
+          className="ml-2 font-mono text-[11px] uppercase tracking-[0.06em]"
         >
-          Copy yesterday
-        </button>
+          <CopyPlus size={13} /> Copy yesterday
+        </Button>
       )}
     </div>
   );

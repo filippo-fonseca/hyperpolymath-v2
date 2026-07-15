@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,23 +86,28 @@ export function FoodLogRow({ log }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -16 }}
       transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-      className="flex items-center gap-3 min-h-[44px] px-3 py-2 rounded-lg hover:bg-[color-mix(in_oklch,var(--ink)_3%,transparent)] transition-colors duration-150"
+      className="group/row flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150 hover:bg-[var(--sd-hover)]"
     >
       {/* Left: food info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-serif text-[16px] text-[var(--ink)] truncate">{foodName}</p>
-        {brand && (
-          <p className="font-serif text-[16px] text-[var(--ink-muted)] truncate">{brand}</p>
-        )}
-        <p className="font-mono text-[10.5px] text-[var(--ink-muted)] mt-0.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[14px] text-[var(--sd-ink)]">
+          {foodName}
+          {brand && (
+            <span className="ml-1.5 text-[var(--sd-ink-faint)]">{brand}</span>
+          )}
+        </p>
+        <p className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
           {quantityLabel}
         </p>
       </div>
 
       {/* Right: kcal + kebab menu */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="font-mono-stats text-[20px] leading-none text-[var(--ink)] tabular-nums">
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="text-[14px] font-black leading-none tabular-nums text-[var(--sd-ink)]">
           {log.log.kcal}
+          <span className="ml-0.5 font-mono text-[10px] font-medium text-[var(--sd-ink-faint)]">
+            kcal
+          </span>
         </span>
 
         <DropdownMenu>
@@ -110,17 +115,14 @@ export function FoodLogRow({ log }: Props) {
             <button
               type="button"
               aria-label={`Remove ${foodName}`}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[color-mix(in_oklch,var(--ink)_6%,transparent)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)]"
+              className="inline-flex size-7 items-center justify-center rounded-md text-[var(--sd-ink-faint)] transition-colors duration-150 hover:bg-[var(--sd-hover)] hover:text-[var(--sd-ink)] cursor-pointer-always"
             >
               <MoreVertical size={14} strokeWidth={1.75} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[120px]">
-            <DropdownMenuItem
-              className="text-[var(--ink-coral)] focus:text-[var(--ink-coral)] focus:bg-[color-mix(in_oklch,var(--ink-coral)_8%,transparent)]"
-              onClick={handleRemove}
-            >
-              Remove
+            <DropdownMenuItem variant="destructive" onClick={handleRemove}>
+              <Trash2 size={14} /> Remove
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

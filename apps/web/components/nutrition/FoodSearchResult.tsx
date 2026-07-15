@@ -3,11 +3,11 @@
 /**
  * FoodSearchResult — single row in the food search result list.
  *
- * UI-SPEC §"Food Search Surface":
- *   - Food name: serif 16px, var(--ink)
- *   - Brand: serif 16px, var(--ink-muted)
- *   - kcal/100g: mono 10.5px, var(--ink-muted), right-aligned
- *   - Hover: bg-[var(--surface)] tint (no glass per UI-SPEC — document discipline)
+ * sd register: sans food name, mono kcal, list-row bg tint on focus/hover.
+ *   - Food name: 14px --sd-ink
+ *   - Brand: 12px --sd-ink-dull
+ *   - kcal/100g: mono 11px --sd-ink-faint, right-aligned
+ *   - Focused (keyboard) = --sd-selected tint; hover = --sd-hover
  *   - aria-selected on keyboard focus
  */
 
@@ -49,27 +49,21 @@ export function FoodSearchResult({ result, isFocused, onSelect }: Props) {
       role="option"
       aria-selected={isFocused}
       onClick={() => onSelect(result)}
-      className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-doc)] ${
-        isFocused ? "bg-[var(--surface)]" : "hover:bg-[var(--surface)]"
+      className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-[120ms] ease-out focus:outline-none ${
+        isFocused ? "bg-[var(--sd-selected)]" : "hover:bg-[var(--sd-hover)]"
       }`}
     >
       <div className="flex flex-col gap-0.5 min-w-0 flex-1 pr-3">
-        <span
-          className="truncate text-[16px] leading-[1.5] text-[var(--ink)]"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
+        <span className="truncate text-[14px] font-medium leading-tight text-[var(--sd-ink)]">
           {result.name}
         </span>
         {result.brand && (
-          <span
-            className="truncate text-[16px] leading-[1.5] text-[var(--ink-muted)]"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
+          <span className="truncate text-[12px] leading-tight text-[var(--sd-ink-dull)]">
             {result.brand}
           </span>
         )}
       </div>
-      <span className="shrink-0 font-mono text-[10.5px] text-[var(--ink-muted)]">
+      <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--sd-ink-faint)]">
         {kcal} kcal/100g
       </span>
     </button>
