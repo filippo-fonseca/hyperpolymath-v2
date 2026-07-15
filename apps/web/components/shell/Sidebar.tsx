@@ -19,7 +19,6 @@ import { setSfxMuted, useSfxMuted } from "@/lib/ui/sound-prefs";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronDown,
   Eye,
   EyeOff,
   Github,
@@ -63,7 +62,7 @@ export type AreaOptimisticDispatch = (action: OptimisticAction<SidebarArea>) => 
  * desktop-app affordance; on the web it just muddies the column against
  * whatever scrolls underneath it, and a solid column reads cleaner.
  */
-export const SIDEBAR_SURFACE = "bg-[var(--sd-sidebar)]";
+export const SIDEBAR_SURFACE = "sd-sidebar-surface";
 
 /**
  * Row grammar, adopted verbatim from the Spacedrive source (§11).
@@ -97,7 +96,7 @@ export const SB_FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-[v
  * so subscribing at the shared parent guarantees one channel per (table, userId)
  * regardless of how many sub-rows mount.
  *
- * Anatomy, top to bottom, per UI-CONTRACT §1: workspace pill → MAIN nav →
+ * Anatomy, top to bottom, per UI-CONTRACT §1: brand header → MAIN nav →
  * AREAS (tree) → SYSTEM → status row → identity → utility strip. Mechanism
  * (optimistic state, Realtime, collapse) is untouched by the restyle.
  */
@@ -199,11 +198,7 @@ export function Sidebar({
             "z-50 rounded-r-md border border-[var(--sd-line)] shadow-[10px_0_30px_color-mix(in_oklch,var(--ink)_16%,transparent),4px_0_12px_color-mix(in_oklch,var(--ink)_10%,transparent)]"
         )}
       >
-        <WorkspacePill
-          collapsed={effectiveCollapsed}
-          pinnedCollapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-        />
+        <SidebarHeader collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
 
         {/* Scroll column. Rows dissolve into the footer through the bottom
             mask-fade rather than hard-clipping; the scrollbar stays invisible
@@ -289,95 +284,88 @@ export function Sidebar({
 }
 
 /**
- * Workspace pill (§1.1) — the brand marriage: their pill grammar wrapped around
- * our serif logotype, which is the one place EB Garamond is still allowed.
+ * Sidebar header (§1.1, sealed decision §2). The workspace dropdown is gone: it
+ * read as a workspace switcher, and — because its Radix trigger was gated on the
+ * hover-derived `effectiveCollapsed` — hovering a collapsed rail flipped the
+ * trigger variant and unmounted the portal mid-interaction, which is exactly
+ * what trapped the collapse toggle (BUG 1).
  *
- * The chevron opens a real menu rather than being decorative; collapse lives
- * there. Collapsed, the pill becomes a 36px logo tile that pins the sidebar
- * back open in one click.
+ * What's left is deliberately dumb: a plain brand mark that does nothing on
+ * click, and a dedicated, ALWAYS-MOUNTED collapse icon-button. Both gate on the
+ * REAL `collapsed` prop, never on hover, so no control ever changes identity
+ * under the pointer during a hover-peek.
  */
-function WorkspacePill({
+function SidebarHeader({
   collapsed,
-  pinnedCollapsed,
   onToggleCollapsed,
 }: {
   collapsed: boolean;
-  pinnedCollapsed: boolean;
   onToggleCollapsed: () => void;
 }) {
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={onToggleCollapsed}
-              aria-label="Pin sidebar open"
-              className={cn(
-                SB_FOCUS,
-                "mx-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
-                "border border-[color-mix(in_oklch,var(--sd-line)_50%,transparent)] bg-[var(--sd-box)]",
-                "text-[15px] leading-none transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]"
-              )}
-            >
-              <Logotype collapsed />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Pin sidebar open</TooltipContent>
-        </Tooltip>
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+          {/* Brand monogram — a plain mark, not a control. The expand button
+              below owns the toggle so the wordmark is never a collapse trap. */}
+          <span
+            className="flex h-9 items-center justify-center text-[18px] leading-none"
+            aria-hidden="true"
+          >
+            <Logotype collapsed />
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                aria-label="Expand sidebar"
+                className={cn(
+                  SB_GHOST,
+                  SB_FOCUS,
+                  "inline-flex h-8 w-8 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+                )}
+              >
+                <PanelLeftOpen size={16} strokeWidth={1.75} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Expand sidebar</TooltipContent>
+          </Tooltip>
+        </div>
       </TooltipProvider>
     );
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Workspace menu"
-          className={cn(
-            SB_FOCUS,
-            "flex h-9 w-full shrink-0 items-center gap-2 rounded-[10px] px-3",
-            "border border-[color-mix(in_oklch,var(--sd-line)_50%,transparent)] bg-[var(--sd-box)]",
-            "transition-colors duration-[120ms] ease-out hover:bg-[var(--sd-hover)]",
-            "data-[state=open]:bg-[var(--sd-hover)]"
-          )}
-        >
-          {/* Status dot — cyan stays functional chrome: it says "connected". */}
-          <span
-            className="h-2 w-2 shrink-0 rounded-full bg-[var(--hud-cyan)]"
-            aria-hidden="true"
-          />
-          <span className="min-w-0 flex-1 truncate text-left text-[15px] leading-none">
-            <Logotype />
-          </span>
-          <ChevronDown
-            size={14}
-            strokeWidth={1.75}
-            className="shrink-0 text-[var(--sd-ink-faint)]"
-            aria-hidden="true"
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[204px]">
-        <DropdownMenuItem onSelect={onToggleCollapsed}>
-          {pinnedCollapsed ? (
-            <PanelLeftOpen size={14} strokeWidth={1.75} />
-          ) : (
-            <PanelLeftClose size={14} strokeWidth={1.75} />
-          )}
-          {pinnedCollapsed ? "Pin sidebar open" : "Collapse sidebar"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <a href="/settings">
-            <Settings size={14} strokeWidth={1.75} />
-            Settings
-          </a>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-9 w-full shrink-0 items-center gap-2 px-1">
+        {/* Status dot — cyan stays functional chrome: it says "connected". */}
+        <span
+          className="h-2 w-2 shrink-0 rounded-full bg-[var(--hud-cyan)]"
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1 truncate text-[16px] leading-none">
+          <Logotype />
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-label="Collapse sidebar"
+              className={cn(
+                SB_GHOST,
+                SB_FOCUS,
+                "inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]"
+              )}
+            >
+              <PanelLeftClose size={16} strokeWidth={1.75} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Collapse sidebar</TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -477,8 +465,7 @@ function AvatarOrInitial({
 /**
  * Identity block (§1.6) — a plain row, deliberately not a card. Card chrome
  * here competed with the entity cards on the canvas for the same "raised"
- * signal; a bare row lets the workspace pill stay the only raised thing in the
- * column.
+ * signal; a bare row keeps the column quiet, with no raised chrome to compete.
  */
 function IdentityBlock({
   collapsed,
