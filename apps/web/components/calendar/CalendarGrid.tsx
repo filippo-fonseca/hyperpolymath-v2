@@ -281,12 +281,11 @@ export function CalendarGrid({
 
   return (
     <div
-      className="grid rounded-2xl overflow-hidden h-full"
+      className="grid rounded-[10px] overflow-hidden h-full"
       style={{
         gridTemplateRows: outerRows,
-        background: "rgba(255,255,255,0.02)",
-        boxShadow:
-          "inset 0 0 0 1px color-mix(in oklch, var(--edge) 55%, transparent)",
+        background: "var(--sd-box)",
+        boxShadow: "inset 0 0 0 1px var(--sd-line)",
       }}
     >
       {/* ── Header: weekday + date number per day ───────────────────────────── */}
@@ -294,7 +293,7 @@ export function CalendarGrid({
         className="grid border-b"
         style={{
           gridTemplateColumns: dayColTemplate,
-          borderColor: "rgba(255,255,255,0.05)",
+          borderColor: "var(--sd-line)",
         }}
       >
         <div /> {/* gutter corner */}
@@ -305,25 +304,23 @@ export function CalendarGrid({
               key={d.toISOString()}
               className="flex items-baseline gap-2 px-3 py-3 border-l"
               style={{
-                borderColor: "rgba(255,255,255,0.05)",
+                borderColor: "var(--sd-line)",
                 borderLeftWidth: i === 0 ? 0 : 1,
               }}
             >
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold"
                 style={{
-                  color: isToday
-                    ? "var(--hud-cyan)"
-                    : "color-mix(in oklch, var(--ink-muted) 90%, transparent)",
+                  color: isToday ? "var(--sd-accent)" : "var(--sd-ink-faint)",
                 }}
               >
                 {format(d, "EEE")}
               </span>
               <span
-                className="font-serif text-xl tabular-nums leading-none"
+                className="text-xl tabular-nums leading-none tracking-[-0.01em]"
                 style={{
-                  color: isToday ? "var(--hud-cyan)" : "var(--ink)",
-                  fontWeight: isToday ? 600 : 500,
+                  color: isToday ? "var(--sd-accent)" : "var(--sd-ink)",
+                  fontWeight: isToday ? 700 : 600,
                 }}
               >
                 {format(d, "d")}
@@ -339,13 +336,13 @@ export function CalendarGrid({
           className="grid border-b"
           style={{
             gridTemplateColumns: dayColTemplate,
-            borderColor: "rgba(255,255,255,0.05)",
+            borderColor: "var(--sd-line)",
             minHeight: 28,
           }}
         >
           <div
             className="flex items-center justify-end pr-3 font-mono text-[10px] uppercase tracking-[0.12em]"
-            style={{ color: "color-mix(in oklch, var(--ink-muted) 80%, transparent)" }}
+            style={{ color: "var(--sd-ink-faint)" }}
           >
             all-day
           </div>
@@ -354,7 +351,7 @@ export function CalendarGrid({
               key={`allday-${i}`}
               className="flex flex-wrap gap-1 px-1 py-1 border-l"
               style={{
-                borderColor: "rgba(255,255,255,0.05)",
+                borderColor: "var(--sd-line)",
                 borderLeftWidth: i === 0 ? 0 : 1,
               }}
             >
@@ -366,7 +363,7 @@ export function CalendarGrid({
                 />
               ))}
               {d.allDay.length > 2 && (
-                <span className="font-mono text-[10px] text-[var(--ink-muted)] self-center px-1">
+                <span className="font-mono text-[10px] text-[var(--sd-ink-dull)] self-center px-1">
                   +{d.allDay.length - 2}
                 </span>
               )}
@@ -397,7 +394,7 @@ export function CalendarGrid({
                 className="absolute right-3 -translate-y-1/2 font-mono text-[10px]"
                 style={{
                   top: h * HOUR_PX,
-                  color: "color-mix(in oklch, var(--ink-muted) 80%, transparent)",
+                  color: "var(--sd-ink-faint)",
                 }}
               >
                 {h === 0 ? "" : format(new Date(0, 0, 0, h), "h a")}
@@ -420,11 +417,15 @@ export function CalendarGrid({
                 }}
                 className="relative border-l select-none"
                 style={{
-                  borderColor: "rgba(255,255,255,0.05)",
+                  borderColor: "var(--sd-line)",
                   borderLeftWidth: dayIdx === 0 ? 0 : 1,
+                  // Today = faint accent wash + a crisp 1px cyan ring (seed).
                   background: isToday
-                    ? "rgba(34, 211, 238, 0.025)"
+                    ? "color-mix(in oklch, var(--sd-accent) 5%, transparent)"
                     : "transparent",
+                  boxShadow: isToday
+                    ? "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 55%, transparent)"
+                    : "none",
                   cursor: drag ? "ns-resize" : "default",
                 }}
                 onMouseDown={(e) => {
@@ -447,7 +448,7 @@ export function CalendarGrid({
                     className="absolute left-0 right-0 pointer-events-none"
                     style={{
                       top: h * HOUR_PX,
-                      borderTop: "1px solid rgba(255,255,255,0.05)",
+                      borderTop: "1px solid var(--sd-line)",
                     }}
                   />
                 ))}
@@ -458,7 +459,8 @@ export function CalendarGrid({
                     className="absolute left-0 right-0 pointer-events-none"
                     style={{
                       top: h * HOUR_PX + HOUR_PX / 2,
-                      borderTop: "1px dashed rgba(255,255,255,0.025)",
+                      borderTop:
+                        "1px dashed color-mix(in oklch, var(--sd-line) 55%, transparent)",
                     }}
                   />
                 ))}
@@ -505,20 +507,20 @@ export function CalendarGrid({
                   );
                   return (
                     <div
-                      className="absolute pointer-events-none z-10 rounded-md"
+                      className="absolute pointer-events-none z-10 rounded-[6px]"
                       style={{
                         top: previewTop,
                         height: previewHeight,
                         left: 2,
                         right: 2,
-                        background: "rgba(34, 211, 238, 0.18)",
-                        borderLeft: "3px solid var(--hud-cyan)",
+                        background:
+                          "color-mix(in oklch, var(--sd-accent) 16%, transparent)",
                         boxShadow:
-                          "inset 0 0 0 1px rgba(34, 211, 238, 0.5)",
+                          "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 55%, transparent)",
                       }}
                     >
                       <span
-                        className="font-mono text-[10px] px-2 py-0.5 text-[var(--ink)] block truncate"
+                        className="font-mono text-[10px] px-2 py-0.5 text-[var(--sd-ink)] block truncate"
                         style={{ opacity: isClickOnly ? 0.7 : 1 }}
                       >
                         {formatMinutes(startSnap)}–{formatMinutes(endSnap)}
@@ -542,30 +544,28 @@ export function CalendarGrid({
                       style={{
                         left: 0,
                         top: 0,
-                        width: 8,
-                        height: 8,
-                        background: "var(--hud-cyan)",
-                        boxShadow: "0 0 8px rgba(34,211,238,0.7)",
+                        width: 7,
+                        height: 7,
+                        background: "var(--sd-accent)",
                       }}
                     />
-                    {/* Horizontal bar */}
+                    {/* Horizontal bar — crisp 1.5px accent line, no glow (§0). */}
                     <div
                       style={{
                         height: 1.5,
-                        background: "var(--hud-cyan)",
-                        boxShadow:
-                          "0 0 10px rgba(34,211,238,0.55), 0 0 2px rgba(34,211,238,0.9)",
+                        background: "var(--sd-accent)",
                       }}
                     />
                     {dayIdx === 0 && (
                       <span
-                        className="absolute -translate-y-1/2 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded-sm tabular-nums"
+                        className="absolute -translate-y-1/2 font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px] tabular-nums"
                         style={{
-                          background: "var(--hud-cyan)",
-                          color: "rgb(15,15,18)",
+                          // Dark on-accent ink in BOTH themes (matches the sd
+                          // check-on-accent convention) — cyan pill stays legible.
+                          background: "var(--sd-accent)",
+                          color: "hsl(235 45% 9%)",
                           left: -TIME_GUTTER_W + 6,
                           top: 0,
-                          boxShadow: "0 0 6px rgba(34,211,238,0.5)",
                         }}
                       >
                         {format(now, "HH:mm")}
@@ -599,7 +599,10 @@ function EventChip({
   widthPct,
   onClick,
 }: EventChipProps) {
-  const color = event.colorHex || "var(--ink-coral)";
+  // sd chip grammar (seed): the surface stays sd (--sd-input + --sd-line
+  // hairline) — the calendar-source colour is allowed to tint the LEADING DOT
+  // ONLY, never the fill or a left edge. Single cyan accent law holds otherwise.
+  const dotColor = event.colorHex || "var(--ink-coral)";
   const isCompact = height < 36;
   return (
     <div
@@ -617,18 +620,20 @@ function EventChip({
           onClick(e as unknown as React.MouseEvent<HTMLDivElement>);
         }
       }}
-      className="absolute rounded-md overflow-hidden cursor-pointer transition-[filter] duration-150 ease-out hover:brightness-110"
+      className="absolute rounded-[6px] overflow-hidden cursor-pointer transition-colors duration-150 ease-out hover:brightness-[1.06]"
       style={{
         top: `${top}px`,
         height: `${height}px`,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
-        background: `color-mix(in srgb, ${color} 22%, transparent)`,
-        borderLeft: `3px solid ${color}`,
-        boxShadow:
-          "0 1px 2px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.04)",
+        // Placeholder rows read as a dashed accent outline on the app surface;
+        // settled events read as a solid --sd-input plate with a hairline ring.
+        background: event.isPlaceholder ? "var(--sd-app)" : "var(--sd-input)",
+        boxShadow: event.isPlaceholder
+          ? "none"
+          : "inset 0 0 0 1px var(--sd-line)",
         outlineStyle: event.isPlaceholder ? "dashed" : "none",
-        outlineColor: color,
+        outlineColor: "var(--sd-accent)",
         outlineWidth: event.isPlaceholder ? 1.5 : 0,
         outlineOffset: -2,
         opacity: event.isDraftEditing
@@ -639,7 +644,7 @@ function EventChip({
               ? 0.92
               : 1,
         fontStyle: event.isPlaceholder ? "italic" : "normal",
-        padding: isCompact ? "1px 6px" : "4px 8px",
+        padding: isCompact ? "2px 7px" : "4px 8px",
       }}
     >
       {/* In-flight write indicator (issue #25): a small corner spinner while a
@@ -648,25 +653,27 @@ function EventChip({
       {event.isBusy && (
         <Loader2
           size={12}
-          className="absolute top-1 right-1 animate-spin text-[var(--ink)] opacity-80"
+          className="absolute top-1 right-1 animate-spin text-[var(--sd-ink-dull)]"
           aria-hidden
         />
       )}
-      <div
-        className="font-serif text-[13px] leading-tight truncate text-[var(--ink)]"
-        style={{
-          textShadow: "0 1px 0 rgba(0,0,0,0.18)",
-        }}
-      >
-        {event.title || "Untitled"}
-        {event.recurringEventId && (
-          <span className="ml-1 opacity-60" title="Recurring event">
-            ↻
-          </span>
-        )}
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span
+          aria-hidden
+          className="h-[6px] w-[6px] shrink-0 rounded-full"
+          style={{ background: dotColor }}
+        />
+        <span className="text-[12px] font-medium leading-tight truncate text-[var(--sd-ink)]">
+          {event.title || "Untitled"}
+          {event.recurringEventId && (
+            <span className="ml-1 text-[var(--sd-ink-faint)]" title="Recurring event">
+              ↻
+            </span>
+          )}
+        </span>
       </div>
       {!isCompact && (
-        <div className="font-mono text-[10px] leading-tight tracking-[0.04em] text-[var(--ink-muted)] truncate">
+        <div className="font-mono text-[10px] leading-tight tracking-[0.04em] text-[var(--sd-ink-dull)] truncate mt-0.5 pl-[13px]">
           {format(event.start, "HH:mm")}–{format(event.end, "HH:mm")}
         </div>
       )}
@@ -680,19 +687,23 @@ interface AllDayChipProps {
 }
 
 function AllDayChip({ event, onClick }: AllDayChipProps) {
-  const color = event.colorHex || "var(--ink-coral)";
+  const dotColor = event.colorHex || "var(--ink-coral)";
   return (
     <button
       type="button"
       onClick={onClick}
-      className="font-serif text-[11px] leading-none px-2 py-1 rounded-md truncate max-w-[140px] cursor-pointer hover:brightness-110 transition-[filter] duration-150"
+      className="inline-flex items-center gap-1.5 text-[12px] font-medium leading-none px-2 py-1 rounded-[6px] truncate max-w-[140px] cursor-pointer hover:brightness-[1.06] transition-colors duration-150 text-[var(--sd-ink)]"
       style={{
-        background: `color-mix(in srgb, ${color} 22%, transparent)`,
-        borderLeft: `2px solid ${color}`,
-        color: "var(--ink)",
+        background: "var(--sd-input)",
+        boxShadow: "inset 0 0 0 1px var(--sd-line)",
       }}
     >
-      {event.title || "Untitled"}
+      <span
+        aria-hidden
+        className="h-[6px] w-[6px] shrink-0 rounded-full"
+        style={{ background: dotColor }}
+      />
+      <span className="truncate">{event.title || "Untitled"}</span>
     </button>
   );
 }
