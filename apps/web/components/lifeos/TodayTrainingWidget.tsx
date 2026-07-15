@@ -122,7 +122,7 @@ export function TodayTrainingWidget({
             Rest day. Recover well; tomorrow earns more.
           </EmptyState>
         ) : (
-          <ul className="mt-3.5 flex flex-1 flex-col gap-2.5">
+          <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-2">
             {visible.map((a) => {
               const done = a.status === "done";
               const plannedMin = a.plannedDurationMin;

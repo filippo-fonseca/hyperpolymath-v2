@@ -246,7 +246,7 @@ export function UpcomingTasksWidget({
         {upcoming.length === 0 ? (
           <EmptyState icon={<TaskIcon size={40} />}>Nothing due. Breathe.</EmptyState>
         ) : (
-          <ul className="flex flex-1 flex-col">
+          <ul className="sd-scroll-hover -mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2">
           <AnimatePresence mode="popLayout" initial={false}>
             {upcoming.map((t) => {
               const u = urgencyOf(t.dueDate as string, todayISO);

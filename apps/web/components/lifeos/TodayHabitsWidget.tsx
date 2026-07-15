@@ -142,7 +142,7 @@ export function TodayHabitsWidget({
                 ratio={doneCount / total}
               />
             </div>
-            <ul className="mt-3.5 flex flex-1 flex-col gap-0.5">
+            <ul className="sd-scroll-hover -mr-2 mt-3.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-2">
               {habits.slice(0, 6).map((h) => {
                 const done = isDone(h.id);
                 return (

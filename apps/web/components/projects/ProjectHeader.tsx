@@ -3,11 +3,12 @@
 import { updateProject } from "@/app/actions/projects";
 import { cn } from "@/lib/utils";
 import { parseBanner } from "@/lib/utils/banner";
-import { Settings2 } from "lucide-react";
+import { ImagePlus, Settings2 } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { BannerPicker } from "./BannerPicker";
 import { DynamicIcon } from "./DynamicIcon";
+import { IconPicker } from "./IconPicker";
 import type { ProjectOptimisticDispatch } from "./ProjectDetailClient";
 import { ProjectEditClassDialog } from "./ProjectEditClassDialog";
 import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
@@ -122,6 +123,25 @@ export function ProjectHeader({
     setTimeout(() => nameInputRef.current?.select(), 0);
   }
 
+  // Notion-style click-to-edit for the project icon. Mirrors handleNameCommit's
+  // optimistic pattern: dispatch through addOptimisticProject so the icon swaps
+  // instantly, then persist via updateProject (which already accepts `icon`);
+  // the Realtime echo reconciles to canonical.
+  function handleIconCommit(newIcon: string | null) {
+    if (newIcon === project.icon) return;
+    addOptimisticProject({
+      type: "update",
+      id: project.id,
+      patch: { icon: newIcon },
+    });
+    startTransition(async () => {
+      const result = await updateProject({ id: project.id, icon: newIcon });
+      if (!result.success) {
+        toast.error(result.error);
+      }
+    });
+  }
+
   function handleNameCommit() {
     const trimmed = nameValue.trim();
     setIsEditingName(false);
@@ -166,8 +186,8 @@ export function ProjectHeader({
             aria-label="Project settings"
             className={cn(
               "flex items-center justify-center h-8 w-8 rounded-md cursor-pointer-always",
-              "bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--edge)]",
-              "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--edge-hud)]",
+              "bg-[var(--sd-box)] border border-[var(--sd-line)]",
+              "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)] hover:border-[var(--sd-accent)]",
               "transition-colors duration-150 ease-out focus-visible:outline-none"
             )}
           >
@@ -190,9 +210,9 @@ export function ProjectHeader({
             className={cn(
               "self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm",
               "font-mono text-[11px] uppercase tracking-[0.08em]",
-              "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-              "border border-[var(--edge)] hover:border-[var(--edge-hud)]",
-              "bg-[var(--surface)] hover:bg-[var(--surface-raised)]",
+              "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+              "border border-[var(--sd-line)] hover:border-[var(--sd-accent)]",
+              "bg-[var(--sd-box)] hover:bg-[var(--sd-hover)]",
               "transition-colors duration-150 ease-out cursor-pointer-always"
             )}
           >
@@ -206,15 +226,40 @@ export function ProjectHeader({
         ) : null}
 
         <div className="flex items-start gap-3">
-          {/* Icon — Lucide at stroke 1.5 per UI-SPEC §8a, inline with title */}
-          <div className="mt-1 shrink-0">
-            <DynamicIcon
-              name={project.icon}
-              size={32}
-              strokeWidth={1.5}
-              className="text-[var(--ink)]"
-            />
-          </div>
+          {/* Icon — click-to-edit (Notion-style): the inline icon is the
+              IconPicker trigger. Hover reveals a subtle tint + edit cursor;
+              when unset, an "add icon" placeholder keeps a click target. */}
+          <IconPicker
+            value={project.icon}
+            onChange={handleIconCommit}
+            renderTrigger={
+              <button
+                type="button"
+                aria-label={project.icon ? "Change project icon" : "Add project icon"}
+                className={cn(
+                  "-ml-1.5 mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-md",
+                  "cursor-pointer-always text-[var(--sd-ink)] transition-colors duration-150 ease-out",
+                  "hover:bg-[var(--sd-hover)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sd-accent)]"
+                )}
+              >
+                {project.icon ? (
+                  <DynamicIcon
+                    name={project.icon}
+                    size={30}
+                    strokeWidth={1.5}
+                    className="text-[var(--sd-ink)]"
+                  />
+                ) : (
+                  <ImagePlus
+                    size={24}
+                    strokeWidth={1.5}
+                    className="text-[var(--sd-ink-faint)]"
+                  />
+                )}
+              </button>
+            }
+          />
 
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {/* H1 serif 36px 600 per UI-SPEC §5j */}
@@ -232,9 +277,9 @@ export function ProjectHeader({
                   }
                 }}
                 className={cn(
-                  "font-serif text-4xl font-semibold leading-tight",
+                  "text-4xl font-semibold leading-tight tracking-[-0.01em]",
                   "bg-transparent border-b border-[var(--ink-amber)] outline-none",
-                  "text-[var(--ink)] w-full"
+                  "text-[var(--sd-ink)] w-full"
                 )}
                 autoFocus
               />
@@ -242,17 +287,17 @@ export function ProjectHeader({
               <h1
                 onClick={handleNameClick}
                 className={cn(
-                  "font-serif text-4xl font-semibold leading-tight",
-                  "text-[var(--ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out"
+                  "text-4xl font-semibold leading-tight tracking-[-0.01em]",
+                  "text-[var(--sd-ink)] cursor-text hover:opacity-80 transition-opacity duration-150 ease-out"
                 )}
               >
                 {project.name}
               </h1>
             )}
 
-            {/* Class metadata strip — mono only, --ink-muted (UI-SPEC §5j) */}
+            {/* Class metadata strip — selective mono (SD3 §0) */}
             {project.isClass && classMeta && (
-              <p className="font-mono text-xs text-[var(--ink-muted)] leading-snug tracking-[0.02em]">
+              <p className="font-mono text-xs text-[var(--sd-ink-dull)] leading-snug tracking-[0.02em]">
                 {classMeta}
               </p>
             )}
@@ -264,8 +309,8 @@ export function ProjectHeader({
                 onClick={() => setEditClassOpen(true)}
                 className={cn(
                   "self-start mt-1 px-2 py-0.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.08em] cursor-pointer-always",
-                  "text-[var(--ink-muted)] hover:text-[var(--ink)]",
-                  "border border-transparent hover:border-[var(--edge)]",
+                  "text-[var(--sd-ink-dull)] hover:text-[var(--sd-ink)]",
+                  "border border-transparent hover:border-[var(--sd-line)]",
                   "transition-colors duration-150 ease-out",
                   "focus-visible:outline-none"
                 )}
