@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { LandingHeader } from "./LandingHeader";
 import { LandingFooter } from "./LandingFooter";
 import { SectionDivider } from "./SectionDivider";
@@ -28,7 +29,22 @@ import { FrameworkSection } from "./FrameworkSection";
  */
 export function LandingPage() {
   return (
-    <div className="relative min-h-screen bg-[var(--canvas)] text-[var(--ink)] overflow-hidden">
+    <div
+      className="dark relative min-h-screen overflow-hidden text-[var(--sd-ink)]"
+      style={
+        {
+          // The landing is one continuous dark plate — the hero's near-black
+          // world carried down the whole page (UI-CONTRACT §0, seed step 2).
+          // We force `.dark` and pin the canvas tokens to the hero's near-black
+          // so every body section resolves dark sd tokens and there is no seam
+          // between the hero and the body, regardless of the app's system theme.
+          background: "#08090d",
+          "--sd-accent": "var(--hud-cyan)",
+          "--canvas": "#08090d",
+          "--sd-app": "#08090d",
+        } as CSSProperties
+      }
+    >
       {/* Cursor-following cyan spotlight — sits at z-index 0 behind all
           content. Real content stacks above via the relative z-10 wrapper
           on header / main / footer. */}
