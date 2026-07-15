@@ -65,11 +65,11 @@ export function InboxColumn({
         void onDrop();
       }}
       className={cn(
-        "glass-tile rounded-xl p-4 w-[240px] shrink-0 flex flex-col min-h-0 overflow-y-auto",
-        // S-1 drag-target active class — cyan glow + border + ring, shown
-        // ONLY while a card is hovering over the Inbox during a drag.
+        "rounded-xl border border-[var(--sd-line)] bg-[var(--sd-box)] p-4 w-[240px] shrink-0 flex flex-col min-h-0 overflow-y-auto transition-[border-color,box-shadow] duration-150",
+        // S-1 drag-target active state — cyan border + ring, shown ONLY while
+        // a card is hovering over the Inbox during a drag.
         isDragOver &&
-          "[--glass-glow-color:var(--hud-cyan)] [--glass-border:color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] ring-1 ring-[var(--hud-cyan)]/30"
+          "border-[color:color-mix(in_oklch,var(--hud-cyan)_50%,transparent)] ring-1 ring-[var(--hud-cyan)]/30"
       )}
     >
       <div className="mb-3 flex items-center justify-between px-0.5">
@@ -81,7 +81,7 @@ export function InboxColumn({
         </p>
       </div>
       {inboxTasks.length === 0 ? (
-        <p className="px-0.5 font-serif text-sm text-[var(--ink-muted)]">Inbox is empty.</p>
+        <p className="px-0.5 font-sans text-sm text-[var(--ink-muted)]">Inbox is empty.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {inboxTasks.map((t) => (

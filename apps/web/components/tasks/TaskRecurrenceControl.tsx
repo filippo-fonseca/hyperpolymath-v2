@@ -103,7 +103,7 @@ export function TaskRecurrenceControl({ value, onChange, disabled = false }: Pro
               onClick={() => pickFrequency(opt.value)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 cursor-pointer-always",
-                "font-mono text-[11px] uppercase tracking-[0.08em] backdrop-blur-md",
+                "font-mono text-[11px] uppercase tracking-[0.08em]",
                 "border transition-[color,background-color,border-color,box-shadow] duration-150 ease-out",
                 selected
                   ? "border-[var(--hud-cyan)] text-[var(--ink)]"
