@@ -220,7 +220,7 @@ function JarvisReceiptUndo({ turnId }: { turnId: string }) {
   return (
     <button
       type="button"
-      className="bn-jarvis-pill-undo glass-button"
+      className="bn-jarvis-pill-undo"
       contentEditable={false}
       title={`Undo (${seconds}s)`}
       onMouseDown={(e) => e.stopPropagation()}

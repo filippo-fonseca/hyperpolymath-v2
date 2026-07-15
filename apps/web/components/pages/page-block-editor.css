@@ -245,8 +245,8 @@
   padding: 0.7rem 0.85rem;
   border-radius: 8px;
   background-color: color-mix(in oklch, var(--surface) 80%, transparent);
-  border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--glass-hi);
+  border: 1px solid var(--sd-line);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--sd-ink) 6%, transparent);
   width: 100%;
 }
 
@@ -284,22 +284,15 @@
 /* =====================================================================
    In-document @JARVIS pill (Phase 32, JDOC-UX-02/03/04/06).
 
-   A soft glassy inline bubble in the spirit of an iMessage message: a
-   translucent backdrop-blurred surface with gentle neumorphic depth (raised
-   highlight, soft drop, a whisper-thin edge) and a tasteful inset cyan breath
-   for the JARVIS signature. It moves through prompt -> loading -> receipt ->
-   error states via [data-status]; cyan reads as the signature accent and
-   errors swap that breath to red. Built ON the canonical glass tokens
-   (--glass-raise-sm/--glass-drop-sm/--glass-hi/--glass-lo/--glass-border and
-   --glass-glow-color), so dark mode inherits the quieter highlight for free.
+   A solid inline sd bubble in the spirit of an iMessage message: an --sd-box
+   surface with a single inset top hairline (no backdrop-blur or glow per the
+   Spacedrive register) and a whisper-thin --sd-line edge. It moves through
+   prompt -> loading -> receipt -> error states via [data-status]; cyan reads
+   as the signature accent through the border-color and errors swap it to red.
    The hide-receipts nav toggle sets [data-hide-receipts] on the editor wrapper
    to collapse receipt/error pills in-doc (export exclusion handled separately).
    ===================================================================== */
 .bn-jarvis-pill {
-  /* Per-pill glow knob so each status can dial the inset cyan/red breath
-     without restating the shadow stack. */
-  --pill-glow-color: var(--glass-glow-color);
-  --pill-glow: 6%;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -314,16 +307,12 @@
   vertical-align: baseline;
   user-select: none;
   color: var(--ink);
-  /* Glassy bubble surface built on the canonical glass tokens: translucent
-     blurred fill, raised highlight + soft drop for depth, a whisper edge, and
-     a faint inset glow breath (cyan by default, red for errors). */
-  background: var(--glass-bg-button);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop-sm), inset 0 1px 0 var(--glass-hi), inset 0
-    -1px 0 var(--glass-lo), inset 0 0 16px
-    color-mix(in oklch, var(--pill-glow-color) var(--pill-glow), transparent);
+  /* Solid sd surface: no backdrop-blur or glow per the Spacedrive register.
+     Depth is a single inset top hairline; the cyan signature reads through the
+     border-color, dialled per [data-status]. */
+  background: var(--sd-box);
+  border: 1px solid var(--sd-line);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--sd-ink) 6%, transparent);
   transition: background-color 160ms var(--ease-out-quart), border-color 160ms var(--ease-out-quart),
     box-shadow 160ms var(--ease-out-quart), color 160ms var(--ease-out-quart);
 }
@@ -367,42 +356,36 @@
 /* Prompt: awaiting Cmd+Enter — quietly editable, cyan-tinged edge + a touch
    more breath so it reads as the active input field. */
 .bn-jarvis-pill[data-status="prompt"] {
-  --pill-glow: 7%;
   cursor: text;
-  border-color: color-mix(in oklch, var(--hud-cyan) 26%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 26%, var(--sd-line));
 }
 
 /* Loading: a gentle cyan breath swells while the spinner runs. */
 .bn-jarvis-pill[data-status="loading"] {
-  --pill-glow: 11%;
-  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 30%, var(--sd-line));
 }
 
 /* Receipt: resolved + settled, a soft cyan signature glow, hoverable for the
    original prompt. */
 .bn-jarvis-pill[data-status="receipt"] {
-  --pill-glow: 9%;
   cursor: help;
-  border-color: color-mix(in oklch, var(--hud-cyan) 24%, var(--glass-border));
+  border-color: color-mix(in oklch, var(--hud-cyan) 24%, var(--sd-line));
 }
 
-/* Error: the breath swaps to red; everything else stays in the glass family. */
+/* Error: the accent swaps to red; everything else stays in the sd family. */
 .bn-jarvis-pill[data-status="error"] {
-  --pill-glow-color: oklch(0.58 0.2 25);
-  --pill-glow: 9%;
   cursor: help;
   color: oklch(0.58 0.2 25);
-  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 26%, var(--glass-border));
+  border-color: color-mix(in oklch, oklch(0.58 0.2 25) 26%, var(--sd-line));
 }
 .bn-jarvis-pill[data-status="error"] .bn-jarvis-pill-icon {
   color: oklch(0.58 0.2 25);
 }
 
 /* The 5s undo affordance on a resolved receipt (mirrors the JARVIS console's
-   universal undo). A small inline glass-button (the .glass-button class carries
-   the shared shadow/blur stack) tucked at the bubble's trailing edge with a
-   cyan accent; it disappears once the window elapses or after a successful
-   undo. A hairline divider sets it off from the summary text. */
+   universal undo). A small inline sd pill tucked at the bubble's trailing edge
+   with a cyan accent; it disappears once the window elapses or after a
+   successful undo. A hairline divider sets it off from the summary text. */
 .bn-jarvis-pill-undo {
   display: inline-flex;
   align-items: center;
@@ -417,7 +400,11 @@
   cursor: pointer;
   user-select: none;
   color: var(--hud-cyan);
-  /* Surface (background, edge, depth) comes from the shared .glass-button. */
+  /* Self-contained sd surface (was the shared .glass-button). */
+  background: color-mix(in oklch, var(--hud-cyan) 10%, var(--sd-box));
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--sd-line));
+  transition: background 120ms var(--ease-out-quart),
+    border-color 120ms var(--ease-out-quart), color 120ms var(--ease-out-quart);
 }
 .bn-jarvis-pill-undo:hover {
   color: var(--hud-cyan-bright);
@@ -448,7 +435,7 @@
   height: 0.92em;
   width: 1px;
   transform: translateY(-50%);
-  background: var(--glass-border);
+  background: var(--sd-line);
 }
 
 @keyframes bn-jarvis-spin {
@@ -485,12 +472,10 @@
   line-height: 1.4;
   white-space: normal;
   color: var(--ink);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-raise-sm), var(--glass-drop), inset 0 1px 0 var(--glass-hi), inset 0 -1px
-    0 var(--glass-lo), inset 0 0 18px color-mix(in oklch, var(--hud-cyan) 5%, transparent);
+  background: var(--sd-menu);
+  border: 1px solid var(--sd-line);
+  box-shadow: 0 14px 34px hsl(235 15% 0% / 0.46),
+    inset 0 1px 0 color-mix(in oklch, var(--sd-ink) 6%, transparent);
   pointer-events: none;
 }
 
@@ -512,8 +497,8 @@
   user-select: none;
   color: var(--ink);
   background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
-  border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
+  border: 1px solid var(--sd-line);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--sd-ink) 6%, transparent), 0 1px 2px
     color-mix(in oklch, var(--ink) 10%, transparent);
 }
 
@@ -548,8 +533,8 @@
   text-decoration: none;
   color: var(--ink);
   background: color-mix(in oklch, var(--hud-cyan) 9%, var(--surface-raised));
-  border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--glass-border));
-  box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px
+  border: 1px solid color-mix(in oklch, var(--hud-cyan) 28%, var(--sd-line));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--sd-ink) 6%, transparent), 0 1px 2px
     color-mix(in oklch, var(--ink) 10%, transparent);
   transition: background 0.12s ease, border-color 0.12s ease;
 }
