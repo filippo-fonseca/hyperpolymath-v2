@@ -15,6 +15,7 @@ import type { SidebarArea } from "@/lib/db/queries/sidebar";
 import { type OptimisticAction, optimisticReducer } from "@/lib/realtime/optimistic-reducer";
 import { tableKey } from "@/lib/realtime/query-keys";
 import { useTableSubscription } from "@/lib/realtime/useTableSubscription";
+import { sfx } from "@/lib/ui/sfx";
 import { setSfxMuted, useSfxMuted } from "@/lib/ui/sound-prefs";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -134,6 +135,7 @@ export function Sidebar({
     setCollapsed(next);
     if (!next) setHovered(false);
     localStorage.setItem("sidebar-collapsed", String(next));
+    sfx.play(next ? "sidebarCollapse" : "sidebarExpand");
   }
 
   function toggleShowArchived() {
