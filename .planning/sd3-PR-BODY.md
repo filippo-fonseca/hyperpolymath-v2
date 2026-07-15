@@ -25,7 +25,7 @@ Each unit ran in its own worktree on `sd3/<unit>` and merged as one commit.
 | unit-devtab | DEV/insights tab rebuilt as an sd console | `9ab1a46c` |
 | unit-settings-misc | settings/people/graph/onboarding/tour + long-tail to the sd register | `776d8cf7` |
 | unit-quick-wins | residual sweep, dark diagram SVGs, nutrition legend chips, SFX wiring, `animate-*` → `sd-fade-in` pass | `38291bff` |
-| **unit-closeout** | glass excision (grep-proven), integration gates, canon docs, composer glow strip (D1), this dossier | `459e12fc`·`ec6f63ae`·`6309b67a`·`76185300`·`f2375678` |
+| **unit-closeout** | glass excision (grep-proven), integration gates, canon docs, unified-focus-ring de-glow (D1), this dossier | `459e12fc`·`ec6f63ae`·`6309b67a`·`76185300`·`198d785c` |
 
 ---
 
@@ -45,7 +45,7 @@ Each unit ran in its own worktree on `sd3/<unit>` and merged as one commit.
 - unit-primitives: accent-default + a single unified focus-ring ratio ratified; inert `animate-*` classes deferred to closeout (landed in unit-quick-wins' transition pass).
 - unit-lifeos-rework: `h-full` one-viewport construction ratified; authed pixel pass batched to the Conductor on `:3000`.
 - closeout is the **only** unit sanctioned to make `globals.css` deletions, each proven consumer-free by grep.
-- Tester-r5 **D1** (composer glow layer) steered into closeout as a fence extension; **D2** (hashtag rail vs inline tags) is a data-model behavior, queued (below).
+- Tester-r5 **D1** (composer glow layer) steered into closeout as a fence extension — root-caused to the shared `--ring-focus` token and de-glowed app-wide, keeping the crisp cyan ring; **D2** (hashtag rail vs inline tags) is a data-model behavior, queued (below).
 
 ---
 

@@ -1,6 +1,6 @@
 # sd3 · unit-closeout — Verification note
 
-Branch `sd3/unit-closeout`, base `38291bff` (bgsd/sd-all-features, all 15 build units merged). Five atomic commits:
+Branch `sd3/unit-closeout`, base `38291bff` (bgsd/sd-all-features, all 15 build units merged). Atomic commits:
 
 | commit | subject |
 |---|---|
@@ -8,7 +8,10 @@ Branch `sd3/unit-closeout`, base `38291bff` (bgsd/sd-all-features, all 15 build 
 | `ec6f63ae` | excise dead glass/sidebar/lifeos CSS from globals |
 | `6309b67a` | extend DESIGN-SYSTEM canon for sd3 systems |
 | `76185300` | add sd3 sections to the /design living reference |
-| `f2375678` | strip JARVIS composer glow layer (Tester-r5 D1) |
+| `1f0d0b33` | verification note + PR dossier + both-theme evidence |
+| `f2375678` | (reverted) mis-targeted JarvisInput keyframe for D1 |
+| `f7536cb3` | Revert f2375678 |
+| `198d785c` | strip banned glow from unified focus ring (Tester-r5 D1, correct target) |
 
 ---
 
@@ -92,4 +95,12 @@ Both themes resolve; dark and light frames differ (distinct md5). New /design se
 
 ## 5. Tester-r5 D1 (Conductor-steered fence extension)
 
-RUN.md (2026-07-15) steered Tester-r5 defect **D1 (composer glow layer)** into this unit: "strip 12px blur layer, keep 2px ring." Implemented in commit `f2375678` by stripping the breathing `8→14px var(--hud-cyan-glow)` blur from the `hud-focus-breathe` keyframe (glow rings are banned, §0), leaving the flat 2px cyan ring. Kept as a keyframe with identical stops so the `JarvisInput` class binding needs no feature-component edit. The separate typing-dot micro-indicator glow is left intact (it is a functional cue, not the flagged composer ring). D2 (hashtag rail) was queued by the Conductor (item-b1703636 / GH #293), not this unit.
+The Conductor delivered D1 through the control-file steering channel: *"FENCE EXTENSION — apps/web/components/captures/CaptureComposer.tsx. The focused composer's box-shadow stacks a third layer `rgba(34,211,238,0.18) 0 0 12px 0` — a banned glow. Remove ONLY that blur layer; keep the crisp accent focus ring (unified focus-ring law)."*
+
+Root cause: the composer's focus box-shadow comes from the shared **`--ring-focus`** token (the unified focus-ring law — aliased by `--ring-doc`/`--ring-hud`, applied app-wide at the `:focus-visible` rule in `globals.css`). Its third layer was `0 0 12px var(--hud-cyan-glow)` (`--hud-cyan-glow` = `rgb(34 211 238 / 0.18)` = the steer's `rgba(34,211,238,0.18)`).
+
+**Fix (commit `198d785c`):** stripped the glow layer from **both** `--ring-focus` definitions — light (`0 0 10px`) and dark (`0 0 12px`) — keeping the crisp cyan ring (`0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan)`). Verified per the steer by grepping the shadow literal: **0** `hud-cyan-glow` layers remain in either `--ring-focus`. This is a `globals.css`-only change (my sanctioned file) and de-glows the unified focus ring app-wide, consistent with §0's glow-ring ban.
+
+**Correction note:** an earlier commit `f2375678` mis-targeted the `JarvisInput` `hud-focus-breathe` keyframe (a wrong guess before the steering arrived); it was reverted (`f7536cb3`), restoring that keyframe untouched, before the correct `--ring-focus` fix landed.
+
+D2 (hashtag rail vs inline tags) was queued by the Conductor (item-b1703636 / GH #293), not this unit.
