@@ -21,8 +21,8 @@ import { z } from "zod";
  * Per UI-SPEC §5e:
  *   - Input: shadcn <Input> type=email 44px tall, --surface bg, --edge border, serif Body 18,
  *     placeholder "your@email.com" in --ink-muted italic
- *   - Submit button: shadcn <Button> recolored via className to bg-[var(--ink)] text-[var(--canvas)]
- *     hover:bg-[var(--ink-muted)] font-serif text-[18px] font-medium px-6 py-3 rounded-[4px]
+ *   - Submit button: shadcn <Button> recolored via className to bg-[var(--sd-ink)] text-[var(--sd-app)]
+ *     hover:bg-[var(--sd-ink-faint)] text-[18px] font-medium px-6 py-3 rounded-[4px]
  *     LABEL: "Join the waitlist" (verb-noun, title case, no exclamation, no emoji)
  *   - Success swap: 200ms cross-fade per UI-SPEC §6
  *   - Follow-up: serif Caption 14 input "what do you do? (optional)" + mono [submit] Caption 14
@@ -115,25 +115,25 @@ export function WaitlistForm() {
                 placeholder="your@email.com"
                 aria-label="Email address"
                 autoComplete="email"
-                className="h-11 flex-1 bg-[var(--surface)] border-[var(--edge)] font-serif text-[18px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+                className="h-11 flex-1 rounded-[8px] bg-[var(--sd-input)] border-[var(--sd-line)] text-[16px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] placeholder:italic focus-visible:border-[var(--sd-accent)]"
                 {...form.register("email")}
               />
               <Button
                 type="submit"
                 disabled={isPending}
-                className="font-serif text-[18px] font-medium px-6 py-3 rounded-[4px] bg-[var(--ink)] text-[var(--canvas)] hover:bg-[var(--ink-muted)] transition-colors duration-150"
+                className="h-11 rounded-full border-0 px-6 text-[14px] font-semibold bg-[var(--sd-accent)] text-[var(--sd-app)] shadow-none hover:bg-[var(--sd-accent-faint)] transition-colors duration-150"
               >
                 {isPending ? "Submitting..." : "Join the waitlist"}
               </Button>
             </div>
 
             {form.formState.errors.email && (
-              <p className="font-serif italic text-[14px] text-[var(--ink-coral)]">
+              <p className="italic text-[14px] text-[var(--ink-coral)]">
                 {form.formState.errors.email.message}
               </p>
             )}
             {submitError && (
-              <p className="font-serif italic text-[14px] text-[var(--ink-coral)]">{submitError}</p>
+              <p className="italic text-[14px] text-[var(--ink-coral)]">{submitError}</p>
             )}
           </motion.form>
         ) : (
@@ -144,7 +144,7 @@ export function WaitlistForm() {
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
             className="space-y-4"
           >
-            <p className="font-serif italic text-[18px] text-[var(--ink-muted)]">
+            <p className="italic text-[18px] text-[var(--sd-ink-faint)]">
               You&rsquo;re in. I&rsquo;ll write when there&rsquo;s something to log into.
             </p>
             {!followUpSubmitted ? (
@@ -156,19 +156,19 @@ export function WaitlistForm() {
                   type="text"
                   placeholder="what do you do? (optional)"
                   aria-label="What do you do (optional)"
-                  className="h-10 flex-1 bg-[var(--surface)] border-[var(--edge)] font-serif text-[14px] placeholder:text-[var(--ink-muted)] placeholder:italic"
+                  className="h-10 flex-1 rounded-[8px] bg-[var(--sd-input)] border-[var(--sd-line)] text-[14px] text-[var(--sd-ink)] placeholder:text-[var(--sd-ink-faint)] placeholder:italic"
                   {...followUpForm.register("note")}
                 />
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="font-mono text-[14px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors px-2"
+                  className="font-mono text-[14px] font-medium text-[var(--sd-ink-faint)] hover:text-[var(--sd-ink)] transition-colors px-2"
                 >
                   [submit]
                 </button>
               </form>
             ) : (
-              <p className="font-serif italic text-[14px] text-[var(--ink-muted)]">
+              <p className="italic text-[14px] text-[var(--sd-ink-faint)]">
                 Got it. Thanks.
               </p>
             )}
@@ -177,11 +177,11 @@ export function WaitlistForm() {
       </AnimatePresence>
 
       {/* Sign-in escape — D-13 (UI-SPEC §5e: appears under the form area in both states) */}
-      <p className="font-serif text-[14px] text-[var(--ink-muted)]">
+      <p className="text-[14px] text-[var(--sd-ink-faint)]">
         Already have an account?{" "}
         <a
           href="/sign-in"
-          className="underline underline-offset-4 hover:text-[var(--ink)] transition-colors"
+          className="underline underline-offset-4 hover:text-[var(--sd-ink)] transition-colors"
         >
           Sign in →
         </a>
