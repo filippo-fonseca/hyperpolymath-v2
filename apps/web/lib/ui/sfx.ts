@@ -35,7 +35,7 @@ const MASTER_GAIN = 0.07;
 
 type Waveform = "sine" | "triangle";
 
-interface Partial {
+interface CuePartial {
   /** Semitone offset from the tonal center (may be fractional for detune). */
   semitones: number;
   /** Start offset within the cue, ms. */
@@ -62,7 +62,7 @@ export type CueName =
  * which is what the unit test checks (durations, coherence). Each cue's total
  * length is `max(at + dur)` and MUST stay < 180ms.
  */
-export const CUE_SPECS: Record<CueName, Partial[]> = {
+export const CUE_SPECS: Record<CueName, CuePartial[]> = {
   // Folding in — a soft descending perfect fifth.
   sidebarCollapse: [
     { semitones: 7, at: 0, dur: 60, gain: 0.9, wave: "sine" },
