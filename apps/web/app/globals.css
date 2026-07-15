@@ -89,7 +89,7 @@
      existing consumer (buttons, links, role=button, tabindex, inputs) inherits
      the same cyan treatment. Apply the .focus-ring utility to opt new elements
      in without touching globals again. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 10px var(--hud-cyan-glow);
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 
@@ -935,8 +935,10 @@ select,
   --ink-coral: oklch(68% 0.15 25);
   --ink-violet: oklch(68% 0.12 295);
   --ink-blue: oklch(67% 0.12 255);
-  /* Issue #140 — cyan focus identity (dark). See light block for rationale. */
-  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan), 0 0 12px var(--hud-cyan-glow);
+  /* Issue #140 — cyan focus identity (dark). See light block for rationale.
+     sd3 closeout / Tester-r5 D1: the third layer (0 0 12px --hud-cyan-glow) was
+     a banned glow blur; stripped. The crisp cyan ring (canvas gap + accent) stays. */
+  --ring-focus: 0 0 0 2px var(--canvas), 0 0 0 4px var(--hud-cyan);
   --ring-doc: var(--ring-focus);
   --ring-hud: var(--ring-focus);
 }
