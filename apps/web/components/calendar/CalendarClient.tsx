@@ -71,8 +71,11 @@ import { useOptimisticList } from "@/lib/realtime/useOptimisticList";
 import type { GcalEventDTO } from "@/lib/gcal/event-dto";
 import type { GcalCalendarMeta } from "@/lib/gcal/calendars";
 
+import { Plus } from "lucide-react";
+
 import { CalendarGrid, type GcalEvent } from "./CalendarGrid";
 import { CalendarFilters } from "./CalendarFilters";
+import { CalendarIcon } from "./CalendarIcon";
 import { DayWeekToggle } from "./DayWeekToggle";
 import {
   EventDetailPanel,
@@ -737,16 +740,12 @@ export function CalendarClient({
     return handleDelete(panelState.event.id, panelState.event.calendarId);
   }, [panelState, handleDelete]);
 
-  // Phase 6.1 Plan 06.1-05 (UI-SPEC §5g):
-  //   - Outer container on bg --canvas (calendar is document-leaning surface,
-  //     axis 4, per UI-SPEC §2b)
-  //   - "today"column receives an 8% amber wash (rgb(217 119 6 / 0.08) per
-  //     UI-SPEC §3f reserved-for list / §5g) — applied via the .rbc-today
-  //     selector in globals.css (kept as a single source of truth for rbc
-  //     overrides). The literal also appears once here as a comment marker so
-  //     the SUMMARY audit can grep for it across the calendar surface.
-  //   - Event color falls back to --ink-coral when gcal doesn't supply one
-  //     (UI-SPEC §3f).
+  // sd3 register (UI-CONTRACT-SD3 §0/§1):
+  //   - Outer container on the Spacedrive app surface (--sd-app).
+  //   - The grid's today column carries a faint --sd-accent wash + a crisp 1px
+  //     cyan ring (CalendarGrid) rather than the old amber wash.
+  //   - Event chips stay on the sd surface (--sd-input + --sd-line hairline);
+  //     the calendar-source colour only tints the chip's leading dot.
   //
   // Calendar copy register per UI-SPEC §12e:
   //   - "New event" CTA (header)
@@ -754,27 +753,26 @@ export function CalendarClient({
   //   - "Save event" + "Discard changes" + "Delete"button labels (per §12f)
   //   - "Google Calendar disconnected. Reconnect from Settings." (toast above)
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--canvas)]">
-      {/* Arc-redesign page header — serif title + glance subtitle. */}
-      <header className="px-8 pt-10 pb-5 space-y-1.5">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight text-[var(--ink)]">
-          Calendar
-        </h1>
-        <p className="font-serif text-base text-[var(--ink-muted)]">
-          {displayEvents.length} event{displayEvents.length === 1 ? "" : "s"} in view
-        </p>
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--sd-app)]">
+      {/* sd title row — dimensional CalendarIcon + Space Grotesk title + a mono
+          metadata line for the in-view count (matches the LifeOsHero grammar). */}
+      <header className="px-8 pt-10 pb-5">
+        <div className="flex items-center gap-3">
+          <CalendarIcon size={34} aria-hidden />
+          <div className="flex flex-col gap-1">
+            <h1 className="text-[26px] font-semibold leading-none tracking-[-0.01em] text-[var(--sd-ink)]">
+              Calendar<span className="text-[var(--sd-accent)]">.</span>
+            </h1>
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] tabular-nums text-[var(--sd-ink-faint)]">
+              {displayEvents.length} event{displayEvents.length === 1 ? "" : "s"} in view
+            </p>
+          </div>
+        </div>
       </header>
 
-      {/* Toolbar — glassy pill matching the /settings PROFILE pill:
-          translucent surface + backdrop-blur + inset cyan glow + soft outer
-          halo + thin cyan-tinged border on hover. */}
-      <div
-        className={
-          "mx-8 mb-5 flex items-center justify-between gap-4 rounded-xl px-3 py-2 " +
-          "glass-tile " +
-          ""
-        }
-      >
+      {/* Toolbar — sits directly on the canvas (no plate); the view toggle and
+          filter carry their own hairline sd controls. */}
+      <div className="mx-8 mb-5 flex items-center justify-between gap-4">
         <DayWeekToggle
           view={view}
           onChange={setView}
@@ -784,7 +782,8 @@ export function CalendarClient({
         <div className="flex items-center gap-3">
           <CalendarFilters calendars={calendars} />
           {/* "New event" CTA opens the create Sheet at the next round
-              half-hour (parity with the Cmd+K?create=now path). */}
+              half-hour (parity with the Cmd+K?create=now path). Accent-ghost
+              on the sd register — cyan tint + accent hairline, --sd-ink label. */}
           <button
             type="button"
             onClick={() => {
@@ -797,14 +796,15 @@ export function CalendarClient({
                 allDay: false,
               });
             }}
-            className="font-sans text-[13px] text-[var(--ink)] rounded-lg px-3 py-1.5 transition-colors duration-150 ease-out cursor-pointer-always"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--sd-ink)] rounded-[6px] px-3 py-1.5 transition-colors duration-150 ease-out cursor-pointer-always"
             style={{
               backgroundColor:
-                "color-mix(in oklch, var(--hud-cyan) 14%, transparent)",
+                "color-mix(in oklch, var(--sd-accent) 14%, transparent)",
               boxShadow:
-                "inset 0 0 0 1px color-mix(in oklch, var(--hud-cyan) 32%, transparent)",
+                "inset 0 0 0 1px color-mix(in oklch, var(--sd-accent) 34%, transparent)",
             }}
           >
+            <Plus size={15} strokeWidth={2} aria-hidden />
             New event
           </button>
         </div>
