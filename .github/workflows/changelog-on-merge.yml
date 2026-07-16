@@ -1,0 +1,131 @@
+name: changelog on merge to main
+
+# Keeps the changelog honest without anyone remembering to write it.
+#
+# When a PR merges INTO main (production), Claude reads what actually landed
+# and folds it into both halves of the record:
+#   - CHANGELOG.md            (source of truth, engineering detail)
+#   - apps/web/app/changelog/page.tsx  (the public rendering at /changelog)
+# The two must not drift. A release in one and not the other is the bug this
+# workflow exists to prevent.
+#
+# Only merges to main count. Merges into next/feature branches are noise: the
+# changelog records what SHIPPED, not what was staged.
+#
+# REQUIRES the ANTHROPIC_API_KEY repo secret. It is NOT set as of this commit,
+# so this workflow will fail until it is added:
+#   gh secret set ANTHROPIC_API_KEY
+# (The existing claude.yml references the same secret and has the same gap.)
+#
+# The push back to main is a direct commit, not a PR. main is unprotected, so
+# this works; it also means the commit redeploys the site, which is intended
+# since /changelog is part of the site. No loop risk: a push does not raise a
+# `pull_request: closed` event.
+#
+# Escape hatch: label a PR `skip-changelog` and this stays out of the way.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# One at a time. Two concurrent runs would race on the same two files and the
+# loser would clobber the winner.
+concurrency:
+  group: changelog-main
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    # Merged, not merely closed. A PR closed without merging shipped nothing.
+    if: |
+      github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the changelog back to main
+      pull-requests: read # read the merged PR's title, body, and files
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          # Full history: Claude needs the merged commits, not just a snapshot.
+          fetch-depth: 0
+
+      - name: Update changelog from the merged PR
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --allowedTools "Read,Edit,Write,Bash(git *),Bash(gh pr view *),Bash(gh pr diff *)"
+          prompt: |
+            PR #${{ github.event.pull_request.number }} just merged into main:
+            "${{ github.event.pull_request.title }}"
+
+            Record what shipped, in BOTH files. They must stay in sync.
+
+            ## 1. Work out what actually landed
+
+            Read the PR, do not guess from the title alone:
+              gh pr view ${{ github.event.pull_request.number }} --json title,body,commits,files
+              gh pr diff ${{ github.event.pull_request.number }} --name-only
+
+            Judge by user-visible effect. A refactor with no behavior change,
+            a docs-only edit, or a test-only change is NOT a changelog entry.
+            If nothing user-facing shipped, make no edit, write no commit, and
+            say so. A changelog padded with internal churn is worse than one
+            with a gap.
+
+            ## 2. CHANGELOG.md (source of truth)
+
+            Add entries under a release heading for TODAY's date (UTC), in the
+            existing `## YYYY-MM-DD` format. Create that heading if today has
+            no release yet; otherwise extend the existing one. Newest release
+            stays at the top.
+
+            Use the section grammar already in the file, in this order:
+            `### Removed and breaking`, `### Added`, `### Changed`,
+            `### Fixed`, `### Database`. Omit any section with nothing in it.
+
+            Removals and breaking changes ALWAYS lead. A reader who lost a
+            route or a gesture cares about that before anything new.
+
+            If the PR adds a migration under apps/web/drizzle/, list it by
+            filename under `### Database` and say what it does in one line.
+
+            ## 3. apps/web/app/changelog/page.tsx (public rendering)
+
+            Mirror the same release. Follow the file's existing structure:
+            a <Release> per date, <Group> per section, <Entry> per item, with
+            `tone="break"` on the removals/breaking group. Keep entries shorter
+            and plainer than CHANGELOG.md: this one is read by humans who did
+            not write the code. Skip the Database section here, it belongs in
+            the repo record only.
+
+            ## 4. House style, non-negotiable
+
+            - NO em dashes or en dashes. Use commas, semicolons, colons,
+              periods, or parentheses, chosen to fit the grammar.
+            - Never join two independent clauses with a comma.
+            - Plain and declarative. No marketing voice, no exclamation marks.
+            - Say what changed for the user, not which function was edited.
+
+            ## 5. Verify, then commit
+
+            Before committing, confirm you introduced no dashes:
+              grep -n '—\|–' CHANGELOG.md apps/web/app/changelog/page.tsx
+            That must return nothing. Fix any hit.
+
+            Then commit ONLY these two files with explicit paths (never
+            `git add -A`) and push to main:
+
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add CHANGELOG.md apps/web/app/changelog/page.tsx
+              git commit -m "docs(changelog): record #${{ github.event.pull_request.number }}"
+              git push origin main
+
+            If git reports nothing staged, that is a correct outcome for a PR
+            with no user-facing change. Do not force an entry to have something
+            to commit.
