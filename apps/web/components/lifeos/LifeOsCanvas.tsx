@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { AreaIcon, WidgetIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { resetWidgetSpans, useHasCustomSpans } from "./useWidgetSpans";
 
 type View = "widgets" | "areas";
 
@@ -89,7 +90,9 @@ export function LifeOsCanvas({ hero, quickSend, widgets, areas }: Props) {
           >
             Open full view →
           </Link>
-        ) : null}
+        ) : (
+          <ResetLayoutVerb />
+        )}
       </div>
 
       {/* The single swapped region — fixed height, internal scroll only. */}
@@ -112,6 +115,25 @@ const SEGMENTS: { id: View; label: string; icon: React.ReactNode }[] = [
   { id: "widgets", label: "Widgets", icon: <WidgetIcon size={16} /> },
   { id: "areas", label: "Areas", icon: <AreaIcon size={16} /> },
 ];
+
+/**
+ * Reset layout — a ghost mono verb that clears the persisted widget spans back
+ * to the default deck. Only appears once the user has actually resized
+ * something (custom spans present), so the header stays quiet by default.
+ */
+function ResetLayoutVerb() {
+  const hasCustom = useHasCustomSpans();
+  if (!hasCustom) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => resetWidgetSpans()}
+      className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--sd-ink-faint)] transition-colors duration-100 hover:text-[var(--sd-ink)] cursor-pointer-always"
+    >
+      Reset layout
+    </button>
+  );
+}
 
 /**
  * Two-segment sd pill (UI-CONTRACT-SD3 §0 pill grammar). A single sliding
