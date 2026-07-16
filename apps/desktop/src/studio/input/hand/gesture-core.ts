@@ -807,8 +807,9 @@ export function createHandGestureInterpreter(
   // open-hand scroll where a fist is awkward. Targetless; the hub gates it on hover.
   const fourFingerScroll: FourFingerScrollRecognizer =
     createFourFingerScrollRecognizer((e) => callbacks.onPhase(e));
-  // Palm-click: a fist close-then-open within ~600ms. The PRIMARY hand click —
-  // emits a targetless `tap` the hub upgrades from the hovered target, so
+  // Palm-click: a fist close-then-open within ~600ms. The SECONDARY hand click
+  // (the quick-pinch tap above is primary) — emits the SAME targetless `tap`,
+  // which the hub upgrades from the hovered target, so
   // buttons / links / list rows all press through the same pointer synthesis as a
   // pinch-bloom. Replaces the old index-jab tap: closing the whole hand is
   // orthogonal to the index-fingertip cursor steering, so clicking never drags
@@ -1082,9 +1083,18 @@ export function createHandGestureInterpreter(
 
     // Four-finger-curl scroll (SECONDARY): an open palm whose fingers curl/uncurl
     // together drives the scroll. Reuses the same smoothed openness signal as
-    // resize; the two separate by dynamics — a fast curl trips scroll's velocity
-    // deadband before resize's 300ms arm dwell completes, while a slow, steady
-    // open-hand hold arms a resize without ever crossing scroll's velocity gate.
+    // resize.
+    //
+    // KNOWN CONFLICT (see GESTURES.md § Arbitration map): the two are NOT
+    // mutually exclusive. Resize's arm dwell (`armMs`, 220ms) completes while the
+    // hand is still held open, BEFORE the curl starts — so by the time a curl
+    // trips this scroll's velocity deadband, resize is already armed and the same
+    // curl carries openness past its deadband. Both then emit on one motion, on
+    // one target. The scroll band [palmClickOpennessThreshold, scrollArmOpennessCeil)
+    // sits entirely ABOVE resize's closed-band floor, so `resizeEngageAllowed`
+    // never disarms resize here. Left as-is deliberately: which gesture should win
+    // a curl over a widget is a feel call, not a defect to silently retune.
+    //
     // The scroll-curl dwell gate (createScrollCurlGate) sits in front of engage:
     // scroll arms only after ~250ms of a sustained curl that never fully closes,
     // so the fast close of a palm-click never leaks a scroll delta. Targetless;

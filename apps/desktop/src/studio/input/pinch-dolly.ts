@@ -33,7 +33,8 @@
  *    fire a spurious dolly lurch on the way out. This replaces pinch-zoom's thumb-gap
  *    `offRatio` freeze, which has no palm-size analog.
  *
- * DOM-free and framework-free, so it is unit-tested with synthetic size streams.
+ * DOM-free and framework-free, so it is unit-tested with synthetic size streams
+ * (`pinch-dolly.test.ts`).
  */
 
 import { clampAbs } from "./clamp";
