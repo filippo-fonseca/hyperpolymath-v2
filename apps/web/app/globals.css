@@ -1896,3 +1896,65 @@ select:focus-visible,
 .receipt-chip svg {
   color: var(--chip-ink);
 }
+
+/* --- LifeOS widget resize (UI-CONTRACT-SD3 §2) ----------------------- */
+/* Bottom-right drag handle: a ghost sd affordance that only reveals on a
+   fine pointer, on cell hover / focus. Snaps the widget between grid spans;
+   never a glow, never a scale. Hidden below @3xl where the deck is a single
+   column and resize is meaningless. */
+.lifeos-resize-handle {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 20;
+  display: none;
+  width: 18px;
+  height: 18px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 2px 1px 0;
+  border-radius: 5px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--sd-ink-faint);
+  background: transparent;
+  opacity: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease;
+}
+@media (pointer: fine) {
+  @container main (min-width: 48rem) {
+    .lifeos-resize-handle {
+      display: flex;
+    }
+  }
+}
+.group\/cell:hover .lifeos-resize-handle,
+.lifeos-resize-handle:focus-visible {
+  opacity: 1;
+}
+.lifeos-resize-handle:hover,
+.lifeos-resize-handle:focus-visible {
+  color: var(--sd-ink);
+}
+.lifeos-resize-handle:focus-visible {
+  outline: 1px solid var(--sd-accent);
+  outline-offset: 1px;
+}
+
+/* Live drag projection: a 1px cyan dashed outline over the span the pointer
+   currently maps to. Extends past the cell into the cells it would claim.
+   No fill wash, no blur — just the dashed edge. */
+.lifeos-resize-projection {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  pointer-events: none;
+  border: 1px dashed var(--sd-accent);
+  border-radius: 14px;
+}
