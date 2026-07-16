@@ -43,7 +43,7 @@ export function PersonCard({ person, onOpen }: Props) {
           {person.tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center rounded border border-[var(--sd-line)] bg-[var(--sd-input)] px-1.5 py-[1px] text-tiny font-medium tracking-wide text-[var(--sd-ink-dull)]"
+              className="inline-flex h-[20px] items-center rounded-[6px] border border-[var(--sd-line)] px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--sd-ink-dull)]"
             >
               {tag}
             </span>
